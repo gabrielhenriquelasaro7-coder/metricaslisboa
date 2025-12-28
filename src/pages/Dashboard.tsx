@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
@@ -7,7 +7,7 @@ import PeriodComparison from '@/components/dashboard/PeriodComparison';
 import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { DateRange } from 'react-day-picker';
-import { subDays, differenceInDays } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 import { 
   DollarSign, 
   MousePointerClick, 
@@ -27,13 +27,15 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 
 export default function Dashboard() {
   const { projects, loading: projectsLoading } = useProjects();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 30),
-    to: new Date(),
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_30_days');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const period = getDateRangeFromPreset('last_30_days', 'America/Sao_Paulo');
+    return period ? datePeriodToDateRange(period) : undefined;
   });
   const [showComparison, setShowComparison] = useState(true);
 
@@ -52,9 +54,15 @@ export default function Dashboard() {
   // Determine business model - only show specific metrics when a project is selected
   const hasSelectedProject = selectedProjectId !== 'all' && selectedProject !== null;
   const businessModel = selectedProject?.business_model;
+  const projectTimezone = selectedProject?.timezone || 'America/Sao_Paulo';
   const isEcommerce = hasSelectedProject && businessModel === 'ecommerce';
   const isInsideSales = hasSelectedProject && businessModel === 'inside_sales';
   const isPdv = hasSelectedProject && businessModel === 'pdv';
+
+  // Handle preset change - recalculate dates with project timezone
+  const handlePresetChange = useCallback((preset: DatePresetKey) => {
+    setSelectedPreset(preset);
+  }, []);
 
   // Calculate aggregated metrics from campaigns
   const { campaigns, loading: dataLoading } = useMetaAdsData();
@@ -184,7 +192,12 @@ export default function Dashboard() {
               </Select>
             )}
             
-            <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
+            <DateRangePicker 
+              dateRange={dateRange} 
+              onDateRangeChange={setDateRange}
+              timezone={projectTimezone}
+              onPresetChange={handlePresetChange}
+            />
           </div>
         </div>
 
