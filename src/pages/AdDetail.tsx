@@ -298,14 +298,54 @@ export default function AdDetail() {
           <div className="lg:col-span-2 space-y-6">
             {/* Main Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <MetricCard title="Gasto" value={formatCurrency(ad.spend)} icon={DollarSign} />
-              <MetricCard title="Alcance" value={formatNumber(ad.reach)} icon={Users} />
-              <MetricCard title="Impressões" value={formatNumber(ad.impressions)} icon={Eye} />
-              <MetricCard title="Cliques" value={formatNumber(ad.clicks)} icon={MousePointerClick} />
-              <MetricCard title="CTR" value={`${ad.ctr.toFixed(2)}%`} icon={Percent} />
-              <MetricCard title="CPM" value={formatCurrency(ad.cpm)} icon={BarChart3} />
-              <MetricCard title="CPC" value={formatCurrency(ad.cpc)} icon={Target} />
-              <MetricCard title="Frequência" value={ad.frequency.toFixed(1)} icon={Zap} />
+              <MetricCard 
+                title="Gasto" 
+                value={formatCurrency(ad.spend)} 
+                icon={DollarSign} 
+                tooltip="Total investido neste anúncio"
+              />
+              <MetricCard 
+                title="Alcance" 
+                value={formatNumber(ad.reach)} 
+                icon={Users} 
+                tooltip="Número de pessoas únicas que viram este anúncio"
+              />
+              <MetricCard 
+                title="Impressões" 
+                value={formatNumber(ad.impressions)} 
+                icon={Eye} 
+                tooltip="Número total de vezes que este anúncio foi exibido"
+              />
+              <MetricCard 
+                title="Cliques" 
+                value={formatNumber(ad.clicks)} 
+                icon={MousePointerClick} 
+                tooltip="Total de cliques neste anúncio"
+              />
+              <MetricCard 
+                title="CTR" 
+                value={`${ad.ctr.toFixed(2)}%`} 
+                icon={Percent} 
+                tooltip="Click-Through Rate: Taxa de cliques (Cliques ÷ Impressões × 100)"
+              />
+              <MetricCard 
+                title="CPM" 
+                value={formatCurrency(ad.cpm)} 
+                icon={BarChart3} 
+                tooltip="Custo por Mil: Custo para cada 1.000 impressões"
+              />
+              <MetricCard 
+                title="CPC" 
+                value={formatCurrency(ad.cpc)} 
+                icon={Target} 
+                tooltip="Custo Por Clique: Valor médio pago por cada clique"
+              />
+              <MetricCard 
+                title="Frequência" 
+                value={ad.frequency.toFixed(1)} 
+                icon={Zap} 
+                tooltip="Número médio de vezes que cada pessoa viu este anúncio"
+              />
             </div>
 
             {/* Business Model Specific Metrics */}
