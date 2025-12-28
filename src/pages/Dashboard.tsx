@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
@@ -38,11 +38,9 @@ export default function Dashboard() {
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [showComparison, setShowComparison] = useState(true);
-  const isInitialMount = useRef(true);
-  const lastSyncedRange = useRef<string | null>(null);
 
   // Get campaigns and selected project from hook (uses localStorage)
-  const { campaigns, loading: dataLoading, syncing, syncData, selectedProject } = useMetaAdsData();
+  const { campaigns, loading: dataLoading, syncing, syncData, loadDataFromDatabase, selectedProject } = useMetaAdsData();
 
   // Get active (non-archived) projects
   const activeProjects = useMemo(() => 
@@ -58,34 +56,12 @@ export default function Dashboard() {
   const isInsideSales = hasSelectedProject && businessModel === 'inside_sales';
   const isPdv = hasSelectedProject && businessModel === 'pdv';
 
-  // Auto-sync when date range changes
+  // Load data from database when project changes - NO API calls
   useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to) return;
-    
-    const rangeKey = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
-    
-    // Skip if already synced this range or if syncing
-    if (lastSyncedRange.current === rangeKey || syncing) return;
-    
-    // Skip initial mount - don't auto-sync on first load
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      // Do initial sync
-      lastSyncedRange.current = rangeKey;
-      syncData({
-        since: dateRange.from.toISOString().split('T')[0],
-        until: dateRange.to.toISOString().split('T')[0]
-      });
-      return;
+    if (selectedProject) {
+      loadDataFromDatabase();
     }
-    
-    // Auto-sync when range changes
-    lastSyncedRange.current = rangeKey;
-    syncData({
-      since: dateRange.from.toISOString().split('T')[0],
-      until: dateRange.to.toISOString().split('T')[0]
-    });
-  }, [dateRange, selectedProject, syncData, syncing]);
+  }, [selectedProject, loadDataFromDatabase]);
 
   // Handle preset change - recalculate dates with project timezone
   const handlePresetChange = useCallback((preset: DatePresetKey) => {

@@ -236,6 +236,38 @@ export function useMetaAdsData() {
     }
   }, [selectedProject]);
 
+  // Load data from local database - NO API calls, instant loading
+  const loadDataFromDatabase = useCallback(async () => {
+    if (!selectedProject) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const [campaignsResult, adSetsResult, adsResult] = await Promise.all([
+        supabase.from('campaigns').select('*')
+          .eq('project_id', selectedProject.id)
+          .order('spend', { ascending: false }),
+        supabase.from('ad_sets').select('*')
+          .eq('project_id', selectedProject.id)
+          .order('spend', { ascending: false }),
+        supabase.from('ads').select('*')
+          .eq('project_id', selectedProject.id)
+          .order('spend', { ascending: false }),
+      ]);
+      
+      setCampaigns((campaignsResult.data as Campaign[]) || []);
+      setAdSets((adSetsResult.data as AdSet[]) || []);
+      setAds((adsResult.data as Ad[]) || []);
+    } catch (error) {
+      console.error('Error loading from database:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedProject]);
+
+  // Sync with Meta API - ONLY for manual/emergency use
   const syncData = useCallback(async (timeRange?: { since: string; until: string }, forceSync: boolean = false) => {
     if (!selectedProject) {
       toast.error('Nenhum projeto selecionado');
@@ -332,18 +364,10 @@ export function useMetaAdsData() {
     }
   }, [selectedProject]);
 
+  // Initial load from database when project changes
   useEffect(() => {
-    const loadData = async () => {
-      if (!selectedProject) {
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      await Promise.all([fetchCampaigns(), fetchAdSets(), fetchAds()]);
-      setLoading(false);
-    };
-    loadData();
-  }, [selectedProject, fetchCampaigns, fetchAdSets, fetchAds]);
+    loadDataFromDatabase();
+  }, [loadDataFromDatabase]);
 
   return {
     campaigns,
@@ -354,6 +378,7 @@ export function useMetaAdsData() {
     selectedProject,
     projectsLoading,
     syncData,
+    loadDataFromDatabase,
     fetchCampaigns,
     fetchAdSets,
     fetchAds,
