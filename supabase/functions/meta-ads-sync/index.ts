@@ -25,6 +25,11 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
+// Helper to add delay
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -69,20 +74,12 @@ Deno.serve(async (req) => {
 
     const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
 
-    // STEP 1: Fetch ALL data in PARALLEL (faster)
-    console.log('[STEP 1] Fetching campaigns, adsets, and ads in parallel...');
+    // STEP 1: Fetch ALL data SEQUENTIALLY to avoid rate limits
+    console.log('[STEP 1] Fetching campaigns, adsets, and ads sequentially...');
     
-    const [campaignsRes, adSetsRes, adsRes] = await Promise.all([
-      fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time&limit=500&access_token=${token}`),
-      fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting&limit=500&access_token=${token}`),
-      fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,title,body,call_to_action_type,image_url}&limit=500&access_token=${token}`)
-    ]);
-
-    const [campaignsData, adSetsData, adsData] = await Promise.all([
-      campaignsRes.json(),
-      adSetsRes.json(),
-      adsRes.json()
-    ]);
+    // Fetch campaigns first
+    const campaignsRes = await fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time&limit=500&access_token=${token}`);
+    const campaignsData = await campaignsRes.json();
     
     if (campaignsData.error) {
       console.error('[ERROR] Campaigns fetch failed:', campaignsData.error);
@@ -94,16 +91,47 @@ Deno.serve(async (req) => {
     }
     
     const campaigns = campaignsData.data || [];
-    const adSets = adSetsData.error ? [] : (adSetsData.data || []);
-    const ads = adsData.error ? [] : (adsData.data || []);
-
-    if (adSetsData.error) console.log('[WARN] AdSets fetch failed, continuing without ad sets');
-    if (adsData.error) console.log('[WARN] Ads fetch failed, continuing without ads');
+    console.log(`[CAMPAIGNS] Found ${campaigns.length}`);
+    
+    // Add delay before fetching ad sets to avoid rate limits
+    await delay(1000);
+    
+    // Fetch ad sets
+    const adSetsRes = await fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting&limit=500&access_token=${token}`);
+    const adSetsData = await adSetsRes.json();
+    
+    let adSets: any[] = [];
+    let adSetsError = false;
+    if (adSetsData.error) {
+      console.error('[ERROR] AdSets fetch failed:', adSetsData.error);
+      adSetsError = true;
+      // Try to continue, but we'll need to handle missing ad sets
+    } else {
+      adSets = adSetsData.data || [];
+    }
+    console.log(`[AD SETS] Found ${adSets.length}`);
+    
+    // Add delay before fetching ads
+    await delay(1000);
+    
+    // Fetch ads
+    const adsRes = await fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,title,body,call_to_action_type,image_url}&limit=500&access_token=${token}`);
+    const adsData = await adsRes.json();
+    
+    let ads: any[] = [];
+    let adsError = false;
+    if (adsData.error) {
+      console.error('[ERROR] Ads fetch failed:', adsData.error);
+      adsError = true;
+    } else {
+      ads = adsData.data || [];
+    }
+    console.log(`[ADS] Found ${ads.length}`);
 
     console.log(`[STEP 1 DONE] Found ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads`);
 
-    // STEP 2: Use Meta Batch API for insights (50 requests per batch = much faster)
-    console.log('[STEP 2] Fetching insights using Batch API...');
+    // STEP 2: Fetch insights for all entities
+    console.log('[STEP 2] Fetching insights...');
 
     // Helper to extract conversions
     const extractConversions = (insights: any) => {
@@ -141,63 +169,49 @@ Deno.serve(async (req) => {
       return { conversions, conversionValue };
     };
 
-    // Batch API helper - processes up to 50 requests at once
-    async function fetchInsightsBatch(ids: string[], entityType: string): Promise<Map<string, any>> {
+    // Fetch insights in small batches with delays
+    const fetchInsightsForEntities = async (entities: any[], entityType: string): Promise<Map<string, any>> => {
       const insightsMap = new Map<string, any>();
+      const batches = chunk(entities, 5); // Small batches
       
-      // Split into chunks of 50 (Meta batch limit)
-      const batches = chunk(ids, 50);
-      
-      for (const batchIds of batches) {
-        const batchRequests = batchIds.map((id, index) => ({
-          method: 'GET',
-          relative_url: `${id}/insights?fields=${insightsFields}&${timeParam}`,
-        }));
-        
-        try {
-          const batchRes = await fetch(`https://graph.facebook.com/v19.0/?access_token=${token}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ batch: batchRequests }),
-          });
-          
-          const batchData = await batchRes.json();
-          
-          if (Array.isArray(batchData)) {
-            batchData.forEach((response: any, index: number) => {
-              const id = batchIds[index];
-              try {
-                if (response.code === 200) {
-                  const body = JSON.parse(response.body);
-                  insightsMap.set(id, body.data?.[0] || null);
-                } else {
-                  insightsMap.set(id, null);
-                }
-              } catch {
-                insightsMap.set(id, null);
-              }
-            });
-          }
-        } catch (error) {
-          console.error(`[BATCH ERROR] ${entityType}:`, error);
-          batchIds.forEach(id => insightsMap.set(id, null));
-        }
+      for (const batch of batches) {
+        const results = await Promise.all(
+          batch.map(async (entity: any) => {
+            try {
+              const res = await fetch(`https://graph.facebook.com/v19.0/${entity.id}/insights?fields=${insightsFields}&${timeParam}&access_token=${token}`);
+              const data = await res.json();
+              return { id: entity.id, insights: data.data?.[0] || null };
+            } catch {
+              return { id: entity.id, insights: null };
+            }
+          })
+        );
+        results.forEach(r => insightsMap.set(r.id, r.insights));
+        await delay(200); // Small delay between batches
       }
       
       return insightsMap;
-    }
+    };
 
-    // Fetch all insights in parallel using batch API
-    const [campaignInsightsMap, adSetInsightsMap, adInsightsMap] = await Promise.all([
-      fetchInsightsBatch(campaigns.map((c: any) => c.id), 'campaigns'),
-      adSets.length > 0 ? fetchInsightsBatch(adSets.map((as: any) => as.id), 'adsets') : Promise.resolve(new Map()),
-      ads.length > 0 ? fetchInsightsBatch(ads.map((ad: any) => ad.id), 'ads') : Promise.resolve(new Map()),
+    // Fetch all insights
+    const campaignInsightsMap = await fetchInsightsForEntities(campaigns, 'campaigns');
+    const adSetInsightsMap = adSets.length > 0 ? await fetchInsightsForEntities(adSets, 'adsets') : new Map();
+    const adInsightsMap = ads.length > 0 ? await fetchInsightsForEntities(ads, 'ads') : new Map();
+
+    console.log('[STEP 2 DONE] All insights fetched');
+
+    // STEP 3: DELETE OLD DATA AND UPSERT NEW DATA
+    // This ensures we only show data for the current sync period
+    console.log('[STEP 3] Clearing old data and upserting new data...');
+
+    // Delete all existing data for this project BEFORE inserting new data
+    // This ensures metrics are always for the selected period
+    await Promise.all([
+      supabase.from('campaigns').delete().eq('project_id', project_id),
+      supabase.from('ad_sets').delete().eq('project_id', project_id),
+      supabase.from('ads').delete().eq('project_id', project_id),
     ]);
-
-    console.log('[STEP 2 DONE] All insights fetched via Batch API');
-
-    // STEP 3: Prepare and upsert all data
-    console.log('[STEP 3] Upserting data to database...');
+    console.log('[STEP 3] Old data deleted');
 
     // Prepare campaign data
     const campaignRecords = campaigns.map((c: any) => {
@@ -294,12 +308,18 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Upsert all in parallel
-    await Promise.all([
-      campaignRecords.length > 0 ? supabase.from('campaigns').upsert(campaignRecords, { onConflict: 'id' }) : Promise.resolve(),
-      adSetRecords.length > 0 ? supabase.from('ad_sets').upsert(adSetRecords, { onConflict: 'id' }) : Promise.resolve(),
-      adRecords.length > 0 ? supabase.from('ads').upsert(adRecords, { onConflict: 'id' }) : Promise.resolve(),
+    // Insert all new data
+    const insertResults = await Promise.all([
+      campaignRecords.length > 0 ? supabase.from('campaigns').insert(campaignRecords) : Promise.resolve({ error: null }),
+      adSetRecords.length > 0 ? supabase.from('ad_sets').insert(adSetRecords) : Promise.resolve({ error: null }),
+      adRecords.length > 0 ? supabase.from('ads').insert(adRecords) : Promise.resolve({ error: null }),
     ]);
+
+    // Check for insert errors
+    const insertErrors = insertResults.filter(r => r.error);
+    if (insertErrors.length > 0) {
+      console.error('[INSERT ERRORS]', insertErrors.map(e => e.error));
+    }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[SYNC COMPLETE] ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads in ${elapsed}s`);
@@ -313,8 +333,13 @@ Deno.serve(async (req) => {
     await supabase.from('sync_logs').insert({
       project_id,
       status: 'success',
-      message: `Sync rápido: ${campaigns.length} campanhas, ${adSets.length} conjuntos, ${ads.length} anúncios em ${elapsed}s`,
+      message: `Sync: ${campaigns.length} campanhas, ${adSets.length} conjuntos, ${ads.length} anúncios em ${elapsed}s`,
     });
+
+    // Return warning if ad sets couldn't be fetched
+    const warnings = [];
+    if (adSetsError) warnings.push('Ad sets could not be fetched due to API rate limits');
+    if (adsError) warnings.push('Ads could not be fetched due to API rate limits');
 
     return new Response(
       JSON.stringify({
@@ -325,6 +350,7 @@ Deno.serve(async (req) => {
           ads_count: ads.length,
           elapsed_seconds: parseFloat(elapsed),
           synced_at: new Date().toISOString(),
+          warnings: warnings.length > 0 ? warnings : undefined,
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
