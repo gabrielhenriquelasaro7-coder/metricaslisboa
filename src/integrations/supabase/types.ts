@@ -118,6 +118,7 @@ export type Database = {
           creative_id: string | null
           creative_image_url: string | null
           creative_thumbnail: string | null
+          creative_video_url: string | null
           cta: string | null
           ctr: number | null
           frequency: number | null
@@ -146,6 +147,7 @@ export type Database = {
           creative_id?: string | null
           creative_image_url?: string | null
           creative_thumbnail?: string | null
+          creative_video_url?: string | null
           cta?: string | null
           ctr?: number | null
           frequency?: number | null
@@ -174,6 +176,7 @@ export type Database = {
           creative_id?: string | null
           creative_image_url?: string | null
           creative_thumbnail?: string | null
+          creative_video_url?: string | null
           cta?: string | null
           ctr?: number | null
           frequency?: number | null

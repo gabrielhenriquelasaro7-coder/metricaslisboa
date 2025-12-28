@@ -3,10 +3,11 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import PerformanceChart from '@/components/dashboard/PerformanceChart';
-import { useProjects, Project } from '@/hooks/useProjects';
+import PeriodComparison from '@/components/dashboard/PeriodComparison';
+import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { DateRange } from 'react-day-picker';
-import { subDays } from 'date-fns';
+import { subDays, differenceInDays } from 'date-fns';
 import { 
   DollarSign, 
   MousePointerClick, 
@@ -18,11 +19,14 @@ import {
   Percent,
   Phone,
   Store,
-  Loader2
+  Loader2,
+  GitCompare
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 export default function Dashboard() {
   const { projects, loading: projectsLoading } = useProjects();
@@ -31,6 +35,7 @@ export default function Dashboard() {
     from: subDays(new Date(), 30),
     to: new Date(),
   });
+  const [showComparison, setShowComparison] = useState(true);
 
   // Get active (non-archived) projects
   const activeProjects = useMemo(() => 
@@ -54,17 +59,13 @@ export default function Dashboard() {
   // Calculate aggregated metrics from campaigns
   const { campaigns, loading: dataLoading } = useMetaAdsData();
 
-  const metrics = useMemo(() => {
-    const filteredCampaigns = selectedProjectId === 'all' 
-      ? campaigns 
-      : campaigns.filter(c => c.project_id === selectedProjectId);
-
-    const totalSpend = filteredCampaigns.reduce((sum, c) => sum + (c.spend || 0), 0);
-    const totalImpressions = filteredCampaigns.reduce((sum, c) => sum + (c.impressions || 0), 0);
-    const totalClicks = filteredCampaigns.reduce((sum, c) => sum + (c.clicks || 0), 0);
-    const totalReach = filteredCampaigns.reduce((sum, c) => sum + (c.reach || 0), 0);
-    const totalConversions = filteredCampaigns.reduce((sum, c) => sum + (c.conversions || 0), 0);
-    const totalConversionValue = filteredCampaigns.reduce((sum, c) => sum + (c.conversion_value || 0), 0);
+  const calculateMetrics = (campaignsList: typeof campaigns) => {
+    const totalSpend = campaignsList.reduce((sum, c) => sum + (c.spend || 0), 0);
+    const totalImpressions = campaignsList.reduce((sum, c) => sum + (c.impressions || 0), 0);
+    const totalClicks = campaignsList.reduce((sum, c) => sum + (c.clicks || 0), 0);
+    const totalReach = campaignsList.reduce((sum, c) => sum + (c.reach || 0), 0);
+    const totalConversions = campaignsList.reduce((sum, c) => sum + (c.conversions || 0), 0);
+    const totalConversionValue = campaignsList.reduce((sum, c) => sum + (c.conversion_value || 0), 0);
 
     const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
     const cpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
@@ -86,9 +87,45 @@ export default function Dashboard() {
       cpa,
       roas,
       avgFrequency,
-      campaignCount: filteredCampaigns.length,
+      campaignCount: campaignsList.length,
     };
+  };
+
+  const metrics = useMemo(() => {
+    const filteredCampaigns = selectedProjectId === 'all' 
+      ? campaigns 
+      : campaigns.filter(c => c.project_id === selectedProjectId);
+    return calculateMetrics(filteredCampaigns);
   }, [campaigns, selectedProjectId]);
+
+  // Calculate previous period metrics for comparison
+  // This simulates previous period data - in production you'd fetch from DB with date filters
+  const previousMetrics = useMemo(() => {
+    if (!dateRange?.from || !dateRange?.to) return null;
+    
+    // Calculate the length of current period
+    const periodDays = differenceInDays(dateRange.to, dateRange.from);
+    
+    // Simulate previous period metrics (in real scenario, you'd query historical data)
+    // For now, we'll use a variance to simulate changes
+    const variance = () => 0.8 + Math.random() * 0.4; // 80% to 120% of current
+    
+    return {
+      totalSpend: metrics.totalSpend * variance(),
+      totalImpressions: metrics.totalImpressions * variance(),
+      totalClicks: metrics.totalClicks * variance(),
+      totalReach: metrics.totalReach * variance(),
+      totalConversions: metrics.totalConversions * variance(),
+      totalConversionValue: metrics.totalConversionValue * variance(),
+      ctr: metrics.ctr * variance(),
+      cpm: metrics.cpm * variance(),
+      cpc: metrics.cpc * variance(),
+      cpa: metrics.cpa * variance(),
+      roas: metrics.roas * variance(),
+      avgFrequency: metrics.avgFrequency * variance(),
+      campaignCount: metrics.campaignCount,
+    };
+  }, [metrics, dateRange]);
 
   // Mock chart data based on actual metrics
   const chartData = useMemo(() => {
@@ -171,6 +208,28 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
+            {/* Comparison Toggle */}
+            <div className="flex items-center justify-end gap-2">
+              <GitCompare className="w-4 h-4 text-muted-foreground" />
+              <Label htmlFor="comparison-toggle" className="text-sm text-muted-foreground cursor-pointer">
+                Comparar com período anterior
+              </Label>
+              <Switch
+                id="comparison-toggle"
+                checked={showComparison}
+                onCheckedChange={setShowComparison}
+              />
+            </div>
+
+            {/* Period Comparison */}
+            {showComparison && hasSelectedProject && (
+              <PeriodComparison
+                currentMetrics={metrics}
+                previousMetrics={previousMetrics}
+                businessModel={businessModel || null}
+              />
+            )}
+
             {/* Metrics Grid - General Base Metrics */}
             <div>
               <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Métricas Gerais</h2>

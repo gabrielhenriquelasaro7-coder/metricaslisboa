@@ -94,56 +94,89 @@ Deno.serve(async (req) => {
     const campaigns = campaignsData.data || [];
     console.log(`Found ${campaigns.length} campaigns`);
 
-    // Helper function to fetch high-res creative image
-    async function fetchCreativeImage(creativeId: string): Promise<string | null> {
-      if (!creativeId) return null;
+    // Helper function to fetch high-res creative image and video
+    async function fetchCreativeMedia(creativeId: string): Promise<{ imageUrl: string | null; videoUrl: string | null }> {
+      if (!creativeId) return { imageUrl: null, videoUrl: null };
       
       try {
-        // Request image_url which is the full resolution image
-        const creativeUrl = `https://graph.facebook.com/v19.0/${creativeId}?fields=image_url,object_story_spec,effective_object_story_id&access_token=${token}`;
+        // Request image_url, video_id and object_story_spec for full resolution media
+        const creativeUrl = `https://graph.facebook.com/v19.0/${creativeId}?fields=image_url,video_id,object_story_spec,effective_object_story_id&access_token=${token}`;
         const creativeResponse = await fetch(creativeUrl);
         const creativeData = await creativeResponse.json();
         
         if (creativeData.error) {
           console.log(`Could not fetch creative ${creativeId}:`, creativeData.error.message);
-          return null;
+          return { imageUrl: null, videoUrl: null };
+        }
+        
+        let imageUrl: string | null = null;
+        let videoUrl: string | null = null;
+        
+        // Try to get video URL if video_id exists
+        if (creativeData.video_id) {
+          try {
+            const videoApiUrl = `https://graph.facebook.com/v19.0/${creativeData.video_id}?fields=source&access_token=${token}`;
+            const videoResponse = await fetch(videoApiUrl);
+            const videoData = await videoResponse.json();
+            if (videoData.source) {
+              videoUrl = videoData.source;
+              console.log(`Got video source for creative ${creativeId}`);
+            }
+          } catch (e) {
+            console.log(`Could not fetch video for creative ${creativeId}`);
+          }
         }
         
         // Try to get image_url first (direct image)
         if (creativeData.image_url) {
           console.log(`Got image_url for creative ${creativeId}`);
-          return creativeData.image_url;
+          imageUrl = creativeData.image_url;
         }
         
         // Try to get from object_story_spec (for video/carousel ads)
-        if (creativeData.object_story_spec) {
+        if (!imageUrl && creativeData.object_story_spec) {
           const spec = creativeData.object_story_spec;
           
           // Check for link_data (single image ads)
           if (spec.link_data?.image_url) {
             console.log(`Got link_data.image_url for creative ${creativeId}`);
-            return spec.link_data.image_url;
-          }
-          if (spec.link_data?.picture) {
+            imageUrl = spec.link_data.image_url;
+          } else if (spec.link_data?.picture) {
             console.log(`Got link_data.picture for creative ${creativeId}`);
-            return spec.link_data.picture;
+            imageUrl = spec.link_data.picture;
           }
           
           // Check for photo_data (photo posts)
-          if (spec.photo_data?.image_url) {
+          if (!imageUrl && spec.photo_data?.image_url) {
             console.log(`Got photo_data.image_url for creative ${creativeId}`);
-            return spec.photo_data.image_url;
+            imageUrl = spec.photo_data.image_url;
           }
           
-          // Check for video_data (video posts with thumbnail)
-          if (spec.video_data?.image_url) {
-            console.log(`Got video_data.image_url for creative ${creativeId}`);
-            return spec.video_data.image_url;
+          // Check for video_data (video posts with thumbnail and video source)
+          if (spec.video_data) {
+            if (!imageUrl && spec.video_data.image_url) {
+              console.log(`Got video_data.image_url for creative ${creativeId}`);
+              imageUrl = spec.video_data.image_url;
+            }
+            // Try to get video source from video_data
+            if (!videoUrl && spec.video_data.video_id) {
+              try {
+                const videoApiUrl = `https://graph.facebook.com/v19.0/${spec.video_data.video_id}?fields=source&access_token=${token}`;
+                const videoResponse = await fetch(videoApiUrl);
+                const videoData = await videoResponse.json();
+                if (videoData.source) {
+                  videoUrl = videoData.source;
+                  console.log(`Got video source from video_data for creative ${creativeId}`);
+                }
+              } catch (e) {
+                console.log(`Could not fetch video from video_data for creative ${creativeId}`);
+              }
+            }
           }
         }
         
         // Try to get from effective_object_story_id (actual post)
-        if (creativeData.effective_object_story_id) {
+        if (!imageUrl && creativeData.effective_object_story_id) {
           try {
             const postUrl = `https://graph.facebook.com/v19.0/${creativeData.effective_object_story_id}?fields=full_picture&access_token=${token}`;
             const postResponse = await fetch(postUrl);
@@ -151,17 +184,17 @@ Deno.serve(async (req) => {
             
             if (postData.full_picture) {
               console.log(`Got full_picture from post for creative ${creativeId}`);
-              return postData.full_picture;
+              imageUrl = postData.full_picture;
             }
           } catch (e) {
             console.log(`Could not fetch post for creative ${creativeId}`);
           }
         }
         
-        return null;
+        return { imageUrl, videoUrl };
       } catch (e) {
-        console.error(`Error fetching creative image for ${creativeId}:`, e);
-        return null;
+        console.error(`Error fetching creative media for ${creativeId}:`, e);
+        return { imageUrl: null, videoUrl: null };
       }
     }
 
@@ -323,10 +356,13 @@ Deno.serve(async (req) => {
               const adRoas = adSpend > 0 ? adConversionValue / adSpend : 0;
               const adCpa = adConversions > 0 ? adSpend / adConversions : 0;
 
-              // Fetch high-res creative image
+              // Fetch high-res creative image and video
               let creativeImageUrl: string | null = null;
+              let creativeVideoUrl: string | null = null;
               if (ad.creative?.id) {
-                creativeImageUrl = await fetchCreativeImage(ad.creative.id);
+                const media = await fetchCreativeMedia(ad.creative.id);
+                creativeImageUrl = media.imageUrl;
+                creativeVideoUrl = media.videoUrl;
               }
 
               const adData = {
@@ -339,6 +375,7 @@ Deno.serve(async (req) => {
                 creative_id: ad.creative?.id,
                 creative_thumbnail: ad.creative?.thumbnail_url,
                 creative_image_url: creativeImageUrl,
+                creative_video_url: creativeVideoUrl,
                 headline: ad.creative?.title,
                 primary_text: ad.creative?.body,
                 cta: ad.creative?.call_to_action_type,
