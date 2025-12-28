@@ -30,28 +30,32 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Fetch with single retry for rate limits
-async function fetchWithRetry(url: string): Promise<any> {
-  const res = await fetch(url);
-  const data = await res.json();
-  
-  // Check for rate limit error (code 17) - wait and retry once
-  if (data.error && data.error.code === 17) {
-    console.log('[RATE LIMIT] Waiting 5s before single retry...');
-    await delay(5000);
-    const retryRes = await fetch(url);
-    return await retryRes.json();
+// Fetch with retry for rate limits and payload errors
+async function fetchWithRetry(url: string, retries = 2): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    // Check for rate limit error (code 17)
+    if (data.error && data.error.code === 17) {
+      if (attempt < retries) {
+        const waitTime = (attempt + 1) * 5000; // 5s, 10s
+        console.log(`[RATE LIMIT] Waiting ${waitTime/1000}s before retry ${attempt + 1}...`);
+        await delay(waitTime);
+        continue;
+      }
+    }
+    
+    return data;
   }
-  
-  return data;
 }
 
 // Fetch all pages of data using cursor pagination
-async function fetchAllPages(baseUrl: string, token: string, entityName: string): Promise<any[]> {
+async function fetchAllPages(baseUrl: string, token: string, entityName: string, limit = 200): Promise<any[]> {
   const allData: any[] = [];
-  let nextUrl: string | null = `${baseUrl}&access_token=${token}`;
+  let nextUrl: string | null = `${baseUrl}&limit=${limit}&access_token=${token}`;
   let pageCount = 0;
-  const maxPages = 20; // Safety limit to prevent infinite loops
+  const maxPages = 50; // Safety limit
   
   while (nextUrl && pageCount < maxPages) {
     pageCount++;
@@ -61,21 +65,28 @@ async function fetchAllPages(baseUrl: string, token: string, entityName: string)
     
     if (data.error) {
       console.error(`[${entityName}] Error on page ${pageCount}:`, data.error);
-      // Return what we have so far on error
+      
+      // If rate limited or too much data, return what we have
+      if (data.error.code === 17 || data.error.code === 1) {
+        console.log(`[${entityName}] Stopping pagination due to API limits`);
+        break;
+      }
       break;
     }
     
     if (data.data && data.data.length > 0) {
       allData.push(...data.data);
       console.log(`[${entityName}] Page ${pageCount}: ${data.data.length} items (total: ${allData.length})`);
+    } else {
+      break; // No more data
     }
     
     // Check for next page
     nextUrl = data.paging?.next || null;
     
-    // Small delay between pages to avoid rate limits
+    // Delay between pages to avoid rate limits
     if (nextUrl) {
-      await delay(300);
+      await delay(500);
     }
   }
   
@@ -126,17 +137,17 @@ Deno.serve(async (req) => {
 
     const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
 
-    // STEP 1: Fetch ALL campaigns with pagination
+    // STEP 1: Fetch campaigns
     console.log('[STEP 1/3] Fetching campaigns...');
     
     const campaigns = await fetchAllPages(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time&limit=500`,
+      `https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time`,
       token,
-      'CAMPAIGNS'
+      'CAMPAIGNS',
+      300
     );
     
     if (campaigns.length === 0) {
-      // Try single fetch to check for error
       const testData = await fetchWithRetry(
         `https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name&limit=1&access_token=${token}`
       );
@@ -150,7 +161,7 @@ Deno.serve(async (req) => {
           JSON.stringify({ 
             success: false, 
             error: isRateLimit 
-              ? 'Limite de API da Meta atingido. Aguarde 1-2 minutos e tente novamente.'
+              ? 'Limite de API da Meta atingido. Aguarde 2-3 minutos e tente novamente.'
               : testData.error.message,
             rate_limited: isRateLimit,
             step: 'campaigns',
@@ -163,27 +174,34 @@ Deno.serve(async (req) => {
     
     console.log(`[CAMPAIGNS] Total: ${campaigns.length}`);
     
-    // STEP 2: Fetch ALL ad sets with pagination
+    // STEP 2: Fetch ad sets (reduced fields to avoid rate limit)
     console.log('[STEP 2/3] Fetching ad sets...');
+    await delay(1000); // Wait before next API call
+    
     const adSets = await fetchAllPages(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting&limit=500`,
+      `https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting`,
       token,
-      'AD_SETS'
+      'AD_SETS',
+      200
     );
     console.log(`[AD SETS] Total: ${adSets.length}`);
     
-    // STEP 3: Fetch ALL ads with extended creative fields and pagination
+    // STEP 3: Fetch ads (minimal creative fields to avoid payload error)
     console.log('[STEP 3/3] Fetching ads...');
+    await delay(1000); // Wait before next API call
+    
+    // Use minimal fields first, then fetch creative details separately if needed
     const ads = await fetchAllPages(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,title,body,call_to_action_type,image_url,object_story_spec,video_id,effective_object_story_id,asset_feed_spec}&limit=500`,
+      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url}`,
       token,
-      'ADS'
+      'ADS',
+      200
     );
     console.log(`[ADS] Total: ${ads.length}`);
 
     console.log(`[FETCH DONE] ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads`);
 
-    // VALIDATION: Need at least campaigns
+    // VALIDATION
     if (campaigns.length === 0) {
       console.log('[VALIDATION FAILED] No campaigns found');
       await supabase.from('projects').update({ webhook_status: 'error' }).eq('id', project_id);
@@ -199,10 +217,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // STEP 4: Fetch insights (batch with minimal delays)
+    // STEP 4: Fetch insights
     console.log('[STEP 4] Fetching insights...');
 
-    // Helper to extract conversions
     const extractConversions = (insights: any) => {
       let conversions = 0;
       let conversionValue = 0;
@@ -238,7 +255,7 @@ Deno.serve(async (req) => {
       return { conversions, conversionValue };
     };
 
-    // Fetch insights in batches of 10 with 200ms delay
+    // Fetch insights in batches
     const fetchInsightsForEntities = async (entities: any[]): Promise<Map<string, any>> => {
       const insightsMap = new Map<string, any>();
       const batches = chunk(entities, 10);
@@ -256,125 +273,19 @@ Deno.serve(async (req) => {
           })
         );
         results.forEach(r => insightsMap.set(r.id, r.insights));
-        await delay(200);
+        await delay(300);
       }
       
       return insightsMap;
     };
 
-    // Fetch all insights
     const campaignInsightsMap = await fetchInsightsForEntities(campaigns);
     const adSetInsightsMap = adSets.length > 0 ? await fetchInsightsForEntities(adSets) : new Map();
     const adInsightsMap = ads.length > 0 ? await fetchInsightsForEntities(ads) : new Map();
 
     console.log('[INSIGHTS DONE]');
 
-    // Helper to extract best image URL from creative
-    const extractImageUrl = (creative: any): string | null => {
-      if (!creative) return null;
-      
-      // Direct image_url
-      if (creative.image_url) return creative.image_url;
-      
-      // From object_story_spec
-      const oss = creative.object_story_spec;
-      if (oss) {
-        // Link data (most common)
-        if (oss.link_data?.image_url) return oss.link_data.image_url;
-        if (oss.link_data?.picture) return oss.link_data.picture;
-        
-        // Photo data
-        if (oss.photo_data?.url) return oss.photo_data.url;
-        if (oss.photo_data?.image_url) return oss.photo_data.image_url;
-        
-        // Video data thumbnail
-        if (oss.video_data?.image_url) return oss.video_data.image_url;
-        
-        // Template data (for catalog/dynamic ads)
-        if (oss.template_data?.link_data?.image_url) return oss.template_data.link_data.image_url;
-      }
-      
-      // Asset feed spec (for dynamic creatives)
-      if (creative.asset_feed_spec?.images?.[0]?.url) {
-        return creative.asset_feed_spec.images[0].url;
-      }
-      
-      // Fallback to thumbnail
-      return creative.thumbnail_url || null;
-    };
-    
-    // Helper to extract best headline
-    const extractHeadline = (ad: any): string | null => {
-      const creative = ad.creative;
-      if (!creative) return null;
-      
-      // Check if title contains template variables (catalog ads)
-      const title = creative.title;
-      if (title && !title.includes('{{')) {
-        return title;
-      }
-      
-      // From object_story_spec
-      const oss = creative.object_story_spec;
-      if (oss) {
-        // Link data name (headline)
-        if (oss.link_data?.name && !oss.link_data.name.includes('{{')) {
-          return oss.link_data.name;
-        }
-        if (oss.link_data?.title && !oss.link_data.title.includes('{{')) {
-          return oss.link_data.title;
-        }
-      }
-      
-      // Use creative name as fallback
-      if (creative.name && !creative.name.includes('{{')) {
-        return creative.name;
-      }
-      
-      // Use ad name as final fallback (best option for catalog ads)
-      return null; // Will use ad.name in the record
-    };
-    
-    // Helper to extract primary text
-    const extractPrimaryText = (creative: any): string | null => {
-      if (!creative) return null;
-      
-      // Direct body
-      if (creative.body && !creative.body.includes('{{')) {
-        return creative.body;
-      }
-      
-      // From object_story_spec
-      const oss = creative.object_story_spec;
-      if (oss) {
-        if (oss.link_data?.message && !oss.link_data.message.includes('{{')) {
-          return oss.link_data.message;
-        }
-        if (oss.link_data?.description && !oss.link_data.description.includes('{{')) {
-          return oss.link_data.description;
-        }
-      }
-      
-      return null;
-    };
-    
-    // Helper to extract video URL
-    const extractVideoUrl = (creative: any): string | null => {
-      if (!creative) return null;
-      
-      if (creative.video_id) {
-        return `https://www.facebook.com/watch/?v=${creative.video_id}`;
-      }
-      
-      const oss = creative.object_story_spec;
-      if (oss?.video_data?.video_id) {
-        return `https://www.facebook.com/watch/?v=${oss.video_data.video_id}`;
-      }
-      
-      return null;
-    };
-
-    // Prepare all records
+    // Prepare records
     const campaignRecords = campaigns.map((c: any) => {
       const insights = campaignInsightsMap.get(c.id);
       const { conversions, conversionValue } = extractConversions(insights);
@@ -439,13 +350,8 @@ Deno.serve(async (req) => {
       const { conversions, conversionValue } = extractConversions(insights);
       const spend = parseFloat(insights?.spend || '0');
       
-      const imageUrl = extractImageUrl(ad.creative);
-      const headline = extractHeadline(ad);
-      const primaryText = extractPrimaryText(ad.creative);
-      const videoUrl = extractVideoUrl(ad.creative);
-      const cta = ad.creative?.call_to_action_type || 
-                  ad.creative?.object_story_spec?.link_data?.call_to_action?.type || 
-                  null;
+      // Extract image URL (simplified - use thumbnail as primary)
+      const imageUrl = ad.creative?.image_url || ad.creative?.thumbnail_url || null;
       
       return {
         id: ad.id,
@@ -454,13 +360,13 @@ Deno.serve(async (req) => {
         project_id,
         name: ad.name,
         status: ad.status,
-        creative_id: ad.creative?.id,
-        creative_thumbnail: ad.creative?.thumbnail_url,
+        creative_id: ad.creative?.id || null,
+        creative_thumbnail: ad.creative?.thumbnail_url || null,
         creative_image_url: imageUrl,
-        creative_video_url: videoUrl,
-        headline: headline || ad.name, // Use ad name as fallback
-        primary_text: primaryText,
-        cta,
+        creative_video_url: null,
+        headline: ad.name, // Use ad name as headline
+        primary_text: null,
+        cta: null,
         spend,
         impressions: parseInt(insights?.impressions || '0'),
         clicks: parseInt(insights?.clicks || '0'),
@@ -486,15 +392,16 @@ Deno.serve(async (req) => {
       supabase.from('campaigns').delete().eq('project_id', project_id),
     ]);
 
-    // Insert in batches to avoid timeouts
+    // Insert in batches
     const insertInBatches = async (table: string, records: any[], batchSize = 100) => {
+      if (records.length === 0) return 0;
       const batches = chunk(records, batchSize);
       let insertedCount = 0;
       
       for (const batch of batches) {
         const { error } = await supabase.from(table).insert(batch);
         if (error) {
-          console.error(`[INSERT ERROR ${table}]`, error);
+          console.error(`[INSERT ERROR ${table}]`, error.message);
         } else {
           insertedCount += batch.length;
         }
@@ -514,20 +421,24 @@ Deno.serve(async (req) => {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[SYNC COMPLETE] ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads in ${elapsed}s`);
 
+    // Determine success status based on what was synced
+    const partialSync = adSets.length === 0 || ads.length === 0;
+    
     await supabase.from('projects').update({
-      webhook_status: 'success',
+      webhook_status: partialSync ? 'partial' : 'success',
       last_sync_at: new Date().toISOString(),
     }).eq('id', project_id);
 
     await supabase.from('sync_logs').insert({
       project_id,
-      status: 'success',
+      status: partialSync ? 'partial' : 'success',
       message: `Sync: ${campaigns.length} campanhas, ${adSets.length} conjuntos, ${ads.length} anúncios em ${elapsed}s`,
     });
 
     return new Response(
       JSON.stringify({
         success: true,
+        partial: partialSync,
         step: 'complete',
         data: {
           campaigns_count: campaigns.length,
@@ -536,6 +447,9 @@ Deno.serve(async (req) => {
           elapsed_seconds: parseFloat(elapsed),
           synced_at: new Date().toISOString(),
         },
+        message: partialSync 
+          ? 'Sincronização parcial - rate limit da Meta. Aguarde 2-3 min e sincronize novamente.'
+          : undefined,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
