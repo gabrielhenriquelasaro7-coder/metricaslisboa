@@ -243,7 +243,7 @@ export default function Creatives() {
                     {creative.creative_thumbnail ? (
                       <>
                         <img
-                          src={creative.creative_thumbnail.replace(/\/s\d+x\d+\//, '/s720x720/')}
+                          src={creative.creative_thumbnail.replace(/\/s\d+x\d+\//, '/')}
                           alt={creative.headline || creative.name}
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
@@ -384,7 +384,7 @@ export default function Creatives() {
                           <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-secondary/30">
                             {creative.creative_thumbnail ? (
                               <img
-                                src={creative.creative_thumbnail.replace(/\/s\d+x\d+\//, '/s150x150/')}
+                                src={creative.creative_thumbnail.replace(/\/s\d+x\d+\//, '/s300x300/')}
                                 alt={creative.headline || creative.name}
                                 className="w-full h-full object-cover"
                                 loading="lazy"

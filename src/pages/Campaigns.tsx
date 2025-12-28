@@ -16,21 +16,13 @@ import {
   ShoppingCart,
   ChevronRight,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Users
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
-
-const sortOptions = [
-  { value: 'roas', label: 'ROAS' },
-  { value: 'spend', label: 'Gasto' },
-  { value: 'conversions', label: 'Conversões' },
-  { value: 'ctr', label: 'CTR' },
-  { value: 'cpa', label: 'CPA' },
-  { value: 'name', label: 'Nome' },
-];
 
 export default function Campaigns() {
   const navigate = useNavigate();
@@ -39,9 +31,23 @@ export default function Campaigns() {
     to: new Date(),
   });
   const [filters, setFilters] = useState<FilterConfig>({});
-  const [sort, setSort] = useState<SortConfig>({ field: 'roas', direction: 'desc' });
+  const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
   
   const { campaigns, loading, syncing, syncData, selectedProject, projectsLoading } = useMetaAdsData();
+
+  // Business model
+  const isEcommerce = selectedProject?.business_model === 'ecommerce';
+  const isInsideSales = selectedProject?.business_model === 'inside_sales';
+
+  // Sort options based on business model
+  const sortOptions = [
+    { value: 'spend', label: 'Gasto' },
+    { value: 'conversions', label: isEcommerce ? 'Compras' : 'Leads' },
+    { value: 'ctr', label: 'CTR' },
+    { value: 'cpa', label: isEcommerce ? 'CPA' : 'CPL' },
+    { value: 'name', label: 'Nome' },
+    ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
+  ];
 
   // Redirect to project selector if no project selected (only after projects have loaded)
   useEffect(() => {
@@ -49,7 +55,7 @@ export default function Campaigns() {
     if (!loading && !projectsLoading && !projectId && !selectedProject) {
       navigate('/projects');
     }
-  }, [loading, selectedProject, navigate]);
+  }, [loading, selectedProject, navigate, projectsLoading]);
 
   const filteredCampaigns = campaigns
     .filter((campaign) => {
@@ -113,6 +119,7 @@ export default function Campaigns() {
 
   const avgRoas = totals.spend > 0 ? totals.revenue / totals.spend : 0;
   const avgCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+  const avgCpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -136,6 +143,11 @@ export default function Campaigns() {
             <h1 className="text-3xl font-bold mb-2">Campanhas</h1>
             <p className="text-muted-foreground">
               {selectedProject ? `Projeto: ${selectedProject.name}` : 'Selecione um projeto'}
+              {selectedProject && (
+                <span className="ml-2 text-xs">
+                  ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'})
+                </span>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -196,16 +208,25 @@ export default function Campaigns() {
                 icon={TrendingUp}
               />
               <MetricCard
-                title="Conversões"
+                title={isEcommerce ? "Compras" : "Leads"}
                 value={formatNumber(totals.conversions)}
-                icon={ShoppingCart}
+                icon={isEcommerce ? ShoppingCart : Users}
               />
-              <MetricCard
-                title="ROAS Médio"
-                value={`${avgRoas.toFixed(2)}x`}
-                icon={TrendingUp}
-                className="border-l-4 border-l-metric-positive"
-              />
+              {isEcommerce ? (
+                <MetricCard
+                  title="ROAS Médio"
+                  value={`${avgRoas.toFixed(2)}x`}
+                  icon={TrendingUp}
+                  className="border-l-4 border-l-metric-positive"
+                />
+              ) : (
+                <MetricCard
+                  title="CPL Médio"
+                  value={formatCurrency(avgCpa)}
+                  icon={DollarSign}
+                  className="border-l-4 border-l-chart-1"
+                />
+              )}
             </div>
 
             {/* Filters */}
@@ -245,14 +266,16 @@ export default function Campaigns() {
                         CTR
                       </th>
                       <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
-                        Conversões
+                        {isEcommerce ? 'Compras' : 'Leads'}
                       </th>
                       <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
-                        CPA
+                        {isEcommerce ? 'CPA' : 'CPL'}
                       </th>
-                      <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
-                        ROAS
-                      </th>
+                      {isEcommerce && (
+                        <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
+                          ROAS
+                        </th>
+                      )}
                       <th className="py-4 px-6"></th>
                     </tr>
                   </thead>
@@ -304,20 +327,22 @@ export default function Campaigns() {
                         <td className="py-4 px-6 text-right">{campaign.ctr.toFixed(2)}%</td>
                         <td className="py-4 px-6 text-right">{campaign.conversions}</td>
                         <td className="py-4 px-6 text-right">{formatCurrency(campaign.cpa)}</td>
-                        <td className="py-4 px-6 text-right">
-                          <span
-                            className={cn(
-                              'font-semibold',
-                              campaign.roas >= 5
-                                ? 'text-metric-positive'
-                                : campaign.roas >= 3
-                                ? 'text-metric-warning'
-                                : 'text-metric-negative'
-                            )}
-                          >
-                            {campaign.roas.toFixed(2)}x
-                          </span>
-                        </td>
+                        {isEcommerce && (
+                          <td className="py-4 px-6 text-right">
+                            <span
+                              className={cn(
+                                'font-semibold',
+                                campaign.roas >= 5
+                                  ? 'text-metric-positive'
+                                  : campaign.roas >= 3
+                                  ? 'text-metric-warning'
+                                  : 'text-metric-negative'
+                              )}
+                            >
+                              {campaign.roas.toFixed(2)}x
+                            </span>
+                          </td>
+                        )}
                         <td className="py-4 px-6">
                           <Link
                             to={`/campaign/${campaign.id}/adsets`}
