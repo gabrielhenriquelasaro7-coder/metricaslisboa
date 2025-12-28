@@ -219,12 +219,13 @@ Deno.serve(async (req) => {
     );
     console.log(`[AD SETS] Total: ${adSets.length}`);
     
-    // STEP 3: Fetch ads
+    // STEP 3: Fetch ads with enhanced creative data
     console.log('[STEP 3/3] Fetching ads...');
     await delay(300);
     
+    // Fetch ads with more creative fields for better image quality
     const ads = await fetchAllPages(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url}`,
+      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,title,body,call_to_action_type,thumbnail_url,image_url,object_story_spec,asset_feed_spec,effective_object_story_id}`,
       token,
       'ADS',
       250
@@ -442,7 +443,54 @@ Deno.serve(async (req) => {
       const { conversions, conversionValue } = extractConversions(insights);
       const spend = parseFloat(insights?.spend || '0');
       
-      const imageUrl = ad.creative?.image_url || ad.creative?.thumbnail_url || null;
+      // Extract best quality image from various sources
+      const creative = ad.creative || {};
+      const objectStory = creative.object_story_spec || {};
+      const assetFeed = creative.asset_feed_spec || {};
+      
+      // Try to get highest quality image (priority order)
+      let imageUrl = null;
+      let videoUrl = null;
+      
+      // 1. Check object_story_spec for link_data or video_data
+      if (objectStory.link_data?.image_url) {
+        imageUrl = objectStory.link_data.image_url;
+      } else if (objectStory.link_data?.picture) {
+        imageUrl = objectStory.link_data.picture;
+      } else if (objectStory.video_data?.image_url) {
+        imageUrl = objectStory.video_data.image_url;
+        videoUrl = objectStory.video_data.video_id 
+          ? `https://www.facebook.com/video.php?v=${objectStory.video_data.video_id}` 
+          : null;
+      } else if (objectStory.photo_data?.url) {
+        imageUrl = objectStory.photo_data.url;
+      }
+      
+      // 2. Check asset_feed_spec for images
+      if (!imageUrl && assetFeed.images?.length > 0) {
+        imageUrl = assetFeed.images[0].url || assetFeed.images[0].hash;
+      }
+      
+      // 3. Fallback to creative image_url/thumbnail_url
+      if (!imageUrl) {
+        imageUrl = creative.image_url || creative.thumbnail_url || null;
+      }
+      
+      // Extract headline, body text and CTA
+      const headline = objectStory.link_data?.name || 
+                       objectStory.video_data?.title ||
+                       creative.title ||
+                       ad.name;
+      
+      const primaryText = objectStory.link_data?.message || 
+                          objectStory.video_data?.message ||
+                          creative.body || 
+                          null;
+      
+      const cta = objectStory.link_data?.call_to_action?.type ||
+                  objectStory.video_data?.call_to_action?.type ||
+                  creative.call_to_action_type ||
+                  null;
       
       return {
         id: ad.id,
@@ -451,13 +499,13 @@ Deno.serve(async (req) => {
         project_id,
         name: ad.name,
         status: ad.status,
-        creative_id: ad.creative?.id || null,
-        creative_thumbnail: ad.creative?.thumbnail_url || null,
+        creative_id: creative.id || null,
+        creative_thumbnail: creative.thumbnail_url || null,
         creative_image_url: imageUrl,
-        creative_video_url: null,
-        headline: ad.name,
-        primary_text: null,
-        cta: null,
+        creative_video_url: videoUrl,
+        headline,
+        primary_text: primaryText,
+        cta,
         spend,
         impressions: parseInt(insights?.impressions || '0'),
         clicks: parseInt(insights?.clicks || '0'),
