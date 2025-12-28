@@ -80,61 +80,72 @@ export interface Ad {
   synced_at: string;
 }
 
-// Cache utilities
-const CACHE_KEY_PREFIX = 'meta_ads_cache_';
+// Cache utilities - stores actual data, not just flags
+const CACHE_KEY_PREFIX = 'meta_ads_data_';
 const CACHE_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
 
-interface CacheEntry {
+interface CachedData {
   timestamp: number;
-  projectId: string;
-  timeRange: { since: string; until: string };
+  campaigns: Campaign[];
+  adSets: AdSet[];
+  ads: Ad[];
 }
 
 function getCacheKey(projectId: string, since: string, until: string): string {
   return `${CACHE_KEY_PREFIX}${projectId}_${since}_${until}`;
 }
 
-function getSyncedPeriods(): CacheEntry[] {
+function getCachedData(projectId: string, timeRange: { since: string; until: string }): CachedData | null {
   try {
-    const stored = localStorage.getItem('synced_periods');
-    return stored ? JSON.parse(stored) : [];
+    const key = getCacheKey(projectId, timeRange.since, timeRange.until);
+    const stored = localStorage.getItem(key);
+    if (!stored) return null;
+    
+    const data: CachedData = JSON.parse(stored);
+    const now = Date.now();
+    
+    // Check if cache is expired
+    if ((now - data.timestamp) > CACHE_EXPIRY_MS) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    
+    return data;
   } catch {
-    return [];
+    return null;
   }
 }
 
-function addSyncedPeriod(projectId: string, timeRange: { since: string; until: string }): void {
-  const periods = getSyncedPeriods();
-  const key = getCacheKey(projectId, timeRange.since, timeRange.until);
-  
-  // Remove old entry if exists
-  const filtered = periods.filter(p => 
-    getCacheKey(p.projectId, p.timeRange.since, p.timeRange.until) !== key
-  );
-  
-  // Add new entry
-  filtered.push({
-    timestamp: Date.now(),
-    projectId,
-    timeRange,
-  });
-  
-  // Keep only last 20 entries
-  const trimmed = filtered.slice(-20);
-  
-  localStorage.setItem('synced_periods', JSON.stringify(trimmed));
-}
-
-function isPeriodSynced(projectId: string, timeRange: { since: string; until: string }): boolean {
-  const periods = getSyncedPeriods();
-  const now = Date.now();
-  
-  return periods.some(p => 
-    p.projectId === projectId &&
-    p.timeRange.since === timeRange.since &&
-    p.timeRange.until === timeRange.until &&
-    (now - p.timestamp) < CACHE_EXPIRY_MS
-  );
+function setCachedData(
+  projectId: string, 
+  timeRange: { since: string; until: string },
+  campaigns: Campaign[],
+  adSets: AdSet[],
+  ads: Ad[]
+): void {
+  try {
+    const key = getCacheKey(projectId, timeRange.since, timeRange.until);
+    const data: CachedData = {
+      timestamp: Date.now(),
+      campaigns,
+      adSets,
+      ads,
+    };
+    localStorage.setItem(key, JSON.stringify(data));
+    
+    // Cleanup old cache entries (keep max 10)
+    const allKeys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_KEY_PREFIX));
+    if (allKeys.length > 10) {
+      const sorted = allKeys
+        .map(k => ({ key: k, data: JSON.parse(localStorage.getItem(k) || '{}') }))
+        .sort((a, b) => (a.data.timestamp || 0) - (b.data.timestamp || 0));
+      
+      // Remove oldest entries
+      sorted.slice(0, allKeys.length - 10).forEach(item => localStorage.removeItem(item.key));
+    }
+  } catch (e) {
+    console.warn('Failed to cache data:', e);
+  }
 }
 
 export function useMetaAdsData() {
@@ -221,11 +232,16 @@ export function useMetaAdsData() {
     }
 
     // Check cache first (unless force sync)
-    if (!forceSync && timeRange && isPeriodSynced(selectedProject.id, timeRange)) {
-      console.log('Period already synced, loading from database:', timeRange);
-      toast.info('Dados já sincronizados, carregando do cache...');
-      await Promise.all([fetchCampaigns(), fetchAdSets(), fetchAds()]);
-      return;
+    if (!forceSync && timeRange) {
+      const cached = getCachedData(selectedProject.id, timeRange);
+      if (cached) {
+        console.log('Loading from local cache:', timeRange);
+        toast.info('Carregando do cache local...');
+        setCampaigns(cached.campaigns);
+        setAdSets(cached.adSets);
+        setAds(cached.ads);
+        return;
+      }
     }
 
     setSyncing(true);
@@ -260,14 +276,28 @@ export function useMetaAdsData() {
       console.log('Sync response:', data);
 
       if (data.success) {
-        // Save to cache
-        if (timeRange) {
-          addSyncedPeriod(selectedProject.id, timeRange);
-        }
-        
         toast.success(`Sincronização concluída! ${data.data?.campaigns_count || 0} campanhas sincronizadas.`);
+        
         // Refetch all data after sync
-        await Promise.all([fetchCampaigns(), fetchAdSets(), fetchAds()]);
+        const [campaignsResult, adSetsResult, adsResult] = await Promise.all([
+          supabase.from('campaigns').select('*').eq('project_id', selectedProject.id).order('spend', { ascending: false }),
+          supabase.from('ad_sets').select('*').eq('project_id', selectedProject.id).order('spend', { ascending: false }),
+          supabase.from('ads').select('*').eq('project_id', selectedProject.id).order('spend', { ascending: false }),
+        ]);
+        
+        const newCampaigns = (campaignsResult.data as Campaign[]) || [];
+        const newAdSets = (adSetsResult.data as AdSet[]) || [];
+        const newAds = (adsResult.data as Ad[]) || [];
+        
+        setCampaigns(newCampaigns);
+        setAdSets(newAdSets);
+        setAds(newAds);
+        
+        // Save to local cache
+        if (timeRange) {
+          setCachedData(selectedProject.id, timeRange, newCampaigns, newAdSets, newAds);
+          console.log('Data cached for period:', timeRange);
+        }
       } else {
         console.error('Sync failed:', data.error);
         toast.error(data.error || 'Erro na sincronização');
@@ -278,7 +308,7 @@ export function useMetaAdsData() {
     } finally {
       setSyncing(false);
     }
-  }, [selectedProject, fetchCampaigns, fetchAdSets, fetchAds]);
+  }, [selectedProject]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -305,7 +335,7 @@ export function useMetaAdsData() {
     fetchCampaigns,
     fetchAdSets,
     fetchAds,
-    isPeriodSynced: (timeRange: { since: string; until: string }) => 
-      selectedProject ? isPeriodSynced(selectedProject.id, timeRange) : false,
+    isCached: (timeRange: { since: string; until: string }) => 
+      selectedProject ? getCachedData(selectedProject.id, timeRange) !== null : false,
   };
 }
