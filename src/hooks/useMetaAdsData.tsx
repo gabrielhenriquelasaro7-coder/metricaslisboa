@@ -85,7 +85,7 @@ export function useMetaAdsData() {
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const { projects } = useProjects();
+  const { projects, loading: projectsLoading } = useProjects();
 
   // Get selected project from localStorage
   const selectedProjectId = localStorage.getItem('selectedProjectId');
@@ -206,9 +206,10 @@ export function useMetaAdsData() {
     campaigns,
     adSets,
     ads,
-    loading,
+    loading: loading || projectsLoading,
     syncing,
     selectedProject,
+    projectsLoading,
     syncData,
     fetchCampaigns,
     fetchAdSets,

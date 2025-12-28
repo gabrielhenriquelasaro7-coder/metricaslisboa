@@ -20,14 +20,14 @@ import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 
 export default function Creatives() {
   const navigate = useNavigate();
-  const { ads, campaigns, loading, syncing, selectedProject, syncData } = useMetaAdsData();
+  const { ads, campaigns, loading, syncing, selectedProject, projectsLoading, syncData } = useMetaAdsData();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('roas');
 
-  // Redirect if no project selected
-  if (!selectedProject && !loading) {
+  // Redirect if no project selected (only after projects have loaded)
+  if (!selectedProject && !projectsLoading && !loading) {
     navigate('/projects');
     return null;
   }
