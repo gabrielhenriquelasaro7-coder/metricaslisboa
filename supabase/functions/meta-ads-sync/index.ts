@@ -68,18 +68,17 @@ Deno.serve(async (req) => {
     await supabase.from('projects').update({ webhook_status: 'syncing' }).eq('id', project_id);
 
     const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
-    const effectiveStatus = encodeURIComponent(JSON.stringify(['ACTIVE', 'PAUSED', 'ARCHIVED', 'CAMPAIGN_PAUSED', 'PENDING_REVIEW', 'DISAPPROVED']));
 
     // STEP 1: Fetch ALL data in parallel using batch requests
     console.log('[STEP 1] Fetching campaigns, adsets, and ads in parallel...');
     
     const [campaignsRes, adSetsRes, adsRes] = await Promise.all([
-      // Campaigns with insights
+      // Campaigns - all statuses
       fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time&limit=500&access_token=${token}`),
-      // All ad sets with insights 
-      fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting&effective_status=${effectiveStatus}&limit=500&access_token=${token}`),
-      // All ads with creative info
-      fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,title,body,call_to_action_type,image_url}&effective_status=${effectiveStatus}&limit=500&access_token=${token}`)
+      // Ad sets - all statuses (removed effective_status filter to get ALL ad sets)
+      fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting&limit=500&access_token=${token}`),
+      // Ads - all statuses
+      fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,title,body,call_to_action_type,image_url}&limit=500&access_token=${token}`)
     ]);
 
     const [campaignsData, adSetsData, adsData] = await Promise.all([
@@ -88,6 +87,7 @@ Deno.serve(async (req) => {
       adsRes.json()
     ]);
 
+    // Log any errors from API
     if (campaignsData.error) {
       console.error('[ERROR] Campaigns fetch failed:', campaignsData.error);
       await supabase.from('projects').update({ webhook_status: 'error' }).eq('id', project_id);
@@ -95,6 +95,14 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: campaignsData.error.message }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+    
+    if (adSetsData.error) {
+      console.error('[ERROR] AdSets fetch failed:', adSetsData.error);
+    }
+    
+    if (adsData.error) {
+      console.error('[ERROR] Ads fetch failed:', adsData.error);
     }
 
     const campaigns = campaignsData.data || [];
