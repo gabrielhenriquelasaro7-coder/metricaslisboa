@@ -18,7 +18,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useMetaAdsData } from '@/hooks/useMetaAdsData';
+import { useMetaAdsData, clearAllCache } from '@/hooks/useMetaAdsData';
 
 const ITEMS_PER_PAGE = 25;
 
@@ -232,10 +232,15 @@ export default function Creatives() {
               onDateRangeChange={handleDateRangeChange}
               timezone={projectTimezone}
             />
-            <Button onClick={() => dateRange?.from && dateRange?.to && syncData({
-              since: dateRange.from.toISOString().split('T')[0],
-              until: dateRange.to.toISOString().split('T')[0]
-            })} disabled={syncing} size="sm">
+            <Button onClick={() => {
+              if (dateRange?.from && dateRange?.to) {
+                clearAllCache();
+                syncData({
+                  since: dateRange.from.toISOString().split('T')[0],
+                  until: dateRange.to.toISOString().split('T')[0]
+                }, true);
+              }
+            }} disabled={syncing} size="sm" title="Sincronizar e atualizar imagens">
               {syncing ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
