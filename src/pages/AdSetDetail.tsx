@@ -219,13 +219,48 @@ export default function AdSetDetail() {
 
         {/* Main Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-          <MetricCard title="Gasto" value={formatCurrency(adSet.spend)} icon={DollarSign} />
-          <MetricCard title="Alcance" value={formatNumber(adSet.reach)} icon={Users} />
-          <MetricCard title="Impressões" value={formatNumber(adSet.impressions)} icon={Eye} />
-          <MetricCard title="Cliques" value={formatNumber(adSet.clicks)} icon={MousePointerClick} />
-          <MetricCard title="CTR" value={`${adSet.ctr.toFixed(2)}%`} icon={Percent} />
-          <MetricCard title="CPM" value={formatCurrency(adSet.cpm)} icon={BarChart3} />
-          <MetricCard title="CPC" value={formatCurrency(adSet.cpc)} icon={Target} />
+          <MetricCard 
+            title="Gasto" 
+            value={formatCurrency(adSet.spend)} 
+            icon={DollarSign} 
+            tooltip="Total investido neste conjunto de anúncios"
+          />
+          <MetricCard 
+            title="Alcance" 
+            value={formatNumber(adSet.reach)} 
+            icon={Users} 
+            tooltip="Número de pessoas únicas que viram seus anúncios"
+          />
+          <MetricCard 
+            title="Impressões" 
+            value={formatNumber(adSet.impressions)} 
+            icon={Eye} 
+            tooltip="Número total de vezes que seus anúncios foram exibidos"
+          />
+          <MetricCard 
+            title="Cliques" 
+            value={formatNumber(adSet.clicks)} 
+            icon={MousePointerClick} 
+            tooltip="Total de cliques nos anúncios"
+          />
+          <MetricCard 
+            title="CTR" 
+            value={`${adSet.ctr.toFixed(2)}%`} 
+            icon={Percent} 
+            tooltip="Click-Through Rate: Taxa de cliques (Cliques ÷ Impressões × 100)"
+          />
+          <MetricCard 
+            title="CPM" 
+            value={formatCurrency(adSet.cpm)} 
+            icon={BarChart3} 
+            tooltip="Custo por Mil: Custo para cada 1.000 impressões"
+          />
+          <MetricCard 
+            title="CPC" 
+            value={formatCurrency(adSet.cpc)} 
+            icon={Target} 
+            tooltip="Custo Por Clique: Valor médio pago por cada clique"
+          />
         </div>
 
         {/* Business Model Specific Metrics */}

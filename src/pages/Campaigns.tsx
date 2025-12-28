@@ -18,7 +18,9 @@ import {
   ChevronRight,
   RefreshCw,
   AlertCircle,
-  Users
+  Users,
+  Layers,
+  AlertTriangle
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,7 +35,18 @@ export default function Campaigns() {
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
   
-  const { campaigns, loading, syncing, syncData, selectedProject, projectsLoading } = useMetaAdsData();
+  const { campaigns, adSets, ads, loading, syncing, syncData, selectedProject, projectsLoading } = useMetaAdsData();
+
+  // Create lookup maps for ad sets and ads count per campaign
+  const adSetsCountByCampaign = adSets.reduce((acc, adSet) => {
+    acc[adSet.campaign_id] = (acc[adSet.campaign_id] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const adsCountByCampaign = ads.reduce((acc, ad) => {
+    acc[ad.campaign_id] = (acc[ad.campaign_id] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   // Initialize date range based on project timezone
   useEffect(() => {
@@ -296,6 +309,14 @@ export default function Campaigns() {
                       <th className="text-center py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
                         Status
                       </th>
+                      <th className="text-center py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/50">Conj/Anún</span>
+                          </TooltipTrigger>
+                          <TooltipContent>Quantidade de conjuntos e anúncios sincronizados</TooltipContent>
+                        </Tooltip>
+                      </th>
                       <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
                         Orçamento
                       </th>
@@ -418,6 +439,56 @@ export default function Campaigns() {
                             {campaign.status === 'ARCHIVED' && 'Arquivado'}
                             {!['ACTIVE', 'PAUSED', 'DELETED', 'ARCHIVED'].includes(campaign.status) && campaign.status}
                           </Badge>
+                        </td>
+                        <td className="py-4 px-3 text-center">
+                          {(() => {
+                            const adSetsCount = adSetsCountByCampaign[campaign.id] || 0;
+                            const adsCount = adsCountByCampaign[campaign.id] || 0;
+                            const hasNoData = adSetsCount === 0 && adsCount === 0;
+                            const isActive = campaign.status === 'ACTIVE';
+                            
+                            return (
+                              <div className="flex items-center justify-center gap-2">
+                                {hasNoData && isActive && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertTriangle className="w-4 h-4 text-metric-warning" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Campanha sem conjuntos ou anúncios sincronizados
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                                <div className="flex items-center gap-1 text-xs">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className={cn(
+                                        "flex items-center gap-0.5 cursor-help",
+                                        hasNoData ? "text-muted-foreground" : "text-foreground"
+                                      )}>
+                                        <Layers className="w-3 h-3" />
+                                        {adSetsCount}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>{adSetsCount} conjunto{adSetsCount !== 1 ? 's' : ''} de anúncios</TooltipContent>
+                                  </Tooltip>
+                                  <span className="text-muted-foreground">/</span>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className={cn(
+                                        "flex items-center gap-0.5 cursor-help",
+                                        hasNoData ? "text-muted-foreground" : "text-foreground"
+                                      )}>
+                                        <Megaphone className="w-3 h-3" />
+                                        {adsCount}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>{adsCount} anúncio{adsCount !== 1 ? 's' : ''}</TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="py-4 px-3 text-right">
                           <span className="text-sm font-medium">

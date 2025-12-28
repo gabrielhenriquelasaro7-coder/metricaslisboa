@@ -1,5 +1,7 @@
+import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface MetricCardProps {
   title: string;
@@ -10,9 +12,10 @@ interface MetricCardProps {
   trend?: 'up' | 'down' | 'neutral';
   format?: 'currency' | 'percent' | 'number';
   className?: string;
+  tooltip?: string;
 }
 
-export default function MetricCard({
+const MetricCard = React.forwardRef<HTMLDivElement, MetricCardProps>(({
   title,
   value,
   change,
@@ -20,7 +23,8 @@ export default function MetricCard({
   icon: Icon,
   trend,
   className,
-}: MetricCardProps) {
+  tooltip,
+}, ref) => {
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
   
   const trendColor = trend === 'up' 
@@ -29,11 +33,16 @@ export default function MetricCard({
       ? 'text-metric-negative' 
       : 'text-muted-foreground';
 
-  return (
-    <div className={cn('metric-card', className)}>
+  const cardContent = (
+    <div ref={ref} className={cn('metric-card', className)}>
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-sm text-muted-foreground mb-1">{title}</p>
+          <p className={cn(
+            "text-sm text-muted-foreground mb-1",
+            tooltip && "border-b border-dashed border-muted-foreground/50 cursor-help inline-block"
+          )}>
+            {title}
+          </p>
           <p className="text-3xl font-bold">{value}</p>
         </div>
         {Icon && (
@@ -58,4 +67,23 @@ export default function MetricCard({
       )}
     </div>
   );
-}
+
+  if (tooltip) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {cardContent}
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs">
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return cardContent;
+});
+
+MetricCard.displayName = 'MetricCard';
+
+export default MetricCard;
