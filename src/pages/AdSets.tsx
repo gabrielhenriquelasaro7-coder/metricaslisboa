@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
+import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
+import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   Layers, 
   TrendingUp, 
@@ -20,6 +24,7 @@ import {
   Target
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface AdSet {
@@ -49,8 +54,16 @@ export default function AdSets() {
   const [campaign, setCampaign] = useState<{ id: string; name: string; project_id: string } | null>(null);
   const [adSets, setAdSets] = useState<AdSet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
+    return period ? datePeriodToDateRange(period) : undefined;
+  });
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
+  const lastSyncedRange = useRef<string | null>(null);
+  const isInitialMount = useRef(true);
 
   // Get project for this campaign to determine business model
   const selectedProject = projects.find(p => p.id === campaign?.project_id);
@@ -67,32 +80,104 @@ export default function AdSets() {
     ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
   ];
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!campaignId) return;
-      setLoading(true);
-      try {
-        const { data: campaignData } = await supabase
-          .from('campaigns')
-          .select('id, name, project_id')
-          .eq('id', campaignId)
-          .single();
-        if (campaignData) setCampaign(campaignData);
+  const fetchAdSets = useCallback(async () => {
+    if (!campaignId) return;
+    setLoading(true);
+    try {
+      const { data: campaignData } = await supabase
+        .from('campaigns')
+        .select('id, name, project_id')
+        .eq('id', campaignId)
+        .maybeSingle();
+      if (campaignData) setCampaign(campaignData);
 
-        const { data: adSetsData } = await supabase
-          .from('ad_sets')
-          .select('*')
-          .eq('campaign_id', campaignId)
-          .order('spend', { ascending: false });
-        setAdSets((adSetsData as AdSet[]) || []);
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+      const { data: adSetsData } = await supabase
+        .from('ad_sets')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('spend', { ascending: false });
+      setAdSets((adSetsData as AdSet[]) || []);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [campaignId]);
+
+  // Sync data with date range
+  const syncData = useCallback(async (timeRange?: { since: string; until: string }) => {
+    if (!campaign || !selectedProject) return;
+    
+    setSyncing(true);
+    try {
+      const { error } = await supabase.functions.invoke('meta-ads-sync', {
+        body: {
+          project_id: selectedProject.id,
+          ad_account_id: selectedProject.ad_account_id,
+          time_range: timeRange,
+        },
+      });
+      
+      if (error) throw error;
+      
+      // Refetch ad sets after sync
+      await fetchAdSets();
+    } catch (error) {
+      console.error('Sync error:', error);
+    } finally {
+      setSyncing(false);
+    }
+  }, [campaign, selectedProject, fetchAdSets]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchAdSets();
+  }, [fetchAdSets]);
+
+  // Auto-sync when date range changes
+  useEffect(() => {
+    if (!selectedProject || !dateRange?.from || !dateRange?.to || !campaign) return;
+    
+    const rangeKey = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
+    
+    if (lastSyncedRange.current === rangeKey || syncing) return;
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      lastSyncedRange.current = rangeKey;
+      syncData({
+        since: dateRange.from.toISOString().split('T')[0],
+        until: dateRange.to.toISOString().split('T')[0]
+      });
+      return;
+    }
+    
+    lastSyncedRange.current = rangeKey;
+    syncData({
+      since: dateRange.from.toISOString().split('T')[0],
+      until: dateRange.to.toISOString().split('T')[0]
+    });
+  }, [dateRange, selectedProject, campaign, syncData, syncing]);
+
+  const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
+    setDateRange(newRange);
+  }, []);
+
+  const handlePresetChange = useCallback((preset: DatePresetKey) => {
+    setSelectedPreset(preset);
+  }, []);
+
+  const handleManualSync = useCallback(() => {
+    if (dateRange?.from && dateRange?.to) {
+      lastSyncedRange.current = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
+      syncData({
+        since: format(dateRange.from, 'yyyy-MM-dd'),
+        until: format(dateRange.to, 'yyyy-MM-dd'),
+      });
+    } else {
+      syncData();
+    }
+  }, [dateRange, syncData]);
 
   const filteredAdSets = adSets
     .filter((a) => !filters.search || a.name.toLowerCase().includes(filters.search.toLowerCase()))
@@ -132,23 +217,42 @@ export default function AdSets() {
     <DashboardLayout>
       <div className="p-8 space-y-8 animate-fade-in">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Link 
-            to="/campaigns" 
-            className="p-2 rounded-lg hover:bg-secondary/80 transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5 text-muted-foreground" />
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold">Conjuntos de Anúncios</h1>
-            <p className="text-muted-foreground mt-1">
-              {campaign ? `Campanha: ${campaign.name}` : 'Carregando...'}
-              {selectedProject && (
-                <Badge variant="outline" className="ml-3 text-xs">
-                  {isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'}
-                </Badge>
-              )}
-            </p>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link 
+              to="/campaigns" 
+              className="p-2 rounded-lg hover:bg-secondary/80 transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+            </Link>
+            <div>
+              <h1 className="text-3xl font-bold">Conjuntos de Anúncios</h1>
+              <p className="text-muted-foreground mt-1">
+                {campaign ? `Campanha: ${campaign.name}` : 'Carregando...'}
+                {selectedProject && (
+                  <Badge variant="outline" className="ml-3 text-xs">
+                    {isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'}
+                  </Badge>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={handleManualSync} 
+              disabled={syncing || !selectedProject}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            </Button>
+            <DateRangePicker 
+              dateRange={dateRange} 
+              onDateRangeChange={handleDateRangeChange}
+              timezone={selectedProject?.timezone}
+              onPresetChange={handlePresetChange}
+            />
           </div>
         </div>
 
