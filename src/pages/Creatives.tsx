@@ -26,17 +26,22 @@ import { useMetaAdsData, clearAllCache } from '@/hooks/useMetaAdsData';
 
 const ITEMS_PER_PAGE = 25;
 
-// Helper to clean image URLs from resize parameters (frontend fallback)
+// Helper to clean image URLs - ONLY removes stp resize parameter, keeps auth params
 const cleanImageUrl = (url: string | null): string | null => {
   if (!url) return null;
-  return url
-    .replace(/\/p\d+x\d+\//g, '/')
-    .replace(/\/s\d+x\d+\//g, '/')
-    .replace(/[?&]stp=[^&]*/g, '')
-    .replace(/[?&]_nc_[^&]*/g, '')
-    .replace(/[?&]ccb=[^&]*/g, '')
-    .replace(/\?$/g, '')
-    .replace(/&$/g, '');
+  
+  // Remove ONLY stp= parameter that forces resize (e.g., stp=dst-jpg_p64x64_q75_tt6)
+  let clean = url.replace(/[&?]stp=[^&]*/g, '');
+  
+  // Fix malformed URL: if & appears before any ?, replace first & with ?
+  if (clean.includes('&') && !clean.includes('?')) {
+    clean = clean.replace('&', '?');
+  }
+  
+  // Clean trailing ? or &
+  clean = clean.replace(/[&?]$/g, '');
+  
+  return clean;
 };
 
 export default function Creatives() {
@@ -429,7 +434,7 @@ export default function Creatives() {
                       : 0;
                     
                     return (
-                      <tr key={creative.id} className="hover:bg-secondary/20 transition-colors">
+                      <tr key={creative.id} className="hover:bg-secondary/20 transition-colors cursor-pointer" onClick={() => navigate(`/creative/${creative.id}`)}>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
                             {/* Larger thumbnail - 48x48 */}

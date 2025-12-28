@@ -14,6 +14,7 @@ import AdSetDetail from "./pages/AdSetDetail";
 import AdDetail from "./pages/AdDetail";
 import Ads from "./pages/Ads";
 import Creatives from "./pages/Creatives";
+import CreativeDetail from "./pages/CreativeDetail";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/ad/:adId" element={<AdDetail />} />
             <Route path="/adset/:adSetId/ads" element={<Ads />} />
             <Route path="/creatives" element={<Creatives />} />
+            <Route path="/creative/:id" element={<CreativeDetail />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
