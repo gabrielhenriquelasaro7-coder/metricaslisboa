@@ -111,7 +111,7 @@ export default function AdSets() {
     
     setSyncing(true);
     try {
-      const { error } = await supabase.functions.invoke('meta-ads-sync', {
+      const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
         body: {
           project_id: selectedProject.id,
           ad_account_id: selectedProject.ad_account_id,
@@ -119,12 +119,26 @@ export default function AdSets() {
         },
       });
       
-      if (error) throw error;
+      // Handle rate limit with keep_existing
+      if (data?.keep_existing || data?.rate_limited) {
+        toast.warning('Limite de API da Meta atingido. Usando dados existentes. Aguarde 2 min e tente novamente.');
+        // Still refetch to show existing data
+        await fetchAdSets();
+        return;
+      }
       
-      // Refetch ad sets after sync
+      if (error) {
+        console.error('Sync error:', error);
+        toast.error('Erro na sincronização');
+        return;
+      }
+      
+      // Refetch ad sets after successful sync
       await fetchAdSets();
+      toast.success('Dados sincronizados com sucesso!');
     } catch (error) {
       console.error('Sync error:', error);
+      toast.error('Erro na sincronização');
     } finally {
       setSyncing(false);
     }
