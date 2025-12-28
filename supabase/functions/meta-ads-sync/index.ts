@@ -30,6 +30,29 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Fetch with retry for rate limits
+async function fetchWithRetry(url: string, maxRetries = 3): Promise<any> {
+  const delays = [5000, 10000, 20000]; // 5s, 10s, 20s
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    // Check for rate limit error (code 17)
+    if (data.error && data.error.code === 17 && attempt < maxRetries) {
+      const waitTime = delays[attempt] || 20000;
+      console.log(`[RATE LIMIT] Attempt ${attempt + 1}/${maxRetries}, waiting ${waitTime/1000}s before retry...`);
+      await delay(waitTime);
+      continue;
+    }
+    
+    return data;
+  }
+  
+  // Should not reach here, but just in case
+  return { error: { message: 'Max retries exceeded', code: 17 } };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -66,7 +89,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[FAST SYNC] Starting for project: ${project_id}, account: ${ad_account_id}`);
+    console.log(`[SYNC] Starting for project: ${project_id}, account: ${ad_account_id}`);
     const startTime = Date.now();
 
     // Update project status
@@ -74,54 +97,70 @@ Deno.serve(async (req) => {
 
     const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
 
-    // STEP 1: Fetch ALL data SEQUENTIALLY to avoid rate limits
-    console.log('[STEP 1] Fetching campaigns, adsets, and ads sequentially...');
+    // STEP 1: Fetch ALL data with RETRY for rate limits
+    console.log('[STEP 1] Fetching campaigns...');
     
-    // Fetch campaigns first
-    const campaignsRes = await fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time&limit=500&access_token=${token}`);
-    const campaignsData = await campaignsRes.json();
+    // Fetch campaigns with retry
+    const campaignsData = await fetchWithRetry(
+      `https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time&limit=500&access_token=${token}`
+    );
     
     if (campaignsData.error) {
       console.error('[ERROR] Campaigns fetch failed:', campaignsData.error);
       await supabase.from('projects').update({ webhook_status: 'error' }).eq('id', project_id);
+      
+      const isRateLimit = campaignsData.error.code === 17;
       return new Response(
-        JSON.stringify({ success: false, error: campaignsData.error.message, rate_limited: campaignsData.error.code === 17 }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          success: false, 
+          error: isRateLimit 
+            ? 'Limite de API da Meta atingido. Por favor, aguarde 1-2 minutos e tente novamente.'
+            : campaignsData.error.message,
+          rate_limited: isRateLimit
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
     const campaigns = campaignsData.data || [];
     console.log(`[CAMPAIGNS] Found ${campaigns.length}`);
     
-    // Add delay before fetching ad sets to avoid rate limits
-    await delay(1000);
+    // Add delay before fetching ad sets
+    await delay(1500);
     
-    // Fetch ad sets
-    const adSetsRes = await fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting&limit=500&access_token=${token}`);
-    const adSetsData = await adSetsRes.json();
+    // Fetch ad sets with retry
+    console.log('[STEP 1] Fetching ad sets...');
+    const adSetsData = await fetchWithRetry(
+      `https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting&limit=500&access_token=${token}`
+    );
     
     let adSets: any[] = [];
     let adSetsError = false;
+    let adSetsRateLimited = false;
+    
     if (adSetsData.error) {
-      console.error('[ERROR] AdSets fetch failed:', adSetsData.error);
+      console.error('[ERROR] AdSets fetch failed after retries:', adSetsData.error);
       adSetsError = true;
-      // Try to continue, but we'll need to handle missing ad sets
+      adSetsRateLimited = adSetsData.error.code === 17;
     } else {
       adSets = adSetsData.data || [];
     }
     console.log(`[AD SETS] Found ${adSets.length}`);
     
     // Add delay before fetching ads
-    await delay(1000);
+    await delay(1500);
     
-    // Fetch ads
-    const adsRes = await fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,title,body,call_to_action_type,image_url}&limit=500&access_token=${token}`);
-    const adsData = await adsRes.json();
+    // Fetch ads with retry
+    console.log('[STEP 1] Fetching ads...');
+    const adsData = await fetchWithRetry(
+      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,title,body,call_to_action_type,image_url}&limit=500&access_token=${token}`
+    );
     
     let ads: any[] = [];
     let adsError = false;
+    
     if (adsData.error) {
-      console.error('[ERROR] Ads fetch failed:', adsData.error);
+      console.error('[ERROR] Ads fetch failed after retries:', adsData.error);
       adsError = true;
     } else {
       ads = adsData.data || [];
@@ -129,6 +168,22 @@ Deno.serve(async (req) => {
     console.log(`[ADS] Found ${ads.length}`);
 
     console.log(`[STEP 1 DONE] Found ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads`);
+
+    // VALIDATION: If we have rate limit on ad sets, don't delete existing data
+    if (adSetsRateLimited && adSets.length === 0) {
+      console.log('[VALIDATION] Rate limited on ad sets, keeping existing data');
+      await supabase.from('projects').update({ webhook_status: 'partial' }).eq('id', project_id);
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Limite de API da Meta atingido para conjuntos de anúncios. Os dados existentes foram mantidos. Aguarde 2 minutos e tente novamente.',
+          rate_limited: true,
+          keep_existing: true,
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // STEP 2: Fetch insights for all entities
     console.log('[STEP 2] Fetching insights...');
@@ -172,7 +227,7 @@ Deno.serve(async (req) => {
     // Fetch insights in small batches with delays
     const fetchInsightsForEntities = async (entities: any[], entityType: string): Promise<Map<string, any>> => {
       const insightsMap = new Map<string, any>();
-      const batches = chunk(entities, 5); // Small batches
+      const batches = chunk(entities, 5);
       
       for (const batch of batches) {
         const results = await Promise.all(
@@ -187,7 +242,7 @@ Deno.serve(async (req) => {
           })
         );
         results.forEach(r => insightsMap.set(r.id, r.insights));
-        await delay(200); // Small delay between batches
+        await delay(300);
       }
       
       return insightsMap;
@@ -200,20 +255,7 @@ Deno.serve(async (req) => {
 
     console.log('[STEP 2 DONE] All insights fetched');
 
-    // STEP 3: DELETE OLD DATA AND UPSERT NEW DATA
-    // This ensures we only show data for the current sync period
-    console.log('[STEP 3] Clearing old data and upserting new data...');
-
-    // Delete all existing data for this project BEFORE inserting new data
-    // This ensures metrics are always for the selected period
-    await Promise.all([
-      supabase.from('campaigns').delete().eq('project_id', project_id),
-      supabase.from('ad_sets').delete().eq('project_id', project_id),
-      supabase.from('ads').delete().eq('project_id', project_id),
-    ]);
-    console.log('[STEP 3] Old data deleted');
-
-    // Prepare campaign data
+    // Prepare all records BEFORE deleting
     const campaignRecords = campaigns.map((c: any) => {
       const insights = campaignInsightsMap.get(c.id);
       const { conversions, conversionValue } = extractConversions(insights);
@@ -244,7 +286,6 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Prepare adset data
     const adSetRecords = adSets.map((as: any) => {
       const insights = adSetInsightsMap.get(as.id);
       const { conversions, conversionValue } = extractConversions(insights);
@@ -274,7 +315,6 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Prepare ad data
     const adRecords = ads.map((ad: any) => {
       const insights = adInsightsMap.get(ad.id);
       const { conversions, conversionValue } = extractConversions(insights);
@@ -308,6 +348,36 @@ Deno.serve(async (req) => {
       };
     });
 
+    // STEP 3: VALIDATION - Only delete if we have valid data
+    console.log('[STEP 3] Validating data before replacing...');
+    
+    const hasValidData = campaigns.length > 0 && (adSets.length > 0 || !adSetsError);
+    
+    if (!hasValidData) {
+      console.log('[VALIDATION FAILED] Not enough valid data, keeping existing records');
+      await supabase.from('projects').update({ webhook_status: 'error' }).eq('id', project_id);
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Não foi possível obter dados suficientes da API Meta. Os dados existentes foram mantidos.',
+          keep_existing: true,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // STEP 4: DELETE OLD DATA AND INSERT NEW DATA
+    console.log('[STEP 4] Replacing data...');
+
+    // Delete all existing data for this project
+    await Promise.all([
+      supabase.from('ads').delete().eq('project_id', project_id),
+      supabase.from('ad_sets').delete().eq('project_id', project_id),
+      supabase.from('campaigns').delete().eq('project_id', project_id),
+    ]);
+    console.log('[STEP 4] Old data deleted');
+
     // Insert all new data
     const insertResults = await Promise.all([
       campaignRecords.length > 0 ? supabase.from('campaigns').insert(campaignRecords) : Promise.resolve({ error: null }),
@@ -336,11 +406,6 @@ Deno.serve(async (req) => {
       message: `Sync: ${campaigns.length} campanhas, ${adSets.length} conjuntos, ${ads.length} anúncios em ${elapsed}s`,
     });
 
-    // Return warning if ad sets couldn't be fetched
-    const warnings = [];
-    if (adSetsError) warnings.push('Ad sets could not be fetched due to API rate limits');
-    if (adsError) warnings.push('Ads could not be fetched due to API rate limits');
-
     return new Response(
       JSON.stringify({
         success: true,
@@ -350,7 +415,6 @@ Deno.serve(async (req) => {
           ads_count: ads.length,
           elapsed_seconds: parseFloat(elapsed),
           synced_at: new Date().toISOString(),
-          warnings: warnings.length > 0 ? warnings : undefined,
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
