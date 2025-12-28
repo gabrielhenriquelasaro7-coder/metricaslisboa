@@ -37,13 +37,49 @@ async function fetchWithRetry(url: string): Promise<any> {
   
   // Check for rate limit error (code 17) - wait and retry once
   if (data.error && data.error.code === 17) {
-    console.log('[RATE LIMIT] Waiting 3s before single retry...');
-    await delay(3000);
+    console.log('[RATE LIMIT] Waiting 5s before single retry...');
+    await delay(5000);
     const retryRes = await fetch(url);
     return await retryRes.json();
   }
   
   return data;
+}
+
+// Fetch all pages of data using cursor pagination
+async function fetchAllPages(baseUrl: string, token: string, entityName: string): Promise<any[]> {
+  const allData: any[] = [];
+  let nextUrl: string | null = `${baseUrl}&access_token=${token}`;
+  let pageCount = 0;
+  const maxPages = 20; // Safety limit to prevent infinite loops
+  
+  while (nextUrl && pageCount < maxPages) {
+    pageCount++;
+    console.log(`[${entityName}] Fetching page ${pageCount}...`);
+    
+    const data = await fetchWithRetry(nextUrl);
+    
+    if (data.error) {
+      console.error(`[${entityName}] Error on page ${pageCount}:`, data.error);
+      // Return what we have so far on error
+      break;
+    }
+    
+    if (data.data && data.data.length > 0) {
+      allData.push(...data.data);
+      console.log(`[${entityName}] Page ${pageCount}: ${data.data.length} items (total: ${allData.length})`);
+    }
+    
+    // Check for next page
+    nextUrl = data.paging?.next || null;
+    
+    // Small delay between pages to avoid rate limits
+    if (nextUrl) {
+      await delay(300);
+    }
+  }
+  
+  return allData;
 }
 
 Deno.serve(async (req) => {
@@ -90,85 +126,60 @@ Deno.serve(async (req) => {
 
     const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
 
-    // STEP 1: Fetch campaigns
+    // STEP 1: Fetch ALL campaigns with pagination
     console.log('[STEP 1/3] Fetching campaigns...');
     
-    const campaignsData = await fetchWithRetry(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time&limit=500&access_token=${token}`
+    const campaigns = await fetchAllPages(
+      `https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time&limit=500`,
+      token,
+      'CAMPAIGNS'
     );
     
-    if (campaignsData.error) {
-      console.error('[ERROR] Campaigns fetch failed:', campaignsData.error);
-      await supabase.from('projects').update({ webhook_status: 'error' }).eq('id', project_id);
-      
-      const isRateLimit = campaignsData.error.code === 17;
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: isRateLimit 
-            ? 'Limite de API da Meta atingido. Aguarde 1-2 minutos e tente novamente.'
-            : campaignsData.error.message,
-          rate_limited: isRateLimit,
-          step: 'campaigns',
-          keep_existing: isRateLimit
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    if (campaigns.length === 0) {
+      // Try single fetch to check for error
+      const testData = await fetchWithRetry(
+        `https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name&limit=1&access_token=${token}`
       );
-    }
-    
-    const campaigns = campaignsData.data || [];
-    console.log(`[CAMPAIGNS] Found ${campaigns.length}`);
-    
-    // STEP 2: Fetch ad sets
-    console.log('[STEP 2/3] Fetching ad sets...');
-    const adSetsData = await fetchWithRetry(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting&limit=500&access_token=${token}`
-    );
-    
-    let adSets: any[] = [];
-    let adSetsRateLimited = false;
-    
-    if (adSetsData.error) {
-      console.error('[ERROR] AdSets fetch failed:', adSetsData.error);
-      adSetsRateLimited = adSetsData.error.code === 17;
       
-      if (adSetsRateLimited) {
-        console.log('[RATE LIMIT] Ad sets rate limited, keeping existing data');
-        await supabase.from('projects').update({ webhook_status: 'partial' }).eq('id', project_id);
+      if (testData.error) {
+        console.error('[ERROR] Campaigns fetch failed:', testData.error);
+        await supabase.from('projects').update({ webhook_status: 'error' }).eq('id', project_id);
         
+        const isRateLimit = testData.error.code === 17;
         return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Limite de API da Meta atingido. Usando dados existentes. Aguarde 2 minutos.',
-            rate_limited: true,
-            keep_existing: true,
-            step: 'adsets'
+          JSON.stringify({ 
+            success: false, 
+            error: isRateLimit 
+              ? 'Limite de API da Meta atingido. Aguarde 1-2 minutos e tente novamente.'
+              : testData.error.message,
+            rate_limited: isRateLimit,
+            step: 'campaigns',
+            keep_existing: isRateLimit
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-    } else {
-      adSets = adSetsData.data || [];
     }
-    console.log(`[AD SETS] Found ${adSets.length}`);
     
-    // STEP 3: Fetch ads with extended creative fields
-    console.log('[STEP 3/3] Fetching ads...');
-    const adsData = await fetchWithRetry(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,title,body,call_to_action_type,image_url,object_story_spec,video_id}&limit=500&access_token=${token}`
+    console.log(`[CAMPAIGNS] Total: ${campaigns.length}`);
+    
+    // STEP 2: Fetch ALL ad sets with pagination
+    console.log('[STEP 2/3] Fetching ad sets...');
+    const adSets = await fetchAllPages(
+      `https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting&limit=500`,
+      token,
+      'AD_SETS'
     );
+    console.log(`[AD SETS] Total: ${adSets.length}`);
     
-    let ads: any[] = [];
-    
-    if (adsData.error) {
-      console.error('[ERROR] Ads fetch failed:', adsData.error);
-      if (adsData.error.code === 17) {
-        console.log('[RATE LIMIT] Ads rate limited, continuing with what we have');
-      }
-    } else {
-      ads = adsData.data || [];
-    }
-    console.log(`[ADS] Found ${ads.length}`);
+    // STEP 3: Fetch ALL ads with extended creative fields and pagination
+    console.log('[STEP 3/3] Fetching ads...');
+    const ads = await fetchAllPages(
+      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,title,body,call_to_action_type,image_url,object_story_spec,video_id,effective_object_story_id,asset_feed_spec}&limit=500`,
+      token,
+      'ADS'
+    );
+    console.log(`[ADS] Total: ${ads.length}`);
 
     console.log(`[FETCH DONE] ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads`);
 
@@ -258,6 +269,111 @@ Deno.serve(async (req) => {
 
     console.log('[INSIGHTS DONE]');
 
+    // Helper to extract best image URL from creative
+    const extractImageUrl = (creative: any): string | null => {
+      if (!creative) return null;
+      
+      // Direct image_url
+      if (creative.image_url) return creative.image_url;
+      
+      // From object_story_spec
+      const oss = creative.object_story_spec;
+      if (oss) {
+        // Link data (most common)
+        if (oss.link_data?.image_url) return oss.link_data.image_url;
+        if (oss.link_data?.picture) return oss.link_data.picture;
+        
+        // Photo data
+        if (oss.photo_data?.url) return oss.photo_data.url;
+        if (oss.photo_data?.image_url) return oss.photo_data.image_url;
+        
+        // Video data thumbnail
+        if (oss.video_data?.image_url) return oss.video_data.image_url;
+        
+        // Template data (for catalog/dynamic ads)
+        if (oss.template_data?.link_data?.image_url) return oss.template_data.link_data.image_url;
+      }
+      
+      // Asset feed spec (for dynamic creatives)
+      if (creative.asset_feed_spec?.images?.[0]?.url) {
+        return creative.asset_feed_spec.images[0].url;
+      }
+      
+      // Fallback to thumbnail
+      return creative.thumbnail_url || null;
+    };
+    
+    // Helper to extract best headline
+    const extractHeadline = (ad: any): string | null => {
+      const creative = ad.creative;
+      if (!creative) return null;
+      
+      // Check if title contains template variables (catalog ads)
+      const title = creative.title;
+      if (title && !title.includes('{{')) {
+        return title;
+      }
+      
+      // From object_story_spec
+      const oss = creative.object_story_spec;
+      if (oss) {
+        // Link data name (headline)
+        if (oss.link_data?.name && !oss.link_data.name.includes('{{')) {
+          return oss.link_data.name;
+        }
+        if (oss.link_data?.title && !oss.link_data.title.includes('{{')) {
+          return oss.link_data.title;
+        }
+      }
+      
+      // Use creative name as fallback
+      if (creative.name && !creative.name.includes('{{')) {
+        return creative.name;
+      }
+      
+      // Use ad name as final fallback (best option for catalog ads)
+      return null; // Will use ad.name in the record
+    };
+    
+    // Helper to extract primary text
+    const extractPrimaryText = (creative: any): string | null => {
+      if (!creative) return null;
+      
+      // Direct body
+      if (creative.body && !creative.body.includes('{{')) {
+        return creative.body;
+      }
+      
+      // From object_story_spec
+      const oss = creative.object_story_spec;
+      if (oss) {
+        if (oss.link_data?.message && !oss.link_data.message.includes('{{')) {
+          return oss.link_data.message;
+        }
+        if (oss.link_data?.description && !oss.link_data.description.includes('{{')) {
+          return oss.link_data.description;
+        }
+      }
+      
+      return null;
+    };
+    
+    // Helper to extract video URL
+    const extractVideoUrl = (creative: any): string | null => {
+      if (!creative) return null;
+      
+      if (creative.video_id) {
+        return `https://www.facebook.com/watch/?v=${creative.video_id}`;
+      }
+      
+      const oss = creative.object_story_spec;
+      if (oss?.video_data?.video_id) {
+        return `https://www.facebook.com/watch/?v=${oss.video_data.video_id}`;
+      }
+      
+      return null;
+    };
+
     // Prepare all records
     const campaignRecords = campaigns.map((c: any) => {
       const insights = campaignInsightsMap.get(c.id);
@@ -323,13 +439,13 @@ Deno.serve(async (req) => {
       const { conversions, conversionValue } = extractConversions(insights);
       const spend = parseFloat(insights?.spend || '0');
       
-      // Extract video URL from object_story_spec if available
-      let videoUrl: string | null = null;
-      if (ad.creative?.object_story_spec?.video_data?.video_id) {
-        videoUrl = `https://www.facebook.com/watch/?v=${ad.creative.object_story_spec.video_data.video_id}`;
-      } else if (ad.creative?.video_id) {
-        videoUrl = `https://www.facebook.com/watch/?v=${ad.creative.video_id}`;
-      }
+      const imageUrl = extractImageUrl(ad.creative);
+      const headline = extractHeadline(ad);
+      const primaryText = extractPrimaryText(ad.creative);
+      const videoUrl = extractVideoUrl(ad.creative);
+      const cta = ad.creative?.call_to_action_type || 
+                  ad.creative?.object_story_spec?.link_data?.call_to_action?.type || 
+                  null;
       
       return {
         id: ad.id,
@@ -340,11 +456,11 @@ Deno.serve(async (req) => {
         status: ad.status,
         creative_id: ad.creative?.id,
         creative_thumbnail: ad.creative?.thumbnail_url,
-        creative_image_url: ad.creative?.image_url || ad.creative?.object_story_spec?.link_data?.image_url || null,
+        creative_image_url: imageUrl,
         creative_video_url: videoUrl,
-        headline: ad.creative?.title || ad.creative?.object_story_spec?.link_data?.name || null,
-        primary_text: ad.creative?.body || ad.creative?.object_story_spec?.link_data?.message || null,
-        cta: ad.creative?.call_to_action_type || ad.creative?.object_story_spec?.link_data?.call_to_action?.type || null,
+        headline: headline || ad.name, // Use ad name as fallback
+        primary_text: primaryText,
+        cta,
         spend,
         impressions: parseInt(insights?.impressions || '0'),
         clicks: parseInt(insights?.clicks || '0'),
@@ -370,16 +486,30 @@ Deno.serve(async (req) => {
       supabase.from('campaigns').delete().eq('project_id', project_id),
     ]);
 
-    const insertResults = await Promise.all([
-      campaignRecords.length > 0 ? supabase.from('campaigns').insert(campaignRecords) : Promise.resolve({ error: null }),
-      adSetRecords.length > 0 ? supabase.from('ad_sets').insert(adSetRecords) : Promise.resolve({ error: null }),
-      adRecords.length > 0 ? supabase.from('ads').insert(adRecords) : Promise.resolve({ error: null }),
+    // Insert in batches to avoid timeouts
+    const insertInBatches = async (table: string, records: any[], batchSize = 100) => {
+      const batches = chunk(records, batchSize);
+      let insertedCount = 0;
+      
+      for (const batch of batches) {
+        const { error } = await supabase.from(table).insert(batch);
+        if (error) {
+          console.error(`[INSERT ERROR ${table}]`, error);
+        } else {
+          insertedCount += batch.length;
+        }
+      }
+      
+      return insertedCount;
+    };
+
+    const [campaignsInserted, adSetsInserted, adsInserted] = await Promise.all([
+      insertInBatches('campaigns', campaignRecords),
+      insertInBatches('ad_sets', adSetRecords),
+      insertInBatches('ads', adRecords),
     ]);
 
-    const insertErrors = insertResults.filter(r => r.error);
-    if (insertErrors.length > 0) {
-      console.error('[INSERT ERRORS]', insertErrors.map(e => e.error));
-    }
+    console.log(`[INSERTED] ${campaignsInserted} campaigns, ${adSetsInserted} adsets, ${adsInserted} ads`);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[SYNC COMPLETE] ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads in ${elapsed}s`);
