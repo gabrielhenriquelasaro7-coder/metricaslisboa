@@ -31,7 +31,6 @@ Deno.serve(async (req) => {
     const { project_id, ad_account_id, access_token, date_preset, time_range }: SyncRequest = await req.json();
     
     // Build time parameter for API - use time_range if provided, otherwise use date_preset
-    // Meta API requires JSON format for time_range
     const timeParam = time_range 
       ? `time_range=${encodeURIComponent(JSON.stringify({ since: time_range.since, until: time_range.until }))}`
       : `date_preset=${date_preset || 'last_30d'}`;
@@ -111,20 +110,19 @@ Deno.serve(async (req) => {
       if (!creativeId) return { imageUrl: null, videoUrl: null };
       
       try {
-        // Request more fields for higher resolution images
         const creativeUrl = `https://graph.facebook.com/v19.0/${creativeId}?fields=image_url,image_hash,video_id,object_story_spec,effective_object_story_id,asset_feed_spec,thumbnail_url&access_token=${token}`;
         const creativeResponse = await fetch(creativeUrl);
         const creativeData = await creativeResponse.json();
         
         if (creativeData.error) {
-          console.log(`Could not fetch creative ${creativeId}:`, creativeData.error.message);
+          console.log(`[CREATIVE ERROR] Could not fetch creative ${creativeId}: ${creativeData.error.message}`);
           return { imageUrl: null, videoUrl: null };
         }
         
         let imageUrl: string | null = null;
         let videoUrl: string | null = null;
         
-        // Try to get video URL if video_id exists - request HD source
+        // Try to get video URL if video_id exists
         if (creativeData.video_id) {
           try {
             const videoApiUrl = `https://graph.facebook.com/v19.0/${creativeData.video_id}?fields=source,picture&access_token=${token}`;
@@ -132,27 +130,25 @@ Deno.serve(async (req) => {
             const videoData = await videoResponse.json();
             if (videoData.source) {
               videoUrl = videoData.source;
-              console.log(`Got HD video source for creative ${creativeId}`);
+              console.log(`[CREATIVE SUCCESS] Got HD video source for creative ${creativeId}`);
             }
-            // Use video picture as fallback image
             if (!imageUrl && videoData.picture) {
               imageUrl = videoData.picture;
             }
           } catch (e) {
-            console.log(`Could not fetch video for creative ${creativeId}`);
+            console.log(`[CREATIVE WARN] Could not fetch video for creative ${creativeId}`);
           }
         }
         
-        // Try to get image_url first (direct image - usually high quality)
+        // Try to get image_url first
         if (creativeData.image_url) {
-          console.log(`Got image_url for creative ${creativeId}`);
+          console.log(`[CREATIVE SUCCESS] Got image_url for creative ${creativeId}`);
           imageUrl = creativeData.image_url;
         }
         
-        // Try to get from image_hash using adimages endpoint for highest resolution
+        // Try to get from image_hash using adimages endpoint
         if (!imageUrl && creativeData.image_hash) {
           try {
-            // Extract account ID from ad_account_id
             const cleanAccountId = ad_account_id.replace('act_', '');
             const adImagesUrl = `https://graph.facebook.com/v19.0/act_${cleanAccountId}/adimages?hashes=['${creativeData.image_hash}']&fields=url_128,url,permalink_url&access_token=${token}`;
             const adImagesResponse = await fetch(adImagesUrl);
@@ -160,43 +156,38 @@ Deno.serve(async (req) => {
             
             if (adImagesData.data?.[0]) {
               const imgData = adImagesData.data[0];
-              // permalink_url is highest quality, then url, then url_128
               imageUrl = imgData.permalink_url || imgData.url || imgData.url_128;
               if (imageUrl) {
-                console.log(`Got image from image_hash for creative ${creativeId}`);
+                console.log(`[CREATIVE SUCCESS] Got image from image_hash for creative ${creativeId}`);
               }
             }
           } catch (e) {
-            console.log(`Could not fetch image from hash for creative ${creativeId}`);
+            console.log(`[CREATIVE WARN] Could not fetch image from hash for creative ${creativeId}`);
           }
         }
         
-        // Try to get from object_story_spec (for video/carousel ads)
+        // Try to get from object_story_spec
         if (!imageUrl && creativeData.object_story_spec) {
           const spec = creativeData.object_story_spec;
           
-          // Check for link_data (single image ads)
           if (spec.link_data?.image_url) {
-            console.log(`Got link_data.image_url for creative ${creativeId}`);
             imageUrl = spec.link_data.image_url;
+            console.log(`[CREATIVE SUCCESS] Got link_data.image_url for creative ${creativeId}`);
           } else if (spec.link_data?.picture) {
-            console.log(`Got link_data.picture for creative ${creativeId}`);
             imageUrl = spec.link_data.picture;
+            console.log(`[CREATIVE SUCCESS] Got link_data.picture for creative ${creativeId}`);
           }
           
-          // Check for photo_data (photo posts)
           if (!imageUrl && spec.photo_data?.image_url) {
-            console.log(`Got photo_data.image_url for creative ${creativeId}`);
             imageUrl = spec.photo_data.image_url;
+            console.log(`[CREATIVE SUCCESS] Got photo_data.image_url for creative ${creativeId}`);
           }
           
-          // Check for video_data (video posts with thumbnail and video source)
           if (spec.video_data) {
             if (!imageUrl && spec.video_data.image_url) {
-              console.log(`Got video_data.image_url for creative ${creativeId}`);
               imageUrl = spec.video_data.image_url;
+              console.log(`[CREATIVE SUCCESS] Got video_data.image_url for creative ${creativeId}`);
             }
-            // Try to get HD video source from video_data
             if (!videoUrl && spec.video_data.video_id) {
               try {
                 const videoApiUrl = `https://graph.facebook.com/v19.0/${spec.video_data.video_id}?fields=source,picture&access_token=${token}`;
@@ -204,13 +195,13 @@ Deno.serve(async (req) => {
                 const videoData = await videoResponse.json();
                 if (videoData.source) {
                   videoUrl = videoData.source;
-                  console.log(`Got HD video source from video_data for creative ${creativeId}`);
+                  console.log(`[CREATIVE SUCCESS] Got HD video source from video_data for creative ${creativeId}`);
                 }
                 if (!imageUrl && videoData.picture) {
                   imageUrl = videoData.picture;
                 }
               } catch (e) {
-                console.log(`Could not fetch video from video_data for creative ${creativeId}`);
+                console.log(`[CREATIVE WARN] Could not fetch video from video_data for creative ${creativeId}`);
               }
             }
           }
@@ -221,11 +212,11 @@ Deno.serve(async (req) => {
           const images = creativeData.asset_feed_spec.images;
           if (images.length > 0 && images[0].url) {
             imageUrl = images[0].url;
-            console.log(`Got image from asset_feed_spec for creative ${creativeId}`);
+            console.log(`[CREATIVE SUCCESS] Got image from asset_feed_spec for creative ${creativeId}`);
           }
         }
         
-        // Try to get from effective_object_story_id (actual post)
+        // Try to get from effective_object_story_id
         if (!imageUrl && creativeData.effective_object_story_id) {
           try {
             const postUrl = `https://graph.facebook.com/v19.0/${creativeData.effective_object_story_id}?fields=full_picture,attachments{media}&access_token=${token}`;
@@ -233,34 +224,46 @@ Deno.serve(async (req) => {
             const postData = await postResponse.json();
             
             if (postData.full_picture) {
-              console.log(`Got full_picture from post for creative ${creativeId}`);
               imageUrl = postData.full_picture;
+              console.log(`[CREATIVE SUCCESS] Got full_picture from post for creative ${creativeId}`);
             }
             
-            // Try attachments for even higher resolution
             if (postData.attachments?.data?.[0]?.media?.image?.src) {
               const attachmentSrc = postData.attachments.data[0].media.image.src;
               if (attachmentSrc) {
-                console.log(`Got attachment image for creative ${creativeId}`);
                 imageUrl = attachmentSrc;
+                console.log(`[CREATIVE SUCCESS] Got attachment image for creative ${creativeId}`);
               }
             }
           } catch (e) {
-            console.log(`Could not fetch post for creative ${creativeId}`);
+            console.log(`[CREATIVE WARN] Could not fetch post for creative ${creativeId}`);
           }
+        }
+
+        // Final fallback: use thumbnail_url from original creative data
+        if (!imageUrl && creativeData.thumbnail_url) {
+          imageUrl = creativeData.thumbnail_url;
+          console.log(`[CREATIVE FALLBACK] Using thumbnail_url for creative ${creativeId}`);
         }
         
         return { imageUrl, videoUrl };
       } catch (e) {
-        console.error(`Error fetching creative media for ${creativeId}:`, e);
+        console.error(`[CREATIVE ERROR] Error fetching creative media for ${creativeId}:`, e);
         return { imageUrl: null, videoUrl: null };
       }
     }
 
     const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
 
+    // Track sync statistics
+    let totalAdSets = 0;
+    let totalAds = 0;
+    let campaignsWithZeroAdSets = 0;
+
     // Process each campaign
     for (const campaign of campaigns) {
+      console.log(`\n[CAMPAIGN] Processing: ${campaign.name} (${campaign.id}) - Status: ${campaign.status}`);
+      
       // Fetch campaign insights
       const insightsUrl = `https://graph.facebook.com/v19.0/${campaign.id}/insights?fields=${insightsFields}&${timeParam}&access_token=${token}`;
       
@@ -270,7 +273,7 @@ Deno.serve(async (req) => {
         const insightsData = await insightsResponse.json();
         insights = insightsData.data?.[0] || null;
       } catch (e) {
-        console.error(`Error fetching insights for campaign ${campaign.id}:`, e);
+        console.error(`[CAMPAIGN ERROR] Error fetching insights for campaign ${campaign.id}:`, e);
       }
 
       // Extract conversions from actions
@@ -317,11 +320,12 @@ Deno.serve(async (req) => {
       };
 
       await supabase.from('campaigns').upsert(campaignData, { onConflict: 'id' });
-      console.log(`Synced campaign: ${campaign.name}`);
+      console.log(`[CAMPAIGN] Synced campaign: ${campaign.name}`);
 
-      // Fetch ad sets for this campaign with pagination
+      // IMPROVED: Fetch ad sets with ALL statuses (including archived/paused)
       let adSets: any[] = [];
-      let adSetsUrl = `https://graph.facebook.com/v19.0/${campaign.id}/adsets?fields=id,name,status,daily_budget,lifetime_budget,targeting&limit=100&access_token=${token}`;
+      const effectiveStatus = encodeURIComponent(JSON.stringify(['ACTIVE', 'PAUSED', 'ARCHIVED', 'CAMPAIGN_PAUSED', 'PENDING_REVIEW', 'DISAPPROVED', 'PREAPPROVED', 'PENDING_BILLING_INFO', 'ADSET_PAUSED', 'IN_PROCESS', 'WITH_ISSUES']));
+      let adSetsUrl = `https://graph.facebook.com/v19.0/${campaign.id}/adsets?fields=id,name,status,daily_budget,lifetime_budget,targeting&effective_status=${effectiveStatus}&limit=100&access_token=${token}`;
       
       try {
         while (adSetsUrl) {
@@ -329,7 +333,7 @@ Deno.serve(async (req) => {
           const adSetsData = await adSetsResponse.json();
           
           if (adSetsData.error) {
-            console.error(`Error fetching ad sets for campaign ${campaign.id}:`, adSetsData.error);
+            console.error(`[ADSET ERROR] Error fetching ad sets for campaign ${campaign.id}:`, adSetsData.error);
             break;
           }
           
@@ -337,7 +341,32 @@ Deno.serve(async (req) => {
           adSetsUrl = adSetsData.paging?.next || null;
         }
         
-        console.log(`Found ${adSets.length} ad sets for campaign ${campaign.name}`);
+        console.log(`[ADSET] Found ${adSets.length} ad sets for campaign ${campaign.name}`);
+
+        // FALLBACK: If no ad sets found through campaign, try fetching directly from account
+        if (adSets.length === 0) {
+          console.log(`[ADSET FALLBACK] Campaign ${campaign.name} returned 0 ad sets, trying direct account query...`);
+          
+          try {
+            const directAdSetsUrl = `https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,daily_budget,lifetime_budget,targeting,campaign_id&filtering=[{"field":"campaign_id","operator":"EQUAL","value":"${campaign.id}"}]&effective_status=${effectiveStatus}&limit=100&access_token=${token}`;
+            const directResponse = await fetch(directAdSetsUrl);
+            const directData = await directResponse.json();
+            
+            if (directData.error) {
+              console.log(`[ADSET FALLBACK ERROR] Direct query failed:`, directData.error.message);
+            } else if (directData.data?.length > 0) {
+              adSets = directData.data;
+              console.log(`[ADSET FALLBACK SUCCESS] Found ${adSets.length} ad sets via direct query`);
+            } else {
+              console.log(`[ADSET FALLBACK] Direct query also returned 0 ad sets - campaign may genuinely have none`);
+              campaignsWithZeroAdSets++;
+            }
+          } catch (e) {
+            console.log(`[ADSET FALLBACK ERROR] Exception in direct query:`, e);
+          }
+        }
+
+        totalAdSets += adSets.length;
 
         for (const adSet of adSets) {
           // Fetch ad set insights
@@ -348,7 +377,7 @@ Deno.serve(async (req) => {
             const adSetInsightsData = await adSetInsightsResponse.json();
             adSetInsights = adSetInsightsData.data?.[0] || null;
           } catch (e) {
-            console.error(`Error fetching insights for ad set ${adSet.id}:`, e);
+            console.error(`[ADSET ERROR] Error fetching insights for ad set ${adSet.id}:`, e);
           }
 
           let adSetConversions = 0;
@@ -393,9 +422,9 @@ Deno.serve(async (req) => {
 
           await supabase.from('ad_sets').upsert(adSetData, { onConflict: 'id' });
 
-          // Fetch ads for this ad set with pagination
+          // Fetch ads for this ad set with ALL statuses
           const allAds: any[] = [];
-          let currentAdsUrl = `https://graph.facebook.com/v19.0/${adSet.id}/ads?fields=id,name,status,creative{id,thumbnail_url,title,body,call_to_action_type}&limit=100&access_token=${token}`;
+          let currentAdsUrl = `https://graph.facebook.com/v19.0/${adSet.id}/ads?fields=id,name,status,creative{id,thumbnail_url,title,body,call_to_action_type}&effective_status=${effectiveStatus}&limit=100&access_token=${token}`;
           
           try {
             let hasMoreAds = true;
@@ -404,7 +433,7 @@ Deno.serve(async (req) => {
               const adsResult: any = await adsResponse.json();
               
               if (adsResult.error) {
-                console.error(`Error fetching ads for ad set ${adSet.id}:`, adsResult.error);
+                console.error(`[AD ERROR] Error fetching ads for ad set ${adSet.id}:`, adsResult.error);
                 hasMoreAds = false;
                 break;
               }
@@ -414,7 +443,11 @@ Deno.serve(async (req) => {
               hasMoreAds = !!adsResult.paging?.next;
             }
             
-            console.log(`Found ${allAds.length} ads for ad set ${adSet.name}`);
+            console.log(`[AD] Found ${allAds.length} ads for ad set ${adSet.name}`);
+            totalAds += allAds.length;
+
+            let successfulCreatives = 0;
+            let failedCreatives = 0;
 
             for (const ad of allAds) {
               // Fetch ad insights
@@ -425,7 +458,7 @@ Deno.serve(async (req) => {
                 const adInsightsData = await adInsightsResponse.json();
                 adInsights = adInsightsData.data?.[0] || null;
               } catch (e) {
-                console.error(`Error fetching insights for ad ${ad.id}:`, e);
+                console.error(`[AD ERROR] Error fetching insights for ad ${ad.id}:`, e);
               }
 
               let adConversions = 0;
@@ -451,6 +484,11 @@ Deno.serve(async (req) => {
                 const media = await fetchCreativeMedia(ad.creative.id);
                 creativeImageUrl = media.imageUrl;
                 creativeVideoUrl = media.videoUrl;
+                if (creativeImageUrl || creativeVideoUrl) {
+                  successfulCreatives++;
+                } else {
+                  failedCreatives++;
+                }
               }
 
               const adData = {
@@ -484,12 +522,16 @@ Deno.serve(async (req) => {
 
               await supabase.from('ads').upsert(adData, { onConflict: 'id' });
             }
+
+            if (allAds.length > 0) {
+              console.log(`[AD CREATIVES] ${successfulCreatives}/${allAds.length} creatives fetched successfully, ${failedCreatives} failed`);
+            }
           } catch (e) {
-            console.error(`Error fetching ads for ad set ${adSet.id}:`, e);
+            console.error(`[AD ERROR] Error fetching ads for ad set ${adSet.id}:`, e);
           }
         }
       } catch (e) {
-        console.error(`Error fetching ad sets for campaign ${campaign.id}:`, e);
+        console.error(`[ADSET ERROR] Error fetching ad sets for campaign ${campaign.id}:`, e);
       }
     }
 
@@ -499,27 +541,31 @@ Deno.serve(async (req) => {
       last_sync_at: new Date().toISOString(),
     }).eq('id', project_id);
 
-    // Log successful sync
+    // Log successful sync with statistics
+    const syncMessage = `Sincronização concluída: ${campaigns.length} campanhas, ${totalAdSets} conjuntos, ${totalAds} anúncios. ${campaignsWithZeroAdSets > 0 ? `${campaignsWithZeroAdSets} campanhas sem conjuntos.` : ''}`;
     await supabase.from('sync_logs').insert({
       project_id,
       status: 'success',
-      message: `Sincronização concluída: ${campaigns.length} campanhas sincronizadas`,
+      message: syncMessage,
     });
 
-    console.log('Sync completed successfully');
+    console.log('\n[SYNC COMPLETE]', syncMessage);
 
     return new Response(
       JSON.stringify({
         success: true,
         data: {
           campaigns_count: campaigns.length,
+          ad_sets_count: totalAdSets,
+          ads_count: totalAds,
+          campaigns_without_adsets: campaignsWithZeroAdSets,
           synced_at: new Date().toISOString(),
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Sync error:', error);
+    console.error('[SYNC ERROR]', error);
 
     return new Response(
       JSON.stringify({
