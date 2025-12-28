@@ -194,6 +194,7 @@ export default function Campaigns() {
   const avgRoas = totals.spend > 0 ? totals.revenue / totals.spend : 0;
   const avgCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
   const avgCpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
+  const avgTicket = totals.conversions > 0 ? totals.revenue / totals.conversions : 0;
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -270,12 +271,23 @@ export default function Campaigns() {
         ) : (
           <>
             {/* Summary Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className={cn(
+              "grid gap-4",
+              isEcommerce ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-8" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
+            )}>
               <MetricCard
                 title="Gasto Total"
                 value={formatCurrency(totals.spend)}
                 icon={DollarSign}
               />
+              {isEcommerce && (
+                <MetricCard
+                  title="Receita Total"
+                  value={formatCurrency(totals.revenue)}
+                  icon={TrendingUp}
+                  className="border-l-4 border-l-metric-positive"
+                />
+              )}
               <MetricCard
                 title="Impressões"
                 value={formatNumber(totals.impressions)}
@@ -297,12 +309,20 @@ export default function Campaigns() {
                 icon={isEcommerce ? ShoppingCart : Users}
               />
               {isEcommerce ? (
-                <MetricCard
-                  title="ROAS Médio"
-                  value={`${avgRoas.toFixed(2)}x`}
-                  icon={TrendingUp}
-                  className="border-l-4 border-l-metric-positive"
-                />
+                <>
+                  <MetricCard
+                    title="Ticket Médio"
+                    value={formatCurrency(avgTicket)}
+                    icon={ShoppingCart}
+                    className="border-l-4 border-l-chart-1"
+                  />
+                  <MetricCard
+                    title="ROAS Médio"
+                    value={`${avgRoas.toFixed(2)}x`}
+                    icon={TrendingUp}
+                    className="border-l-4 border-l-metric-positive"
+                  />
+                </>
               ) : (
                 <MetricCard
                   title="CPL Médio"

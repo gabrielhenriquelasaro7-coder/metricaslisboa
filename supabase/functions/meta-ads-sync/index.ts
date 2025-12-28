@@ -152,10 +152,10 @@ Deno.serve(async (req) => {
     }
     console.log(`[AD SETS] Found ${adSets.length}`);
     
-    // STEP 3: Fetch ads
+    // STEP 3: Fetch ads with extended creative fields
     console.log('[STEP 3/3] Fetching ads...');
     const adsData = await fetchWithRetry(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,title,body,call_to_action_type,image_url}&limit=500&access_token=${token}`
+      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,title,body,call_to_action_type,image_url,object_story_spec,video_id}&limit=500&access_token=${token}`
     );
     
     let ads: any[] = [];
@@ -322,6 +322,15 @@ Deno.serve(async (req) => {
       const insights = adInsightsMap.get(ad.id);
       const { conversions, conversionValue } = extractConversions(insights);
       const spend = parseFloat(insights?.spend || '0');
+      
+      // Extract video URL from object_story_spec if available
+      let videoUrl: string | null = null;
+      if (ad.creative?.object_story_spec?.video_data?.video_id) {
+        videoUrl = `https://www.facebook.com/watch/?v=${ad.creative.object_story_spec.video_data.video_id}`;
+      } else if (ad.creative?.video_id) {
+        videoUrl = `https://www.facebook.com/watch/?v=${ad.creative.video_id}`;
+      }
+      
       return {
         id: ad.id,
         ad_set_id: ad.adset_id,
@@ -331,10 +340,11 @@ Deno.serve(async (req) => {
         status: ad.status,
         creative_id: ad.creative?.id,
         creative_thumbnail: ad.creative?.thumbnail_url,
-        creative_image_url: ad.creative?.image_url || null,
-        headline: ad.creative?.title,
-        primary_text: ad.creative?.body,
-        cta: ad.creative?.call_to_action_type,
+        creative_image_url: ad.creative?.image_url || ad.creative?.object_story_spec?.link_data?.image_url || null,
+        creative_video_url: videoUrl,
+        headline: ad.creative?.title || ad.creative?.object_story_spec?.link_data?.name || null,
+        primary_text: ad.creative?.body || ad.creative?.object_story_spec?.link_data?.message || null,
+        cta: ad.creative?.call_to_action_type || ad.creative?.object_story_spec?.link_data?.call_to_action?.type || null,
         spend,
         impressions: parseInt(insights?.impressions || '0'),
         clicks: parseInt(insights?.clicks || '0'),
