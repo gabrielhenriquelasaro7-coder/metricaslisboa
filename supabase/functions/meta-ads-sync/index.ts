@@ -114,19 +114,29 @@ Deno.serve(async (req) => {
     // STEP 2: Fetch insights for all entities in batches using batch API
     console.log('[STEP 2] Fetching insights in batch...');
 
-    // Helper to extract conversions - includes all lead/contact types
+    // Helper to extract conversions - prioritize custom pixel events (Contato no site)
     const extractConversions = (insights: any) => {
       let conversions = 0;
       let conversionValue = 0;
       
       // Priority order for conversion action types
+      // "Contato no site" in Meta Ads = offsite_conversion.fb_pixel_custom or offsite_conversion.fb_pixel_lead
       const conversionTypes = [
+        // E-commerce / purchase
         'purchase', 'omni_purchase',
+        // Custom pixel events (Contato no site, Lead forms, etc.)
+        'offsite_conversion.fb_pixel_custom',
+        'offsite_conversion.fb_pixel_lead',
+        'offsite_conversion.fb_pixel_complete_registration',
+        // Standard lead actions
         'lead', 'onsite_conversion.lead_grouped',
-        'contact', 'contact_total', 'onsite_conversion.messaging_conversation_started_7d',
-        'submit_application', 'complete_registration',
+        'contact', 'contact_total',
+        // Messaging
+        'onsite_conversion.messaging_conversation_started_7d',
         'onsite_conversion.messaging_first_reply',
-        'landing_page_view', 'link_click'
+        'onsite_conversion.total_messaging_connection',
+        // Form submissions
+        'submit_application', 'complete_registration',
       ];
       
       if (insights?.actions) {
