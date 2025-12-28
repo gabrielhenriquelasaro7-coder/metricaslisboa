@@ -31,9 +31,12 @@ Deno.serve(async (req) => {
     const { project_id, ad_account_id, access_token, date_preset, time_range }: SyncRequest = await req.json();
     
     // Build time parameter for API - use time_range if provided, otherwise use date_preset
+    // Meta API requires JSON format for time_range
     const timeParam = time_range 
-      ? `time_range={'since':'${time_range.since}','until':'${time_range.until}'}`
+      ? `time_range=${encodeURIComponent(JSON.stringify({ since: time_range.since, until: time_range.until }))}`
       : `date_preset=${date_preset || 'last_30d'}`;
+    
+    console.log('Using time parameter:', timeParam);
 
     const token = access_token || metaAccessToken;
 

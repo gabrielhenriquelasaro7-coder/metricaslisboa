@@ -172,21 +172,34 @@ export function useMetaAdsData() {
       
       // Add time_range if provided for dynamic date filtering
       if (timeRange) {
-        body.time_range = timeRange;
+        body.time_range = {
+          since: timeRange.since,
+          until: timeRange.until,
+        };
+        console.log('Syncing with time range:', timeRange);
+      } else {
+        // Default to last 30 days if no time range provided
+        body.date_preset = 'last_30d';
+        console.log('Syncing with default preset: last_30d');
       }
       
       const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
         body,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sync invoke error:', error);
+        throw error;
+      }
+
+      console.log('Sync response:', data);
 
       if (data.success) {
-        toast.success('Sincronização concluída!');
-        await fetchCampaigns();
-        await fetchAdSets();
-        await fetchAds();
+        toast.success(`Sincronização concluída! ${data.data?.campaigns_count || 0} campanhas sincronizadas.`);
+        // Refetch all data after sync
+        await Promise.all([fetchCampaigns(), fetchAdSets(), fetchAds()]);
       } else {
+        console.error('Sync failed:', data.error);
         toast.error(data.error || 'Erro na sincronização');
       }
     } catch (error) {
