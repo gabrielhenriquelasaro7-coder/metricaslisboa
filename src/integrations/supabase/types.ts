@@ -14,6 +14,288 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_sets: {
+        Row: {
+          campaign_id: string
+          clicks: number | null
+          conversion_value: number | null
+          conversions: number | null
+          cpa: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string | null
+          ctr: number | null
+          daily_budget: number | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          lifetime_budget: number | null
+          name: string
+          project_id: string
+          reach: number | null
+          roas: number | null
+          spend: number | null
+          status: string | null
+          synced_at: string | null
+          targeting: Json | null
+        }
+        Insert: {
+          campaign_id: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          daily_budget?: number | null
+          frequency?: number | null
+          id: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          name: string
+          project_id: string
+          reach?: number | null
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+          targeting?: Json | null
+        }
+        Update: {
+          campaign_id?: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          daily_budget?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          name?: string
+          project_id?: string
+          reach?: number | null
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+          targeting?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_sets_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_sets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ads: {
+        Row: {
+          ad_set_id: string
+          campaign_id: string
+          clicks: number | null
+          conversion_value: number | null
+          conversions: number | null
+          cpa: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string | null
+          creative_id: string | null
+          creative_thumbnail: string | null
+          cta: string | null
+          ctr: number | null
+          frequency: number | null
+          headline: string | null
+          id: string
+          impressions: number | null
+          name: string
+          primary_text: string | null
+          project_id: string
+          reach: number | null
+          roas: number | null
+          spend: number | null
+          status: string | null
+          synced_at: string | null
+        }
+        Insert: {
+          ad_set_id: string
+          campaign_id: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          creative_id?: string | null
+          creative_thumbnail?: string | null
+          cta?: string | null
+          ctr?: number | null
+          frequency?: number | null
+          headline?: string | null
+          id: string
+          impressions?: number | null
+          name: string
+          primary_text?: string | null
+          project_id: string
+          reach?: number | null
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Update: {
+          ad_set_id?: string
+          campaign_id?: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          creative_id?: string | null
+          creative_thumbnail?: string | null
+          cta?: string | null
+          ctr?: number | null
+          frequency?: number | null
+          headline?: string | null
+          id?: string
+          impressions?: number | null
+          name?: string
+          primary_text?: string | null
+          project_id?: string
+          reach?: number | null
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ads_ad_set_id_fkey"
+            columns: ["ad_set_id"]
+            isOneToOne: false
+            referencedRelation: "ad_sets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ads_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ads_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          clicks: number | null
+          conversion_value: number | null
+          conversions: number | null
+          cpa: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string | null
+          created_time: string | null
+          ctr: number | null
+          daily_budget: number | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          lifetime_budget: number | null
+          name: string
+          objective: string | null
+          project_id: string
+          reach: number | null
+          roas: number | null
+          spend: number | null
+          status: string | null
+          synced_at: string | null
+          updated_time: string | null
+        }
+        Insert: {
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          created_time?: string | null
+          ctr?: number | null
+          daily_budget?: number | null
+          frequency?: number | null
+          id: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          name: string
+          objective?: string | null
+          project_id: string
+          reach?: number | null
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+          updated_time?: string | null
+        }
+        Update: {
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          created_time?: string | null
+          ctr?: number | null
+          daily_budget?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          name?: string
+          objective?: string | null
+          project_id?: string
+          reach?: number | null
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+          updated_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
