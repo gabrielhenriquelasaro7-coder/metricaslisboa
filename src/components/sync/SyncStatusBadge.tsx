@@ -50,13 +50,13 @@ export function SyncStatusBadge({ projectId }: SyncStatusBadgeProps) {
     fetchSyncStatus();
   }, [projectId]);
 
-  // Calculate next sync time (6 AM BRT next day)
+  // Calculate next sync time (2 AM BRT next day)
   const getNextSyncTime = (): Date => {
     const now = new Date();
-    let nextSync = setMinutes(setHours(now, 6), 0);
+    let nextSync = setMinutes(setHours(now, 2), 0);
     
-    // If it's past 6 AM today, next sync is tomorrow
-    if (now.getHours() >= 6) {
+    // If it's past 2 AM today, next sync is tomorrow
+    if (now.getHours() >= 2) {
       nextSync = addDays(nextSync, 1);
     }
     
@@ -142,7 +142,7 @@ export function SyncStatusBadge({ projectId }: SyncStatusBadgeProps) {
             Próxima: {nextSyncFormatted}
           </p>
           <p className="text-xs text-muted-foreground/70 mt-1">
-            Sincronização automática diária às 06:00
+            Sincronização automática diária às 02:00
           </p>
         </div>
       </TooltipContent>
