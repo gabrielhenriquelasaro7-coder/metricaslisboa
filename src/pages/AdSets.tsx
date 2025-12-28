@@ -242,70 +242,38 @@ export default function AdSets() {
                       </div>
                     </div>
 
-                    {/* Budget Progress */}
-                    <div className="px-5 py-3 bg-secondary/20">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-muted-foreground">Orçamento</span>
-                        <span className="font-medium">
-                          {formatCurrency(adSet.spend)} 
-                          <span className="text-muted-foreground"> / {formatCurrency(budget)}</span>
-                        </span>
-                      </div>
-                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                        <div 
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            spendPercent >= 90 ? 'bg-metric-negative' :
-                            spendPercent >= 70 ? 'bg-metric-warning' :
-                            'bg-primary'
-                          )}
-                          style={{ width: `${spendPercent}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Metrics Grid */}
+                    {/* Main Metrics - Leads/CPL first */}
                     <div className="p-5 pt-4">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center">
-                          <p className="text-xl font-bold">{formatNumber(adSet.reach)}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Alcance</p>
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="text-center p-3 bg-primary/5 rounded-lg">
+                          <p className="text-2xl font-bold text-primary">{adSet.conversions}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{isEcommerce ? 'Compras' : 'Leads'}</p>
                         </div>
-                        <div className="text-center">
-                          <p className="text-xl font-bold">{adSet.ctr.toFixed(2)}%</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">CTR</p>
+                        <div className="text-center p-3 bg-chart-1/10 rounded-lg">
+                          <p className="text-2xl font-bold text-chart-1">
+                            {adSet.conversions > 0 ? formatCurrency(adSet.spend / adSet.conversions) : 'R$ 0,00'}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{isEcommerce ? 'CPA' : 'CPL'}</p>
                         </div>
-                        {isEcommerce ? (
-                          <div className="text-center">
-                            <p className={cn(
-                              "text-xl font-bold",
-                              adSet.roas >= 5 ? 'text-metric-positive' : 
-                              adSet.roas >= 3 ? 'text-metric-warning' : 
-                              adSet.roas > 0 ? 'text-metric-negative' : ''
-                            )}>
-                              {adSet.roas.toFixed(2)}x
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5">ROAS</p>
-                          </div>
-                        ) : (
-                          <div className="text-center">
-                            <p className="text-xl font-bold text-chart-1">
-                              {formatCurrency(adSet.cpa)}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5">CPL</p>
-                          </div>
-                        )}
                       </div>
                       
-                      {/* Secondary metrics */}
-                      <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/50">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Conversões</span>
-                          <span className="text-sm font-medium">{adSet.conversions}</span>
+                      {/* Secondary metrics grid */}
+                      <div className="grid grid-cols-4 gap-3 pt-3 border-t border-border/50">
+                        <div className="text-center">
+                          <p className="text-sm font-semibold">{adSet.ctr.toFixed(2)}%</p>
+                          <p className="text-xs text-muted-foreground">CTR</p>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Frequência</span>
-                          <span className="text-sm font-medium">{adSet.frequency.toFixed(1)}</span>
+                        <div className="text-center">
+                          <p className="text-sm font-semibold">{formatNumber(adSet.impressions)}</p>
+                          <p className="text-xs text-muted-foreground">Impr.</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-semibold">{formatCurrency(adSet.spend)}</p>
+                          <p className="text-xs text-muted-foreground">Gasto</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-semibold">{formatCurrency(parseFloat((adSet.impressions > 0 ? (adSet.spend / adSet.impressions) * 1000 : 0).toFixed(2)))}</p>
+                          <p className="text-xs text-muted-foreground">CPM</p>
                         </div>
                       </div>
                     </div>
