@@ -79,7 +79,7 @@ export interface Ad {
   synced_at: string;
 }
 
-export function useMetaAdsData(projectId?: string) {
+export function useMetaAdsData() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [adSets, setAdSets] = useState<AdSet[]>([]);
   const [ads, setAds] = useState<Ad[]>([]);
@@ -87,8 +87,10 @@ export function useMetaAdsData(projectId?: string) {
   const [syncing, setSyncing] = useState(false);
   const { projects } = useProjects();
 
-  const selectedProject = projectId 
-    ? projects.find(p => p.id === projectId) 
+  // Get selected project from localStorage
+  const selectedProjectId = localStorage.getItem('selectedProjectId');
+  const selectedProject = selectedProjectId 
+    ? projects.find(p => p.id === selectedProjectId) 
     : projects[0];
 
   const fetchCampaigns = useCallback(async () => {
@@ -189,12 +191,16 @@ export function useMetaAdsData(projectId?: string) {
 
   useEffect(() => {
     const loadData = async () => {
+      if (!selectedProject) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       await Promise.all([fetchCampaigns(), fetchAdSets(), fetchAds()]);
       setLoading(false);
     };
     loadData();
-  }, [fetchCampaigns, fetchAdSets, fetchAds]);
+  }, [selectedProject, fetchCampaigns, fetchAdSets, fetchAds]);
 
   return {
     campaigns,

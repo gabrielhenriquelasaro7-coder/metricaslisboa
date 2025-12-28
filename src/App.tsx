@@ -6,9 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ProjectSelector from "./pages/ProjectSelector";
 import Dashboard from "./pages/Dashboard";
-import Projects from "./pages/Projects";
-import ProjectDetail from "./pages/ProjectDetail";
 import Campaigns from "./pages/Campaigns";
 import AdSets from "./pages/AdSets";
 import Ads from "./pages/Ads";
@@ -28,16 +27,13 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/projects" element={<ProjectSelector />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/project/:id" element={<ProjectDetail />} />
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/campaign/:campaignId/adsets" element={<AdSets />} />
             <Route path="/adset/:adSetId/ads" element={<Ads />} />
-            <Route path="/analytics" element={<Dashboard />} />
             <Route path="/creatives" element={<Creatives />} />
             <Route path="/settings" element={<Settings />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

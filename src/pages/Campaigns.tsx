@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
@@ -32,6 +33,7 @@ const sortOptions = [
 ];
 
 export default function Campaigns() {
+  const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 30),
     to: new Date(),
@@ -40,6 +42,14 @@ export default function Campaigns() {
   const [sort, setSort] = useState<SortConfig>({ field: 'roas', direction: 'desc' });
   
   const { campaigns, loading, syncing, syncData, selectedProject } = useMetaAdsData();
+
+  // Redirect to project selector if no project selected
+  useEffect(() => {
+    const projectId = localStorage.getItem('selectedProjectId');
+    if (!loading && !projectId && !selectedProject) {
+      navigate('/projects');
+    }
+  }, [loading, selectedProject, navigate]);
 
   const filteredCampaigns = campaigns
     .filter((campaign) => {
