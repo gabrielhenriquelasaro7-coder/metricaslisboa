@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -23,10 +23,12 @@ import {
   Users,
   RefreshCw,
   AlertCircle,
-  Target
+  Target,
+  MoreVertical
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 interface AdSet {
@@ -63,7 +65,7 @@ export default function AdSets() {
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
-  // Get project for this campaign to determine business model
+  const lastSyncedRange = useRef<string | null>(null);
   const selectedProject = projects.find(p => p.id === campaign?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
@@ -109,12 +111,19 @@ export default function AdSets() {
     ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
   ];
 
-  // Initial fetch - load from database only
+  // Sync when date range changes
   useEffect(() => {
-    fetchAdSets();
-  }, [fetchAdSets]);
+    if (!selectedProject || !dateRange?.from || !dateRange?.to || syncing) return;
+    
+    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
+    if (lastSyncedRange.current === rangeKey) return;
+    
+    lastSyncedRange.current = rangeKey;
+    syncData({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
+  }, [dateRange, selectedProject, syncData, syncing]);
 
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
+    lastSyncedRange.current = null;
     setDateRange(newRange);
   }, []);
 
@@ -123,6 +132,7 @@ export default function AdSets() {
   }, []);
 
   const handleManualSync = useCallback(() => {
+    lastSyncedRange.current = null;
     if (dateRange?.from && dateRange?.to) {
       syncData({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
     } else {
@@ -190,21 +200,25 @@ export default function AdSets() {
           </div>
           <div className="flex items-center gap-3">
             <SyncProgressIndicator step={progress.step} message={progress.message} syncing={syncing} />
-            <Button 
-              onClick={handleManualSync} 
-              disabled={syncing || !selectedProject}
-              variant="outline"
-              size="sm"
-            >
-              <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-              {syncing ? 'Sincronizando...' : 'Sincronizar'}
-            </Button>
             <DateRangePicker 
               dateRange={dateRange} 
               onDateRangeChange={handleDateRangeChange}
               timezone={selectedProject?.timezone}
               onPresetChange={handlePresetChange}
             />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleManualSync} disabled={syncing || !selectedProject}>
+                  <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+                  {syncing ? 'Sincronizando...' : 'Forçar Sincronização'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

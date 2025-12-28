@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
@@ -7,7 +7,7 @@ import PeriodComparison from '@/components/dashboard/PeriodComparison';
 import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { DateRange } from 'react-day-picker';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, format } from 'date-fns';
 import { 
   DollarSign, 
   MousePointerClick, 
@@ -21,14 +21,17 @@ import {
   Store,
   Loader2,
   GitCompare,
-  RefreshCw
+  RefreshCw,
+  MoreVertical
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
+import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
   const { projects, loading: projectsLoading } = useProjects();
@@ -38,9 +41,10 @@ export default function Dashboard() {
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [showComparison, setShowComparison] = useState(true);
+  const lastSyncedRange = useRef<string | null>(null);
 
   // Get campaigns and selected project from hook (uses localStorage)
-  const { campaigns, loading: dataLoading, syncing, syncData, loadDataFromDatabase, selectedProject } = useMetaAdsData();
+  const { campaigns, loading: dataLoading, syncing, syncData, selectedProject } = useMetaAdsData();
 
   // Get active (non-archived) projects
   const activeProjects = useMemo(() => 
@@ -56,17 +60,45 @@ export default function Dashboard() {
   const isInsideSales = hasSelectedProject && businessModel === 'inside_sales';
   const isPdv = hasSelectedProject && businessModel === 'pdv';
 
-  // Load data from database when project changes - NO API calls
+  // Sync when date range changes - fetches data for selected period
   useEffect(() => {
-    if (selectedProject) {
-      loadDataFromDatabase();
-    }
-  }, [selectedProject, loadDataFromDatabase]);
+    if (!selectedProject || !dateRange?.from || !dateRange?.to || syncing) return;
+    
+    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
+    
+    // Skip if already synced this range
+    if (lastSyncedRange.current === rangeKey) return;
+    
+    lastSyncedRange.current = rangeKey;
+    syncData({
+      since: format(dateRange.from, 'yyyy-MM-dd'),
+      until: format(dateRange.to, 'yyyy-MM-dd')
+    });
+  }, [dateRange, selectedProject, syncData, syncing]);
 
-  // Handle preset change - recalculate dates with project timezone
+  // Handle date range change
+  const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
+    lastSyncedRange.current = null; // Reset to force sync
+    setDateRange(newRange);
+  }, []);
+
+  // Handle preset change
   const handlePresetChange = useCallback((preset: DatePresetKey) => {
     setSelectedPreset(preset);
   }, []);
+
+  // Manual sync
+  const handleManualSync = useCallback(() => {
+    lastSyncedRange.current = null;
+    if (dateRange?.from && dateRange?.to) {
+      syncData({
+        since: format(dateRange.from, 'yyyy-MM-dd'),
+        until: format(dateRange.to, 'yyyy-MM-dd')
+      });
+    } else {
+      syncData();
+    }
+  }, [dateRange, syncData]);
 
   const calculateMetrics = (campaignsList: typeof campaigns) => {
     const totalSpend = campaignsList.reduce((sum, c) => sum + (c.spend || 0), 0);
@@ -175,29 +207,25 @@ export default function Dashboard() {
           </div>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => syncData(dateRange?.from && dateRange?.to ? {
-                since: dateRange.from.toISOString().split('T')[0],
-                until: dateRange.to.toISOString().split('T')[0]
-              } : undefined)}
-              disabled={syncing || !selectedProject}
-            >
-              {syncing ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4 mr-2" />
-              )}
-              Sincronizar
-            </Button>
-            
             <DateRangePicker
               dateRange={dateRange} 
-              onDateRangeChange={setDateRange}
+              onDateRangeChange={handleDateRangeChange}
               timezone={projectTimezone}
               onPresetChange={handlePresetChange}
             />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleManualSync} disabled={syncing || !selectedProject}>
+                  <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+                  {syncing ? 'Sincronizando...' : 'Forçar Sincronização'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

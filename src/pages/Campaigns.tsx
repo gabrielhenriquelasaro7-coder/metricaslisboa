@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -22,11 +22,14 @@ import {
   AlertCircle,
   Users,
   Layers,
-  AlertTriangle
+  AlertTriangle,
+  Settings,
+  MoreVertical
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
@@ -39,6 +42,7 @@ export default function Campaigns() {
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
+  const lastSyncedRange = useRef<string | null>(null);
   const { campaigns, adSets, ads, loading, fetchCampaigns, fetchAdSets, fetchAds, selectedProject, projectsLoading, loadDataFromDatabase } = useMetaAdsData();
 
   // Use the new sync hook - for manual sync only
@@ -63,15 +67,25 @@ export default function Campaigns() {
     return acc;
   }, {} as Record<string, number>);
 
-  // Load data from database when project changes - NO API calls, instant loading
+  // Sync when date range changes - fetches data for selected period
   useEffect(() => {
-    if (selectedProject) {
-      loadDataFromDatabase();
-    }
-  }, [selectedProject, loadDataFromDatabase]);
+    if (!selectedProject || !dateRange?.from || !dateRange?.to || syncing) return;
+    
+    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
+    
+    // Skip if already synced this range
+    if (lastSyncedRange.current === rangeKey) return;
+    
+    lastSyncedRange.current = rangeKey;
+    syncData({
+      since: format(dateRange.from, 'yyyy-MM-dd'),
+      until: format(dateRange.to, 'yyyy-MM-dd')
+    });
+  }, [dateRange, selectedProject, syncData, syncing]);
 
   // Handle date range change
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
+    lastSyncedRange.current = null; // Reset to force sync
     setDateRange(newRange);
   }, []);
 
@@ -82,6 +96,7 @@ export default function Campaigns() {
   
   // Manual sync with current date range
   const handleManualSync = useCallback(() => {
+    lastSyncedRange.current = null; // Reset to force sync
     if (dateRange?.from && dateRange?.to) {
       syncData({
         since: format(dateRange.from, 'yyyy-MM-dd'),
@@ -214,20 +229,25 @@ export default function Campaigns() {
               message={progress.message} 
               syncing={syncing} 
             />
-            <Button 
-              onClick={handleManualSync} 
-              disabled={syncing || !selectedProject}
-              variant="outline"
-            >
-              <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-              {syncing ? 'Sincronizando...' : 'Sincronizar'}
-            </Button>
             <DateRangePicker 
               dateRange={dateRange} 
               onDateRangeChange={handleDateRangeChange}
               timezone={selectedProject?.timezone}
               onPresetChange={handlePresetChange}
             />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleManualSync} disabled={syncing || !selectedProject}>
+                  <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+                  {syncing ? 'Sincronizando...' : 'Forçar Sincronização'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
