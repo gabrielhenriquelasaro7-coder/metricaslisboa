@@ -398,7 +398,7 @@ export default function Campaigns() {
                     </td>
                     <td className="py-4 px-6">
                       <Link
-                        to={`/campaign/${campaign.id}`}
+                        to={`/campaign/${campaign.id}/adsets`}
                         className="text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <ChevronRight className="w-5 h-5" />
