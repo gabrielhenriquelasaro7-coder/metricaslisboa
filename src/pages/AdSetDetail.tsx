@@ -429,8 +429,8 @@ export default function AdSetDetail() {
                           <p className="font-semibold text-sm">{formatCurrency(ad.spend)}</p>
                         </div>
                         <div className="bg-muted/50 rounded-lg p-2.5">
-                          <p className="text-xs text-muted-foreground">Cliques</p>
-                          <p className="font-semibold text-sm">{formatNumber(ad.clicks)}</p>
+                          <p className="text-xs text-muted-foreground">Conversões</p>
+                          <p className="font-semibold text-sm">{formatNumber(ad.conversions)}</p>
                         </div>
                         <div className="bg-muted/50 rounded-lg p-2.5">
                           <p className="text-xs text-muted-foreground">CTR</p>
