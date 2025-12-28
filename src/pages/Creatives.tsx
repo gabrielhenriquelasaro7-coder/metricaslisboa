@@ -14,10 +14,13 @@ import {
   ImageOff,
   ExternalLink,
   Play,
-  DollarSign
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
+
+const ITEMS_PER_PAGE = 12;
 
 export default function Creatives() {
   const navigate = useNavigate();
@@ -28,6 +31,7 @@ export default function Creatives() {
   const [campaignFilter, setCampaignFilter] = useState<string>('all');
   const [adSetFilter, setAdSetFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('status');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Check if project is ecommerce to show ROAS
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
@@ -55,11 +59,6 @@ export default function Creatives() {
     if (campaignFilter === 'all') return adSets;
     return adSets.filter(a => a.campaign_id === campaignFilter);
   }, [adSets, campaignFilter]);
-
-  // Check if creative is a video
-  const isVideo = (ad: typeof ads[0]) => {
-    return !!(ad as any).creative_video_url;
-  };
 
   // Filter and sort creatives (ads with creative info)
   const filteredCreatives = useMemo(() => {
@@ -92,7 +91,6 @@ export default function Creatives() {
       .sort((a, b) => {
         switch (sortBy) {
           case 'status':
-            // Active first, then paused, then others
             const statusOrder: Record<string, number> = { 'ACTIVE': 0, 'PAUSED': 1, 'DELETED': 2, 'ARCHIVED': 3 };
             const orderA = statusOrder[a.status] ?? 4;
             const orderB = statusOrder[b.status] ?? 4;
@@ -112,10 +110,23 @@ export default function Creatives() {
       });
   }, [ads, search, statusFilter, campaignFilter, adSetFilter, sortBy, campaigns, adSets]);
 
-  // Reset ad set filter when campaign filter changes
+  // Pagination
+  const totalPages = Math.ceil(filteredCreatives.length / ITEMS_PER_PAGE);
+  const paginatedCreatives = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredCreatives.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredCreatives, currentPage]);
+
+  // Reset page when filters change
   const handleCampaignChange = (value: string) => {
     setCampaignFilter(value);
     setAdSetFilter('all');
+    setCurrentPage(1);
+  };
+
+  const handleFilterChange = (setter: (value: string) => void) => (value: string) => {
+    setter(value);
+    setCurrentPage(1);
   };
 
   const formatNumber = (num: number) => {
@@ -185,7 +196,7 @@ export default function Creatives() {
             <Input
               placeholder="Buscar criativos..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
               className="pl-10"
             />
           </div>
@@ -194,7 +205,7 @@ export default function Creatives() {
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Campanha" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover">
               <SelectItem value="all">Todas Campanhas</SelectItem>
               {campaigns.map((campaign) => (
                 <SelectItem key={campaign.id} value={campaign.id}>
@@ -204,11 +215,11 @@ export default function Creatives() {
             </SelectContent>
           </Select>
 
-          <Select value={adSetFilter} onValueChange={setAdSetFilter}>
+          <Select value={adSetFilter} onValueChange={handleFilterChange(setAdSetFilter)}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Conjunto de Anúncios" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover">
               <SelectItem value="all">Todos Conjuntos</SelectItem>
               {filteredAdSets.map((adSet) => (
                 <SelectItem key={adSet.id} value={adSet.id}>
@@ -218,22 +229,22 @@ export default function Creatives() {
             </SelectContent>
           </Select>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={handleFilterChange(setStatusFilter)}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover">
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="ACTIVE">Ativos</SelectItem>
               <SelectItem value="PAUSED">Pausados</SelectItem>
             </SelectContent>
           </Select>
 
-          <Select value={sortBy} onValueChange={setSortBy}>
+          <Select value={sortBy} onValueChange={handleFilterChange(setSortBy)}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Ordenar por" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover">
               <SelectItem value="status">Ativos Primeiro</SelectItem>
               <SelectItem value="spend">Maior Gasto</SelectItem>
               <SelectItem value="ctr">Maior CTR</SelectItem>
@@ -315,17 +326,16 @@ export default function Creatives() {
           </div>
         )}
 
-        {/* Creative Grid/List */}
-        {viewMode === 'grid' && filteredCreatives.length > 0 ? (
+        {/* Creative Grid */}
+        {viewMode === 'grid' && paginatedCreatives.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCreatives.map((creative) => {
+            {paginatedCreatives.map((creative) => {
               const statusBadge = getStatusBadge(creative.status);
               const videoUrl = (creative as any).creative_video_url;
               const hasVideo = !!videoUrl;
               
               return (
                 <div key={creative.id} className="glass-card-hover overflow-hidden group">
-                  {/* Thumbnail - usando imagem em alta resolução ou vídeo */}
                   <div className="relative aspect-square overflow-hidden bg-secondary/30">
                     {hasVideo ? (
                       <video
@@ -396,7 +406,6 @@ export default function Creatives() {
                     )}
                   </div>
 
-                  {/* Content */}
                   <div className="p-4 space-y-4">
                     <div>
                       <h3 className="font-semibold text-lg mb-1 line-clamp-1">
@@ -424,7 +433,6 @@ export default function Creatives() {
                       </p>
                     </div>
 
-                    {/* Metrics with Spend */}
                     <div className="grid grid-cols-4 gap-2 pt-3 border-t border-border">
                       <div className="text-center">
                         <p className="text-sm font-semibold text-primary">{formatCurrency(creative.spend || 0)}</p>
@@ -448,53 +456,35 @@ export default function Creatives() {
               );
             })}
           </div>
-        ) : viewMode === 'list' && filteredCreatives.length > 0 ? (
+        )}
+
+        {/* Creative List */}
+        {viewMode === 'list' && paginatedCreatives.length > 0 && (
           <div className="glass-card overflow-hidden overflow-x-auto">
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">
-                  <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">
-                    Criativo
-                  </th>
-                  <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">
-                    Campanha
-                  </th>
-                  <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">
-                    Conjunto
-                  </th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
-                    Gasto
-                  </th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
-                    Impr.
-                  </th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
-                    CTR
-                  </th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
-                    CPC
-                  </th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
-                    Conv.
-                  </th>
+                  <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">Criativo</th>
+                  <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">Campanha</th>
+                  <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">Conjunto</th>
+                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">Gasto</th>
+                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">Impr.</th>
+                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">CTR</th>
+                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">CPC</th>
+                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">Conv.</th>
                   {isEcommerce && (
-                    <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
-                      ROAS
-                    </th>
+                    <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">ROAS</th>
                   )}
                 </tr>
               </thead>
               <tbody>
-                {filteredCreatives.map((creative) => {
+                {paginatedCreatives.map((creative) => {
                   const statusBadge = getStatusBadge(creative.status);
                   const videoUrl = (creative as any).creative_video_url;
                   const hasVideo = !!videoUrl;
                   
                   return (
-                    <tr
-                      key={creative.id}
-                      className="border-b border-border/50 hover:bg-secondary/30 transition-colors"
-                    >
+                    <tr key={creative.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-secondary/30">
@@ -504,15 +494,6 @@ export default function Creatives() {
                                 alt={creative.headline || creative.name}
                                 className="w-full h-full object-cover"
                                 loading="lazy"
-                                onError={(e) => {
-                                  const img = e.target as HTMLImageElement;
-                                  if (!img.dataset.fallback && creative.creative_thumbnail && img.src !== creative.creative_thumbnail) {
-                                    img.dataset.fallback = 'true';
-                                    img.src = creative.creative_thumbnail;
-                                  } else {
-                                    img.style.display = 'none';
-                                  }
-                                }}
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
@@ -526,17 +507,13 @@ export default function Creatives() {
                             )}
                           </div>
                           <div>
-                            <p className="font-medium line-clamp-1">
-                              {creative.headline || creative.name}
-                            </p>
+                            <p className="font-medium line-clamp-1">{creative.headline || creative.name}</p>
                             <div className="flex items-center gap-2 mt-1">
                               <Badge variant="secondary" className={cn('text-xs', statusBadge.className)}>
                                 {statusBadge.label}
                               </Badge>
                               {hasVideo && (
-                                <Badge variant="secondary" className="text-xs bg-chart-1/20 text-chart-1">
-                                  Vídeo
-                                </Badge>
+                                <Badge variant="secondary" className="text-xs bg-chart-1/20 text-chart-1">Vídeo</Badge>
                               )}
                             </div>
                           </div>
@@ -551,18 +528,10 @@ export default function Creatives() {
                       <td className="py-4 px-6 text-right font-medium text-primary">
                         {formatCurrency(creative.spend || 0)}
                       </td>
-                      <td className="py-4 px-6 text-right">
-                        {formatNumber(creative.impressions || 0)}
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        {(creative.ctr || 0).toFixed(2)}%
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        {formatCurrency(creative.cpc || 0)}
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        {creative.conversions || 0}
-                      </td>
+                      <td className="py-4 px-6 text-right">{formatNumber(creative.impressions || 0)}</td>
+                      <td className="py-4 px-6 text-right">{(creative.ctr || 0).toFixed(2)}%</td>
+                      <td className="py-4 px-6 text-right">{formatCurrency(creative.cpc || 0)}</td>
+                      <td className="py-4 px-6 text-right">{creative.conversions || 0}</td>
                       {isEcommerce && (
                         <td className="py-4 px-6 text-right">
                           <Badge
@@ -585,7 +554,64 @@ export default function Creatives() {
               </tbody>
             </table>
           </div>
-        ) : null}
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} a {Math.min(currentPage * ITEMS_PER_PAGE, filteredCreatives.length)} de {filteredCreatives.length} criativos
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Anterior
+              </Button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let page: number;
+                  if (totalPages <= 5) {
+                    page = i + 1;
+                  } else if (currentPage <= 3) {
+                    page = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    page = totalPages - 4 + i;
+                  } else {
+                    page = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? 'default' : 'outline'}
+                      size="sm"
+                      className="w-9"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Próximo
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
