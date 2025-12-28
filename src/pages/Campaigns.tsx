@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -6,7 +6,8 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { DateRange } from 'react-day-picker';
-import { subDays } from 'date-fns';
+import { format } from 'date-fns';
+import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   Megaphone, 
   TrendingUp, 
@@ -26,14 +27,54 @@ import { Link } from 'react-router-dom';
 
 export default function Campaigns() {
   const navigate = useNavigate();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 30),
-    to: new Date(),
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_30_days');
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
   
   const { campaigns, loading, syncing, syncData, selectedProject, projectsLoading } = useMetaAdsData();
+
+  // Initialize date range based on project timezone
+  useEffect(() => {
+    if (selectedProject) {
+      const period = getDateRangeFromPreset('last_30_days', selectedProject.timezone);
+      if (period) {
+        setDateRange(datePeriodToDateRange(period));
+      }
+    }
+  }, [selectedProject]);
+
+  // Handle date range change with auto-sync
+  const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
+    setDateRange(newRange);
+    
+    // Auto-sync when date range changes
+    if (newRange?.from && newRange?.to && selectedProject) {
+      const timeRange = {
+        since: format(newRange.from, 'yyyy-MM-dd'),
+        until: format(newRange.to, 'yyyy-MM-dd'),
+      };
+      syncData(timeRange);
+    }
+  }, [selectedProject, syncData]);
+
+  // Handle preset change
+  const handlePresetChange = useCallback((preset: DatePresetKey) => {
+    setSelectedPreset(preset);
+    if (preset !== 'custom' && selectedProject) {
+      const period = getDateRangeFromPreset(preset, selectedProject.timezone);
+      if (period) {
+        const range = datePeriodToDateRange(period);
+        setDateRange(range);
+        
+        // Auto-sync with new date range
+        syncData({
+          since: period.since,
+          until: period.until,
+        });
+      }
+    }
+  }, [selectedProject, syncData]);
 
   // Business model
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
@@ -152,14 +193,19 @@ export default function Campaigns() {
           </div>
           <div className="flex items-center gap-3">
             <Button 
-              onClick={syncData} 
+              onClick={() => syncData()} 
               disabled={syncing || !selectedProject}
               variant="outline"
             >
               <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
               {syncing ? 'Sincronizando...' : 'Sincronizar'}
             </Button>
-            <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
+            <DateRangePicker 
+              dateRange={dateRange} 
+              onDateRangeChange={handleDateRangeChange}
+              timezone={selectedProject?.timezone}
+              onPresetChange={handlePresetChange}
+            />
           </div>
         </div>
 
@@ -177,7 +223,7 @@ export default function Campaigns() {
                 : 'Crie um projeto primeiro para sincronizar suas campanhas.'}
             </p>
             {selectedProject && (
-              <Button onClick={syncData} disabled={syncing} variant="gradient">
+              <Button onClick={() => syncData()} disabled={syncing} variant="gradient">
                 <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
                 Sincronizar Agora
               </Button>

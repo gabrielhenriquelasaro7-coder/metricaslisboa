@@ -179,7 +179,7 @@ export default function Creatives() {
               Visualize e analise o desempenho dos seus criativos
             </p>
           </div>
-          <Button onClick={syncData} disabled={syncing}>
+          <Button onClick={() => syncData()} disabled={syncing}>
             {syncing ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
@@ -314,7 +314,7 @@ export default function Creatives() {
                 : 'Sincronize seus dados para ver os criativos das suas campanhas.'}
             </p>
             {campaignFilter === 'all' && adSetFilter === 'all' && (
-              <Button onClick={syncData} disabled={syncing}>
+              <Button onClick={() => syncData()} disabled={syncing}>
                 {syncing ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (

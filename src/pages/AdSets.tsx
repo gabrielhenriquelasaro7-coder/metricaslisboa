@@ -16,10 +16,10 @@ import {
   ChevronLeft,
   Users,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Target
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 interface AdSet {
@@ -118,24 +118,44 @@ export default function AdSets() {
   const formatNumber = (n: number) => n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString();
   const formatCurrency = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
 
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { label: string; className: string }> = {
+      ACTIVE: { label: 'Ativo', className: 'bg-metric-positive/20 text-metric-positive border-metric-positive/30' },
+      PAUSED: { label: 'Pausado', className: 'bg-metric-warning/20 text-metric-warning border-metric-warning/30' },
+      DELETED: { label: 'Deletado', className: 'bg-muted text-muted-foreground' },
+      ARCHIVED: { label: 'Arquivado', className: 'bg-muted text-muted-foreground' },
+    };
+    return statusMap[status] || { label: status, className: 'bg-muted text-muted-foreground' };
+  };
+
   return (
     <DashboardLayout>
       <div className="p-8 space-y-8 animate-fade-in">
-        <div className="flex items-center gap-3 mb-2">
-          <Link to="/campaigns" className="text-muted-foreground hover:text-foreground"><ChevronLeft className="w-5 h-5" /></Link>
-          <h1 className="text-3xl font-bold">Conjuntos de Anúncios</h1>
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Link 
+            to="/campaigns" 
+            className="p-2 rounded-lg hover:bg-secondary/80 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold">Conjuntos de Anúncios</h1>
+            <p className="text-muted-foreground mt-1">
+              {campaign ? `Campanha: ${campaign.name}` : 'Carregando...'}
+              {selectedProject && (
+                <Badge variant="outline" className="ml-3 text-xs">
+                  {isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'}
+                </Badge>
+              )}
+            </p>
+          </div>
         </div>
-        <p className="text-muted-foreground">
-          {campaign ? `Campanha: ${campaign.name}` : 'Carregando...'}
-          {selectedProject && (
-            <span className="ml-2 text-xs">
-              ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'})
-            </span>
-          )}
-        </p>
 
         {loading ? (
-          <div className="flex justify-center py-20"><RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+          <div className="flex justify-center py-20">
+            <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
         ) : adSets.length === 0 ? (
           <div className="glass-card p-12 text-center">
             <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -144,6 +164,7 @@ export default function AdSets() {
           </div>
         ) : (
           <>
+            {/* Summary Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <MetricCard title="Gasto Total" value={formatCurrency(totals.spend)} icon={DollarSign} />
               <MetricCard title="Alcance" value={formatNumber(totals.reach)} icon={Users} />
@@ -152,7 +173,7 @@ export default function AdSets() {
               <MetricCard 
                 title={isEcommerce ? "Compras" : "Leads"} 
                 value={formatNumber(totals.conversions)} 
-                icon={isEcommerce ? ShoppingCart : Users} 
+                icon={isEcommerce ? ShoppingCart : Target} 
               />
               {isEcommerce ? (
                 <MetricCard 
@@ -171,59 +192,126 @@ export default function AdSets() {
               )}
             </div>
 
-            <AdvancedFilters filters={filters} onFiltersChange={setFilters} sort={sort} onSortChange={setSort} sortOptions={sortOptions} />
+            {/* Filters */}
+            <AdvancedFilters 
+              filters={filters} 
+              onFiltersChange={setFilters} 
+              sort={sort} 
+              onSortChange={setSort} 
+              sortOptions={sortOptions} 
+            />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {filteredAdSets.map((adSet) => (
-                <Link key={adSet.id} to={`/adset/${adSet.id}`} className="glass-card-hover p-6 space-y-4 block">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Layers className="w-6 h-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-lg">{adSet.name}</h3>
-                        <Badge variant="secondary" className={cn(adSet.status === 'ACTIVE' && 'bg-metric-positive/20 text-metric-positive', adSet.status === 'PAUSED' && 'bg-metric-warning/20 text-metric-warning')}>
-                          {adSet.status === 'ACTIVE' ? 'Ativo' : adSet.status === 'PAUSED' ? 'Pausado' : adSet.status}
-                        </Badge>
+            {/* Ad Sets Grid - Redesigned */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredAdSets.map((adSet) => {
+                const statusBadge = getStatusBadge(adSet.status);
+                const budget = adSet.daily_budget || adSet.lifetime_budget || 0;
+                const spendPercent = budget > 0 ? Math.min((adSet.spend / budget) * 100, 100) : 0;
+                
+                return (
+                  <Link 
+                    key={adSet.id} 
+                    to={`/adset/${adSet.id}`} 
+                    className="glass-card group hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden"
+                  >
+                    {/* Header */}
+                    <div className="p-5 pb-4 border-b border-border/50">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className={cn(
+                            "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
+                            adSet.status === 'ACTIVE' 
+                              ? 'bg-metric-positive/10' 
+                              : 'bg-secondary/50'
+                          )}>
+                            <Layers className={cn(
+                              "w-5 h-5",
+                              adSet.status === 'ACTIVE' ? 'text-metric-positive' : 'text-muted-foreground'
+                            )} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-base truncate group-hover:text-primary transition-colors">
+                              {adSet.name}
+                            </h3>
+                            <Badge variant="outline" className={cn("text-xs mt-1", statusBadge.className)}>
+                              {statusBadge.label}
+                            </Badge>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Orçamento</span>
-                      <span>{formatCurrency(adSet.spend)} / {formatCurrency(adSet.daily_budget || adSet.lifetime_budget || 0)}</span>
-                    </div>
-                    <Progress value={Math.min(((adSet.spend / (adSet.daily_budget || adSet.lifetime_budget || 1)) * 100), 100)} className="h-2" />
-                  </div>
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold">{formatNumber(adSet.reach)}</p>
-                      <p className="text-xs text-muted-foreground">Alcance</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold">{adSet.frequency.toFixed(1)}</p>
-                      <p className="text-xs text-muted-foreground">Frequência</p>
-                    </div>
-                    {isEcommerce ? (
-                      <div className="text-center">
-                        <p className={cn("text-2xl font-bold", adSet.roas >= 5 ? 'text-metric-positive' : adSet.roas >= 3 ? 'text-metric-warning' : 'text-metric-negative')}>
-                          {adSet.roas.toFixed(2)}x
-                        </p>
-                        <p className="text-xs text-muted-foreground">ROAS</p>
+
+                    {/* Budget Progress */}
+                    <div className="px-5 py-3 bg-secondary/20">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-muted-foreground">Orçamento</span>
+                        <span className="font-medium">
+                          {formatCurrency(adSet.spend)} 
+                          <span className="text-muted-foreground"> / {formatCurrency(budget)}</span>
+                        </span>
                       </div>
-                    ) : (
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-chart-1">
-                          {formatCurrency(adSet.cpa)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">CPL</p>
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div 
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            spendPercent >= 90 ? 'bg-metric-negative' :
+                            spendPercent >= 70 ? 'bg-metric-warning' :
+                            'bg-primary'
+                          )}
+                          style={{ width: `${spendPercent}%` }}
+                        />
                       </div>
-                    )}
-                  </div>
-                </Link>
-              ))}
+                    </div>
+
+                    {/* Metrics Grid */}
+                    <div className="p-5 pt-4">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="text-center">
+                          <p className="text-xl font-bold">{formatNumber(adSet.reach)}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Alcance</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xl font-bold">{adSet.ctr.toFixed(2)}%</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">CTR</p>
+                        </div>
+                        {isEcommerce ? (
+                          <div className="text-center">
+                            <p className={cn(
+                              "text-xl font-bold",
+                              adSet.roas >= 5 ? 'text-metric-positive' : 
+                              adSet.roas >= 3 ? 'text-metric-warning' : 
+                              adSet.roas > 0 ? 'text-metric-negative' : ''
+                            )}>
+                              {adSet.roas.toFixed(2)}x
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">ROAS</p>
+                          </div>
+                        ) : (
+                          <div className="text-center">
+                            <p className="text-xl font-bold text-chart-1">
+                              {formatCurrency(adSet.cpa)}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">CPL</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Secondary metrics */}
+                      <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Conversões</span>
+                          <span className="text-sm font-medium">{adSet.conversions}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Frequência</span>
+                          <span className="text-sm font-medium">{adSet.frequency.toFixed(1)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </>
         )}
