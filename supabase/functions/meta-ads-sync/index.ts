@@ -106,19 +106,41 @@ Deno.serve(async (req) => {
     // STEP 2: Fetch insights for all entities in batches using batch API
     console.log('[STEP 2] Fetching insights in batch...');
 
-    // Helper to extract conversions
+    // Helper to extract conversions - includes all lead/contact types
     const extractConversions = (insights: any) => {
       let conversions = 0;
       let conversionValue = 0;
+      
+      // Priority order for conversion action types
+      const conversionTypes = [
+        'purchase', 'omni_purchase',
+        'lead', 'onsite_conversion.lead_grouped',
+        'contact', 'contact_total', 'onsite_conversion.messaging_conversation_started_7d',
+        'submit_application', 'complete_registration',
+        'onsite_conversion.messaging_first_reply',
+        'landing_page_view', 'link_click'
+      ];
+      
       if (insights?.actions) {
-        const purchaseAction = insights.actions.find((a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase');
-        const leadAction = insights.actions.find((a: any) => a.action_type === 'lead');
-        conversions = parseInt(purchaseAction?.value || leadAction?.value || '0');
+        // Log all actions for debugging
+        console.log('[ACTIONS]', JSON.stringify(insights.actions.map((a: any) => ({ type: a.action_type, value: a.value }))));
+        
+        // Find first matching conversion type
+        for (const actionType of conversionTypes) {
+          const action = insights.actions.find((a: any) => a.action_type === actionType);
+          if (action && parseInt(action.value) > 0) {
+            conversions = parseInt(action.value);
+            console.log(`[CONVERSION] Found ${conversions} from ${actionType}`);
+            break;
+          }
+        }
       }
+      
       if (insights?.action_values) {
         const purchaseValue = insights.action_values.find((a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase');
         conversionValue = parseFloat(purchaseValue?.value || '0');
       }
+      
       return { conversions, conversionValue };
     };
 
