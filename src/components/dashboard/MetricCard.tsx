@@ -15,7 +15,7 @@ interface MetricCardProps {
   tooltip?: string;
 }
 
-const MetricCard = React.forwardRef<HTMLDivElement, MetricCardProps>(({
+function MetricCard({
   title,
   value,
   change,
@@ -24,7 +24,7 @@ const MetricCard = React.forwardRef<HTMLDivElement, MetricCardProps>(({
   trend,
   className,
   tooltip,
-}, ref) => {
+}: MetricCardProps) {
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
   
   const trendColor = trend === 'up' 
@@ -34,7 +34,7 @@ const MetricCard = React.forwardRef<HTMLDivElement, MetricCardProps>(({
       : 'text-muted-foreground';
 
   const cardContent = (
-    <div ref={ref} className={cn('metric-card', className)}>
+    <div className={cn('metric-card', className)}>
       <div className="flex items-start justify-between mb-4">
         <div>
           <p className={cn(
@@ -82,8 +82,6 @@ const MetricCard = React.forwardRef<HTMLDivElement, MetricCardProps>(({
   }
 
   return cardContent;
-});
-
-MetricCard.displayName = 'MetricCard';
+}
 
 export default MetricCard;
