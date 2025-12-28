@@ -175,7 +175,7 @@ export default function AdSets() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {filteredAdSets.map((adSet) => (
-                <div key={adSet.id} className="glass-card-hover p-6 space-y-4">
+                <Link key={adSet.id} to={`/adset/${adSet.id}`} className="glass-card-hover p-6 space-y-4 block">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -188,7 +188,7 @@ export default function AdSets() {
                         </Badge>
                       </div>
                     </div>
-                    <Link to={`/adset/${adSet.id}/ads`} className="text-muted-foreground hover:text-foreground"><ChevronRight className="w-5 h-5" /></Link>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
@@ -222,7 +222,7 @@ export default function AdSets() {
                       </div>
                     )}
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </>

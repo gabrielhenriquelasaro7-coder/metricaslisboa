@@ -10,6 +10,7 @@ import ProjectSelector from "./pages/ProjectSelector";
 import Dashboard from "./pages/Dashboard";
 import Campaigns from "./pages/Campaigns";
 import AdSets from "./pages/AdSets";
+import AdSetDetail from "./pages/AdSetDetail";
 import Ads from "./pages/Ads";
 import Creatives from "./pages/Creatives";
 import Settings from "./pages/Settings";
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/campaign/:campaignId/adsets" element={<AdSets />} />
+            <Route path="/adset/:adSetId" element={<AdSetDetail />} />
             <Route path="/adset/:adSetId/ads" element={<Ads />} />
             <Route path="/creatives" element={<Creatives />} />
             <Route path="/settings" element={<Settings />} />
