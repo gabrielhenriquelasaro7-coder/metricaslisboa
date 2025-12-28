@@ -238,28 +238,28 @@ export default function Creatives() {
               const statusBadge = getStatusBadge(creative.status);
               return (
                 <div key={creative.id} className="glass-card-hover overflow-hidden group">
-                  {/* Thumbnail - usando resolução maior */}
+                  {/* Thumbnail - usando imagem em alta resolução */}
                   <div className="relative aspect-square overflow-hidden bg-secondary/30">
-                    {creative.creative_thumbnail ? (
+                    {(creative.creative_image_url || creative.creative_thumbnail) ? (
                       <>
                         <img
-                          src={creative.creative_thumbnail.replace(/\/s\d+x\d+\//, '/')}
+                          src={creative.creative_image_url || creative.creative_thumbnail || ''}
                           alt={creative.headline || creative.name}
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
                           onError={(e) => {
-                            // Try original URL if high-res fails
+                            // Fallback to thumbnail if high-res fails
                             const img = e.target as HTMLImageElement;
-                            if (!img.dataset.fallback) {
+                            if (!img.dataset.fallback && creative.creative_thumbnail && img.src !== creative.creative_thumbnail) {
                               img.dataset.fallback = 'true';
-                              img.src = creative.creative_thumbnail || '';
+                              img.src = creative.creative_thumbnail;
                             } else {
                               img.style.display = 'none';
                             }
                           }}
                         />
                         <a
-                          href={creative.creative_thumbnail.replace(/\/s\d+x\d+\//, '/')}
+                          href={creative.creative_image_url || creative.creative_thumbnail || ''}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="absolute top-3 right-3 p-2 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -382,17 +382,17 @@ export default function Creatives() {
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-secondary/30">
-                            {creative.creative_thumbnail ? (
+                            {(creative.creative_image_url || creative.creative_thumbnail) ? (
                               <img
-                                src={creative.creative_thumbnail.replace(/\/s\d+x\d+\//, '/s300x300/')}
+                                src={creative.creative_image_url || creative.creative_thumbnail || ''}
                                 alt={creative.headline || creative.name}
                                 className="w-full h-full object-cover"
                                 loading="lazy"
                                 onError={(e) => {
                                   const img = e.target as HTMLImageElement;
-                                  if (!img.dataset.fallback) {
+                                  if (!img.dataset.fallback && creative.creative_thumbnail && img.src !== creative.creative_thumbnail) {
                                     img.dataset.fallback = 'true';
-                                    img.src = creative.creative_thumbnail || '';
+                                    img.src = creative.creative_thumbnail;
                                   } else {
                                     img.style.display = 'none';
                                   }

@@ -44,11 +44,12 @@ export default function Dashboard() {
     [activeProjects, selectedProjectId]
   );
 
-  // Determine business model
-  const businessModel = selectedProject?.business_model || 'ecommerce';
-  const isEcommerce = businessModel === 'ecommerce';
-  const isInsideSales = businessModel === 'inside_sales';
-  const isPdv = businessModel === 'pdv';
+  // Determine business model - only show specific metrics when a project is selected
+  const hasSelectedProject = selectedProjectId !== 'all' && selectedProject !== null;
+  const businessModel = selectedProject?.business_model;
+  const isEcommerce = hasSelectedProject && businessModel === 'ecommerce';
+  const isInsideSales = hasSelectedProject && businessModel === 'inside_sales';
+  const isPdv = hasSelectedProject && businessModel === 'pdv';
 
   // Calculate aggregated metrics from campaigns
   const { campaigns, loading: dataLoading } = useMetaAdsData();
@@ -225,15 +226,14 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Result Metrics - Dynamic based on business model */}
+            {/* Result Metrics - Dynamic based on business model - Only show when a specific project is selected */}
+            {hasSelectedProject && (
             <div>
               <h2 className="text-lg font-semibold mb-4 text-muted-foreground">
                 Métricas de Resultado 
-                {selectedProject && (
-                  <span className="text-sm font-normal ml-2">
-                    ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'})
-                  </span>
-                )}
+                <span className="text-sm font-normal ml-2">
+                  ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'})
+                </span>
               </h2>
               
               {/* E-commerce Metrics */}
@@ -432,7 +432,7 @@ export default function Dashboard() {
                 </>
               )}
             </div>
-
+            )}
             {/* Charts - Only show ROAS chart for E-commerce */}
             <div className={isEcommerce ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : ""}>
               <PerformanceChart

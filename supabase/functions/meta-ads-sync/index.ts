@@ -94,10 +94,82 @@ Deno.serve(async (req) => {
     const campaigns = campaignsData.data || [];
     console.log(`Found ${campaigns.length} campaigns`);
 
+    // Helper function to fetch high-res creative image
+    async function fetchCreativeImage(creativeId: string): Promise<string | null> {
+      if (!creativeId) return null;
+      
+      try {
+        // Request image_url which is the full resolution image
+        const creativeUrl = `https://graph.facebook.com/v19.0/${creativeId}?fields=image_url,object_story_spec,effective_object_story_id&access_token=${token}`;
+        const creativeResponse = await fetch(creativeUrl);
+        const creativeData = await creativeResponse.json();
+        
+        if (creativeData.error) {
+          console.log(`Could not fetch creative ${creativeId}:`, creativeData.error.message);
+          return null;
+        }
+        
+        // Try to get image_url first (direct image)
+        if (creativeData.image_url) {
+          console.log(`Got image_url for creative ${creativeId}`);
+          return creativeData.image_url;
+        }
+        
+        // Try to get from object_story_spec (for video/carousel ads)
+        if (creativeData.object_story_spec) {
+          const spec = creativeData.object_story_spec;
+          
+          // Check for link_data (single image ads)
+          if (spec.link_data?.image_url) {
+            console.log(`Got link_data.image_url for creative ${creativeId}`);
+            return spec.link_data.image_url;
+          }
+          if (spec.link_data?.picture) {
+            console.log(`Got link_data.picture for creative ${creativeId}`);
+            return spec.link_data.picture;
+          }
+          
+          // Check for photo_data (photo posts)
+          if (spec.photo_data?.image_url) {
+            console.log(`Got photo_data.image_url for creative ${creativeId}`);
+            return spec.photo_data.image_url;
+          }
+          
+          // Check for video_data (video posts with thumbnail)
+          if (spec.video_data?.image_url) {
+            console.log(`Got video_data.image_url for creative ${creativeId}`);
+            return spec.video_data.image_url;
+          }
+        }
+        
+        // Try to get from effective_object_story_id (actual post)
+        if (creativeData.effective_object_story_id) {
+          try {
+            const postUrl = `https://graph.facebook.com/v19.0/${creativeData.effective_object_story_id}?fields=full_picture&access_token=${token}`;
+            const postResponse = await fetch(postUrl);
+            const postData = await postResponse.json();
+            
+            if (postData.full_picture) {
+              console.log(`Got full_picture from post for creative ${creativeId}`);
+              return postData.full_picture;
+            }
+          } catch (e) {
+            console.log(`Could not fetch post for creative ${creativeId}`);
+          }
+        }
+        
+        return null;
+      } catch (e) {
+        console.error(`Error fetching creative image for ${creativeId}:`, e);
+        return null;
+      }
+    }
+
+    const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
+
     // Process each campaign
     for (const campaign of campaigns) {
       // Fetch campaign insights
-      const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
       const insightsUrl = `https://graph.facebook.com/v19.0/${campaign.id}/insights?fields=${insightsFields}&date_preset=${date_preset}&access_token=${token}`;
       
       let insights = null;
@@ -216,7 +288,7 @@ Deno.serve(async (req) => {
 
           await supabase.from('ad_sets').upsert(adSetData, { onConflict: 'id' });
 
-          // Fetch ads for this ad set
+          // Fetch ads for this ad set - request creative fields
           const adsUrl = `https://graph.facebook.com/v19.0/${adSet.id}/ads?fields=id,name,status,creative{id,thumbnail_url,title,body,call_to_action_type}&access_token=${token}`;
           try {
             const adsResponse = await fetch(adsUrl);
@@ -251,6 +323,12 @@ Deno.serve(async (req) => {
               const adRoas = adSpend > 0 ? adConversionValue / adSpend : 0;
               const adCpa = adConversions > 0 ? adSpend / adConversions : 0;
 
+              // Fetch high-res creative image
+              let creativeImageUrl: string | null = null;
+              if (ad.creative?.id) {
+                creativeImageUrl = await fetchCreativeImage(ad.creative.id);
+              }
+
               const adData = {
                 id: ad.id,
                 ad_set_id: adSet.id,
@@ -260,6 +338,7 @@ Deno.serve(async (req) => {
                 status: ad.status,
                 creative_id: ad.creative?.id,
                 creative_thumbnail: ad.creative?.thumbnail_url,
+                creative_image_url: creativeImageUrl,
                 headline: ad.creative?.title,
                 primary_text: ad.creative?.body,
                 cta: ad.creative?.call_to_action_type,
