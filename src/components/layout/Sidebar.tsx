@@ -11,7 +11,6 @@ import {
   ChevronRight,
   TrendingUp,
   Megaphone,
-  Users,
   ImageIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,8 +20,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Projetos', href: '/projects', icon: FolderKanban },
   { name: 'Campanhas', href: '/campaigns', icon: Megaphone },
-  { name: 'Conjuntos', href: '/adsets', icon: Users },
-  { name: 'Anúncios', href: '/ads', icon: ImageIcon },
+  { name: 'Criativos', href: '/creatives', icon: ImageIcon },
   { name: 'Análises', href: '/analytics', icon: TrendingUp },
   { name: 'Configurações', href: '/settings', icon: Settings },
 ];
