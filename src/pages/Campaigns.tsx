@@ -41,12 +41,12 @@ export default function Campaigns() {
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'roas', direction: 'desc' });
   
-  const { campaigns, loading, syncing, syncData, selectedProject } = useMetaAdsData();
+  const { campaigns, loading, syncing, syncData, selectedProject, projectsLoading } = useMetaAdsData();
 
-  // Redirect to project selector if no project selected
+  // Redirect to project selector if no project selected (only after projects have loaded)
   useEffect(() => {
     const projectId = localStorage.getItem('selectedProjectId');
-    if (!loading && !projectId && !selectedProject) {
+    if (!loading && !projectsLoading && !projectId && !selectedProject) {
       navigate('/projects');
     }
   }, [loading, selectedProject, navigate]);
