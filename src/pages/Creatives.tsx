@@ -10,12 +10,9 @@ import { DateRange } from 'react-day-picker';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   Search, 
-  Grid3X3, 
-  List, 
   RefreshCw,
   Loader2,
   ImageOff,
-  ExternalLink,
   Play,
   ChevronLeft,
   ChevronRight
@@ -23,12 +20,11 @@ import {
 import { cn } from '@/lib/utils';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 
-const ITEMS_PER_PAGE = 25; // More items in list view
+const ITEMS_PER_PAGE = 25;
 
 export default function Creatives() {
   const navigate = useNavigate();
   const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncData } = useMetaAdsData();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list'); // Default to list now
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [campaignFilter, setCampaignFilter] = useState<string>('all');
@@ -313,22 +309,6 @@ export default function Creatives() {
             </SelectContent>
           </Select>
 
-          <div className="flex items-center gap-1 ml-auto">
-            <Button
-              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              size="icon"
-              onClick={() => setViewMode('grid')}
-            >
-              <Grid3X3 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-              size="icon"
-              onClick={() => setViewMode('list')}
-            >
-              <List className="w-4 h-4" />
-            </Button>
-          </div>
         </div>
 
         {/* Stats */}
@@ -386,137 +366,8 @@ export default function Creatives() {
           </div>
         )}
 
-        {/* Creative Grid */}
-        {viewMode === 'grid' && paginatedCreatives.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {paginatedCreatives.map((creative) => {
-              const statusBadge = getStatusBadge(creative.status);
-              const videoUrl = (creative as any).creative_video_url;
-              const hasVideo = !!videoUrl;
-              
-              return (
-                <div key={creative.id} className="glass-card-hover overflow-hidden group">
-                  <div className="relative aspect-square overflow-hidden bg-secondary/30">
-                    {hasVideo ? (
-                      <video
-                        src={videoUrl}
-                        poster={creative.creative_image_url || creative.creative_thumbnail || ''}
-                        className="w-full h-full object-cover"
-                        controls
-                        preload="metadata"
-                      />
-                    ) : (creative.creative_image_url || creative.creative_thumbnail) ? (
-                      <>
-                        <img
-                          src={creative.creative_image_url || creative.creative_thumbnail || ''}
-                          alt={creative.headline || creative.name}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          loading="lazy"
-                          onError={(e) => {
-                            const img = e.target as HTMLImageElement;
-                            if (!img.dataset.fallback && creative.creative_thumbnail && img.src !== creative.creative_thumbnail) {
-                              img.dataset.fallback = 'true';
-                              img.src = creative.creative_thumbnail;
-                            } else {
-                              img.style.display = 'none';
-                            }
-                          }}
-                        />
-                        <a
-                          href={creative.creative_image_url || creative.creative_thumbnail || ''}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="absolute top-3 right-3 p-2 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      </>
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/50">
-                        <ImageOff className="w-12 h-12 text-muted-foreground mb-2" />
-                        <span className="text-xs text-muted-foreground">Anúncio Dinâmico</span>
-                      </div>
-                    )}
-                    <div className="absolute top-3 left-3 flex items-center gap-2">
-                      <Badge variant="secondary" className={statusBadge.className}>
-                        {statusBadge.label}
-                      </Badge>
-                      {hasVideo && (
-                        <Badge variant="secondary" className="bg-chart-1/20 text-chart-1">
-                          <Play className="w-3 h-3 mr-1" />
-                          Vídeo
-                        </Badge>
-                      )}
-                    </div>
-                    {isEcommerce && (
-                      <div className="absolute bottom-3 right-3">
-                        <Badge
-                          className={cn(
-                            'text-lg font-bold',
-                            (creative.roas || 0) >= 5
-                              ? 'bg-metric-positive text-metric-positive-foreground'
-                              : (creative.roas || 0) >= 3
-                              ? 'bg-metric-warning text-metric-warning-foreground'
-                              : 'bg-metric-negative text-metric-negative-foreground'
-                          )}
-                        >
-                          {(creative.roas || 0).toFixed(2)}x ROAS
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-4 space-y-4">
-                    <div>
-                      <h3 className="font-semibold text-lg mb-1 line-clamp-1">
-                        {creative.headline || creative.name}
-                      </h3>
-                      {creative.primary_text && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {creative.primary_text}
-                        </p>
-                      )}
-                    </div>
-
-                    {creative.cta && (
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{creative.cta.replace(/_/g, ' ')}</Badge>
-                      </div>
-                    )}
-
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      <p className="truncate">
-                        <span className="font-medium">Campanha:</span> {getCampaignName(creative.campaign_id)}
-                      </p>
-                      <p className="truncate">
-                        <span className="font-medium">Conjunto:</span> {getAdSetName(creative.ad_set_id)}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border">
-                      <div className="text-center">
-                        <p className="text-sm font-semibold text-primary">{formatCurrency(creative.spend || 0)}</p>
-                        <p className="text-xs text-muted-foreground">Gasto</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-semibold">{creative.conversions || 0}</p>
-                        <p className="text-xs text-muted-foreground">Leads</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-semibold">{formatCurrency(creative.cpa || 0)}</p>
-                        <p className="text-xs text-muted-foreground">CPL</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Creative List - Default View */}
-        {viewMode === 'list' && paginatedCreatives.length > 0 && (
+        {/* Creative List */}
+        {paginatedCreatives.length > 0 && (
           <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
