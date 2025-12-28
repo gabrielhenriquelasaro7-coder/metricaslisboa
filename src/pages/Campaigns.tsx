@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -39,13 +39,10 @@ export default function Campaigns() {
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
-  const lastSyncedRange = useRef<string | null>(null);
-  const initialSyncDone = useRef(false);
-  
-  const { campaigns, adSets, ads, loading, fetchCampaigns, fetchAdSets, fetchAds, selectedProject, projectsLoading } = useMetaAdsData();
+  const { campaigns, adSets, ads, loading, fetchCampaigns, fetchAdSets, fetchAds, selectedProject, projectsLoading, loadDataFromDatabase } = useMetaAdsData();
 
-  // Use the new sync hook
-  const { syncing, progress, syncData, syncWithDebounce, startAutoSync, stopAutoSync } = useSyncWithProgress({
+  // Use the new sync hook - for manual sync only
+  const { syncing, progress, syncData } = useSyncWithProgress({
     projectId: selectedProject?.id || '',
     adAccountId: selectedProject?.ad_account_id || '',
     onSuccess: () => {
@@ -66,27 +63,15 @@ export default function Campaigns() {
     return acc;
   }, {} as Record<string, number>);
 
-  // Auto-sync when date range changes
+  // Load data from database when project changes - NO API calls, instant loading
   useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to || syncing) return;
-    
-    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
-    
-    // Skip if we just synced this exact range
-    if (lastSyncedRange.current === rangeKey) return;
-    
-    lastSyncedRange.current = rangeKey;
-    
-    syncData({
-      since: format(dateRange.from, 'yyyy-MM-dd'),
-      until: format(dateRange.to, 'yyyy-MM-dd')
-    });
-  }, [dateRange, selectedProject, syncData, syncing]);
+    if (selectedProject) {
+      loadDataFromDatabase();
+    }
+  }, [selectedProject, loadDataFromDatabase]);
 
   // Handle date range change
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
-    // Reset the lastSyncedRange to force a new sync
-    lastSyncedRange.current = null;
     setDateRange(newRange);
   }, []);
 
@@ -97,8 +82,6 @@ export default function Campaigns() {
   
   // Manual sync with current date range
   const handleManualSync = useCallback(() => {
-    // Reset to force sync
-    lastSyncedRange.current = null;
     if (dateRange?.from && dateRange?.to) {
       syncData({
         since: format(dateRange.from, 'yyyy-MM-dd'),

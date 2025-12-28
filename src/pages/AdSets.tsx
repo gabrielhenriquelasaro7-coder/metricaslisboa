@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -63,9 +63,6 @@ export default function AdSets() {
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
-  const lastSyncedRange = useRef<string | null>(null);
-  const initialSyncDone = useRef(false);
-
   // Get project for this campaign to determine business model
   const selectedProject = projects.find(p => p.id === campaign?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
@@ -95,8 +92,8 @@ export default function AdSets() {
     }
   }, [campaignId]);
 
-  // Use the new sync hook
-  const { syncing, progress, syncData, syncWithDebounce, startAutoSync, stopAutoSync } = useSyncWithProgress({
+  // Use the new sync hook - for manual sync only
+  const { syncing, progress, syncData } = useSyncWithProgress({
     projectId: selectedProject?.id || '',
     adAccountId: selectedProject?.ad_account_id || '',
     onSuccess: fetchAdSets,
@@ -112,42 +109,12 @@ export default function AdSets() {
     ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
   ];
 
-  // Initial fetch
+  // Initial fetch - load from database only
   useEffect(() => {
     fetchAdSets();
   }, [fetchAdSets]);
 
-  // Auto-sync setup
-  useEffect(() => {
-    if (selectedProject && dateRange?.from && dateRange?.to) {
-      startAutoSync({
-        since: format(dateRange.from, 'yyyy-MM-dd'),
-        until: format(dateRange.to, 'yyyy-MM-dd')
-      });
-    }
-    return () => stopAutoSync();
-  }, [selectedProject, dateRange, startAutoSync, stopAutoSync]);
-
-  // Sync when date range changes (with debounce)
-  useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to || !campaign || syncing) return;
-    
-    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
-    
-    if (lastSyncedRange.current === rangeKey) return;
-    if (!initialSyncDone.current) {
-      initialSyncDone.current = true;
-      lastSyncedRange.current = rangeKey;
-      syncData({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
-      return;
-    }
-    
-    lastSyncedRange.current = rangeKey;
-    syncWithDebounce({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
-  }, [dateRange, selectedProject, campaign, syncData, syncWithDebounce, syncing]);
-
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
-    lastSyncedRange.current = null;
     setDateRange(newRange);
   }, []);
 
@@ -156,7 +123,6 @@ export default function AdSets() {
   }, []);
 
   const handleManualSync = useCallback(() => {
-    lastSyncedRange.current = null;
     if (dateRange?.from && dateRange?.to) {
       syncData({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
     } else {

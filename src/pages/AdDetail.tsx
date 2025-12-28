@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -87,7 +87,6 @@ export default function AdDetail() {
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
-  const lastSyncedRange = useRef<string | null>(null);
 
   const selectedProject = projects.find(p => p.id === ad?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
@@ -127,7 +126,7 @@ export default function AdDetail() {
     }
   }, [adId]);
 
-  // Sync data with date range
+  // Sync data with date range - ONLY for manual use
   const syncData = useCallback(async (timeRange?: { since: string; until: string }) => {
     if (!ad || !selectedProject) return;
     
@@ -151,31 +150,12 @@ export default function AdDetail() {
     }
   }, [ad, selectedProject, fetchAd]);
 
-  // Initial fetch
+  // Initial fetch - load from database only
   useEffect(() => {
     fetchAd();
   }, [fetchAd]);
 
-  // Auto-sync when date range changes
-  useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to || !ad || syncing) return;
-    
-    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
-    
-    // Skip if we just synced this exact range
-    if (lastSyncedRange.current === rangeKey) return;
-    
-    lastSyncedRange.current = rangeKey;
-    
-    syncData({
-      since: format(dateRange.from, 'yyyy-MM-dd'),
-      until: format(dateRange.to, 'yyyy-MM-dd')
-    });
-  }, [dateRange, selectedProject, ad, syncData, syncing]);
-
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
-    // Reset the lastSyncedRange to force a new sync
-    lastSyncedRange.current = null;
     setDateRange(newRange);
   }, []);
 
@@ -185,7 +165,6 @@ export default function AdDetail() {
 
   const handleManualSync = useCallback(() => {
     if (dateRange?.from && dateRange?.to) {
-      lastSyncedRange.current = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
       syncData({
         since: format(dateRange.from, 'yyyy-MM-dd'),
         until: format(dateRange.to, 'yyyy-MM-dd'),

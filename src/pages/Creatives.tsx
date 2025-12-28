@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,7 @@ const cleanImageUrl = (url: string | null): string | null => {
 
 export default function Creatives() {
   const navigate = useNavigate();
-  const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncData } = useMetaAdsData();
+  const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncData, loadDataFromDatabase } = useMetaAdsData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [campaignFilter, setCampaignFilter] = useState<string>('all');
@@ -59,35 +59,15 @@ export default function Creatives() {
     const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
     return period ? datePeriodToDateRange(period) : undefined;
   });
-  const isInitialMount = useRef(true);
-  const lastSyncedRange = useRef<string | null>(null);
 
   const projectTimezone = selectedProject?.timezone || 'America/Sao_Paulo';
 
-  // Auto-sync when date range changes
+  // Load data from database when project changes - NO API calls, instant loading
   useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to) return;
-    
-    const rangeKey = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
-    
-    if (lastSyncedRange.current === rangeKey || syncing) return;
-    
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      lastSyncedRange.current = rangeKey;
-      syncData({
-        since: dateRange.from.toISOString().split('T')[0],
-        until: dateRange.to.toISOString().split('T')[0]
-      });
-      return;
+    if (selectedProject) {
+      loadDataFromDatabase();
     }
-    
-    lastSyncedRange.current = rangeKey;
-    syncData({
-      since: dateRange.from.toISOString().split('T')[0],
-      until: dateRange.to.toISOString().split('T')[0]
-    });
-  }, [dateRange, selectedProject, syncData, syncing]);
+  }, [selectedProject, loadDataFromDatabase]);
 
   const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
     setDateRange(range);
