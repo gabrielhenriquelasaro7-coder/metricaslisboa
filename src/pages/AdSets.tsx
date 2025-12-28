@@ -243,15 +243,6 @@ export default function AdSets() {
             <Button 
               onClick={handleClearCacheAndSync} 
               disabled={syncing || !selectedProject}
-              variant="ghost"
-              size="sm"
-              title="Limpar cache e sincronizar"
-            >
-              <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
-            </Button>
-            <Button 
-              onClick={handleManualSync} 
-              disabled={syncing || !selectedProject}
               variant="outline"
               size="sm"
             >

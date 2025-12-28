@@ -25,33 +25,6 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
-// Helper to add delay
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Fetch with retry for rate limit errors
-async function fetchWithRetry(url: string, maxRetries: number = 2): Promise<Response> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const res = await fetch(url);
-    const data = await res.clone().json();
-    
-    // Check for rate limit error (code 17)
-    if (data.error?.code === 17) {
-      if (attempt < maxRetries) {
-        const waitTime = (attempt + 1) * 3000; // 3s, 6s
-        console.log(`[RATE LIMIT] Waiting ${waitTime}ms before retry ${attempt + 1}...`);
-        await delay(waitTime);
-        continue;
-      }
-      console.error('[RATE LIMIT] Max retries reached');
-    }
-    
-    return res;
-  }
-  throw new Error('Max retries exceeded');
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -96,12 +69,20 @@ Deno.serve(async (req) => {
 
     const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
 
-    // STEP 1: Fetch ALL data SEQUENTIALLY with delays to avoid rate limits
-    console.log('[STEP 1] Fetching campaigns, adsets, and ads with delays...');
+    // STEP 1: Fetch ALL data in PARALLEL (faster)
+    console.log('[STEP 1] Fetching campaigns, adsets, and ads in parallel...');
     
-    // Fetch campaigns first
-    const campaignsRes = await fetchWithRetry(`https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time&limit=500&access_token=${token}`);
-    const campaignsData = await campaignsRes.json();
+    const [campaignsRes, adSetsRes, adsRes] = await Promise.all([
+      fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time&limit=500&access_token=${token}`),
+      fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting&limit=500&access_token=${token}`),
+      fetch(`https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,title,body,call_to_action_type,image_url}&limit=500&access_token=${token}`)
+    ]);
+
+    const [campaignsData, adSetsData, adsData] = await Promise.all([
+      campaignsRes.json(),
+      adSetsRes.json(),
+      adsRes.json()
+    ]);
     
     if (campaignsData.error) {
       console.error('[ERROR] Campaigns fetch failed:', campaignsData.error);
@@ -113,85 +94,40 @@ Deno.serve(async (req) => {
     }
     
     const campaigns = campaignsData.data || [];
-    console.log(`[CAMPAIGNS] Found ${campaigns.length}`);
-    
-    // Add delay before fetching ad sets
-    await delay(500);
-    
-    // Fetch ad sets
-    const adSetsRes = await fetchWithRetry(`https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting&limit=500&access_token=${token}`);
-    const adSetsData = await adSetsRes.json();
-    
-    let adSets: any[] = [];
-    if (adSetsData.error) {
-      console.error('[ERROR] AdSets fetch failed:', adSetsData.error);
-      // Don't fail completely, continue with campaigns and ads
-      if (adSetsData.error.code === 17) {
-        console.log('[RATE LIMIT] Continuing without ad sets...');
-      }
-    } else {
-      adSets = adSetsData.data || [];
-    }
-    console.log(`[AD SETS] Found ${adSets.length}`);
-    
-    // Add delay before fetching ads
-    await delay(500);
-    
-    // Fetch ads
-    const adsRes = await fetchWithRetry(`https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,title,body,call_to_action_type,image_url}&limit=500&access_token=${token}`);
-    const adsData = await adsRes.json();
-    
-    let ads: any[] = [];
-    if (adsData.error) {
-      console.error('[ERROR] Ads fetch failed:', adsData.error);
-      if (adsData.error.code === 17) {
-        console.log('[RATE LIMIT] Continuing without ads...');
-      }
-    } else {
-      ads = adsData.data || [];
-    }
-    console.log(`[ADS] Found ${ads.length}`);
+    const adSets = adSetsData.error ? [] : (adSetsData.data || []);
+    const ads = adsData.error ? [] : (adsData.data || []);
+
+    if (adSetsData.error) console.log('[WARN] AdSets fetch failed, continuing without ad sets');
+    if (adsData.error) console.log('[WARN] Ads fetch failed, continuing without ads');
 
     console.log(`[STEP 1 DONE] Found ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads`);
 
-    // STEP 2: Fetch insights for all entities in batches using batch API
-    console.log('[STEP 2] Fetching insights in batch...');
+    // STEP 2: Use Meta Batch API for insights (50 requests per batch = much faster)
+    console.log('[STEP 2] Fetching insights using Batch API...');
 
-    // Helper to extract conversions - prioritize custom pixel events (Contato no site)
+    // Helper to extract conversions
     const extractConversions = (insights: any) => {
       let conversions = 0;
       let conversionValue = 0;
       
-      // Priority order for conversion action types
-      // "Contato no site" in Meta Ads = offsite_conversion.fb_pixel_custom or offsite_conversion.fb_pixel_lead
       const conversionTypes = [
-        // E-commerce / purchase
         'purchase', 'omni_purchase',
-        // Custom pixel events (Contato no site, Lead forms, etc.)
         'offsite_conversion.fb_pixel_custom',
         'offsite_conversion.fb_pixel_lead',
         'offsite_conversion.fb_pixel_complete_registration',
-        // Standard lead actions
         'lead', 'onsite_conversion.lead_grouped',
         'contact', 'contact_total',
-        // Messaging
         'onsite_conversion.messaging_conversation_started_7d',
         'onsite_conversion.messaging_first_reply',
         'onsite_conversion.total_messaging_connection',
-        // Form submissions
         'submit_application', 'complete_registration',
       ];
       
       if (insights?.actions) {
-        // Log all actions for debugging
-        console.log('[ACTIONS]', JSON.stringify(insights.actions.map((a: any) => ({ type: a.action_type, value: a.value }))));
-        
-        // Find first matching conversion type
         for (const actionType of conversionTypes) {
           const action = insights.actions.find((a: any) => a.action_type === actionType);
           if (action && parseInt(action.value) > 0) {
             conversions = parseInt(action.value);
-            console.log(`[CONVERSION] Found ${conversions} from ${actionType}`);
             break;
           }
         }
@@ -205,70 +141,60 @@ Deno.serve(async (req) => {
       return { conversions, conversionValue };
     };
 
-    // Fetch campaign insights in parallel (max 3 concurrent to avoid rate limits)
-    const campaignInsightsMap = new Map<string, any>();
-    const campaignChunks = chunk(campaigns, 3);
-    
-    for (const batch of campaignChunks) {
-      const results = await Promise.all(
-        batch.map(async (c: any) => {
-          try {
-            const res = await fetch(`https://graph.facebook.com/v19.0/${c.id}/insights?fields=${insightsFields}&${timeParam}&access_token=${token}`);
-            const data = await res.json();
-            return { id: c.id, insights: data.data?.[0] || null };
-          } catch {
-            return { id: c.id, insights: null };
+    // Batch API helper - processes up to 50 requests at once
+    async function fetchInsightsBatch(ids: string[], entityType: string): Promise<Map<string, any>> {
+      const insightsMap = new Map<string, any>();
+      
+      // Split into chunks of 50 (Meta batch limit)
+      const batches = chunk(ids, 50);
+      
+      for (const batchIds of batches) {
+        const batchRequests = batchIds.map((id, index) => ({
+          method: 'GET',
+          relative_url: `${id}/insights?fields=${insightsFields}&${timeParam}`,
+        }));
+        
+        try {
+          const batchRes = await fetch(`https://graph.facebook.com/v19.0/?access_token=${token}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ batch: batchRequests }),
+          });
+          
+          const batchData = await batchRes.json();
+          
+          if (Array.isArray(batchData)) {
+            batchData.forEach((response: any, index: number) => {
+              const id = batchIds[index];
+              try {
+                if (response.code === 200) {
+                  const body = JSON.parse(response.body);
+                  insightsMap.set(id, body.data?.[0] || null);
+                } else {
+                  insightsMap.set(id, null);
+                }
+              } catch {
+                insightsMap.set(id, null);
+              }
+            });
           }
-        })
-      );
-      results.forEach(r => campaignInsightsMap.set(r.id, r.insights));
-      // Add small delay between batches
-      await delay(200);
+        } catch (error) {
+          console.error(`[BATCH ERROR] ${entityType}:`, error);
+          batchIds.forEach(id => insightsMap.set(id, null));
+        }
+      }
+      
+      return insightsMap;
     }
 
-    // Fetch adset insights in parallel (max 5 concurrent - reduced from 10)
-    const adSetInsightsMap = new Map<string, any>();
-    const adSetChunks = chunk(adSets, 5);
-    
-    for (const batch of adSetChunks) {
-      const results = await Promise.all(
-        batch.map(async (as: any) => {
-          try {
-            const res = await fetch(`https://graph.facebook.com/v19.0/${as.id}/insights?fields=${insightsFields}&${timeParam}&access_token=${token}`);
-            const data = await res.json();
-            return { id: as.id, insights: data.data?.[0] || null };
-          } catch {
-            return { id: as.id, insights: null };
-          }
-        })
-      );
-      results.forEach(r => adSetInsightsMap.set(r.id, r.insights));
-      // Add small delay between batches
-      await delay(200);
-    }
+    // Fetch all insights in parallel using batch API
+    const [campaignInsightsMap, adSetInsightsMap, adInsightsMap] = await Promise.all([
+      fetchInsightsBatch(campaigns.map((c: any) => c.id), 'campaigns'),
+      adSets.length > 0 ? fetchInsightsBatch(adSets.map((as: any) => as.id), 'adsets') : Promise.resolve(new Map()),
+      ads.length > 0 ? fetchInsightsBatch(ads.map((ad: any) => ad.id), 'ads') : Promise.resolve(new Map()),
+    ]);
 
-    // Fetch ad insights in parallel (max 5 concurrent - reduced from 10)
-    const adInsightsMap = new Map<string, any>();
-    const adChunks = chunk(ads, 5);
-    
-    for (const batch of adChunks) {
-      const results = await Promise.all(
-        batch.map(async (ad: any) => {
-          try {
-            const res = await fetch(`https://graph.facebook.com/v19.0/${ad.id}/insights?fields=${insightsFields}&${timeParam}&access_token=${token}`);
-            const data = await res.json();
-            return { id: ad.id, insights: data.data?.[0] || null };
-          } catch {
-            return { id: ad.id, insights: null };
-          }
-        })
-      );
-      results.forEach(r => adInsightsMap.set(r.id, r.insights));
-      // Add small delay between batches
-      await delay(200);
-    }
-
-    console.log('[STEP 2 DONE] All insights fetched');
+    console.log('[STEP 2 DONE] All insights fetched via Batch API');
 
     // STEP 3: Prepare and upsert all data
     console.log('[STEP 3] Upserting data to database...');
@@ -334,7 +260,7 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Prepare ad data (skip heavy creative fetching for speed)
+    // Prepare ad data
     const adRecords = ads.map((ad: any) => {
       const insights = adInsightsMap.get(ad.id);
       const { conversions, conversionValue } = extractConversions(insights);
