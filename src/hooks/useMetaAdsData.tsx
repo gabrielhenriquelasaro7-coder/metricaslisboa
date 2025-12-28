@@ -228,7 +228,7 @@ export function useMetaAdsData() {
   const syncData = useCallback(async (timeRange?: { since: string; until: string }, forceSync: boolean = false) => {
     if (!selectedProject) {
       toast.error('Nenhum projeto selecionado');
-      return;
+      return { success: false };
     }
 
     // Check cache first (unless force sync)
@@ -240,7 +240,7 @@ export function useMetaAdsData() {
         setCampaigns(cached.campaigns);
         setAdSets(cached.adSets);
         setAds(cached.ads);
-        return;
+        return { success: true, fromCache: true };
       }
     }
 
@@ -276,7 +276,7 @@ export function useMetaAdsData() {
       console.log('Sync response:', data);
 
       if (data.success) {
-        toast.success(`Sincronização concluída! ${data.data?.campaigns_count || 0} campanhas sincronizadas.`);
+        toast.success(`Sincronização concluída! ${data.data?.campaigns_count || 0} campanhas, ${data.data?.ad_sets_count || 0} conjuntos, ${data.data?.ads_count || 0} anúncios.`);
         
         // Refetch all data after sync
         const [campaignsResult, adSetsResult, adsResult] = await Promise.all([
@@ -298,13 +298,24 @@ export function useMetaAdsData() {
           setCachedData(selectedProject.id, timeRange, newCampaigns, newAdSets, newAds);
           console.log('Data cached for period:', timeRange);
         }
+        
+        return { success: true, data: data.data };
       } else {
         console.error('Sync failed:', data.error);
-        toast.error(data.error || 'Erro na sincronização');
+        
+        // Check for rate limit error
+        if (data.rate_limited) {
+          toast.error('Limite de requisições da API do Meta atingido. Aguarde alguns minutos e tente novamente.');
+        } else {
+          toast.error(data.error || 'Erro na sincronização');
+        }
+        
+        return { success: false, error: data.error };
       }
     } catch (error) {
       console.error('Sync error:', error);
       toast.error('Erro ao sincronizar dados');
+      return { success: false, error };
     } finally {
       setSyncing(false);
     }
