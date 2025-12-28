@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   Search, 
@@ -19,10 +20,12 @@ import {
   ShoppingCart,
   TrendingUp,
   DollarSign,
-  Target
+  Target,
+  MoreVertical
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMetaAdsData, clearAllCache } from '@/hooks/useMetaAdsData';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const ITEMS_PER_PAGE = 25;
 
@@ -59,20 +62,40 @@ export default function Creatives() {
     const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
     return period ? datePeriodToDateRange(period) : undefined;
   });
+  const lastSyncedRange = useRef<string | null>(null);
 
   const projectTimezone = selectedProject?.timezone || 'America/Sao_Paulo';
 
-  // Load data from database when project changes - NO API calls, instant loading
+  // Sync when date range changes
   useEffect(() => {
-    if (selectedProject) {
-      loadDataFromDatabase();
-    }
-  }, [selectedProject, loadDataFromDatabase]);
+    if (!selectedProject || !dateRange?.from || !dateRange?.to || syncing) return;
+    
+    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
+    if (lastSyncedRange.current === rangeKey) return;
+    
+    lastSyncedRange.current = rangeKey;
+    syncData({
+      since: format(dateRange.from, 'yyyy-MM-dd'),
+      until: format(dateRange.to, 'yyyy-MM-dd')
+    });
+  }, [dateRange, selectedProject, syncData, syncing]);
 
   const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
+    lastSyncedRange.current = null;
     setDateRange(range);
     setCurrentPage(1);
   }, []);
+
+  const handleManualSync = useCallback(() => {
+    lastSyncedRange.current = null;
+    if (dateRange?.from && dateRange?.to) {
+      clearAllCache();
+      syncData({
+        since: format(dateRange.from, 'yyyy-MM-dd'),
+        until: format(dateRange.to, 'yyyy-MM-dd')
+      }, true);
+    }
+  }, [dateRange, syncData]);
 
   // Redirect if no project selected
   if (!selectedProject && !projectsLoading && !loading) {
@@ -229,21 +252,19 @@ export default function Creatives() {
               onDateRangeChange={handleDateRangeChange}
               timezone={projectTimezone}
             />
-            <Button onClick={() => {
-              if (dateRange?.from && dateRange?.to) {
-                clearAllCache();
-                syncData({
-                  since: dateRange.from.toISOString().split('T')[0],
-                  until: dateRange.to.toISOString().split('T')[0]
-                }, true);
-              }
-            }} disabled={syncing} size="sm" className="bg-primary hover:bg-primary/90" title="Sincronizar e atualizar imagens">
-              {syncing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleManualSync} disabled={syncing || !selectedProject}>
+                  <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+                  {syncing ? 'Sincronizando...' : 'Forçar Sincronização'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
