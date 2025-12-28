@@ -433,22 +433,18 @@ export default function Creatives() {
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-2 pt-3 border-t border-border">
+                    <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border">
                       <div className="text-center">
                         <p className="text-sm font-semibold text-primary">{formatCurrency(creative.spend || 0)}</p>
                         <p className="text-xs text-muted-foreground">Gasto</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-sm font-semibold">{formatNumber(creative.impressions || 0)}</p>
-                        <p className="text-xs text-muted-foreground">Impr.</p>
+                        <p className="text-sm font-semibold">{creative.conversions || 0}</p>
+                        <p className="text-xs text-muted-foreground">Leads</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-sm font-semibold">{(creative.ctr || 0).toFixed(2)}%</p>
-                        <p className="text-xs text-muted-foreground">CTR</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-semibold">{formatCurrency(creative.cpc || 0)}</p>
-                        <p className="text-xs text-muted-foreground">CPC</p>
+                        <p className="text-sm font-semibold">{formatCurrency(creative.cpa || 0)}</p>
+                        <p className="text-xs text-muted-foreground">CPL</p>
                       </div>
                     </div>
                   </div>
@@ -468,10 +464,8 @@ export default function Creatives() {
                   <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">Campanha</th>
                   <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">Conjunto</th>
                   <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">Gasto</th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">Impr.</th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">CTR</th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">CPC</th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">Conv.</th>
+                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">Leads</th>
+                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">CPL</th>
                   {isEcommerce && (
                     <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">ROAS</th>
                   )}
@@ -528,10 +522,8 @@ export default function Creatives() {
                       <td className="py-4 px-6 text-right font-medium text-primary">
                         {formatCurrency(creative.spend || 0)}
                       </td>
-                      <td className="py-4 px-6 text-right">{formatNumber(creative.impressions || 0)}</td>
-                      <td className="py-4 px-6 text-right">{(creative.ctr || 0).toFixed(2)}%</td>
-                      <td className="py-4 px-6 text-right">{formatCurrency(creative.cpc || 0)}</td>
                       <td className="py-4 px-6 text-right">{creative.conversions || 0}</td>
+                      <td className="py-4 px-6 text-right">{formatCurrency(creative.cpa || 0)}</td>
                       {isEcommerce && (
                         <td className="py-4 px-6 text-right">
                           <Badge
