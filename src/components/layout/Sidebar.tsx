@@ -101,10 +101,10 @@ export default function Sidebar() {
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
           <Link to="/projects" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/20">
               <BarChart3 className="w-6 h-6 text-primary-foreground" />
             </div>
-            {!collapsed && <span className="text-lg font-bold">MetaMetrics</span>}
+            {!collapsed && <span className="text-lg font-bold">V4 Metrics</span>}
           </Link>
           <Button
             variant="ghost"
@@ -293,7 +293,7 @@ export default function Sidebar() {
         {/* User section */}
         <div className="p-4 border-t border-sidebar-border">
           <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-md shadow-primary/20">
               <span className="text-sm font-bold text-primary-foreground">
                 {user?.email?.[0].toUpperCase()}
               </span>
