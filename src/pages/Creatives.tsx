@@ -223,6 +223,11 @@ export default function Creatives() {
             <h1 className="text-3xl font-bold mb-2">Galeria de Criativos</h1>
             <p className="text-muted-foreground">
               Visualize e analise o desempenho dos seus criativos
+              {dateRange?.from && dateRange?.to && (
+                <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                  {dateRange.from.toLocaleDateString('pt-BR')} - {dateRange.to.toLocaleDateString('pt-BR')}
+                </span>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -428,8 +433,9 @@ export default function Creatives() {
                         </a>
                       </>
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ImageOff className="w-16 h-16 text-muted-foreground" />
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/50">
+                        <ImageOff className="w-12 h-12 text-muted-foreground mb-2" />
+                        <span className="text-xs text-muted-foreground">Anúncio Dinâmico</span>
                       </div>
                     )}
                     <div className="absolute top-3 left-3 flex items-center gap-2">

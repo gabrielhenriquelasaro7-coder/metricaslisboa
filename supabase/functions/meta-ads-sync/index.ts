@@ -220,20 +220,43 @@ Deno.serve(async (req) => {
     );
     console.log(`[AD SETS] Total: ${adSets.length}`);
     
-    // STEP 3: Fetch ads with creative data (optimized fields)
-    console.log('[STEP 3/3] Fetching ads...');
+    // STEP 3: Fetch ads with creative data including image_hash for high quality
+    console.log('[STEP 3/4] Fetching ads...');
     await delay(500); // More delay after adsets to avoid rate limit
     
-    // Simplified creative fields to avoid timeout - fetch essentials only
+    // Include image_hash to fetch high-res images later
     const ads = await fetchAllPages(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,object_story_spec}`,
+      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,object_story_spec}`,
       token,
       'ADS',
       200
     );
     console.log(`[ADS] Total: ${ads.length}`);
     
-    // Note: Skipping preview fetch to avoid additional API load
+    // STEP 3.5: Fetch high-quality images from adimages endpoint
+    console.log('[STEP 3.5/4] Fetching high-quality images...');
+    await delay(300);
+    
+    const adImages = await fetchAllPages(
+      `https://graph.facebook.com/v19.0/${ad_account_id}/adimages?fields=hash,url,url_128,url_256,width,height`,
+      token,
+      'IMAGES',
+      200
+    );
+    console.log(`[IMAGES] Total: ${adImages.length}`);
+    
+    // Create hash -> high-quality URL map
+    const imageHashMap = new Map<string, string>();
+    adImages.forEach((img: any) => {
+      // Prefer url_256 or url (original), fallback to url_128
+      const bestUrl = img.url || img.url_256 || img.url_128;
+      if (bestUrl && img.hash) {
+        imageHashMap.set(img.hash, bestUrl);
+      }
+    });
+    console.log(`[IMAGES] Mapped ${imageHashMap.size} image hashes`);
+    
+    // Placeholder for catalog ads without images
     const previewsMap = new Map<string, string>();
 
     console.log(`[FETCH DONE] ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads`);
@@ -452,42 +475,65 @@ Deno.serve(async (req) => {
       const objectStory = creative.object_story_spec || {};
       const assetFeed = creative.asset_feed_spec || {};
       
+      // Helper to clean low-res URL parameters (p64x64, s64x64, etc.)
+      const cleanImageUrl = (url: string | null): string | null => {
+        if (!url) return null;
+        // Remove Facebook resize parameters that cause pixelation
+        return url
+          .replace(/\/p\d+x\d+\//g, '/') // /p64x64/ -> /
+          .replace(/\/s\d+x\d+\//g, '/') // /s64x64/ -> /
+          .replace(/stp=dst-[^&]+&?/g, '') // stp=dst-jpg_p64x64 params
+          .replace(/\?stp=[^&]+/g, '') // ?stp= at start
+          .replace(/&stp=[^&]+/g, ''); // &stp= in middle
+      };
+      
       // Try to get highest quality image (priority order)
-      let imageUrl = null;
-      let videoUrl = null;
+      let imageUrl: string | null = null;
+      let videoUrl: string | null = null;
+      
+      // 0. FIRST - Check image_hash and get from adimages (highest quality!)
+      if (creative.image_hash && imageHashMap.has(creative.image_hash)) {
+        imageUrl = imageHashMap.get(creative.image_hash) || null;
+      }
       
       // 1. Check object_story_spec for link_data or video_data
-      if (objectStory.link_data?.image_url) {
-        imageUrl = objectStory.link_data.image_url;
-      } else if (objectStory.link_data?.picture) {
-        imageUrl = objectStory.link_data.picture;
-      } else if (objectStory.video_data?.image_url) {
-        imageUrl = objectStory.video_data.image_url;
+      if (!imageUrl && objectStory.link_data?.image_url) {
+        imageUrl = cleanImageUrl(objectStory.link_data.image_url);
+      } else if (!imageUrl && objectStory.link_data?.picture) {
+        imageUrl = cleanImageUrl(objectStory.link_data.picture);
+      } else if (!imageUrl && objectStory.video_data?.image_url) {
+        imageUrl = cleanImageUrl(objectStory.video_data.image_url);
         videoUrl = objectStory.video_data.video_id 
           ? `https://www.facebook.com/video.php?v=${objectStory.video_data.video_id}` 
           : null;
-      } else if (objectStory.photo_data?.url) {
-        imageUrl = objectStory.photo_data.url;
+      } else if (!imageUrl && objectStory.photo_data?.url) {
+        imageUrl = cleanImageUrl(objectStory.photo_data.url);
       }
       
       // 2. Check asset_feed_spec for images
       if (!imageUrl && assetFeed.images?.length > 0) {
-        imageUrl = assetFeed.images[0].url || assetFeed.images[0].hash;
+        const firstImg = assetFeed.images[0];
+        // Try to get from hash map first
+        if (firstImg.hash && imageHashMap.has(firstImg.hash)) {
+          imageUrl = imageHashMap.get(firstImg.hash) || null;
+        } else {
+          imageUrl = cleanImageUrl(firstImg.url) || null;
+        }
       }
       
       // 3. Check for template_data (catalog/dynamic ads)
       if (!imageUrl && objectStory.template_data?.link_data?.picture) {
-        imageUrl = objectStory.template_data.link_data.picture;
+        imageUrl = cleanImageUrl(objectStory.template_data.link_data.picture);
       }
       
-      // 4. Use preview image for catalog ads
+      // 4. Use preview image for catalog ads (from previewsMap if we had it)
       if (!imageUrl && previewsMap.has(ad.id)) {
-        imageUrl = previewsMap.get(ad.id);
+        imageUrl = previewsMap.get(ad.id) || null;
       }
       
-      // 5. Fallback to creative image_url/thumbnail_url
+      // 5. Fallback to creative image_url/thumbnail_url (cleaned)
       if (!imageUrl) {
-        imageUrl = creative.image_url || creative.thumbnail_url || null;
+        imageUrl = cleanImageUrl(creative.image_url) || cleanImageUrl(creative.thumbnail_url) || null;
       }
       
       // Extract headline, body text and CTA
