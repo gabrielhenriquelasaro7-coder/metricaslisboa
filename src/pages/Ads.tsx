@@ -1,9 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
+import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
 import { supabase } from '@/integrations/supabase/client';
+import { useProjects } from '@/hooks/useProjects';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
+import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   ImageIcon, 
   TrendingUp, 
@@ -13,9 +18,12 @@ import {
   ShoppingCart,
   ChevronLeft,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Target,
+  Users
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +31,7 @@ interface Ad {
   id: string;
   ad_set_id: string;
   campaign_id: string;
+  project_id: string;
   name: string;
   status: string;
   creative_thumbnail: string | null;
@@ -40,40 +49,143 @@ interface Ad {
   cpa: number;
 }
 
-const sortOptions = [
-  { value: 'roas', label: 'ROAS' },
-  { value: 'spend', label: 'Gasto' },
-  { value: 'conversions', label: 'Conversões' },
-  { value: 'ctr', label: 'CTR' },
-  { value: 'name', label: 'Nome' },
-];
+interface AdSet {
+  id: string;
+  name: string;
+  campaign_id: string;
+  project_id: string;
+}
 
 export default function Ads() {
   const { adSetId } = useParams<{ adSetId: string }>();
-  const [adSet, setAdSet] = useState<{ id: string; name: string; campaign_id: string } | null>(null);
+  const { projects } = useProjects();
+  const [adSet, setAdSet] = useState<AdSet | null>(null);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
   const [filters, setFilters] = useState<FilterConfig>({});
-  const [sort, setSort] = useState<SortConfig>({ field: 'roas', direction: 'desc' });
+  const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
+    return period ? datePeriodToDateRange(period) : undefined;
+  });
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
+  const lastSyncedRange = useRef<string | null>(null);
+  const isInitialMount = useRef(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!adSetId) return;
-      setLoading(true);
-      try {
-        const { data: adSetData } = await supabase.from('ad_sets').select('id, name, campaign_id').eq('id', adSetId).single();
-        if (adSetData) setAdSet(adSetData);
-        const { data: adsData } = await supabase.from('ads').select('*').eq('ad_set_id', adSetId).order('spend', { ascending: false });
-        setAds((adsData as Ad[]) || []);
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+  // Get project for this ad set
+  const selectedProject = projects.find(p => p.id === adSet?.project_id);
+  const isEcommerce = selectedProject?.business_model === 'ecommerce';
+  const isInsideSales = selectedProject?.business_model === 'inside_sales';
+
+  // Sort options based on business model
+  const sortOptions = [
+    { value: 'spend', label: 'Gasto' },
+    { value: 'conversions', label: isEcommerce ? 'Compras' : 'Leads' },
+    { value: 'ctr', label: 'CTR' },
+    { value: 'cpa', label: isEcommerce ? 'CPA' : 'CPL' },
+    { value: 'name', label: 'Nome' },
+    ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
+  ];
+
+  const fetchAds = useCallback(async () => {
+    if (!adSetId) return;
+    setLoading(true);
+    try {
+      const { data: adSetData } = await supabase
+        .from('ad_sets')
+        .select('id, name, campaign_id, project_id')
+        .eq('id', adSetId)
+        .maybeSingle();
+      if (adSetData) setAdSet(adSetData as AdSet);
+
+      const { data: adsData } = await supabase
+        .from('ads')
+        .select('*')
+        .eq('ad_set_id', adSetId)
+        .order('spend', { ascending: false });
+      setAds((adsData as Ad[]) || []);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [adSetId]);
+
+  // Sync data with date range
+  const syncData = useCallback(async (timeRange?: { since: string; until: string }) => {
+    if (!adSet || !selectedProject) return;
+    
+    setSyncing(true);
+    try {
+      const { error } = await supabase.functions.invoke('meta-ads-sync', {
+        body: {
+          project_id: selectedProject.id,
+          ad_account_id: selectedProject.ad_account_id,
+          time_range: timeRange,
+        },
+      });
+      
+      if (error) throw error;
+      
+      await fetchAds();
+    } catch (error) {
+      console.error('Sync error:', error);
+    } finally {
+      setSyncing(false);
+    }
+  }, [adSet, selectedProject, fetchAds]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchAds();
+  }, [fetchAds]);
+
+  // Auto-sync when date range changes
+  useEffect(() => {
+    if (!selectedProject || !dateRange?.from || !dateRange?.to || !adSet) return;
+    
+    const rangeKey = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
+    
+    if (lastSyncedRange.current === rangeKey || syncing) return;
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      lastSyncedRange.current = rangeKey;
+      syncData({
+        since: dateRange.from.toISOString().split('T')[0],
+        until: dateRange.to.toISOString().split('T')[0]
+      });
+      return;
+    }
+    
+    lastSyncedRange.current = rangeKey;
+    syncData({
+      since: dateRange.from.toISOString().split('T')[0],
+      until: dateRange.to.toISOString().split('T')[0]
+    });
+  }, [dateRange, selectedProject, adSet, syncData, syncing]);
+
+  const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
+    setDateRange(newRange);
+  }, []);
+
+  const handlePresetChange = useCallback((preset: DatePresetKey) => {
+    setSelectedPreset(preset);
+  }, []);
+
+  const handleManualSync = useCallback(() => {
+    if (dateRange?.from && dateRange?.to) {
+      lastSyncedRange.current = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
+      syncData({
+        since: format(dateRange.from, 'yyyy-MM-dd'),
+        until: format(dateRange.to, 'yyyy-MM-dd'),
+      });
+    } else {
+      syncData();
+    }
+  }, [dateRange, syncData]);
 
   const filteredAds = ads
     .filter((a) => !filters.search || a.name.toLowerCase().includes(filters.search.toLowerCase()))
@@ -93,36 +205,93 @@ export default function Ads() {
   }), { spend: 0, impressions: 0, clicks: 0, conversions: 0, revenue: 0 });
 
   const avgRoas = totals.spend > 0 ? totals.revenue / totals.spend : 0;
+  const avgCpl = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
   const avgCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+  
   const formatNumber = (n: number) => n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString();
   const formatCurrency = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
 
   return (
     <DashboardLayout>
       <div className="p-8 space-y-8 animate-fade-in">
-        <div className="flex items-center gap-3 mb-2">
-          <Link to={adSet ? `/campaign/${adSet.campaign_id}/adsets` : '/campaigns'} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="w-5 h-5" /></Link>
-          <h1 className="text-3xl font-bold">Anúncios</h1>
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link 
+              to={adSet ? `/campaign/${adSet.campaign_id}/adsets` : '/campaigns'} 
+              className="p-2 rounded-lg hover:bg-secondary/80 transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+            </Link>
+            <div>
+              <h1 className="text-3xl font-bold">Anúncios</h1>
+              <p className="text-muted-foreground mt-1">
+                {adSet ? `Conjunto: ${adSet.name}` : 'Carregando...'}
+                {selectedProject && (
+                  <Badge variant="outline" className="ml-3 text-xs">
+                    {isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'}
+                  </Badge>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={handleManualSync} 
+              disabled={syncing || !selectedProject}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            </Button>
+            <DateRangePicker 
+              dateRange={dateRange} 
+              onDateRangeChange={handleDateRangeChange}
+              timezone={selectedProject?.timezone}
+              onPresetChange={handlePresetChange}
+            />
+          </div>
         </div>
-        <p className="text-muted-foreground">{adSet ? `Conjunto: ${adSet.name}` : 'Carregando...'}</p>
 
         {loading ? (
-          <div className="flex justify-center py-20"><RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+          <div className="flex justify-center py-20">
+            <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
         ) : ads.length === 0 ? (
           <div className="glass-card p-12 text-center">
             <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-xl font-semibold mb-2">Nenhum anúncio encontrado</h3>
-            <p className="text-muted-foreground">Sincronize os dados na página de campanhas.</p>
+            <p className="text-muted-foreground">Sincronize os dados para carregar os anúncios.</p>
           </div>
         ) : (
           <>
+            {/* Summary Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <MetricCard title="Gasto Total" value={formatCurrency(totals.spend)} icon={DollarSign} />
-              <MetricCard title="Impressões" value={formatNumber(totals.impressions)} icon={Eye} />
-              <MetricCard title="Cliques" value={formatNumber(totals.clicks)} icon={MousePointerClick} />
+              <MetricCard 
+                title={isEcommerce ? "Compras" : "Leads"} 
+                value={formatNumber(totals.conversions)} 
+                icon={isEcommerce ? ShoppingCart : Target} 
+              />
+              {isEcommerce ? (
+                <MetricCard 
+                  title="ROAS Médio" 
+                  value={`${avgRoas.toFixed(2)}x`} 
+                  icon={TrendingUp} 
+                  className="border-l-4 border-l-metric-positive" 
+                />
+              ) : (
+                <MetricCard 
+                  title="CPL Médio" 
+                  value={formatCurrency(avgCpl)} 
+                  icon={DollarSign} 
+                  className="border-l-4 border-l-chart-1" 
+                />
+              )}
               <MetricCard title="CTR Médio" value={`${avgCtr.toFixed(2)}%`} icon={TrendingUp} />
-              <MetricCard title="Conversões" value={formatNumber(totals.conversions)} icon={ShoppingCart} />
-              <MetricCard title="ROAS Médio" value={`${avgRoas.toFixed(2)}x`} icon={TrendingUp} className="border-l-4 border-l-metric-positive" />
+              <MetricCard title="Impressões" value={formatNumber(totals.impressions)} icon={Eye} />
+              <MetricCard title="Gasto Total" value={formatCurrency(totals.spend)} icon={DollarSign} />
+              <MetricCard title="Cliques" value={formatNumber(totals.clicks)} icon={MousePointerClick} />
             </div>
 
             <AdvancedFilters filters={filters} onFiltersChange={setFilters} sort={sort} onSortChange={setSort} sortOptions={sortOptions} />
@@ -137,17 +306,34 @@ export default function Ads() {
                         {ad.status === 'ACTIVE' ? 'Ativo' : ad.status === 'PAUSED' ? 'Pausado' : ad.status}
                       </Badge>
                     </div>
-                    <div className="absolute bottom-3 right-3">
-                      <Badge className={cn('text-lg font-bold', ad.roas >= 5 ? 'bg-metric-positive text-white' : ad.roas >= 3 ? 'bg-metric-warning text-white' : 'bg-metric-negative text-white')}>{ad.roas.toFixed(2)}x</Badge>
-                    </div>
+                    {isEcommerce && (
+                      <div className="absolute bottom-3 right-3">
+                        <Badge className={cn('text-lg font-bold', ad.roas >= 5 ? 'bg-metric-positive text-white' : ad.roas >= 3 ? 'bg-metric-warning text-white' : 'bg-metric-negative text-white')}>{ad.roas.toFixed(2)}x</Badge>
+                      </div>
+                    )}
                   </div>
                   <div className="p-4 space-y-4">
                     <h3 className="font-semibold truncate">{ad.name}</h3>
                     {ad.cta && <Badge variant="outline">{ad.cta}</Badge>}
-                    <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border">
-                      <div className="text-center"><p className="text-lg font-semibold">{formatNumber(ad.impressions)}</p><p className="text-xs text-muted-foreground">Impressões</p></div>
-                      <div className="text-center"><p className="text-lg font-semibold">{ad.ctr.toFixed(2)}%</p><p className="text-xs text-muted-foreground">CTR</p></div>
-                      <div className="text-center"><p className="text-lg font-semibold">{ad.conversions}</p><p className="text-xs text-muted-foreground">Conversões</p></div>
+                    
+                    {/* Main Metrics - Leads/CPL first */}
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+                      <div className="text-center p-2 bg-primary/5 rounded-lg">
+                        <p className="text-lg font-bold text-primary">{ad.conversions}</p>
+                        <p className="text-xs text-muted-foreground">{isEcommerce ? 'Compras' : 'Leads'}</p>
+                      </div>
+                      <div className="text-center p-2 bg-chart-1/10 rounded-lg">
+                        <p className="text-lg font-bold text-chart-1">
+                          {ad.conversions > 0 ? formatCurrency(ad.spend / ad.conversions) : 'R$ 0,00'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{isEcommerce ? 'CPA' : 'CPL'}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="text-center"><p className="text-sm font-semibold">{formatNumber(ad.impressions)}</p><p className="text-xs text-muted-foreground">Impr.</p></div>
+                      <div className="text-center"><p className="text-sm font-semibold">{ad.ctr.toFixed(2)}%</p><p className="text-xs text-muted-foreground">CTR</p></div>
+                      <div className="text-center"><p className="text-sm font-semibold">{formatCurrency(ad.spend)}</p><p className="text-xs text-muted-foreground">Gasto</p></div>
                     </div>
                   </div>
                 </div>
@@ -165,14 +351,36 @@ export default function Ads() {
                   <div className="aspect-square bg-secondary/30 rounded-lg flex items-center justify-center overflow-hidden">
                     {selectedAd.creative_thumbnail ? <img src={selectedAd.creative_thumbnail} alt={selectedAd.name} className="w-full h-full object-cover" /> : <ImageIcon className="w-16 h-16 text-muted-foreground" />}
                   </div>
+                  
+                  {/* Main metrics first */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">Gasto</p><p className="text-xl font-bold">{formatCurrency(selectedAd.spend)}</p></div>
-                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">ROAS</p><p className={cn("text-xl font-bold", selectedAd.roas >= 5 ? 'text-metric-positive' : selectedAd.roas >= 3 ? 'text-metric-warning' : 'text-metric-negative')}>{selectedAd.roas.toFixed(2)}x</p></div>
-                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">Impressões</p><p className="text-xl font-bold">{formatNumber(selectedAd.impressions)}</p></div>
-                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">Cliques</p><p className="text-xl font-bold">{formatNumber(selectedAd.clicks)}</p></div>
-                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">CTR</p><p className="text-xl font-bold">{selectedAd.ctr.toFixed(2)}%</p></div>
-                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">Conversões</p><p className="text-xl font-bold">{selectedAd.conversions}</p></div>
+                    <div className="glass-card p-4 text-center bg-primary/5">
+                      <p className="text-2xl font-bold text-primary">{selectedAd.conversions}</p>
+                      <p className="text-sm text-muted-foreground">{isEcommerce ? 'Compras' : 'Leads'}</p>
+                    </div>
+                    <div className="glass-card p-4 text-center bg-chart-1/10">
+                      <p className="text-2xl font-bold text-chart-1">
+                        {selectedAd.conversions > 0 ? formatCurrency(selectedAd.spend / selectedAd.conversions) : 'R$ 0,00'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{isEcommerce ? 'CPA' : 'CPL'}</p>
+                    </div>
                   </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">CTR</p><p className="text-xl font-bold">{selectedAd.ctr.toFixed(2)}%</p></div>
+                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">Impressões</p><p className="text-xl font-bold">{formatNumber(selectedAd.impressions)}</p></div>
+                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">Gasto</p><p className="text-xl font-bold">{formatCurrency(selectedAd.spend)}</p></div>
+                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">Cliques</p><p className="text-xl font-bold">{formatNumber(selectedAd.clicks)}</p></div>
+                  </div>
+                  
+                  {isEcommerce && (
+                    <div className="glass-card p-4">
+                      <p className="text-sm text-muted-foreground">ROAS</p>
+                      <p className={cn("text-xl font-bold", selectedAd.roas >= 5 ? 'text-metric-positive' : selectedAd.roas >= 3 ? 'text-metric-warning' : 'text-metric-negative')}>
+                        {selectedAd.roas.toFixed(2)}x
+                      </p>
+                    </div>
+                  )}
                 </div>
               </>
             )}

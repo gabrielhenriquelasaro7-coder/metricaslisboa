@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
+import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
+import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   ChevronLeft,
   Image as ImageIcon,
@@ -17,14 +21,13 @@ import {
   Target,
   Percent,
   BarChart3,
-  Zap,
   Play,
   ExternalLink,
   FileText
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -77,50 +80,127 @@ export default function AdDetail() {
   const [adSet, setAdSet] = useState<AdSet | null>(null);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
+    return period ? datePeriodToDateRange(period) : undefined;
+  });
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
+  const lastSyncedRange = useRef<string | null>(null);
+  const isInitialMount = useRef(true);
 
   const selectedProject = projects.find(p => p.id === ad?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!adId) return;
-      setLoading(true);
-      try {
-        const { data: adData } = await supabase
-          .from('ads')
-          .select('*')
-          .eq('id', adId)
-          .maybeSingle();
+  const fetchAd = useCallback(async () => {
+    if (!adId) return;
+    setLoading(true);
+    try {
+      const { data: adData } = await supabase
+        .from('ads')
+        .select('*')
+        .eq('id', adId)
+        .maybeSingle();
+      
+      if (adData) {
+        setAd(adData as Ad);
         
-        if (adData) {
-          setAd(adData as Ad);
-          
-          // Fetch ad set
-          const { data: adSetData } = await supabase
-            .from('ad_sets')
-            .select('id, name')
-            .eq('id', adData.ad_set_id)
-            .maybeSingle();
-          if (adSetData) setAdSet(adSetData);
+        const { data: adSetData } = await supabase
+          .from('ad_sets')
+          .select('id, name')
+          .eq('id', adData.ad_set_id)
+          .maybeSingle();
+        if (adSetData) setAdSet(adSetData);
 
-          // Fetch campaign
-          const { data: campaignData } = await supabase
-            .from('campaigns')
-            .select('id, name')
-            .eq('id', adData.campaign_id)
-            .maybeSingle();
-          if (campaignData) setCampaign(campaignData);
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
+        const { data: campaignData } = await supabase
+          .from('campaigns')
+          .select('id, name')
+          .eq('id', adData.campaign_id)
+          .maybeSingle();
+        if (campaignData) setCampaign(campaignData);
       }
-    };
-    fetchData();
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [adId]);
+
+  // Sync data with date range
+  const syncData = useCallback(async (timeRange?: { since: string; until: string }) => {
+    if (!ad || !selectedProject) return;
+    
+    setSyncing(true);
+    try {
+      const { error } = await supabase.functions.invoke('meta-ads-sync', {
+        body: {
+          project_id: selectedProject.id,
+          ad_account_id: selectedProject.ad_account_id,
+          time_range: timeRange,
+        },
+      });
+      
+      if (error) throw error;
+      
+      await fetchAd();
+    } catch (error) {
+      console.error('Sync error:', error);
+    } finally {
+      setSyncing(false);
+    }
+  }, [ad, selectedProject, fetchAd]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchAd();
+  }, [fetchAd]);
+
+  // Auto-sync when date range changes
+  useEffect(() => {
+    if (!selectedProject || !dateRange?.from || !dateRange?.to || !ad) return;
+    
+    const rangeKey = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
+    
+    if (lastSyncedRange.current === rangeKey || syncing) return;
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      lastSyncedRange.current = rangeKey;
+      syncData({
+        since: dateRange.from.toISOString().split('T')[0],
+        until: dateRange.to.toISOString().split('T')[0]
+      });
+      return;
+    }
+    
+    lastSyncedRange.current = rangeKey;
+    syncData({
+      since: dateRange.from.toISOString().split('T')[0],
+      until: dateRange.to.toISOString().split('T')[0]
+    });
+  }, [dateRange, selectedProject, ad, syncData, syncing]);
+
+  const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
+    setDateRange(newRange);
+  }, []);
+
+  const handlePresetChange = useCallback((preset: DatePresetKey) => {
+    setSelectedPreset(preset);
+  }, []);
+
+  const handleManualSync = useCallback(() => {
+    if (dateRange?.from && dateRange?.to) {
+      lastSyncedRange.current = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
+      syncData({
+        since: format(dateRange.from, 'yyyy-MM-dd'),
+        until: format(dateRange.to, 'yyyy-MM-dd'),
+      });
+    } else {
+      syncData();
+    }
+  }, [dateRange, syncData]);
 
   const formatNumber = (n: number) => 
     n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString();
@@ -160,7 +240,7 @@ export default function AdDetail() {
     <DashboardLayout>
       <div className="p-8 space-y-8 animate-fade-in">
         {/* Header */}
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link 
               to={adSet ? `/adset/${adSet.id}` : '/campaigns'} 
@@ -196,12 +276,22 @@ export default function AdDetail() {
               </div>
             </div>
           </div>
-          <div className="text-right text-sm text-muted-foreground">
-            {ad.synced_at && (
-              <p className="text-xs">
-                Atualizado: {new Date(ad.synced_at).toLocaleString('pt-BR')}
-              </p>
-            )}
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={handleManualSync} 
+              disabled={syncing || !selectedProject}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            </Button>
+            <DateRangePicker 
+              dateRange={dateRange} 
+              onDateRangeChange={handleDateRangeChange}
+              timezone={selectedProject?.timezone}
+              onPresetChange={handlePresetChange}
+            />
           </div>
         </div>
 
@@ -249,7 +339,6 @@ export default function AdDetail() {
                 </div>
               )}
 
-              {/* Open original */}
               {(hasVideo || hasImage) && (
                 <Button 
                   variant="outline" 
@@ -263,7 +352,6 @@ export default function AdDetail() {
               )}
             </div>
 
-            {/* Ad Copy */}
             {(ad.headline || ad.primary_text || ad.cta) && (
               <div className="glass-card p-4">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -296,59 +384,7 @@ export default function AdDetail() {
 
           {/* Metrics */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Main Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <MetricCard 
-                title="Gasto" 
-                value={formatCurrency(ad.spend)} 
-                icon={DollarSign} 
-                tooltip="Total investido neste anúncio"
-              />
-              <MetricCard 
-                title="Alcance" 
-                value={formatNumber(ad.reach)} 
-                icon={Users} 
-                tooltip="Número de pessoas únicas que viram este anúncio"
-              />
-              <MetricCard 
-                title="Impressões" 
-                value={formatNumber(ad.impressions)} 
-                icon={Eye} 
-                tooltip="Número total de vezes que este anúncio foi exibido"
-              />
-              <MetricCard 
-                title="Cliques" 
-                value={formatNumber(ad.clicks)} 
-                icon={MousePointerClick} 
-                tooltip="Total de cliques neste anúncio"
-              />
-              <MetricCard 
-                title="CTR" 
-                value={`${ad.ctr.toFixed(2)}%`} 
-                icon={Percent} 
-                tooltip="Click-Through Rate: Taxa de cliques (Cliques ÷ Impressões × 100)"
-              />
-              <MetricCard 
-                title="CPM" 
-                value={formatCurrency(ad.cpm)} 
-                icon={BarChart3} 
-                tooltip="Custo por Mil: Custo para cada 1.000 impressões"
-              />
-              <MetricCard 
-                title="CPC" 
-                value={formatCurrency(ad.cpc)} 
-                icon={Target} 
-                tooltip="Custo Por Clique: Valor médio pago por cada clique"
-              />
-              <MetricCard 
-                title="Frequência" 
-                value={ad.frequency.toFixed(1)} 
-                icon={Zap} 
-                tooltip="Número médio de vezes que cada pessoa viu este anúncio"
-              />
-            </div>
-
-            {/* Business Model Specific Metrics */}
+            {/* Business Model Specific Metrics - First */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {isEcommerce ? (
                 <>
@@ -430,6 +466,58 @@ export default function AdDetail() {
               )}
             </div>
 
+            {/* Secondary Metrics */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <MetricCard 
+                title="CTR" 
+                value={`${ad.ctr.toFixed(2)}%`} 
+                icon={Percent} 
+                tooltip="Click-Through Rate: Taxa de cliques"
+              />
+              <MetricCard 
+                title="Impressões" 
+                value={formatNumber(ad.impressions)} 
+                icon={Eye} 
+                tooltip="Número total de vezes que este anúncio foi exibido"
+              />
+              <MetricCard 
+                title="Gasto" 
+                value={formatCurrency(ad.spend)} 
+                icon={DollarSign} 
+                tooltip="Total investido neste anúncio"
+              />
+              <MetricCard 
+                title="CPM" 
+                value={formatCurrency(ad.cpm)} 
+                icon={BarChart3} 
+                tooltip="Custo por Mil: Custo para cada 1.000 impressões"
+              />
+              <MetricCard 
+                title="Alcance" 
+                value={formatNumber(ad.reach)} 
+                icon={Users} 
+                tooltip="Número de pessoas únicas que viram este anúncio"
+              />
+              <MetricCard 
+                title="Cliques" 
+                value={formatNumber(ad.clicks)} 
+                icon={MousePointerClick} 
+                tooltip="Total de cliques neste anúncio"
+              />
+              <MetricCard 
+                title="CPC" 
+                value={formatCurrency(ad.cpc)} 
+                icon={Target} 
+                tooltip="Custo Por Clique: Valor médio pago por cada clique"
+              />
+              <MetricCard 
+                title="Receita" 
+                value={formatCurrency(ad.conversion_value)} 
+                icon={TrendingUp} 
+                tooltip="Receita gerada por este anúncio"
+              />
+            </div>
+
             {/* Additional Info */}
             <div className="glass-card p-5">
               <h3 className="text-lg font-semibold mb-4">Informações Adicionais</h3>
@@ -445,13 +533,15 @@ export default function AdDetail() {
                   </div>
                 )}
                 <div>
-                  <p className="text-muted-foreground">Receita Gerada</p>
-                  <p className="font-medium mt-1">{formatCurrency(ad.conversion_value)}</p>
-                </div>
-                <div>
                   <p className="text-muted-foreground">Modelo de Negócio</p>
                   <p className="font-medium mt-1">{isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'}</p>
                 </div>
+                {ad.synced_at && (
+                  <div>
+                    <p className="text-muted-foreground">Última Atualização</p>
+                    <p className="font-medium mt-1 text-xs">{new Date(ad.synced_at).toLocaleString('pt-BR')}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
