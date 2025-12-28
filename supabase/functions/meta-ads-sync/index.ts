@@ -223,14 +223,62 @@ Deno.serve(async (req) => {
     console.log('[STEP 3/3] Fetching ads...');
     await delay(300);
     
-    // Fetch ads with more creative fields for better image quality
+    // Fetch ads with comprehensive creative fields for all ad types including dynamic/catalog ads
     const ads = await fetchAllPages(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,title,body,call_to_action_type,thumbnail_url,image_url,object_story_spec,asset_feed_spec,effective_object_story_id}`,
+      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,preview_shareable_link,creative{id,name,title,body,call_to_action_type,thumbnail_url,image_url,object_story_spec,asset_feed_spec,effective_object_story_id,object_type,instagram_permalink_url,source_instagram_media_id}`,
       token,
       'ADS',
       250
     );
     console.log(`[ADS] Total: ${ads.length}`);
+    
+    // STEP 3.5: Fetch high-quality thumbnails for ads without images (catalog/dynamic ads)
+    console.log('[STEP 3.5] Fetching ad previews for catalog ads...');
+    const adsWithoutImages = ads.filter((ad: any) => {
+      const creative = ad.creative || {};
+      const hasImage = creative.image_url || creative.thumbnail_url || 
+                       creative.object_story_spec?.link_data?.image_url ||
+                       creative.object_story_spec?.photo_data?.url ||
+                       creative.object_story_spec?.video_data?.image_url;
+      return !hasImage && ad.status === 'ACTIVE';
+    });
+    
+    console.log(`[PREVIEWS] ${adsWithoutImages.length} ads need preview fetch`);
+    
+    // Fetch ad previews in batches to get thumbnail URLs
+    const previewsMap = new Map<string, string>();
+    if (adsWithoutImages.length > 0 && adsWithoutImages.length <= 100) {
+      const previewBatches = chunk(adsWithoutImages, 10);
+      for (const batch of previewBatches) {
+        const previewPromises = batch.map(async (ad: any) => {
+          try {
+            const previewData = await fetchWithRetry(
+              `https://graph.facebook.com/v19.0/${ad.id}/previews?ad_format=DESKTOP_FEED_STANDARD&access_token=${token}`,
+              2, 5000
+            );
+            if (previewData.data?.[0]?.body) {
+              // Extract image URL from preview HTML
+              const htmlBody = previewData.data[0].body;
+              const imgMatch = htmlBody.match(/src="([^"]+(?:scontent|fbcdn)[^"]+)"/);
+              if (imgMatch) {
+                return { id: ad.id, url: imgMatch[1].replace(/&amp;/g, '&') };
+              }
+            }
+            return null;
+          } catch {
+            return null;
+          }
+        });
+        
+        const results = await Promise.all(previewPromises);
+        results.forEach(r => {
+          if (r) previewsMap.set(r.id, r.url);
+        });
+        
+        await delay(100);
+      }
+      console.log(`[PREVIEWS] Got ${previewsMap.size} preview images`);
+    }
 
     console.log(`[FETCH DONE] ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads`);
 
@@ -471,7 +519,17 @@ Deno.serve(async (req) => {
         imageUrl = assetFeed.images[0].url || assetFeed.images[0].hash;
       }
       
-      // 3. Fallback to creative image_url/thumbnail_url
+      // 3. Check for template_data (catalog/dynamic ads)
+      if (!imageUrl && objectStory.template_data?.link_data?.picture) {
+        imageUrl = objectStory.template_data.link_data.picture;
+      }
+      
+      // 4. Use preview image for catalog ads
+      if (!imageUrl && previewsMap.has(ad.id)) {
+        imageUrl = previewsMap.get(ad.id);
+      }
+      
+      // 5. Fallback to creative image_url/thumbnail_url
       if (!imageUrl) {
         imageUrl = creative.image_url || creative.thumbnail_url || null;
       }

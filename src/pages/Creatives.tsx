@@ -1,10 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import DateRangePicker from '@/components/dashboard/DateRangePicker';
+import { DateRange } from 'react-day-picker';
+import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   Search, 
   Grid3X3, 
@@ -32,9 +35,52 @@ export default function Creatives() {
   const [adSetFilter, setAdSetFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('status');
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Date range state
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
+    return period ? datePeriodToDateRange(period) : undefined;
+  });
+  const isInitialMount = useRef(true);
+  const lastSyncedRange = useRef<string | null>(null);
 
   // Check if project is ecommerce to show ROAS
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
+  const projectTimezone = selectedProject?.timezone || 'America/Sao_Paulo';
+
+  // Auto-sync when date range changes
+  useEffect(() => {
+    if (!selectedProject || !dateRange?.from || !dateRange?.to) return;
+    
+    const rangeKey = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
+    
+    // Skip if already synced this range or if syncing
+    if (lastSyncedRange.current === rangeKey || syncing) return;
+    
+    // Skip initial mount - don't auto-sync on first load
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      // Do initial sync
+      lastSyncedRange.current = rangeKey;
+      syncData({
+        since: dateRange.from.toISOString().split('T')[0],
+        until: dateRange.to.toISOString().split('T')[0]
+      });
+      return;
+    }
+    
+    // Auto-sync when range changes
+    lastSyncedRange.current = rangeKey;
+    syncData({
+      since: dateRange.from.toISOString().split('T')[0],
+      until: dateRange.to.toISOString().split('T')[0]
+    });
+  }, [dateRange, selectedProject, syncData, syncing]);
+
+  const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
+    setDateRange(range);
+    setCurrentPage(1);
+  }, []);
 
   // Redirect if no project selected (only after projects have loaded)
   if (!selectedProject && !projectsLoading && !loading) {
@@ -179,14 +225,23 @@ export default function Creatives() {
               Visualize e analise o desempenho dos seus criativos
             </p>
           </div>
-          <Button onClick={() => syncData()} disabled={syncing}>
-            {syncing ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4 mr-2" />
-            )}
-            Sincronizar
-          </Button>
+          <div className="flex items-center gap-3">
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={handleDateRangeChange}
+              timezone={projectTimezone}
+            />
+            <Button onClick={() => dateRange?.from && dateRange?.to && syncData({
+              since: dateRange.from.toISOString().split('T')[0],
+              until: dateRange.to.toISOString().split('T')[0]
+            })} disabled={syncing} size="sm">
+              {syncing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
