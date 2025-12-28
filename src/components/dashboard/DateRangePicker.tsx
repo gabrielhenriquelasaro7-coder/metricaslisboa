@@ -8,12 +8,12 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   DATE_PRESETS, 
   DatePresetKey, 
@@ -29,9 +29,6 @@ interface DateRangePickerProps {
   onPresetChange?: (presetKey: DatePresetKey) => void;
 }
 
-// Presets rápidos para botões
-const quickPresets: DatePresetKey[] = ['last_7_days', 'last_30_days', 'last_90_days'];
-
 export default function DateRangePicker({ 
   dateRange, 
   onDateRangeChange, 
@@ -39,12 +36,12 @@ export default function DateRangePicker({
   onPresetChange
 }: DateRangePickerProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_30_days');
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
 
   // Calcula os períodos baseado no timezone
   const periods = useMemo(() => calculateTimePeriods(timezone), [timezone]);
 
-  const handlePresetClick = (presetKey: DatePresetKey) => {
+  const handlePresetChange = (presetKey: DatePresetKey) => {
     setSelectedPreset(presetKey);
     
     if (presetKey === 'custom') {
@@ -69,74 +66,31 @@ export default function DateRangePicker({
     }
   };
 
-  // Encontra o label do preset selecionado
-  const selectedPresetLabel = DATE_PRESETS.find(p => p.key === selectedPreset)?.label || 'Selecionar período';
-
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      {/* Quick preset buttons */}
-      {quickPresets.map((presetKey) => {
-        const preset = DATE_PRESETS.find(p => p.key === presetKey);
-        if (!preset) return null;
-        
-        return (
-          <Button
-            key={presetKey}
-            variant={selectedPreset === presetKey ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => handlePresetClick(presetKey)}
-            className={cn(
-              "text-muted-foreground hover:text-foreground",
-              selectedPreset === presetKey && "bg-secondary text-foreground"
-            )}
-          >
-            {preset.label}
-          </Button>
-        );
-      })}
-      
-      {/* Full presets dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-          >
-            <span className="text-muted-foreground">Mais:</span>
-            <span>{selectedPresetLabel}</span>
-            <ChevronDown className="w-4 h-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          {DATE_PRESETS.filter(p => !quickPresets.includes(p.key) && p.key !== 'custom').map((preset, index) => (
-            <DropdownMenuItem
-              key={preset.key}
-              onClick={() => handlePresetClick(preset.key)}
-              className="flex items-center justify-between"
-            >
+    <div className="flex items-center gap-2">
+      {/* Period selector */}
+      <Select value={selectedPreset} onValueChange={(value) => handlePresetChange(value as DatePresetKey)}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Selecione o período" />
+        </SelectTrigger>
+        <SelectContent>
+          {DATE_PRESETS.map((preset) => (
+            <SelectItem key={preset.key} value={preset.key}>
               {preset.label}
-              {selectedPreset === preset.key && <Check className="w-4 h-4" />}
-            </DropdownMenuItem>
+            </SelectItem>
           ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => handlePresetClick('custom')}
-            className="flex items-center justify-between"
-          >
-            Personalizado
-            {selectedPreset === 'custom' && <Check className="w-4 h-4" />}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          <SelectItem value="custom">Personalizado</SelectItem>
+        </SelectContent>
+      </Select>
       
-      {/* Calendar picker */}
+      {/* Calendar picker - only show when custom or always for date display */}
       <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
+            size="sm"
             className={cn(
-              'justify-start text-left font-normal min-w-[280px]',
+              'justify-start text-left font-normal',
               !dateRange && 'text-muted-foreground'
             )}
           >
@@ -144,14 +98,13 @@ export default function DateRangePicker({
             {dateRange?.from ? (
               dateRange.to ? (
                 <>
-                  {format(dateRange.from, 'dd MMM, yyyy', { locale: ptBR })} -{' '}
-                  {format(dateRange.to, 'dd MMM, yyyy', { locale: ptBR })}
+                  {format(dateRange.from, 'dd/MM', { locale: ptBR })} - {format(dateRange.to, 'dd/MM', { locale: ptBR })}
                 </>
               ) : (
-                format(dateRange.from, 'dd MMM, yyyy', { locale: ptBR })
+                format(dateRange.from, 'dd/MM/yy', { locale: ptBR })
               )
             ) : (
-              <span>Selecione um período</span>
+              <span>Datas</span>
             )}
           </Button>
         </PopoverTrigger>
@@ -168,11 +121,6 @@ export default function DateRangePicker({
           />
         </PopoverContent>
       </Popover>
-
-      {/* Timezone indicator */}
-      <span className="text-xs text-muted-foreground hidden lg:inline">
-        Fuso: {timezone.replace('America/', '').replace('_', ' ')}
-      </span>
     </div>
   );
 }
