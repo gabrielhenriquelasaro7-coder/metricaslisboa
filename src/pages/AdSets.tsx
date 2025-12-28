@@ -6,6 +6,8 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
+import { clearAllCache } from '@/hooks/useMetaAdsData';
+import { toast } from 'sonner';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
@@ -173,6 +175,12 @@ export default function AdSets() {
     }
   }, [dateRange, syncData]);
 
+  const handleClearCacheAndSync = useCallback(() => {
+    clearAllCache();
+    toast.success('Cache limpo! Sincronizando dados novos...');
+    handleManualSync();
+  }, [handleManualSync]);
+
   const filteredAdSets = adSets
     .filter((a) => !filters.search || a.name.toLowerCase().includes(filters.search.toLowerCase()))
     .filter((a) => !filters.status?.length || filters.status.includes(a.status))
@@ -232,6 +240,15 @@ export default function AdSets() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Button 
+              onClick={handleClearCacheAndSync} 
+              disabled={syncing || !selectedProject}
+              variant="ghost"
+              size="sm"
+              title="Limpar cache e sincronizar"
+            >
+              <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
+            </Button>
             <Button 
               onClick={handleManualSync} 
               disabled={syncing || !selectedProject}
