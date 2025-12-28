@@ -43,7 +43,7 @@ export default function Campaigns() {
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
-  const { campaigns, adSets, ads, loading, fetchCampaigns, fetchAdSets, fetchAds, selectedProject, projectsLoading, loadMetricsByPeriod, getPeriodKeyFromDays } = useMetaAdsData();
+  const { campaigns, adSets, ads, loading, fetchCampaigns, fetchAdSets, fetchAds, selectedProject, projectsLoading, loadMetricsByPeriod, getPeriodKeyFromDays, usingFallbackData } = useMetaAdsData();
 
   // Use the new sync hook - for manual sync only
   const { syncing, syncingAllPeriods, progress, allPeriodsProgress, syncData, syncAllPeriods } = useSyncWithProgress({
@@ -203,6 +203,20 @@ export default function Campaigns() {
   return (
     <DashboardLayout>
       <div className="p-8 space-y-8 animate-fade-in">
+        {/* Fallback Data Warning */}
+        {usingFallbackData && !loading && (
+          <div className="bg-metric-warning/10 border border-metric-warning/30 rounded-lg p-4 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-metric-warning flex-shrink-0" />
+            <div>
+              <p className="font-medium text-metric-warning">Dados do último sync</p>
+              <p className="text-sm text-muted-foreground">
+                Não há dados específicos para este período. Mostrando dados do último sync. 
+                Clique em "Sincronizar Todos os Períodos" no menu ⋮ para atualizar.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>

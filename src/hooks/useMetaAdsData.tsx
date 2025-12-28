@@ -102,6 +102,7 @@ export function useMetaAdsData() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [lastLoadedPeriod, setLastLoadedPeriod] = useState<string | null>(null);
+  const [usingFallbackData, setUsingFallbackData] = useState(false);
   const { projects, loading: projectsLoading } = useProjects();
 
   // Get selected project from localStorage
@@ -234,10 +235,14 @@ export function useMetaAdsData() {
       }
 
       if (!periodMetrics || periodMetrics.length === 0) {
-        console.log(`[PERIOD] No data found for period ${periodKey}, loading from main tables`);
+        console.log(`[PERIOD] No data found for period ${periodKey}, loading from main tables (fallback)`);
+        setUsingFallbackData(true);
         await loadDataFromDatabase();
-        return { found: false };
+        setLastLoadedPeriod(periodKey);
+        return { found: false, fallback: true };
       }
+
+      setUsingFallbackData(false);
 
       console.log(`[PERIOD] Found ${periodMetrics.length} records for period ${periodKey}`);
 
@@ -443,6 +448,7 @@ export function useMetaAdsData() {
     syncing,
     selectedProject,
     projectsLoading,
+    usingFallbackData,
     syncData,
     loadDataFromDatabase,
     loadMetricsByPeriod,
