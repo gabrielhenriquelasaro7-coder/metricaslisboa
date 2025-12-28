@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -30,10 +30,15 @@ import { Link } from 'react-router-dom';
 
 export default function Campaigns() {
   const navigate = useNavigate();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_30_days');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
+    return period ? datePeriodToDateRange(period) : undefined;
+  });
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
+  const isInitialMount = useRef(true);
+  const lastSyncedRange = useRef<string | null>(null);
   
   const { campaigns, adSets, ads, loading, syncing, syncData, selectedProject, projectsLoading } = useMetaAdsData();
 
@@ -48,38 +53,49 @@ export default function Campaigns() {
     return acc;
   }, {} as Record<string, number>);
 
-  // Initialize date range based on project timezone
+  // Auto-sync when date range changes
   useEffect(() => {
-    if (selectedProject) {
-      const period = getDateRangeFromPreset('last_30_days', selectedProject.timezone);
-      if (period) {
-        setDateRange(datePeriodToDateRange(period));
-      }
+    if (!selectedProject || !dateRange?.from || !dateRange?.to) return;
+    
+    const rangeKey = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
+    
+    // Skip if already synced this range or if syncing
+    if (lastSyncedRange.current === rangeKey || syncing) return;
+    
+    // Skip initial mount - don't auto-sync on first load
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      // Do initial sync
+      lastSyncedRange.current = rangeKey;
+      syncData({
+        since: dateRange.from.toISOString().split('T')[0],
+        until: dateRange.to.toISOString().split('T')[0]
+      });
+      return;
     }
-  }, [selectedProject]);
+    
+    // Auto-sync when range changes
+    lastSyncedRange.current = rangeKey;
+    syncData({
+      since: dateRange.from.toISOString().split('T')[0],
+      until: dateRange.to.toISOString().split('T')[0]
+    });
+  }, [dateRange, selectedProject, syncData, syncing]);
 
-  // Handle date range change - NO auto-sync, just filter locally
+  // Handle date range change
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
     setDateRange(newRange);
-    // No sync - data is filtered locally for instant response
   }, []);
 
-  // Handle preset change - NO auto-sync, just filter locally  
+  // Handle preset change
   const handlePresetChange = useCallback((preset: DatePresetKey) => {
     setSelectedPreset(preset);
-    if (preset !== 'custom' && selectedProject) {
-      const period = getDateRangeFromPreset(preset, selectedProject.timezone);
-      if (period) {
-        const range = datePeriodToDateRange(period);
-        setDateRange(range);
-        // No sync - data is filtered locally for instant response
-      }
-    }
-  }, [selectedProject]);
+  }, []);
   
   // Manual sync with current date range
   const handleManualSync = useCallback(() => {
     if (dateRange?.from && dateRange?.to) {
+      lastSyncedRange.current = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
       syncData({
         since: format(dateRange.from, 'yyyy-MM-dd'),
         until: format(dateRange.to, 'yyyy-MM-dd'),
