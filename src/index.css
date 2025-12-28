@@ -6,73 +6,73 @@
 
 @layer base {
   :root {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 7%;
+    --foreground: 0 0% 98%;
 
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 199 89% 48%;
-    --primary-foreground: 222 47% 6%;
+    --primary: 0 85% 50%;
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 222 47% 12%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 20% 12%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 222 47% 14%;
-    --muted-foreground: 215 20% 55%;
+    --muted: 0 10% 14%;
+    --muted-foreground: 0 10% 55%;
 
-    --accent: 280 100% 70%;
-    --accent-foreground: 222 47% 6%;
+    --accent: 0 70% 60%;
+    --accent-foreground: 0 0% 7%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
     --success: 142 71% 45%;
-    --success-foreground: 222 47% 6%;
+    --success-foreground: 0 0% 7%;
 
     --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 6%;
+    --warning-foreground: 0 0% 7%;
 
-    --border: 222 47% 16%;
-    --input: 222 47% 12%;
-    --ring: 199 89% 48%;
+    --border: 0 15% 18%;
+    --input: 0 15% 12%;
+    --ring: 0 85% 50%;
 
     --radius: 0.75rem;
 
-    /* Custom semantic tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(199, 89%, 48%) 0%, hsl(280, 100%, 70%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(222, 47%, 10%) 0%, hsl(222, 47%, 8%) 100%);
-    --gradient-glow: radial-gradient(ellipse at center, hsl(199, 89%, 48%, 0.15) 0%, transparent 70%);
-    --gradient-hero: linear-gradient(135deg, hsl(222, 47%, 8%) 0%, hsl(222, 47%, 4%) 100%);
+    /* Custom semantic tokens - V4 Red Theme */
+    --gradient-primary: linear-gradient(135deg, hsl(0, 85%, 50%) 0%, hsl(0, 85%, 35%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0, 10%, 11%) 0%, hsl(0, 10%, 8%) 100%);
+    --gradient-glow: radial-gradient(ellipse at center, hsl(0, 85%, 50%, 0.15) 0%, transparent 70%);
+    --gradient-hero: linear-gradient(135deg, hsl(0, 10%, 8%) 0%, hsl(0, 10%, 4%) 100%);
     
-    --shadow-glow: 0 0 60px hsl(199, 89%, 48%, 0.2);
+    --shadow-glow: 0 0 60px hsl(0, 85%, 50%, 0.2);
     --shadow-card: 0 4px 24px hsl(0, 0%, 0%, 0.4);
     --shadow-elevated: 0 8px 32px hsl(0, 0%, 0%, 0.6);
 
-    --sidebar-background: 222 47% 7%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 199 89% 48%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 47% 12%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 47% 14%;
-    --sidebar-ring: 199 89% 48%;
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 0 85% 50%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 15% 12%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 15% 14%;
+    --sidebar-ring: 0 85% 50%;
 
     /* Metrics colors */
     --metric-positive: 142 71% 45%;
     --metric-negative: 0 72% 51%;
-    --metric-neutral: 199 89% 48%;
+    --metric-neutral: 0 85% 50%;
     --metric-warning: 38 92% 50%;
 
-    /* Chart colors */
-    --chart-1: 199 89% 48%;
-    --chart-2: 280 100% 70%;
+    /* Chart colors - V4 Red palette */
+    --chart-1: 0 85% 50%;
+    --chart-2: 0 70% 65%;
     --chart-3: 142 71% 45%;
     --chart-4: 38 92% 50%;
-    --chart-5: 340 82% 52%;
+    --chart-5: 0 50% 40%;
   }
 }
 
@@ -84,6 +84,7 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ef4444' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -93,7 +94,7 @@
 
 @layer components {
   .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-border/50 rounded-xl;
+    @apply bg-card/70 backdrop-blur-xl border border-border/50 rounded-xl;
     box-shadow: var(--shadow-card);
   }
 
@@ -102,7 +103,7 @@
   }
 
   .glass-card-hover:hover {
-    @apply border-primary/30 bg-card/80;
+    @apply border-primary/30 bg-card/90;
     box-shadow: var(--shadow-elevated), 0 0 40px hsl(var(--primary) / 0.1);
   }
 
@@ -139,7 +140,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 1px;
+    height: 2px;
     background: var(--gradient-primary);
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -178,7 +179,7 @@
   }
 
   .sidebar-item.active {
-    @apply bg-primary/10 text-primary border-l-2 border-primary;
+    @apply bg-primary/15 text-primary border-l-2 border-primary;
   }
 
   .input-glow:focus-within {
@@ -207,6 +208,15 @@
     0%, 100% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
   }
+
+  /* V4 specific styles */
+  .v4-accent {
+    @apply border-l-4 border-l-primary;
+  }
+
+  .v4-glow {
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.3);
+  }
 }
 
 /* Scrollbar styling */
@@ -225,7 +235,7 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
+  background: hsl(var(--primary) / 0.5);
 }
 
 /* Selection styling */

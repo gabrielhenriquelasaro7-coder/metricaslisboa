@@ -15,12 +15,29 @@ import {
   ImageOff,
   Play,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ShoppingCart,
+  TrendingUp,
+  DollarSign,
+  Target
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMetaAdsData, clearAllCache } from '@/hooks/useMetaAdsData';
 
 const ITEMS_PER_PAGE = 25;
+
+// Helper to clean image URLs from resize parameters (frontend fallback)
+const cleanImageUrl = (url: string | null): string | null => {
+  if (!url) return null;
+  return url
+    .replace(/\/p\d+x\d+\//g, '/')
+    .replace(/\/s\d+x\d+\//g, '/')
+    .replace(/[?&]stp=[^&]*/g, '')
+    .replace(/[?&]_nc_[^&]*/g, '')
+    .replace(/[?&]ccb=[^&]*/g, '')
+    .replace(/\?$/g, '')
+    .replace(/&$/g, '');
+};
 
 export default function Creatives() {
   const navigate = useNavigate();
@@ -40,8 +57,6 @@ export default function Creatives() {
   const isInitialMount = useRef(true);
   const lastSyncedRange = useRef<string | null>(null);
 
-  // Check if project is ecommerce to show ROAS
-  const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const projectTimezone = selectedProject?.timezone || 'America/Sao_Paulo';
 
   // Auto-sync when date range changes
@@ -50,13 +65,10 @@ export default function Creatives() {
     
     const rangeKey = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
     
-    // Skip if already synced this range or if syncing
     if (lastSyncedRange.current === rangeKey || syncing) return;
     
-    // Skip initial mount - don't auto-sync on first load
     if (isInitialMount.current) {
       isInitialMount.current = false;
-      // Do initial sync
       lastSyncedRange.current = rangeKey;
       syncData({
         since: dateRange.from.toISOString().split('T')[0],
@@ -65,7 +77,6 @@ export default function Creatives() {
       return;
     }
     
-    // Auto-sync when range changes
     lastSyncedRange.current = rangeKey;
     syncData({
       since: dateRange.from.toISOString().split('T')[0],
@@ -78,31 +89,28 @@ export default function Creatives() {
     setCurrentPage(1);
   }, []);
 
-  // Redirect if no project selected (only after projects have loaded)
+  // Redirect if no project selected
   if (!selectedProject && !projectsLoading && !loading) {
     navigate('/projects');
     return null;
   }
 
-  // Get campaign name by ID
   const getCampaignName = (campaignId: string) => {
     const campaign = campaigns.find(c => c.id === campaignId);
     return campaign?.name || 'Campanha Desconhecida';
   };
 
-  // Get ad set name by ID
   const getAdSetName = (adSetId: string) => {
     const adSet = adSets.find(a => a.id === adSetId);
     return adSet?.name || 'Conjunto Desconhecido';
   };
 
-  // Get filtered ad sets based on selected campaign
   const filteredAdSets = useMemo(() => {
     if (campaignFilter === 'all') return adSets;
     return adSets.filter(a => a.campaign_id === campaignFilter);
   }, [adSets, campaignFilter]);
 
-  // Filter and sort creatives (ads with creative info)
+  // Filter and sort creatives
   const filteredCreatives = useMemo(() => {
     return ads
       .filter((ad) => {
@@ -146,6 +154,10 @@ export default function Creatives() {
             return (b.ctr || 0) - (a.ctr || 0);
           case 'conversions':
             return (b.conversions || 0) - (a.conversions || 0);
+          case 'ticket':
+            const ticketA = a.conversions && a.conversions > 0 ? (a.conversion_value || 0) / a.conversions : 0;
+            const ticketB = b.conversions && b.conversions > 0 ? (b.conversion_value || 0) / b.conversions : 0;
+            return ticketB - ticketA;
           default:
             return 0;
         }
@@ -159,7 +171,6 @@ export default function Creatives() {
     return filteredCreatives.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredCreatives, currentPage]);
 
-  // Reset page when filters change
   const handleCampaignChange = (value: string) => {
     setCampaignFilter(value);
     setAdSetFilter('all');
@@ -194,11 +205,12 @@ export default function Creatives() {
     return statusMap[status] || { label: status, className: 'bg-muted text-muted-foreground' };
   };
 
-  const avgRoas = filteredCreatives.length > 0 && isEcommerce
-    ? filteredCreatives.reduce((sum, c) => sum + (c.roas || 0), 0) / filteredCreatives.length
-    : 0;
-
+  // E-commerce metrics calculations
   const totalSpend = filteredCreatives.reduce((sum, c) => sum + (c.spend || 0), 0);
+  const totalConversions = filteredCreatives.reduce((sum, c) => sum + (c.conversions || 0), 0);
+  const totalConversionValue = filteredCreatives.reduce((sum, c) => sum + (c.conversion_value || 0), 0);
+  const avgRoas = totalSpend > 0 ? totalConversionValue / totalSpend : 0;
+  const avgTicket = totalConversions > 0 ? totalConversionValue / totalConversions : 0;
 
   if (loading) {
     return (
@@ -216,9 +228,9 @@ export default function Creatives() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Galeria de Criativos</h1>
+            <h1 className="text-3xl font-bold mb-2 gradient-text">Galeria de Criativos</h1>
             <p className="text-muted-foreground">
-              Visualize e analise o desempenho dos seus criativos
+              Análise de performance dos seus criativos de e-commerce
               {dateRange?.from && dateRange?.to && (
                 <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                   {dateRange.from.toLocaleDateString('pt-BR')} - {dateRange.to.toLocaleDateString('pt-BR')}
@@ -240,7 +252,7 @@ export default function Creatives() {
                   until: dateRange.to.toISOString().split('T')[0]
                 }, true);
               }
-            }} disabled={syncing} size="sm" title="Sincronizar e atualizar imagens">
+            }} disabled={syncing} size="sm" className="bg-primary hover:bg-primary/90" title="Sincronizar e atualizar imagens">
               {syncing ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
@@ -308,44 +320,60 @@ export default function Creatives() {
             <SelectContent className="bg-popover">
               <SelectItem value="status">Ativos Primeiro</SelectItem>
               <SelectItem value="spend">Maior Gasto</SelectItem>
+              <SelectItem value="conversions">Mais Compras</SelectItem>
+              <SelectItem value="roas">Maior ROAS</SelectItem>
+              <SelectItem value="ticket">Maior Ticket</SelectItem>
               <SelectItem value="ctr">Maior CTR</SelectItem>
-              <SelectItem value="conversions">Mais Conversões</SelectItem>
-              {isEcommerce && <SelectItem value="roas">Maior ROAS</SelectItem>}
             </SelectContent>
           </Select>
-
         </div>
 
-        {/* Stats */}
-        <div className={cn("grid gap-4", isEcommerce ? "grid-cols-2 md:grid-cols-5" : "grid-cols-2 md:grid-cols-4")}>
-          <div className="glass-card p-4">
-            <p className="text-sm text-muted-foreground">Total de Criativos</p>
+        {/* E-commerce Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="glass-card p-4 v4-accent">
+            <div className="flex items-center gap-2 mb-1">
+              <Target className="w-4 h-4 text-primary" />
+              <p className="text-xs text-muted-foreground">Total Criativos</p>
+            </div>
             <p className="text-2xl font-bold">{filteredCreatives.length}</p>
           </div>
           <div className="glass-card p-4">
-            <p className="text-sm text-muted-foreground">Ativos</p>
-            <p className="text-2xl font-bold text-metric-positive">
-              {filteredCreatives.filter((c) => c.status === 'ACTIVE').length}
-            </p>
-          </div>
-          <div className="glass-card p-4">
-            <p className="text-sm text-muted-foreground">Pausados</p>
-            <p className="text-2xl font-bold text-metric-warning">
-              {filteredCreatives.filter((c) => c.status === 'PAUSED').length}
-            </p>
-          </div>
-          <div className="glass-card p-4">
-            <p className="text-sm text-muted-foreground">Gasto Total</p>
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign className="w-4 h-4 text-primary" />
+              <p className="text-xs text-muted-foreground">Gasto Total</p>
+            </div>
             <p className="text-2xl font-bold">{formatCurrency(totalSpend)}</p>
           </div>
-          {isEcommerce && (
-            <div className="glass-card p-4">
-              <p className="text-sm text-muted-foreground">ROAS Médio</p>
-              <p className="text-2xl font-bold text-metric-positive">
-                {avgRoas.toFixed(2)}x
-              </p>
+          <div className="glass-card p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <ShoppingCart className="w-4 h-4 text-metric-positive" />
+              <p className="text-xs text-muted-foreground">Total Compras</p>
             </div>
-          )}
+            <p className="text-2xl font-bold text-metric-positive">{formatNumber(totalConversions)}</p>
+          </div>
+          <div className="glass-card p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign className="w-4 h-4 text-metric-positive" />
+              <p className="text-xs text-muted-foreground">Faturamento</p>
+            </div>
+            <p className="text-2xl font-bold">{formatCurrency(totalConversionValue)}</p>
+          </div>
+          <div className="glass-card p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="w-4 h-4 text-metric-positive" />
+              <p className="text-xs text-muted-foreground">ROAS Médio</p>
+            </div>
+            <p className={cn("text-2xl font-bold", avgRoas >= 3 ? "text-metric-positive" : avgRoas >= 1 ? "text-metric-warning" : "text-metric-negative")}>
+              {avgRoas.toFixed(2)}x
+            </p>
+          </div>
+          <div className="glass-card p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <ShoppingCart className="w-4 h-4 text-primary" />
+              <p className="text-xs text-muted-foreground">Ticket Médio</p>
+            </div>
+            <p className="text-2xl font-bold">{formatCurrency(avgTicket)}</p>
+          </div>
         </div>
 
         {/* Empty State */}
@@ -359,7 +387,7 @@ export default function Creatives() {
                 : 'Sincronize seus dados para ver os criativos das suas campanhas.'}
             </p>
             {campaignFilter === 'all' && adSetFilter === 'all' && (
-              <Button onClick={() => syncData()} disabled={syncing}>
+              <Button onClick={() => syncData()} disabled={syncing} className="bg-primary hover:bg-primary/90">
                 {syncing ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
@@ -371,7 +399,7 @@ export default function Creatives() {
           </div>
         )}
 
-        {/* Creative List */}
+        {/* Creative List - E-commerce focused */}
         {paginatedCreatives.length > 0 && (
           <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
@@ -382,11 +410,10 @@ export default function Creatives() {
                     <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Campanha</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">Conjunto</th>
                     <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Gasto</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Leads</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">CPL</th>
-                    {isEcommerce && (
-                      <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">ROAS</th>
-                    )}
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Compras</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Ticket</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">CPA</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">ROAS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
@@ -394,17 +421,22 @@ export default function Creatives() {
                     const statusBadge = getStatusBadge(creative.status);
                     const videoUrl = (creative as any).creative_video_url;
                     const hasVideo = !!videoUrl;
-                    const hasImage = creative.creative_image_url || creative.creative_thumbnail;
+                    // Clean image URL on frontend as fallback
+                    const imageUrl = cleanImageUrl(creative.creative_image_url) || cleanImageUrl(creative.creative_thumbnail);
+                    const hasImage = !!imageUrl;
+                    const ticket = creative.conversions && creative.conversions > 0 
+                      ? (creative.conversion_value || 0) / creative.conversions 
+                      : 0;
                     
                     return (
                       <tr key={creative.id} className="hover:bg-secondary/20 transition-colors">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
-                            {/* Small thumbnail */}
-                            <div className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-secondary/50 border border-border/50">
+                            {/* Larger thumbnail - 48x48 */}
+                            <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-secondary/50 border border-border/50">
                               {hasImage ? (
                                 <img
-                                  src={creative.creative_image_url || creative.creative_thumbnail || ''}
+                                  src={imageUrl}
                                   alt=""
                                   className="w-full h-full object-cover"
                                   loading="lazy"
@@ -416,12 +448,12 @@ export default function Creatives() {
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
-                                  <ImageOff className="w-4 h-4 text-muted-foreground/50" />
+                                  <ImageOff className="w-5 h-5 text-muted-foreground/50" />
                                 </div>
                               )}
                               {hasVideo && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                                  <Play className="w-3 h-3 text-white" />
+                                  <Play className="w-4 h-4 text-foreground" />
                                 </div>
                               )}
                             </div>
@@ -439,7 +471,7 @@ export default function Creatives() {
                                   {statusBadge.label}
                                 </span>
                                 {hasVideo && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-chart-1/20 text-chart-1">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/20 text-primary">
                                     <Play className="w-2 h-2 mr-0.5" />
                                     Vídeo
                                   </span>
@@ -462,25 +494,26 @@ export default function Creatives() {
                           <span className="text-sm font-semibold text-primary">{formatCurrency(creative.spend || 0)}</span>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <span className="text-sm font-medium">{creative.conversions || 0}</span>
+                          <span className="text-sm font-medium text-metric-positive">{creative.conversions || 0}</span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-sm">{formatCurrency(ticket)}</span>
                         </td>
                         <td className="py-3 px-4 text-right">
                           <span className="text-sm">{formatCurrency(creative.cpa || 0)}</span>
                         </td>
-                        {isEcommerce && (
-                          <td className="py-3 px-4 text-right">
-                            <span className={cn(
-                              'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold',
-                              (creative.roas || 0) >= 5
-                                ? 'bg-metric-positive/20 text-metric-positive'
-                                : (creative.roas || 0) >= 3
-                                ? 'bg-metric-warning/20 text-metric-warning'
-                                : 'bg-metric-negative/20 text-metric-negative'
-                            )}>
-                              {(creative.roas || 0).toFixed(2)}x
-                            </span>
-                          </td>
-                        )}
+                        <td className="py-3 px-4 text-right">
+                          <span className={cn(
+                            'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold',
+                            (creative.roas || 0) >= 3
+                              ? 'bg-metric-positive/20 text-metric-positive'
+                              : (creative.roas || 0) >= 1
+                              ? 'bg-metric-warning/20 text-metric-warning'
+                              : 'bg-metric-negative/20 text-metric-negative'
+                          )}>
+                            {(creative.roas || 0).toFixed(2)}x
+                          </span>
+                        </td>
                       </tr>
                     );
                   })}
@@ -525,7 +558,7 @@ export default function Creatives() {
                       key={page}
                       variant={currentPage === page ? 'default' : 'outline'}
                       size="sm"
-                      className="w-9"
+                      className={cn("w-9", currentPage === page && "bg-primary hover:bg-primary/90")}
                       onClick={() => setCurrentPage(page)}
                     >
                       {page}
