@@ -32,7 +32,6 @@ import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/
 
 export default function Dashboard() {
   const { projects, loading: projectsLoading } = useProjects();
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_30_days');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const period = getDateRangeFromPreset('last_30_days', 'America/Sao_Paulo');
@@ -40,20 +39,17 @@ export default function Dashboard() {
   });
   const [showComparison, setShowComparison] = useState(true);
 
+  // Get campaigns and selected project from hook (uses localStorage)
+  const { campaigns, loading: dataLoading, syncing, syncData, selectedProject } = useMetaAdsData();
+
   // Get active (non-archived) projects
   const activeProjects = useMemo(() => 
     projects.filter(p => !p.archived), 
     [projects]
   );
 
-  // Get selected project
-  const selectedProject = useMemo(() => 
-    activeProjects.find(p => p.id === selectedProjectId) || null,
-    [activeProjects, selectedProjectId]
-  );
-
   // Determine business model - only show specific metrics when a project is selected
-  const hasSelectedProject = selectedProjectId !== 'all' && selectedProject !== null;
+  const hasSelectedProject = selectedProject !== null && selectedProject !== undefined;
   const businessModel = selectedProject?.business_model;
   const projectTimezone = selectedProject?.timezone || 'America/Sao_Paulo';
   const isEcommerce = hasSelectedProject && businessModel === 'ecommerce';
@@ -64,9 +60,6 @@ export default function Dashboard() {
   const handlePresetChange = useCallback((preset: DatePresetKey) => {
     setSelectedPreset(preset);
   }, []);
-
-  // Calculate aggregated metrics from campaigns
-  const { campaigns, loading: dataLoading, syncing, syncData } = useMetaAdsData();
 
   const calculateMetrics = (campaignsList: typeof campaigns) => {
     const totalSpend = campaignsList.reduce((sum, c) => sum + (c.spend || 0), 0);
@@ -101,11 +94,9 @@ export default function Dashboard() {
   };
 
   const metrics = useMemo(() => {
-    const filteredCampaigns = selectedProjectId === 'all' 
-      ? campaigns 
-      : campaigns.filter(c => c.project_id === selectedProjectId);
-    return calculateMetrics(filteredCampaigns);
-  }, [campaigns, selectedProjectId]);
+    // Campaigns are already filtered by project in useMetaAdsData hook
+    return calculateMetrics(campaigns);
+  }, [campaigns]);
 
   // Calculate previous period metrics for comparison
   // This simulates previous period data - in production you'd fetch from DB with date filters
@@ -548,7 +539,7 @@ export default function Dashboard() {
                     </thead>
                     <tbody>
                       {campaigns
-                        .filter(c => selectedProjectId === 'all' || c.project_id === selectedProjectId)
+                        .sort((a, b) => (b.roas || 0) - (a.roas || 0))
                         .sort((a, b) => (b.roas || 0) - (a.roas || 0))
                         .slice(0, 5)
                         .map((campaign) => (
@@ -594,7 +585,6 @@ export default function Dashboard() {
                     </thead>
                     <tbody>
                       {campaigns
-                        .filter(c => selectedProjectId === 'all' || c.project_id === selectedProjectId)
                         .filter(c => (c.conversions || 0) > 0)
                         .sort((a, b) => ((a.cpa || Infinity) - (b.cpa || Infinity)))
                         .slice(0, 5)
