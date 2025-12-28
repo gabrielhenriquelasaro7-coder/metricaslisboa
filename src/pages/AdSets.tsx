@@ -63,7 +63,6 @@ export default function AdSets() {
   });
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
   const lastSyncedRange = useRef<string | null>(null);
-  const isInitialMount = useRef(true);
 
   // Get project for this campaign to determine business model
   const selectedProject = projects.find(p => p.id === campaign?.project_id);
@@ -136,30 +135,24 @@ export default function AdSets() {
 
   // Auto-sync when date range changes
   useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to || !campaign) return;
+    if (!selectedProject || !dateRange?.from || !dateRange?.to || !campaign || syncing) return;
     
-    const rangeKey = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
+    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
     
-    if (lastSyncedRange.current === rangeKey || syncing) return;
-    
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      lastSyncedRange.current = rangeKey;
-      syncData({
-        since: dateRange.from.toISOString().split('T')[0],
-        until: dateRange.to.toISOString().split('T')[0]
-      });
-      return;
-    }
+    // Skip if we just synced this exact range
+    if (lastSyncedRange.current === rangeKey) return;
     
     lastSyncedRange.current = rangeKey;
+    
     syncData({
-      since: dateRange.from.toISOString().split('T')[0],
-      until: dateRange.to.toISOString().split('T')[0]
+      since: format(dateRange.from, 'yyyy-MM-dd'),
+      until: format(dateRange.to, 'yyyy-MM-dd')
     });
   }, [dateRange, selectedProject, campaign, syncData, syncing]);
 
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
+    // Reset the lastSyncedRange to force a new sync
+    lastSyncedRange.current = null;
     setDateRange(newRange);
   }, []);
 
@@ -168,8 +161,9 @@ export default function AdSets() {
   }, []);
 
   const handleManualSync = useCallback(() => {
+    // Reset to force sync
+    lastSyncedRange.current = null;
     if (dateRange?.from && dateRange?.to) {
-      lastSyncedRange.current = `${dateRange.from.toISOString()}-${dateRange.to.toISOString()}`;
       syncData({
         since: format(dateRange.from, 'yyyy-MM-dd'),
         until: format(dateRange.to, 'yyyy-MM-dd'),
