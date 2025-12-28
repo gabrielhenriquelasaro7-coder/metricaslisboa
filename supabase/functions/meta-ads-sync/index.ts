@@ -45,7 +45,7 @@ function decreaseDelay() {
 }
 
 // Fetch with retry and dynamic delay for rate limits
-async function fetchWithRetry(url: string, retries = 3, timeout = 8000): Promise<any> {
+async function fetchWithRetry(url: string, retries = 3, timeout = 15000): Promise<any> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const controller = new AbortController();
@@ -60,7 +60,7 @@ async function fetchWithRetry(url: string, retries = 3, timeout = 8000): Promise
       if (data.error && data.error.code === 17) {
         increaseDelay();
         if (attempt < retries) {
-          const waitTime = (attempt + 1) * 3000; // 3s, 6s, 9s
+          const waitTime = (attempt + 1) * 5000; // 5s, 10s, 15s - longer waits
           console.log(`[RATE LIMIT] Waiting ${waitTime/1000}s before retry ${attempt + 1}...`);
           await delay(waitTime);
           continue;
@@ -72,8 +72,9 @@ async function fetchWithRetry(url: string, retries = 3, timeout = 8000): Promise
       return data;
     } catch (error) {
       if (attempt < retries) {
-        console.log(`[FETCH ERROR] Retry ${attempt + 1}...`);
-        await delay(1000);
+        const waitTime = (attempt + 1) * 2000; // 2s, 4s, 6s
+        console.log(`[FETCH ERROR] Retry ${attempt + 1} after ${waitTime/1000}s...`);
+        await delay(waitTime);
         continue;
       }
       return { error: { message: 'Request timeout or network error' } };
@@ -219,66 +220,21 @@ Deno.serve(async (req) => {
     );
     console.log(`[AD SETS] Total: ${adSets.length}`);
     
-    // STEP 3: Fetch ads with enhanced creative data
+    // STEP 3: Fetch ads with creative data (optimized fields)
     console.log('[STEP 3/3] Fetching ads...');
-    await delay(300);
+    await delay(500); // More delay after adsets to avoid rate limit
     
-    // Fetch ads with comprehensive creative fields for all ad types including dynamic/catalog ads
+    // Simplified creative fields to avoid timeout - fetch essentials only
     const ads = await fetchAllPages(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,preview_shareable_link,creative{id,name,title,body,call_to_action_type,thumbnail_url,image_url,object_story_spec,asset_feed_spec,effective_object_story_id,object_type,instagram_permalink_url,source_instagram_media_id}`,
+      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,object_story_spec}`,
       token,
       'ADS',
-      250
+      200
     );
     console.log(`[ADS] Total: ${ads.length}`);
     
-    // STEP 3.5: Fetch high-quality thumbnails for ads without images (catalog/dynamic ads)
-    console.log('[STEP 3.5] Fetching ad previews for catalog ads...');
-    const adsWithoutImages = ads.filter((ad: any) => {
-      const creative = ad.creative || {};
-      const hasImage = creative.image_url || creative.thumbnail_url || 
-                       creative.object_story_spec?.link_data?.image_url ||
-                       creative.object_story_spec?.photo_data?.url ||
-                       creative.object_story_spec?.video_data?.image_url;
-      return !hasImage && ad.status === 'ACTIVE';
-    });
-    
-    console.log(`[PREVIEWS] ${adsWithoutImages.length} ads need preview fetch`);
-    
-    // Fetch ad previews in batches to get thumbnail URLs
+    // Note: Skipping preview fetch to avoid additional API load
     const previewsMap = new Map<string, string>();
-    if (adsWithoutImages.length > 0 && adsWithoutImages.length <= 100) {
-      const previewBatches = chunk(adsWithoutImages, 10);
-      for (const batch of previewBatches) {
-        const previewPromises = batch.map(async (ad: any) => {
-          try {
-            const previewData = await fetchWithRetry(
-              `https://graph.facebook.com/v19.0/${ad.id}/previews?ad_format=DESKTOP_FEED_STANDARD&access_token=${token}`,
-              2, 5000
-            );
-            if (previewData.data?.[0]?.body) {
-              // Extract image URL from preview HTML
-              const htmlBody = previewData.data[0].body;
-              const imgMatch = htmlBody.match(/src="([^"]+(?:scontent|fbcdn)[^"]+)"/);
-              if (imgMatch) {
-                return { id: ad.id, url: imgMatch[1].replace(/&amp;/g, '&') };
-              }
-            }
-            return null;
-          } catch {
-            return null;
-          }
-        });
-        
-        const results = await Promise.all(previewPromises);
-        results.forEach(r => {
-          if (r) previewsMap.set(r.id, r.url);
-        });
-        
-        await delay(100);
-      }
-      console.log(`[PREVIEWS] Got ${previewsMap.size} preview images`);
-    }
 
     console.log(`[FETCH DONE] ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads`);
 
