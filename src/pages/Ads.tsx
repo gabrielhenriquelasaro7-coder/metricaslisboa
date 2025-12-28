@@ -4,8 +4,10 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
+import { SyncProgressIndicator } from '@/components/sync/SyncProgressIndicator';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
+import { useSyncWithProgress } from '@/hooks/useSyncWithProgress';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
@@ -19,8 +21,7 @@ import {
   ChevronLeft,
   RefreshCw,
   AlertCircle,
-  Target,
-  Users
+  Target
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,7 +63,6 @@ export default function Ads() {
   const [adSet, setAdSet] = useState<AdSet | null>(null);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
@@ -72,21 +72,12 @@ export default function Ads() {
   });
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
   const lastSyncedRange = useRef<string | null>(null);
+  const initialSyncDone = useRef(false);
 
   // Get project for this ad set
   const selectedProject = projects.find(p => p.id === adSet?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
-
-  // Sort options based on business model
-  const sortOptions = [
-    { value: 'spend', label: 'Gasto' },
-    { value: 'conversions', label: isEcommerce ? 'Compras' : 'Leads' },
-    { value: 'ctr', label: 'CTR' },
-    { value: 'cpa', label: isEcommerce ? 'CPA' : 'CPL' },
-    { value: 'name', label: 'Nome' },
-    ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
-  ];
 
   const fetchAds = useCallback(async () => {
     if (!adSetId) return;
@@ -112,54 +103,58 @@ export default function Ads() {
     }
   }, [adSetId]);
 
-  // Sync data with date range
-  const syncData = useCallback(async (timeRange?: { since: string; until: string }) => {
-    if (!adSet || !selectedProject) return;
-    
-    setSyncing(true);
-    try {
-      const { error } = await supabase.functions.invoke('meta-ads-sync', {
-        body: {
-          project_id: selectedProject.id,
-          ad_account_id: selectedProject.ad_account_id,
-          time_range: timeRange,
-        },
-      });
-      
-      if (error) throw error;
-      
-      await fetchAds();
-    } catch (error) {
-      console.error('Sync error:', error);
-    } finally {
-      setSyncing(false);
-    }
-  }, [adSet, selectedProject, fetchAds]);
+  // Use the new sync hook
+  const { syncing, progress, syncData, syncWithDebounce, startAutoSync, stopAutoSync } = useSyncWithProgress({
+    projectId: selectedProject?.id || '',
+    adAccountId: selectedProject?.ad_account_id || '',
+    onSuccess: fetchAds,
+  });
+
+  // Sort options based on business model
+  const sortOptions = [
+    { value: 'spend', label: 'Gasto' },
+    { value: 'conversions', label: isEcommerce ? 'Compras' : 'Leads' },
+    { value: 'ctr', label: 'CTR' },
+    { value: 'cpa', label: isEcommerce ? 'CPA' : 'CPL' },
+    { value: 'name', label: 'Nome' },
+    ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
+  ];
 
   // Initial fetch
   useEffect(() => {
     fetchAds();
   }, [fetchAds]);
 
-  // Auto-sync when date range changes
+  // Auto-sync setup
+  useEffect(() => {
+    if (selectedProject && dateRange?.from && dateRange?.to) {
+      startAutoSync({
+        since: format(dateRange.from, 'yyyy-MM-dd'),
+        until: format(dateRange.to, 'yyyy-MM-dd')
+      });
+    }
+    return () => stopAutoSync();
+  }, [selectedProject, dateRange, startAutoSync, stopAutoSync]);
+
+  // Sync when date range changes (with debounce)
   useEffect(() => {
     if (!selectedProject || !dateRange?.from || !dateRange?.to || !adSet || syncing) return;
     
     const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
     
-    // Skip if we just synced this exact range
     if (lastSyncedRange.current === rangeKey) return;
+    if (!initialSyncDone.current) {
+      initialSyncDone.current = true;
+      lastSyncedRange.current = rangeKey;
+      syncData({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
+      return;
+    }
     
     lastSyncedRange.current = rangeKey;
-    
-    syncData({
-      since: format(dateRange.from, 'yyyy-MM-dd'),
-      until: format(dateRange.to, 'yyyy-MM-dd')
-    });
-  }, [dateRange, selectedProject, adSet, syncData, syncing]);
+    syncWithDebounce({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
+  }, [dateRange, selectedProject, adSet, syncData, syncWithDebounce, syncing]);
 
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
-    // Reset the lastSyncedRange to force a new sync
     lastSyncedRange.current = null;
     setDateRange(newRange);
   }, []);
@@ -169,13 +164,9 @@ export default function Ads() {
   }, []);
 
   const handleManualSync = useCallback(() => {
-    // Reset to force sync
     lastSyncedRange.current = null;
     if (dateRange?.from && dateRange?.to) {
-      syncData({
-        since: format(dateRange.from, 'yyyy-MM-dd'),
-        until: format(dateRange.to, 'yyyy-MM-dd'),
-      });
+      syncData({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
     } else {
       syncData();
     }
@@ -230,6 +221,7 @@ export default function Ads() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <SyncProgressIndicator step={progress.step} message={progress.message} syncing={syncing} />
             <Button 
               onClick={handleManualSync} 
               disabled={syncing || !selectedProject}
@@ -310,7 +302,7 @@ export default function Ads() {
                     <h3 className="font-semibold truncate">{ad.name}</h3>
                     {ad.cta && <Badge variant="outline">{ad.cta}</Badge>}
                     
-                    {/* Main Metrics - Leads/CPL first */}
+                    {/* Main Metrics */}
                     <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
                       <div className="text-center p-2 bg-primary/5 rounded-lg">
                         <p className="text-lg font-bold text-primary">{ad.conversions}</p>

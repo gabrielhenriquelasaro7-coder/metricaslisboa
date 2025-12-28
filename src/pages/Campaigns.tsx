@@ -4,7 +4,9 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
+import { SyncProgressIndicator } from '@/components/sync/SyncProgressIndicator';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
+import { useSyncWithProgress } from '@/hooks/useSyncWithProgress';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
@@ -38,8 +40,20 @@ export default function Campaigns() {
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
   const lastSyncedRange = useRef<string | null>(null);
+  const initialSyncDone = useRef(false);
   
-  const { campaigns, adSets, ads, loading, syncing, syncData, selectedProject, projectsLoading } = useMetaAdsData();
+  const { campaigns, adSets, ads, loading, fetchCampaigns, fetchAdSets, fetchAds, selectedProject, projectsLoading } = useMetaAdsData();
+
+  // Use the new sync hook
+  const { syncing, progress, syncData, syncWithDebounce, startAutoSync, stopAutoSync } = useSyncWithProgress({
+    projectId: selectedProject?.id || '',
+    adAccountId: selectedProject?.ad_account_id || '',
+    onSuccess: () => {
+      fetchCampaigns();
+      fetchAdSets();
+      fetchAds();
+    },
+  });
 
   // Create lookup maps for ad sets and ads count per campaign
   const adSetsCountByCampaign = adSets.reduce((acc, adSet) => {
