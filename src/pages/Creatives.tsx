@@ -9,11 +9,10 @@ import {
   Search, 
   Grid3X3, 
   List, 
-  Play, 
-  Image as ImageIcon,
   RefreshCw,
   Loader2,
-  ImageOff
+  ImageOff,
+  ExternalLink
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
@@ -24,7 +23,10 @@ export default function Creatives() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('roas');
+  const [sortBy, setSortBy] = useState<string>('spend');
+
+  // Check if project is ecommerce to show ROAS
+  const isEcommerce = selectedProject?.business_model === 'ecommerce';
 
   // Redirect if no project selected (only after projects have loaded)
   if (!selectedProject && !projectsLoading && !loading) {
@@ -94,7 +96,7 @@ export default function Creatives() {
     return statusMap[status] || { label: status, className: 'bg-muted text-muted-foreground' };
   };
 
-  const avgRoas = filteredCreatives.length > 0
+  const avgRoas = filteredCreatives.length > 0 && isEcommerce
     ? filteredCreatives.reduce((sum, c) => sum + (c.roas || 0), 0) / filteredCreatives.length
     : 0;
 
@@ -157,10 +159,10 @@ export default function Creatives() {
               <SelectValue placeholder="Ordenar por" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="roas">Maior ROAS</SelectItem>
               <SelectItem value="spend">Maior Gasto</SelectItem>
               <SelectItem value="ctr">Maior CTR</SelectItem>
               <SelectItem value="conversions">Mais Conversões</SelectItem>
+              {isEcommerce && <SelectItem value="roas">Maior ROAS</SelectItem>}
             </SelectContent>
           </Select>
 
@@ -183,7 +185,7 @@ export default function Creatives() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className={cn("grid gap-4", isEcommerce ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-3")}>
           <div className="glass-card p-4">
             <p className="text-sm text-muted-foreground">Total de Criativos</p>
             <p className="text-2xl font-bold">{filteredCreatives.length}</p>
@@ -200,12 +202,14 @@ export default function Creatives() {
               {filteredCreatives.filter((c) => c.status === 'PAUSED').length}
             </p>
           </div>
-          <div className="glass-card p-4">
-            <p className="text-sm text-muted-foreground">ROAS Médio</p>
-            <p className="text-2xl font-bold text-metric-positive">
-              {avgRoas.toFixed(2)}x
-            </p>
-          </div>
+          {isEcommerce && (
+            <div className="glass-card p-4">
+              <p className="text-sm text-muted-foreground">ROAS Médio</p>
+              <p className="text-2xl font-bold text-metric-positive">
+                {avgRoas.toFixed(2)}x
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Empty State */}
@@ -234,17 +238,36 @@ export default function Creatives() {
               const statusBadge = getStatusBadge(creative.status);
               return (
                 <div key={creative.id} className="glass-card-hover overflow-hidden group">
-                  {/* Thumbnail */}
+                  {/* Thumbnail - usando resolução maior */}
                   <div className="relative aspect-square overflow-hidden bg-secondary/30">
                     {creative.creative_thumbnail ? (
-                      <img
-                        src={creative.creative_thumbnail}
-                        alt={creative.headline || creative.name}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
+                      <>
+                        <img
+                          src={creative.creative_thumbnail.replace(/\/s\d+x\d+\//, '/s720x720/')}
+                          alt={creative.headline || creative.name}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          loading="lazy"
+                          onError={(e) => {
+                            // Try original URL if high-res fails
+                            const img = e.target as HTMLImageElement;
+                            if (!img.dataset.fallback) {
+                              img.dataset.fallback = 'true';
+                              img.src = creative.creative_thumbnail || '';
+                            } else {
+                              img.style.display = 'none';
+                            }
+                          }}
+                        />
+                        <a
+                          href={creative.creative_thumbnail.replace(/\/s\d+x\d+\//, '/')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute top-3 right-3 p-2 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <ImageOff className="w-16 h-16 text-muted-foreground" />
@@ -255,20 +278,22 @@ export default function Creatives() {
                         {statusBadge.label}
                       </Badge>
                     </div>
-                    <div className="absolute bottom-3 right-3">
-                      <Badge
-                        className={cn(
-                          'text-lg font-bold',
-                          (creative.roas || 0) >= 5
-                            ? 'bg-metric-positive text-metric-positive-foreground'
-                            : (creative.roas || 0) >= 3
-                            ? 'bg-metric-warning text-metric-warning-foreground'
-                            : 'bg-metric-negative text-metric-negative-foreground'
-                        )}
-                      >
-                        {(creative.roas || 0).toFixed(2)}x ROAS
-                      </Badge>
-                    </div>
+                    {isEcommerce && (
+                      <div className="absolute bottom-3 right-3">
+                        <Badge
+                          className={cn(
+                            'text-lg font-bold',
+                            (creative.roas || 0) >= 5
+                              ? 'bg-metric-positive text-metric-positive-foreground'
+                              : (creative.roas || 0) >= 3
+                              ? 'bg-metric-warning text-metric-warning-foreground'
+                              : 'bg-metric-negative text-metric-negative-foreground'
+                          )}
+                        >
+                          {(creative.roas || 0).toFixed(2)}x ROAS
+                        </Badge>
+                      </div>
+                    )}
                   </div>
 
                   {/* Content */}
@@ -297,7 +322,7 @@ export default function Creatives() {
                     </div>
 
                     {/* Metrics */}
-                    <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border">
+                    <div className={cn("grid gap-3 pt-3 border-t border-border", isEcommerce ? "grid-cols-3" : "grid-cols-3")}>
                       <div className="text-center">
                         <p className="text-lg font-semibold">{formatNumber(creative.impressions || 0)}</p>
                         <p className="text-xs text-muted-foreground">Impressões</p>
@@ -339,9 +364,11 @@ export default function Creatives() {
                   <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
                     Conversões
                   </th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
-                    ROAS
-                  </th>
+                  {isEcommerce && (
+                    <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
+                      ROAS
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -357,11 +384,18 @@ export default function Creatives() {
                           <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-secondary/30">
                             {creative.creative_thumbnail ? (
                               <img
-                                src={creative.creative_thumbnail}
+                                src={creative.creative_thumbnail.replace(/\/s\d+x\d+\//, '/s150x150/')}
                                 alt={creative.headline || creative.name}
                                 className="w-full h-full object-cover"
+                                loading="lazy"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  const img = e.target as HTMLImageElement;
+                                  if (!img.dataset.fallback) {
+                                    img.dataset.fallback = 'true';
+                                    img.src = creative.creative_thumbnail || '';
+                                  } else {
+                                    img.style.display = 'none';
+                                  }
                                 }}
                               />
                             ) : (
@@ -395,20 +429,22 @@ export default function Creatives() {
                       <td className="py-4 px-6 text-right font-medium">
                         {creative.conversions || 0}
                       </td>
-                      <td className="py-4 px-6 text-right">
-                        <Badge
-                          className={cn(
-                            'font-bold',
-                            (creative.roas || 0) >= 5
-                              ? 'bg-metric-positive text-metric-positive-foreground'
-                              : (creative.roas || 0) >= 3
-                              ? 'bg-metric-warning text-metric-warning-foreground'
-                              : 'bg-metric-negative text-metric-negative-foreground'
-                          )}
-                        >
-                          {(creative.roas || 0).toFixed(2)}x
-                        </Badge>
-                      </td>
+                      {isEcommerce && (
+                        <td className="py-4 px-6 text-right">
+                          <Badge
+                            className={cn(
+                              'font-bold',
+                              (creative.roas || 0) >= 5
+                                ? 'bg-metric-positive text-metric-positive-foreground'
+                                : (creative.roas || 0) >= 3
+                                ? 'bg-metric-warning text-metric-warning-foreground'
+                                : 'bg-metric-negative text-metric-negative-foreground'
+                            )}
+                          >
+                            {(creative.roas || 0).toFixed(2)}x
+                          </Badge>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
