@@ -157,7 +157,7 @@ export function useMetaAdsData() {
     }
   }, [selectedProject]);
 
-  const syncData = useCallback(async () => {
+  const syncData = useCallback(async (timeRange?: { since: string; until: string }) => {
     if (!selectedProject) {
       toast.error('Nenhum projeto selecionado');
       return;
@@ -165,11 +165,18 @@ export function useMetaAdsData() {
 
     setSyncing(true);
     try {
+      const body: Record<string, unknown> = {
+        project_id: selectedProject.id,
+        ad_account_id: selectedProject.ad_account_id,
+      };
+      
+      // Add time_range if provided for dynamic date filtering
+      if (timeRange) {
+        body.time_range = timeRange;
+      }
+      
       const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
-        body: {
-          project_id: selectedProject.id,
-          ad_account_id: selectedProject.ad_account_id,
-        },
+        body,
       });
 
       if (error) throw error;

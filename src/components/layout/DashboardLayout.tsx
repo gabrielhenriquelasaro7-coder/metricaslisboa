@@ -31,7 +31,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      <main className={cn('ml-64 min-h-screen transition-all duration-300')}>
+      <main className={cn('ml-64 min-h-screen transition-all duration-300 pl-4')}>
         {children}
       </main>
     </div>
