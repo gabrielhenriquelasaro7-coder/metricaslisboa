@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
           step: 'campaigns',
           keep_existing: isRateLimit
         }),
-        { status: isRateLimit ? 429 : 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
             keep_existing: true,
             step: 'adsets'
           }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     } else {
