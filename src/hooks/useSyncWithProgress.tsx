@@ -74,7 +74,7 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
         setProgress({ step: 'insights', message: stepMessages.insights });
       }, 6000);
 
-      const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
+      const response = await supabase.functions.invoke('meta-ads-sync', {
         body: {
           project_id: projectId,
           ad_account_id: adAccountId,
@@ -87,7 +87,10 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
       clearTimeout(stepTimer2);
       clearTimeout(stepTimer3);
 
-      // Handle rate limit
+      const { data, error } = response;
+
+      // Handle rate limit - check both data and error context
+      // When 429 is returned, supabase treats it as error but body may have keep_existing
       if (data?.keep_existing || data?.rate_limited) {
         setProgress({ step: 'error', message: 'Rate limit - usando dados existentes' });
         toast.warning('Limite de API da Meta atingido. Usando dados existentes. Aguarde 2 min.');
@@ -95,7 +98,24 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
         return false;
       }
 
+      // Check if error contains rate limit info (429 response)
       if (error) {
+        // Try to parse error context for rate limit
+        try {
+          const errorContext = error.context;
+          if (errorContext?.body) {
+            const errorBody = JSON.parse(errorContext.body);
+            if (errorBody?.keep_existing || errorBody?.rate_limited) {
+              setProgress({ step: 'error', message: 'Rate limit - usando dados existentes' });
+              toast.warning('Limite de API da Meta atingido. Usando dados existentes. Aguarde 2 min.');
+              onSuccess?.();
+              return false;
+            }
+          }
+        } catch {
+          // Not rate limit, continue to generic error
+        }
+        
         setProgress({ step: 'error', message: stepMessages.error });
         console.error('Sync error:', error);
         toast.error('Erro na sincronização');
