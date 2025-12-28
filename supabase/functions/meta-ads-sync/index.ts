@@ -245,15 +245,22 @@ Deno.serve(async (req) => {
     );
     console.log(`[IMAGES] Total: ${adImages.length}`);
     
-    // Helper to clean image URLs from resize parameters
+    // Helper to clean image URLs - ONLY removes stp resize parameter, keeps auth params
     const cleanAdImageUrl = (url: string | null): string | null => {
       if (!url) return null;
-      return url
-        .replace(/[?&]stp=[^&]*/g, '')
-        .replace(/[?&]_nc_[^&]*/g, '')
-        .replace(/[?&]ccb=[^&]*/g, '')
-        .replace(/\?$/g, '')
-        .replace(/&$/g, '');
+      
+      // Remove ONLY stp= parameter that forces resize (e.g., stp=dst-jpg_p64x64_q75_tt6)
+      let clean = url.replace(/[&?]stp=[^&]*/g, '');
+      
+      // Fix malformed URL: if & appears before any ?, replace first & with ?
+      if (clean.includes('&') && !clean.includes('?')) {
+        clean = clean.replace('&', '?');
+      }
+      
+      // Clean trailing ? or &
+      clean = clean.replace(/[&?]$/g, '');
+      
+      return clean;
     };
     
     // Create hash -> high-quality URL map (cleaned URLs)
@@ -486,19 +493,22 @@ Deno.serve(async (req) => {
       const objectStory = creative.object_story_spec || {};
       const assetFeed = creative.asset_feed_spec || {};
       
-      // Helper to clean low-res URL parameters (p64x64, s64x64, etc.)
+      // Helper to clean low-res URL parameters - ONLY removes stp resize param
       const cleanImageUrl = (url: string | null): string | null => {
         if (!url) return null;
-        // Remove ALL Facebook resize/transform parameters that cause pixelation
-        // Real format example: stp=dst-jpg_p160x160_tt6 or stp=dst-jpg_s64x64_q75_tt6
-        return url
-          .replace(/\/p\d+x\d+\//g, '/') // /p64x64/ -> /
-          .replace(/\/s\d+x\d+\//g, '/') // /s64x64/ -> /
-          .replace(/[?&]stp=[^&]*/g, '') // Remove ALL stp= parameters (most important!)
-          .replace(/[?&]_nc_[^&]*/g, '') // Remove _nc_ tracking params
-          .replace(/[?&]ccb=[^&]*/g, '') // Remove ccb params
-          .replace(/\?$/g, '') // Clean orphan ? at end
-          .replace(/&$/g, ''); // Clean orphan & at end
+        
+        // Remove ONLY stp= parameter that forces resize
+        let clean = url.replace(/[&?]stp=[^&]*/g, '');
+        
+        // Fix malformed URL: if & appears before any ?, replace first & with ?
+        if (clean.includes('&') && !clean.includes('?')) {
+          clean = clean.replace('&', '?');
+        }
+        
+        // Clean trailing ? or &
+        clean = clean.replace(/[&?]$/g, '');
+        
+        return clean;
       };
       
       // Try to get highest quality image (priority order)
