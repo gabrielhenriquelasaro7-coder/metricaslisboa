@@ -24,7 +24,8 @@ import {
   Layers,
   AlertTriangle,
   Settings,
-  MoreVertical
+  MoreVertical,
+  History
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,7 +46,7 @@ export default function Campaigns() {
   const { campaigns, adSets, ads, loading, fetchCampaigns, fetchAdSets, fetchAds, selectedProject, projectsLoading, loadMetricsByPeriod, getPeriodKeyFromDays } = useMetaAdsData();
 
   // Use the new sync hook - for manual sync only
-  const { syncing, progress, syncData } = useSyncWithProgress({
+  const { syncing, syncingAllPeriods, progress, allPeriodsProgress, syncData, syncAllPeriods } = useSyncWithProgress({
     projectId: selectedProject?.id || '',
     adAccountId: selectedProject?.ad_account_id || '',
     onSuccess: () => {
@@ -218,8 +219,11 @@ export default function Campaigns() {
           <div className="flex items-center gap-3">
             <SyncProgressIndicator 
               step={progress.step} 
-              message={progress.message} 
-              syncing={syncing} 
+              message={allPeriodsProgress 
+                ? `Período ${allPeriodsProgress.currentPeriod}/${allPeriodsProgress.totalPeriods}: ${allPeriodsProgress.periodKey}` 
+                : progress.message
+              } 
+              syncing={syncing || syncingAllPeriods} 
             />
             <DateRangePicker 
               dateRange={dateRange} 
@@ -234,9 +238,17 @@ export default function Campaigns() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleManualSync} disabled={syncing || !selectedProject}>
+                <DropdownMenuItem onClick={handleManualSync} disabled={syncing || syncingAllPeriods || !selectedProject}>
                   <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-                  {syncing ? 'Sincronizando...' : 'Forçar Sincronização'}
+                  {syncing ? 'Sincronizando...' : 'Forçar Sincronização (Período Atual)'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={syncAllPeriods} disabled={syncing || syncingAllPeriods || !selectedProject}>
+                  <RefreshCw className={cn("w-4 h-4 mr-2", syncingAllPeriods && "animate-spin")} />
+                  {syncingAllPeriods ? `Sincronizando ${allPeriodsProgress?.currentPeriod || 0}/5...` : 'Sincronizar Todos os Períodos'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/sync-history')}>
+                  <History className="w-4 h-4 mr-2" />
+                  Ver Histórico de Sync
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
