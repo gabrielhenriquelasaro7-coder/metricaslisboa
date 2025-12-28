@@ -89,8 +89,7 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
 
       const { data, error } = response;
 
-      // Handle rate limit - check both data and error context
-      // When 429 is returned, supabase treats it as error but body may have keep_existing
+      // Handle rate limit - now always comes in data since we return 200
       if (data?.keep_existing || data?.rate_limited) {
         setProgress({ step: 'error', message: 'Rate limit - usando dados existentes' });
         toast.warning('Limite de API da Meta atingido. Usando dados existentes. Aguarde 2 min.');
@@ -98,28 +97,19 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
         return false;
       }
 
-      // Check if error contains rate limit info (429 response)
       if (error) {
-        // Try to parse error context for rate limit
-        try {
-          const errorContext = error.context;
-          if (errorContext?.body) {
-            const errorBody = JSON.parse(errorContext.body);
-            if (errorBody?.keep_existing || errorBody?.rate_limited) {
-              setProgress({ step: 'error', message: 'Rate limit - usando dados existentes' });
-              toast.warning('Limite de API da Meta atingido. Usando dados existentes. Aguarde 2 min.');
-              onSuccess?.();
-              return false;
-            }
-          }
-        } catch {
-          // Not rate limit, continue to generic error
-        }
-        
         setProgress({ step: 'error', message: stepMessages.error });
         console.error('Sync error:', error);
         toast.error('Erro na sincronização');
         onError?.(error.message);
+        return false;
+      }
+
+      // Check if success is false (other errors)
+      if (data?.success === false) {
+        setProgress({ step: 'error', message: stepMessages.error });
+        toast.error(data?.error || 'Erro na sincronização');
+        onError?.(data?.error || 'Unknown error');
         return false;
       }
 
