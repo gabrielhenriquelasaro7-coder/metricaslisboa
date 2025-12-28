@@ -177,44 +177,24 @@ export default function Dashboard() {
           </div>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            {activeProjects.length > 0 && (
-              <>
-                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Selecione um projeto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os projetos</SelectItem>
-                    {activeProjects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {hasSelectedProject && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => syncData(dateRange?.from && dateRange?.to ? {
-                      since: dateRange.from.toISOString().split('T')[0],
-                      until: dateRange.to.toISOString().split('T')[0]
-                    } : undefined)}
-                    disabled={syncing}
-                  >
-                    {syncing ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                    )}
-                    Sincronizar
-                  </Button>
-                )}
-              </>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncData(dateRange?.from && dateRange?.to ? {
+                since: dateRange.from.toISOString().split('T')[0],
+                until: dateRange.to.toISOString().split('T')[0]
+              } : undefined)}
+              disabled={syncing || !selectedProject}
+            >
+              {syncing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Sincronizar
+            </Button>
             
-            <DateRangePicker 
+            <DateRangePicker
               dateRange={dateRange} 
               onDateRangeChange={setDateRange}
               timezone={projectTimezone}
