@@ -8,17 +8,22 @@ import {
   Clock,
   RefreshCw,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Archive,
+  ArchiveRestore,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
 
 const businessModelConfig: Record<BusinessModel, { icon: typeof TrendingUp; label: string; color: string }> = {
   inside_sales: { icon: Users, label: 'Inside Sales', color: 'text-chart-1' },
@@ -30,9 +35,11 @@ interface ProjectCardProps {
   project: Project;
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
+  onArchive: (project: Project) => void;
+  onUnarchive: (project: Project) => void;
 }
 
-export default function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
+export default function ProjectCard({ project, onEdit, onDelete, onArchive, onUnarchive }: ProjectCardProps) {
   const config = businessModelConfig[project.business_model];
   const Icon = config.icon;
   
@@ -40,16 +47,24 @@ export default function ProjectCard({ project, onEdit, onDelete }: ProjectCardPr
 
   return (
     <Link to={`/project/${project.id}`} className="block">
-      <div className="glass-card-hover p-6 group">
+      <div className={`glass-card-hover p-6 group ${project.archived ? 'opacity-60' : ''}`}>
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className={`w-12 h-12 rounded-xl bg-secondary flex items-center justify-center ${config.color}`}>
               <Icon className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
-                {project.name}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                  {project.name}
+                </h3>
+                {project.archived && (
+                  <Badge variant="secondary" className="text-xs">
+                    <Archive className="w-3 h-3 mr-1" />
+                    Arquivado
+                  </Badge>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">{config.label}</p>
             </div>
           </div>
@@ -64,10 +79,23 @@ export default function ProjectCard({ project, onEdit, onDelete }: ProjectCardPr
               <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEdit(project); }}>
                 Editar
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {project.archived ? (
+                <DropdownMenuItem onClick={(e) => { e.preventDefault(); onUnarchive(project); }}>
+                  <ArchiveRestore className="w-4 h-4 mr-2" />
+                  Restaurar
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={(e) => { e.preventDefault(); onArchive(project); }}>
+                  <Archive className="w-4 h-4 mr-2" />
+                  Arquivar
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem 
                 onClick={(e) => { e.preventDefault(); onDelete(project); }}
                 className="text-destructive"
               >
+                <Trash2 className="w-4 h-4 mr-2" />
                 Excluir
               </DropdownMenuItem>
             </DropdownMenuContent>
