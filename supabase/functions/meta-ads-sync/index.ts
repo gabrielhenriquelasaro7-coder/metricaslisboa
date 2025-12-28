@@ -245,11 +245,22 @@ Deno.serve(async (req) => {
     );
     console.log(`[IMAGES] Total: ${adImages.length}`);
     
-    // Create hash -> high-quality URL map
+    // Helper to clean image URLs from resize parameters
+    const cleanAdImageUrl = (url: string | null): string | null => {
+      if (!url) return null;
+      return url
+        .replace(/[?&]stp=[^&]*/g, '')
+        .replace(/[?&]_nc_[^&]*/g, '')
+        .replace(/[?&]ccb=[^&]*/g, '')
+        .replace(/\?$/g, '')
+        .replace(/&$/g, '');
+    };
+    
+    // Create hash -> high-quality URL map (cleaned URLs)
     const imageHashMap = new Map<string, string>();
     adImages.forEach((img: any) => {
-      // Prefer url_256 or url (original), fallback to url_128
-      const bestUrl = img.url || img.url_256 || img.url_128;
+      // Prefer url (original/highest quality), fallback to url_256, then url_128
+      const bestUrl = cleanAdImageUrl(img.url) || cleanAdImageUrl(img.url_256) || cleanAdImageUrl(img.url_128);
       if (bestUrl && img.hash) {
         imageHashMap.set(img.hash, bestUrl);
       }
@@ -478,13 +489,16 @@ Deno.serve(async (req) => {
       // Helper to clean low-res URL parameters (p64x64, s64x64, etc.)
       const cleanImageUrl = (url: string | null): string | null => {
         if (!url) return null;
-        // Remove Facebook resize parameters that cause pixelation
+        // Remove ALL Facebook resize/transform parameters that cause pixelation
+        // Real format example: stp=dst-jpg_p160x160_tt6 or stp=dst-jpg_s64x64_q75_tt6
         return url
           .replace(/\/p\d+x\d+\//g, '/') // /p64x64/ -> /
           .replace(/\/s\d+x\d+\//g, '/') // /s64x64/ -> /
-          .replace(/stp=dst-[^&]+&?/g, '') // stp=dst-jpg_p64x64 params
-          .replace(/\?stp=[^&]+/g, '') // ?stp= at start
-          .replace(/&stp=[^&]+/g, ''); // &stp= in middle
+          .replace(/[?&]stp=[^&]*/g, '') // Remove ALL stp= parameters (most important!)
+          .replace(/[?&]_nc_[^&]*/g, '') // Remove _nc_ tracking params
+          .replace(/[?&]ccb=[^&]*/g, '') // Remove ccb params
+          .replace(/\?$/g, '') // Clean orphan ? at end
+          .replace(/&$/g, ''); // Clean orphan & at end
       };
       
       // Try to get highest quality image (priority order)
