@@ -281,6 +281,53 @@ export type Database = {
           },
         ]
       }
+      period_metrics: {
+        Row: {
+          created_at: string | null
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          id: string
+          metrics: Json
+          period_key: string
+          project_id: string
+          status: string | null
+          synced_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          id?: string
+          metrics?: Json
+          period_key: string
+          project_id: string
+          status?: string | null
+          synced_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          entity_id?: string
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          metrics?: Json
+          period_key?: string
+          project_id?: string
+          status?: string | null
+          synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "period_metrics_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

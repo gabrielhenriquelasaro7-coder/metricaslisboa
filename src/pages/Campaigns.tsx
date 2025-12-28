@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -8,7 +8,7 @@ import { SyncProgressIndicator } from '@/components/sync/SyncProgressIndicator';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { useSyncWithProgress } from '@/hooks/useSyncWithProgress';
 import { DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   Megaphone, 
@@ -42,8 +42,7 @@ export default function Campaigns() {
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
-  const lastSyncedRange = useRef<string | null>(null);
-  const { campaigns, adSets, ads, loading, fetchCampaigns, fetchAdSets, fetchAds, selectedProject, projectsLoading, loadDataFromDatabase } = useMetaAdsData();
+  const { campaigns, adSets, ads, loading, fetchCampaigns, fetchAdSets, fetchAds, selectedProject, projectsLoading, loadMetricsByPeriod, getPeriodKeyFromDays } = useMetaAdsData();
 
   // Use the new sync hook - for manual sync only
   const { syncing, progress, syncData } = useSyncWithProgress({
@@ -67,25 +66,19 @@ export default function Campaigns() {
     return acc;
   }, {} as Record<string, number>);
 
-  // Sync when date range changes - fetches data for selected period
+  // Load metrics when date range changes - INSTANT from local database
   useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to || syncing) return;
+    if (!selectedProject || !dateRange?.from || !dateRange?.to) return;
     
-    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
+    const diffDays = differenceInDays(dateRange.to, dateRange.from);
+    const periodKey = getPeriodKeyFromDays(diffDays);
     
-    // Skip if already synced this range
-    if (lastSyncedRange.current === rangeKey) return;
-    
-    lastSyncedRange.current = rangeKey;
-    syncData({
-      since: format(dateRange.from, 'yyyy-MM-dd'),
-      until: format(dateRange.to, 'yyyy-MM-dd')
-    });
-  }, [dateRange, selectedProject, syncData, syncing]);
+    console.log(`[Campaigns] Loading period: ${periodKey}`);
+    loadMetricsByPeriod(periodKey);
+  }, [dateRange, selectedProject, loadMetricsByPeriod, getPeriodKeyFromDays]);
 
-  // Handle date range change
+  // Handle date range change - NO sync, just load from database
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
-    lastSyncedRange.current = null; // Reset to force sync
     setDateRange(newRange);
   }, []);
 
@@ -96,7 +89,6 @@ export default function Campaigns() {
   
   // Manual sync with current date range
   const handleManualSync = useCallback(() => {
-    lastSyncedRange.current = null; // Reset to force sync
     if (dateRange?.from && dateRange?.to) {
       syncData({
         since: format(dateRange.from, 'yyyy-MM-dd'),
@@ -413,7 +405,7 @@ export default function Campaigns() {
                           <TooltipTrigger asChild>
                             <span className="cursor-help border-b border-dashed border-muted-foreground/50">{isEcommerce ? 'Compras' : 'Leads'}</span>
                           </TooltipTrigger>
-                          <TooltipContent>{isEcommerce ? 'Número de compras realizadas' : 'Número de leads gerados (cadastros, formulários)'}</TooltipContent>
+                          <TooltipContent>{isEcommerce ? 'Número de compras realizadas' : 'Número de leads gerados'}</TooltipContent>
                         </Tooltip>
                       </th>
                       <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
@@ -421,7 +413,7 @@ export default function Campaigns() {
                           <TooltipTrigger asChild>
                             <span className="cursor-help border-b border-dashed border-muted-foreground/50">{isEcommerce ? 'CPA' : 'CPL'}</span>
                           </TooltipTrigger>
-                          <TooltipContent>{isEcommerce ? 'Custo Por Aquisição: quanto custou cada compra (Gasto ÷ Compras)' : 'Custo Por Lead: quanto custou cada lead (Gasto ÷ Leads)'}</TooltipContent>
+                          <TooltipContent>{isEcommerce ? 'Custo por Aquisição (Gasto ÷ Compras)' : 'Custo por Lead (Gasto ÷ Leads)'}</TooltipContent>
                         </Tooltip>
                       </th>
                       {isEcommerce && (
@@ -430,196 +422,156 @@ export default function Campaigns() {
                             <TooltipTrigger asChild>
                               <span className="cursor-help border-b border-dashed border-muted-foreground/50">ROAS</span>
                             </TooltipTrigger>
-                            <TooltipContent>Return On Ad Spend: retorno sobre investimento (Receita ÷ Gasto)</TooltipContent>
+                            <TooltipContent>Return on Ad Spend: Receita gerada para cada real investido (Receita ÷ Gasto)</TooltipContent>
                           </Tooltip>
                         </th>
                       )}
-                      <th className="py-4 px-2 w-10"></th>
+                      <th className="text-right py-4 px-3"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCampaigns.map((campaign, index) => (
-                      <tr
-                        key={campaign.id}
-                        className={cn(
-                          "border-b border-border/30 hover:bg-secondary/40 transition-all duration-200 cursor-pointer",
-                          index % 2 === 0 ? "bg-background/50" : "bg-secondary/10"
-                        )}
-                        onClick={() => navigate(`/campaign/${campaign.id}/adsets`)}
-                      >
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className={cn(
-                              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
-                              campaign.status === 'ACTIVE' ? "bg-metric-positive/10" : "bg-muted/50"
-                            )}>
-                              <Megaphone className={cn(
-                                "w-5 h-5",
-                                campaign.status === 'ACTIVE' ? "text-metric-positive" : "text-muted-foreground"
-                              )} />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-semibold text-sm truncate max-w-[280px]" title={campaign.name}>
-                                {campaign.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {campaign.objective?.replace('OUTCOME_', '') || 'Sem objetivo'}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-3 text-center">
-                          <Badge
-                            variant="secondary"
-                            className={cn(
-                              "text-xs font-medium px-2 py-0.5",
-                              campaign.status === 'ACTIVE' &&
-                                'bg-metric-positive/20 text-metric-positive border border-metric-positive/30',
-                              campaign.status === 'PAUSED' &&
-                                'bg-metric-warning/20 text-metric-warning border border-metric-warning/30',
-                              (campaign.status === 'DELETED' || campaign.status === 'ARCHIVED') && 
-                                'bg-muted text-muted-foreground'
-                            )}
-                          >
-                            {campaign.status === 'ACTIVE' && 'Ativo'}
-                            {campaign.status === 'PAUSED' && 'Pausado'}
-                            {campaign.status === 'DELETED' && 'Excluído'}
-                            {campaign.status === 'ARCHIVED' && 'Arquivado'}
-                            {!['ACTIVE', 'PAUSED', 'DELETED', 'ARCHIVED'].includes(campaign.status) && campaign.status}
-                          </Badge>
-                        </td>
-                        <td className="py-4 px-3 text-center">
-                          {(() => {
-                            const adSetsCount = adSetsCountByCampaign[campaign.id] || 0;
-                            const adsCount = adsCountByCampaign[campaign.id] || 0;
-                            const hasNoData = adSetsCount === 0 && adsCount === 0;
-                            const isActive = campaign.status === 'ACTIVE';
-                            
-                            return (
-                              <div className="flex items-center justify-center gap-2">
-                                {hasNoData && isActive && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertTriangle className="w-4 h-4 text-metric-warning" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      Campanha sem conjuntos ou anúncios sincronizados
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
-                                <div className="flex items-center gap-1 text-xs">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className={cn(
-                                        "flex items-center gap-0.5 cursor-help",
-                                        hasNoData ? "text-muted-foreground" : "text-foreground"
-                                      )}>
-                                        <Layers className="w-3 h-3" />
-                                        {adSetsCount}
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>{adSetsCount} conjunto{adSetsCount !== 1 ? 's' : ''} de anúncios</TooltipContent>
-                                  </Tooltip>
-                                  <span className="text-muted-foreground">/</span>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className={cn(
-                                        "flex items-center gap-0.5 cursor-help",
-                                        hasNoData ? "text-muted-foreground" : "text-foreground"
-                                      )}>
-                                        <Megaphone className="w-3 h-3" />
-                                        {adsCount}
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>{adsCount} anúncio{adsCount !== 1 ? 's' : ''}</TooltipContent>
-                                  </Tooltip>
-                                </div>
+                    {filteredCampaigns.map((campaign, index) => {
+                      const adSetsCount = adSetsCountByCampaign[campaign.id] || 0;
+                      const adsCount = adsCountByCampaign[campaign.id] || 0;
+                      const cpa = campaign.conversions > 0 ? campaign.spend / campaign.conversions : 0;
+                      
+                      return (
+                        <tr
+                          key={campaign.id}
+                          className="border-b border-border/50 hover:bg-secondary/30 transition-colors cursor-pointer group"
+                          onClick={() => navigate(`/campaign/${campaign.id}/adsets`)}
+                        >
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "w-10 h-10 rounded-xl flex items-center justify-center",
+                                campaign.status === 'ACTIVE' 
+                                  ? 'bg-metric-positive/10' 
+                                  : 'bg-secondary'
+                              )}>
+                                <Megaphone className={cn(
+                                  "w-5 h-5",
+                                  campaign.status === 'ACTIVE' 
+                                    ? 'text-metric-positive' 
+                                    : 'text-muted-foreground'
+                                )} />
                               </div>
-                            );
-                          })()}
-                        </td>
-                        <td className="py-4 px-3 text-right">
-                          <span className="text-sm font-medium">
-                            {campaign.daily_budget 
-                              ? `${formatCurrency(campaign.daily_budget)}`
-                              : campaign.lifetime_budget 
-                                ? `${formatCurrency(campaign.lifetime_budget)}`
-                                : '-'}
-                          </span>
-                          {(campaign.daily_budget || campaign.lifetime_budget) && (
-                            <span className="text-xs text-muted-foreground block">
-                              {campaign.daily_budget ? '/dia' : '/total'}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-4 px-3 text-right">
-                          <span className="text-sm font-semibold">
-                            {formatCurrency(campaign.spend)}
-                          </span>
-                        </td>
-                        <td className="py-4 px-3 text-right">
-                          <span className="text-sm font-medium">{formatNumber(campaign.reach)}</span>
-                        </td>
-                        <td className="py-4 px-3 text-right">
-                          <span className="text-sm font-medium">{formatNumber(campaign.impressions)}</span>
-                        </td>
-                        <td className="py-4 px-3 text-right">
-                          <span className="text-sm font-medium">{formatNumber(campaign.clicks)}</span>
-                        </td>
-                        <td className="py-4 px-3 text-right">
-                          <span className={cn(
-                            "text-sm font-semibold",
-                            campaign.ctr >= 2 ? "text-metric-positive" : 
-                            campaign.ctr >= 1 ? "text-metric-warning" : "text-muted-foreground"
-                          )}>
-                            {campaign.ctr.toFixed(2)}%
-                          </span>
-                        </td>
-                        <td className="py-4 px-3 text-right">
-                          <span className="text-sm font-semibold">
-                            {campaign.conversions}
-                          </span>
-                        </td>
-                        <td className="py-4 px-3 text-right">
-                          <span className="text-sm font-semibold">
-                            {campaign.cpa > 0 ? formatCurrency(campaign.cpa) : '-'}
-                          </span>
-                        </td>
-                        {isEcommerce && (
+                              <div className="max-w-[200px]">
+                                <p className="font-medium truncate group-hover:text-primary transition-colors">
+                                  {campaign.name}
+                                </p>
+                                {campaign.objective && (
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {campaign.objective}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-3 text-center">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-xs",
+                                campaign.status === 'ACTIVE' && 'bg-metric-positive/20 text-metric-positive border-metric-positive/30',
+                                campaign.status === 'PAUSED' && 'bg-metric-warning/20 text-metric-warning border-metric-warning/30',
+                                (campaign.status === 'DELETED' || campaign.status === 'ARCHIVED') && 'bg-muted text-muted-foreground'
+                              )}
+                            >
+                              {campaign.status === 'ACTIVE' ? 'Ativo' : 
+                               campaign.status === 'PAUSED' ? 'Pausado' : 
+                               campaign.status === 'DELETED' ? 'Deletado' : 
+                               campaign.status === 'ARCHIVED' ? 'Arquivado' : campaign.status}
+                            </Badge>
+                          </td>
+                          <td className="py-4 px-3 text-center">
+                            <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
+                              <Layers className="w-3.5 h-3.5" />
+                              <span>{adSetsCount}</span>
+                              <span className="mx-1">/</span>
+                              <Megaphone className="w-3.5 h-3.5" />
+                              <span>{adsCount}</span>
+                            </div>
+                          </td>
                           <td className="py-4 px-3 text-right">
-                            <span className="text-sm font-semibold">
-                              {campaign.roas > 0 ? `${campaign.roas.toFixed(2)}x` : '-'}
+                            <span className="text-sm">
+                              {campaign.daily_budget 
+                                ? `${formatCurrency(campaign.daily_budget)}/dia`
+                                : campaign.lifetime_budget 
+                                  ? `${formatCurrency(campaign.lifetime_budget)} total`
+                                  : '-'}
                             </span>
                           </td>
-                        )}
-                        <td className="py-4 px-2">
-                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="py-4 px-3 text-right font-medium">
+                            {formatCurrency(campaign.spend)}
+                          </td>
+                          <td className="py-4 px-3 text-right text-sm">
+                            {formatNumber(campaign.reach)}
+                          </td>
+                          <td className="py-4 px-3 text-right text-sm">
+                            {formatNumber(campaign.impressions)}
+                          </td>
+                          <td className="py-4 px-3 text-right text-sm">
+                            {formatNumber(campaign.clicks)}
+                          </td>
+                          <td className="py-4 px-3 text-right text-sm">
+                            {campaign.ctr.toFixed(2)}%
+                          </td>
+                          <td className="py-4 px-3 text-right">
+                            <span className={cn(
+                              "font-semibold",
+                              campaign.conversions > 0 ? "text-primary" : "text-muted-foreground"
+                            )}>
+                              {campaign.conversions}
+                            </span>
+                          </td>
+                          <td className="py-4 px-3 text-right text-sm">
+                            {campaign.conversions > 0 ? formatCurrency(cpa) : '-'}
+                          </td>
+                          {isEcommerce && (
+                            <td className="py-4 px-3 text-right">
+                              <Badge 
+                                variant="outline"
+                                className={cn(
+                                  "font-semibold",
+                                  campaign.roas >= 5 && "bg-metric-positive/20 text-metric-positive border-metric-positive/30",
+                                  campaign.roas >= 3 && campaign.roas < 5 && "bg-metric-warning/20 text-metric-warning border-metric-warning/30",
+                                  campaign.roas < 3 && campaign.roas > 0 && "bg-metric-negative/20 text-metric-negative border-metric-negative/30"
+                                )}
+                              >
+                                {campaign.roas.toFixed(2)}x
+                              </Badge>
+                            </td>
+                          )}
+                          <td className="py-4 px-3 text-right">
+                            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
+                  <tfoot>
+                    <tr className="bg-secondary/30 font-medium">
+                      <td className="py-4 px-4">
+                        Total: {filteredCampaigns.length} campanhas
+                      </td>
+                      <td colSpan={3}></td>
+                      <td className="py-4 px-3 text-right">{formatCurrency(totals.spend)}</td>
+                      <td colSpan={3}></td>
+                      <td className="py-4 px-3 text-right">{avgCtr.toFixed(2)}%</td>
+                      <td className="py-4 px-3 text-right text-primary font-semibold">{totals.conversions}</td>
+                      <td className="py-4 px-3 text-right">{totals.conversions > 0 ? formatCurrency(avgCpa) : '-'}</td>
+                      {isEcommerce && (
+                        <td className="py-4 px-3 text-right">
+                          <Badge variant="outline" className="font-semibold">
+                            {avgRoas.toFixed(2)}x
+                          </Badge>
+                        </td>
+                      )}
+                      <td></td>
+                    </tr>
+                  </tfoot>
                 </table>
-              </div>
-              
-              {/* Table footer with totals */}
-              <div className="border-t border-border bg-secondary/30 px-4 py-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {filteredCampaigns.length} campanha{filteredCampaigns.length !== 1 ? 's' : ''} 
-                    {campaigns.length !== filteredCampaigns.length && ` (de ${campaigns.length} total)`}
-                  </span>
-                  <div className="flex items-center gap-6">
-                    <span className="text-muted-foreground">
-                      Total gasto: <strong className="text-foreground">{formatCurrency(totals.spend)}</strong>
-                    </span>
-                    <span className="text-muted-foreground">
-                      Total {isEcommerce ? 'compras' : 'leads'}: <strong className="text-foreground">{totals.conversions}</strong>
-                    </span>
-                    <span className="text-muted-foreground">
-                      {isEcommerce ? 'CPA' : 'CPL'} médio: <strong className="text-foreground">{formatCurrency(avgCpa)}</strong>
-                    </span>
-                  </div>
-                </div>
               </div>
             </div>
           </>

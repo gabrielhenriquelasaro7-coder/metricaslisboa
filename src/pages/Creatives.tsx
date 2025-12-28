@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   Search, 
@@ -49,7 +49,7 @@ const cleanImageUrl = (url: string | null): string | null => {
 
 export default function Creatives() {
   const navigate = useNavigate();
-  const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncData, loadDataFromDatabase } = useMetaAdsData();
+  const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncData, loadMetricsByPeriod, getPeriodKeyFromDays } = useMetaAdsData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [campaignFilter, setCampaignFilter] = useState<string>('all');
@@ -62,32 +62,27 @@ export default function Creatives() {
     const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
     return period ? datePeriodToDateRange(period) : undefined;
   });
-  const lastSyncedRange = useRef<string | null>(null);
 
   const projectTimezone = selectedProject?.timezone || 'America/Sao_Paulo';
 
-  // Sync when date range changes
+  // Load metrics when date range changes - INSTANT from local database
   useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to || syncing) return;
+    if (!selectedProject || !dateRange?.from || !dateRange?.to) return;
     
-    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
-    if (lastSyncedRange.current === rangeKey) return;
+    const diffDays = differenceInDays(dateRange.to, dateRange.from);
+    const periodKey = getPeriodKeyFromDays(diffDays);
     
-    lastSyncedRange.current = rangeKey;
-    syncData({
-      since: format(dateRange.from, 'yyyy-MM-dd'),
-      until: format(dateRange.to, 'yyyy-MM-dd')
-    });
-  }, [dateRange, selectedProject, syncData, syncing]);
+    console.log(`[Creatives] Loading period: ${periodKey}`);
+    loadMetricsByPeriod(periodKey);
+  }, [dateRange, selectedProject, loadMetricsByPeriod, getPeriodKeyFromDays]);
 
+  // Handle date range change - NO sync, just load from database
   const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
-    lastSyncedRange.current = null;
     setDateRange(range);
     setCurrentPage(1);
   }, []);
 
   const handleManualSync = useCallback(() => {
-    lastSyncedRange.current = null;
     if (dateRange?.from && dateRange?.to) {
       clearAllCache();
       syncData({
@@ -415,110 +410,92 @@ export default function Creatives() {
                     <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Criativo</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Campanha</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">Conjunto</th>
+                    <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
                     <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Gasto</th>
                     <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Compras</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Ticket</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">CPA</th>
                     <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">ROAS</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden sm:table-cell">CPA</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden xl:table-cell">Ticket</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">CTR</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/50">
-                  {paginatedCreatives.map((creative) => {
-                    const statusBadge = getStatusBadge(creative.status);
-                    const videoUrl = (creative as any).creative_video_url;
-                    const hasVideo = !!videoUrl;
-                    // Clean image URL on frontend as fallback
-                    const imageUrl = cleanImageUrl(creative.creative_image_url) || cleanImageUrl(creative.creative_thumbnail);
-                    const hasImage = !!imageUrl;
-                    const ticket = creative.conversions && creative.conversions > 0 
-                      ? (creative.conversion_value || 0) / creative.conversions 
-                      : 0;
-                    
+                <tbody>
+                  {paginatedCreatives.map((ad, index) => {
+                    const statusBadge = getStatusBadge(ad.status);
+                    const hasCreative = ad.creative_thumbnail || ad.creative_image_url;
+                    const ticket = ad.conversions > 0 ? ad.conversion_value / ad.conversions : 0;
+                    const cpa = ad.conversions > 0 ? ad.spend / ad.conversions : 0;
+
                     return (
-                      <tr key={creative.id} className="hover:bg-secondary/20 transition-colors cursor-pointer" onClick={() => navigate(`/creative/${creative.id}`)}>
+                      <tr 
+                        key={ad.id} 
+                        className="border-b border-border/50 hover:bg-secondary/20 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/ad/${ad.id}`)}
+                      >
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
-                            {/* Larger thumbnail - 48x48 */}
-                            <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-secondary/50 border border-border/50">
-                              {hasImage ? (
-                                <img
-                                  src={imageUrl}
-                                  alt=""
+                            <div className="w-12 h-12 rounded-lg bg-secondary/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                              {hasCreative ? (
+                                <img 
+                                  src={cleanImageUrl(ad.creative_image_url) || cleanImageUrl(ad.creative_thumbnail) || ''} 
+                                  alt={ad.name}
                                   className="w-full h-full object-cover"
-                                  loading="lazy"
                                   onError={(e) => {
-                                    const img = e.target as HTMLImageElement;
-                                    img.style.display = 'none';
-                                    img.parentElement?.classList.add('flex', 'items-center', 'justify-center');
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
                                   }}
                                 />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <ImageOff className="w-5 h-5 text-muted-foreground/50" />
-                                </div>
-                              )}
-                              {hasVideo && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                                  <Play className="w-4 h-4 text-foreground" />
-                                </div>
-                              )}
+                              ) : null}
+                              <ImageOff className={cn("w-5 h-5 text-muted-foreground", hasCreative && "hidden")} />
                             </div>
-                            
-                            {/* Name and status */}
                             <div className="min-w-0 flex-1">
-                              <p className="font-medium text-sm truncate max-w-[200px] lg:max-w-[300px]" title={creative.name}>
-                                {creative.name}
-                              </p>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className={cn(
-                                  'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium',
-                                  statusBadge.className
-                                )}>
-                                  {statusBadge.label}
-                                </span>
-                                {hasVideo && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/20 text-primary">
-                                    <Play className="w-2 h-2 mr-0.5" />
-                                    Vídeo
-                                  </span>
-                                )}
-                              </div>
+                              <p className="font-medium truncate max-w-[200px]">{ad.name}</p>
+                              {ad.headline && (
+                                <p className="text-xs text-muted-foreground truncate max-w-[200px]">{ad.headline}</p>
+                              )}
                             </div>
                           </div>
                         </td>
                         <td className="py-3 px-4 hidden lg:table-cell">
-                          <span className="text-sm text-muted-foreground truncate block max-w-[180px]" title={getCampaignName(creative.campaign_id)}>
-                            {getCampaignName(creative.campaign_id)}
-                          </span>
+                          <p className="text-sm truncate max-w-[150px]">{getCampaignName(ad.campaign_id)}</p>
                         </td>
                         <td className="py-3 px-4 hidden md:table-cell">
-                          <span className="text-sm text-muted-foreground truncate block max-w-[150px]" title={getAdSetName(creative.ad_set_id)}>
-                            {getAdSetName(creative.ad_set_id)}
+                          <p className="text-sm truncate max-w-[150px]">{getAdSetName(ad.ad_set_id)}</p>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <Badge variant="outline" className={cn("text-xs", statusBadge.className)}>
+                            {statusBadge.label}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-right font-medium">
+                          {formatCurrency(ad.spend)}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className={cn("font-semibold", ad.conversions > 0 ? "text-primary" : "text-muted-foreground")}>
+                            {ad.conversions}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <span className="text-sm font-semibold text-primary">{formatCurrency(creative.spend || 0)}</span>
+                          <Badge 
+                            variant="outline"
+                            className={cn(
+                              "font-semibold",
+                              ad.roas >= 5 && "bg-metric-positive/20 text-metric-positive border-metric-positive/30",
+                              ad.roas >= 3 && ad.roas < 5 && "bg-metric-warning/20 text-metric-warning border-metric-warning/30",
+                              ad.roas < 3 && ad.roas > 0 && "bg-metric-negative/20 text-metric-negative border-metric-negative/30"
+                            )}
+                          >
+                            {ad.roas.toFixed(2)}x
+                          </Badge>
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <span className="text-sm font-medium text-metric-positive">{creative.conversions || 0}</span>
+                        <td className="py-3 px-4 text-right hidden sm:table-cell">
+                          {ad.conversions > 0 ? formatCurrency(cpa) : '-'}
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <span className="text-sm">{formatCurrency(ticket)}</span>
+                        <td className="py-3 px-4 text-right hidden xl:table-cell">
+                          {ad.conversions > 0 ? formatCurrency(ticket) : '-'}
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <span className="text-sm">{formatCurrency(creative.cpa || 0)}</span>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <span className={cn(
-                            'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold',
-                            (creative.roas || 0) >= 3
-                              ? 'bg-metric-positive/20 text-metric-positive'
-                              : (creative.roas || 0) >= 1
-                              ? 'bg-metric-warning/20 text-metric-warning'
-                              : 'bg-metric-negative/20 text-metric-negative'
-                          )}>
-                            {(creative.roas || 0).toFixed(2)}x
-                          </span>
+                        <td className="py-3 px-4 text-right hidden lg:table-cell">
+                          {ad.ctr.toFixed(2)}%
                         </td>
                       </tr>
                     );
@@ -526,63 +503,36 @@ export default function Creatives() {
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} a {Math.min(currentPage * ITEMS_PER_PAGE, filteredCreatives.length)} de {filteredCreatives.length} criativos
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Anterior
-              </Button>
-              
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let page: number;
-                  if (totalPages <= 5) {
-                    page = i + 1;
-                  } else if (currentPage <= 3) {
-                    page = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    page = totalPages - 4 + i;
-                  } else {
-                    page = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? 'default' : 'outline'}
-                      size="sm"
-                      className={cn("w-9", currentPage === page && "bg-primary hover:bg-primary/90")}
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </Button>
-                  );
-                })}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-secondary/10">
+                <p className="text-sm text-muted-foreground">
+                  Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} a {Math.min(currentPage * ITEMS_PER_PAGE, filteredCreatives.length)} de {filteredCreatives.length} criativos
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm px-3">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-              >
-                Próximo
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
+            )}
           </div>
         )}
       </div>

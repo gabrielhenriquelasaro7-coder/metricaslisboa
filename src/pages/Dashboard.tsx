@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
@@ -41,10 +41,9 @@ export default function Dashboard() {
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [showComparison, setShowComparison] = useState(true);
-  const lastSyncedRange = useRef<string | null>(null);
 
   // Get campaigns and selected project from hook (uses localStorage)
-  const { campaigns, loading: dataLoading, syncing, syncData, selectedProject } = useMetaAdsData();
+  const { campaigns, loading: dataLoading, syncing, syncData, selectedProject, loadMetricsByPeriod, getPeriodKeyFromDays } = useMetaAdsData();
 
   // Get active (non-archived) projects
   const activeProjects = useMemo(() => 
@@ -60,25 +59,19 @@ export default function Dashboard() {
   const isInsideSales = hasSelectedProject && businessModel === 'inside_sales';
   const isPdv = hasSelectedProject && businessModel === 'pdv';
 
-  // Sync when date range changes - fetches data for selected period
+  // Load metrics when date range changes - INSTANT from local database
   useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to || syncing) return;
+    if (!selectedProject || !dateRange?.from || !dateRange?.to) return;
     
-    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
+    const diffDays = differenceInDays(dateRange.to, dateRange.from);
+    const periodKey = getPeriodKeyFromDays(diffDays);
     
-    // Skip if already synced this range
-    if (lastSyncedRange.current === rangeKey) return;
-    
-    lastSyncedRange.current = rangeKey;
-    syncData({
-      since: format(dateRange.from, 'yyyy-MM-dd'),
-      until: format(dateRange.to, 'yyyy-MM-dd')
-    });
-  }, [dateRange, selectedProject, syncData, syncing]);
+    console.log(`[Dashboard] Loading period: ${periodKey}`);
+    loadMetricsByPeriod(periodKey);
+  }, [dateRange, selectedProject, loadMetricsByPeriod, getPeriodKeyFromDays]);
 
-  // Handle date range change
+  // Handle date range change - NO sync, just load from database
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
-    lastSyncedRange.current = null; // Reset to force sync
     setDateRange(newRange);
   }, []);
 
@@ -89,7 +82,6 @@ export default function Dashboard() {
 
   // Manual sync
   const handleManualSync = useCallback(() => {
-    lastSyncedRange.current = null;
     if (dateRange?.from && dateRange?.to) {
       syncData({
         since: format(dateRange.from, 'yyyy-MM-dd'),
@@ -434,17 +426,6 @@ export default function Dashboard() {
                       trend="neutral"
                     />
                     <MetricCard
-                      title="Contatos via WhatsApp"
-                      value={formatNumber(Math.round(metrics.totalConversions * 0.6))}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Phone}
-                      trend="neutral"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                    <MetricCard
                       title="Alcance"
                       value={formatNumber(metrics.totalReach)}
                       change={0}
@@ -452,17 +433,20 @@ export default function Dashboard() {
                       icon={Users}
                       trend="neutral"
                     />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <MetricCard
-                      title="Frequência"
+                      title="Frequência Média"
                       value={metrics.avgFrequency.toFixed(2)}
                       change={0}
                       changeLabel="vs período anterior"
-                      icon={Eye}
+                      icon={Phone}
                       trend="neutral"
                     />
                     <MetricCard
-                      title="Formulários"
-                      value={formatNumber(Math.round(metrics.totalConversions * 0.4))}
+                      title="Campanhas Ativas"
+                      value={metrics.campaignCount.toString()}
                       change={0}
                       changeLabel="vs período anterior"
                       icon={Target}
@@ -483,7 +467,7 @@ export default function Dashboard() {
                       changeLabel="vs período anterior"
                       icon={Store}
                       trend="neutral"
-                      className="border-l-4 border-l-chart-4"
+                      className="border-l-4 border-l-chart-2"
                     />
                     <MetricCard
                       title="Custo por Visita"
@@ -506,26 +490,7 @@ export default function Dashboard() {
                       value={metrics.avgFrequency.toFixed(2)}
                       change={0}
                       changeLabel="vs período anterior"
-                      icon={Eye}
-                      trend="neutral"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <MetricCard
-                      title="Cliques em Rotas"
-                      value={formatNumber(Math.round(metrics.totalClicks * 0.3))}
-                      change={0}
-                      changeLabel="vs período anterior"
                       icon={Target}
-                      trend="neutral"
-                    />
-                    <MetricCard
-                      title="Ligações"
-                      value={formatNumber(Math.round(metrics.totalConversions * 0.2))}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Phone}
                       trend="neutral"
                     />
                   </div>
@@ -533,112 +498,111 @@ export default function Dashboard() {
               )}
             </div>
             )}
-            {/* Charts - Only show ROAS chart for E-commerce */}
-            <div className={isEcommerce ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : ""}>
+
+            {/* Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <PerformanceChart
+                title="Investimento ao Longo do Tempo"
                 data={chartData}
-                title="Gasto ao longo do tempo"
                 dataKey="value"
+                color="hsl(var(--primary))"
               />
               {isEcommerce && (
                 <PerformanceChart
+                  title="ROAS ao Longo do Tempo"
                   data={chartData}
-                  title="ROAS ao longo do tempo"
                   dataKey="value2"
-                  color="hsl(142, 71%, 45%)"
+                  color="hsl(var(--chart-1))"
                 />
               )}
             </div>
 
-            {/* Top Campaigns - Only show for E-commerce */}
-            {isEcommerce && (
-              <div className="glass-card p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold">Top Campanhas por ROAS</h3>
-                  <Link to="/campaigns">
-                    <Button variant="ghost" size="sm">Ver todas</Button>
-                  </Link>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Campanha</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">ROAS</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Gasto</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Receita</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Compras</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">CPA</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {campaigns
-                        .sort((a, b) => (b.roas || 0) - (a.roas || 0))
-                        .sort((a, b) => (b.roas || 0) - (a.roas || 0))
-                        .slice(0, 5)
-                        .map((campaign) => (
-                          <tr key={campaign.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                            <td className="py-4 px-4 font-medium">{campaign.name}</td>
-                            <td className="py-4 px-4 text-right">
-                              <span className="text-metric-positive font-semibold">{(campaign.roas || 0).toFixed(2)}x</span>
-                            </td>
-                            <td className="py-4 px-4 text-right">{formatCurrency(campaign.spend || 0)}</td>
-                            <td className="py-4 px-4 text-right">{formatCurrency(campaign.conversion_value || 0)}</td>
-                            <td className="py-4 px-4 text-right">{campaign.conversions || 0}</td>
-                            <td className="py-4 px-4 text-right">
-                              {formatCurrency(campaign.conversions ? (campaign.spend || 0) / campaign.conversions : 0)}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
+            {/* Top Campaigns */}
+            <div className="glass-card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold">Top Campanhas</h3>
+                <Link to="/campaigns">
+                  <Button variant="outline" size="sm">Ver todas</Button>
+                </Link>
               </div>
-            )}
-
-            {/* Top Campaigns for Inside Sales - Show by CPL */}
-            {isInsideSales && (
-              <div className="glass-card p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold">Top Campanhas por CPL</h3>
-                  <Link to="/campaigns">
-                    <Button variant="ghost" size="sm">Ver todas</Button>
-                  </Link>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Campanha</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">CPL</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Leads</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Gasto</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">CTR</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {campaigns
-                        .filter(c => (c.conversions || 0) > 0)
-                        .sort((a, b) => ((a.cpa || Infinity) - (b.cpa || Infinity)))
-                        .slice(0, 5)
-                        .map((campaign) => (
-                          <tr key={campaign.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                            <td className="py-4 px-4 font-medium">{campaign.name}</td>
-                            <td className="py-4 px-4 text-right">
-                              <span className="text-metric-positive font-semibold">{formatCurrency(campaign.cpa || 0)}</span>
-                            </td>
-                            <td className="py-4 px-4 text-right">{campaign.conversions || 0}</td>
-                            <td className="py-4 px-4 text-right">{formatCurrency(campaign.spend || 0)}</td>
-                            <td className="py-4 px-4 text-right">{(campaign.ctr || 0).toFixed(2)}%</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Campanha</th>
+                      <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Gasto</th>
+                      {isEcommerce && (
+                        <>
+                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Receita</th>
+                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">ROAS</th>
+                        </>
+                      )}
+                      {isInsideSales && (
+                        <>
+                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Leads</th>
+                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">CPL</th>
+                        </>
+                      )}
+                      {isPdv && (
+                        <>
+                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Visitas</th>
+                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Custo/Visita</th>
+                        </>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {campaigns
+                      .sort((a, b) => isEcommerce ? b.roas - a.roas : b.conversions - a.conversions)
+                      .slice(0, 5)
+                      .map((campaign) => (
+                        <tr key={campaign.id} className="border-b border-border/50 hover:bg-secondary/30">
+                          <td className="py-3 px-2">
+                            <div className="max-w-[200px]">
+                              <p className="font-medium truncate">{campaign.name}</p>
+                              <p className="text-xs text-muted-foreground">{campaign.objective}</p>
+                            </div>
+                          </td>
+                          <td className="text-right py-3 px-2">{formatCurrency(campaign.spend)}</td>
+                          {isEcommerce && (
+                            <>
+                              <td className="text-right py-3 px-2">{formatCurrency(campaign.conversion_value)}</td>
+                              <td className="text-right py-3 px-2">
+                                <span className={cn(
+                                  "font-semibold",
+                                  campaign.roas >= 3 ? "text-metric-positive" : "text-metric-negative"
+                                )}>
+                                  {campaign.roas.toFixed(2)}x
+                                </span>
+                              </td>
+                            </>
+                          )}
+                          {isInsideSales && (
+                            <>
+                              <td className="text-right py-3 px-2">{campaign.conversions}</td>
+                              <td className="text-right py-3 px-2">
+                                {campaign.conversions > 0 
+                                  ? formatCurrency(campaign.spend / campaign.conversions)
+                                  : '-'}
+                              </td>
+                            </>
+                          )}
+                          {isPdv && (
+                            <>
+                              <td className="text-right py-3 px-2">{campaign.conversions}</td>
+                              <td className="text-right py-3 px-2">
+                                {campaign.conversions > 0 
+                                  ? formatCurrency(campaign.spend / campaign.conversions)
+                                  : '-'}
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
-            )}
+            </div>
           </>
         )}
       </div>

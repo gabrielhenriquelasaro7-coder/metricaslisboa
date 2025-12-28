@@ -25,6 +25,21 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
+// Helper to determine period key from date range
+function getPeriodKeyFromRange(since: string, until: string): string {
+  const sinceDate = new Date(since);
+  const untilDate = new Date(until);
+  const diffDays = Math.ceil((untilDate.getTime() - sinceDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Map to standard period keys
+  if (diffDays <= 7) return 'last_7d';
+  if (diffDays <= 14) return 'last_14d';
+  if (diffDays <= 30) return 'last_30d';
+  if (diffDays <= 60) return 'last_60d';
+  if (diffDays <= 90) return 'last_90d';
+  return `custom_${diffDays}d`;
+}
+
 // Helper to add delay with jitter (uniform spread to avoid traffic spikes)
 function delay(ms: number): Promise<void> {
   // Add 0-30% random jitter to spread requests uniformly
@@ -626,6 +641,106 @@ Deno.serve(async (req) => {
 
     console.log(`[UPSERTED] ${campaignsUpserted} campaigns, ${adSetsUpserted} adsets, ${adsUpserted} ads`);
 
+    // STEP 6: Save to period_metrics table for instant frontend loading
+    const periodKey = time_range 
+      ? getPeriodKeyFromRange(time_range.since, time_range.until)
+      : date_preset || 'last_30d';
+    
+    console.log(`[STEP 6] Saving period_metrics for period: ${periodKey}`);
+    
+    // Create period_metrics records for campaigns
+    const campaignPeriodRecords = campaignRecords.map((c: any) => ({
+      project_id,
+      period_key: periodKey,
+      entity_type: 'campaign',
+      entity_id: c.id,
+      entity_name: c.name,
+      status: c.status,
+      metrics: {
+        objective: c.objective,
+        daily_budget: c.daily_budget,
+        lifetime_budget: c.lifetime_budget,
+        spend: c.spend,
+        impressions: c.impressions,
+        clicks: c.clicks,
+        ctr: c.ctr,
+        cpm: c.cpm,
+        cpc: c.cpc,
+        reach: c.reach,
+        frequency: c.frequency,
+        conversions: c.conversions,
+        conversion_value: c.conversion_value,
+        roas: c.roas,
+        cpa: c.cpa,
+      },
+      synced_at: new Date().toISOString(),
+    }));
+
+    // Create period_metrics records for ad sets
+    const adSetPeriodRecords = adSetRecords.map((as: any) => ({
+      project_id,
+      period_key: periodKey,
+      entity_type: 'ad_set',
+      entity_id: as.id,
+      entity_name: as.name,
+      status: as.status,
+      metrics: {
+        campaign_id: as.campaign_id,
+        daily_budget: as.daily_budget,
+        lifetime_budget: as.lifetime_budget,
+        spend: as.spend,
+        impressions: as.impressions,
+        clicks: as.clicks,
+        ctr: as.ctr,
+        cpm: as.cpm,
+        cpc: as.cpc,
+        reach: as.reach,
+        frequency: as.frequency,
+        conversions: as.conversions,
+        conversion_value: as.conversion_value,
+        roas: as.roas,
+        cpa: as.cpa,
+      },
+      synced_at: new Date().toISOString(),
+    }));
+
+    // Create period_metrics records for ads
+    const adPeriodRecords = adRecords.map((ad: any) => ({
+      project_id,
+      period_key: periodKey,
+      entity_type: 'ad',
+      entity_id: ad.id,
+      entity_name: ad.name,
+      status: ad.status,
+      metrics: {
+        campaign_id: ad.campaign_id,
+        ad_set_id: ad.ad_set_id,
+        creative_id: ad.creative_id,
+        creative_thumbnail: ad.creative_thumbnail,
+        creative_image_url: ad.creative_image_url,
+        headline: ad.headline,
+        cta: ad.cta,
+        spend: ad.spend,
+        impressions: ad.impressions,
+        clicks: ad.clicks,
+        ctr: ad.ctr,
+        cpm: ad.cpm,
+        cpc: ad.cpc,
+        reach: ad.reach,
+        frequency: ad.frequency,
+        conversions: ad.conversions,
+        conversion_value: ad.conversion_value,
+        roas: ad.roas,
+        cpa: ad.cpa,
+      },
+      synced_at: new Date().toISOString(),
+    }));
+
+    // Upsert period_metrics in parallel
+    const allPeriodRecords = [...campaignPeriodRecords, ...adSetPeriodRecords, ...adPeriodRecords];
+    const periodMetricsUpserted = await upsertInBatches('period_metrics', allPeriodRecords);
+    console.log(`[PERIOD_METRICS] Upserted ${periodMetricsUpserted} records for period ${periodKey}`);
+
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[SYNC COMPLETE] ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads in ${elapsed}s`);
 
@@ -640,7 +755,7 @@ Deno.serve(async (req) => {
     await supabase.from('sync_logs').insert({
       project_id,
       status: partialSync ? 'partial' : 'success',
-      message: `Sync: ${campaigns.length} campanhas, ${adSets.length} conjuntos, ${ads.length} anúncios em ${elapsed}s`,
+      message: `Sync: ${campaigns.length} campanhas, ${adSets.length} conjuntos, ${ads.length} anúncios em ${elapsed}s (período: ${periodKey})`,
     });
 
     return new Response(
