@@ -15,7 +15,8 @@ import {
   ChevronDown,
   Layers,
   ChevronUp,
-  Image as ImageIcon
+  Image as ImageIcon,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -281,6 +282,18 @@ export default function Sidebar() {
           >
             <ImageIcon className="w-5 h-5 flex-shrink-0" />
             {!collapsed && <span>Criativos</span>}
+          </Link>
+
+          {/* Sync History */}
+          <Link
+            to="/sync-history"
+            className={cn(
+              'sidebar-item',
+              location.pathname === '/sync-history' && 'active'
+            )}
+          >
+            <History className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>Histórico Sync</span>}
           </Link>
 
           {/* Settings */}
