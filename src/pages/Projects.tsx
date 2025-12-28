@@ -2,10 +2,18 @@ import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import ProjectCard from '@/components/projects/ProjectCard';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
+import EditProjectDialog from '@/components/projects/EditProjectDialog';
 import { useProjects, Project } from '@/hooks/useProjects';
-import { Search, FolderKanban, Archive } from 'lucide-react';
+import { Search, FolderKanban, Archive, Download, FileSpreadsheet } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { exportProjectsToCSV, exportProjectsToExcel } from '@/utils/exportData';
+import { toast } from 'sonner';
 
 type ActionType = 'delete' | 'archive' | 'unarchive';
 
@@ -25,6 +35,7 @@ export default function Projects() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [actionType, setActionType] = useState<ActionType | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const filteredProjects = projects.filter((project) => {
     const matchesSearch = project.name.toLowerCase().includes(search.toLowerCase());
@@ -33,8 +44,7 @@ export default function Projects() {
   });
 
   const handleEdit = (project: Project) => {
-    // TODO: Implement edit modal
-    console.log('Edit project:', project);
+    setEditingProject(project);
   };
 
   const handleDelete = (project: Project) => {
@@ -74,6 +84,16 @@ export default function Projects() {
   const closeDialog = () => {
     setSelectedProject(null);
     setActionType(null);
+  };
+
+  const handleExportCSV = () => {
+    exportProjectsToCSV(filteredProjects);
+    toast.success('Projetos exportados para CSV!');
+  };
+
+  const handleExportExcel = () => {
+    exportProjectsToExcel(filteredProjects);
+    toast.success('Projetos exportados para Excel!');
   };
 
   const getDialogContent = () => {
@@ -116,7 +136,29 @@ export default function Projects() {
             <p className="text-muted-foreground">Gerencie suas contas de anúncios</p>
           </div>
           
-          <CreateProjectDialog />
+          <div className="flex items-center gap-2">
+            {filteredProjects.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <Download className="w-4 h-4 mr-2" />
+                    Exportar
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportCSV}>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Exportar CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportExcel}>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Exportar Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <CreateProjectDialog />
+          </div>
         </div>
 
         {/* Filters */}
@@ -196,6 +238,13 @@ export default function Projects() {
             ))}
           </div>
         )}
+
+        {/* Edit Project Dialog */}
+        <EditProjectDialog
+          project={editingProject}
+          open={!!editingProject}
+          onOpenChange={(open) => !open && setEditingProject(null)}
+        />
 
         {/* Confirmation Dialog */}
         <AlertDialog open={!!selectedProject && !!actionType} onOpenChange={closeDialog}>

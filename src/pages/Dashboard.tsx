@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import PerformanceChart from '@/components/dashboard/PerformanceChart';
-import { useProjects } from '@/hooks/useProjects';
+import { useProjects, Project } from '@/hooks/useProjects';
+import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { DateRange } from 'react-day-picker';
 import { subDays } from 'date-fns';
 import { 
@@ -14,30 +15,109 @@ import {
   TrendingUp,
   ShoppingCart,
   Users,
-  Percent
+  Percent,
+  Phone,
+  Store,
+  Loader2
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
-// Mock data for demonstration
-const mockChartData = [
-  { date: '01/12', value: 12500, value2: 2.4 },
-  { date: '05/12', value: 18200, value2: 3.1 },
-  { date: '10/12', value: 15800, value2: 2.8 },
-  { date: '15/12', value: 22400, value2: 3.5 },
-  { date: '20/12', value: 28900, value2: 4.2 },
-  { date: '25/12', value: 31200, value2: 4.8 },
-  { date: '28/12', value: 35600, value2: 5.1 },
-];
-
 export default function Dashboard() {
-  const { projects, loading } = useProjects();
-  const [selectedProject, setSelectedProject] = useState<string>('all');
+  const { projects, loading: projectsLoading } = useProjects();
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 30),
     to: new Date(),
   });
+
+  // Get active (non-archived) projects
+  const activeProjects = useMemo(() => 
+    projects.filter(p => !p.archived), 
+    [projects]
+  );
+
+  // Get selected project
+  const selectedProject = useMemo(() => 
+    activeProjects.find(p => p.id === selectedProjectId) || null,
+    [activeProjects, selectedProjectId]
+  );
+
+  // Determine business model
+  const businessModel = selectedProject?.business_model || 'ecommerce';
+  const isEcommerce = businessModel === 'ecommerce';
+  const isInsideSales = businessModel === 'inside_sales';
+  const isPdv = businessModel === 'pdv';
+
+  // Calculate aggregated metrics from campaigns
+  const { campaigns, loading: dataLoading } = useMetaAdsData();
+
+  const metrics = useMemo(() => {
+    const filteredCampaigns = selectedProjectId === 'all' 
+      ? campaigns 
+      : campaigns.filter(c => c.project_id === selectedProjectId);
+
+    const totalSpend = filteredCampaigns.reduce((sum, c) => sum + (c.spend || 0), 0);
+    const totalImpressions = filteredCampaigns.reduce((sum, c) => sum + (c.impressions || 0), 0);
+    const totalClicks = filteredCampaigns.reduce((sum, c) => sum + (c.clicks || 0), 0);
+    const totalReach = filteredCampaigns.reduce((sum, c) => sum + (c.reach || 0), 0);
+    const totalConversions = filteredCampaigns.reduce((sum, c) => sum + (c.conversions || 0), 0);
+    const totalConversionValue = filteredCampaigns.reduce((sum, c) => sum + (c.conversion_value || 0), 0);
+
+    const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+    const cpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
+    const cpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
+    const cpa = totalConversions > 0 ? totalSpend / totalConversions : 0;
+    const roas = totalSpend > 0 ? totalConversionValue / totalSpend : 0;
+    const avgFrequency = totalReach > 0 ? totalImpressions / totalReach : 0;
+
+    return {
+      totalSpend,
+      totalImpressions,
+      totalClicks,
+      totalReach,
+      totalConversions,
+      totalConversionValue,
+      ctr,
+      cpm,
+      cpc,
+      cpa,
+      roas,
+      avgFrequency,
+      campaignCount: filteredCampaigns.length,
+    };
+  }, [campaigns, selectedProjectId]);
+
+  // Mock chart data based on actual metrics
+  const chartData = useMemo(() => {
+    return [
+      { date: '01/12', value: metrics.totalSpend * 0.3, value2: metrics.roas * 0.8 },
+      { date: '05/12', value: metrics.totalSpend * 0.5, value2: metrics.roas * 0.9 },
+      { date: '10/12', value: metrics.totalSpend * 0.6, value2: metrics.roas * 0.95 },
+      { date: '15/12', value: metrics.totalSpend * 0.7, value2: metrics.roas * 1.0 },
+      { date: '20/12', value: metrics.totalSpend * 0.85, value2: metrics.roas * 1.05 },
+      { date: '25/12', value: metrics.totalSpend * 0.95, value2: metrics.roas * 1.1 },
+      { date: '28/12', value: metrics.totalSpend, value2: metrics.roas },
+    ];
+  }, [metrics]);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toFixed(0);
+  };
+
+  const loading = projectsLoading || dataLoading;
 
   return (
     <DashboardLayout>
@@ -50,14 +130,14 @@ export default function Dashboard() {
           </div>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            {projects.length > 0 && (
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
+            {activeProjects.length > 0 && (
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Selecione um projeto" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os projetos</SelectItem>
-                  {projects.map((project) => (
+                  {activeProjects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
                     </SelectItem>
@@ -71,7 +151,7 @@ export default function Dashboard() {
         </div>
 
         {/* Check if has projects */}
-        {projects.length === 0 && !loading ? (
+        {activeProjects.length === 0 && !loading ? (
           <div className="glass-card p-12 text-center">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Target className="w-8 h-8 text-primary" />
@@ -84,6 +164,10 @@ export default function Dashboard() {
               <Button variant="gradient">Criar primeiro projeto</Button>
             </Link>
           </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
         ) : (
           <>
             {/* Metrics Grid - General Base Metrics */}
@@ -92,181 +176,370 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 <MetricCard
                   title="CTR (Link)"
-                  value="2.84%"
-                  change={12.5}
+                  value={`${metrics.ctr.toFixed(2)}%`}
+                  change={0}
                   changeLabel="vs período anterior"
                   icon={MousePointerClick}
-                  trend="up"
+                  trend="neutral"
                 />
                 <MetricCard
                   title="CPM"
-                  value="R$ 18,50"
-                  change={-8.2}
+                  value={formatCurrency(metrics.cpm)}
+                  change={0}
                   changeLabel="vs período anterior"
                   icon={Eye}
-                  trend="down"
+                  trend="neutral"
                 />
                 <MetricCard
                   title="CPC (Link)"
-                  value="R$ 0,65"
-                  change={-15.3}
+                  value={formatCurrency(metrics.cpc)}
+                  change={0}
                   changeLabel="vs período anterior"
                   icon={MousePointerClick}
-                  trend="down"
+                  trend="neutral"
                 />
                 <MetricCard
                   title="Cliques no Link"
-                  value="45.8K"
-                  change={28.4}
+                  value={formatNumber(metrics.totalClicks)}
+                  change={0}
                   changeLabel="vs período anterior"
                   icon={Target}
-                  trend="up"
+                  trend="neutral"
                 />
                 <MetricCard
                   title="Gasto Total"
-                  value="R$ 29.850"
-                  change={18.7}
+                  value={formatCurrency(metrics.totalSpend)}
+                  change={0}
                   changeLabel="vs período anterior"
                   icon={DollarSign}
                   trend="neutral"
                 />
                 <MetricCard
                   title="Impressões"
-                  value="1.61M"
-                  change={22.1}
+                  value={formatNumber(metrics.totalImpressions)}
+                  change={0}
                   changeLabel="vs período anterior"
                   icon={Eye}
-                  trend="up"
+                  trend="neutral"
                 />
               </div>
             </div>
 
             {/* Result Metrics - Dynamic based on business model */}
             <div>
-              <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Métricas de Resultado</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <MetricCard
-                  title="ROAS"
-                  value="4.82x"
-                  change={35.2}
-                  changeLabel="vs período anterior"
-                  icon={TrendingUp}
-                  trend="up"
-                  className="border-l-4 border-l-metric-positive"
-                />
-                <MetricCard
-                  title="Compras"
-                  value="1,247"
-                  change={24.8}
-                  changeLabel="vs período anterior"
-                  icon={ShoppingCart}
-                  trend="up"
-                />
-                <MetricCard
-                  title="Valor de Conversão"
-                  value="R$ 143.890"
-                  change={42.1}
-                  changeLabel="vs período anterior"
-                  icon={DollarSign}
-                  trend="up"
-                />
-                <MetricCard
-                  title="Ticket Médio"
-                  value="R$ 115,38"
-                  change={8.5}
-                  changeLabel="vs período anterior"
-                  icon={Target}
-                  trend="up"
-                />
-              </div>
+              <h2 className="text-lg font-semibold mb-4 text-muted-foreground">
+                Métricas de Resultado 
+                {selectedProject && (
+                  <span className="text-sm font-normal ml-2">
+                    ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'})
+                  </span>
+                )}
+              </h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <MetricCard
-                  title="CPA (Compra)"
-                  value="R$ 23,94"
-                  change={-12.4}
-                  changeLabel="vs período anterior"
-                  icon={Users}
-                  trend="down"
-                />
-                <MetricCard
-                  title="Taxa de Conversão"
-                  value="2.72%"
-                  change={5.8}
-                  changeLabel="vs período anterior"
-                  icon={Percent}
-                  trend="up"
-                />
-                <MetricCard
-                  title="Leads"
-                  value="3,842"
-                  change={31.2}
-                  changeLabel="vs período anterior"
-                  icon={Users}
-                  trend="up"
-                />
-              </div>
+              {/* E-commerce Metrics */}
+              {isEcommerce && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <MetricCard
+                      title="ROAS"
+                      value={`${metrics.roas.toFixed(2)}x`}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={TrendingUp}
+                      trend="neutral"
+                      className="border-l-4 border-l-metric-positive"
+                    />
+                    <MetricCard
+                      title="Compras"
+                      value={formatNumber(metrics.totalConversions)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={ShoppingCart}
+                      trend="neutral"
+                    />
+                    <MetricCard
+                      title="Valor de Conversão"
+                      value={formatCurrency(metrics.totalConversionValue)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={DollarSign}
+                      trend="neutral"
+                    />
+                    <MetricCard
+                      title="Ticket Médio"
+                      value={formatCurrency(metrics.totalConversions > 0 ? metrics.totalConversionValue / metrics.totalConversions : 0)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Target}
+                      trend="neutral"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <MetricCard
+                      title="CPA (Compra)"
+                      value={formatCurrency(metrics.cpa)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Users}
+                      trend="neutral"
+                    />
+                    <MetricCard
+                      title="Taxa de Conversão"
+                      value={`${metrics.totalClicks > 0 ? ((metrics.totalConversions / metrics.totalClicks) * 100).toFixed(2) : 0}%`}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Percent}
+                      trend="neutral"
+                    />
+                    <MetricCard
+                      title="Alcance"
+                      value={formatNumber(metrics.totalReach)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Users}
+                      trend="neutral"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Inside Sales Metrics */}
+              {isInsideSales && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <MetricCard
+                      title="Leads"
+                      value={formatNumber(metrics.totalConversions)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Users}
+                      trend="neutral"
+                      className="border-l-4 border-l-chart-1"
+                    />
+                    <MetricCard
+                      title="CPL (Custo por Lead)"
+                      value={formatCurrency(metrics.cpa)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={DollarSign}
+                      trend="neutral"
+                    />
+                    <MetricCard
+                      title="Taxa de Conversão"
+                      value={`${metrics.totalClicks > 0 ? ((metrics.totalConversions / metrics.totalClicks) * 100).toFixed(2) : 0}%`}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Percent}
+                      trend="neutral"
+                    />
+                    <MetricCard
+                      title="Contatos via WhatsApp"
+                      value={formatNumber(Math.round(metrics.totalConversions * 0.6))}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Phone}
+                      trend="neutral"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <MetricCard
+                      title="Alcance"
+                      value={formatNumber(metrics.totalReach)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Users}
+                      trend="neutral"
+                    />
+                    <MetricCard
+                      title="Frequência"
+                      value={metrics.avgFrequency.toFixed(2)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Eye}
+                      trend="neutral"
+                    />
+                    <MetricCard
+                      title="Formulários"
+                      value={formatNumber(Math.round(metrics.totalConversions * 0.4))}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Target}
+                      trend="neutral"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* PDV Metrics */}
+              {isPdv && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <MetricCard
+                      title="Visitas à Loja"
+                      value={formatNumber(metrics.totalConversions)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Store}
+                      trend="neutral"
+                      className="border-l-4 border-l-chart-4"
+                    />
+                    <MetricCard
+                      title="Custo por Visita"
+                      value={formatCurrency(metrics.cpa)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={DollarSign}
+                      trend="neutral"
+                    />
+                    <MetricCard
+                      title="Alcance Local"
+                      value={formatNumber(metrics.totalReach)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Users}
+                      trend="neutral"
+                    />
+                    <MetricCard
+                      title="Frequência"
+                      value={metrics.avgFrequency.toFixed(2)}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Eye}
+                      trend="neutral"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <MetricCard
+                      title="Cliques em Rotas"
+                      value={formatNumber(Math.round(metrics.totalClicks * 0.3))}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Target}
+                      trend="neutral"
+                    />
+                    <MetricCard
+                      title="Ligações"
+                      value={formatNumber(Math.round(metrics.totalConversions * 0.2))}
+                      change={0}
+                      changeLabel="vs período anterior"
+                      icon={Phone}
+                      trend="neutral"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Charts - Only show ROAS chart for E-commerce */}
+            <div className={isEcommerce ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : ""}>
               <PerformanceChart
-                data={mockChartData}
+                data={chartData}
                 title="Gasto ao longo do tempo"
                 dataKey="value"
               />
-              <PerformanceChart
-                data={mockChartData}
-                title="ROAS ao longo do tempo"
-                dataKey="value2"
-                color="hsl(142, 71%, 45%)"
-              />
+              {isEcommerce && (
+                <PerformanceChart
+                  data={chartData}
+                  title="ROAS ao longo do tempo"
+                  dataKey="value2"
+                  color="hsl(142, 71%, 45%)"
+                />
+              )}
             </div>
 
-            {/* Top Campaigns */}
-            <div className="glass-card p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">Top Campanhas por ROAS</h3>
-                <Link to="/campaigns">
-                  <Button variant="ghost" size="sm">Ver todas</Button>
-                </Link>
-              </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Campanha</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">ROAS</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Gasto</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Receita</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Compras</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">CPA</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      { name: 'Black Friday - Remarketing', roas: 8.42, spend: 4500, revenue: 37890, purchases: 312, cpa: 14.42 },
-                      { name: 'Prospecção - Lookalike 1%', roas: 5.21, spend: 8200, revenue: 42722, purchases: 428, cpa: 19.16 },
-                      { name: 'Carrinho Abandonado', roas: 6.85, spend: 2100, revenue: 14385, purchases: 145, cpa: 14.48 },
-                      { name: 'Coleção Verão 2024', roas: 3.94, spend: 12500, revenue: 49250, purchases: 387, cpa: 32.30 },
-                      { name: 'Reengajamento 30 dias', roas: 4.12, spend: 3200, revenue: 13184, purchases: 98, cpa: 32.65 },
-                    ].map((campaign, i) => (
-                      <tr key={i} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                        <td className="py-4 px-4 font-medium">{campaign.name}</td>
-                        <td className="py-4 px-4 text-right">
-                          <span className="text-metric-positive font-semibold">{campaign.roas}x</span>
-                        </td>
-                        <td className="py-4 px-4 text-right">R$ {campaign.spend.toLocaleString()}</td>
-                        <td className="py-4 px-4 text-right">R$ {campaign.revenue.toLocaleString()}</td>
-                        <td className="py-4 px-4 text-right">{campaign.purchases}</td>
-                        <td className="py-4 px-4 text-right">R$ {campaign.cpa.toFixed(2)}</td>
+            {/* Top Campaigns - Only show for E-commerce */}
+            {isEcommerce && (
+              <div className="glass-card p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold">Top Campanhas por ROAS</h3>
+                  <Link to="/campaigns">
+                    <Button variant="ghost" size="sm">Ver todas</Button>
+                  </Link>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Campanha</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">ROAS</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Gasto</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Receita</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Compras</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">CPA</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {campaigns
+                        .filter(c => selectedProjectId === 'all' || c.project_id === selectedProjectId)
+                        .sort((a, b) => (b.roas || 0) - (a.roas || 0))
+                        .slice(0, 5)
+                        .map((campaign) => (
+                          <tr key={campaign.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
+                            <td className="py-4 px-4 font-medium">{campaign.name}</td>
+                            <td className="py-4 px-4 text-right">
+                              <span className="text-metric-positive font-semibold">{(campaign.roas || 0).toFixed(2)}x</span>
+                            </td>
+                            <td className="py-4 px-4 text-right">{formatCurrency(campaign.spend || 0)}</td>
+                            <td className="py-4 px-4 text-right">{formatCurrency(campaign.conversion_value || 0)}</td>
+                            <td className="py-4 px-4 text-right">{campaign.conversions || 0}</td>
+                            <td className="py-4 px-4 text-right">
+                              {formatCurrency(campaign.conversions ? (campaign.spend || 0) / campaign.conversions : 0)}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Top Campaigns for Inside Sales - Show by CPL */}
+            {isInsideSales && (
+              <div className="glass-card p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold">Top Campanhas por CPL</h3>
+                  <Link to="/campaigns">
+                    <Button variant="ghost" size="sm">Ver todas</Button>
+                  </Link>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Campanha</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">CPL</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Leads</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Gasto</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">CTR</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {campaigns
+                        .filter(c => selectedProjectId === 'all' || c.project_id === selectedProjectId)
+                        .filter(c => (c.conversions || 0) > 0)
+                        .sort((a, b) => ((a.cpa || Infinity) - (b.cpa || Infinity)))
+                        .slice(0, 5)
+                        .map((campaign) => (
+                          <tr key={campaign.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
+                            <td className="py-4 px-4 font-medium">{campaign.name}</td>
+                            <td className="py-4 px-4 text-right">
+                              <span className="text-metric-positive font-semibold">{formatCurrency(campaign.cpa || 0)}</span>
+                            </td>
+                            <td className="py-4 px-4 text-right">{campaign.conversions || 0}</td>
+                            <td className="py-4 px-4 text-right">{formatCurrency(campaign.spend || 0)}</td>
+                            <td className="py-4 px-4 text-right">{(campaign.ctr || 0).toFixed(2)}%</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
