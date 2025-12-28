@@ -44,21 +44,13 @@ export default function Campaigns() {
     }
   }, [selectedProject]);
 
-  // Handle date range change with auto-sync
+  // Handle date range change - NO auto-sync, just filter locally
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
     setDateRange(newRange);
-    
-    // Auto-sync when date range changes
-    if (newRange?.from && newRange?.to && selectedProject) {
-      const timeRange = {
-        since: format(newRange.from, 'yyyy-MM-dd'),
-        until: format(newRange.to, 'yyyy-MM-dd'),
-      };
-      syncData(timeRange);
-    }
-  }, [selectedProject, syncData]);
+    // No sync - data is filtered locally for instant response
+  }, []);
 
-  // Handle preset change
+  // Handle preset change - NO auto-sync, just filter locally  
   const handlePresetChange = useCallback((preset: DatePresetKey) => {
     setSelectedPreset(preset);
     if (preset !== 'custom' && selectedProject) {
@@ -66,15 +58,22 @@ export default function Campaigns() {
       if (period) {
         const range = datePeriodToDateRange(period);
         setDateRange(range);
-        
-        // Auto-sync with new date range
-        syncData({
-          since: period.since,
-          until: period.until,
-        });
+        // No sync - data is filtered locally for instant response
       }
     }
-  }, [selectedProject, syncData]);
+  }, [selectedProject]);
+  
+  // Manual sync with current date range
+  const handleManualSync = useCallback(() => {
+    if (dateRange?.from && dateRange?.to) {
+      syncData({
+        since: format(dateRange.from, 'yyyy-MM-dd'),
+        until: format(dateRange.to, 'yyyy-MM-dd'),
+      });
+    } else {
+      syncData();
+    }
+  }, [dateRange, syncData]);
 
   // Business model
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
@@ -193,7 +192,7 @@ export default function Campaigns() {
           </div>
           <div className="flex items-center gap-3">
             <Button 
-              onClick={() => syncData()} 
+              onClick={handleManualSync} 
               disabled={syncing || !selectedProject}
               variant="outline"
             >
@@ -223,7 +222,7 @@ export default function Campaigns() {
                 : 'Crie um projeto primeiro para sincronizar suas campanhas.'}
             </p>
             {selectedProject && (
-              <Button onClick={() => syncData()} disabled={syncing} variant="gradient">
+              <Button onClick={handleManualSync} disabled={syncing} variant="gradient">
                 <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
                 Sincronizar Agora
               </Button>
@@ -284,72 +283,90 @@ export default function Campaigns() {
               sortOptions={sortOptions}
             />
 
-            {/* Campaigns Table */}
+            {/* Campaigns Table - Enhanced */}
             <div className="glass-card overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-border bg-secondary/30">
-                      <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">
+                    <tr className="border-b border-border bg-secondary/50">
+                      <th className="text-left py-4 px-4 text-xs font-semibold text-foreground uppercase tracking-wide">
                         Campanha
                       </th>
-                      <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">
-                        Objetivo
-                      </th>
-                      <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">
+                      <th className="text-center py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
                         Status
                       </th>
-                      <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
+                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
                         Orçamento
                       </th>
-                      <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
+                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide bg-primary/5">
                         Gasto
                       </th>
-                      <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
+                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
+                        Alcance
+                      </th>
+                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
                         Impressões
                       </th>
-                      <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
+                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
+                        Cliques
+                      </th>
+                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
                         CTR
                       </th>
-                      <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
+                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide bg-chart-1/10">
                         {isEcommerce ? 'Compras' : 'Leads'}
                       </th>
-                      <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
+                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide bg-chart-2/10">
                         {isEcommerce ? 'CPA' : 'CPL'}
                       </th>
                       {isEcommerce && (
-                        <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">
+                        <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide bg-metric-positive/10">
                           ROAS
                         </th>
                       )}
-                      <th className="py-4 px-6"></th>
+                      <th className="py-4 px-2 w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCampaigns.map((campaign) => (
+                    {filteredCampaigns.map((campaign, index) => (
                       <tr
                         key={campaign.id}
-                        className="border-b border-border/50 hover:bg-secondary/30 transition-colors"
+                        className={cn(
+                          "border-b border-border/30 hover:bg-secondary/40 transition-all duration-200 cursor-pointer",
+                          index % 2 === 0 ? "bg-background/50" : "bg-secondary/10"
+                        )}
+                        onClick={() => navigate(`/campaign/${campaign.id}/adsets`)}
                       >
-                        <td className="py-4 px-6">
+                        <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <Megaphone className="w-5 h-5 text-primary" />
+                            <div className={cn(
+                              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                              campaign.status === 'ACTIVE' ? "bg-metric-positive/10" : "bg-muted/50"
+                            )}>
+                              <Megaphone className={cn(
+                                "w-5 h-5",
+                                campaign.status === 'ACTIVE' ? "text-metric-positive" : "text-muted-foreground"
+                              )} />
                             </div>
-                            <span className="font-medium">{campaign.name}</span>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm truncate max-w-[280px]" title={campaign.name}>
+                                {campaign.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {campaign.objective?.replace('OUTCOME_', '') || 'Sem objetivo'}
+                              </p>
+                            </div>
                           </div>
                         </td>
-                        <td className="py-4 px-6 text-muted-foreground text-sm">
-                          {campaign.objective || '-'}
-                        </td>
-                        <td className="py-4 px-6">
+                        <td className="py-4 px-3 text-center">
                           <Badge
                             variant="secondary"
                             className={cn(
+                              "text-xs font-medium px-2 py-0.5",
                               campaign.status === 'ACTIVE' &&
-                                'bg-metric-positive/20 text-metric-positive',
+                                'bg-metric-positive/20 text-metric-positive border border-metric-positive/30',
                               campaign.status === 'PAUSED' &&
-                                'bg-metric-warning/20 text-metric-warning',
+                                'bg-metric-warning/20 text-metric-warning border border-metric-warning/30',
                               (campaign.status === 'DELETED' || campaign.status === 'ARCHIVED') && 
                                 'bg-muted text-muted-foreground'
                             )}
@@ -361,46 +378,105 @@ export default function Campaigns() {
                             {!['ACTIVE', 'PAUSED', 'DELETED', 'ARCHIVED'].includes(campaign.status) && campaign.status}
                           </Badge>
                         </td>
-                        <td className="py-4 px-6 text-right">
-                          {campaign.daily_budget 
-                            ? `${formatCurrency(campaign.daily_budget)}/dia`
-                            : campaign.lifetime_budget 
-                              ? `${formatCurrency(campaign.lifetime_budget)}/total`
-                              : '-'}
+                        <td className="py-4 px-3 text-right">
+                          <span className="text-sm font-medium">
+                            {campaign.daily_budget 
+                              ? `${formatCurrency(campaign.daily_budget)}`
+                              : campaign.lifetime_budget 
+                                ? `${formatCurrency(campaign.lifetime_budget)}`
+                                : '-'}
+                          </span>
+                          {(campaign.daily_budget || campaign.lifetime_budget) && (
+                            <span className="text-xs text-muted-foreground block">
+                              {campaign.daily_budget ? '/dia' : '/total'}
+                            </span>
+                          )}
                         </td>
-                        <td className="py-4 px-6 text-right">{formatCurrency(campaign.spend)}</td>
-                        <td className="py-4 px-6 text-right">{formatNumber(campaign.impressions)}</td>
-                        <td className="py-4 px-6 text-right">{campaign.ctr.toFixed(2)}%</td>
-                        <td className="py-4 px-6 text-right">{campaign.conversions}</td>
-                        <td className="py-4 px-6 text-right">{formatCurrency(campaign.cpa)}</td>
+                        <td className="py-4 px-3 text-right bg-primary/5">
+                          <span className="text-sm font-bold text-primary">
+                            {formatCurrency(campaign.spend)}
+                          </span>
+                        </td>
+                        <td className="py-4 px-3 text-right">
+                          <span className="text-sm font-medium">{formatNumber(campaign.reach)}</span>
+                        </td>
+                        <td className="py-4 px-3 text-right">
+                          <span className="text-sm font-medium">{formatNumber(campaign.impressions)}</span>
+                        </td>
+                        <td className="py-4 px-3 text-right">
+                          <span className="text-sm font-medium">{formatNumber(campaign.clicks)}</span>
+                        </td>
+                        <td className="py-4 px-3 text-right">
+                          <span className={cn(
+                            "text-sm font-semibold",
+                            campaign.ctr >= 2 ? "text-metric-positive" : 
+                            campaign.ctr >= 1 ? "text-metric-warning" : "text-muted-foreground"
+                          )}>
+                            {campaign.ctr.toFixed(2)}%
+                          </span>
+                        </td>
+                        <td className="py-4 px-3 text-right bg-chart-1/5">
+                          <span className={cn(
+                            "text-sm font-bold",
+                            campaign.conversions > 0 ? "text-chart-1" : "text-muted-foreground"
+                          )}>
+                            {campaign.conversions}
+                          </span>
+                        </td>
+                        <td className="py-4 px-3 text-right bg-chart-2/5">
+                          <span className={cn(
+                            "text-sm font-bold",
+                            campaign.cpa > 0 ? "text-chart-2" : "text-muted-foreground"
+                          )}>
+                            {campaign.cpa > 0 ? formatCurrency(campaign.cpa) : '-'}
+                          </span>
+                        </td>
                         {isEcommerce && (
-                          <td className="py-4 px-6 text-right">
+                          <td className="py-4 px-3 text-right bg-metric-positive/5">
                             <span
                               className={cn(
-                                'font-semibold',
+                                'text-sm font-bold',
                                 campaign.roas >= 5
                                   ? 'text-metric-positive'
                                   : campaign.roas >= 3
                                   ? 'text-metric-warning'
-                                  : 'text-metric-negative'
+                                  : campaign.roas > 0 
+                                  ? 'text-metric-negative'
+                                  : 'text-muted-foreground'
                               )}
                             >
-                              {campaign.roas.toFixed(2)}x
+                              {campaign.roas > 0 ? `${campaign.roas.toFixed(2)}x` : '-'}
                             </span>
                           </td>
                         )}
-                        <td className="py-4 px-6">
-                          <Link
-                            to={`/campaign/${campaign.id}/adsets`}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <ChevronRight className="w-5 h-5" />
-                          </Link>
+                        <td className="py-4 px-2">
+                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+              
+              {/* Table footer with totals */}
+              <div className="border-t border-border bg-secondary/30 px-4 py-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {filteredCampaigns.length} campanha{filteredCampaigns.length !== 1 ? 's' : ''} 
+                    {campaigns.length !== filteredCampaigns.length && ` (de ${campaigns.length} total)`}
+                  </span>
+                  <div className="flex items-center gap-6">
+                    <span className="text-muted-foreground">
+                      Total gasto: <strong className="text-primary">{formatCurrency(totals.spend)}</strong>
+                    </span>
+                    <span className="text-muted-foreground">
+                      Total {isEcommerce ? 'compras' : 'leads'}: <strong className="text-chart-1">{totals.conversions}</strong>
+                    </span>
+                    <span className="text-muted-foreground">
+                      {isEcommerce ? 'CPA' : 'CPL'} médio: <strong className="text-chart-2">{formatCurrency(avgCpa)}</strong>
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </>
