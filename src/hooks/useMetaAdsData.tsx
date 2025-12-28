@@ -95,6 +95,17 @@ function getCacheKey(projectId: string, since: string, until: string): string {
   return `${CACHE_KEY_PREFIX}${projectId}_${since}_${until}`;
 }
 
+// Clear all cached data
+export function clearAllCache(): void {
+  try {
+    const allKeys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_KEY_PREFIX));
+    allKeys.forEach(k => localStorage.removeItem(k));
+    console.log(`[CACHE] Cleared ${allKeys.length} cache entries`);
+  } catch (e) {
+    console.warn('Failed to clear cache:', e);
+  }
+}
+
 function getCachedData(projectId: string, timeRange: { since: string; until: string }): CachedData | null {
   try {
     const key = getCacheKey(projectId, timeRange.since, timeRange.until);
