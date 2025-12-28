@@ -34,17 +34,15 @@ export default function MetricCard({
 
   const titleElement = tooltip ? (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <p className="text-sm text-muted-foreground mb-1 border-b border-dashed border-muted-foreground/50 cursor-help inline-block">
-          {title}
-        </p>
+      <TooltipTrigger className="text-sm text-muted-foreground mb-1 border-b border-dashed border-muted-foreground/50 cursor-help inline-block text-left">
+        {title}
       </TooltipTrigger>
       <TooltipContent className="max-w-xs">
         {tooltip}
       </TooltipContent>
     </Tooltip>
   ) : (
-    <p className="text-sm text-muted-foreground mb-1">{title}</p>
+    <span className="text-sm text-muted-foreground mb-1 block">{title}</span>
   );
 
   return (
