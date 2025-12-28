@@ -4,9 +4,14 @@ import { toast } from 'sonner';
 
 export type SyncStep = 'idle' | 'campaigns' | 'adsets' | 'ads' | 'insights' | 'saving' | 'complete' | 'error';
 
-interface SyncProgress {
+export interface SyncProgress {
   step: SyncStep;
   message: string;
+  detail?: {
+    current: number;
+    total: number;
+    entity: string;
+  };
 }
 
 const stepMessages: Record<SyncStep, string> = {
@@ -74,6 +79,8 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
         setProgress({ step: 'insights', message: stepMessages.insights });
       }, 6000);
 
+      console.log('Syncing with time range:', timeRange);
+      
       const response = await supabase.functions.invoke('meta-ads-sync', {
         body: {
           project_id: projectId,
@@ -88,6 +95,8 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
       clearTimeout(stepTimer3);
 
       const { data, error } = response;
+      
+      console.log('Sync response:', data);
 
       // Handle rate limit - now always comes in data since we return 200
       if (data?.keep_existing || data?.rate_limited) {
@@ -113,14 +122,28 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
         return false;
       }
 
-      // Success
+      // Success with detailed info
       lastSyncTime.current = Date.now();
-      setProgress({ step: 'complete', message: stepMessages.complete });
       
       const count = data?.data;
       if (count) {
+        setProgress({ 
+          step: 'complete', 
+          message: `Sincronizado em ${count.elapsed_seconds}s`,
+          detail: {
+            current: count.campaigns_count + count.ad_sets_count + count.ads_count,
+            total: count.campaigns_count + count.ad_sets_count + count.ads_count,
+            entity: `${count.campaigns_count} campanhas, ${count.ad_sets_count} conjuntos, ${count.ads_count} anúncios`
+          }
+        });
+        
+        // Cache this data
+        const cacheKey = timeRange ? `${timeRange.since}_${timeRange.until}` : 'default';
+        console.log('Data cached for period:', timeRange || cacheKey);
+        
         toast.success(`Sincronizado: ${count.campaigns_count} campanhas, ${count.ad_sets_count} conjuntos, ${count.ads_count} anúncios`);
       } else {
+        setProgress({ step: 'complete', message: stepMessages.complete });
         toast.success('Dados sincronizados com sucesso!');
       }
       
@@ -137,7 +160,7 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
       // Reset progress after a delay
       setTimeout(() => {
         setProgress({ step: 'idle', message: '' });
-      }, 2000);
+      }, 3000);
     }
   }, [projectId, adAccountId, onSuccess, onError]);
 
