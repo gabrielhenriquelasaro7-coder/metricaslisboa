@@ -80,83 +80,19 @@ export interface Ad {
   synced_at: string;
 }
 
-// Cache utilities - stores actual data, not just flags
-const CACHE_KEY_PREFIX = 'meta_ads_data_';
-const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours - data is synced daily at 2AM
-
-interface CachedData {
-  timestamp: number;
-  campaigns: Campaign[];
-  adSets: AdSet[];
-  ads: Ad[];
+// Helper to get period key from date range
+function getPeriodKeyFromDays(days: number): string {
+  if (days <= 7) return 'last_7d';
+  if (days <= 14) return 'last_14d';
+  if (days <= 30) return 'last_30d';
+  if (days <= 60) return 'last_60d';
+  if (days <= 90) return 'last_90d';
+  return `custom_${days}d`;
 }
 
-function getCacheKey(projectId: string, since: string, until: string): string {
-  return `${CACHE_KEY_PREFIX}${projectId}_${since}_${until}`;
-}
-
-// Clear all cached data
+// Clear all cached data (kept for compatibility)
 export function clearAllCache(): void {
-  try {
-    const allKeys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_KEY_PREFIX));
-    allKeys.forEach(k => localStorage.removeItem(k));
-    console.log(`[CACHE] Cleared ${allKeys.length} cache entries`);
-  } catch (e) {
-    console.warn('Failed to clear cache:', e);
-  }
-}
-
-function getCachedData(projectId: string, timeRange: { since: string; until: string }): CachedData | null {
-  try {
-    const key = getCacheKey(projectId, timeRange.since, timeRange.until);
-    const stored = localStorage.getItem(key);
-    if (!stored) return null;
-    
-    const data: CachedData = JSON.parse(stored);
-    const now = Date.now();
-    
-    // Check if cache is expired
-    if ((now - data.timestamp) > CACHE_EXPIRY_MS) {
-      localStorage.removeItem(key);
-      return null;
-    }
-    
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-function setCachedData(
-  projectId: string, 
-  timeRange: { since: string; until: string },
-  campaigns: Campaign[],
-  adSets: AdSet[],
-  ads: Ad[]
-): void {
-  try {
-    const key = getCacheKey(projectId, timeRange.since, timeRange.until);
-    const data: CachedData = {
-      timestamp: Date.now(),
-      campaigns,
-      adSets,
-      ads,
-    };
-    localStorage.setItem(key, JSON.stringify(data));
-    
-    // Cleanup old cache entries (keep max 10)
-    const allKeys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_KEY_PREFIX));
-    if (allKeys.length > 10) {
-      const sorted = allKeys
-        .map(k => ({ key: k, data: JSON.parse(localStorage.getItem(k) || '{}') }))
-        .sort((a, b) => (a.data.timestamp || 0) - (b.data.timestamp || 0));
-      
-      // Remove oldest entries
-      sorted.slice(0, allKeys.length - 10).forEach(item => localStorage.removeItem(item.key));
-    }
-  } catch (e) {
-    console.warn('Failed to cache data:', e);
-  }
+  console.log('[CACHE] Cache clearing is now handled by period_metrics table');
 }
 
 export function useMetaAdsData() {
@@ -165,6 +101,7 @@ export function useMetaAdsData() {
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [lastLoadedPeriod, setLastLoadedPeriod] = useState<string | null>(null);
   const { projects, loading: projectsLoading } = useProjects();
 
   // Get selected project from localStorage
@@ -267,24 +204,168 @@ export function useMetaAdsData() {
     }
   }, [selectedProject]);
 
+  // Load metrics by period from period_metrics table - INSTANT loading
+  const loadMetricsByPeriod = useCallback(async (periodKey: string) => {
+    if (!selectedProject) {
+      setLoading(false);
+      return { found: false };
+    }
+
+    // Skip if already loaded this period
+    if (lastLoadedPeriod === periodKey) {
+      console.log(`[PERIOD] Already loaded period ${periodKey}, skipping`);
+      return { found: true };
+    }
+
+    console.log(`[PERIOD] Loading metrics for period: ${periodKey}`);
+    setLoading(true);
+
+    try {
+      // Fetch all metrics for this period in one query
+      const { data: periodMetrics, error } = await supabase
+        .from('period_metrics')
+        .select('*')
+        .eq('project_id', selectedProject.id)
+        .eq('period_key', periodKey);
+
+      if (error) {
+        console.error('Error loading period metrics:', error);
+        throw error;
+      }
+
+      if (!periodMetrics || periodMetrics.length === 0) {
+        console.log(`[PERIOD] No data found for period ${periodKey}, loading from main tables`);
+        await loadDataFromDatabase();
+        return { found: false };
+      }
+
+      console.log(`[PERIOD] Found ${periodMetrics.length} records for period ${periodKey}`);
+
+      // Parse and set campaigns
+      const campaignMetrics = periodMetrics.filter(m => m.entity_type === 'campaign');
+      const campaignsFromPeriod: Campaign[] = campaignMetrics.map(m => {
+        const metrics = m.metrics as Record<string, unknown>;
+        return {
+          id: m.entity_id,
+          project_id: selectedProject.id,
+          name: m.entity_name,
+          status: m.status || 'UNKNOWN',
+          objective: (metrics.objective as string) || null,
+          daily_budget: (metrics.daily_budget as number) || null,
+          lifetime_budget: (metrics.lifetime_budget as number) || null,
+          spend: (metrics.spend as number) || 0,
+          impressions: (metrics.impressions as number) || 0,
+          clicks: (metrics.clicks as number) || 0,
+          ctr: (metrics.ctr as number) || 0,
+          cpm: (metrics.cpm as number) || 0,
+          cpc: (metrics.cpc as number) || 0,
+          reach: (metrics.reach as number) || 0,
+          frequency: (metrics.frequency as number) || 0,
+          conversions: (metrics.conversions as number) || 0,
+          conversion_value: (metrics.conversion_value as number) || 0,
+          roas: (metrics.roas as number) || 0,
+          cpa: (metrics.cpa as number) || 0,
+          created_time: null,
+          updated_time: null,
+          synced_at: m.synced_at || '',
+        };
+      });
+
+      // Parse and set ad sets
+      const adSetMetrics = periodMetrics.filter(m => m.entity_type === 'ad_set');
+      const adSetsFromPeriod: AdSet[] = adSetMetrics.map(m => {
+        const metrics = m.metrics as Record<string, unknown>;
+        return {
+          id: m.entity_id,
+          campaign_id: (metrics.campaign_id as string) || '',
+          project_id: selectedProject.id,
+          name: m.entity_name,
+          status: m.status || 'UNKNOWN',
+          daily_budget: (metrics.daily_budget as number) || null,
+          lifetime_budget: (metrics.lifetime_budget as number) || null,
+          targeting: null,
+          spend: (metrics.spend as number) || 0,
+          impressions: (metrics.impressions as number) || 0,
+          clicks: (metrics.clicks as number) || 0,
+          ctr: (metrics.ctr as number) || 0,
+          cpm: (metrics.cpm as number) || 0,
+          cpc: (metrics.cpc as number) || 0,
+          reach: (metrics.reach as number) || 0,
+          frequency: (metrics.frequency as number) || 0,
+          conversions: (metrics.conversions as number) || 0,
+          conversion_value: (metrics.conversion_value as number) || 0,
+          roas: (metrics.roas as number) || 0,
+          cpa: (metrics.cpa as number) || 0,
+          synced_at: m.synced_at || '',
+        };
+      });
+
+      // Parse and set ads
+      const adMetrics = periodMetrics.filter(m => m.entity_type === 'ad');
+      const adsFromPeriod: Ad[] = adMetrics.map(m => {
+        const metrics = m.metrics as Record<string, unknown>;
+        return {
+          id: m.entity_id,
+          ad_set_id: (metrics.ad_set_id as string) || '',
+          campaign_id: (metrics.campaign_id as string) || '',
+          project_id: selectedProject.id,
+          name: m.entity_name,
+          status: m.status || 'UNKNOWN',
+          creative_id: (metrics.creative_id as string) || null,
+          creative_thumbnail: (metrics.creative_thumbnail as string) || null,
+          creative_image_url: (metrics.creative_image_url as string) || null,
+          headline: (metrics.headline as string) || null,
+          primary_text: null,
+          cta: (metrics.cta as string) || null,
+          spend: (metrics.spend as number) || 0,
+          impressions: (metrics.impressions as number) || 0,
+          clicks: (metrics.clicks as number) || 0,
+          ctr: (metrics.ctr as number) || 0,
+          cpm: (metrics.cpm as number) || 0,
+          cpc: (metrics.cpc as number) || 0,
+          reach: (metrics.reach as number) || 0,
+          frequency: (metrics.frequency as number) || 0,
+          conversions: (metrics.conversions as number) || 0,
+          conversion_value: (metrics.conversion_value as number) || 0,
+          roas: (metrics.roas as number) || 0,
+          cpa: (metrics.cpa as number) || 0,
+          synced_at: m.synced_at || '',
+        };
+      });
+
+      // Sort by spend descending
+      campaignsFromPeriod.sort((a, b) => b.spend - a.spend);
+      adSetsFromPeriod.sort((a, b) => b.spend - a.spend);
+      adsFromPeriod.sort((a, b) => b.spend - a.spend);
+
+      setCampaigns(campaignsFromPeriod);
+      setAdSets(adSetsFromPeriod);
+      setAds(adsFromPeriod);
+      setLastLoadedPeriod(periodKey);
+
+      console.log(`[PERIOD] Loaded: ${campaignsFromPeriod.length} campaigns, ${adSetsFromPeriod.length} ad sets, ${adsFromPeriod.length} ads`);
+      return { found: true };
+    } catch (error) {
+      console.error('Error loading period metrics:', error);
+      await loadDataFromDatabase();
+      return { found: false };
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedProject, lastLoadedPeriod, loadDataFromDatabase]);
+
+  // Load metrics by date range - calculates period key and loads from period_metrics
+  const loadByDateRange = useCallback(async (dateRange: { from: Date; to: Date }) => {
+    const diffDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
+    const periodKey = getPeriodKeyFromDays(diffDays);
+    return loadMetricsByPeriod(periodKey);
+  }, [loadMetricsByPeriod]);
+
   // Sync with Meta API - ONLY for manual/emergency use
   const syncData = useCallback(async (timeRange?: { since: string; until: string }, forceSync: boolean = false) => {
     if (!selectedProject) {
       toast.error('Nenhum projeto selecionado');
       return { success: false };
-    }
-
-    // Check cache first (unless force sync)
-    if (!forceSync && timeRange) {
-      const cached = getCachedData(selectedProject.id, timeRange);
-      if (cached) {
-        console.log('Loading from local cache:', timeRange);
-        toast.info('Carregando do cache local...');
-        setCampaigns(cached.campaigns);
-        setAdSets(cached.adSets);
-        setAds(cached.ads);
-        return { success: true, fromCache: true };
-      }
     }
 
     setSyncing(true);
@@ -300,11 +381,11 @@ export function useMetaAdsData() {
           since: timeRange.since,
           until: timeRange.until,
         };
-        console.log('Syncing with time range:', timeRange);
+        console.log('Manual sync with time range:', timeRange);
       } else {
         // Default to last 30 days if no time range provided
         body.date_preset = 'last_30d';
-        console.log('Syncing with default preset: last_30d');
+        console.log('Manual sync with default preset: last_30d');
       }
       
       const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
@@ -321,26 +402,11 @@ export function useMetaAdsData() {
       if (data.success) {
         toast.success(`Sincronização concluída! ${data.data?.campaigns_count || 0} campanhas, ${data.data?.ad_sets_count || 0} conjuntos, ${data.data?.ads_count || 0} anúncios.`);
         
-        // Refetch all data after sync
-        const [campaignsResult, adSetsResult, adsResult] = await Promise.all([
-          supabase.from('campaigns').select('*').eq('project_id', selectedProject.id).order('spend', { ascending: false }),
-          supabase.from('ad_sets').select('*').eq('project_id', selectedProject.id).order('spend', { ascending: false }),
-          supabase.from('ads').select('*').eq('project_id', selectedProject.id).order('spend', { ascending: false }),
-        ]);
+        // Reset loaded period to force reload
+        setLastLoadedPeriod(null);
         
-        const newCampaigns = (campaignsResult.data as Campaign[]) || [];
-        const newAdSets = (adSetsResult.data as AdSet[]) || [];
-        const newAds = (adsResult.data as Ad[]) || [];
-        
-        setCampaigns(newCampaigns);
-        setAdSets(newAdSets);
-        setAds(newAds);
-        
-        // Save to local cache
-        if (timeRange) {
-          setCachedData(selectedProject.id, timeRange, newCampaigns, newAdSets, newAds);
-          console.log('Data cached for period:', timeRange);
-        }
+        // Reload data from database
+        await loadDataFromDatabase();
         
         return { success: true, data: data.data };
       } else {
@@ -362,7 +428,7 @@ export function useMetaAdsData() {
     } finally {
       setSyncing(false);
     }
-  }, [selectedProject]);
+  }, [selectedProject, loadDataFromDatabase]);
 
   // Initial load from database when project changes
   useEffect(() => {
@@ -379,10 +445,11 @@ export function useMetaAdsData() {
     projectsLoading,
     syncData,
     loadDataFromDatabase,
+    loadMetricsByPeriod,
+    loadByDateRange,
     fetchCampaigns,
     fetchAdSets,
     fetchAds,
-    isCached: (timeRange: { since: string; until: string }) => 
-      selectedProject ? getCachedData(selectedProject.id, timeRange) !== null : false,
+    getPeriodKeyFromDays,
   };
 }

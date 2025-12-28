@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -65,7 +65,6 @@ export default function AdSets() {
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
-  const lastSyncedRange = useRef<string | null>(null);
   const selectedProject = projects.find(p => p.id === campaign?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
@@ -111,28 +110,23 @@ export default function AdSets() {
     ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
   ];
 
-  // Sync when date range changes
+  // Load data from database on mount and when campaignId changes
   useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to || syncing) return;
-    
-    const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
-    if (lastSyncedRange.current === rangeKey) return;
-    
-    lastSyncedRange.current = rangeKey;
-    syncData({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
-  }, [dateRange, selectedProject, syncData, syncing]);
+    fetchAdSets();
+  }, [fetchAdSets]);
 
+  // Handle date range change - NO sync, just load from database
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
-    lastSyncedRange.current = null;
     setDateRange(newRange);
-  }, []);
+    // Reload data from database (data is already filtered by campaign)
+    fetchAdSets();
+  }, [fetchAdSets]);
 
   const handlePresetChange = useCallback((preset: DatePresetKey) => {
     setSelectedPreset(preset);
   }, []);
 
   const handleManualSync = useCallback(() => {
-    lastSyncedRange.current = null;
     if (dateRange?.from && dateRange?.to) {
       syncData({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
     } else {
