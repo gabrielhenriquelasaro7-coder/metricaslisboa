@@ -14,7 +14,8 @@ import {
   Megaphone,
   ChevronDown,
   Layers,
-  ChevronUp
+  ChevronUp,
+  Image as ImageIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -264,6 +265,17 @@ export default function Sidebar() {
             </Link>
           )}
 
+          {/* Creatives */}
+          <Link
+            to="/creatives"
+            className={cn(
+              'sidebar-item',
+              location.pathname === '/creatives' && 'active'
+            )}
+          >
+            <ImageIcon className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>Criativos</span>}
+          </Link>
 
           {/* Settings */}
           <Link

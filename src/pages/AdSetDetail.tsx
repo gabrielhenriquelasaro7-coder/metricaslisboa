@@ -18,7 +18,10 @@ import {
   Target,
   Percent,
   BarChart3,
-  Zap
+  Zap,
+  Play,
+  Image as ImageIcon,
+  ExternalLink
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -55,11 +58,15 @@ interface Ad {
   impressions: number;
   clicks: number;
   ctr: number;
+  cpm: number;
+  cpc: number;
   conversions: number;
   roas: number;
   cpa: number;
   creative_thumbnail: string | null;
   creative_image_url: string | null;
+  creative_video_url: string | null;
+  headline: string | null;
 }
 
 interface Campaign {
@@ -344,59 +351,106 @@ export default function AdSetDetail() {
               <p className="text-muted-foreground">Nenhum anúncio encontrado neste conjunto</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sortedAds.map((ad) => (
-                <div key={ad.id} className="glass-card-hover p-4 flex gap-4">
-                  {(ad.creative_image_url || ad.creative_thumbnail) && (
-                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                      <img 
-                        src={ad.creative_image_url || ad.creative_thumbnail || ''} 
-                        alt={ad.name}
-                        className="w-full h-full object-cover"
-                      />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {sortedAds.map((ad) => {
+                const hasVideo = ad.creative_video_url;
+                const hasImage = ad.creative_image_url || ad.creative_thumbnail;
+                const creativeUrl = ad.creative_image_url || ad.creative_thumbnail || '';
+                
+                return (
+                  <Link 
+                    key={ad.id} 
+                    to={`/ad/${ad.id}`}
+                    className="glass-card-hover group block overflow-hidden"
+                  >
+                    {/* Creative Preview */}
+                    <div className="aspect-square bg-muted relative overflow-hidden">
+                      {hasVideo ? (
+                        <div className="relative w-full h-full">
+                          <video 
+                            src={ad.creative_video_url || ''} 
+                            className="w-full h-full object-cover"
+                            muted
+                            poster={ad.creative_thumbnail || undefined}
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
+                              <Play className="w-6 h-6 text-foreground ml-1" />
+                            </div>
+                          </div>
+                        </div>
+                      ) : hasImage ? (
+                        <img 
+                          src={creativeUrl} 
+                          alt={ad.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="w-16 h-16 text-muted-foreground/30" />
+                        </div>
+                      )}
+                      
+                      {/* Status Badge Overlay */}
+                      <div className="absolute top-3 left-3">
+                        <Badge 
+                          variant="secondary" 
+                          className={cn(
+                            "text-xs shadow-lg",
+                            ad.status === 'ACTIVE' && 'bg-metric-positive text-white',
+                            ad.status === 'PAUSED' && 'bg-metric-warning text-white'
+                          )}
+                        >
+                          {ad.status === 'ACTIVE' ? 'Ativo' : 'Pausado'}
+                        </Badge>
+                      </div>
+                      
+                      {/* View Detail Overlay */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <div className="bg-white/90 rounded-full p-3">
+                          <ExternalLink className="w-5 h-5 text-foreground" />
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-medium truncate">{ad.name}</h4>
-                      <Badge 
-                        variant="secondary" 
-                        className={cn(
-                          "text-xs flex-shrink-0",
-                          ad.status === 'ACTIVE' && 'bg-metric-positive/20 text-metric-positive',
-                          ad.status === 'PAUSED' && 'bg-metric-warning/20 text-metric-warning'
-                        )}
-                      >
-                        {ad.status === 'ACTIVE' ? 'Ativo' : 'Pausado'}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
-                      <div>
-                        <p className="text-muted-foreground text-xs">Gasto</p>
-                        <p className="font-medium">{formatCurrency(ad.spend)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-xs">CTR</p>
-                        <p className="font-medium">{ad.ctr.toFixed(2)}%</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-xs">Cliques</p>
-                        <p className="font-medium">{formatNumber(ad.clicks)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-xs">{isEcommerce ? 'ROAS' : 'CPL'}</p>
-                        <p className={cn(
-                          "font-medium",
-                          isEcommerce && ad.roas >= 5 && 'text-metric-positive',
-                          isEcommerce && ad.roas < 3 && 'text-metric-negative'
-                        )}>
-                          {isEcommerce ? `${ad.roas.toFixed(2)}x` : formatCurrency(ad.cpa)}
-                        </p>
+                    
+                    {/* Content */}
+                    <div className="p-4">
+                      <h4 className="font-semibold truncate mb-1 group-hover:text-primary transition-colors">
+                        {ad.name}
+                      </h4>
+                      {ad.headline && (
+                        <p className="text-sm text-muted-foreground truncate mb-3">{ad.headline}</p>
+                      )}
+                      
+                      {/* Metrics Grid */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-muted/50 rounded-lg p-2.5">
+                          <p className="text-xs text-muted-foreground">Gasto</p>
+                          <p className="font-semibold text-sm">{formatCurrency(ad.spend)}</p>
+                        </div>
+                        <div className="bg-muted/50 rounded-lg p-2.5">
+                          <p className="text-xs text-muted-foreground">Cliques</p>
+                          <p className="font-semibold text-sm">{formatNumber(ad.clicks)}</p>
+                        </div>
+                        <div className="bg-muted/50 rounded-lg p-2.5">
+                          <p className="text-xs text-muted-foreground">CTR</p>
+                          <p className="font-semibold text-sm">{ad.ctr.toFixed(2)}%</p>
+                        </div>
+                        <div className="bg-muted/50 rounded-lg p-2.5">
+                          <p className="text-xs text-muted-foreground">{isEcommerce ? 'ROAS' : 'CPL'}</p>
+                          <p className={cn(
+                            "font-semibold text-sm",
+                            isEcommerce && ad.roas >= 5 && 'text-metric-positive',
+                            isEcommerce && ad.roas < 3 && 'text-metric-negative'
+                          )}>
+                            {isEcommerce ? `${ad.roas.toFixed(2)}x` : formatCurrency(ad.cpa)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
