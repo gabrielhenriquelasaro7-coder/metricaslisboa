@@ -378,11 +378,11 @@ export default function AdDetail() {
                   <div className="glass-card p-5">
                     <div className="flex items-center gap-3">
                       <div className="w-11 h-11 rounded-xl bg-chart-3/10 flex items-center justify-center">
-                        <TrendingUp className="w-5 h-5 text-chart-3" />
+                        <Percent className="w-5 h-5 text-chart-3" />
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Valor Conversão</p>
-                        <p className="text-2xl font-bold">{formatCurrency(ad.conversion_value)}</p>
+                        <p className="text-xs text-muted-foreground">Taxa Conversão</p>
+                        <p className="text-2xl font-bold">{ad.impressions > 0 ? ((ad.conversions / ad.impressions) * 100).toFixed(3) : 0}%</p>
                       </div>
                     </div>
                   </div>
