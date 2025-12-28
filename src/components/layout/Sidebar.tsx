@@ -104,9 +104,14 @@ export default function Sidebar() {
         <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
           <Link to="/projects" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/20">
-              <BarChart3 className="w-6 h-6 text-primary-foreground" />
+              <span className="text-lg font-black text-primary-foreground">V4</span>
             </div>
-            {!collapsed && <span className="text-lg font-bold">V4 Metrics</span>}
+            {!collapsed && (
+              <div className="flex flex-col">
+                <span className="text-sm font-bold leading-tight">V4 Company</span>
+                <span className="text-xs text-muted-foreground leading-tight">Lisboa & Co</span>
+              </div>
+            )}
           </Link>
           <Button
             variant="ghost"
