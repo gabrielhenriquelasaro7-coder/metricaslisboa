@@ -12,17 +12,6 @@ interface SyncRequest {
   date_preset?: string;
 }
 
-interface MetaAdsResponse {
-  data: any[];
-  paging?: {
-    cursors: {
-      before: string;
-      after: string;
-    };
-    next?: string;
-  };
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -57,7 +46,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Starting Meta Ads sync for account: ${ad_account_id}`);
+    console.log(`Starting Meta Ads sync for project: ${project_id}, account: ${ad_account_id}`);
 
     // Log sync start
     await supabase.from('sync_logs').insert({
@@ -66,49 +55,26 @@ Deno.serve(async (req) => {
       message: `Iniciando sincronização da conta ${ad_account_id}`,
     });
 
-    // Define fields to fetch from Meta Ads API
-    const campaignFields = [
-      'id',
-      'name',
-      'status',
-      'objective',
-      'daily_budget',
-      'lifetime_budget',
-      'created_time',
-      'updated_time',
-    ].join(',');
-
-    const insightsFields = [
-      'spend',
-      'impressions',
-      'clicks',
-      'ctr',
-      'cpm',
-      'cpc',
-      'reach',
-      'frequency',
-      'actions',
-      'action_values',
-      'conversions',
-      'conversion_values',
-      'cost_per_action_type',
-    ].join(',');
+    // Update project status
+    await supabase.from('projects').update({
+      webhook_status: 'syncing',
+    }).eq('id', project_id);
 
     // Fetch campaigns from Meta Ads API
+    const campaignFields = 'id,name,status,objective,daily_budget,lifetime_budget,created_time,updated_time';
     const campaignsUrl = `https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=${campaignFields}&access_token=${token}`;
     
     console.log('Fetching campaigns from Meta Ads API...');
-    
     const campaignsResponse = await fetch(campaignsUrl);
-    const campaignsData: MetaAdsResponse = await campaignsResponse.json();
+    const campaignsData = await campaignsResponse.json();
 
-    if (!campaignsResponse.ok) {
+    if (!campaignsResponse.ok || campaignsData.error) {
       console.error('Meta API error:', campaignsData);
       
       await supabase.from('sync_logs').insert({
         project_id,
         status: 'error',
-        message: `Erro na API do Meta: ${JSON.stringify(campaignsData)}`,
+        message: `Erro na API do Meta: ${campaignsData.error?.message || JSON.stringify(campaignsData)}`,
       });
 
       await supabase.from('projects').update({
@@ -118,35 +84,208 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Meta API error',
+          error: campaignsData.error?.message || 'Meta API error',
           details: campaignsData 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Found ${campaignsData.data?.length || 0} campaigns`);
+    const campaigns = campaignsData.data || [];
+    console.log(`Found ${campaigns.length} campaigns`);
 
-    // Fetch insights for each campaign
-    const campaignsWithInsights = [];
-
-    for (const campaign of campaignsData.data || []) {
+    // Process each campaign
+    for (const campaign of campaigns) {
+      // Fetch campaign insights
+      const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
       const insightsUrl = `https://graph.facebook.com/v19.0/${campaign.id}/insights?fields=${insightsFields}&date_preset=${date_preset}&access_token=${token}`;
       
+      let insights = null;
       try {
         const insightsResponse = await fetch(insightsUrl);
         const insightsData = await insightsResponse.json();
+        insights = insightsData.data?.[0] || null;
+      } catch (e) {
+        console.error(`Error fetching insights for campaign ${campaign.id}:`, e);
+      }
 
-        campaignsWithInsights.push({
-          ...campaign,
-          insights: insightsData.data?.[0] || null,
-        });
-      } catch (error) {
-        console.error(`Error fetching insights for campaign ${campaign.id}:`, error);
-        campaignsWithInsights.push({
-          ...campaign,
-          insights: null,
-        });
+      // Extract conversions from actions
+      let conversions = 0;
+      let conversionValue = 0;
+      if (insights?.actions) {
+        const purchaseAction = insights.actions.find((a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase');
+        const leadAction = insights.actions.find((a: any) => a.action_type === 'lead');
+        conversions = parseInt(purchaseAction?.value || leadAction?.value || '0');
+      }
+      if (insights?.action_values) {
+        const purchaseValue = insights.action_values.find((a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase');
+        conversionValue = parseFloat(purchaseValue?.value || '0');
+      }
+
+      const spend = parseFloat(insights?.spend || '0');
+      const roas = spend > 0 ? conversionValue / spend : 0;
+      const cpa = conversions > 0 ? spend / conversions : 0;
+
+      // Upsert campaign
+      const campaignData = {
+        id: campaign.id,
+        project_id,
+        name: campaign.name,
+        status: campaign.status,
+        objective: campaign.objective,
+        daily_budget: campaign.daily_budget ? parseFloat(campaign.daily_budget) / 100 : null,
+        lifetime_budget: campaign.lifetime_budget ? parseFloat(campaign.lifetime_budget) / 100 : null,
+        spend,
+        impressions: parseInt(insights?.impressions || '0'),
+        clicks: parseInt(insights?.clicks || '0'),
+        ctr: parseFloat(insights?.ctr || '0'),
+        cpm: parseFloat(insights?.cpm || '0'),
+        cpc: parseFloat(insights?.cpc || '0'),
+        reach: parseInt(insights?.reach || '0'),
+        frequency: parseFloat(insights?.frequency || '0'),
+        conversions,
+        conversion_value: conversionValue,
+        roas,
+        cpa,
+        created_time: campaign.created_time,
+        updated_time: campaign.updated_time,
+        synced_at: new Date().toISOString(),
+      };
+
+      await supabase.from('campaigns').upsert(campaignData, { onConflict: 'id' });
+      console.log(`Synced campaign: ${campaign.name}`);
+
+      // Fetch ad sets for this campaign
+      const adSetsUrl = `https://graph.facebook.com/v19.0/${campaign.id}/adsets?fields=id,name,status,daily_budget,lifetime_budget,targeting&access_token=${token}`;
+      try {
+        const adSetsResponse = await fetch(adSetsUrl);
+        const adSetsData = await adSetsResponse.json();
+        const adSets = adSetsData.data || [];
+
+        for (const adSet of adSets) {
+          // Fetch ad set insights
+          const adSetInsightsUrl = `https://graph.facebook.com/v19.0/${adSet.id}/insights?fields=${insightsFields}&date_preset=${date_preset}&access_token=${token}`;
+          let adSetInsights = null;
+          try {
+            const adSetInsightsResponse = await fetch(adSetInsightsUrl);
+            const adSetInsightsData = await adSetInsightsResponse.json();
+            adSetInsights = adSetInsightsData.data?.[0] || null;
+          } catch (e) {
+            console.error(`Error fetching insights for ad set ${adSet.id}:`, e);
+          }
+
+          let adSetConversions = 0;
+          let adSetConversionValue = 0;
+          if (adSetInsights?.actions) {
+            const purchaseAction = adSetInsights.actions.find((a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase');
+            const leadAction = adSetInsights.actions.find((a: any) => a.action_type === 'lead');
+            adSetConversions = parseInt(purchaseAction?.value || leadAction?.value || '0');
+          }
+          if (adSetInsights?.action_values) {
+            const purchaseValue = adSetInsights.action_values.find((a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase');
+            adSetConversionValue = parseFloat(purchaseValue?.value || '0');
+          }
+
+          const adSetSpend = parseFloat(adSetInsights?.spend || '0');
+          const adSetRoas = adSetSpend > 0 ? adSetConversionValue / adSetSpend : 0;
+          const adSetCpa = adSetConversions > 0 ? adSetSpend / adSetConversions : 0;
+
+          const adSetData = {
+            id: adSet.id,
+            campaign_id: campaign.id,
+            project_id,
+            name: adSet.name,
+            status: adSet.status,
+            daily_budget: adSet.daily_budget ? parseFloat(adSet.daily_budget) / 100 : null,
+            lifetime_budget: adSet.lifetime_budget ? parseFloat(adSet.lifetime_budget) / 100 : null,
+            targeting: adSet.targeting,
+            spend: adSetSpend,
+            impressions: parseInt(adSetInsights?.impressions || '0'),
+            clicks: parseInt(adSetInsights?.clicks || '0'),
+            ctr: parseFloat(adSetInsights?.ctr || '0'),
+            cpm: parseFloat(adSetInsights?.cpm || '0'),
+            cpc: parseFloat(adSetInsights?.cpc || '0'),
+            reach: parseInt(adSetInsights?.reach || '0'),
+            frequency: parseFloat(adSetInsights?.frequency || '0'),
+            conversions: adSetConversions,
+            conversion_value: adSetConversionValue,
+            roas: adSetRoas,
+            cpa: adSetCpa,
+            synced_at: new Date().toISOString(),
+          };
+
+          await supabase.from('ad_sets').upsert(adSetData, { onConflict: 'id' });
+
+          // Fetch ads for this ad set
+          const adsUrl = `https://graph.facebook.com/v19.0/${adSet.id}/ads?fields=id,name,status,creative{id,thumbnail_url,title,body,call_to_action_type}&access_token=${token}`;
+          try {
+            const adsResponse = await fetch(adsUrl);
+            const adsData = await adsResponse.json();
+            const ads = adsData.data || [];
+
+            for (const ad of ads) {
+              // Fetch ad insights
+              const adInsightsUrl = `https://graph.facebook.com/v19.0/${ad.id}/insights?fields=${insightsFields}&date_preset=${date_preset}&access_token=${token}`;
+              let adInsights = null;
+              try {
+                const adInsightsResponse = await fetch(adInsightsUrl);
+                const adInsightsData = await adInsightsResponse.json();
+                adInsights = adInsightsData.data?.[0] || null;
+              } catch (e) {
+                console.error(`Error fetching insights for ad ${ad.id}:`, e);
+              }
+
+              let adConversions = 0;
+              let adConversionValue = 0;
+              if (adInsights?.actions) {
+                const purchaseAction = adInsights.actions.find((a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase');
+                const leadAction = adInsights.actions.find((a: any) => a.action_type === 'lead');
+                adConversions = parseInt(purchaseAction?.value || leadAction?.value || '0');
+              }
+              if (adInsights?.action_values) {
+                const purchaseValue = adInsights.action_values.find((a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase');
+                adConversionValue = parseFloat(purchaseValue?.value || '0');
+              }
+
+              const adSpend = parseFloat(adInsights?.spend || '0');
+              const adRoas = adSpend > 0 ? adConversionValue / adSpend : 0;
+              const adCpa = adConversions > 0 ? adSpend / adConversions : 0;
+
+              const adData = {
+                id: ad.id,
+                ad_set_id: adSet.id,
+                campaign_id: campaign.id,
+                project_id,
+                name: ad.name,
+                status: ad.status,
+                creative_id: ad.creative?.id,
+                creative_thumbnail: ad.creative?.thumbnail_url,
+                headline: ad.creative?.title,
+                primary_text: ad.creative?.body,
+                cta: ad.creative?.call_to_action_type,
+                spend: adSpend,
+                impressions: parseInt(adInsights?.impressions || '0'),
+                clicks: parseInt(adInsights?.clicks || '0'),
+                ctr: parseFloat(adInsights?.ctr || '0'),
+                cpm: parseFloat(adInsights?.cpm || '0'),
+                cpc: parseFloat(adInsights?.cpc || '0'),
+                reach: parseInt(adInsights?.reach || '0'),
+                frequency: parseFloat(adInsights?.frequency || '0'),
+                conversions: adConversions,
+                conversion_value: adConversionValue,
+                roas: adRoas,
+                cpa: adCpa,
+                synced_at: new Date().toISOString(),
+              };
+
+              await supabase.from('ads').upsert(adData, { onConflict: 'id' });
+            }
+          } catch (e) {
+            console.error(`Error fetching ads for ad set ${adSet.id}:`, e);
+          }
+        }
+      } catch (e) {
+        console.error(`Error fetching ad sets for campaign ${campaign.id}:`, e);
       }
     }
 
@@ -160,7 +299,7 @@ Deno.serve(async (req) => {
     await supabase.from('sync_logs').insert({
       project_id,
       status: 'success',
-      message: `Sincronização concluída: ${campaignsWithInsights.length} campanhas sincronizadas`,
+      message: `Sincronização concluída: ${campaigns.length} campanhas sincronizadas`,
     });
 
     console.log('Sync completed successfully');
@@ -169,8 +308,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         data: {
-          campaigns: campaignsWithInsights,
-          total_campaigns: campaignsWithInsights.length,
+          campaigns_count: campaigns.length,
           synced_at: new Date().toISOString(),
         },
       }),

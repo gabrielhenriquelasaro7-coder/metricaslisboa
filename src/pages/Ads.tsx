@@ -1,499 +1,183 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
-import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
-import { DateRange } from 'react-day-picker';
-import { subDays } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 import { 
-  ArrowLeft,
-  Image as ImageIcon,
-  Play,
-  TrendingUp,
-  DollarSign,
+  ImageIcon, 
+  TrendingUp, 
+  DollarSign, 
   MousePointerClick,
   Eye,
   ShoppingCart,
-  ThumbsUp,
-  MessageCircle,
-  Share2,
-  Bookmark
+  ChevronLeft,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import PerformanceChart from '@/components/dashboard/PerformanceChart';
 
 interface Ad {
   id: string;
+  ad_set_id: string;
+  campaign_id: string;
   name: string;
-  type: 'image' | 'video' | 'carousel';
-  status: 'ACTIVE' | 'PAUSED' | 'DELETED';
-  thumbnail: string;
-  headline: string;
-  primaryText: string;
-  cta: string;
+  status: string;
+  creative_thumbnail: string | null;
+  headline: string | null;
+  primary_text: string | null;
+  cta: string | null;
   spend: number;
   impressions: number;
   clicks: number;
   ctr: number;
-  cpm: number;
   cpc: number;
   conversions: number;
-  revenue: number;
+  conversion_value: number;
   roas: number;
   cpa: number;
-  reach: number;
-  frequency: number;
-  engagement: {
-    likes: number;
-    comments: number;
-    shares: number;
-    saves: number;
-  };
 }
-
-const mockAds: Ad[] = [
-  {
-    id: '1',
-    name: 'Promo 50% - Imagem Principal',
-    type: 'image',
-    status: 'ACTIVE',
-    thumbnail: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop',
-    headline: 'Aproveite 50% OFF',
-    primaryText: 'Promoção imperdível de fim de ano! Compre agora e economize em todas as categorias.',
-    cta: 'Comprar Agora',
-    spend: 450,
-    impressions: 25000,
-    clicks: 1000,
-    ctr: 4.0,
-    cpm: 18.0,
-    cpc: 0.45,
-    conversions: 45,
-    revenue: 4500,
-    roas: 10.0,
-    cpa: 10.0,
-    reach: 18000,
-    frequency: 1.39,
-    engagement: {
-      likes: 342,
-      comments: 28,
-      shares: 56,
-      saves: 89,
-    },
-  },
-  {
-    id: '2',
-    name: 'Video Lifestyle - 15s',
-    type: 'video',
-    status: 'ACTIVE',
-    thumbnail: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=400&fit=crop',
-    headline: 'Estilo que Inspira',
-    primaryText: 'Descubra as novidades que vão transformar seu dia a dia com muito estilo.',
-    cta: 'Ver Mais',
-    spend: 680,
-    impressions: 38000,
-    clicks: 1140,
-    ctr: 3.0,
-    cpm: 17.89,
-    cpc: 0.60,
-    conversions: 52,
-    revenue: 5720,
-    roas: 8.41,
-    cpa: 13.08,
-    reach: 28000,
-    frequency: 1.36,
-    engagement: {
-      likes: 567,
-      comments: 45,
-      shares: 123,
-      saves: 156,
-    },
-  },
-  {
-    id: '3',
-    name: 'Carrossel - Top Produtos',
-    type: 'carousel',
-    status: 'ACTIVE',
-    thumbnail: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=400&fit=crop',
-    headline: 'Os Mais Vendidos',
-    primaryText: 'Conheça os produtos favoritos dos nossos clientes. Qualidade garantida!',
-    cta: 'Comprar',
-    spend: 520,
-    impressions: 29000,
-    clicks: 870,
-    ctr: 3.0,
-    cpm: 17.93,
-    cpc: 0.60,
-    conversions: 38,
-    revenue: 3800,
-    roas: 7.31,
-    cpa: 13.68,
-    reach: 21000,
-    frequency: 1.38,
-    engagement: {
-      likes: 234,
-      comments: 19,
-      shares: 45,
-      saves: 78,
-    },
-  },
-  {
-    id: '4',
-    name: 'Urgência - Últimas Unidades',
-    type: 'image',
-    status: 'PAUSED',
-    thumbnail: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&h=400&fit=crop',
-    headline: 'Últimas Unidades!',
-    primaryText: 'Corra! Estoque limitado nos tamanhos mais procurados. Não perca!',
-    cta: 'Garantir o Meu',
-    spend: 280,
-    impressions: 15000,
-    clicks: 600,
-    ctr: 4.0,
-    cpm: 18.67,
-    cpc: 0.47,
-    conversions: 22,
-    revenue: 2200,
-    roas: 7.86,
-    cpa: 12.73,
-    reach: 11000,
-    frequency: 1.36,
-    engagement: {
-      likes: 156,
-      comments: 12,
-      shares: 34,
-      saves: 45,
-    },
-  },
-];
-
-const chartData = [
-  { date: '01/12', value: 120, value2: 8.2 },
-  { date: '05/12', value: 180, value2: 9.1 },
-  { date: '10/12', value: 150, value2: 7.8 },
-  { date: '15/12', value: 220, value2: 10.5 },
-  { date: '20/12', value: 280, value2: 9.2 },
-  { date: '25/12', value: 310, value2: 11.1 },
-  { date: '28/12', value: 350, value2: 10.0 },
-];
 
 const sortOptions = [
   { value: 'roas', label: 'ROAS' },
   { value: 'spend', label: 'Gasto' },
   { value: 'conversions', label: 'Conversões' },
   { value: 'ctr', label: 'CTR' },
-  { value: 'cpa', label: 'CPA' },
   { value: 'name', label: 'Nome' },
 ];
 
 export default function Ads() {
   const { adSetId } = useParams<{ adSetId: string }>();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 30),
-    to: new Date(),
-  });
+  const [adSet, setAdSet] = useState<{ id: string; name: string; campaign_id: string } | null>(null);
+  const [ads, setAds] = useState<Ad[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'roas', direction: 'desc' });
-  const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
 
-  const filteredAds = mockAds
-    .filter((ad) => {
-      if (filters.search) {
-        return ad.name.toLowerCase().includes(filters.search.toLowerCase());
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!adSetId) return;
+      setLoading(true);
+      try {
+        const { data: adSetData } = await supabase.from('ad_sets').select('id, name, campaign_id').eq('id', adSetId).single();
+        if (adSetData) setAdSet(adSetData);
+        const { data: adsData } = await supabase.from('ads').select('*').eq('ad_set_id', adSetId).order('spend', { ascending: false });
+        setAds((adsData as Ad[]) || []);
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
       }
-      return true;
-    })
-    .filter((ad) => {
-      if (filters.status?.length) {
-        return filters.status.includes(ad.status);
-      }
-      return true;
-    })
+    };
+    fetchData();
+  }, [adSetId]);
+
+  const filteredAds = ads
+    .filter((a) => !filters.search || a.name.toLowerCase().includes(filters.search.toLowerCase()))
+    .filter((a) => !filters.status?.length || filters.status.includes(a.status))
     .sort((a, b) => {
-      const multiplier = sort.direction === 'asc' ? 1 : -1;
-      switch (sort.field) {
-        case 'roas':
-          return (a.roas - b.roas) * multiplier;
-        case 'spend':
-          return (a.spend - b.spend) * multiplier;
-        case 'conversions':
-          return (a.conversions - b.conversions) * multiplier;
-        case 'ctr':
-          return (a.ctr - b.ctr) * multiplier;
-        case 'cpa':
-          return (a.cpa - b.cpa) * multiplier;
-        case 'name':
-          return a.name.localeCompare(b.name) * multiplier;
-        default:
-          return 0;
-      }
+      const m = sort.direction === 'asc' ? 1 : -1;
+      if (sort.field === 'name') return a.name.localeCompare(b.name) * m;
+      return ((a[sort.field as keyof Ad] as number) - (b[sort.field as keyof Ad] as number)) * m;
     });
 
-  const totals = filteredAds.reduce(
-    (acc, ad) => ({
-      spend: acc.spend + ad.spend,
-      impressions: acc.impressions + ad.impressions,
-      clicks: acc.clicks + ad.clicks,
-      conversions: acc.conversions + ad.conversions,
-      revenue: acc.revenue + ad.revenue,
-    }),
-    { spend: 0, impressions: 0, clicks: 0, conversions: 0, revenue: 0 }
-  );
+  const totals = filteredAds.reduce((acc, a) => ({
+    spend: acc.spend + a.spend,
+    impressions: acc.impressions + a.impressions,
+    clicks: acc.clicks + a.clicks,
+    conversions: acc.conversions + a.conversions,
+    revenue: acc.revenue + a.conversion_value,
+  }), { spend: 0, impressions: 0, clicks: 0, conversions: 0, revenue: 0 });
 
   const avgRoas = totals.spend > 0 ? totals.revenue / totals.spend : 0;
-
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toLocaleString();
-  };
-
-  const formatCurrency = (num: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(num);
-  };
+  const avgCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+  const formatNumber = (n: number) => n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString();
+  const formatCurrency = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
 
   return (
     <DashboardLayout>
       <div className="p-8 space-y-8 animate-fade-in">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Link to="/campaigns">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold mb-1">Anúncios</h1>
-              <p className="text-muted-foreground">
-                Remarketing - Carrinho Abandonado • {filteredAds.length} anúncios
-              </p>
+        <div className="flex items-center gap-3 mb-2">
+          <Link to={adSet ? `/campaign/${adSet.campaign_id}/adsets` : '/campaigns'} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="w-5 h-5" /></Link>
+          <h1 className="text-3xl font-bold">Anúncios</h1>
+        </div>
+        <p className="text-muted-foreground">{adSet ? `Conjunto: ${adSet.name}` : 'Carregando...'}</p>
+
+        {loading ? (
+          <div className="flex justify-center py-20"><RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+        ) : ads.length === 0 ? (
+          <div className="glass-card p-12 text-center">
+            <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Nenhum anúncio encontrado</h3>
+            <p className="text-muted-foreground">Sincronize os dados na página de campanhas.</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <MetricCard title="Gasto Total" value={formatCurrency(totals.spend)} icon={DollarSign} />
+              <MetricCard title="Impressões" value={formatNumber(totals.impressions)} icon={Eye} />
+              <MetricCard title="Cliques" value={formatNumber(totals.clicks)} icon={MousePointerClick} />
+              <MetricCard title="CTR Médio" value={`${avgCtr.toFixed(2)}%`} icon={TrendingUp} />
+              <MetricCard title="Conversões" value={formatNumber(totals.conversions)} icon={ShoppingCart} />
+              <MetricCard title="ROAS Médio" value={`${avgRoas.toFixed(2)}x`} icon={TrendingUp} className="border-l-4 border-l-metric-positive" />
             </div>
-          </div>
-          <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
-        </div>
 
-        {/* Summary Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <MetricCard
-            title="Gasto Total"
-            value={formatCurrency(totals.spend)}
-            icon={DollarSign}
-          />
-          <MetricCard
-            title="Impressões"
-            value={formatNumber(totals.impressions)}
-            icon={Eye}
-          />
-          <MetricCard
-            title="Cliques"
-            value={formatNumber(totals.clicks)}
-            icon={MousePointerClick}
-          />
-          <MetricCard
-            title="CTR Médio"
-            value={`${((totals.clicks / totals.impressions) * 100).toFixed(2)}%`}
-            icon={TrendingUp}
-          />
-          <MetricCard
-            title="Conversões"
-            value={formatNumber(totals.conversions)}
-            icon={ShoppingCart}
-          />
-          <MetricCard
-            title="ROAS Médio"
-            value={`${avgRoas.toFixed(2)}x`}
-            icon={TrendingUp}
-            className="border-l-4 border-l-metric-positive"
-          />
-        </div>
+            <AdvancedFilters filters={filters} onFiltersChange={setFilters} sort={sort} onSortChange={setSort} sortOptions={sortOptions} />
 
-        {/* Filters */}
-        <AdvancedFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          sort={sort}
-          onSortChange={setSort}
-          sortOptions={sortOptions}
-        />
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Ads List */}
-          <div className="xl:col-span-2 space-y-4">
-            {filteredAds.map((ad) => (
-              <div
-                key={ad.id}
-                onClick={() => setSelectedAd(ad)}
-                className={cn(
-                  'glass-card-hover p-4 cursor-pointer transition-all',
-                  selectedAd?.id === ad.id && 'ring-2 ring-primary'
-                )}
-              >
-                <div className="flex gap-4">
-                  {/* Thumbnail */}
-                  <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-                    <img
-                      src={ad.thumbnail}
-                      alt={ad.name}
-                      className="w-full h-full object-cover"
-                    />
-                    {ad.type === 'video' && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-                        <Play className="w-8 h-8 text-foreground" />
-                      </div>
-                    )}
-                    <div className="absolute top-1 left-1">
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
-                        {ad.type === 'image' && <ImageIcon className="w-3 h-3" />}
-                        {ad.type === 'video' && <Play className="w-3 h-3" />}
-                        {ad.type === 'carousel' && '⊞'}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredAds.map((ad) => (
+                <div key={ad.id} className="glass-card-hover overflow-hidden cursor-pointer" onClick={() => setSelectedAd(ad)}>
+                  <div className="relative aspect-square bg-secondary/30 flex items-center justify-center">
+                    {ad.creative_thumbnail ? <img src={ad.creative_thumbnail} alt={ad.name} className="w-full h-full object-cover" /> : <ImageIcon className="w-16 h-16 text-muted-foreground" />}
+                    <div className="absolute top-3 left-3">
+                      <Badge variant="secondary" className={cn(ad.status === 'ACTIVE' && 'bg-metric-positive/20 text-metric-positive', ad.status === 'PAUSED' && 'bg-metric-warning/20 text-metric-warning')}>
+                        {ad.status === 'ACTIVE' ? 'Ativo' : ad.status === 'PAUSED' ? 'Pausado' : ad.status}
                       </Badge>
+                    </div>
+                    <div className="absolute bottom-3 right-3">
+                      <Badge className={cn('text-lg font-bold', ad.roas >= 5 ? 'bg-metric-positive text-white' : ad.roas >= 3 ? 'bg-metric-warning text-white' : 'bg-metric-negative text-white')}>{ad.roas.toFixed(2)}x</Badge>
                     </div>
                   </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-semibold truncate">{ad.name}</h3>
-                        <p className="text-sm text-muted-foreground truncate">{ad.headline}</p>
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          ad.status === 'ACTIVE' &&
-                            'bg-metric-positive/20 text-metric-positive',
-                          ad.status === 'PAUSED' &&
-                            'bg-metric-warning/20 text-metric-warning'
-                        )}
-                      >
-                        {ad.status === 'ACTIVE' ? 'Ativo' : 'Pausado'}
-                      </Badge>
-                    </div>
-
-                    {/* Quick Metrics */}
-                    <div className="grid grid-cols-5 gap-2 mt-3">
-                      <div>
-                        <p className="text-sm font-semibold">{formatCurrency(ad.spend)}</p>
-                        <p className="text-xs text-muted-foreground">Gasto</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">{ad.ctr}%</p>
-                        <p className="text-xs text-muted-foreground">CTR</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">{ad.conversions}</p>
-                        <p className="text-xs text-muted-foreground">Conv.</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">{formatCurrency(ad.cpa)}</p>
-                        <p className="text-xs text-muted-foreground">CPA</p>
-                      </div>
-                      <div>
-                        <p className={cn(
-                          'text-sm font-semibold',
-                          ad.roas >= 5 ? 'text-metric-positive' : 
-                          ad.roas >= 3 ? 'text-metric-warning' : 'text-metric-negative'
-                        )}>
-                          {ad.roas}x
-                        </p>
-                        <p className="text-xs text-muted-foreground">ROAS</p>
-                      </div>
+                  <div className="p-4 space-y-4">
+                    <h3 className="font-semibold truncate">{ad.name}</h3>
+                    {ad.cta && <Badge variant="outline">{ad.cta}</Badge>}
+                    <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border">
+                      <div className="text-center"><p className="text-lg font-semibold">{formatNumber(ad.impressions)}</p><p className="text-xs text-muted-foreground">Impressões</p></div>
+                      <div className="text-center"><p className="text-lg font-semibold">{ad.ctr.toFixed(2)}%</p><p className="text-xs text-muted-foreground">CTR</p></div>
+                      <div className="text-center"><p className="text-lg font-semibold">{ad.conversions}</p><p className="text-xs text-muted-foreground">Conversões</p></div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
+        )}
 
-          {/* Ad Detail Panel */}
-          <div className="space-y-6">
-            {selectedAd ? (
+        <Sheet open={!!selectedAd} onOpenChange={() => setSelectedAd(null)}>
+          <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+            {selectedAd && (
               <>
-                {/* Ad Preview */}
-                <div className="glass-card p-4 space-y-4">
-                  <h3 className="font-semibold">Preview do Anúncio</h3>
-                  <div className="aspect-square rounded-lg overflow-hidden">
-                    <img
-                      src={selectedAd.thumbnail}
-                      alt={selectedAd.name}
-                      className="w-full h-full object-cover"
-                    />
+                <SheetHeader><SheetTitle>{selectedAd.name}</SheetTitle></SheetHeader>
+                <div className="mt-6 space-y-6">
+                  <div className="aspect-square bg-secondary/30 rounded-lg flex items-center justify-center overflow-hidden">
+                    {selectedAd.creative_thumbnail ? <img src={selectedAd.creative_thumbnail} alt={selectedAd.name} className="w-full h-full object-cover" /> : <ImageIcon className="w-16 h-16 text-muted-foreground" />}
                   </div>
-                  <div className="space-y-2">
-                    <h4 className="font-semibold">{selectedAd.headline}</h4>
-                    <p className="text-sm text-muted-foreground">{selectedAd.primaryText}</p>
-                    <Badge variant="outline">{selectedAd.cta}</Badge>
-                  </div>
-                </div>
-
-                {/* Engagement */}
-                <div className="glass-card p-4 space-y-4">
-                  <h3 className="font-semibold">Engajamento</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <ThumbsUp className="w-4 h-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-semibold">{selectedAd.engagement.likes}</p>
-                        <p className="text-xs text-muted-foreground">Curtidas</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <MessageCircle className="w-4 h-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-semibold">{selectedAd.engagement.comments}</p>
-                        <p className="text-xs text-muted-foreground">Comentários</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Share2 className="w-4 h-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-semibold">{selectedAd.engagement.shares}</p>
-                        <p className="text-xs text-muted-foreground">Compartilhamentos</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Bookmark className="w-4 h-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-semibold">{selectedAd.engagement.saves}</p>
-                        <p className="text-xs text-muted-foreground">Salvos</p>
-                      </div>
-                    </div>
+                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">Gasto</p><p className="text-xl font-bold">{formatCurrency(selectedAd.spend)}</p></div>
+                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">ROAS</p><p className={cn("text-xl font-bold", selectedAd.roas >= 5 ? 'text-metric-positive' : selectedAd.roas >= 3 ? 'text-metric-warning' : 'text-metric-negative')}>{selectedAd.roas.toFixed(2)}x</p></div>
+                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">Impressões</p><p className="text-xl font-bold">{formatNumber(selectedAd.impressions)}</p></div>
+                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">Cliques</p><p className="text-xl font-bold">{formatNumber(selectedAd.clicks)}</p></div>
+                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">CTR</p><p className="text-xl font-bold">{selectedAd.ctr.toFixed(2)}%</p></div>
+                    <div className="glass-card p-4"><p className="text-sm text-muted-foreground">Conversões</p><p className="text-xl font-bold">{selectedAd.conversions}</p></div>
                   </div>
                 </div>
-
-                {/* Performance Chart */}
-                <PerformanceChart
-                  data={chartData}
-                  title="Performance ao longo do tempo"
-                  dataKey="value"
-                  dataKey2="value2"
-                />
               </>
-            ) : (
-              <div className="glass-card p-12 text-center">
-                <Eye className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="font-semibold mb-2">Selecione um anúncio</h3>
-                <p className="text-sm text-muted-foreground">
-                  Clique em um anúncio para ver detalhes e métricas de engajamento.
-                </p>
-              </div>
             )}
-          </div>
-        </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </DashboardLayout>
   );
