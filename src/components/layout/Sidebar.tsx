@@ -30,6 +30,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -150,6 +151,11 @@ export default function Sidebar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            
+            {/* Sync Status Badge */}
+            <div className="mt-2 px-1">
+              <SyncStatusBadge projectId={selectedProject.id} />
+            </div>
           </div>
         )}
 
