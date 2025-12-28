@@ -3,8 +3,9 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import ProjectCard from '@/components/projects/ProjectCard';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { useProjects, Project } from '@/hooks/useProjects';
-import { Search, FolderKanban } from 'lucide-react';
+import { Search, FolderKanban, Archive } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,14 +17,20 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-export default function Projects() {
-  const { projects, loading, deleteProject } = useProjects();
-  const [search, setSearch] = useState('');
-  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+type ActionType = 'delete' | 'archive' | 'unarchive';
 
-  const filteredProjects = projects.filter((project) =>
-    project.name.toLowerCase().includes(search.toLowerCase())
-  );
+export default function Projects() {
+  const { projects, loading, deleteProject, archiveProject, unarchiveProject } = useProjects();
+  const [search, setSearch] = useState('');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [actionType, setActionType] = useState<ActionType | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const filteredProjects = projects.filter((project) => {
+    const matchesSearch = project.name.toLowerCase().includes(search.toLowerCase());
+    const matchesArchiveFilter = showArchived ? project.archived : !project.archived;
+    return matchesSearch && matchesArchiveFilter;
+  });
 
   const handleEdit = (project: Project) => {
     // TODO: Implement edit modal
@@ -31,15 +38,73 @@ export default function Projects() {
   };
 
   const handleDelete = (project: Project) => {
-    setProjectToDelete(project);
+    setSelectedProject(project);
+    setActionType('delete');
   };
 
-  const confirmDelete = async () => {
-    if (projectToDelete) {
-      await deleteProject(projectToDelete.id);
-      setProjectToDelete(null);
+  const handleArchive = (project: Project) => {
+    setSelectedProject(project);
+    setActionType('archive');
+  };
+
+  const handleUnarchive = (project: Project) => {
+    setSelectedProject(project);
+    setActionType('unarchive');
+  };
+
+  const confirmAction = async () => {
+    if (!selectedProject || !actionType) return;
+
+    switch (actionType) {
+      case 'delete':
+        await deleteProject(selectedProject.id);
+        break;
+      case 'archive':
+        await archiveProject(selectedProject.id);
+        break;
+      case 'unarchive':
+        await unarchiveProject(selectedProject.id);
+        break;
+    }
+
+    setSelectedProject(null);
+    setActionType(null);
+  };
+
+  const closeDialog = () => {
+    setSelectedProject(null);
+    setActionType(null);
+  };
+
+  const getDialogContent = () => {
+    if (!actionType || !selectedProject) return { title: '', description: '', actionLabel: '', variant: '' };
+
+    switch (actionType) {
+      case 'delete':
+        return {
+          title: 'Excluir projeto',
+          description: `Tem certeza que deseja excluir o projeto "${selectedProject.name}"? Esta ação não pode ser desfeita e todos os dados serão perdidos permanentemente.`,
+          actionLabel: 'Excluir',
+          variant: 'destructive',
+        };
+      case 'archive':
+        return {
+          title: 'Arquivar projeto',
+          description: `Tem certeza que deseja arquivar o projeto "${selectedProject.name}"? O projeto ficará oculto da lista principal mas pode ser restaurado posteriormente.`,
+          actionLabel: 'Arquivar',
+          variant: 'default',
+        };
+      case 'unarchive':
+        return {
+          title: 'Restaurar projeto',
+          description: `Tem certeza que deseja restaurar o projeto "${selectedProject.name}"? O projeto voltará a aparecer na lista principal.`,
+          actionLabel: 'Restaurar',
+          variant: 'default',
+        };
     }
   };
+
+  const dialogContent = getDialogContent();
 
   return (
     <DashboardLayout>
@@ -54,15 +119,27 @@ export default function Projects() {
           <CreateProjectDialog />
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <Input
-            placeholder="Buscar projetos..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              placeholder="Buscar projetos..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <Tabs value={showArchived ? 'archived' : 'active'} onValueChange={(v) => setShowArchived(v === 'archived')}>
+            <TabsList>
+              <TabsTrigger value="active">Ativos</TabsTrigger>
+              <TabsTrigger value="archived">
+                <Archive className="w-4 h-4 mr-2" />
+                Arquivados
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         {/* Projects Grid */}
@@ -87,17 +164,23 @@ export default function Projects() {
         ) : filteredProjects.length === 0 ? (
           <div className="glass-card p-12 text-center">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <FolderKanban className="w-8 h-8 text-primary" />
+              {showArchived ? <Archive className="w-8 h-8 text-primary" /> : <FolderKanban className="w-8 h-8 text-primary" />}
             </div>
             <h2 className="text-xl font-semibold mb-2">
-              {search ? 'Nenhum projeto encontrado' : 'Nenhum projeto ainda'}
+              {search 
+                ? 'Nenhum projeto encontrado' 
+                : showArchived 
+                  ? 'Nenhum projeto arquivado'
+                  : 'Nenhum projeto ainda'}
             </h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
               {search 
                 ? 'Tente buscar com outros termos.'
-                : 'Crie seu primeiro projeto para começar a analisar suas campanhas.'}
+                : showArchived
+                  ? 'Projetos arquivados aparecerão aqui.'
+                  : 'Crie seu primeiro projeto para começar a analisar suas campanhas.'}
             </p>
-            {!search && <CreateProjectDialog />}
+            {!search && !showArchived && <CreateProjectDialog />}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -107,28 +190,29 @@ export default function Projects() {
                 project={project}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onArchive={handleArchive}
+                onUnarchive={handleUnarchive}
               />
             ))}
           </div>
         )}
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={!!projectToDelete} onOpenChange={() => setProjectToDelete(null)}>
+        {/* Confirmation Dialog */}
+        <AlertDialog open={!!selectedProject && !!actionType} onOpenChange={closeDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Excluir projeto</AlertDialogTitle>
+              <AlertDialogTitle>{dialogContent.title}</AlertDialogTitle>
               <AlertDialogDescription>
-                Tem certeza que deseja excluir o projeto "{projectToDelete?.name}"? 
-                Esta ação não pode ser desfeita e todos os dados serão perdidos.
+                {dialogContent.description}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction
-                onClick={confirmDelete}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={confirmAction}
+                className={dialogContent.variant === 'destructive' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
               >
-                Excluir
+                {dialogContent.actionLabel}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

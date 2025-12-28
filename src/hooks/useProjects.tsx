@@ -16,6 +16,8 @@ export interface Project {
   last_sync_at: string | null;
   created_at: string;
   updated_at: string;
+  archived: boolean;
+  archived_at: string | null;
 }
 
 export interface CreateProjectData {
@@ -126,12 +128,54 @@ export function useProjects() {
     }
   };
 
+  const archiveProject = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ 
+          archived: true, 
+          archived_at: new Date().toISOString() 
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchProjects();
+      toast.success('Projeto arquivado!');
+    } catch (error) {
+      toast.error('Erro ao arquivar projeto');
+      throw error;
+    }
+  };
+
+  const unarchiveProject = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ 
+          archived: false, 
+          archived_at: null 
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchProjects();
+      toast.success('Projeto restaurado!');
+    } catch (error) {
+      toast.error('Erro ao restaurar projeto');
+      throw error;
+    }
+  };
+
   return {
     projects,
     loading,
     createProject,
     updateProject,
     deleteProject,
+    archiveProject,
+    unarchiveProject,
     refetch: fetchProjects,
   };
 }

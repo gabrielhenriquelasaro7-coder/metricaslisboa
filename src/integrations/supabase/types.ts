@@ -326,6 +326,8 @@ export type Database = {
       projects: {
         Row: {
           ad_account_id: string
+          archived: boolean
+          archived_at: string | null
           business_model: Database["public"]["Enums"]["business_model"]
           created_at: string
           currency: string
@@ -339,6 +341,8 @@ export type Database = {
         }
         Insert: {
           ad_account_id: string
+          archived?: boolean
+          archived_at?: string | null
           business_model: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
@@ -352,6 +356,8 @@ export type Database = {
         }
         Update: {
           ad_account_id?: string
+          archived?: boolean
+          archived_at?: string | null
           business_model?: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
