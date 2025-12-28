@@ -89,13 +89,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "ad_sets_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "ad_sets_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -193,20 +186,6 @@ export type Database = {
           synced_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "ads_ad_set_id_fkey"
-            columns: ["ad_set_id"]
-            isOneToOne: false
-            referencedRelation: "ad_sets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ads_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "ads_project_id_fkey"
             columns: ["project_id"]
