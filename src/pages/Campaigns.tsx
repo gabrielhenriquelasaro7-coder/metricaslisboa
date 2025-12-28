@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
@@ -298,30 +299,70 @@ export default function Campaigns() {
                       <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
                         Orçamento
                       </th>
-                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide bg-primary/5">
-                        Gasto
+                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/50">Gasto</span>
+                          </TooltipTrigger>
+                          <TooltipContent>Valor total investido na campanha</TooltipContent>
+                        </Tooltip>
                       </th>
                       <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
-                        Alcance
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/50">Alcance</span>
+                          </TooltipTrigger>
+                          <TooltipContent>Número de pessoas únicas que viram o anúncio</TooltipContent>
+                        </Tooltip>
                       </th>
                       <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
-                        Impressões
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/50">Impressões</span>
+                          </TooltipTrigger>
+                          <TooltipContent>Número total de vezes que o anúncio foi exibido</TooltipContent>
+                        </Tooltip>
                       </th>
                       <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
-                        Cliques
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/50">Cliques</span>
+                          </TooltipTrigger>
+                          <TooltipContent>Número de cliques no anúncio</TooltipContent>
+                        </Tooltip>
                       </th>
                       <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
-                        CTR
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/50">CTR</span>
+                          </TooltipTrigger>
+                          <TooltipContent>Click-Through Rate: % de pessoas que clicaram após ver o anúncio (Cliques ÷ Impressões × 100)</TooltipContent>
+                        </Tooltip>
                       </th>
-                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide bg-chart-1/10">
-                        {isEcommerce ? 'Compras' : 'Leads'}
+                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/50">{isEcommerce ? 'Compras' : 'Leads'}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{isEcommerce ? 'Número de compras realizadas' : 'Número de leads gerados (cadastros, formulários)'}</TooltipContent>
+                        </Tooltip>
                       </th>
-                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide bg-chart-2/10">
-                        {isEcommerce ? 'CPA' : 'CPL'}
+                      <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/50">{isEcommerce ? 'CPA' : 'CPL'}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{isEcommerce ? 'Custo Por Aquisição: quanto custou cada compra (Gasto ÷ Compras)' : 'Custo Por Lead: quanto custou cada lead (Gasto ÷ Leads)'}</TooltipContent>
+                        </Tooltip>
                       </th>
                       {isEcommerce && (
-                        <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide bg-metric-positive/10">
-                          ROAS
+                        <th className="text-right py-4 px-3 text-xs font-semibold text-foreground uppercase tracking-wide">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help border-b border-dashed border-muted-foreground/50">ROAS</span>
+                            </TooltipTrigger>
+                            <TooltipContent>Return On Ad Spend: retorno sobre investimento (Receita ÷ Gasto)</TooltipContent>
+                          </Tooltip>
                         </th>
                       )}
                       <th className="py-4 px-2 w-10"></th>
@@ -392,8 +433,8 @@ export default function Campaigns() {
                             </span>
                           )}
                         </td>
-                        <td className="py-4 px-3 text-right bg-primary/5">
-                          <span className="text-sm font-bold text-primary">
+                        <td className="py-4 px-3 text-right">
+                          <span className="text-sm font-semibold">
                             {formatCurrency(campaign.spend)}
                           </span>
                         </td>
@@ -415,36 +456,19 @@ export default function Campaigns() {
                             {campaign.ctr.toFixed(2)}%
                           </span>
                         </td>
-                        <td className="py-4 px-3 text-right bg-chart-1/5">
-                          <span className={cn(
-                            "text-sm font-bold",
-                            campaign.conversions > 0 ? "text-chart-1" : "text-muted-foreground"
-                          )}>
+                        <td className="py-4 px-3 text-right">
+                          <span className="text-sm font-semibold">
                             {campaign.conversions}
                           </span>
                         </td>
-                        <td className="py-4 px-3 text-right bg-chart-2/5">
-                          <span className={cn(
-                            "text-sm font-bold",
-                            campaign.cpa > 0 ? "text-chart-2" : "text-muted-foreground"
-                          )}>
+                        <td className="py-4 px-3 text-right">
+                          <span className="text-sm font-semibold">
                             {campaign.cpa > 0 ? formatCurrency(campaign.cpa) : '-'}
                           </span>
                         </td>
                         {isEcommerce && (
-                          <td className="py-4 px-3 text-right bg-metric-positive/5">
-                            <span
-                              className={cn(
-                                'text-sm font-bold',
-                                campaign.roas >= 5
-                                  ? 'text-metric-positive'
-                                  : campaign.roas >= 3
-                                  ? 'text-metric-warning'
-                                  : campaign.roas > 0 
-                                  ? 'text-metric-negative'
-                                  : 'text-muted-foreground'
-                              )}
-                            >
+                          <td className="py-4 px-3 text-right">
+                            <span className="text-sm font-semibold">
                               {campaign.roas > 0 ? `${campaign.roas.toFixed(2)}x` : '-'}
                             </span>
                           </td>
@@ -467,13 +491,13 @@ export default function Campaigns() {
                   </span>
                   <div className="flex items-center gap-6">
                     <span className="text-muted-foreground">
-                      Total gasto: <strong className="text-primary">{formatCurrency(totals.spend)}</strong>
+                      Total gasto: <strong className="text-foreground">{formatCurrency(totals.spend)}</strong>
                     </span>
                     <span className="text-muted-foreground">
-                      Total {isEcommerce ? 'compras' : 'leads'}: <strong className="text-chart-1">{totals.conversions}</strong>
+                      Total {isEcommerce ? 'compras' : 'leads'}: <strong className="text-foreground">{totals.conversions}</strong>
                     </span>
                     <span className="text-muted-foreground">
-                      {isEcommerce ? 'CPA' : 'CPL'} médio: <strong className="text-chart-2">{formatCurrency(avgCpa)}</strong>
+                      {isEcommerce ? 'CPA' : 'CPL'} médio: <strong className="text-foreground">{formatCurrency(avgCpa)}</strong>
                     </span>
                   </div>
                 </div>
