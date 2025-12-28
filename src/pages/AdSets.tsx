@@ -4,10 +4,10 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
+import { SyncProgressIndicator } from '@/components/sync/SyncProgressIndicator';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
-import { clearAllCache } from '@/hooks/useMetaAdsData';
-import { toast } from 'sonner';
+import { useSyncWithProgress } from '@/hooks/useSyncWithProgress';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
@@ -56,7 +56,6 @@ export default function AdSets() {
   const [campaign, setCampaign] = useState<{ id: string; name: string; project_id: string } | null>(null);
   const [adSets, setAdSets] = useState<AdSet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
@@ -65,21 +64,12 @@ export default function AdSets() {
   });
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
   const lastSyncedRange = useRef<string | null>(null);
+  const initialSyncDone = useRef(false);
 
   // Get project for this campaign to determine business model
   const selectedProject = projects.find(p => p.id === campaign?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
-
-  // Sort options based on business model
-  const sortOptions = [
-    { value: 'spend', label: 'Gasto' },
-    { value: 'conversions', label: isEcommerce ? 'Compras' : 'Leads' },
-    { value: 'ctr', label: 'CTR' },
-    { value: 'cpa', label: isEcommerce ? 'CPA' : 'CPL' },
-    { value: 'name', label: 'Nome' },
-    ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
-  ];
 
   const fetchAdSets = useCallback(async () => {
     if (!campaignId) return;
@@ -105,69 +95,58 @@ export default function AdSets() {
     }
   }, [campaignId]);
 
-  // Sync data with date range
-  const syncData = useCallback(async (timeRange?: { since: string; until: string }) => {
-    if (!campaign || !selectedProject) return;
-    
-    setSyncing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
-        body: {
-          project_id: selectedProject.id,
-          ad_account_id: selectedProject.ad_account_id,
-          time_range: timeRange,
-        },
-      });
-      
-      // Handle rate limit with keep_existing
-      if (data?.keep_existing || data?.rate_limited) {
-        toast.warning('Limite de API da Meta atingido. Usando dados existentes. Aguarde 2 min e tente novamente.');
-        // Still refetch to show existing data
-        await fetchAdSets();
-        return;
-      }
-      
-      if (error) {
-        console.error('Sync error:', error);
-        toast.error('Erro na sincronização');
-        return;
-      }
-      
-      // Refetch ad sets after successful sync
-      await fetchAdSets();
-      toast.success('Dados sincronizados com sucesso!');
-    } catch (error) {
-      console.error('Sync error:', error);
-      toast.error('Erro na sincronização');
-    } finally {
-      setSyncing(false);
-    }
-  }, [campaign, selectedProject, fetchAdSets]);
+  // Use the new sync hook
+  const { syncing, progress, syncData, syncWithDebounce, startAutoSync, stopAutoSync } = useSyncWithProgress({
+    projectId: selectedProject?.id || '',
+    adAccountId: selectedProject?.ad_account_id || '',
+    onSuccess: fetchAdSets,
+  });
+
+  // Sort options based on business model
+  const sortOptions = [
+    { value: 'spend', label: 'Gasto' },
+    { value: 'conversions', label: isEcommerce ? 'Compras' : 'Leads' },
+    { value: 'ctr', label: 'CTR' },
+    { value: 'cpa', label: isEcommerce ? 'CPA' : 'CPL' },
+    { value: 'name', label: 'Nome' },
+    ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
+  ];
 
   // Initial fetch
   useEffect(() => {
     fetchAdSets();
   }, [fetchAdSets]);
 
-  // Auto-sync when date range changes
+  // Auto-sync setup
+  useEffect(() => {
+    if (selectedProject && dateRange?.from && dateRange?.to) {
+      startAutoSync({
+        since: format(dateRange.from, 'yyyy-MM-dd'),
+        until: format(dateRange.to, 'yyyy-MM-dd')
+      });
+    }
+    return () => stopAutoSync();
+  }, [selectedProject, dateRange, startAutoSync, stopAutoSync]);
+
+  // Sync when date range changes (with debounce)
   useEffect(() => {
     if (!selectedProject || !dateRange?.from || !dateRange?.to || !campaign || syncing) return;
     
     const rangeKey = `${format(dateRange.from, 'yyyy-MM-dd')}-${format(dateRange.to, 'yyyy-MM-dd')}`;
     
-    // Skip if we just synced this exact range
     if (lastSyncedRange.current === rangeKey) return;
+    if (!initialSyncDone.current) {
+      initialSyncDone.current = true;
+      lastSyncedRange.current = rangeKey;
+      syncData({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
+      return;
+    }
     
     lastSyncedRange.current = rangeKey;
-    
-    syncData({
-      since: format(dateRange.from, 'yyyy-MM-dd'),
-      until: format(dateRange.to, 'yyyy-MM-dd')
-    });
-  }, [dateRange, selectedProject, campaign, syncData, syncing]);
+    syncWithDebounce({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
+  }, [dateRange, selectedProject, campaign, syncData, syncWithDebounce, syncing]);
 
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
-    // Reset the lastSyncedRange to force a new sync
     lastSyncedRange.current = null;
     setDateRange(newRange);
   }, []);
@@ -177,23 +156,13 @@ export default function AdSets() {
   }, []);
 
   const handleManualSync = useCallback(() => {
-    // Reset to force sync
     lastSyncedRange.current = null;
     if (dateRange?.from && dateRange?.to) {
-      syncData({
-        since: format(dateRange.from, 'yyyy-MM-dd'),
-        until: format(dateRange.to, 'yyyy-MM-dd'),
-      });
+      syncData({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
     } else {
       syncData();
     }
   }, [dateRange, syncData]);
-
-  const handleClearCacheAndSync = useCallback(() => {
-    clearAllCache();
-    toast.success('Cache limpo! Sincronizando dados novos...');
-    handleManualSync();
-  }, [handleManualSync]);
 
   const filteredAdSets = adSets
     .filter((a) => !filters.search || a.name.toLowerCase().includes(filters.search.toLowerCase()))
@@ -254,8 +223,9 @@ export default function AdSets() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <SyncProgressIndicator step={progress.step} message={progress.message} syncing={syncing} />
             <Button 
-              onClick={handleClearCacheAndSync} 
+              onClick={handleManualSync} 
               disabled={syncing || !selectedProject}
               variant="outline"
               size="sm"
@@ -321,12 +291,10 @@ export default function AdSets() {
               sortOptions={sortOptions} 
             />
 
-            {/* Ad Sets Grid - Redesigned */}
+            {/* Ad Sets Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredAdSets.map((adSet) => {
                 const statusBadge = getStatusBadge(adSet.status);
-                const budget = adSet.daily_budget || adSet.lifetime_budget || 0;
-                const spendPercent = budget > 0 ? Math.min((adSet.spend / budget) * 100, 100) : 0;
                 
                 return (
                   <Link 
@@ -362,7 +330,7 @@ export default function AdSets() {
                       </div>
                     </div>
 
-                    {/* Main Metrics - Leads/CPL first */}
+                    {/* Main Metrics */}
                     <div className="p-5 pt-4">
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="text-center p-3 bg-primary/5 rounded-lg">
