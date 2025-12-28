@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.meta-ads-sync]
 verify_jwt = false
+
+[functions.scheduled-sync]
+verify_jwt = false
