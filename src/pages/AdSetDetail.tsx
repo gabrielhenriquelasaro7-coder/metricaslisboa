@@ -18,7 +18,6 @@ import {
   Target,
   Percent,
   BarChart3,
-  Zap,
   Play,
   Image as ImageIcon,
   ExternalLink
@@ -219,7 +218,7 @@ export default function AdSetDetail() {
         </div>
 
         {/* Main Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <MetricCard title="Gasto" value={formatCurrency(adSet.spend)} icon={DollarSign} />
           <MetricCard title="Alcance" value={formatNumber(adSet.reach)} icon={Users} />
           <MetricCard title="Impressões" value={formatNumber(adSet.impressions)} icon={Eye} />
@@ -227,7 +226,6 @@ export default function AdSetDetail() {
           <MetricCard title="CTR" value={`${adSet.ctr.toFixed(2)}%`} icon={Percent} />
           <MetricCard title="CPM" value={formatCurrency(adSet.cpm)} icon={BarChart3} />
           <MetricCard title="CPC" value={formatCurrency(adSet.cpc)} icon={Target} />
-          <MetricCard title="Frequência" value={adSet.frequency.toFixed(1)} icon={Zap} />
         </div>
 
         {/* Business Model Specific Metrics */}
