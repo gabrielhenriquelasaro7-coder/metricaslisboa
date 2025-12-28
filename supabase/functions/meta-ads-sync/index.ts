@@ -30,32 +30,63 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Fetch with retry for rate limits and payload errors
-async function fetchWithRetry(url: string, retries = 2): Promise<any> {
+// Dynamic delay based on rate limit hits
+let currentDelay = 100; // Start aggressive
+const MAX_DELAY = 2000;
+const MIN_DELAY = 50;
+
+function increaseDelay() {
+  currentDelay = Math.min(currentDelay * 2, MAX_DELAY);
+  console.log(`[RATE] Increasing delay to ${currentDelay}ms`);
+}
+
+function decreaseDelay() {
+  currentDelay = Math.max(currentDelay * 0.8, MIN_DELAY);
+}
+
+// Fetch with retry and dynamic delay for rate limits
+async function fetchWithRetry(url: string, retries = 3, timeout = 8000): Promise<any> {
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const res = await fetch(url);
-    const data = await res.json();
-    
-    // Check for rate limit error (code 17)
-    if (data.error && data.error.code === 17) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      const data = await res.json();
+      
+      // Check for rate limit error (code 17)
+      if (data.error && data.error.code === 17) {
+        increaseDelay();
+        if (attempt < retries) {
+          const waitTime = (attempt + 1) * 3000; // 3s, 6s, 9s
+          console.log(`[RATE LIMIT] Waiting ${waitTime/1000}s before retry ${attempt + 1}...`);
+          await delay(waitTime);
+          continue;
+        }
+      } else {
+        decreaseDelay(); // Success, can go faster
+      }
+      
+      return data;
+    } catch (error) {
       if (attempt < retries) {
-        const waitTime = (attempt + 1) * 5000; // 5s, 10s
-        console.log(`[RATE LIMIT] Waiting ${waitTime/1000}s before retry ${attempt + 1}...`);
-        await delay(waitTime);
+        console.log(`[FETCH ERROR] Retry ${attempt + 1}...`);
+        await delay(1000);
         continue;
       }
+      return { error: { message: 'Request timeout or network error' } };
     }
-    
-    return data;
   }
 }
 
-// Fetch all pages of data using cursor pagination
+// Fetch all pages of data using cursor pagination - OPTIMIZED
 async function fetchAllPages(baseUrl: string, token: string, entityName: string, limit = 200): Promise<any[]> {
   const allData: any[] = [];
   let nextUrl: string | null = `${baseUrl}&limit=${limit}&access_token=${token}`;
   let pageCount = 0;
-  const maxPages = 50; // Safety limit
+  const maxPages = 100; // Increased for large accounts
   
   while (nextUrl && pageCount < maxPages) {
     pageCount++;
@@ -66,7 +97,7 @@ async function fetchAllPages(baseUrl: string, token: string, entityName: string,
     if (data.error) {
       console.error(`[${entityName}] Error on page ${pageCount}:`, data.error);
       
-      // If rate limited or too much data, return what we have
+      // If rate limited, return what we have
       if (data.error.code === 17 || data.error.code === 1) {
         console.log(`[${entityName}] Stopping pagination due to API limits`);
         break;
@@ -78,15 +109,14 @@ async function fetchAllPages(baseUrl: string, token: string, entityName: string,
       allData.push(...data.data);
       console.log(`[${entityName}] Page ${pageCount}: ${data.data.length} items (total: ${allData.length})`);
     } else {
-      break; // No more data
+      break;
     }
     
-    // Check for next page
     nextUrl = data.paging?.next || null;
     
-    // Delay between pages to avoid rate limits
+    // Reduced delay between pages (was 500ms)
     if (nextUrl) {
-      await delay(500);
+      await delay(200);
     }
   }
   
@@ -132,6 +162,9 @@ Deno.serve(async (req) => {
     console.log(`[SYNC] Starting for project: ${project_id}, account: ${ad_account_id}`);
     const startTime = Date.now();
 
+    // Reset dynamic delay
+    currentDelay = 100;
+
     // Update project status
     await supabase.from('projects').update({ webhook_status: 'syncing' }).eq('id', project_id);
 
@@ -165,7 +198,7 @@ Deno.serve(async (req) => {
               : testData.error.message,
             rate_limited: isRateLimit,
             step: 'campaigns',
-            keep_existing: isRateLimit
+            keep_existing: true
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -174,28 +207,27 @@ Deno.serve(async (req) => {
     
     console.log(`[CAMPAIGNS] Total: ${campaigns.length}`);
     
-    // STEP 2: Fetch ad sets (reduced fields to avoid rate limit)
+    // STEP 2: Fetch ad sets
     console.log('[STEP 2/3] Fetching ad sets...');
-    await delay(1000); // Wait before next API call
+    await delay(300);
     
     const adSets = await fetchAllPages(
       `https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting`,
       token,
       'AD_SETS',
-      200
+      250
     );
     console.log(`[AD SETS] Total: ${adSets.length}`);
     
-    // STEP 3: Fetch ads (minimal creative fields to avoid payload error)
+    // STEP 3: Fetch ads
     console.log('[STEP 3/3] Fetching ads...');
-    await delay(1000); // Wait before next API call
+    await delay(300);
     
-    // Use minimal fields first, then fetch creative details separately if needed
     const ads = await fetchAllPages(
       `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url}`,
       token,
       'ADS',
-      200
+      250
     );
     console.log(`[ADS] Total: ${ads.length}`);
 
@@ -217,8 +249,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // STEP 4: Fetch insights
-    console.log('[STEP 4] Fetching insights...');
+    // STEP 4: Fetch insights with AGGRESSIVE parallelization
+    console.log('[STEP 4] Fetching insights (aggressive parallel)...');
 
     const extractConversions = (insights: any) => {
       let conversions = 0;
@@ -255,33 +287,93 @@ Deno.serve(async (req) => {
       return { conversions, conversionValue };
     };
 
-    // Fetch insights in batches
-    const fetchInsightsForEntities = async (entities: any[]): Promise<Map<string, any>> => {
+    // OPTIMIZED: Fetch insights in parallel batches of 50 (was 10)
+    const fetchInsightsForEntities = async (entities: any[], entityType: string): Promise<Map<string, any>> => {
       const insightsMap = new Map<string, any>();
-      const batches = chunk(entities, 10);
+      const BATCH_SIZE = 50; // Increased from 10
+      const batches = chunk(entities, BATCH_SIZE);
       
-      for (const batch of batches) {
+      console.log(`[INSIGHTS ${entityType}] ${entities.length} entities in ${batches.length} batches of ${BATCH_SIZE}`);
+      
+      let processedCount = 0;
+      
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        
         const results = await Promise.all(
           batch.map(async (entity: any) => {
             try {
-              const res = await fetch(`https://graph.facebook.com/v19.0/${entity.id}/insights?fields=${insightsFields}&${timeParam}&access_token=${token}`);
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout per entity
+              
+              const res = await fetch(
+                `https://graph.facebook.com/v19.0/${entity.id}/insights?fields=${insightsFields}&${timeParam}&access_token=${token}`,
+                { signal: controller.signal }
+              );
+              clearTimeout(timeoutId);
+              
               const data = await res.json();
+              
+              // Handle rate limit
+              if (data.error && data.error.code === 17) {
+                increaseDelay();
+                return { id: entity.id, insights: null, rateLimited: true };
+              }
+              
               return { id: entity.id, insights: data.data?.[0] || null };
             } catch {
               return { id: entity.id, insights: null };
             }
           })
         );
+        
+        // Check for rate limits in this batch
+        const rateLimited = results.some(r => r.rateLimited);
+        if (rateLimited) {
+          console.log(`[INSIGHTS ${entityType}] Rate limit hit, waiting ${currentDelay * 3}ms...`);
+          await delay(currentDelay * 3);
+        }
+        
         results.forEach(r => insightsMap.set(r.id, r.insights));
-        await delay(300);
+        processedCount += batch.length;
+        
+        // Progress log every 5 batches
+        if (i % 5 === 0 || i === batches.length - 1) {
+          console.log(`[INSIGHTS ${entityType}] Progress: ${processedCount}/${entities.length}`);
+        }
+        
+        // Dynamic delay between batches (was 300ms fixed)
+        if (i < batches.length - 1) {
+          await delay(currentDelay);
+        }
       }
       
       return insightsMap;
     };
 
-    const campaignInsightsMap = await fetchInsightsForEntities(campaigns);
-    const adSetInsightsMap = adSets.length > 0 ? await fetchInsightsForEntities(adSets) : new Map();
-    const adInsightsMap = ads.length > 0 ? await fetchInsightsForEntities(ads) : new Map();
+    // Fetch insights for all entities
+    const campaignInsightsMap = await fetchInsightsForEntities(campaigns, 'CAMPAIGNS');
+    
+    // Only fetch insights for entities with ACTIVE status or from active campaigns
+    const activeCampaignIds = new Set(campaigns.filter(c => c.status === 'ACTIVE').map(c => c.id));
+    const prioritizedAdSets = adSets.filter(as => 
+      as.status === 'ACTIVE' || activeCampaignIds.has(as.campaign_id)
+    );
+    
+    console.log(`[AD SETS] Fetching insights for ${prioritizedAdSets.length} (${adSets.length - prioritizedAdSets.length} inactive skipped)`);
+    const adSetInsightsMap = prioritizedAdSets.length > 0 
+      ? await fetchInsightsForEntities(prioritizedAdSets, 'AD_SETS') 
+      : new Map();
+    
+    const activeAdSetIds = new Set(adSets.filter(as => as.status === 'ACTIVE').map(as => as.id));
+    const prioritizedAds = ads.filter(ad => 
+      ad.status === 'ACTIVE' || activeAdSetIds.has(ad.adset_id) || activeCampaignIds.has(ad.campaign_id)
+    );
+    
+    console.log(`[ADS] Fetching insights for ${prioritizedAds.length} (${ads.length - prioritizedAds.length} inactive skipped)`);
+    const adInsightsMap = prioritizedAds.length > 0 
+      ? await fetchInsightsForEntities(prioritizedAds, 'ADS') 
+      : new Map();
 
     console.log('[INSIGHTS DONE]');
 
@@ -350,7 +442,6 @@ Deno.serve(async (req) => {
       const { conversions, conversionValue } = extractConversions(insights);
       const spend = parseFloat(insights?.spend || '0');
       
-      // Extract image URL (simplified - use thumbnail as primary)
       const imageUrl = ad.creative?.image_url || ad.creative?.thumbnail_url || null;
       
       return {
@@ -364,7 +455,7 @@ Deno.serve(async (req) => {
         creative_thumbnail: ad.creative?.thumbnail_url || null,
         creative_image_url: imageUrl,
         creative_video_url: null,
-        headline: ad.name, // Use ad name as headline
+        headline: ad.name,
         primary_text: null,
         cta: null,
         spend,
@@ -383,45 +474,43 @@ Deno.serve(async (req) => {
       };
     });
 
-    // STEP 5: Delete old data and insert new
-    console.log('[STEP 5] Replacing data...');
+    // STEP 5: UPSERT data (atomic - no data loss)
+    console.log('[STEP 5] Upserting data (atomic)...');
 
-    await Promise.all([
-      supabase.from('ads').delete().eq('project_id', project_id),
-      supabase.from('ad_sets').delete().eq('project_id', project_id),
-      supabase.from('campaigns').delete().eq('project_id', project_id),
-    ]);
-
-    // Insert in batches
-    const insertInBatches = async (table: string, records: any[], batchSize = 100) => {
+    // UPSERT in batches - uses ON CONFLICT UPDATE
+    const upsertInBatches = async (table: string, records: any[], batchSize = 200) => {
       if (records.length === 0) return 0;
       const batches = chunk(records, batchSize);
-      let insertedCount = 0;
+      let upsertedCount = 0;
       
       for (const batch of batches) {
-        const { error } = await supabase.from(table).insert(batch);
+        const { error } = await supabase.from(table).upsert(batch, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
         if (error) {
-          console.error(`[INSERT ERROR ${table}]`, error.message);
+          console.error(`[UPSERT ERROR ${table}]`, error.message);
         } else {
-          insertedCount += batch.length;
+          upsertedCount += batch.length;
         }
       }
       
-      return insertedCount;
+      return upsertedCount;
     };
 
-    const [campaignsInserted, adSetsInserted, adsInserted] = await Promise.all([
-      insertInBatches('campaigns', campaignRecords),
-      insertInBatches('ad_sets', adSetRecords),
-      insertInBatches('ads', adRecords),
+    // Upsert all data in parallel
+    const [campaignsUpserted, adSetsUpserted, adsUpserted] = await Promise.all([
+      upsertInBatches('campaigns', campaignRecords),
+      upsertInBatches('ad_sets', adSetRecords),
+      upsertInBatches('ads', adRecords),
     ]);
 
-    console.log(`[INSERTED] ${campaignsInserted} campaigns, ${adSetsInserted} adsets, ${adsInserted} ads`);
+    console.log(`[UPSERTED] ${campaignsUpserted} campaigns, ${adSetsUpserted} adsets, ${adsUpserted} ads`);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[SYNC COMPLETE] ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads in ${elapsed}s`);
 
-    // Determine success status based on what was synced
+    // Determine success status
     const partialSync = adSets.length === 0 || ads.length === 0;
     
     await supabase.from('projects').update({
