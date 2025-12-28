@@ -227,7 +227,7 @@ export default function Sidebar() {
                             {campaignAdSets.map((adSet) => (
                               <Link
                                 key={adSet.id}
-                                to={`/adsets?campaign=${campaign.id}&adset=${adSet.id}`}
+                                to={`/adset/${adSet.id}`}
                                 className="flex items-center gap-2 px-3 py-1.5 pl-4 text-xs hover:bg-sidebar-accent rounded-lg transition-colors text-muted-foreground hover:text-foreground"
                               >
                                 <Layers className="w-3 h-3 flex-shrink-0" />
@@ -264,17 +264,6 @@ export default function Sidebar() {
             </Link>
           )}
 
-          {/* Ad Sets link */}
-          <Link
-            to="/adsets"
-            className={cn(
-              'sidebar-item',
-              location.pathname === '/adsets' && 'active'
-            )}
-          >
-            <Layers className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>Conjuntos de Anúncios</span>}
-          </Link>
 
           {/* Settings */}
           <Link
