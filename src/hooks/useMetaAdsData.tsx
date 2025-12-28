@@ -82,7 +82,7 @@ export interface Ad {
 
 // Cache utilities - stores actual data, not just flags
 const CACHE_KEY_PREFIX = 'meta_ads_data_';
-const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours - data is synced daily at 6AM
+const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours - data is synced daily at 2AM
 
 interface CachedData {
   timestamp: number;
