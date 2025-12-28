@@ -80,6 +80,63 @@ export interface Ad {
   synced_at: string;
 }
 
+// Cache utilities
+const CACHE_KEY_PREFIX = 'meta_ads_cache_';
+const CACHE_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
+
+interface CacheEntry {
+  timestamp: number;
+  projectId: string;
+  timeRange: { since: string; until: string };
+}
+
+function getCacheKey(projectId: string, since: string, until: string): string {
+  return `${CACHE_KEY_PREFIX}${projectId}_${since}_${until}`;
+}
+
+function getSyncedPeriods(): CacheEntry[] {
+  try {
+    const stored = localStorage.getItem('synced_periods');
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function addSyncedPeriod(projectId: string, timeRange: { since: string; until: string }): void {
+  const periods = getSyncedPeriods();
+  const key = getCacheKey(projectId, timeRange.since, timeRange.until);
+  
+  // Remove old entry if exists
+  const filtered = periods.filter(p => 
+    getCacheKey(p.projectId, p.timeRange.since, p.timeRange.until) !== key
+  );
+  
+  // Add new entry
+  filtered.push({
+    timestamp: Date.now(),
+    projectId,
+    timeRange,
+  });
+  
+  // Keep only last 20 entries
+  const trimmed = filtered.slice(-20);
+  
+  localStorage.setItem('synced_periods', JSON.stringify(trimmed));
+}
+
+function isPeriodSynced(projectId: string, timeRange: { since: string; until: string }): boolean {
+  const periods = getSyncedPeriods();
+  const now = Date.now();
+  
+  return periods.some(p => 
+    p.projectId === projectId &&
+    p.timeRange.since === timeRange.since &&
+    p.timeRange.until === timeRange.until &&
+    (now - p.timestamp) < CACHE_EXPIRY_MS
+  );
+}
+
 export function useMetaAdsData() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [adSets, setAdSets] = useState<AdSet[]>([]);
@@ -157,9 +214,17 @@ export function useMetaAdsData() {
     }
   }, [selectedProject]);
 
-  const syncData = useCallback(async (timeRange?: { since: string; until: string }) => {
+  const syncData = useCallback(async (timeRange?: { since: string; until: string }, forceSync: boolean = false) => {
     if (!selectedProject) {
       toast.error('Nenhum projeto selecionado');
+      return;
+    }
+
+    // Check cache first (unless force sync)
+    if (!forceSync && timeRange && isPeriodSynced(selectedProject.id, timeRange)) {
+      console.log('Period already synced, loading from database:', timeRange);
+      toast.info('Dados já sincronizados, carregando do cache...');
+      await Promise.all([fetchCampaigns(), fetchAdSets(), fetchAds()]);
       return;
     }
 
@@ -195,6 +260,11 @@ export function useMetaAdsData() {
       console.log('Sync response:', data);
 
       if (data.success) {
+        // Save to cache
+        if (timeRange) {
+          addSyncedPeriod(selectedProject.id, timeRange);
+        }
+        
         toast.success(`Sincronização concluída! ${data.data?.campaigns_count || 0} campanhas sincronizadas.`);
         // Refetch all data after sync
         await Promise.all([fetchCampaigns(), fetchAdSets(), fetchAds()]);
@@ -235,5 +305,7 @@ export function useMetaAdsData() {
     fetchCampaigns,
     fetchAdSets,
     fetchAds,
+    isPeriodSynced: (timeRange: { since: string; until: string }) => 
+      selectedProject ? isPeriodSynced(selectedProject.id, timeRange) : false,
   };
 }
