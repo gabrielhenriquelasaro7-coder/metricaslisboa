@@ -225,6 +225,11 @@ export default function Campaigns() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <SyncProgressIndicator 
+              step={progress.step} 
+              message={progress.message} 
+              syncing={syncing} 
+            />
             <Button 
               onClick={handleManualSync} 
               disabled={syncing || !selectedProject}

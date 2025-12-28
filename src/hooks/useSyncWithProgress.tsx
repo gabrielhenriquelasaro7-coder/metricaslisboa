@@ -27,7 +27,7 @@ interface UseSyncWithProgressOptions {
   onError?: (error: string) => void;
 }
 
-const THROTTLE_MS = 30000; // 30 seconds minimum between syncs
+const THROTTLE_MS = 10000; // 10 seconds minimum between syncs
 const AUTO_SYNC_INTERVAL = 15 * 60 * 1000; // 15 minutes
 
 export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError }: UseSyncWithProgressOptions) {
