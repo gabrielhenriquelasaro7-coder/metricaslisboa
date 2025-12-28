@@ -23,12 +23,12 @@ import {
 import { cn } from '@/lib/utils';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 25; // More items in list view
 
 export default function Creatives() {
   const navigate = useNavigate();
   const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncData } = useMetaAdsData();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list'); // Default to list now
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [campaignFilter, setCampaignFilter] = useState<string>('all');
@@ -515,97 +515,122 @@ export default function Creatives() {
           </div>
         )}
 
-        {/* Creative List */}
+        {/* Creative List - Default View */}
         {viewMode === 'list' && paginatedCreatives.length > 0 && (
-          <div className="glass-card overflow-hidden overflow-x-auto">
-            <table className="w-full min-w-[900px]">
-              <thead>
-                <tr className="border-b border-border bg-secondary/30">
-                  <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">Criativo</th>
-                  <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">Campanha</th>
-                  <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground">Conjunto</th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">Gasto</th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">Leads</th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">CPL</th>
-                  {isEcommerce && (
-                    <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground">ROAS</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedCreatives.map((creative) => {
-                  const statusBadge = getStatusBadge(creative.status);
-                  const videoUrl = (creative as any).creative_video_url;
-                  const hasVideo = !!videoUrl;
-                  
-                  return (
-                    <tr key={creative.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-secondary/30">
-                            {(creative.creative_image_url || creative.creative_thumbnail) ? (
-                              <img
-                                src={creative.creative_image_url || creative.creative_thumbnail || ''}
-                                alt={creative.headline || creative.name}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <ImageOff className="w-6 h-6 text-muted-foreground" />
-                              </div>
-                            )}
-                            {hasVideo && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                <Play className="w-6 h-6 text-white" />
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium line-clamp-1">{creative.headline || creative.name}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="secondary" className={cn('text-xs', statusBadge.className)}>
-                                {statusBadge.label}
-                              </Badge>
+          <div className="glass-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border bg-secondary/30">
+                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Criativo</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Campanha</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">Conjunto</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Gasto</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Leads</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">CPL</th>
+                    {isEcommerce && (
+                      <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">ROAS</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {paginatedCreatives.map((creative) => {
+                    const statusBadge = getStatusBadge(creative.status);
+                    const videoUrl = (creative as any).creative_video_url;
+                    const hasVideo = !!videoUrl;
+                    const hasImage = creative.creative_image_url || creative.creative_thumbnail;
+                    
+                    return (
+                      <tr key={creative.id} className="hover:bg-secondary/20 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            {/* Small thumbnail */}
+                            <div className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-secondary/50 border border-border/50">
+                              {hasImage ? (
+                                <img
+                                  src={creative.creative_image_url || creative.creative_thumbnail || ''}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    const img = e.target as HTMLImageElement;
+                                    img.style.display = 'none';
+                                    img.parentElement?.classList.add('flex', 'items-center', 'justify-center');
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <ImageOff className="w-4 h-4 text-muted-foreground/50" />
+                                </div>
+                              )}
                               {hasVideo && (
-                                <Badge variant="secondary" className="text-xs bg-chart-1/20 text-chart-1">Vídeo</Badge>
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                  <Play className="w-3 h-3 text-white" />
+                                </div>
                               )}
                             </div>
+                            
+                            {/* Name and status */}
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm truncate max-w-[200px] lg:max-w-[300px]" title={creative.name}>
+                                {creative.name}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className={cn(
+                                  'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium',
+                                  statusBadge.className
+                                )}>
+                                  {statusBadge.label}
+                                </span>
+                                {hasVideo && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-chart-1/20 text-chart-1">
+                                    <Play className="w-2 h-2 mr-0.5" />
+                                    Vídeo
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 text-sm text-muted-foreground max-w-[150px] truncate">
-                        {getCampaignName(creative.campaign_id)}
-                      </td>
-                      <td className="py-4 px-6 text-sm text-muted-foreground max-w-[150px] truncate">
-                        {getAdSetName(creative.ad_set_id)}
-                      </td>
-                      <td className="py-4 px-6 text-right font-medium text-primary">
-                        {formatCurrency(creative.spend || 0)}
-                      </td>
-                      <td className="py-4 px-6 text-right">{creative.conversions || 0}</td>
-                      <td className="py-4 px-6 text-right">{formatCurrency(creative.cpa || 0)}</td>
-                      {isEcommerce && (
-                        <td className="py-4 px-6 text-right">
-                          <Badge
-                            variant="secondary"
-                            className={cn(
+                        </td>
+                        <td className="py-3 px-4 hidden lg:table-cell">
+                          <span className="text-sm text-muted-foreground truncate block max-w-[180px]" title={getCampaignName(creative.campaign_id)}>
+                            {getCampaignName(creative.campaign_id)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 hidden md:table-cell">
+                          <span className="text-sm text-muted-foreground truncate block max-w-[150px]" title={getAdSetName(creative.ad_set_id)}>
+                            {getAdSetName(creative.ad_set_id)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-sm font-semibold text-primary">{formatCurrency(creative.spend || 0)}</span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-sm font-medium">{creative.conversions || 0}</span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-sm">{formatCurrency(creative.cpa || 0)}</span>
+                        </td>
+                        {isEcommerce && (
+                          <td className="py-3 px-4 text-right">
+                            <span className={cn(
+                              'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold',
                               (creative.roas || 0) >= 5
                                 ? 'bg-metric-positive/20 text-metric-positive'
                                 : (creative.roas || 0) >= 3
                                 ? 'bg-metric-warning/20 text-metric-warning'
                                 : 'bg-metric-negative/20 text-metric-negative'
-                            )}
-                          >
-                            {(creative.roas || 0).toFixed(2)}x
-                          </Badge>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                            )}>
+                              {(creative.roas || 0).toFixed(2)}x
+                            </span>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
