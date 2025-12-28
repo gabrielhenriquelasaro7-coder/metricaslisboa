@@ -319,12 +319,25 @@ Deno.serve(async (req) => {
       await supabase.from('campaigns').upsert(campaignData, { onConflict: 'id' });
       console.log(`Synced campaign: ${campaign.name}`);
 
-      // Fetch ad sets for this campaign
-      const adSetsUrl = `https://graph.facebook.com/v19.0/${campaign.id}/adsets?fields=id,name,status,daily_budget,lifetime_budget,targeting&access_token=${token}`;
+      // Fetch ad sets for this campaign with pagination
+      let adSets: any[] = [];
+      let adSetsUrl = `https://graph.facebook.com/v19.0/${campaign.id}/adsets?fields=id,name,status,daily_budget,lifetime_budget,targeting&limit=100&access_token=${token}`;
+      
       try {
-        const adSetsResponse = await fetch(adSetsUrl);
-        const adSetsData = await adSetsResponse.json();
-        const adSets = adSetsData.data || [];
+        while (adSetsUrl) {
+          const adSetsResponse = await fetch(adSetsUrl);
+          const adSetsData = await adSetsResponse.json();
+          
+          if (adSetsData.error) {
+            console.error(`Error fetching ad sets for campaign ${campaign.id}:`, adSetsData.error);
+            break;
+          }
+          
+          adSets = adSets.concat(adSetsData.data || []);
+          adSetsUrl = adSetsData.paging?.next || null;
+        }
+        
+        console.log(`Found ${adSets.length} ad sets for campaign ${campaign.name}`);
 
         for (const adSet of adSets) {
           // Fetch ad set insights
@@ -380,14 +393,30 @@ Deno.serve(async (req) => {
 
           await supabase.from('ad_sets').upsert(adSetData, { onConflict: 'id' });
 
-          // Fetch ads for this ad set - request creative fields
-          const adsUrl = `https://graph.facebook.com/v19.0/${adSet.id}/ads?fields=id,name,status,creative{id,thumbnail_url,title,body,call_to_action_type}&access_token=${token}`;
+          // Fetch ads for this ad set with pagination
+          const allAds: any[] = [];
+          let currentAdsUrl = `https://graph.facebook.com/v19.0/${adSet.id}/ads?fields=id,name,status,creative{id,thumbnail_url,title,body,call_to_action_type}&limit=100&access_token=${token}`;
+          
           try {
-            const adsResponse = await fetch(adsUrl);
-            const adsData = await adsResponse.json();
-            const ads = adsData.data || [];
+            let hasMoreAds = true;
+            while (hasMoreAds && currentAdsUrl) {
+              const adsResponse: Response = await fetch(currentAdsUrl);
+              const adsResult: any = await adsResponse.json();
+              
+              if (adsResult.error) {
+                console.error(`Error fetching ads for ad set ${adSet.id}:`, adsResult.error);
+                hasMoreAds = false;
+                break;
+              }
+              
+              allAds.push(...(adsResult.data || []));
+              currentAdsUrl = adsResult.paging?.next || '';
+              hasMoreAds = !!adsResult.paging?.next;
+            }
+            
+            console.log(`Found ${allAds.length} ads for ad set ${adSet.name}`);
 
-            for (const ad of ads) {
+            for (const ad of allAds) {
               // Fetch ad insights
               const adInsightsUrl = `https://graph.facebook.com/v19.0/${ad.id}/insights?fields=${insightsFields}&${timeParam}&access_token=${token}`;
               let adInsights = null;
