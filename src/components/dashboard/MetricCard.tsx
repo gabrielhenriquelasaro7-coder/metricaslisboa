@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -15,7 +14,7 @@ interface MetricCardProps {
   tooltip?: string;
 }
 
-function MetricCard({
+export default function MetricCard({
   title,
   value,
   change,
@@ -33,16 +32,26 @@ function MetricCard({
       ? 'text-metric-negative' 
       : 'text-muted-foreground';
 
-  const cardContent = (
+  const titleElement = tooltip ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <p className="text-sm text-muted-foreground mb-1 border-b border-dashed border-muted-foreground/50 cursor-help inline-block">
+          {title}
+        </p>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  ) : (
+    <p className="text-sm text-muted-foreground mb-1">{title}</p>
+  );
+
+  return (
     <div className={cn('metric-card', className)}>
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className={cn(
-            "text-sm text-muted-foreground mb-1",
-            tooltip && "border-b border-dashed border-muted-foreground/50 cursor-help inline-block"
-          )}>
-            {title}
-          </p>
+          {titleElement}
           <p className="text-3xl font-bold">{value}</p>
         </div>
         {Icon && (
@@ -67,21 +76,4 @@ function MetricCard({
       )}
     </div>
   );
-
-  if (tooltip) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {cardContent}
-        </TooltipTrigger>
-        <TooltipContent className="max-w-xs">
-          {tooltip}
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  return cardContent;
 }
-
-export default MetricCard;
