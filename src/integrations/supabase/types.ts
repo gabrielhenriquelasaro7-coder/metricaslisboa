@@ -116,6 +116,7 @@ export type Database = {
           cpm: number | null
           created_at: string | null
           creative_id: string | null
+          creative_image_url: string | null
           creative_thumbnail: string | null
           cta: string | null
           ctr: number | null
@@ -143,6 +144,7 @@ export type Database = {
           cpm?: number | null
           created_at?: string | null
           creative_id?: string | null
+          creative_image_url?: string | null
           creative_thumbnail?: string | null
           cta?: string | null
           ctr?: number | null
@@ -170,6 +172,7 @@ export type Database = {
           cpm?: number | null
           created_at?: string | null
           creative_id?: string | null
+          creative_image_url?: string | null
           creative_thumbnail?: string | null
           cta?: string | null
           ctr?: number | null

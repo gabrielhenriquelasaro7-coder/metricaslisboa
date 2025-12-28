@@ -61,6 +61,7 @@ export interface Ad {
   status: string;
   creative_id: string | null;
   creative_thumbnail: string | null;
+  creative_image_url: string | null;
   headline: string | null;
   primary_text: string | null;
   cta: string | null;
