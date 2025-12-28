@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
+import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { 
   BarChart3, 
   LayoutDashboard, 
@@ -10,10 +11,10 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
   Megaphone,
-  ImageIcon,
-  ChevronDown
+  ChevronDown,
+  Layers,
+  ChevronUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,23 +24,35 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Campanhas', href: '/campaigns', icon: Megaphone },
-  { name: 'Criativos', href: '/creatives', icon: ImageIcon },
-  { name: 'Configurações', href: '/settings', icon: Settings },
-];
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [campaignsOpen, setCampaignsOpen] = useState(true);
+  const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { projects } = useProjects();
+  const { campaigns, adSets } = useMetaAdsData();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
+
+  // Sort campaigns: active first, then by spend
+  const sortedCampaigns = useMemo(() => {
+    return [...campaigns].sort((a, b) => {
+      const statusOrder: Record<string, number> = { 'ACTIVE': 0, 'PAUSED': 1 };
+      const orderA = statusOrder[a.status] ?? 2;
+      const orderB = statusOrder[b.status] ?? 2;
+      if (orderA !== orderB) return orderA - orderB;
+      return (b.spend || 0) - (a.spend || 0);
+    });
+  }, [campaigns]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -48,14 +61,39 @@ export default function Sidebar() {
 
   const handleChangeProject = (projectId: string) => {
     localStorage.setItem('selectedProjectId', projectId);
-    window.location.reload(); // Reload to refresh all data
+    window.location.reload();
+  };
+
+  const toggleCampaignExpand = (campaignId: string) => {
+    setExpandedCampaigns(prev => ({
+      ...prev,
+      [campaignId]: !prev[campaignId]
+    }));
+  };
+
+  const getCampaignAdSets = (campaignId: string) => {
+    return adSets
+      .filter(a => a.campaign_id === campaignId)
+      .sort((a, b) => {
+        const statusOrder: Record<string, number> = { 'ACTIVE': 0, 'PAUSED': 1 };
+        const orderA = statusOrder[a.status] ?? 2;
+        const orderB = statusOrder[b.status] ?? 2;
+        if (orderA !== orderB) return orderA - orderB;
+        return (b.spend || 0) - (a.spend || 0);
+      });
+  };
+
+  const getStatusColor = (status: string) => {
+    if (status === 'ACTIVE') return 'bg-metric-positive';
+    if (status === 'PAUSED') return 'bg-metric-warning';
+    return 'bg-muted';
   };
 
   return (
     <aside
       className={cn(
         'fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300',
-        collapsed ? 'w-20' : 'w-64'
+        collapsed ? 'w-20' : 'w-72'
       )}
     >
       <div className="flex flex-col h-full">
@@ -90,8 +128,8 @@ export default function Sidebar() {
                   <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                {projects.map((project) => (
+              <DropdownMenuContent align="start" className="w-56 bg-popover">
+                {projects.filter(p => !p.archived).map((project) => (
                   <DropdownMenuItem 
                     key={project.id}
                     onClick={() => handleChangeProject(project.id)}
@@ -116,24 +154,139 @@ export default function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navigation.map((item) => {
-            const isActive = location.pathname === item.href || 
-              (item.href === '/campaigns' && location.pathname.includes('/campaign')) ||
-              (item.href === '/campaigns' && location.pathname.includes('/adset'));
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={cn(
-                  'sidebar-item',
-                  isActive && 'active'
+          {/* Dashboard */}
+          <Link
+            to="/dashboard"
+            className={cn(
+              'sidebar-item',
+              location.pathname === '/dashboard' && 'active'
+            )}
+          >
+            <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>Dashboard</span>}
+          </Link>
+
+          {/* Campaigns with hierarchy */}
+          {!collapsed ? (
+            <Collapsible open={campaignsOpen} onOpenChange={setCampaignsOpen}>
+              <CollapsibleTrigger asChild>
+                <button
+                  className={cn(
+                    'sidebar-item w-full justify-between',
+                    (location.pathname.includes('/campaign') || location.pathname.includes('/adset')) && 'active'
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <Megaphone className="w-5 h-5 flex-shrink-0" />
+                    <span>Campanhas</span>
+                  </div>
+                  {campaignsOpen ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-1 space-y-0.5">
+                <Link
+                  to="/campaigns"
+                  className={cn(
+                    'sidebar-item pl-10 text-sm',
+                    location.pathname === '/campaigns' && 'active'
+                  )}
+                >
+                  Ver Todas
+                </Link>
+                
+                {/* Campaign list */}
+                <div className="max-h-[300px] overflow-y-auto">
+                  {sortedCampaigns.slice(0, 10).map((campaign) => {
+                    const campaignAdSets = getCampaignAdSets(campaign.id);
+                    const isExpanded = expandedCampaigns[campaign.id];
+                    
+                    return (
+                      <div key={campaign.id}>
+                        <button
+                          onClick={() => toggleCampaignExpand(campaign.id)}
+                          className="w-full flex items-center gap-2 px-3 py-2 pl-8 text-sm hover:bg-sidebar-accent rounded-lg transition-colors"
+                        >
+                          <span className={cn('w-2 h-2 rounded-full flex-shrink-0', getStatusColor(campaign.status))} />
+                          <span className="truncate flex-1 text-left">{campaign.name}</span>
+                          {campaignAdSets.length > 0 && (
+                            isExpanded ? (
+                              <ChevronUp className="w-3 h-3 flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3 flex-shrink-0" />
+                            )
+                          )}
+                        </button>
+                        
+                        {/* Ad Sets */}
+                        {isExpanded && campaignAdSets.length > 0 && (
+                          <div className="ml-6 border-l border-sidebar-border">
+                            {campaignAdSets.map((adSet) => (
+                              <Link
+                                key={adSet.id}
+                                to={`/adsets?campaign=${campaign.id}&adset=${adSet.id}`}
+                                className="flex items-center gap-2 px-3 py-1.5 pl-4 text-xs hover:bg-sidebar-accent rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                              >
+                                <Layers className="w-3 h-3 flex-shrink-0" />
+                                <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', getStatusColor(adSet.status))} />
+                                <span className="truncate">{adSet.name}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {sortedCampaigns.length > 10 && (
+                  <Link
+                    to="/campaigns"
+                    className="sidebar-item pl-10 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    + {sortedCampaigns.length - 10} mais campanhas
+                  </Link>
                 )}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>{item.name}</span>}
-              </Link>
-            );
-          })}
+              </CollapsibleContent>
+            </Collapsible>
+          ) : (
+            <Link
+              to="/campaigns"
+              className={cn(
+                'sidebar-item',
+                location.pathname.includes('/campaign') && 'active'
+              )}
+            >
+              <Megaphone className="w-5 h-5 flex-shrink-0" />
+            </Link>
+          )}
+
+          {/* Ad Sets link */}
+          <Link
+            to="/adsets"
+            className={cn(
+              'sidebar-item',
+              location.pathname === '/adsets' && 'active'
+            )}
+          >
+            <Layers className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>Conjuntos de Anúncios</span>}
+          </Link>
+
+          {/* Settings */}
+          <Link
+            to="/settings"
+            className={cn(
+              'sidebar-item',
+              location.pathname === '/settings' && 'active'
+            )}
+          >
+            <Settings className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>Configurações</span>}
+          </Link>
         </nav>
 
         {/* User section */}
