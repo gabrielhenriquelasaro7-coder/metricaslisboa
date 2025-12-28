@@ -4,12 +4,9 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
-import { SyncProgressIndicator } from '@/components/sync/SyncProgressIndicator';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
-import { useSyncWithProgress } from '@/hooks/useSyncWithProgress';
 import { DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   ImageIcon, 
@@ -21,13 +18,10 @@ import {
   ChevronLeft,
   RefreshCw,
   AlertCircle,
-  Target,
-  MoreVertical
+  Target
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 interface Ad {
@@ -101,13 +95,6 @@ export default function Ads() {
     }
   }, [adSetId]);
 
-  // Use the new sync hook - for manual sync only
-  const { syncing, progress, syncData } = useSyncWithProgress({
-    projectId: selectedProject?.id || '',
-    adAccountId: selectedProject?.ad_account_id || '',
-    onSuccess: fetchAds,
-  });
-
   // Sort options based on business model
   const sortOptions = [
     { value: 'spend', label: 'Gasto' },
@@ -133,14 +120,6 @@ export default function Ads() {
   const handlePresetChange = useCallback((preset: DatePresetKey) => {
     setSelectedPreset(preset);
   }, []);
-
-  const handleManualSync = useCallback(() => {
-    if (dateRange?.from && dateRange?.to) {
-      syncData({ since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') });
-    } else {
-      syncData();
-    }
-  }, [dateRange, syncData]);
 
   const filteredAds = ads
     .filter((a) => !filters.search || a.name.toLowerCase().includes(filters.search.toLowerCase()))
@@ -191,26 +170,12 @@ export default function Ads() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <SyncProgressIndicator step={progress.step} message={progress.message} syncing={syncing} />
             <DateRangePicker 
               dateRange={dateRange} 
               onDateRangeChange={handleDateRangeChange}
               timezone={selectedProject?.timezone}
               onPresetChange={handlePresetChange}
             />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleManualSync} disabled={syncing || !selectedProject}>
-                  <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-                  {syncing ? 'Sincronizando...' : 'Forçar Sincronização'}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
 
