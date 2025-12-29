@@ -42,17 +42,12 @@ export function useAdSetDailyMetrics(
       setError(null);
 
       try {
-        // Get last 30 days of data for this ad set
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const since = thirtyDaysAgo.toISOString().split('T')[0];
-
+        // Get ALL available data for this ad set (not just last 30 days)
         const { data, error: fetchError } = await supabase
           .from('ads_daily_metrics')
           .select('*')
           .eq('project_id', projectId)
           .eq('adset_id', adSetId)
-          .gte('date', since)
           .order('date', { ascending: true });
 
         if (fetchError) throw fetchError;
