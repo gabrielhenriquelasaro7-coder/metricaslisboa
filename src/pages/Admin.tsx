@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   Database, 
@@ -15,7 +16,12 @@ import {
   Clock, 
   Loader2,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Calendar,
+  Timer,
+  Activity,
+  Search,
+  Zap
 } from 'lucide-react';
 
 interface ImportProgress {
@@ -38,12 +44,112 @@ interface ImportResult {
   error?: string;
 }
 
+interface CronJob {
+  jobname: string;
+  schedule: string;
+  description: string;
+  next_run?: string;
+}
+
+interface SyncLog {
+  id: string;
+  project_id: string;
+  project_name?: string;
+  status: string;
+  message: string;
+  created_at: string;
+  type?: string;
+}
+
 export default function Admin() {
   const { projects, loading: projectsLoading } = useProjects();
   const [importProgress, setImportProgress] = useState<Record<string, ImportProgress>>({});
   const [isImportingAll, setIsImportingAll] = useState(false);
+  const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+  const [isRunningGapDetection, setIsRunningGapDetection] = useState(false);
 
   const activeProjects = projects.filter(p => !p.archived);
+
+  // Cron jobs configuration
+  const cronJobs: CronJob[] = [
+    {
+      jobname: 'daily-meta-sync-02am',
+      schedule: '0 5 * * *',
+      description: 'Sincronização diária às 02:00 AM (horário de Brasília). Busca últimos 90 dias de dados da Meta Ads API e salva na tabela ads_daily_metrics. Após sincronizar, detecta e corrige gaps automaticamente.',
+    },
+    {
+      jobname: 'weekly-gap-detection',
+      schedule: '0 3 * * 0',
+      description: 'Verificação semanal de gaps aos domingos às 00:00 AM (horário de Brasília). Escaneia todo o ano buscando períodos sem dados e reimporta automaticamente.',
+    },
+  ];
+
+  // Fetch sync logs
+  useEffect(() => {
+    const fetchLogs = async () => {
+      setLogsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('sync_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (error) throw error;
+
+        // Enrich with project names
+        const enrichedLogs = data?.map(log => {
+          const project = projects.find(p => p.id === log.project_id);
+          let parsedMessage: any = {};
+          try {
+            parsedMessage = JSON.parse(log.message || '{}');
+          } catch {
+            parsedMessage = { raw: log.message };
+          }
+          return {
+            ...log,
+            project_name: project?.name || 'Projeto desconhecido',
+            type: parsedMessage.type || 'sync',
+          };
+        }) || [];
+
+        setSyncLogs(enrichedLogs);
+      } catch (error) {
+        console.error('Error fetching sync logs:', error);
+      } finally {
+        setLogsLoading(false);
+      }
+    };
+
+    if (projects.length > 0) {
+      fetchLogs();
+    }
+  }, [projects]);
+
+  const runGapDetection = async () => {
+    setIsRunningGapDetection(true);
+    toast.info('Iniciando detecção de gaps...');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('detect-and-fix-gaps', {
+        body: { auto_fix: true }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(`Detecção concluída! ${data.gaps_found} gaps encontrados, ${data.gaps_fixed} corrigidos, ${data.records_imported} registros importados.`);
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao detectar gaps';
+      toast.error(errorMessage);
+    } finally {
+      setIsRunningGapDetection(false);
+    }
+  };
 
   const initializeProgress = (projectId: string): ImportProgress => ({
     project_id: projectId,
@@ -202,6 +308,41 @@ export default function Admin() {
     );
   }
 
+  // Helper to format date for display
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  // Parse cron schedule to human readable
+  const parseCronSchedule = (schedule: string) => {
+    const scheduleMap: Record<string, string> = {
+      '0 5 * * *': 'Diariamente às 02:00 AM (Brasília)',
+      '0 3 * * 0': 'Domingos às 00:00 AM (Brasília)',
+    };
+    return scheduleMap[schedule] || schedule;
+  };
+
+  // Get log type badge
+  const getLogTypeBadge = (type: string, status: string) => {
+    const typeConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+      daily_sync: { label: 'Sync Diário', variant: 'default' },
+      gap_detection: { label: 'Detecção de Gaps', variant: 'secondary' },
+      sync: { label: 'Sincronização', variant: 'outline' },
+    };
+    
+    const config = typeConfig[type] || { label: type, variant: 'outline' };
+    const finalVariant = status === 'error' ? 'destructive' : config.variant;
+    
+    return <Badge variant={finalVariant}>{config.label}</Badge>;
+  };
+
   return (
     <DashboardLayout>
       <div className="p-8 space-y-8 animate-fade-in max-w-6xl">
@@ -212,10 +353,153 @@ export default function Admin() {
               Administração
             </h1>
             <p className="text-muted-foreground">
-              Gerenciamento de dados e importação histórica
+              Gerenciamento de dados, sincronizações e monitoramento
             </p>
           </div>
         </div>
+
+        <Tabs defaultValue="monitoring" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="monitoring" className="gap-2">
+              <Activity className="w-4 h-4" />
+              Monitoramento
+            </TabsTrigger>
+            <TabsTrigger value="import" className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Importação
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="gap-2">
+              <Clock className="w-4 h-4" />
+              Histórico
+            </TabsTrigger>
+          </TabsList>
+
+          {/* MONITORING TAB */}
+          <TabsContent value="monitoring" className="space-y-6">
+            {/* Cron Jobs Status */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Timer className="w-5 h-5" />
+                  Tarefas Agendadas (Cron Jobs)
+                </CardTitle>
+                <CardDescription>
+                  Processos automáticos que rodam em intervalos definidos para manter os dados sincronizados.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {cronJobs.map((job) => (
+                  <Card key={job.jobname} className="bg-card/50">
+                    <CardContent className="py-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1">
+                            <CheckCircle2 className="w-5 h-5 text-metric-positive" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold">{job.jobname}</h4>
+                              <Badge variant="outline" className="text-xs">
+                                {parseCronSchedule(job.schedule)}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {job.description}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant="default" className="shrink-0">
+                          Ativo
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Gap Detection */}
+            <Card className="glass-card">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Search className="w-5 h-5" />
+                      Detecção de Gaps
+                    </CardTitle>
+                    <CardDescription>
+                      Verifica todos os projetos buscando períodos sem dados (gaps ≥3 dias) e reimporta automaticamente.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={runGapDetection}
+                    disabled={isRunningGapDetection}
+                    className="gap-2"
+                  >
+                    {isRunningGapDetection ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Detectando...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4" />
+                        Executar Agora
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                  <h4 className="font-medium text-sm">Como funciona:</h4>
+                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Escaneia todos os projetos ativos buscando dias sem dados</li>
+                    <li>Identifica gaps de 3+ dias consecutivos (gaps menores são normais - dias sem gasto)</li>
+                    <li>Para cada gap encontrado, chama a Meta Ads API e importa os dados</li>
+                    <li>Se a API retorna 0 registros, significa que não havia campanhas ativas no período</li>
+                  </ol>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Stats Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="glass-card">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-primary">
+                      {activeProjects.length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Projetos Ativos</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-metric-positive">
+                      {cronJobs.length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Cron Jobs Ativos</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-accent">
+                      {syncLogs.filter(l => l.status === 'success').length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Syncs Bem-Sucedidos (últimos 50)</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* IMPORT TAB */}
+          <TabsContent value="import" className="space-y-6">
 
         {/* Historical Import Section */}
         <Card className="glass-card">
@@ -325,39 +609,134 @@ export default function Admin() {
           </CardContent>
         </Card>
 
-        {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-primary">
-                  {activeProjects.length}
-                </p>
-                <p className="text-sm text-muted-foreground">Projetos Ativos</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-metric-positive">
-                  {Object.values(importProgress).filter(p => p.status === 'success').length}
-                </p>
-                <p className="text-sm text-muted-foreground">Importações Concluídas</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-accent">
-                  {Object.values(importProgress).reduce((sum, p) => sum + p.total_records, 0).toLocaleString()}
-                </p>
-                <p className="text-sm text-muted-foreground">Total de Registros</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Import Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="glass-card">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-primary">
+                      {activeProjects.length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Projetos Ativos</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-metric-positive">
+                      {Object.values(importProgress).filter(p => p.status === 'success').length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Importações Concluídas</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-accent">
+                      {Object.values(importProgress).reduce((sum, p) => sum + p.total_records, 0).toLocaleString()}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Total de Registros</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* LOGS TAB */}
+          <TabsContent value="logs" className="space-y-6">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  Histórico de Sincronizações
+                </CardTitle>
+                <CardDescription>
+                  Últimas 50 execuções de sincronização e detecção de gaps.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {logsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                ) : syncLogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhum log encontrado</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                    {syncLogs.map((log) => {
+                      let parsedMessage: any = {};
+                      try {
+                        parsedMessage = JSON.parse(log.message || '{}');
+                      } catch {
+                        parsedMessage = { raw: log.message };
+                      }
+
+                      return (
+                        <div 
+                          key={log.id} 
+                          className="flex items-start gap-3 p-3 rounded-lg bg-card/50 border border-border/50"
+                        >
+                          <div className="mt-0.5">
+                            {log.status === 'success' ? (
+                              <CheckCircle2 className="w-4 h-4 text-metric-positive" />
+                            ) : log.status === 'error' ? (
+                              <XCircle className="w-4 h-4 text-destructive" />
+                            ) : log.status === 'partial' ? (
+                              <AlertTriangle className="w-4 h-4 text-metric-warning" />
+                            ) : (
+                              <Clock className="w-4 h-4 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{log.project_name}</span>
+                              {getLogTypeBadge(log.type || 'sync', log.status)}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {parsedMessage.daily_records !== undefined && (
+                                <span className="mr-3">
+                                  📊 {parsedMessage.daily_records} registros
+                                </span>
+                              )}
+                              {parsedMessage.gaps_found !== undefined && (
+                                <span className="mr-3">
+                                  🔍 {parsedMessage.gaps_found} gaps encontrados
+                                </span>
+                              )}
+                              {parsedMessage.gaps_fixed !== undefined && (
+                                <span className="mr-3">
+                                  ✅ {parsedMessage.gaps_fixed} corrigidos
+                                </span>
+                              )}
+                              {parsedMessage.elapsed && (
+                                <span className="mr-3">
+                                  ⏱️ {parsedMessage.elapsed}
+                                </span>
+                              )}
+                              {parsedMessage.error && (
+                                <span className="text-destructive">
+                                  ❌ {parsedMessage.error}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground shrink-0">
+                            {formatDateTime(log.created_at)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
