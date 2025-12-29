@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -7,7 +7,7 @@ import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
 import { DateRange } from 'react-day-picker';
-import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
+import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange, calculateTimePeriods } from '@/utils/dateUtils';
 import { 
   Layers, 
   TrendingUp, 
@@ -63,52 +63,146 @@ export default function AdSets() {
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
 
-  const fetchAdSets = useCallback(async () => {
+  // Calculate date range based on preset
+  const getDateRangeFromPeriod = useCallback((preset: DatePresetKey) => {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toISOString().split('T')[0];
+    
+    switch (preset) {
+      case 'yesterday':
+        return { since: yesterday, until: yesterday };
+      case 'last_7d':
+        return { since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday };
+      case 'last_14d':
+        return { since: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday };
+      case 'last_30d':
+        return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday };
+      case 'last_60d':
+        return { since: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday };
+      case 'last_90d':
+        return { since: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday };
+      case 'this_month':
+        return { since: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0], until: today };
+      case 'this_year':
+        return { since: new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0], until: today };
+      default:
+        return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: today };
+    }
+  }, []);
+
+  // Load ad sets with metrics from ads_daily_metrics
+  const loadAdSetsByPeriod = useCallback(async (preset: DatePresetKey) => {
     if (!campaignId) return;
     setLoading(true);
+    
     try {
+      // First get campaign info
       const { data: campaignData } = await supabase
         .from('campaigns')
         .select('id, name, project_id')
         .eq('id', campaignId)
         .maybeSingle();
       if (campaignData) setCampaign(campaignData);
+      
+      if (!campaignData?.project_id) {
+        setLoading(false);
+        return;
+      }
 
-      const { data: adSetsData } = await supabase
-        .from('ad_sets')
+      const { since, until } = getDateRangeFromPeriod(preset);
+      console.log(`[AdSets] Loading period: ${preset} (${since} to ${until})`);
+
+      // Query ads_daily_metrics and aggregate by adset
+      const { data: dailyMetrics, error } = await supabase
+        .from('ads_daily_metrics')
         .select('*')
+        .eq('project_id', campaignData.project_id)
         .eq('campaign_id', campaignId)
-        .order('spend', { ascending: false });
-      setAdSets((adSetsData as AdSet[]) || []);
+        .gte('date', since)
+        .lte('date', until);
+
+      if (error) throw error;
+
+      if (!dailyMetrics || dailyMetrics.length === 0) {
+        console.log(`[AdSets] No daily metrics, loading from ad_sets table`);
+        const { data: adSetsData } = await supabase
+          .from('ad_sets')
+          .select('*')
+          .eq('campaign_id', campaignId)
+          .order('spend', { ascending: false });
+        setAdSets((adSetsData as AdSet[]) || []);
+        setLoading(false);
+        return;
+      }
+
+      // Aggregate by adset_id
+      const adsetAgg = new Map<string, any>();
+      for (const row of dailyMetrics) {
+        if (!adsetAgg.has(row.adset_id)) {
+          adsetAgg.set(row.adset_id, {
+            id: row.adset_id,
+            project_id: campaignData.project_id,
+            campaign_id: row.campaign_id,
+            name: row.adset_name,
+            status: row.adset_status || 'UNKNOWN',
+            spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0,
+            daily_budget: null, lifetime_budget: null, targeting: null,
+          });
+        }
+        const agg = adsetAgg.get(row.adset_id);
+        agg.spend += Number(row.spend) || 0;
+        agg.impressions += Number(row.impressions) || 0;
+        agg.clicks += Number(row.clicks) || 0;
+        agg.reach += Number(row.reach) || 0;
+        agg.conversions += Number(row.conversions) || 0;
+        agg.conversion_value += Number(row.conversion_value) || 0;
+      }
+
+      // Calculate derived metrics
+      const adsetsResult = Array.from(adsetAgg.values()).map(agg => ({
+        ...agg,
+        ctr: agg.impressions > 0 ? (agg.clicks / agg.impressions) * 100 : 0,
+        cpm: agg.impressions > 0 ? (agg.spend / agg.impressions) * 1000 : 0,
+        cpc: agg.clicks > 0 ? agg.spend / agg.clicks : 0,
+        roas: agg.spend > 0 ? agg.conversion_value / agg.spend : 0,
+        cpa: agg.conversions > 0 ? agg.spend / agg.conversions : 0,
+        frequency: agg.reach > 0 ? agg.impressions / agg.reach : 0,
+      }));
+
+      adsetsResult.sort((a, b) => b.spend - a.spend);
+      setAdSets(adsetsResult as AdSet[]);
+      console.log(`[AdSets] Loaded ${adsetsResult.length} ad sets for period ${preset}`);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error loading ad sets:', error);
     } finally {
       setLoading(false);
     }
-  }, [campaignId]);
+  }, [campaignId, getDateRangeFromPeriod]);
 
   // Sort options based on business model
-  const sortOptions = [
+  const sortOptions = useMemo(() => [
     { value: 'spend', label: 'Gasto' },
     { value: 'conversions', label: isEcommerce ? 'Compras' : 'Leads' },
     { value: 'ctr', label: 'CTR' },
     { value: 'cpa', label: isEcommerce ? 'CPA' : 'CPL' },
     { value: 'name', label: 'Nome' },
     ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
-  ];
+  ], [isEcommerce]);
 
-  // Load data from database on mount and when campaignId changes
+  // Load data when preset or campaignId changes
   useEffect(() => {
-    fetchAdSets();
-  }, [fetchAdSets]);
+    loadAdSetsByPeriod(selectedPreset);
+  }, [selectedPreset, loadAdSetsByPeriod]);
 
-  // Handle date range change - NO sync, just load from database
+  // Handle date range change
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
     setDateRange(newRange);
-    // Reload data from database (data is already filtered by campaign)
-    fetchAdSets();
-  }, [fetchAdSets]);
+  }, []);
 
+  // Handle preset change - load data by period
   const handlePresetChange = useCallback((preset: DatePresetKey) => {
     setSelectedPreset(preset);
   }, []);
