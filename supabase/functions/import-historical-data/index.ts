@@ -179,6 +179,34 @@ Deno.serve(async (req) => {
     const elapsed = (Date.now() - startTime) / 1000;
     const success = successBatches === batches.length;
 
+    // Also sync demographic data
+    console.log(`[IMPORT] Syncing demographic data...`);
+    await updateProgress(95, 'Sincronizando dados demográficos...');
+    
+    try {
+      const demoResponse = await fetch(`${supabaseUrl}/functions/v1/sync-demographics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          project_id: project.id,
+          ad_account_id: project.ad_account_id,
+          time_range: { since, until: finalUntil },
+        }),
+      });
+      
+      const demoData = await demoResponse.json().catch(() => ({ success: false }));
+      if (demoData.success) {
+        console.log(`[IMPORT] ✓ Demographics synced: ${demoData.records_count} records`);
+      } else {
+        console.log(`[IMPORT] ✗ Demographics sync failed:`, demoData.error);
+      }
+    } catch (demoError) {
+      console.error('[IMPORT] Demographics sync error:', demoError);
+    }
+
     // Update project status with final progress
     await supabase.from('projects').update({ 
       webhook_status: success ? 'success' : 'partial',

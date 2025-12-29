@@ -7,7 +7,7 @@ const corsHeaders = {
 
 interface SyncRequest {
   project_id: string;
-  ad_account_id: string;
+  ad_account_id?: string;
   access_token?: string;
   time_range?: {
     since: string;
@@ -16,6 +16,12 @@ interface SyncRequest {
 }
 
 const BREAKDOWNS = ['gender', 'age', 'device_platform', 'publisher_platform'] as const;
+
+// Ensure ad account ID has act_ prefix
+function normalizeAdAccountId(id: string): string {
+  if (!id) return '';
+  return id.startsWith('act_') ? id : `act_${id}`;
+}
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -136,7 +142,39 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: SyncRequest = await req.json();
-    const { project_id, ad_account_id, access_token, time_range } = body;
+    const { project_id, access_token, time_range } = body;
+    let { ad_account_id } = body;
+    
+    const token = access_token || metaAccessToken;
+
+    if (!token || !project_id) {
+      console.error('[SYNC_DEMOGRAPHICS] Missing required parameters');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Missing required parameters (project_id and token)' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If no ad_account_id provided, fetch from project
+    if (!ad_account_id) {
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('ad_account_id')
+        .eq('id', project_id)
+        .single();
+
+      if (projectError || !project?.ad_account_id) {
+        console.error('[SYNC_DEMOGRAPHICS] Could not fetch project ad_account_id:', projectError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Could not get ad_account_id from project' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      ad_account_id = project.ad_account_id;
+    }
+
+    // Ensure proper ad account format
+    const normalizedAccountId = normalizeAdAccountId(ad_account_id as string);
     
     // Determine date range - default: last 90 days
     let since: string;
@@ -152,19 +190,9 @@ Deno.serve(async (req) => {
       sinceDate.setDate(sinceDate.getDate() - 90);
       since = sinceDate.toISOString().split('T')[0];
     }
-    
-    const token = access_token || metaAccessToken;
-
-    if (!token || !project_id || !ad_account_id) {
-      console.error('[SYNC_DEMOGRAPHICS] Missing required parameters');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Missing required parameters' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     console.log(`[SYNC_DEMOGRAPHICS] Project: ${project_id}`);
-    console.log(`[SYNC_DEMOGRAPHICS] Account: ${ad_account_id}`);
+    console.log(`[SYNC_DEMOGRAPHICS] Account: ${normalizedAccountId}`);
     console.log(`[SYNC_DEMOGRAPHICS] Range: ${since} to ${until}`);
 
     // Fetch demographic data for each breakdown
@@ -172,7 +200,7 @@ Deno.serve(async (req) => {
     
     for (const breakdown of BREAKDOWNS) {
       console.log(`[SYNC_DEMOGRAPHICS] Fetching ${breakdown}...`);
-      const records = await fetchDemographicInsights(ad_account_id, token, since, until, breakdown);
+      const records = await fetchDemographicInsights(normalizedAccountId, token, since, until, breakdown);
       
       // Add project_id to each record
       for (const record of records) {
