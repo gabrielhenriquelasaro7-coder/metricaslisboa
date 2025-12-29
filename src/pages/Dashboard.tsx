@@ -165,14 +165,34 @@ export default function Dashboard() {
     };
   };
 
+  // Use daily metrics aggregation for consistent current/previous comparison
   const metrics = useMemo(() => {
-    // Campaigns are already filtered by project in useMetaAdsData hook
+    // If we have daily data from the hook, use those totals for consistency
+    if (periodComparison?.currentTotals) {
+      const curr = periodComparison.currentTotals;
+      return {
+        totalSpend: curr.spend,
+        totalImpressions: curr.impressions,
+        totalClicks: curr.clicks,
+        totalReach: curr.reach,
+        totalConversions: curr.conversions,
+        totalConversionValue: curr.conversion_value,
+        ctr: curr.ctr,
+        cpm: curr.cpm,
+        cpc: curr.cpc,
+        cpa: curr.cpa,
+        roas: curr.roas,
+        avgFrequency: curr.reach > 0 ? curr.impressions / curr.reach : 0,
+        campaignCount: campaigns.length,
+      };
+    }
+    // Fallback to campaigns data if daily metrics not loaded yet
     return calculateMetrics(campaigns);
-  }, [campaigns]);
+  }, [periodComparison, campaigns]);
 
   // Calculate previous period metrics from real data
   const previousMetrics = useMemo(() => {
-    if (!periodComparison) return null;
+    if (!periodComparison?.previousTotals) return null;
     
     const prev = periodComparison.previousTotals;
     return {
@@ -188,9 +208,9 @@ export default function Dashboard() {
       cpa: prev.cpa,
       roas: prev.roas,
       avgFrequency: prev.reach > 0 ? prev.impressions / prev.reach : 0,
-      campaignCount: metrics.campaignCount,
+      campaignCount: campaigns.length,
     };
-  }, [periodComparison, metrics.campaignCount]);
+  }, [periodComparison, campaigns.length]);
 
   // Extract sparkline data from daily metrics
   const sparklineData = useMemo(() => {
