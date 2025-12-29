@@ -17,6 +17,7 @@ import Creatives from "./pages/Creatives";
 import CreativeDetail from "./pages/CreativeDetail";
 import Settings from "./pages/Settings";
 import SyncHistory from "./pages/SyncHistory";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/creative/:id" element={<CreativeDetail />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/sync-history" element={<SyncHistory />} />
+            <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
