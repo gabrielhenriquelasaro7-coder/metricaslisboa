@@ -3,7 +3,9 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import SparklineCard from '@/components/dashboard/SparklineCard';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
-import AdvancedCharts from '@/components/dashboard/AdvancedCharts';
+import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
+import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
+import { useDemographicInsights } from '@/hooks/useDemographicInsights';
 import PeriodComparison from '@/components/dashboard/PeriodComparison';
 import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
@@ -49,6 +51,13 @@ export default function Dashboard() {
   
   // Get daily metrics for charts
   const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset);
+  
+  // Get demographic insights
+  const { data: demographicData, isLoading: demographicLoading } = useDemographicInsights({
+    projectId: selectedProject?.id || null,
+    startDate: dateRange?.from || new Date(),
+    endDate: dateRange?.to || new Date(),
+  });
 
   // Get active (non-archived) projects
   const activeProjects = useMemo(() => 
@@ -460,13 +469,39 @@ export default function Dashboard() {
             </div>
             )}
 
-            {/* Charts - Real daily data */}
-            <div className="grid grid-cols-1 gap-6">
-              <AdvancedCharts
+            {/* Customizable Charts - Real daily data */}
+            <div className="space-y-6">
+              <CustomizableChart
+                chartKey="dashboard-chart-1"
                 data={dailyData}
-                businessModel={businessModel || null}
+                defaultTitle="Gráfico 1 - Performance"
+                defaultPrimaryMetric="spend"
+                defaultSecondaryMetric={isEcommerce ? 'conversions' : 'conversions'}
+                defaultChartType="composed"
+              />
+              <CustomizableChart
+                chartKey="dashboard-chart-2"
+                data={dailyData}
+                defaultTitle="Gráfico 2 - Alcance"
+                defaultPrimaryMetric="impressions"
+                defaultSecondaryMetric="ctr"
+                defaultChartType="area"
+              />
+              <CustomizableChart
+                chartKey="dashboard-chart-3"
+                data={dailyData}
+                defaultTitle="Gráfico 3 - Custo"
+                defaultPrimaryMetric="cpc"
+                defaultSecondaryMetric="clicks"
+                defaultChartType="bar"
               />
             </div>
+
+            {/* Demographic Charts */}
+            <DemographicCharts
+              data={demographicData}
+              isLoading={demographicLoading}
+            />
 
             {/* Top Campaigns */}
             <div className="glass-card p-6">
