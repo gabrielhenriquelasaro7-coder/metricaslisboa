@@ -59,16 +59,13 @@ export default function Dashboard() {
   const isInsideSales = hasSelectedProject && businessModel === 'inside_sales';
   const isPdv = hasSelectedProject && businessModel === 'pdv';
 
-  // Load metrics when date range changes - INSTANT from local database
+  // Load metrics when preset changes - INSTANT from local database
   useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to) return;
+    if (!selectedProject) return;
     
-    const diffDays = differenceInDays(dateRange.to, dateRange.from);
-    const periodKey = getPeriodKeyFromDays(diffDays);
-    
-    console.log(`[Dashboard] Loading period: ${periodKey}`);
-    loadMetricsByPeriod(periodKey);
-  }, [dateRange, selectedProject, loadMetricsByPeriod, getPeriodKeyFromDays]);
+    console.log(`[Dashboard] Loading period: ${selectedPreset}`);
+    loadMetricsByPeriod(selectedPreset);
+  }, [selectedPreset, selectedProject, loadMetricsByPeriod]);
 
   // Handle date range change - NO sync, just load from database
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
