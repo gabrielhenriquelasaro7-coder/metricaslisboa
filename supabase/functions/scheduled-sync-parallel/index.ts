@@ -249,6 +249,28 @@ Deno.serve(async (req) => {
     console.log(`[SYNC] Projects: ${results.length} (${totalSuccess} success, ${totalFailed} failed, ${totalRetry} retry)`);
     console.log(`[SYNC] Total daily records: ${totalDailyRecords}`);
 
+    // AUTOMATIC GAP DETECTION AND FIX
+    // After daily sync, check for gaps in the last 30 days and fix them automatically
+    console.log(`\n========== RUNNING GAP DETECTION ==========`);
+    try {
+      const gapResponse = await fetch(`${supabaseUrl}/functions/v1/detect-and-fix-gaps`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          since: formatDate(subDays(new Date(), 30)), // Check last 30 days
+          auto_fix: true,
+        }),
+      });
+      
+      const gapData = await gapResponse.json().catch(() => ({}));
+      console.log(`[GAPS] Found: ${gapData.gaps_found || 0}, Fixed: ${gapData.gaps_fixed || 0}, Records: ${gapData.records_imported || 0}`);
+    } catch (gapError) {
+      console.error('[GAPS] Error running gap detection:', gapError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

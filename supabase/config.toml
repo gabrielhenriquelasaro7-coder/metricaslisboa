@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.import-historical-data]
 verify_jwt = false
+
+[functions.detect-and-fix-gaps]
+verify_jwt = false
+
+[functions.n8n-meta-sync]
+verify_jwt = false
