@@ -1,13 +1,15 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import SparklineCard from '@/components/dashboard/SparklineCard';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
-import PerformanceChart from '@/components/dashboard/PerformanceChart';
+import DailyEvolutionChart from '@/components/dashboard/DailyEvolutionChart';
 import PeriodComparison from '@/components/dashboard/PeriodComparison';
 import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
+import { useDailyMetrics } from '@/hooks/useDailyMetrics';
 import { DateRange } from 'react-day-picker';
-import { differenceInDays, format } from 'date-fns';
+import { format } from 'date-fns';
 import { 
   DollarSign, 
   MousePointerClick, 
@@ -44,6 +46,9 @@ export default function Dashboard() {
 
   // Get campaigns and selected project from hook (uses localStorage)
   const { campaigns, loading: dataLoading, syncing, syncData, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
+  
+  // Get daily metrics for charts
+  const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset);
 
   // Get active (non-archived) projects
   const activeProjects = useMemo(() => 
@@ -126,47 +131,58 @@ export default function Dashboard() {
     return calculateMetrics(campaigns);
   }, [campaigns]);
 
-  // Calculate previous period metrics for comparison
-  // This simulates previous period data - in production you'd fetch from DB with date filters
+  // Calculate previous period metrics from real data
   const previousMetrics = useMemo(() => {
-    if (!dateRange?.from || !dateRange?.to) return null;
+    if (!periodComparison) return null;
     
-    // Calculate the length of current period
-    const periodDays = differenceInDays(dateRange.to, dateRange.from);
-    
-    // Simulate previous period metrics (in real scenario, you'd query historical data)
-    // For now, we'll use a variance to simulate changes
-    const variance = () => 0.8 + Math.random() * 0.4; // 80% to 120% of current
-    
+    const prev = periodComparison.previousTotals;
     return {
-      totalSpend: metrics.totalSpend * variance(),
-      totalImpressions: metrics.totalImpressions * variance(),
-      totalClicks: metrics.totalClicks * variance(),
-      totalReach: metrics.totalReach * variance(),
-      totalConversions: metrics.totalConversions * variance(),
-      totalConversionValue: metrics.totalConversionValue * variance(),
-      ctr: metrics.ctr * variance(),
-      cpm: metrics.cpm * variance(),
-      cpc: metrics.cpc * variance(),
-      cpa: metrics.cpa * variance(),
-      roas: metrics.roas * variance(),
-      avgFrequency: metrics.avgFrequency * variance(),
+      totalSpend: prev.spend,
+      totalImpressions: prev.impressions,
+      totalClicks: prev.clicks,
+      totalReach: prev.reach,
+      totalConversions: prev.conversions,
+      totalConversionValue: prev.conversion_value,
+      ctr: prev.ctr,
+      cpm: prev.cpm,
+      cpc: prev.cpc,
+      cpa: prev.cpa,
+      roas: prev.roas,
+      avgFrequency: prev.reach > 0 ? prev.impressions / prev.reach : 0,
       campaignCount: metrics.campaignCount,
     };
-  }, [metrics, dateRange]);
+  }, [periodComparison, metrics.campaignCount]);
 
-  // Mock chart data based on actual metrics
-  const chartData = useMemo(() => {
-    return [
-      { date: '01/12', value: metrics.totalSpend * 0.3, value2: metrics.roas * 0.8 },
-      { date: '05/12', value: metrics.totalSpend * 0.5, value2: metrics.roas * 0.9 },
-      { date: '10/12', value: metrics.totalSpend * 0.6, value2: metrics.roas * 0.95 },
-      { date: '15/12', value: metrics.totalSpend * 0.7, value2: metrics.roas * 1.0 },
-      { date: '20/12', value: metrics.totalSpend * 0.85, value2: metrics.roas * 1.05 },
-      { date: '25/12', value: metrics.totalSpend * 0.95, value2: metrics.roas * 1.1 },
-      { date: '28/12', value: metrics.totalSpend, value2: metrics.roas },
-    ];
-  }, [metrics]);
+  // Extract sparkline data from daily metrics
+  const sparklineData = useMemo(() => {
+    if (!dailyData.length) return {
+      spend: [],
+      conversions: [],
+      revenue: [],
+      clicks: [],
+      impressions: [],
+      ctr: [],
+      roas: [],
+      cpl: [],
+    };
+    
+    return {
+      spend: dailyData.map(d => d.spend),
+      conversions: dailyData.map(d => d.conversions),
+      revenue: dailyData.map(d => d.conversion_value),
+      clicks: dailyData.map(d => d.clicks),
+      impressions: dailyData.map(d => d.impressions),
+      ctr: dailyData.map(d => d.ctr),
+      roas: dailyData.map(d => d.roas),
+      cpl: dailyData.map(d => d.cpa),
+    };
+  }, [dailyData]);
+
+  // Get change values from comparison
+  const changes = useMemo(() => {
+    if (!periodComparison) return null;
+    return periodComparison.changes;
+  }, [periodComparison]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -182,8 +198,7 @@ export default function Dashboard() {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toFixed(0);
   };
-
-  const loading = projectsLoading || dataLoading;
+  const loading = projectsLoading || dataLoading || dailyLoading;
 
   return (
     <DashboardLayout>
@@ -260,57 +275,53 @@ export default function Dashboard() {
               />
             )}
 
-            {/* Metrics Grid - General Base Metrics */}
+            {/* Metrics Grid - General Base Metrics with Sparklines */}
             <div>
               <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Métricas Gerais</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                <MetricCard
-                  title="CTR (Link)"
-                  value={`${metrics.ctr.toFixed(2)}%`}
-                  change={0}
-                  changeLabel="vs período anterior"
-                  icon={MousePointerClick}
-                  trend="neutral"
-                />
-                <MetricCard
-                  title="CPM"
-                  value={formatCurrency(metrics.cpm)}
-                  change={0}
-                  changeLabel="vs período anterior"
-                  icon={Eye}
-                  trend="neutral"
-                />
-                <MetricCard
-                  title="CPC (Link)"
-                  value={formatCurrency(metrics.cpc)}
-                  change={0}
-                  changeLabel="vs período anterior"
-                  icon={MousePointerClick}
-                  trend="neutral"
-                />
-                <MetricCard
-                  title="Cliques no Link"
-                  value={formatNumber(metrics.totalClicks)}
-                  change={0}
-                  changeLabel="vs período anterior"
-                  icon={Target}
-                  trend="neutral"
-                />
-                <MetricCard
+                <SparklineCard
                   title="Gasto Total"
                   value={formatCurrency(metrics.totalSpend)}
-                  change={0}
-                  changeLabel="vs período anterior"
+                  change={changes?.spend}
+                  changeLabel="vs anterior"
                   icon={DollarSign}
-                  trend="neutral"
+                  sparklineData={sparklineData.spend}
+                  sparklineColor="hsl(var(--primary))"
                 />
-                <MetricCard
+                <SparklineCard
                   title="Impressões"
                   value={formatNumber(metrics.totalImpressions)}
-                  change={0}
-                  changeLabel="vs período anterior"
+                  sparklineData={sparklineData.impressions}
+                  sparklineColor="hsl(var(--chart-1))"
                   icon={Eye}
-                  trend="neutral"
+                />
+                <SparklineCard
+                  title="Cliques"
+                  value={formatNumber(metrics.totalClicks)}
+                  sparklineData={sparklineData.clicks}
+                  sparklineColor="hsl(var(--chart-2))"
+                  icon={MousePointerClick}
+                />
+                <SparklineCard
+                  title="CTR"
+                  value={`${metrics.ctr.toFixed(2)}%`}
+                  change={changes?.ctr}
+                  changeLabel="vs anterior"
+                  sparklineData={sparklineData.ctr}
+                  sparklineColor="hsl(var(--chart-3))"
+                  icon={Target}
+                />
+                <SparklineCard
+                  title="CPM"
+                  value={formatCurrency(metrics.cpm)}
+                  icon={Eye}
+                  invertTrend
+                />
+                <SparklineCard
+                  title="CPC"
+                  value={formatCurrency(metrics.cpc)}
+                  icon={MousePointerClick}
+                  invertTrend
                 />
               </div>
             </div>
@@ -327,191 +338,132 @@ export default function Dashboard() {
               
               {/* E-commerce Metrics */}
               {isEcommerce && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <MetricCard
-                      title="ROAS"
-                      value={`${metrics.roas.toFixed(2)}x`}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={TrendingUp}
-                      trend="neutral"
-                      className="border-l-4 border-l-metric-positive"
-                    />
-                    <MetricCard
-                      title="Compras"
-                      value={formatNumber(metrics.totalConversions)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={ShoppingCart}
-                      trend="neutral"
-                    />
-                    <MetricCard
-                      title="Valor de Conversão"
-                      value={formatCurrency(metrics.totalConversionValue)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={DollarSign}
-                      trend="neutral"
-                    />
-                    <MetricCard
-                      title="Ticket Médio"
-                      value={formatCurrency(metrics.totalConversions > 0 ? metrics.totalConversionValue / metrics.totalConversions : 0)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Target}
-                      trend="neutral"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                    <MetricCard
-                      title="CPA (Compra)"
-                      value={formatCurrency(metrics.cpa)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Users}
-                      trend="neutral"
-                    />
-                    <MetricCard
-                      title="Taxa de Conversão"
-                      value={`${metrics.totalClicks > 0 ? ((metrics.totalConversions / metrics.totalClicks) * 100).toFixed(2) : 0}%`}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Percent}
-                      trend="neutral"
-                    />
-                    <MetricCard
-                      title="Alcance"
-                      value={formatNumber(metrics.totalReach)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Users}
-                      trend="neutral"
-                    />
-                  </div>
-                </>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <SparklineCard
+                    title="ROAS"
+                    value={`${metrics.roas.toFixed(2)}x`}
+                    change={changes?.roas}
+                    changeLabel="vs anterior"
+                    icon={TrendingUp}
+                    sparklineData={sparklineData.roas}
+                    sparklineColor="hsl(142, 76%, 36%)"
+                    className="border-l-4 border-l-metric-positive"
+                  />
+                  <SparklineCard
+                    title="Compras"
+                    value={formatNumber(metrics.totalConversions)}
+                    change={changes?.conversions}
+                    changeLabel="vs anterior"
+                    icon={ShoppingCart}
+                    sparklineData={sparklineData.conversions}
+                    sparklineColor="hsl(var(--chart-1))"
+                  />
+                  <SparklineCard
+                    title="Receita"
+                    value={formatCurrency(metrics.totalConversionValue)}
+                    change={changes?.revenue}
+                    changeLabel="vs anterior"
+                    icon={DollarSign}
+                    sparklineData={sparklineData.revenue}
+                    sparklineColor="hsl(142, 76%, 36%)"
+                  />
+                  <SparklineCard
+                    title="CPA"
+                    value={formatCurrency(metrics.cpa)}
+                    change={changes?.cpa}
+                    changeLabel="vs anterior"
+                    icon={Target}
+                    sparklineData={sparklineData.cpl}
+                    sparklineColor="hsl(var(--chart-2))"
+                    invertTrend
+                  />
+                </div>
               )}
 
               {/* Inside Sales Metrics */}
               {isInsideSales && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <MetricCard
-                      title="Leads"
-                      value={formatNumber(metrics.totalConversions)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Users}
-                      trend="neutral"
-                      className="border-l-4 border-l-chart-1"
-                    />
-                    <MetricCard
-                      title="CPL (Custo por Lead)"
-                      value={formatCurrency(metrics.cpa)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={DollarSign}
-                      trend="neutral"
-                    />
-                    <MetricCard
-                      title="Taxa de Conversão"
-                      value={`${metrics.totalClicks > 0 ? ((metrics.totalConversions / metrics.totalClicks) * 100).toFixed(2) : 0}%`}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Percent}
-                      trend="neutral"
-                    />
-                    <MetricCard
-                      title="Alcance"
-                      value={formatNumber(metrics.totalReach)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Users}
-                      trend="neutral"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <MetricCard
-                      title="Frequência Média"
-                      value={metrics.avgFrequency.toFixed(2)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Phone}
-                      trend="neutral"
-                    />
-                    <MetricCard
-                      title="Campanhas Ativas"
-                      value={metrics.campaignCount.toString()}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Target}
-                      trend="neutral"
-                    />
-                  </div>
-                </>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <SparklineCard
+                    title="Leads"
+                    value={formatNumber(metrics.totalConversions)}
+                    change={changes?.conversions}
+                    changeLabel="vs anterior"
+                    icon={Users}
+                    sparklineData={sparklineData.conversions}
+                    sparklineColor="hsl(var(--chart-1))"
+                    className="border-l-4 border-l-chart-1"
+                  />
+                  <SparklineCard
+                    title="CPL"
+                    value={formatCurrency(metrics.cpa)}
+                    change={changes?.cpa}
+                    changeLabel="vs anterior"
+                    icon={DollarSign}
+                    sparklineData={sparklineData.cpl}
+                    sparklineColor="hsl(var(--chart-2))"
+                    invertTrend
+                  />
+                  <MetricCard
+                    title="Taxa de Conversão"
+                    value={`${metrics.totalClicks > 0 ? ((metrics.totalConversions / metrics.totalClicks) * 100).toFixed(2) : 0}%`}
+                    icon={Percent}
+                    trend="neutral"
+                  />
+                  <MetricCard
+                    title="Alcance"
+                    value={formatNumber(metrics.totalReach)}
+                    icon={Users}
+                    trend="neutral"
+                  />
+                </div>
               )}
 
               {/* PDV Metrics */}
               {isPdv && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <MetricCard
-                      title="Visitas à Loja"
-                      value={formatNumber(metrics.totalConversions)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Store}
-                      trend="neutral"
-                      className="border-l-4 border-l-chart-2"
-                    />
-                    <MetricCard
-                      title="Custo por Visita"
-                      value={formatCurrency(metrics.cpa)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={DollarSign}
-                      trend="neutral"
-                    />
-                    <MetricCard
-                      title="Alcance Local"
-                      value={formatNumber(metrics.totalReach)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Users}
-                      trend="neutral"
-                    />
-                    <MetricCard
-                      title="Frequência"
-                      value={metrics.avgFrequency.toFixed(2)}
-                      change={0}
-                      changeLabel="vs período anterior"
-                      icon={Target}
-                      trend="neutral"
-                    />
-                  </div>
-                </>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <SparklineCard
+                    title="Visitas"
+                    value={formatNumber(metrics.totalConversions)}
+                    change={changes?.conversions}
+                    changeLabel="vs anterior"
+                    icon={Store}
+                    sparklineData={sparklineData.conversions}
+                    sparklineColor="hsl(var(--chart-2))"
+                    className="border-l-4 border-l-chart-2"
+                  />
+                  <SparklineCard
+                    title="Custo/Visita"
+                    value={formatCurrency(metrics.cpa)}
+                    change={changes?.cpa}
+                    changeLabel="vs anterior"
+                    icon={DollarSign}
+                    sparklineData={sparklineData.cpl}
+                    sparklineColor="hsl(var(--chart-3))"
+                    invertTrend
+                  />
+                  <MetricCard
+                    title="Alcance Local"
+                    value={formatNumber(metrics.totalReach)}
+                    icon={Users}
+                    trend="neutral"
+                  />
+                  <MetricCard
+                    title="Frequência"
+                    value={metrics.avgFrequency.toFixed(2)}
+                    icon={Target}
+                    trend="neutral"
+                  />
+                </div>
               )}
             </div>
             )}
 
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <PerformanceChart
-                title="Investimento ao Longo do Tempo"
-                data={chartData}
-                dataKey="value"
-                color="hsl(var(--primary))"
+            {/* Charts - Real daily data */}
+            <div className="grid grid-cols-1 gap-6">
+              <DailyEvolutionChart
+                data={dailyData}
+                businessModel={businessModel || null}
               />
-              {isEcommerce && (
-                <PerformanceChart
-                  title="ROAS ao Longo do Tempo"
-                  data={chartData}
-                  dataKey="value2"
-                  color="hsl(var(--chart-1))"
-                />
-              )}
             </div>
 
             {/* Top Campaigns */}
