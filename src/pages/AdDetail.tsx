@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
+import AdSetCharts from '@/components/dashboard/AdSetCharts';
+import { useAdDailyMetrics } from '@/hooks/useAdDailyMetrics';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
 import { DateRange } from 'react-day-picker';
@@ -82,15 +84,19 @@ export default function AdDetail() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [projectId, setProjectId] = useState<string | undefined>(undefined);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
 
-  const selectedProject = projects.find(p => p.id === ad?.project_id);
+  const selectedProject = projects.find(p => p.id === projectId);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
+
+  // Fetch real daily metrics for this ad
+  const { dailyData: adDailyData } = useAdDailyMetrics(adId, projectId);
 
   const fetchAd = useCallback(async () => {
     if (!adId) return;
@@ -103,6 +109,8 @@ export default function AdDetail() {
         .maybeSingle();
       
       if (adData) {
+        // Set project_id FIRST so charts can start loading
+        setProjectId(adData.project_id);
         setAd(adData as Ad);
         
         const { data: adSetData } = await supabase
@@ -489,6 +497,12 @@ export default function AdDetail() {
                 tooltip="Receita gerada por este anúncio"
               />
             </div>
+
+            {/* Performance Chart */}
+            <AdSetCharts
+              data={adDailyData}
+              businessModel={selectedProject?.business_model || null}
+            />
 
             {/* Additional Info */}
             <div className="glass-card p-5">

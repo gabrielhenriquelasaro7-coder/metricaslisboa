@@ -82,20 +82,21 @@ export default function AdSetDetail() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
+  const [projectId, setProjectId] = useState<string | undefined>(undefined);
 
-  const selectedProject = projects.find(p => p.id === adSet?.project_id);
+  const selectedProject = projects.find(p => p.id === projectId);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
   
-  // Fetch real daily metrics for this ad set
-  const { dailyData: adSetDailyData } = useAdSetDailyMetrics(adSetId, adSet?.project_id);
+  // Fetch real daily metrics for this ad set - use projectId from state (set before adSet)
+  const { dailyData: adSetDailyData } = useAdSetDailyMetrics(adSetId, projectId);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!adSetId) return;
       setLoading(true);
       try {
-        // Fetch ad set
+        // Fetch ad set - get project_id first for charts
         const { data: adSetData } = await supabase
           .from('ad_sets')
           .select('*')
@@ -103,6 +104,8 @@ export default function AdSetDetail() {
           .maybeSingle();
         
         if (adSetData) {
+          // Set project_id FIRST so charts can start loading
+          setProjectId(adSetData.project_id);
           setAdSet(adSetData as AdSet);
           
           // Fetch campaign

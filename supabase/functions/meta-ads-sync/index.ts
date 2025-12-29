@@ -123,8 +123,9 @@ async function fetchEntities(adAccountId: string, token: string): Promise<{
     url = data.paging?.next || null;
   }
 
-  // Fetch ads
-  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}&limit=500&access_token=${token}`;
+  // Fetch ads with expanded creative fields for HD images
+  // Request image_url (full size), thumbnail_url (small), and video metadata
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,object_story_spec,effective_object_story_id}&limit=500&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADS');
     if (data.data) ads.push(...data.data);
@@ -198,6 +199,57 @@ function extractConversions(insights: any): { conversions: number; conversionVal
     conversionValue = parseFloat(pv?.value || '0');
   }
   return { conversions, conversionValue };
+}
+
+// ============ EXTRACT HD IMAGE URL ============
+function extractHdImageUrl(ad: any): { imageUrl: string | null; videoUrl: string | null } {
+  let imageUrl: string | null = null;
+  let videoUrl: string | null = null;
+  
+  const creative = ad.creative;
+  if (!creative) return { imageUrl, videoUrl };
+  
+  // Priority 1: Direct image_url from creative (full HD)
+  if (creative.image_url) {
+    imageUrl = creative.image_url;
+  }
+  
+  // Priority 2: Check object_story_spec for image/video
+  if (creative.object_story_spec) {
+    const spec = creative.object_story_spec;
+    
+    // Link data (single image ads)
+    if (spec.link_data?.image_url) {
+      imageUrl = spec.link_data.image_url;
+    }
+    if (spec.link_data?.picture) {
+      imageUrl = imageUrl || spec.link_data.picture;
+    }
+    
+    // Video data
+    if (spec.video_data?.video_id) {
+      // Video URL would require a separate API call, store video_id for now
+      videoUrl = spec.video_data.image_url || null;
+    }
+    
+    // Photo data
+    if (spec.photo_data?.url) {
+      imageUrl = spec.photo_data.url;
+    }
+  }
+  
+  // Priority 3: Fallback to thumbnail (but try to get higher resolution)
+  if (!imageUrl && creative.thumbnail_url) {
+    // Remove resolution limiting parameters if present
+    let thumbnailUrl = creative.thumbnail_url;
+    // Remove p64x64 or similar size constraints
+    thumbnailUrl = thumbnailUrl.replace(/\/p\d+x\d+\//, '/');
+    thumbnailUrl = thumbnailUrl.replace(/[?&]width=\d+/, '');
+    thumbnailUrl = thumbnailUrl.replace(/[?&]height=\d+/, '');
+    imageUrl = thumbnailUrl;
+  }
+  
+  return { imageUrl, videoUrl };
 }
 
 // ============ VALIDATE DATA (ANTI-ZERO) ============
@@ -444,6 +496,10 @@ Deno.serve(async (req) => {
       
       // Ad aggregates
       if (!adAggregates.has(record.ad_id)) {
+        // Get HD image URL from the ad map
+        const adEntity = adMap.get(record.ad_id);
+        const { imageUrl, videoUrl } = extractHdImageUrl(adEntity || {});
+        
         adAggregates.set(record.ad_id, {
           id: record.ad_id,
           project_id,
@@ -453,6 +509,9 @@ Deno.serve(async (req) => {
           status: record.ad_status,
           creative_id: record.creative_id,
           creative_thumbnail: record.creative_thumbnail,
+          // Use HD image URL if available
+          creative_image_url: imageUrl,
+          creative_video_url: videoUrl,
           spend: 0, impressions: 0, clicks: 0, reach: 0,
           conversions: 0, conversion_value: 0,
         });
