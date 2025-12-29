@@ -36,7 +36,7 @@ export default function DateRangePicker({
   onPresetChange
 }: DateRangePickerProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
 
   // Calcula os períodos baseado no timezone
   const periods = useMemo(() => calculateTimePeriods(timezone), [timezone]);

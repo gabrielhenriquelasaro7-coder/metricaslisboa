@@ -14,13 +14,18 @@ interface SyncRequest {
     since: string;
     until: string;
   };
+  period_key?: string;
 }
 
-// LIMITS - Conservative to fit in 60s timeout
-const MAX_CAMPAIGNS = 150;
-const MAX_ADSETS = 300;
-const MAX_ADS = 500;
-const FUNCTION_TIMEOUT_MS = 50000; // Return before 55s to ensure response
+// LIMITS - Conservative to avoid rate limits
+const MAX_CAMPAIGNS = 200;
+const MAX_ADSETS = 400;
+const MAX_ADS = 600;
+
+// Delay helper
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // Helper to batch array into chunks
 function chunk<T>(arr: T[], size: number): T[][] {
@@ -31,42 +36,27 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
-// Helper to determine period key from date range
-function getPeriodKeyFromRange(since: string, until: string): string {
-  const sinceDate = new Date(since);
-  const untilDate = new Date(until);
-  const diffDays = Math.ceil((untilDate.getTime() - sinceDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  if (diffDays <= 7) return 'last_7d';
-  if (diffDays <= 14) return 'last_14d';
-  if (diffDays <= 30) return 'last_30d';
-  if (diffDays <= 60) return 'last_60d';
-  if (diffDays <= 90) return 'last_90d';
-  return `custom_${diffDays}d`;
-}
-
-// Delay helper
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Fetch with retry on rate limit
-async function fetchWithRetry(url: string, timeout = 10000, maxRetries = 2): Promise<any> {
+// Fetch with retry and long delays for rate limit
+async function fetchWithRetry(url: string, maxRetries = 3): Promise<any> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
       
       const data = await res.json();
       
-      // Handle rate limit - wait and retry
-      if (data.error && (data.error.code === 17 || data.error.code === 4 || data.error.message?.includes('limit'))) {
-        if (attempt < maxRetries) {
-          const waitTime = (attempt + 1) * 5000; // 5s, 10s
-          console.log(`[RATE LIMIT] Waiting ${waitTime/1000}s before retry...`);
+      // Rate limit handling - wait LONG time and retry
+      if (data.error) {
+        const isRateLimit = data.error.code === 17 || data.error.code === 4 || 
+                           data.error.message?.includes('limit') || 
+                           data.error.message?.includes('User request limit');
+        
+        if (isRateLimit && attempt < maxRetries) {
+          const waitTime = (attempt + 1) * 15000; // 15s, 30s, 45s
+          console.log(`[RATE LIMIT] Waiting ${waitTime/1000}s before retry ${attempt + 1}...`);
           await delay(waitTime);
           continue;
         }
@@ -75,17 +65,18 @@ async function fetchWithRetry(url: string, timeout = 10000, maxRetries = 2): Pro
       return data;
     } catch (error) {
       if (attempt < maxRetries) {
-        await delay(2000);
+        console.log(`[FETCH ERROR] Retry ${attempt + 1}...`);
+        await delay(5000);
         continue;
       }
-      return { error: { message: 'Request timeout' } };
+      return { error: { message: 'Request failed after retries' } };
     }
   }
   return { error: { message: 'Max retries exceeded' } };
 }
 
-// Fetch pages with strict limits
-async function fetchLimited(baseUrl: string, token: string, entityName: string, maxItems: number): Promise<any[]> {
+// Fetch pages with LONG delays between requests
+async function fetchAllPages(baseUrl: string, token: string, entityName: string, maxItems: number): Promise<any[]> {
   const allData: any[] = [];
   let nextUrl: string | null = `${baseUrl}&limit=100&access_token=${token}`;
   let pageCount = 0;
@@ -99,26 +90,26 @@ async function fetchLimited(baseUrl: string, token: string, entityName: string, 
     
     if (data.error) {
       console.error(`[${entityName}] Error:`, data.error.message);
+      // Return what we have instead of failing completely
       break;
     }
     
     if (data.data && data.data.length > 0) {
       allData.push(...data.data);
+      console.log(`[${entityName}] Got ${allData.length} items so far`);
     } else {
       break;
     }
     
     nextUrl = data.paging?.next || null;
     
-    // Small delay between pages
+    // LONG delay between pages to avoid rate limit (3 seconds)
     if (nextUrl && allData.length < maxItems) {
-      await delay(300);
+      await delay(3000);
     }
   }
   
-  const limited = allData.slice(0, maxItems);
-  console.log(`[${entityName}] Got ${limited.length}/${allData.length} items`);
-  return limited;
+  return allData.slice(0, maxItems);
 }
 
 Deno.serve(async (req) => {
@@ -127,9 +118,6 @@ Deno.serve(async (req) => {
   }
 
   const startTime = Date.now();
-  
-  // Helper to check if we're running out of time
-  const isTimedOut = () => (Date.now() - startTime) > FUNCTION_TIMEOUT_MS;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -138,15 +126,14 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { project_id, ad_account_id, access_token, date_preset, time_range }: SyncRequest = await req.json();
+    const { project_id, ad_account_id, access_token, date_preset, time_range, period_key }: SyncRequest = await req.json();
     
     const timeParam = time_range 
       ? `time_range=${encodeURIComponent(JSON.stringify({ since: time_range.since, until: time_range.until }))}`
       : `date_preset=${date_preset || 'last_30d'}`;
     
-    const periodKey = time_range 
-      ? getPeriodKeyFromRange(time_range.since, time_range.until)
-      : date_preset || 'last_30d';
+    // Use provided period_key or calculate from time_range
+    const finalPeriodKey = period_key || date_preset || 'last_30d';
 
     const token = access_token || metaAccessToken;
 
@@ -164,89 +151,77 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[SYNC] Starting: ${project_id}, period: ${periodKey}`);
+    console.log(`[SYNC] Starting: ${project_id}, period: ${finalPeriodKey}`);
+    if (time_range) {
+      console.log(`[SYNC] Date range: ${time_range.since} to ${time_range.until}`);
+    }
 
     // Update project status
     await supabase.from('projects').update({ webhook_status: 'syncing' }).eq('id', project_id);
 
-    // Helper to save partial progress
-    const saveProgress = async (step: string, counts: any) => {
-      await supabase.from('sync_logs').insert({
-        project_id,
-        status: 'syncing',
-        message: JSON.stringify({ step, period: periodKey, ...counts, elapsed: ((Date.now() - startTime) / 1000).toFixed(1) + 's' }),
-      });
-    };
-
     // ============ STEP 1: CAMPAIGNS ============
-    console.log('[STEP 1/4] Campaigns...');
+    console.log('[STEP 1/5] Fetching campaigns...');
     
-    const campaigns = await fetchLimited(
+    const campaigns = await fetchAllPages(
       `https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget`,
       token,
       'CAMPAIGNS',
       MAX_CAMPAIGNS
     );
     
+    console.log(`[CAMPAIGNS] Total: ${campaigns.length}`);
+    
     if (campaigns.length === 0) {
       await supabase.from('projects').update({ webhook_status: 'error' }).eq('id', project_id);
+      await supabase.from('sync_logs').insert({
+        project_id,
+        status: 'error',
+        message: JSON.stringify({ period: finalPeriodKey, error: 'No campaigns found' }),
+      });
       return new Response(
         JSON.stringify({ success: false, error: 'No campaigns found' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    await saveProgress('campaigns_fetched', { campaigns: campaigns.length });
-
-    if (isTimedOut()) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Timeout after campaigns', partial: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Long delay before next entity type
+    await delay(5000);
+
     // ============ STEP 2: AD SETS ============
-    console.log('[STEP 2/4] Ad Sets...');
+    console.log('[STEP 2/5] Fetching ad sets...');
     
-    const adSets = await fetchLimited(
+    const adSets = await fetchAllPages(
       `https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget`,
       token,
       'AD_SETS',
       MAX_ADSETS
     );
     
-    await saveProgress('adsets_fetched', { campaigns: campaigns.length, adsets: adSets.length });
+    console.log(`[AD_SETS] Total: ${adSets.length}`);
 
-    if (isTimedOut()) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Timeout after adsets', partial: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Long delay before next entity type
+    await delay(5000);
 
-    // ============ STEP 3: ADS (simplified - no images) ============
-    console.log('[STEP 3/4] Ads...');
+    // ============ STEP 3: ADS ============
+    console.log('[STEP 3/5] Fetching ads...');
     
-    const ads = await fetchLimited(
+    const ads = await fetchAllPages(
       `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}`,
       token,
       'ADS',
       MAX_ADS
     );
     
-    await saveProgress('ads_fetched', { campaigns: campaigns.length, adsets: adSets.length, ads: ads.length });
+    console.log(`[ADS] Total: ${ads.length}`);
 
-    if (isTimedOut()) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Timeout after ads', partial: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Long delay before insights
+    await delay(5000);
 
-    // ============ STEP 4: INSIGHTS (only for ACTIVE, sequential for speed) ============
-    console.log('[STEP 4/4] Insights (ACTIVE only)...');
+    // ============ STEP 4: INSIGHTS ============
+    console.log('[STEP 4/5] Fetching insights...');
     
     const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
+    const insightsMap = new Map<string, any>();
     
     const extractConversions = (insights: any) => {
       let conversions = 0;
@@ -278,47 +253,48 @@ Deno.serve(async (req) => {
       return { conversions, conversionValue };
     };
 
-    // Fetch insights only for ACTIVE entities (much faster)
+    // Only fetch insights for ACTIVE entities
     const activeCampaigns = campaigns.filter(c => c.status === 'ACTIVE');
     const activeAdSets = adSets.filter(as => as.status === 'ACTIVE');
     const activeAds = ads.filter(ad => ad.status === 'ACTIVE');
     
     console.log(`[INSIGHTS] Active: ${activeCampaigns.length} campaigns, ${activeAdSets.length} adsets, ${activeAds.length} ads`);
     
-    const insightsMap = new Map<string, any>();
+    // Fetch insights with VERY LONG delays
+    const allActiveEntities = [...activeCampaigns, ...activeAdSets, ...activeAds];
+    const batches = chunk(allActiveEntities, 5); // Very small batches
     
-    // Fetch insights in small batches with minimal delay
-    const fetchInsightsSimple = async (entities: any[]) => {
-      const batchSize = 10;
-      for (let i = 0; i < entities.length && !isTimedOut(); i += batchSize) {
-        const batch = entities.slice(i, i + batchSize);
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      
+      await Promise.all(batch.map(async (entity: any, idx: number) => {
+        await delay(idx * 1000); // Stagger within batch
         
-        await Promise.all(batch.map(async (entity: any) => {
-          const data = await fetchWithRetry(
-            `https://graph.facebook.com/v19.0/${entity.id}/insights?fields=${insightsFields}&${timeParam}&access_token=${token}`,
-            5000,
-            1
-          );
-          if (data.data?.[0]) {
-            insightsMap.set(entity.id, data.data[0]);
-          }
-        }));
+        const data = await fetchWithRetry(
+          `https://graph.facebook.com/v19.0/${entity.id}/insights?fields=${insightsFields}&${timeParam}&access_token=${token}`,
+          2
+        );
         
-        if (i + batchSize < entities.length) {
-          await delay(200);
+        if (data.data?.[0]) {
+          insightsMap.set(entity.id, data.data[0]);
         }
+      }));
+      
+      // Long delay between batches
+      if (i < batches.length - 1) {
+        await delay(5000);
       }
-    };
-    
-    // Fetch insights for active entities only
-    await fetchInsightsSimple(activeCampaigns);
-    if (!isTimedOut()) await fetchInsightsSimple(activeAdSets);
-    if (!isTimedOut()) await fetchInsightsSimple(activeAds);
+      
+      // Progress log
+      if (i % 5 === 0) {
+        console.log(`[INSIGHTS] Progress: ${Math.min((i + 1) * 5, allActiveEntities.length)}/${allActiveEntities.length}`);
+      }
+    }
     
     console.log(`[INSIGHTS] Got ${insightsMap.size} insights`);
 
-    // ============ STEP 5: PREPARE AND SAVE DATA ============
-    console.log('[STEP 5] Saving data...');
+    // ============ STEP 5: SAVE DATA ============
+    console.log('[STEP 5/5] Saving data...');
     
     const campaignRecords = campaigns.map((c: any) => {
       const insights = insightsMap.get(c.id);
@@ -439,12 +415,12 @@ Deno.serve(async (req) => {
 
     console.log(`[UPSERT] ${cUpserted} campaigns, ${asUpserted} adsets, ${adUpserted} ads`);
 
-    // ============ STEP 6: PERIOD METRICS ============
-    console.log('[STEP 6] Period metrics...');
+    // ============ SAVE PERIOD METRICS ============
+    console.log(`[PERIOD_METRICS] Saving for period: ${finalPeriodKey}`);
     
     const createPeriodRecord = (type: string, record: any) => ({
       project_id,
-      period_key: periodKey,
+      period_key: finalPeriodKey,
       entity_type: type,
       entity_id: record.id,
       entity_name: record.name,
@@ -462,6 +438,8 @@ Deno.serve(async (req) => {
         conversion_value: record.conversion_value,
         roas: record.roas,
         cpa: record.cpa,
+        campaign_id: record.campaign_id,
+        ad_set_id: record.ad_set_id,
       },
       synced_at: new Date().toISOString(),
     });
@@ -483,7 +461,7 @@ Deno.serve(async (req) => {
       if (!error) periodCount += batch.length;
     }
     
-    console.log(`[PERIOD_METRICS] ${periodCount} records`);
+    console.log(`[PERIOD_METRICS] Saved ${periodCount} records`);
 
     // ============ COMPLETE ============
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -495,12 +473,12 @@ Deno.serve(async (req) => {
       last_sync_at: new Date().toISOString(),
     }).eq('id', project_id);
 
-    // Save final sync log
+    // Save sync log
     await supabase.from('sync_logs').insert({
       project_id,
       status: 'success',
       message: JSON.stringify({
-        period: periodKey,
+        period: finalPeriodKey,
         campaigns: campaigns.length,
         adsets: adSets.length,
         ads: ads.length,
@@ -513,6 +491,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         data: {
+          period: finalPeriodKey,
           campaigns_count: campaigns.length,
           ad_sets_count: adSets.length,
           ads_count: ads.length,
