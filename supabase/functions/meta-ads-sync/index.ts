@@ -102,6 +102,7 @@ async function fetchEntities(adAccountId: string, token: string): Promise<{
   campaigns: any[];
   adsets: any[];
   ads: any[];
+  adImageMap: Map<string, string>;
 }> {
   const campaigns: any[] = [];
   const adsets: any[] = [];
@@ -123,17 +124,46 @@ async function fetchEntities(adAccountId: string, token: string): Promise<{
     url = data.paging?.next || null;
   }
 
-  // Fetch ads with expanded creative fields for HD images - include all statuses
-  // Request image_url (full size), thumbnail_url (small), and video metadata
-  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,object_story_spec,effective_object_story_id}&limit=500&effective_status=["ACTIVE","PAUSED","ARCHIVED","DELETED"]&access_token=${token}`;
+// Fetch ads with expanded creative fields for HD images - include all statuses
+  // Request ALL image fields for maximum quality: image_url, image_hash, asset_feed_spec, source_url
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,source_url,object_story_spec,asset_feed_spec,effective_object_story_id}&limit=500&effective_status=["ACTIVE","PAUSED","ARCHIVED","DELETED"]&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADS');
     if (data.data) ads.push(...data.data);
     url = data.paging?.next || null;
   }
 
+  // STEP 2: Fetch HD images for creatives that have image_hash
+  const imageHashes: string[] = [];
+  for (const ad of ads) {
+    if (ad.creative?.image_hash) {
+      imageHashes.push(ad.creative.image_hash);
+    }
+  }
+  
+  // Fetch adimages to get full HD URLs
+  const adImageMap = new Map<string, string>();
+  if (imageHashes.length > 0) {
+    // Batch fetch images - Meta allows up to 50 hashes per request
+    for (let i = 0; i < imageHashes.length; i += 50) {
+      const batch = imageHashes.slice(i, i + 50);
+      const hashesParam = batch.join(',');
+      const imageUrl = `https://graph.facebook.com/v19.0/${adAccountId}/adimages?hashes=${encodeURIComponent(JSON.stringify(batch))}&fields=hash,url,url_128,original_width,original_height&access_token=${token}`;
+      const imageData = await fetchWithRetry(imageUrl, 'ADIMAGES');
+      
+      if (imageData.data) {
+        for (const img of imageData.data) {
+          if (img.hash && img.url) {
+            adImageMap.set(img.hash, img.url);
+          }
+        }
+      }
+    }
+    console.log(`[ADIMAGES] Fetched ${adImageMap.size} HD image URLs`);
+  }
+
   console.log(`[ENTITIES] Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}`);
-  return { campaigns, adsets, ads };
+  return { campaigns, adsets, ads, adImageMap };
 }
 
 // ============ FETCH DAILY INSIGHTS (time_increment=1) ============
@@ -202,50 +232,82 @@ function extractConversions(insights: any): { conversions: number; conversionVal
 }
 
 // ============ EXTRACT HD IMAGE URL ============
-function extractHdImageUrl(ad: any): { imageUrl: string | null; videoUrl: string | null } {
+function extractHdImageUrl(ad: any, adImageMap: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
   let imageUrl: string | null = null;
   let videoUrl: string | null = null;
   
   const creative = ad.creative;
   if (!creative) return { imageUrl, videoUrl };
   
-  // Priority 1: Direct image_url from creative (full HD)
-  if (creative.image_url) {
+  // Priority 1: Get HD URL from adimages API (highest quality - original resolution)
+  if (creative.image_hash && adImageMap.has(creative.image_hash)) {
+    imageUrl = adImageMap.get(creative.image_hash)!;
+    console.log(`[HD] Using adimage URL for hash ${creative.image_hash}`);
+  }
+  
+  // Priority 2: source_url from creative (original upload)
+  if (!imageUrl && creative.source_url) {
+    imageUrl = creative.source_url;
+  }
+  
+  // Priority 3: Direct image_url from creative (full HD)
+  if (!imageUrl && creative.image_url) {
     imageUrl = creative.image_url;
   }
   
-  // Priority 2: Check object_story_spec for image/video
-  if (creative.object_story_spec) {
+  // Priority 4: Check asset_feed_spec for carousel/dynamic ads (HD images)
+  if (!imageUrl && creative.asset_feed_spec) {
+    const assets = creative.asset_feed_spec;
+    if (assets.images && assets.images.length > 0) {
+      // Get first image from carousel
+      const firstImage = assets.images[0];
+      if (firstImage.url) {
+        imageUrl = firstImage.url;
+      } else if (firstImage.hash && adImageMap.has(firstImage.hash)) {
+        imageUrl = adImageMap.get(firstImage.hash)!;
+      }
+    }
+  }
+  
+  // Priority 5: Check object_story_spec for image/video
+  if (!imageUrl && creative.object_story_spec) {
     const spec = creative.object_story_spec;
     
     // Link data (single image ads)
     if (spec.link_data?.image_url) {
       imageUrl = spec.link_data.image_url;
     }
-    if (spec.link_data?.picture) {
-      imageUrl = imageUrl || spec.link_data.picture;
+    if (!imageUrl && spec.link_data?.picture) {
+      imageUrl = spec.link_data.picture;
+    }
+    
+    // Check for image_hash in link_data
+    if (!imageUrl && spec.link_data?.image_hash && adImageMap.has(spec.link_data.image_hash)) {
+      imageUrl = adImageMap.get(spec.link_data.image_hash)!;
     }
     
     // Video data
     if (spec.video_data?.video_id) {
-      // Video URL would require a separate API call, store video_id for now
+      // Use video thumbnail if available
       videoUrl = spec.video_data.image_url || null;
     }
     
     // Photo data
-    if (spec.photo_data?.url) {
+    if (!imageUrl && spec.photo_data?.url) {
       imageUrl = spec.photo_data.url;
     }
   }
   
-  // Priority 3: Fallback to thumbnail (but try to get higher resolution)
+  // Priority 6: Fallback to thumbnail (but try to get higher resolution)
   if (!imageUrl && creative.thumbnail_url) {
-    // Remove resolution limiting parameters if present
+    // Remove resolution limiting parameters to try to get better quality
     let thumbnailUrl = creative.thumbnail_url;
     // Remove p64x64 or similar size constraints
     thumbnailUrl = thumbnailUrl.replace(/\/p\d+x\d+\//, '/');
     thumbnailUrl = thumbnailUrl.replace(/[?&]width=\d+/, '');
     thumbnailUrl = thumbnailUrl.replace(/[?&]height=\d+/, '');
+    // Try to get larger size by modifying URL
+    thumbnailUrl = thumbnailUrl.replace('_t.', '_n.'); // Facebook uses _t for thumb, _n for normal
     imageUrl = thumbnailUrl;
   }
   
@@ -333,6 +395,7 @@ Deno.serve(async (req) => {
     const campaignMap = new Map(entities.campaigns.map(c => [c.id, c]));
     const adsetMap = new Map(entities.adsets.map(a => [a.id, a]));
     const adMap = new Map(entities.ads.map(a => [a.id, a]));
+    const adImageMap = entities.adImageMap;
 
     // STEP 2: Fetch daily insights (time_increment=1)
     const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
@@ -496,9 +559,9 @@ Deno.serve(async (req) => {
       
       // Ad aggregates
       if (!adAggregates.has(record.ad_id)) {
-        // Get HD image URL from the ad map
+        // Get HD image URL from the ad map using adImageMap for highest quality
         const adEntity = adMap.get(record.ad_id);
-        const { imageUrl, videoUrl } = extractHdImageUrl(adEntity || {});
+        const { imageUrl, videoUrl } = extractHdImageUrl(adEntity || {}, adImageMap);
         
         adAggregates.set(record.ad_id, {
           id: record.ad_id,
