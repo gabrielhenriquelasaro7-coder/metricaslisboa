@@ -736,9 +736,29 @@ Deno.serve(async (req) => {
       synced_at: new Date().toISOString(),
     }));
 
-    // Upsert period_metrics in parallel
+    // Upsert period_metrics with correct unique constraint
+    const upsertPeriodMetrics = async (records: any[], batchSize = 200) => {
+      if (records.length === 0) return 0;
+      const batches = chunk(records, batchSize);
+      let upsertedCount = 0;
+      
+      for (const batch of batches) {
+        const { error } = await supabase.from('period_metrics').upsert(batch, { 
+          onConflict: 'project_id,period_key,entity_type,entity_id',
+          ignoreDuplicates: false 
+        });
+        if (error) {
+          console.error(`[UPSERT ERROR period_metrics]`, error.message);
+        } else {
+          upsertedCount += batch.length;
+        }
+      }
+      
+      return upsertedCount;
+    };
+
     const allPeriodRecords = [...campaignPeriodRecords, ...adSetPeriodRecords, ...adPeriodRecords];
-    const periodMetricsUpserted = await upsertInBatches('period_metrics', allPeriodRecords);
+    const periodMetricsUpserted = await upsertPeriodMetrics(allPeriodRecords);
     console.log(`[PERIOD_METRICS] Upserted ${periodMetricsUpserted} records for period ${periodKey}`);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
