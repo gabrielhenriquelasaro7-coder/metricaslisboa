@@ -15,14 +15,17 @@ function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
-// Get the NEW periods to sync
+function subDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() - days);
+  return d;
+}
+
+// Get ALL periods to sync - includes last_Xd AND month/year periods
 function getPeriodsToSync(): { key: string; since: string; until: string }[] {
   const now = new Date();
   const today = formatDate(now);
-  
-  // Yesterday
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterday = subDays(now, 1);
   
   // This month
   const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -39,11 +42,38 @@ function getPeriodsToSync(): { key: string; since: string; until: string }[] {
   const lastDayLastYear = new Date(now.getFullYear() - 1, 11, 31);
   
   return [
+    // Day-based periods (fast to sync - less data)
     {
       key: 'yesterday',
       since: formatDate(yesterday),
       until: formatDate(yesterday),
     },
+    {
+      key: 'last_7d',
+      since: formatDate(subDays(now, 7)),
+      until: formatDate(yesterday),
+    },
+    {
+      key: 'last_14d',
+      since: formatDate(subDays(now, 14)),
+      until: formatDate(yesterday),
+    },
+    {
+      key: 'last_30d',
+      since: formatDate(subDays(now, 30)),
+      until: formatDate(yesterday),
+    },
+    {
+      key: 'last_60d',
+      since: formatDate(subDays(now, 60)),
+      until: formatDate(yesterday),
+    },
+    {
+      key: 'last_90d',
+      since: formatDate(subDays(now, 90)),
+      until: formatDate(yesterday),
+    },
+    // Month/Year periods
     {
       key: 'this_month',
       since: formatDate(firstDayThisMonth),
@@ -108,7 +138,7 @@ Deno.serve(async (req) => {
     console.log(`[SCHEDULED SYNC] Found ${projects?.length || 0} projects`);
 
     const periods = getPeriodsToSync();
-    console.log(`[SCHEDULED SYNC] Periods: ${periods.map(p => p.key).join(', ')}`);
+    console.log(`[SCHEDULED SYNC] Periods to sync (${periods.length}): ${periods.map(p => p.key).join(', ')}`);
 
     const results: any[] = [];
 
@@ -123,7 +153,7 @@ Deno.serve(async (req) => {
         periods_failed: [] as string[],
       };
 
-      // Sync each period with LONG delays between them
+      // Sync each period with delays between them
       for (let i = 0; i < periods.length; i++) {
         const period = periods[i];
         console.log(`\n[${project.name}] Syncing ${period.key} (${period.since} to ${period.until})...`);
@@ -154,13 +184,13 @@ Deno.serve(async (req) => {
           }
         } catch (error) {
           projectResult.periods_failed.push(period.key);
-          console.log(`[${project.name}] ${period.key}: ✗ Error`);
+          console.log(`[${project.name}] ${period.key}: ✗ Error - ${error instanceof Error ? error.message : 'Unknown'}`);
         }
 
-        // VERY LONG delay between periods (2 minutes) to avoid rate limits
+        // Delay between periods (60 seconds) to avoid rate limits
         if (i < periods.length - 1) {
-          console.log(`[${project.name}] Waiting 2 minutes before next period...`);
-          await delay(120000);
+          console.log(`[${project.name}] Waiting 60s before next period...`);
+          await delay(60000);
         }
       }
 
@@ -186,15 +216,16 @@ Deno.serve(async (req) => {
 
       results.push(projectResult);
       
-      // VERY LONG delay between projects (5 minutes)
+      // Delay between projects (3 minutes)
       if (results.length < (projects?.length || 0)) {
-        console.log(`\n[SCHEDULED SYNC] Waiting 5 minutes before next project...`);
-        await delay(300000);
+        console.log(`\n[SCHEDULED SYNC] Waiting 3 minutes before next project...`);
+        await delay(180000);
       }
     }
 
     const elapsed = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
     console.log(`\n[SCHEDULED SYNC] Complete in ${elapsed} minutes`);
+    console.log(`[SCHEDULED SYNC] Total results: ${JSON.stringify(results)}`);
 
     return new Response(
       JSON.stringify({ success: true, elapsed_minutes: parseFloat(elapsed), results }),
