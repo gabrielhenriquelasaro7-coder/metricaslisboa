@@ -3,7 +3,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import SparklineCard from '@/components/dashboard/SparklineCard';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
-import DailyEvolutionChart from '@/components/dashboard/DailyEvolutionChart';
+import AdvancedCharts from '@/components/dashboard/AdvancedCharts';
 import PeriodComparison from '@/components/dashboard/PeriodComparison';
 import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
@@ -272,6 +272,8 @@ export default function Dashboard() {
                 currentMetrics={metrics}
                 previousMetrics={previousMetrics}
                 businessModel={businessModel || null}
+                currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? 'Últimos 7 dias' : selectedPreset === 'last_30d' ? 'Últimos 30 dias' : 'Período Atual'}
+                previousPeriodLabel={selectedPreset === 'this_month' ? 'Mês Anterior' : selectedPreset === 'last_7d' ? '7 dias antes' : selectedPreset === 'last_30d' ? '30 dias antes' : 'Período Anterior'}
               />
             )}
 
