@@ -195,6 +195,113 @@ export type Database = {
           },
         ]
       }
+      ads_daily_metrics: {
+        Row: {
+          ad_account_id: string
+          ad_id: string
+          ad_name: string
+          ad_status: string | null
+          adset_id: string
+          adset_name: string
+          adset_status: string | null
+          campaign_id: string
+          campaign_name: string
+          campaign_objective: string | null
+          campaign_status: string | null
+          clicks: number
+          conversion_value: number | null
+          conversions: number | null
+          cpa: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string
+          creative_id: string | null
+          creative_thumbnail: string | null
+          ctr: number | null
+          date: string
+          frequency: number | null
+          id: string
+          impressions: number
+          project_id: string
+          reach: number
+          roas: number | null
+          spend: number
+          synced_at: string
+        }
+        Insert: {
+          ad_account_id: string
+          ad_id: string
+          ad_name: string
+          ad_status?: string | null
+          adset_id: string
+          adset_name: string
+          adset_status?: string | null
+          campaign_id: string
+          campaign_name: string
+          campaign_objective?: string | null
+          campaign_status?: string | null
+          clicks?: number
+          conversion_value?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          creative_id?: string | null
+          creative_thumbnail?: string | null
+          ctr?: number | null
+          date: string
+          frequency?: number | null
+          id?: string
+          impressions?: number
+          project_id: string
+          reach?: number
+          roas?: number | null
+          spend?: number
+          synced_at?: string
+        }
+        Update: {
+          ad_account_id?: string
+          ad_id?: string
+          ad_name?: string
+          ad_status?: string | null
+          adset_id?: string
+          adset_name?: string
+          adset_status?: string | null
+          campaign_id?: string
+          campaign_name?: string
+          campaign_objective?: string | null
+          campaign_status?: string | null
+          clicks?: number
+          conversion_value?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          creative_id?: string | null
+          creative_thumbnail?: string | null
+          ctr?: number | null
+          date?: string
+          frequency?: number | null
+          id?: string
+          impressions?: number
+          project_id?: string
+          reach?: number
+          roas?: number | null
+          spend?: number
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ads_daily_metrics_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           clicks: number | null

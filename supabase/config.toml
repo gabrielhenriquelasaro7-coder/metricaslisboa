@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.scheduled-sync-parallel]
 verify_jwt = false
+
+[functions.import-historical-data]
+verify_jwt = false
