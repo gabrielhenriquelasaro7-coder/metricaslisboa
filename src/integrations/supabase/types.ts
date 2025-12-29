@@ -388,6 +388,104 @@ export type Database = {
           },
         ]
       }
+      chart_preferences: {
+        Row: {
+          chart_key: string
+          chart_type: string | null
+          created_at: string
+          custom_name: string | null
+          id: string
+          primary_color: string | null
+          primary_metric: string | null
+          secondary_color: string | null
+          secondary_metric: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chart_key: string
+          chart_type?: string | null
+          created_at?: string
+          custom_name?: string | null
+          id?: string
+          primary_color?: string | null
+          primary_metric?: string | null
+          secondary_color?: string | null
+          secondary_metric?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chart_key?: string
+          chart_type?: string | null
+          created_at?: string
+          custom_name?: string | null
+          id?: string
+          primary_color?: string | null
+          primary_metric?: string | null
+          secondary_color?: string | null
+          secondary_metric?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      demographic_insights: {
+        Row: {
+          breakdown_type: string
+          breakdown_value: string
+          clicks: number | null
+          conversion_value: number | null
+          conversions: number | null
+          created_at: string
+          date: string
+          id: string
+          impressions: number | null
+          project_id: string
+          reach: number | null
+          spend: number | null
+          synced_at: string
+        }
+        Insert: {
+          breakdown_type: string
+          breakdown_value: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          created_at?: string
+          date: string
+          id?: string
+          impressions?: number | null
+          project_id: string
+          reach?: number | null
+          spend?: number | null
+          synced_at?: string
+        }
+        Update: {
+          breakdown_type?: string
+          breakdown_value?: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          created_at?: string
+          date?: string
+          id?: string
+          impressions?: number | null
+          project_id?: string
+          reach?: number | null
+          spend?: number | null
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demographic_insights_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       period_metrics: {
         Row: {
           created_at: string | null
