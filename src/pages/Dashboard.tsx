@@ -272,6 +272,7 @@ export default function Dashboard() {
                 businessModel={businessModel || null}
                 currency={selectedProject?.currency || 'BRL'}
                 chartRef={chartRef}
+                projectId={selectedProject?.id}
               />
             )}
             

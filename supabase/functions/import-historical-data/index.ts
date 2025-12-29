@@ -238,6 +238,36 @@ Deno.serve(async (req) => {
     console.log(`[IMPORT] Batches: ${successBatches}/${batches.length} success`);
     console.log(`[IMPORT] Total records: ${totalRecords}`);
 
+    // Automatically detect and fix gaps after historical import
+    console.log(`[IMPORT] Running gap detection and fix...`);
+    await updateProgress(98, 'Verificando e corrigindo lacunas de dados...');
+    
+    try {
+      const gapsResponse = await fetch(`${supabaseUrl}/functions/v1/detect-and-fix-gaps`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          project_id: project.id,
+          since,
+          until: finalUntil,
+          auto_fix: true, // Automatically fix detected gaps
+        }),
+      });
+      
+      const gapsData = await gapsResponse.json().catch(() => ({ success: false }));
+      if (gapsData.gaps_found > 0) {
+        console.log(`[IMPORT] ✓ Gaps detected: ${gapsData.gaps_found}, fixed: ${gapsData.gaps_fixed || 0}`);
+        totalRecords += gapsData.records_recovered || 0;
+      } else {
+        console.log(`[IMPORT] ✓ No gaps detected`);
+      }
+    } catch (gapsError) {
+      console.error('[IMPORT] Gap detection error:', gapsError);
+    }
+
     return new Response(
       JSON.stringify({
         success,
