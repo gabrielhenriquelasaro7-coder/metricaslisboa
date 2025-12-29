@@ -187,7 +187,7 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
       console.log(`[DailyMetrics] Loading: ${since} to ${until} (${days} days)`);
       console.log(`[DailyMetrics] Previous: ${previousDates.since} to ${previousDates.until}`);
       
-      // Fetch current and previous period in parallel
+      // Fetch current and previous period in parallel - no limit to get all data
       const [currentResult, previousResult] = await Promise.all([
         supabase
           .from('ads_daily_metrics')
@@ -195,15 +195,27 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
           .eq('project_id', projectId)
           .gte('date', since)
           .lte('date', until)
-          .order('date', { ascending: true }),
+          .order('date', { ascending: true })
+          .limit(10000),
         supabase
           .from('ads_daily_metrics')
           .select('date, spend, impressions, clicks, reach, conversions, conversion_value')
           .eq('project_id', projectId)
           .gte('date', previousDates.since)
           .lte('date', previousDates.until)
-          .order('date', { ascending: true }),
+          .order('date', { ascending: true })
+          .limit(10000),
       ]);
+      
+      if (currentResult.error) {
+        console.error('[DailyMetrics] Current period error:', currentResult.error);
+      }
+      if (previousResult.error) {
+        console.error('[DailyMetrics] Previous period error:', previousResult.error);
+      }
+      
+      console.log(`[DailyMetrics] Raw current rows: ${currentResult.data?.length || 0}`);
+      console.log(`[DailyMetrics] Raw previous rows: ${previousResult.data?.length || 0}`);
       
       const currentData = aggregateDaily(currentResult.data || []);
       const previousData = aggregateDaily(previousResult.data || []);
