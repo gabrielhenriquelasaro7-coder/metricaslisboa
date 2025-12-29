@@ -50,19 +50,38 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Simple fetch with timeout (no retries for speed)
-async function simpleFetch(url: string, timeout = 10000): Promise<any> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
-    
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    return await res.json();
-  } catch (error) {
-    return { error: { message: 'Request timeout' } };
+// Fetch with retry on rate limit
+async function fetchWithRetry(url: string, timeout = 10000, maxRetries = 2): Promise<any> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      const data = await res.json();
+      
+      // Handle rate limit - wait and retry
+      if (data.error && (data.error.code === 17 || data.error.code === 4 || data.error.message?.includes('limit'))) {
+        if (attempt < maxRetries) {
+          const waitTime = (attempt + 1) * 5000; // 5s, 10s
+          console.log(`[RATE LIMIT] Waiting ${waitTime/1000}s before retry...`);
+          await delay(waitTime);
+          continue;
+        }
+      }
+      
+      return data;
+    } catch (error) {
+      if (attempt < maxRetries) {
+        await delay(2000);
+        continue;
+      }
+      return { error: { message: 'Request timeout' } };
+    }
   }
+  return { error: { message: 'Max retries exceeded' } };
 }
 
 // Fetch pages with strict limits
@@ -76,7 +95,7 @@ async function fetchLimited(baseUrl: string, token: string, entityName: string, 
     pageCount++;
     console.log(`[${entityName}] Page ${pageCount}...`);
     
-    const data = await simpleFetch(nextUrl);
+    const data = await fetchWithRetry(nextUrl);
     
     if (data.error) {
       console.error(`[${entityName}] Error:`, data.error.message);
@@ -275,9 +294,10 @@ Deno.serve(async (req) => {
         const batch = entities.slice(i, i + batchSize);
         
         await Promise.all(batch.map(async (entity: any) => {
-          const data = await simpleFetch(
+          const data = await fetchWithRetry(
             `https://graph.facebook.com/v19.0/${entity.id}/insights?fields=${insightsFields}&${timeParam}&access_token=${token}`,
-            5000
+            5000,
+            1
           );
           if (data.data?.[0]) {
             insightsMap.set(entity.id, data.data[0]);
