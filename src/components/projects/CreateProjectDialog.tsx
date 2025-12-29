@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useProjects, BusinessModel, CreateProjectData } from '@/hooks/useProjects';
 import { Plus, Loader2 } from 'lucide-react';
 import { z } from 'zod';
+import { ImportProgressDialog } from './ImportProgressDialog';
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(100),
@@ -45,6 +46,11 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { createProject } = useProjects();
 
+  // Import progress state
+  const [showImportProgress, setShowImportProgress] = useState(false);
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
+  const [createdProjectName, setCreatedProjectName] = useState('');
+
   const [formData, setFormData] = useState<CreateProjectData>({
     name: '',
     ad_account_id: '',
@@ -74,8 +80,15 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
 
     setIsLoading(true);
     try {
-      await createProject(formData);
+      const project = await createProject(formData);
+      
+      // Close form dialog and show import progress
       setOpen(false);
+      setCreatedProjectId(project.id);
+      setCreatedProjectName(formData.name);
+      setShowImportProgress(true);
+      
+      // Reset form
       setFormData({
         name: '',
         ad_account_id: '',
@@ -83,125 +96,142 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
         timezone: 'America/Sao_Paulo',
         currency: 'BRL',
       });
-      onSuccess?.();
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleImportProgressClose = (open: boolean) => {
+    setShowImportProgress(open);
+    if (!open) {
+      setCreatedProjectId(null);
+      setCreatedProjectName('');
+      onSuccess?.();
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="gradient">
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Projeto
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-xl">Criar novo projeto</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-5 mt-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Nome do projeto</Label>
-            <Input
-              id="name"
-              placeholder="Minha loja virtual"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-          </div>
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant="gradient">
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Projeto
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Criar novo projeto</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-5 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome do projeto</Label>
+              <Input
+                id="name"
+                placeholder="Minha loja virtual"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="ad_account_id">ID da conta de anúncios</Label>
-            <Input
-              id="ad_account_id"
-              placeholder="act_123456789"
-              value={formData.ad_account_id}
-              onChange={(e) => setFormData({ ...formData, ad_account_id: e.target.value })}
-            />
-            {errors.ad_account_id && <p className="text-sm text-destructive">{errors.ad_account_id}</p>}
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="ad_account_id">ID da conta de anúncios</Label>
+              <Input
+                id="ad_account_id"
+                placeholder="act_123456789"
+                value={formData.ad_account_id}
+                onChange={(e) => setFormData({ ...formData, ad_account_id: e.target.value })}
+              />
+              {errors.ad_account_id && <p className="text-sm text-destructive">{errors.ad_account_id}</p>}
+            </div>
 
-          <div className="space-y-2">
-            <Label>Modelo de negócio</Label>
-            <div className="grid grid-cols-1 gap-3">
-              {businessModels.map((model) => (
-                <button
-                  key={model.value}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, business_model: model.value })}
-                  className={`p-4 rounded-lg border text-left transition-all ${
-                    formData.business_model === model.value
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
+            <div className="space-y-2">
+              <Label>Modelo de negócio</Label>
+              <div className="grid grid-cols-1 gap-3">
+                {businessModels.map((model) => (
+                  <button
+                    key={model.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, business_model: model.value })}
+                    className={`p-4 rounded-lg border text-left transition-all ${
+                      formData.business_model === model.value
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <p className="font-medium">{model.label}</p>
+                    <p className="text-sm text-muted-foreground">{model.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Fuso horário</Label>
+                <Select
+                  value={formData.timezone}
+                  onValueChange={(value) => setFormData({ ...formData, timezone: value })}
                 >
-                  <p className="font-medium">{model.label}</p>
-                  <p className="text-sm text-muted-foreground">{model.description}</p>
-                </button>
-              ))}
-            </div>
-          </div>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timezones.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Fuso horário</Label>
-              <Select
-                value={formData.timezone}
-                onValueChange={(value) => setFormData({ ...formData, timezone: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {timezones.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label>Moeda</Label>
+                <Select
+                  value={formData.currency}
+                  onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencies.map((curr) => (
+                      <SelectItem key={curr.value} value={curr.value}>
+                        {curr.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Moeda</Label>
-              <Select
-                value={formData.currency}
-                onValueChange={(value) => setFormData({ ...formData, currency: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((curr) => (
-                    <SelectItem key={curr.value} value={curr.value}>
-                      {curr.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="gradient" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  'Criar projeto'
+                )}
+              </Button>
             </div>
-          </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" variant="gradient" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Criando...
-                </>
-              ) : (
-                'Criar projeto'
-              )}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <ImportProgressDialog
+        open={showImportProgress}
+        onOpenChange={handleImportProgressClose}
+        projectId={createdProjectId}
+        projectName={createdProjectName}
+      />
+    </>
   );
 }
