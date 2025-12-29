@@ -66,16 +66,27 @@ function getDateRangeFromPeriod(preset: DatePresetKey) {
   }
 }
 
-// Get previous period dates
+// Get previous period dates - equivalent period before the current one
 function getPreviousPeriodDates(since: string, until: string, days: number) {
-  const sinceDate = new Date(since);
-  sinceDate.setDate(sinceDate.getDate() - days - 1);
-  const untilDate = new Date(since);
-  untilDate.setDate(untilDate.getDate() - 1);
+  // The previous period should have the same number of days
+  // and end the day before the current period starts
+  const currentSince = new Date(since);
+  const currentUntil = new Date(until);
+  
+  // Calculate actual days in current period (inclusive)
+  const actualDays = Math.round((currentUntil.getTime() - currentSince.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  
+  // Previous period ends 1 day before current starts
+  const previousUntil = new Date(currentSince);
+  previousUntil.setDate(previousUntil.getDate() - 1);
+  
+  // Previous period starts (actualDays - 1) days before previousUntil
+  const previousSince = new Date(previousUntil);
+  previousSince.setDate(previousSince.getDate() - actualDays + 1);
   
   return {
-    since: sinceDate.toISOString().split('T')[0],
-    until: untilDate.toISOString().split('T')[0],
+    since: previousSince.toISOString().split('T')[0],
+    until: previousUntil.toISOString().split('T')[0],
   };
 }
 
