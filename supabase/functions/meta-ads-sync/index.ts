@@ -81,6 +81,9 @@ async function fetchWithRetry(url: string, entityName: string, options?: Request
       return data;
     }
     
+    // Log the error for debugging
+    console.error(`[${entityName}] API Error:`, JSON.stringify(data.error));
+    
     if (isRateLimitError(data)) {
       if (attempt < MAX_RETRIES) {
         const waitTime = VALIDATION_RETRY_DELAYS[attempt] || 30000;
@@ -108,8 +111,11 @@ async function fetchEntities(adAccountId: string, token: string): Promise<{
   const adsets: any[] = [];
   const ads: any[] = [];
 
+  // Effective status filter for all statuses (URL encoded) - exclude DELETED as Meta API doesn't allow it
+  const effectiveStatusFilter = encodeURIComponent('["ACTIVE","PAUSED","ARCHIVED","PENDING_REVIEW","DISAPPROVED","PREAPPROVED","PENDING_BILLING_INFO","CAMPAIGN_PAUSED","ADSET_PAUSED","IN_PROCESS","WITH_ISSUES"]');
+
   // Fetch campaigns - include all statuses
-  let url = `https://graph.facebook.com/v19.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&effective_status=["ACTIVE","PAUSED","ARCHIVED","DELETED"]&access_token=${token}`;
+  let url = `https://graph.facebook.com/v19.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'CAMPAIGNS');
     if (data.data) campaigns.push(...data.data);
@@ -117,16 +123,15 @@ async function fetchEntities(adAccountId: string, token: string): Promise<{
   }
 
   // Fetch adsets - include all statuses
-  url = `https://graph.facebook.com/v19.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&effective_status=["ACTIVE","PAUSED","ARCHIVED","DELETED"]&access_token=${token}`;
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADSETS');
     if (data.data) adsets.push(...data.data);
     url = data.paging?.next || null;
   }
 
-// Fetch ads with expanded creative fields for HD images - include all statuses
-  // Request ALL image fields for maximum quality: image_url, image_hash, asset_feed_spec, source_url
-  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,source_url,object_story_spec,asset_feed_spec,effective_object_story_id}&limit=500&effective_status=["ACTIVE","PAUSED","ARCHIVED","DELETED"]&access_token=${token}`;
+  // Fetch ads with creative fields for HD images - simplified to avoid data limit errors
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADS');
     if (data.data) ads.push(...data.data);
@@ -242,20 +247,14 @@ function extractHdImageUrl(ad: any, adImageMap: Map<string, string>): { imageUrl
   // Priority 1: Get HD URL from adimages API (highest quality - original resolution)
   if (creative.image_hash && adImageMap.has(creative.image_hash)) {
     imageUrl = adImageMap.get(creative.image_hash)!;
-    console.log(`[HD] Using adimage URL for hash ${creative.image_hash}`);
   }
   
-  // Priority 2: source_url from creative (original upload)
-  if (!imageUrl && creative.source_url) {
-    imageUrl = creative.source_url;
-  }
-  
-  // Priority 3: Direct image_url from creative (full HD)
+  // Priority 2: Direct image_url from creative (full HD)
   if (!imageUrl && creative.image_url) {
     imageUrl = creative.image_url;
   }
   
-  // Priority 4: Check asset_feed_spec for carousel/dynamic ads (HD images)
+  // Priority 3: Check asset_feed_spec for carousel/dynamic ads (HD images)
   if (!imageUrl && creative.asset_feed_spec) {
     const assets = creative.asset_feed_spec;
     if (assets.images && assets.images.length > 0) {
