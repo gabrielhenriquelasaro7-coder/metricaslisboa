@@ -462,9 +462,10 @@ export default function Dashboard() {
 
             {/* Charts - Real daily data */}
             <div className="grid grid-cols-1 gap-6">
-              <DailyEvolutionChart
+              <AdvancedCharts
                 data={dailyData}
                 businessModel={businessModel || null}
+                campaignData={campaigns.map(c => ({ name: c.name, spend: c.spend, conversions: c.conversions }))}
               />
             </div>
 
