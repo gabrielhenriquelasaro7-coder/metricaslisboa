@@ -92,6 +92,7 @@ export function useMetaAdsData() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [usingFallbackData, setUsingFallbackData] = useState(false);
+  const [dataDateRange, setDataDateRange] = useState<{ from: string; to: string } | null>(null);
   const { projects, loading: projectsLoading } = useProjects();
   
   // Use ref to track loaded period without causing re-renders/recreations
@@ -264,6 +265,30 @@ export function useMetaAdsData() {
 
       console.log(`[PERIOD] Date range: ${since} to ${until}`);
 
+      // First, check what dates we have data for (for display purposes)
+      const { data: firstDateData } = await supabase
+        .from('ads_daily_metrics')
+        .select('date')
+        .eq('project_id', selectedProject.id)
+        .order('date', { ascending: true })
+        .limit(1);
+      
+      const { data: lastDateData } = await supabase
+        .from('ads_daily_metrics')
+        .select('date')
+        .eq('project_id', selectedProject.id)
+        .order('date', { ascending: false })
+        .limit(1);
+      
+      if (firstDateData?.length && lastDateData?.length) {
+        setDataDateRange({
+          from: new Date(firstDateData[0].date + 'T00:00:00').toLocaleDateString('pt-BR'),
+          to: new Date(lastDateData[0].date + 'T00:00:00').toLocaleDateString('pt-BR'),
+        });
+      } else {
+        setDataDateRange(null);
+      }
+
       // Query ads_daily_metrics and aggregate - fetch ALL records (no 1000 limit)
       // We need to paginate to get all records since Supabase defaults to 1000
       let allDailyMetrics: any[] = [];
@@ -299,11 +324,15 @@ export function useMetaAdsData() {
       console.log(`[PERIOD] Fetched ${dailyMetrics.length} total records (${page} pages)`);
 
       if (!dailyMetrics || dailyMetrics.length === 0) {
-        console.log(`[PERIOD] No daily data found, loading from main tables`);
+        console.log(`[PERIOD] No daily data found for period ${since} to ${until}`);
         setUsingFallbackData(true);
-        await loadDataFromDatabase();
+        // Don't load fallback data - show empty state instead
+        setCampaigns([]);
+        setAdSets([]);
+        setAds([]);
         lastLoadedPeriodRef.current = periodKey;
-        return { found: false, fallback: true };
+        setLoading(false);
+        return { found: false, noData: true };
       }
 
       setUsingFallbackData(false);
@@ -497,6 +526,7 @@ export function useMetaAdsData() {
     selectedProject,
     projectsLoading,
     usingFallbackData,
+    dataDateRange,
     syncData,
     loadDataFromDatabase,
     loadMetricsByPeriod,
