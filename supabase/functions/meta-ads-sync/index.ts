@@ -107,25 +107,25 @@ async function fetchEntities(adAccountId: string, token: string): Promise<{
   const adsets: any[] = [];
   const ads: any[] = [];
 
-  // Fetch campaigns
-  let url = `https://graph.facebook.com/v19.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&access_token=${token}`;
+  // Fetch campaigns - include all statuses
+  let url = `https://graph.facebook.com/v19.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&effective_status=["ACTIVE","PAUSED","ARCHIVED","DELETED"]&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'CAMPAIGNS');
     if (data.data) campaigns.push(...data.data);
     url = data.paging?.next || null;
   }
 
-  // Fetch adsets
-  url = `https://graph.facebook.com/v19.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&access_token=${token}`;
+  // Fetch adsets - include all statuses
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&effective_status=["ACTIVE","PAUSED","ARCHIVED","DELETED"]&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADSETS');
     if (data.data) adsets.push(...data.data);
     url = data.paging?.next || null;
   }
 
-  // Fetch ads with expanded creative fields for HD images
+  // Fetch ads with expanded creative fields for HD images - include all statuses
   // Request image_url (full size), thumbnail_url (small), and video metadata
-  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,object_story_spec,effective_object_story_id}&limit=500&access_token=${token}`;
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,object_story_spec,effective_object_story_id}&limit=500&effective_status=["ACTIVE","PAUSED","ARCHIVED","DELETED"]&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADS');
     if (data.data) ads.push(...data.data);
