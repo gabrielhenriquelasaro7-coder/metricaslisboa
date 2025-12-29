@@ -1,5 +1,5 @@
 // Utilitário de cálculo de períodos temporais com suporte a timezone
-// Períodos: yesterday, this_month, last_month, this_year, last_year
+// Períodos: yesterday, last_7d, last_14d, last_30d, last_60d, last_90d, this_month, last_month, this_year, last_year
 
 export interface DatePeriod {
   since: string;
@@ -9,6 +9,11 @@ export interface DatePeriod {
 export interface TimePeriods {
   reference_date: string;
   yesterday: DatePeriod;
+  last_7d: DatePeriod;
+  last_14d: DatePeriod;
+  last_30d: DatePeriod;
+  last_60d: DatePeriod;
+  last_90d: DatePeriod;
   this_month: DatePeriod;
   last_month: DatePeriod;
   this_year: DatePeriod;
@@ -31,7 +36,7 @@ const TIMEZONE_OFFSETS: Record<string, number> = {
 };
 
 function getOffsetFromTimezone(timezone: string): number {
-  return TIMEZONE_OFFSETS[timezone] ?? -3; // Default para Brasília
+  return TIMEZONE_OFFSETS[timezone] ?? -3;
 }
 
 function toTimezone(date: Date, offsetHours: number): Date {
@@ -80,6 +85,31 @@ export function calculateTimePeriods(timezone: string = 'America/Sao_Paulo'): Ti
       until: formatDate(yesterday),
     },
 
+    last_7d: {
+      since: formatDate(subDays(today, 7)),
+      until: formatDate(yesterday),
+    },
+
+    last_14d: {
+      since: formatDate(subDays(today, 14)),
+      until: formatDate(yesterday),
+    },
+
+    last_30d: {
+      since: formatDate(subDays(today, 30)),
+      until: formatDate(yesterday),
+    },
+
+    last_60d: {
+      since: formatDate(subDays(today, 60)),
+      until: formatDate(yesterday),
+    },
+
+    last_90d: {
+      since: formatDate(subDays(today, 90)),
+      until: formatDate(yesterday),
+    },
+
     this_month: {
       since: formatDate(firstDayThisMonth),
       until: formatDate(today),
@@ -102,9 +132,14 @@ export function calculateTimePeriods(timezone: string = 'America/Sao_Paulo'): Ti
   };
 }
 
-// Presets para o DateRangePicker - APENAS OS 5 NOVOS PERÍODOS
+// TODOS os presets disponíveis
 export type DatePresetKey = 
   | 'yesterday'
+  | 'last_7d'
+  | 'last_14d'
+  | 'last_30d'
+  | 'last_60d'
+  | 'last_90d'
   | 'this_month'
   | 'last_month'
   | 'this_year'
@@ -118,6 +153,11 @@ export interface DatePresetOption {
 
 export const DATE_PRESETS: DatePresetOption[] = [
   { key: 'yesterday', label: 'Ontem' },
+  { key: 'last_7d', label: 'Últimos 7 dias' },
+  { key: 'last_14d', label: 'Últimos 14 dias' },
+  { key: 'last_30d', label: 'Últimos 30 dias' },
+  { key: 'last_60d', label: 'Últimos 60 dias' },
+  { key: 'last_90d', label: 'Últimos 90 dias' },
   { key: 'this_month', label: 'Este Mês' },
   { key: 'last_month', label: 'Mês Passado' },
   { key: 'this_year', label: 'Este Ano' },
@@ -132,7 +172,7 @@ export function getDateRangeFromPreset(
   if (presetKey === 'custom') return null;
   
   const periods = calculateTimePeriods(timezone);
-  return periods[presetKey] || null;
+  return periods[presetKey as keyof Omit<TimePeriods, 'reference_date'>] || null;
 }
 
 // Converte DatePeriod para DateRange (react-day-picker format)
@@ -147,3 +187,17 @@ export function datePeriodToDateRange(period: DatePeriod): { from: Date; to: Dat
 export function presetKeyToPeriodKey(presetKey: DatePresetKey): string {
   return presetKey;
 }
+
+// Lista de todos os period_keys para sync
+export const ALL_PERIOD_KEYS = [
+  'yesterday',
+  'last_7d',
+  'last_14d', 
+  'last_30d',
+  'last_60d',
+  'last_90d',
+  'this_month',
+  'last_month',
+  'this_year',
+  'last_year',
+] as const;
