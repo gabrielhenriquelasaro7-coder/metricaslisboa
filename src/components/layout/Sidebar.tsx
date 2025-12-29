@@ -16,7 +16,8 @@ import {
   Layers,
   ChevronUp,
   Image as ImageIcon,
-  History
+  History,
+  Database
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -299,6 +300,18 @@ export default function Sidebar() {
           >
             <History className="w-5 h-5 flex-shrink-0" />
             {!collapsed && <span>Histórico Sync</span>}
+          </Link>
+
+          {/* Admin */}
+          <Link
+            to="/admin"
+            className={cn(
+              'sidebar-item',
+              location.pathname === '/admin' && 'active'
+            )}
+          >
+            <Database className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>Administração</span>}
           </Link>
 
           {/* Settings */}
