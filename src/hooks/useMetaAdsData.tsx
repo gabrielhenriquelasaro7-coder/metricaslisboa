@@ -264,18 +264,39 @@ export function useMetaAdsData() {
 
       console.log(`[PERIOD] Date range: ${since} to ${until}`);
 
-      // Query ads_daily_metrics and aggregate
-      const { data: dailyMetrics, error } = await supabase
-        .from('ads_daily_metrics')
-        .select('*')
-        .eq('project_id', selectedProject.id)
-        .gte('date', since)
-        .lte('date', until);
+      // Query ads_daily_metrics and aggregate - fetch ALL records (no 1000 limit)
+      // We need to paginate to get all records since Supabase defaults to 1000
+      let allDailyMetrics: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) {
-        console.error('Error loading daily metrics:', error);
-        throw error;
+      while (hasMore) {
+        const { data: dailyMetrics, error } = await supabase
+          .from('ads_daily_metrics')
+          .select('*')
+          .eq('project_id', selectedProject.id)
+          .gte('date', since)
+          .lte('date', until)
+          .range(page * pageSize, (page + 1) * pageSize - 1)
+          .order('date', { ascending: true });
+
+        if (error) {
+          console.error('Error loading daily metrics:', error);
+          throw error;
+        }
+
+        if (dailyMetrics && dailyMetrics.length > 0) {
+          allDailyMetrics = [...allDailyMetrics, ...dailyMetrics];
+          page++;
+          hasMore = dailyMetrics.length === pageSize;
+        } else {
+          hasMore = false;
+        }
       }
+
+      const dailyMetrics = allDailyMetrics;
+      console.log(`[PERIOD] Fetched ${dailyMetrics.length} total records (${page} pages)`);
 
       if (!dailyMetrics || dailyMetrics.length === 0) {
         console.log(`[PERIOD] No daily data found, loading from main tables`);
