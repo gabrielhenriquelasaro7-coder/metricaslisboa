@@ -35,15 +35,15 @@ import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
   const { projects, loading: projectsLoading } = useProjects();
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
+    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [showComparison, setShowComparison] = useState(true);
 
   // Get campaigns and selected project from hook (uses localStorage)
-  const { campaigns, loading: dataLoading, syncing, syncData, selectedProject, loadMetricsByPeriod, getPeriodKeyFromDays } = useMetaAdsData();
+  const { campaigns, loading: dataLoading, syncing, syncData, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
 
   // Get active (non-archived) projects
   const activeProjects = useMemo(() => 

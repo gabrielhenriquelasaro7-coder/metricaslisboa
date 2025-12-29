@@ -30,13 +30,13 @@ import { cn } from '@/lib/utils';
 export default function Campaigns() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
+    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
     return period ? datePeriodToDateRange(period) : undefined;
   });
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
-  const { campaigns, adSets, ads, loading, selectedProject, projectsLoading, loadMetricsByPeriod, getPeriodKeyFromDays, usingFallbackData } = useMetaAdsData();
+  const { campaigns, adSets, ads, loading, selectedProject, projectsLoading, loadMetricsByPeriod, usingFallbackData } = useMetaAdsData();
 
   // Create lookup maps for ad sets and ads count per campaign
   const adSetsCountByCampaign = adSets.reduce((acc, adSet) => {

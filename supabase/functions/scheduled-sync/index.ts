@@ -15,34 +15,64 @@ function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
-// Get date ranges for different periods
-function getDateRanges(): { key: string; since: string; until: string }[] {
+// Get the NEW periods to sync
+function getPeriodsToSync(): { key: string; since: string; until: string }[] {
   const now = new Date();
-  const until = formatDate(now);
+  const today = formatDate(now);
   
-  const periods = [
-    { key: 'last_7d', days: 7 },
-    { key: 'last_14d', days: 14 },
-    { key: 'last_30d', days: 30 },
-    { key: 'last_60d', days: 60 },
-    { key: 'last_90d', days: 90 },
+  // Yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  // This month
+  const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  
+  // Last month (full month)
+  const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+  
+  // This year
+  const firstDayThisYear = new Date(now.getFullYear(), 0, 1);
+  
+  // Last year (full year)
+  const firstDayLastYear = new Date(now.getFullYear() - 1, 0, 1);
+  const lastDayLastYear = new Date(now.getFullYear() - 1, 11, 31);
+  
+  return [
+    {
+      key: 'yesterday',
+      since: formatDate(yesterday),
+      until: formatDate(yesterday),
+    },
+    {
+      key: 'this_month',
+      since: formatDate(firstDayThisMonth),
+      until: today,
+    },
+    {
+      key: 'last_month',
+      since: formatDate(firstDayLastMonth),
+      until: formatDate(lastDayLastMonth),
+    },
+    {
+      key: 'this_year',
+      since: formatDate(firstDayThisYear),
+      until: today,
+    },
+    {
+      key: 'last_year',
+      since: formatDate(firstDayLastYear),
+      until: formatDate(lastDayLastYear),
+    },
   ];
-  
-  return periods.map(p => {
-    const sinceDate = new Date(now);
-    sinceDate.setDate(sinceDate.getDate() - p.days);
-    return {
-      key: p.key,
-      since: formatDate(sinceDate),
-      until,
-    };
-  });
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const startTime = Date.now();
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -74,16 +104,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log(`[SCHEDULED SYNC] Started at: ${new Date().toISOString()}`);
     console.log(`[SCHEDULED SYNC] Found ${projects?.length || 0} projects`);
 
-    const dateRanges = getDateRanges();
-    console.log(`[SCHEDULED SYNC] Periods: ${dateRanges.map(d => d.key).join(', ')}`);
+    const periods = getPeriodsToSync();
+    console.log(`[SCHEDULED SYNC] Periods: ${periods.map(p => p.key).join(', ')}`);
 
     const results: any[] = [];
 
     // Process each project
     for (const project of (projects || [])) {
-      console.log(`\n[PROJECT ${project.name}] Starting...`);
+      console.log(`\n========== PROJECT: ${project.name} ==========`);
       
       const projectResult = {
         project_id: project.id,
@@ -92,14 +123,12 @@ Deno.serve(async (req) => {
         periods_failed: [] as string[],
       };
 
-      // Sync each period
-      for (const period of dateRanges) {
-        console.log(`[${project.name}] Syncing ${period.key}...`);
+      // Sync each period with LONG delays between them
+      for (let i = 0; i < periods.length; i++) {
+        const period = periods[i];
+        console.log(`\n[${project.name}] Syncing ${period.key} (${period.since} to ${period.until})...`);
         
         try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 55000); // 55s timeout
-          
           const response = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
             method: 'POST',
             headers: {
@@ -110,28 +139,29 @@ Deno.serve(async (req) => {
               project_id: project.id,
               ad_account_id: project.ad_account_id,
               time_range: { since: period.since, until: period.until },
+              period_key: period.key,
             }),
-            signal: controller.signal,
           });
-          
-          clearTimeout(timeoutId);
           
           const result = await response.json().catch(() => ({ success: false }));
           
           if (result.success) {
             projectResult.periods_synced.push(period.key);
-            console.log(`[${project.name}] ${period.key}: ✓ Success`);
+            console.log(`[${project.name}] ${period.key}: ✓ Success (${result.data?.elapsed_seconds || '?'}s)`);
           } else {
             projectResult.periods_failed.push(period.key);
-            console.log(`[${project.name}] ${period.key}: ✗ Failed`);
+            console.log(`[${project.name}] ${period.key}: ✗ Failed - ${result.error || 'Unknown'}`);
           }
         } catch (error) {
           projectResult.periods_failed.push(period.key);
           console.log(`[${project.name}] ${period.key}: ✗ Error`);
         }
 
-        // Short delay between periods (10s)
-        await delay(10000);
+        // VERY LONG delay between periods (2 minutes) to avoid rate limits
+        if (i < periods.length - 1) {
+          console.log(`[${project.name}] Waiting 2 minutes before next period...`);
+          await delay(120000);
+        }
       }
 
       // Update project status
@@ -148,6 +178,7 @@ Deno.serve(async (req) => {
         project_id: project.id,
         status: success ? 'success' : (partial ? 'partial' : 'error'),
         message: JSON.stringify({
+          type: 'scheduled_sync',
           synced: projectResult.periods_synced,
           failed: projectResult.periods_failed,
         }),
@@ -155,14 +186,18 @@ Deno.serve(async (req) => {
 
       results.push(projectResult);
       
-      // Delay between projects (30s)
-      await delay(30000);
+      // VERY LONG delay between projects (5 minutes)
+      if (results.length < (projects?.length || 0)) {
+        console.log(`\n[SCHEDULED SYNC] Waiting 5 minutes before next project...`);
+        await delay(300000);
+      }
     }
 
-    console.log('\n[SCHEDULED SYNC] Complete');
+    const elapsed = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
+    console.log(`\n[SCHEDULED SYNC] Complete in ${elapsed} minutes`);
 
     return new Response(
-      JSON.stringify({ success: true, results }),
+      JSON.stringify({ success: true, elapsed_minutes: parseFloat(elapsed), results }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

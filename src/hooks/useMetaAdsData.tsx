@@ -80,16 +80,6 @@ export interface Ad {
   synced_at: string;
 }
 
-// Helper to get period key from date range
-function getPeriodKeyFromDays(days: number): string {
-  if (days <= 7) return 'last_7d';
-  if (days <= 14) return 'last_14d';
-  if (days <= 30) return 'last_30d';
-  if (days <= 60) return 'last_60d';
-  if (days <= 90) return 'last_90d';
-  return `custom_${days}d`;
-}
-
 // Clear all cached data (kept for compatibility)
 export function clearAllCache(): void {
   console.log('[CACHE] Cache clearing is now handled by period_metrics table');
@@ -361,13 +351,12 @@ export function useMetaAdsData() {
 
   // Load metrics by date range - calculates period key and loads from period_metrics
   const loadByDateRange = useCallback(async (dateRange: { from: Date; to: Date }) => {
-    const diffDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
-    const periodKey = getPeriodKeyFromDays(diffDays);
-    return loadMetricsByPeriod(periodKey);
-  }, [loadMetricsByPeriod]);
+    // For custom date ranges, load from main tables
+    return loadDataFromDatabase();
+  }, [loadDataFromDatabase]);
 
   // Sync with Meta API - ONLY for manual/emergency use
-  const syncData = useCallback(async (timeRange?: { since: string; until: string }, forceSync: boolean = false) => {
+  const syncData = useCallback(async (timeRange?: { since: string; until: string }, periodKey?: string) => {
     if (!selectedProject) {
       toast.error('Nenhum projeto selecionado');
       return { success: false };
@@ -380,17 +369,14 @@ export function useMetaAdsData() {
         ad_account_id: selectedProject.ad_account_id,
       };
       
-      // Add time_range if provided for dynamic date filtering
       if (timeRange) {
-        body.time_range = {
-          since: timeRange.since,
-          until: timeRange.until,
-        };
-        console.log('Manual sync with time range:', timeRange);
+        body.time_range = timeRange;
+        body.period_key = periodKey || 'custom';
+        console.log('Manual sync with time range:', timeRange, 'period:', periodKey);
       } else {
-        // Default to last 30 days if no time range provided
         body.date_preset = 'last_30d';
-        console.log('Manual sync with default preset: last_30d');
+        body.period_key = 'this_month';
+        console.log('Manual sync with default: this_month');
       }
       
       const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
@@ -411,13 +397,16 @@ export function useMetaAdsData() {
         setLastLoadedPeriod(null);
         
         // Reload data from database
-        await loadDataFromDatabase();
+        if (periodKey) {
+          await loadMetricsByPeriod(periodKey);
+        } else {
+          await loadDataFromDatabase();
+        }
         
         return { success: true, data: data.data };
       } else {
         console.error('Sync failed:', data.error);
         
-        // Check for rate limit error
         if (data.rate_limited) {
           toast.error('Limite de requisições da API do Meta atingido. Aguarde alguns minutos e tente novamente.');
         } else {
@@ -433,7 +422,7 @@ export function useMetaAdsData() {
     } finally {
       setSyncing(false);
     }
-  }, [selectedProject, loadDataFromDatabase]);
+  }, [selectedProject, loadDataFromDatabase, loadMetricsByPeriod]);
 
   // Initial load from database when project changes
   useEffect(() => {
@@ -456,6 +445,5 @@ export function useMetaAdsData() {
     fetchCampaigns,
     fetchAdSets,
     fetchAds,
-    getPeriodKeyFromDays,
   };
 }

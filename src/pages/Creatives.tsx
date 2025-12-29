@@ -49,7 +49,7 @@ const cleanImageUrl = (url: string | null): string | null => {
 
 export default function Creatives() {
   const navigate = useNavigate();
-  const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncData, loadMetricsByPeriod, getPeriodKeyFromDays } = useMetaAdsData();
+  const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncData, loadMetricsByPeriod } = useMetaAdsData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [campaignFilter, setCampaignFilter] = useState<string>('all');
@@ -59,7 +59,7 @@ export default function Creatives() {
   
   // Date range state
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
+    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
     return period ? datePeriodToDateRange(period) : undefined;
   });
 
@@ -68,13 +68,8 @@ export default function Creatives() {
   // Load metrics when date range changes - INSTANT from local database
   useEffect(() => {
     if (!selectedProject || !dateRange?.from || !dateRange?.to) return;
-    
-    const diffDays = differenceInDays(dateRange.to, dateRange.from);
-    const periodKey = getPeriodKeyFromDays(diffDays);
-    
-    console.log(`[Creatives] Loading period: ${periodKey}`);
-    loadMetricsByPeriod(periodKey);
-  }, [dateRange, selectedProject, loadMetricsByPeriod, getPeriodKeyFromDays]);
+    loadMetricsByPeriod('this_month');
+  }, [dateRange, selectedProject, loadMetricsByPeriod]);
 
   // Handle date range change - NO sync, just load from database
   const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
@@ -88,7 +83,7 @@ export default function Creatives() {
       syncData({
         since: format(dateRange.from, 'yyyy-MM-dd'),
         until: format(dateRange.to, 'yyyy-MM-dd')
-      }, true);
+      }, 'this_month');
     }
   }, [dateRange, syncData]);
 

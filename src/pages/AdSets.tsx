@@ -55,10 +55,10 @@ export default function AdSets() {
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('last_7_days', 'America/Sao_Paulo');
+    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
     return period ? datePeriodToDateRange(period) : undefined;
   });
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('last_7_days');
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
   const selectedProject = projects.find(p => p.id === campaign?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
