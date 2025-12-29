@@ -182,7 +182,8 @@ async function fetchDailyInsights(
   // Map<ad_id, Map<date, insights>>
   const dailyInsights = new Map<string, Map<string, any>>();
   
-  const fields = 'ad_id,adset_id,campaign_id,date_start,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
+  // Include ad_name, adset_name, campaign_name to avoid 'Unknown' issues
+  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
   const timeRange = JSON.stringify({ since, until });
   
   // CRITICAL: time_increment=1 garante dados diários
@@ -416,22 +417,28 @@ Deno.serve(async (req) => {
         const clicks = parseInt(insights.clicks || '0');
         const reach = parseInt(insights.reach || '0');
         
+        // Priority: insights names > entity map names > 'Unknown'
+        // This ensures we get the correct names even for deleted/archived entities
+        const adsetName = insights.adset_name || adset?.name || 'Unknown';
+        const campaignName = insights.campaign_name || campaign?.name || 'Unknown';
+        const adName = insights.ad_name || ad.name || 'Unknown';
+        
         dailyRecords.push({
           project_id,
           ad_account_id,
           date: dateKey,
           
           campaign_id: ad.campaign_id,
-          campaign_name: campaign?.name || 'Unknown',
+          campaign_name: campaignName,
           campaign_status: campaign?.status || 'UNKNOWN',
           campaign_objective: campaign?.objective || null,
           
           adset_id: ad.adset_id,
-          adset_name: adset?.name || 'Unknown',
+          adset_name: adsetName,
           adset_status: adset?.status || 'UNKNOWN',
           
           ad_id: adId,
-          ad_name: ad.name,
+          ad_name: adName,
           ad_status: ad.status || 'UNKNOWN',
           
           creative_id: ad.creative?.id || null,

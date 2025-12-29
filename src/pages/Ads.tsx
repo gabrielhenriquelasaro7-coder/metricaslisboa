@@ -18,7 +18,8 @@ import {
   ChevronLeft,
   RefreshCw,
   AlertCircle,
-  Target
+  Target,
+  Calendar
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -67,33 +68,154 @@ export default function Ads() {
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
+  const [dataDateRange, setDataDateRange] = useState<{ from: string; to: string } | null>(null);
+  const [usingFallbackData, setUsingFallbackData] = useState(false);
   const selectedProject = projects.find(p => p.id === adSet?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
 
-  const fetchAds = useCallback(async () => {
+  // Calculate date range based on preset
+  const getDateRangeFromPeriod = useCallback((preset: DatePresetKey) => {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toISOString().split('T')[0];
+    
+    switch (preset) {
+      case 'yesterday':
+        return { since: yesterday, until: yesterday };
+      case 'last_7d':
+        return { since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday };
+      case 'last_14d':
+        return { since: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday };
+      case 'last_30d':
+        return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday };
+      case 'last_60d':
+        return { since: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday };
+      case 'last_90d':
+        return { since: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday };
+      case 'this_month':
+        return { since: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0], until: today };
+      case 'this_year':
+        return { since: new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0], until: today };
+      default:
+        return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: today };
+    }
+  }, []);
+
+  // Load ads with metrics from ads_daily_metrics
+  const loadAdsByPeriod = useCallback(async (preset: DatePresetKey) => {
     if (!adSetId) return;
     setLoading(true);
+    
     try {
+      // First get adset info
       const { data: adSetData } = await supabase
         .from('ad_sets')
         .select('id, name, campaign_id, project_id')
         .eq('id', adSetId)
         .maybeSingle();
       if (adSetData) setAdSet(adSetData as AdSet);
+      
+      if (!adSetData?.project_id) {
+        setLoading(false);
+        return;
+      }
 
-      const { data: adsData } = await supabase
-        .from('ads')
+      const { since, until } = getDateRangeFromPeriod(preset);
+      console.log(`[Ads] Loading period: ${preset} (${since} to ${until})`);
+
+      // Check what dates we have data for
+      const { data: firstDateData } = await supabase
+        .from('ads_daily_metrics')
+        .select('date')
+        .eq('project_id', adSetData.project_id)
+        .eq('adset_id', adSetId)
+        .order('date', { ascending: true })
+        .limit(1);
+      
+      const { data: lastDateData } = await supabase
+        .from('ads_daily_metrics')
+        .select('date')
+        .eq('project_id', adSetData.project_id)
+        .eq('adset_id', adSetId)
+        .order('date', { ascending: false })
+        .limit(1);
+      
+      if (firstDateData?.length && lastDateData?.length) {
+        setDataDateRange({
+          from: new Date(firstDateData[0].date + 'T00:00:00').toLocaleDateString('pt-BR'),
+          to: new Date(lastDateData[0].date + 'T00:00:00').toLocaleDateString('pt-BR'),
+        });
+      } else {
+        setDataDateRange(null);
+      }
+
+      // Query ads_daily_metrics and aggregate by ad
+      const { data: dailyMetrics, error } = await supabase
+        .from('ads_daily_metrics')
         .select('*')
-        .eq('ad_set_id', adSetId)
-        .order('spend', { ascending: false });
-      setAds((adsData as Ad[]) || []);
+        .eq('project_id', adSetData.project_id)
+        .eq('adset_id', adSetId)
+        .gte('date', since)
+        .lte('date', until);
+
+      if (error) throw error;
+
+      // If no data for selected period, show empty state
+      if (!dailyMetrics || dailyMetrics.length === 0) {
+        console.log(`[Ads] No data for period ${preset} (${since} to ${until})`);
+        setUsingFallbackData(true);
+        setAds([]);
+        setLoading(false);
+        return;
+      }
+      
+      setUsingFallbackData(false);
+
+      // Aggregate by ad_id
+      const adAgg = new Map<string, any>();
+      for (const row of dailyMetrics) {
+        if (!adAgg.has(row.ad_id)) {
+          adAgg.set(row.ad_id, {
+            id: row.ad_id,
+            project_id: adSetData.project_id,
+            campaign_id: row.campaign_id,
+            ad_set_id: row.adset_id,
+            name: row.ad_name,
+            status: row.ad_status || 'UNKNOWN',
+            creative_thumbnail: row.creative_thumbnail || null,
+            headline: null, primary_text: null, cta: null,
+            spend: 0, impressions: 0, clicks: 0, conversions: 0, conversion_value: 0,
+          });
+        }
+        const agg = adAgg.get(row.ad_id);
+        agg.spend += Number(row.spend) || 0;
+        agg.impressions += Number(row.impressions) || 0;
+        agg.clicks += Number(row.clicks) || 0;
+        agg.conversions += Number(row.conversions) || 0;
+        agg.conversion_value += Number(row.conversion_value) || 0;
+      }
+
+      // Calculate derived metrics
+      const adsResult = Array.from(adAgg.values()).map(agg => ({
+        ...agg,
+        ctr: agg.impressions > 0 ? (agg.clicks / agg.impressions) * 100 : 0,
+        cpc: agg.clicks > 0 ? agg.spend / agg.clicks : 0,
+        roas: agg.spend > 0 ? agg.conversion_value / agg.spend : 0,
+        cpa: agg.conversions > 0 ? agg.spend / agg.conversions : 0,
+      }));
+
+      adsResult.sort((a, b) => b.spend - a.spend);
+      setAds(adsResult as Ad[]);
+      console.log(`[Ads] Loaded ${adsResult.length} ads for period ${preset} with ${dailyMetrics.length} daily records`);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error loading ads:', error);
     } finally {
       setLoading(false);
     }
-  }, [adSetId]);
+  }, [adSetId, getDateRangeFromPeriod]);
 
   // Sort options based on business model
   const sortOptions = [
@@ -105,17 +227,15 @@ export default function Ads() {
     ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
   ];
 
-  // Load data from database on mount and when adSetId changes
+  // Load data when preset changes
   useEffect(() => {
-    fetchAds();
-  }, [fetchAds]);
+    loadAdsByPeriod(selectedPreset);
+  }, [selectedPreset, loadAdsByPeriod]);
 
-  // Handle date range change - NO sync, just load from database
+  // Handle date range change
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
     setDateRange(newRange);
-    // Reload data from database (data is already filtered by ad set)
-    fetchAds();
-  }, [fetchAds]);
+  }, []);
 
   const handlePresetChange = useCallback((preset: DatePresetKey) => {
     setSelectedPreset(preset);
@@ -182,6 +302,19 @@ export default function Ads() {
         {loading ? (
           <div className="flex justify-center py-20">
             <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : usingFallbackData ? (
+          <div className="glass-card p-12 text-center">
+            <Calendar className="w-12 h-12 mx-auto text-metric-warning mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Sem dados para o período selecionado</h3>
+            <p className="text-muted-foreground mb-4">
+              Não há métricas registradas para este período.
+            </p>
+            {dataDateRange && (
+              <p className="text-sm text-muted-foreground">
+                Os dados disponíveis são de <span className="font-medium text-foreground">{dataDateRange.from}</span> a <span className="font-medium text-foreground">{dataDateRange.to}</span>.
+              </p>
+            )}
           </div>
         ) : ads.length === 0 ? (
           <div className="glass-card p-12 text-center">

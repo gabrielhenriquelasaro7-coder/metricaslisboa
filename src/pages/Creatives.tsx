@@ -21,7 +21,8 @@ import {
   TrendingUp,
   DollarSign,
   Target,
-  MoreVertical
+  MoreVertical,
+  Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMetaAdsData, clearAllCache } from '@/hooks/useMetaAdsData';
@@ -49,7 +50,7 @@ const cleanImageUrl = (url: string | null): string | null => {
 
 export default function Creatives() {
   const navigate = useNavigate();
-  const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncData, loadMetricsByPeriod } = useMetaAdsData();
+  const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncData, loadMetricsByPeriod, usingFallbackData, dataDateRange } = useMetaAdsData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [campaignFilter, setCampaignFilter] = useState<string>('all');
@@ -420,8 +421,24 @@ export default function Creatives() {
           )}
         </div>
 
-        {/* Empty State */}
-        {filteredCreatives.length === 0 && (
+        {/* Empty State - Period without data */}
+        {usingFallbackData && filteredCreatives.length === 0 && (
+          <div className="glass-card p-12 text-center">
+            <Calendar className="w-12 h-12 mx-auto text-metric-warning mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Sem dados para o período selecionado</h3>
+            <p className="text-muted-foreground mb-4">
+              Não há métricas registradas para este período.
+            </p>
+            {dataDateRange && (
+              <p className="text-sm text-muted-foreground">
+                Os dados disponíveis são de <span className="font-medium text-foreground">{dataDateRange.from}</span> a <span className="font-medium text-foreground">{dataDateRange.to}</span>.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Empty State - No data at all */}
+        {!usingFallbackData && filteredCreatives.length === 0 && (
           <div className="glass-card p-12 text-center">
             <ImageOff className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Nenhum criativo encontrado</h3>
