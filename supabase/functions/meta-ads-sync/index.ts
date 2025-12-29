@@ -166,7 +166,13 @@ async function createAsyncReport(
   timeRange: { since: string; until: string },
   level: 'campaign' | 'adset' | 'ad'
 ): Promise<string | null> {
-  const fields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
+  // Include entity IDs for mapping insights back to entities
+  const levelFields: Record<string, string> = {
+    campaign: 'campaign_id,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values',
+    adset: 'adset_id,campaign_id,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values',
+    ad: 'ad_id,adset_id,campaign_id,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values',
+  };
+  const fields = levelFields[level] || levelFields.campaign;
   
   const params = new URLSearchParams({
     access_token: token,
@@ -266,7 +272,11 @@ async function fetchInsightsOptimized(
   console.log(`[INSIGHTS] Total entities: ${totalEntities}, using ${useAsync ? 'ASYNC' : 'BATCH'} mode`);
   
   const timeParam = `time_range=${encodeURIComponent(JSON.stringify(timeRange))}`;
-  const fields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
+  // IMPORTANT: Include entity IDs in fields so we can map insights back to entities
+  const baseFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
+  const campaignFields = `campaign_id,${baseFields}`;
+  const adsetFields = `adset_id,campaign_id,${baseFields}`;
+  const adFields = `ad_id,adset_id,campaign_id,${baseFields}`;
   
   if (useAsync) {
     // Use Async Reports for large data volumes
@@ -290,13 +300,21 @@ async function fetchInsightsOptimized(
       if (reportId && pollSuccess) {
         const results = await fetchAsyncResults(reportId, token);
         for (const ins of results) {
-          const id = ins.campaign_id || ins.adset_id || ins.ad_id;
+          // Try all possible ID fields - Meta returns different field names depending on level
+          const id = ins.campaign_id || ins.adset_id || ins.ad_id || ins.id;
           if (id) insightsMap.set(id, ins);
         }
       } else if (!reportId) {
         // Fallback to direct fetch if no async report was created
-        const url = `https://graph.facebook.com/v19.0/${adAccountId}/insights?fields=${fields}&${timeParam}&level=${levels[i]}&access_token=${token}&limit=500`;
-        const response = await fetchWithRetry(url, `INSIGHTS_${levels[i].toUpperCase()}`);
+        const levelName = levels[i];
+        const levelFieldsMap: Record<string, string> = {
+          campaign: campaignFields,
+          adset: adsetFields,
+          ad: adFields,
+        };
+        const levelField = levelFieldsMap[levelName];
+        const url = `https://graph.facebook.com/v19.0/${adAccountId}/insights?fields=${levelField}&${timeParam}&level=${levelName}&access_token=${token}&limit=500`;
+        const response = await fetchWithRetry(url, `INSIGHTS_${levelName.toUpperCase()}`);
         if (response.data) {
           for (const ins of response.data) {
             const id = ins.campaign_id || ins.adset_id || ins.ad_id;
@@ -308,16 +326,24 @@ async function fetchInsightsOptimized(
   } else {
     // Use Batch API for smaller data volumes
     const batchRequests: BatchRequest[] = [
-      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${fields}&${timeParam}&level=campaign&limit=500` },
-      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${fields}&${timeParam}&level=adset&limit=500` },
-      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${fields}&${timeParam}&level=ad&limit=500` },
+      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${campaignFields}&${timeParam}&level=campaign&limit=500` },
+      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${adsetFields}&${timeParam}&level=adset&limit=500` },
+      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${adFields}&${timeParam}&level=ad&limit=500` },
     ];
     
     const results = await executeBatch(batchRequests, token, 'INSIGHTS');
     
     for (const ins of results) {
-      const id = ins.campaign_id || ins.adset_id || ins.ad_id;
-      if (id) insightsMap.set(id, ins);
+      // Try all possible ID fields - Meta returns different field names depending on level
+      const id = ins.campaign_id || ins.adset_id || ins.ad_id || ins.id;
+      if (id) {
+        insightsMap.set(id, ins);
+      } else {
+        // Log first unmatched insight for debugging
+        if (insightsMap.size === 0) {
+          console.log(`[INSIGHTS DEBUG] Sample insight keys: ${Object.keys(ins).join(', ')}`);
+        }
+      }
     }
   }
   
