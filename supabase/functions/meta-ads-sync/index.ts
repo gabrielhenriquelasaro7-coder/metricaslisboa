@@ -9,26 +9,22 @@ interface SyncRequest {
   project_id: string;
   ad_account_id: string;
   access_token?: string;
+  // NOVA ARQUITETURA: Sempre usa time_increment=1
+  // date_preset e time_range são mantidos apenas para calcular since/until
   date_preset?: string;
   time_range?: {
     since: string;
     until: string;
   };
-  period_key?: string;
-  use_async?: boolean; // Use async reports for large data
+  period_key?: string; // Mantido para compatibilidade com period_metrics
+  retry_count?: number; // Contador de retries para validação anti-zero
 }
 
-const MAX_CAMPAIGNS = 500;
-const MAX_ADSETS = 1000;
-const MAX_ADS = 2000;
-
-// Batch API constants
-const BATCH_SIZE = 50; // Meta allows up to 50 requests per batch
-const ASYNC_THRESHOLD = 100; // Use async reports if entities > this
-
-// Retry delays for rate limits
-const RETRY_DELAYS = [10000, 20000, 40000, 80000];
-const MAX_RETRIES = 4;
+// Constants
+const BATCH_SIZE = 50;
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 15 * 60 * 1000; // 15 minutos para retry
+const VALIDATION_RETRY_DELAYS = [5000, 10000, 20000]; // Delays menores para retry imediato
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -42,8 +38,6 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
-// CRITICAL: Meta API returns IDs as objects { id: "123" } or strings "123"
-// This helper safely extracts the ID in both cases
 function extractId(value: any): string | null {
   if (!value) return null;
   if (typeof value === 'string') return value;
@@ -89,400 +83,140 @@ async function fetchWithRetry(url: string, entityName: string, options?: Request
     
     if (isRateLimitError(data)) {
       if (attempt < MAX_RETRIES) {
-        const waitTime = RETRY_DELAYS[attempt];
+        const waitTime = VALIDATION_RETRY_DELAYS[attempt] || 30000;
         console.log(`[${entityName}] Rate limit, retry ${attempt + 1}/${MAX_RETRIES} in ${waitTime / 1000}s...`);
         await delay(waitTime);
         continue;
-      } else {
-        console.error(`[${entityName}] Rate limit: max retries exceeded`);
-        lastError = data;
-        break;
       }
     }
     
-    return data;
+    lastError = data;
+    break;
   }
   
   return lastError || { error: { message: 'Max retries exceeded' } };
 }
 
-// ============ BATCH API IMPLEMENTATION ============
-interface BatchRequest {
-  method: string;
-  relative_url: string;
-}
-
-interface BatchResponse {
-  code: number;
-  headers?: { name: string; value: string }[];
-  body: string;
-}
-
-async function executeBatch(batchRequests: BatchRequest[], token: string, entityName: string): Promise<any[]> {
-  const results: any[] = [];
-  const batches = chunk(batchRequests, BATCH_SIZE);
-  
-  console.log(`[BATCH] ${entityName}: ${batchRequests.length} requests in ${batches.length} batches`);
-  
-  for (let i = 0; i < batches.length; i++) {
-    const batch = batches[i];
-    const formData = new FormData();
-    formData.append('access_token', token);
-    formData.append('batch', JSON.stringify(batch));
-    
-    const response = await fetchWithRetry(
-      'https://graph.facebook.com/v19.0/',
-      `${entityName}_BATCH_${i + 1}`,
-      { method: 'POST', body: formData },
-      60000 // 60s timeout for batch
-    );
-    
-    if (Array.isArray(response)) {
-      for (const item of response) {
-        if (item?.body) {
-          try {
-            const parsed = JSON.parse(item.body);
-            if (parsed.data) {
-              results.push(...parsed.data);
-            } else if (!parsed.error) {
-              results.push(parsed);
-            }
-          } catch {
-            // Skip unparseable responses
-          }
-        }
-      }
-    }
-    
-    // Small delay between batches
-    if (i < batches.length - 1) {
-      await delay(500);
-    }
-  }
-  
-  console.log(`[BATCH] ${entityName}: Got ${results.length} results`);
-  return results;
-}
-
-// ============ ASYNC REPORTS IMPLEMENTATION ============
-interface AsyncReportStatus {
-  id: string;
-  account_id: string;
-  async_status: string;
-  async_percent_completion: number;
-}
-
-async function createAsyncReport(
-  adAccountId: string,
-  token: string,
-  timeRange: { since: string; until: string },
-  level: 'campaign' | 'adset' | 'ad'
-): Promise<string | null> {
-  // Include entity IDs for mapping insights back to entities
-  const levelFields: Record<string, string> = {
-    campaign: 'campaign_id,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values',
-    adset: 'adset_id,campaign_id,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values',
-    ad: 'ad_id,adset_id,campaign_id,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values',
-  };
-  const fields = levelFields[level] || levelFields.campaign;
-  
-  const params = new URLSearchParams({
-    access_token: token,
-    fields,
-    level,
-    time_range: JSON.stringify(timeRange),
-  });
-  
-  const response = await fetchWithRetry(
-    `https://graph.facebook.com/v19.0/${adAccountId}/insights?${params}`,
-    `ASYNC_CREATE_${level}`,
-    { method: 'POST' },
-    30000
-  );
-  
-  if (response.report_run_id) {
-    console.log(`[ASYNC] Created ${level} report: ${response.report_run_id}`);
-    return response.report_run_id;
-  }
-  
-  // If no async report created, data might be returned directly
-  if (response.data) {
-    console.log(`[ASYNC] ${level}: Direct data returned (${response.data.length} rows)`);
-    return null;
-  }
-  
-  console.log(`[ASYNC] Failed to create ${level} report:`, response.error?.message);
-  return null;
-}
-
-async function pollAsyncReport(reportId: string, token: string, maxWaitMs = 300000): Promise<boolean> {
-  const startTime = Date.now();
-  const pollInterval = 5000; // 5 seconds
-  
-  while (Date.now() - startTime < maxWaitMs) {
-    const response = await simpleFetch(
-      `https://graph.facebook.com/v19.0/${reportId}?access_token=${token}`
-    );
-    
-    if (response.error) {
-      console.log(`[ASYNC POLL] Error: ${response.error.message}`);
-      return false;
-    }
-    
-    const status = response.async_status;
-    const percent = response.async_percent_completion || 0;
-    
-    if (status === 'Job Completed') {
-      console.log(`[ASYNC POLL] Report ${reportId} completed (${percent}%)`);
-      return true;
-    }
-    
-    if (status === 'Job Failed' || status === 'Job Skipped') {
-      console.log(`[ASYNC POLL] Report ${reportId} failed: ${status}`);
-      return false;
-    }
-    
-    console.log(`[ASYNC POLL] ${reportId}: ${status} (${percent}%)`);
-    await delay(pollInterval);
-  }
-  
-  console.log(`[ASYNC POLL] Report ${reportId} timeout after ${maxWaitMs / 1000}s`);
-  return false;
-}
-
-async function fetchAsyncResults(reportId: string, token: string): Promise<any[]> {
-  const results: any[] = [];
-  let nextUrl: string | null = 
-    `https://graph.facebook.com/v19.0/${reportId}/insights?access_token=${token}&limit=500`;
-  
-  while (nextUrl) {
-    const response = await simpleFetch(nextUrl);
-    
-    if (response.data && response.data.length > 0) {
-      results.push(...response.data);
-      // Log sample for debugging
-      if (results.length <= 5) {
-        const sample = response.data[0];
-        console.log(`[ASYNC SAMPLE] Keys: ${Object.keys(sample).join(', ')}`);
-        if (sample.campaign_id) console.log(`[ASYNC SAMPLE] campaign_id type: ${typeof sample.campaign_id}, value: ${JSON.stringify(sample.campaign_id)}`);
-        if (sample.adset_id) console.log(`[ASYNC SAMPLE] adset_id type: ${typeof sample.adset_id}, value: ${JSON.stringify(sample.adset_id)}`);
-        if (sample.ad_id) console.log(`[ASYNC SAMPLE] ad_id type: ${typeof sample.ad_id}, value: ${JSON.stringify(sample.ad_id)}`);
-      }
-    }
-    
-    nextUrl = response.paging?.next || null;
-    if (nextUrl) await delay(200);
-  }
-  
-  console.log(`[ASYNC RESULTS] Report ${reportId}: ${results.length} rows`);
-  return results;
-}
-
-// ============ OPTIMIZED INSIGHTS FETCH ============
-async function fetchInsightsOptimized(
-  adAccountId: string,
-  token: string,
-  timeRange: { since: string; until: string },
-  entityCounts: { campaigns: number; adsets: number; ads: number }
-): Promise<Map<string, any>> {
-  const insightsMap = new Map<string, any>();
-  const totalEntities = entityCounts.campaigns + entityCounts.adsets + entityCounts.ads;
-  const useAsync = totalEntities > ASYNC_THRESHOLD;
-  
-  console.log(`[INSIGHTS] Total entities: ${totalEntities}, using ${useAsync ? 'ASYNC' : 'BATCH'} mode`);
-  
-  const timeParam = `time_range=${encodeURIComponent(JSON.stringify(timeRange))}`;
-  // IMPORTANT: Include entity IDs in fields so we can map insights back to entities
-  const baseFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
-  const campaignFields = `campaign_id,${baseFields}`;
-  const adsetFields = `adset_id,campaign_id,${baseFields}`;
-  const adFields = `ad_id,adset_id,campaign_id,${baseFields}`;
-  
-  if (useAsync) {
-    // Use Async Reports for large data volumes
-    const levels: ('campaign' | 'adset' | 'ad')[] = ['campaign', 'adset', 'ad'];
-    
-    // Create all reports in parallel
-    const reportPromises = levels.map(level => createAsyncReport(adAccountId, token, timeRange, level));
-    const reportIds = await Promise.all(reportPromises);
-    
-    // Poll all reports in parallel
-    const pollPromises = reportIds.map((id, i) => 
-      id ? pollAsyncReport(id, token) : Promise.resolve(true)
-    );
-    const pollResults = await Promise.all(pollPromises);
-    
-    // Fetch results for completed reports
-    for (let i = 0; i < levels.length; i++) {
-      const reportId = reportIds[i];
-      const pollSuccess = pollResults[i];
-      const levelName = levels[i];
-      
-      if (reportId && pollSuccess) {
-        const results = await fetchAsyncResults(reportId, token);
-        console.log(`[ASYNC ${levelName.toUpperCase()}] Processing ${results.length} rows`);
-        
-        let mapped = 0;
-        for (const ins of results) {
-          // Get the appropriate ID based on level using extractId helper
-          let id: string | null = null;
-          if (levelName === 'campaign') {
-            id = extractId(ins.campaign_id);
-          } else if (levelName === 'adset') {
-            id = extractId(ins.adset_id);
-          } else if (levelName === 'ad') {
-            id = extractId(ins.ad_id);
-          }
-          
-          if (id) {
-            insightsMap.set(id, ins);
-            mapped++;
-          } else if (mapped === 0) {
-            // Log first row for debugging unmapped insights
-            console.log(`[ASYNC ${levelName.toUpperCase()} DEBUG] Keys: ${Object.keys(ins).join(', ')}`);
-            console.log(`[ASYNC ${levelName.toUpperCase()} DEBUG] campaign_id: ${JSON.stringify(ins.campaign_id)}`);
-            console.log(`[ASYNC ${levelName.toUpperCase()} DEBUG] adset_id: ${JSON.stringify(ins.adset_id)}`);
-            console.log(`[ASYNC ${levelName.toUpperCase()} DEBUG] ad_id: ${JSON.stringify(ins.ad_id)}`);
-          }
-        }
-        console.log(`[ASYNC ${levelName.toUpperCase()}] Mapped: ${mapped}/${results.length}`);
-      } else if (!reportId) {
-        // Fallback to direct fetch if no async report was created
-        const levelFieldsMap: Record<string, string> = {
-          campaign: campaignFields,
-          adset: adsetFields,
-          ad: adFields,
-        };
-        const levelField = levelFieldsMap[levelName];
-        const url = `https://graph.facebook.com/v19.0/${adAccountId}/insights?fields=${levelField}&${timeParam}&level=${levelName}&access_token=${token}&limit=500`;
-        const response = await fetchWithRetry(url, `INSIGHTS_${levelName.toUpperCase()}`);
-        if (response.data) {
-          for (const ins of response.data) {
-            let id: string | null = null;
-            if (levelName === 'campaign') id = extractId(ins.campaign_id);
-            else if (levelName === 'adset') id = extractId(ins.adset_id);
-            else if (levelName === 'ad') id = extractId(ins.ad_id);
-            
-            if (id) insightsMap.set(id, ins);
-          }
-        }
-      }
-    }
-  } else {
-    // Use Batch API for smaller data volumes
-    const batchRequests: BatchRequest[] = [
-      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${campaignFields}&${timeParam}&level=campaign&limit=500` },
-      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${adsetFields}&${timeParam}&level=adset&limit=500` },
-      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${adFields}&${timeParam}&level=ad&limit=500` },
-    ];
-    
-    const results = await executeBatch(batchRequests, token, 'INSIGHTS');
-    
-    for (const ins of results) {
-      // Try all possible ID fields using extractId helper
-      const id = extractId(ins.campaign_id) || extractId(ins.adset_id) || extractId(ins.ad_id);
-      if (id) {
-        insightsMap.set(id, ins);
-      } else if (insightsMap.size === 0) {
-        console.log(`[BATCH DEBUG] Sample: ${JSON.stringify(ins).substring(0, 500)}`);
-      }
-    }
-  }
-  
-  console.log(`[INSIGHTS] Total mapped: ${insightsMap.size}`);
-  return insightsMap;
-}
-
-// ============ OPTIMIZED ENTITY FETCH WITH BATCH ============
-async function fetchEntitiesOptimized(
-  adAccountId: string,
-  token: string
-): Promise<{ campaigns: any[]; adsets: any[]; ads: any[] }> {
-  // Use Batch API to fetch all entity types in parallel
-  const batchRequests: BatchRequest[] = [
-    { method: 'GET', relative_url: `${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500` },
-    { method: 'GET', relative_url: `${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500` },
-    { method: 'GET', relative_url: `${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}&limit=500` },
-  ];
-  
-  const formData = new FormData();
-  formData.append('access_token', token);
-  formData.append('batch', JSON.stringify(batchRequests));
-  
-  const response = await fetchWithRetry(
-    'https://graph.facebook.com/v19.0/',
-    'ENTITIES_BATCH',
-    { method: 'POST', body: formData },
-    60000
-  );
-  
+// ============ FETCH ENTITIES ============
+async function fetchEntities(adAccountId: string, token: string): Promise<{
+  campaigns: any[];
+  adsets: any[];
+  ads: any[];
+}> {
   const campaigns: any[] = [];
   const adsets: any[] = [];
   const ads: any[] = [];
+
+  // Fetch campaigns
+  let url = `https://graph.facebook.com/v19.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&access_token=${token}`;
+  while (url) {
+    const data = await fetchWithRetry(url, 'CAMPAIGNS');
+    if (data.data) campaigns.push(...data.data);
+    url = data.paging?.next || null;
+  }
+
+  // Fetch adsets
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&access_token=${token}`;
+  while (url) {
+    const data = await fetchWithRetry(url, 'ADSETS');
+    if (data.data) adsets.push(...data.data);
+    url = data.paging?.next || null;
+  }
+
+  // Fetch ads
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}&limit=500&access_token=${token}`;
+  while (url) {
+    const data = await fetchWithRetry(url, 'ADS');
+    if (data.data) ads.push(...data.data);
+    url = data.paging?.next || null;
+  }
+
+  console.log(`[ENTITIES] Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}`);
+  return { campaigns, adsets, ads };
+}
+
+// ============ FETCH DAILY INSIGHTS (time_increment=1) ============
+// OBRIGATÓRIO: Sempre usa time_increment=1 para dados diários granulares
+async function fetchDailyInsights(
+  adAccountId: string,
+  token: string,
+  since: string,
+  until: string
+): Promise<Map<string, Map<string, any>>> {
+  // Map<ad_id, Map<date, insights>>
+  const dailyInsights = new Map<string, Map<string, any>>();
   
-  if (Array.isArray(response)) {
-    for (let i = 0; i < response.length; i++) {
-      const item = response[i];
-      if (item?.body) {
-        try {
-          const parsed = JSON.parse(item.body);
-          if (parsed.data) {
-            if (i === 0) campaigns.push(...parsed.data);
-            else if (i === 1) adsets.push(...parsed.data);
-            else if (i === 2) ads.push(...parsed.data);
+  const fields = 'ad_id,adset_id,campaign_id,date_start,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
+  const timeRange = JSON.stringify({ since, until });
+  
+  // CRITICAL: time_increment=1 garante dados diários
+  let url = `https://graph.facebook.com/v19.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&access_token=${token}`;
+  
+  let totalRows = 0;
+  while (url) {
+    const data = await fetchWithRetry(url, 'DAILY_INSIGHTS');
+    
+    if (data.data && data.data.length > 0) {
+      for (const row of data.data) {
+        const adId = extractId(row.ad_id);
+        const dateKey = row.date_start; // YYYY-MM-DD
+        
+        if (adId && dateKey) {
+          if (!dailyInsights.has(adId)) {
+            dailyInsights.set(adId, new Map());
           }
-        } catch {
-          // Skip unparseable responses
+          dailyInsights.get(adId)!.set(dateKey, row);
+          totalRows++;
         }
       }
     }
+    
+    url = data.paging?.next || null;
+    if (url) await delay(200);
   }
   
-  // Handle pagination for large accounts
-  const fetchRemainingPages = async (
-    endpoint: string,
-    existing: any[],
-    max: number,
-    token: string,
-    name: string
-  ): Promise<any[]> => {
-    if (existing.length >= max) return existing.slice(0, max);
-    
-    // Check if there's pagination in the original response
-    let nextUrl: string | null = null;
-    
-    // Try to get next page URL from the batch response
-    const idx = endpoint.includes('campaigns') ? 0 : endpoint.includes('adsets') ? 1 : 2;
-    if (Array.isArray(response) && response[idx]?.body) {
-      try {
-        const parsed = JSON.parse(response[idx].body);
-        nextUrl = parsed.paging?.next || null;
-      } catch {}
-    }
-    
-    while (nextUrl && existing.length < max) {
-      const pageData = await fetchWithRetry(nextUrl, `${name}_PAGE`);
-      if (pageData.data && pageData.data.length > 0) {
-        existing.push(...pageData.data);
-      } else {
-        break;
+  console.log(`[DAILY_INSIGHTS] Total rows: ${totalRows}, Unique ads: ${dailyInsights.size}`);
+  return dailyInsights;
+}
+
+// ============ EXTRACT CONVERSIONS ============
+function extractConversions(insights: any): { conversions: number; conversionValue: number } {
+  let conversions = 0, conversionValue = 0;
+  const types = ['purchase', 'omni_purchase', 'lead', 'contact', 'offsite_conversion.fb_pixel_lead'];
+  
+  if (insights?.actions) {
+    for (const t of types) {
+      const a = insights.actions.find((x: any) => x.action_type === t);
+      if (a && parseInt(a.value) > 0) { 
+        conversions = parseInt(a.value); 
+        break; 
       }
-      nextUrl = pageData.paging?.next || null;
-      if (nextUrl) await delay(300);
     }
-    
-    return existing.slice(0, max);
+  }
+  if (insights?.action_values) {
+    const pv = insights.action_values.find((x: any) => x.action_type === 'purchase' || x.action_type === 'omni_purchase');
+    conversionValue = parseFloat(pv?.value || '0');
+  }
+  return { conversions, conversionValue };
+}
+
+// ============ VALIDATE DATA (ANTI-ZERO) ============
+function validateSyncData(records: any[]): { isValid: boolean; totalSpend: number; totalImpressions: number } {
+  const totalSpend = records.reduce((sum, r) => sum + (r.spend || 0), 0);
+  const totalImpressions = records.reduce((sum, r) => sum + (r.impressions || 0), 0);
+  
+  // Se todos os registros têm spend=0, impressions=0, clicks=0 - dados inválidos
+  const allZero = records.length > 0 && records.every(r => 
+    (r.spend || 0) === 0 && 
+    (r.impressions || 0) === 0 && 
+    (r.clicks || 0) === 0
+  );
+  
+  return {
+    isValid: !allZero || records.length === 0,
+    totalSpend,
+    totalImpressions
   };
-  
-  const [finalCampaigns, finalAdsets, finalAds] = await Promise.all([
-    fetchRemainingPages('campaigns', campaigns, MAX_CAMPAIGNS, token, 'CAMPAIGNS'),
-    fetchRemainingPages('adsets', adsets, MAX_ADSETS, token, 'ADSETS'),
-    fetchRemainingPages('ads', ads, MAX_ADS, token, 'ADS'),
-  ]);
-  
-  console.log(`[ENTITIES] Campaigns: ${finalCampaigns.length}, Adsets: ${finalAdsets.length}, Ads: ${finalAds.length}`);
-  
-  return { campaigns: finalCampaigns, adsets: finalAdsets, ads: finalAds };
 }
 
 // ============ MAIN HANDLER ============
@@ -500,14 +234,25 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { project_id, ad_account_id, access_token, date_preset, time_range, period_key }: SyncRequest = await req.json();
+    const body: SyncRequest = await req.json();
+    const { project_id, ad_account_id, access_token, date_preset, time_range, period_key, retry_count = 0 } = body;
     
-    const timeRange = time_range || { 
-      since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      until: new Date().toISOString().split('T')[0]
-    };
+    // Determine date range - PADRÃO: last_90d
+    let since: string;
+    let until: string;
     
-    const finalPeriodKey = period_key || date_preset || 'last_30d';
+    if (time_range) {
+      since = time_range.since;
+      until = time_range.until;
+    } else {
+      // Default: last 90 days
+      const now = new Date();
+      until = now.toISOString().split('T')[0];
+      const sinceDate = new Date();
+      sinceDate.setDate(sinceDate.getDate() - 90);
+      since = sinceDate.toISOString().split('T')[0];
+    }
+    
     const token = access_token || metaAccessToken;
 
     if (!token || !project_id || !ad_account_id) {
@@ -517,12 +262,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[SYNC] Period: ${finalPeriodKey}, Range: ${timeRange.since} to ${timeRange.until}`);
+    console.log(`[SYNC] Project: ${project_id}`);
+    console.log(`[SYNC] Range: ${since} to ${until} (time_increment=1)`);
+    console.log(`[SYNC] Retry count: ${retry_count}`);
 
     await supabase.from('projects').update({ webhook_status: 'syncing' }).eq('id', project_id);
 
-    // STEP 1: Fetch all entities using optimized batch
-    const entities = await fetchEntitiesOptimized(ad_account_id, token);
+    // STEP 1: Fetch all entities
+    const entities = await fetchEntities(ad_account_id, token);
     
     if (entities.campaigns.length === 0) {
       await supabase.from('projects').update({ webhook_status: 'error' }).eq('id', project_id);
@@ -530,124 +277,309 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // STEP 2: Fetch insights using optimized method (batch or async)
-    const insightsMap = await fetchInsightsOptimized(
-      ad_account_id,
-      token,
-      timeRange,
-      {
-        campaigns: entities.campaigns.length,
-        adsets: entities.adsets.length,
-        ads: entities.ads.length,
-      }
-    );
+    // Build entity maps for quick lookup
+    const campaignMap = new Map(entities.campaigns.map(c => [c.id, c]));
+    const adsetMap = new Map(entities.adsets.map(a => [a.id, a]));
+    const adMap = new Map(entities.ads.map(a => [a.id, a]));
 
-    // STEP 3: Build records
-    const extractConversions = (insights: any) => {
-      let conversions = 0, conversionValue = 0;
-      const types = ['purchase', 'omni_purchase', 'lead', 'contact', 'offsite_conversion.fb_pixel_lead'];
+    // STEP 2: Fetch daily insights (time_increment=1)
+    const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
+
+    // STEP 3: Build daily records for ads_daily_metrics
+    const dailyRecords: any[] = [];
+    
+    for (const [adId, dateMap] of dailyInsights) {
+      const ad = adMap.get(adId);
+      if (!ad) continue;
       
-      if (insights?.actions) {
-        for (const t of types) {
-          const a = insights.actions.find((x: any) => x.action_type === t);
-          if (a && parseInt(a.value) > 0) { conversions = parseInt(a.value); break; }
-        }
-      }
-      if (insights?.action_values) {
-        const pv = insights.action_values.find((x: any) => x.action_type === 'purchase' || x.action_type === 'omni_purchase');
-        conversionValue = parseFloat(pv?.value || '0');
-      }
-      return { conversions, conversionValue };
-    };
-
-    const buildRecord = (entity: any, entityType: string) => {
-      const insights = insightsMap.get(entity.id);
-      const { conversions, conversionValue } = extractConversions(insights);
-      const spend = parseFloat(insights?.spend || '0');
+      const adset = adsetMap.get(ad.adset_id);
+      const campaign = campaignMap.get(ad.campaign_id);
       
-      const base = {
-        id: entity.id,
-        project_id,
-        name: entity.name,
-        status: entity.status,
-        spend,
-        impressions: parseInt(insights?.impressions || '0'),
-        clicks: parseInt(insights?.clicks || '0'),
-        ctr: parseFloat(insights?.ctr || '0'),
-        cpm: parseFloat(insights?.cpm || '0'),
-        cpc: parseFloat(insights?.cpc || '0'),
-        reach: parseInt(insights?.reach || '0'),
-        frequency: parseFloat(insights?.frequency || '0'),
-        conversions,
-        conversion_value: conversionValue,
-        roas: spend > 0 ? conversionValue / spend : 0,
-        cpa: conversions > 0 ? spend / conversions : 0,
-        synced_at: new Date().toISOString(),
-      };
-
-      if (entityType === 'campaign') {
-        return { ...base, objective: entity.objective, daily_budget: entity.daily_budget ? parseFloat(entity.daily_budget) / 100 : null, lifetime_budget: entity.lifetime_budget ? parseFloat(entity.lifetime_budget) / 100 : null };
-      } else if (entityType === 'adset') {
-        return { ...base, campaign_id: entity.campaign_id, daily_budget: entity.daily_budget ? parseFloat(entity.daily_budget) / 100 : null, lifetime_budget: entity.lifetime_budget ? parseFloat(entity.lifetime_budget) / 100 : null, targeting: null };
-      } else {
-        return { ...base, ad_set_id: entity.adset_id, campaign_id: entity.campaign_id, creative_id: entity.creative?.id || null, creative_thumbnail: entity.creative?.thumbnail_url || null, creative_image_url: null, creative_video_url: null, headline: entity.name, primary_text: null, cta: null };
+      for (const [dateKey, insights] of dateMap) {
+        const { conversions, conversionValue } = extractConversions(insights);
+        const spend = parseFloat(insights.spend || '0');
+        const impressions = parseInt(insights.impressions || '0');
+        const clicks = parseInt(insights.clicks || '0');
+        const reach = parseInt(insights.reach || '0');
+        
+        dailyRecords.push({
+          project_id,
+          ad_account_id,
+          date: dateKey,
+          
+          campaign_id: ad.campaign_id,
+          campaign_name: campaign?.name || 'Unknown',
+          campaign_status: campaign?.status || 'UNKNOWN',
+          campaign_objective: campaign?.objective || null,
+          
+          adset_id: ad.adset_id,
+          adset_name: adset?.name || 'Unknown',
+          adset_status: adset?.status || 'UNKNOWN',
+          
+          ad_id: adId,
+          ad_name: ad.name,
+          ad_status: ad.status || 'UNKNOWN',
+          
+          creative_id: ad.creative?.id || null,
+          creative_thumbnail: ad.creative?.thumbnail_url || null,
+          
+          spend,
+          impressions,
+          clicks,
+          reach,
+          frequency: parseFloat(insights.frequency || '0'),
+          
+          ctr: parseFloat(insights.ctr || '0'),
+          cpm: parseFloat(insights.cpm || '0'),
+          cpc: parseFloat(insights.cpc || '0'),
+          
+          conversions,
+          conversion_value: conversionValue,
+          roas: spend > 0 ? conversionValue / spend : 0,
+          cpa: conversions > 0 ? spend / conversions : 0,
+          
+          synced_at: new Date().toISOString(),
+        });
       }
-    };
-
-    const campaignRecords = entities.campaigns.map(c => buildRecord(c, 'campaign'));
-    const adSetRecords = entities.adsets.map(as => buildRecord(as, 'adset'));
-    const adRecords = entities.ads.map(ad => buildRecord(ad, 'ad'));
-
-    // STEP 4: Upsert to database in parallel
-    const upsertBatch = async (table: string, records: any[]) => {
-      if (records.length === 0) return 0;
-      let count = 0;
-      for (const batch of chunk(records, 200)) {
-        const { error } = await supabase.from(table).upsert(batch, { onConflict: 'id', ignoreDuplicates: false });
-        if (!error) count += batch.length;
-      }
-      return count;
-    };
-
-    const [cCount, asCount, adCount] = await Promise.all([
-      upsertBatch('campaigns', campaignRecords),
-      upsertBatch('ad_sets', adSetRecords),
-      upsertBatch('ads', adRecords),
-    ]);
-
-    console.log(`[UPSERT] ${cCount} campaigns, ${asCount} adsets, ${adCount} ads`);
-
-    // STEP 5: Save period_metrics
-    const periodRecords = [
-      ...campaignRecords.map(r => ({ project_id, period_key: finalPeriodKey, entity_type: 'campaign', entity_id: r.id, entity_name: r.name, status: r.status, metrics: r, synced_at: new Date().toISOString() })),
-      ...adSetRecords.map(r => ({ project_id, period_key: finalPeriodKey, entity_type: 'ad_set', entity_id: r.id, entity_name: r.name, status: r.status, metrics: r, synced_at: new Date().toISOString() })),
-      ...adRecords.map(r => ({ project_id, period_key: finalPeriodKey, entity_type: 'ad', entity_id: r.id, entity_name: r.name, status: r.status, metrics: r, synced_at: new Date().toISOString() })),
-    ];
-
-    let periodCount = 0;
-    for (const batch of chunk(periodRecords, 200)) {
-      const { error } = await supabase.from('period_metrics').upsert(batch, { onConflict: 'project_id,period_key,entity_type,entity_id', ignoreDuplicates: false });
-      if (!error) periodCount += batch.length;
     }
 
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[COMPLETE] ${finalPeriodKey}: ${entities.campaigns.length}c/${entities.adsets.length}as/${entities.ads.length}ads, ${insightsMap.size} insights in ${elapsed}s`);
+    console.log(`[SYNC] Built ${dailyRecords.length} daily records`);
 
-    await supabase.from('projects').update({ webhook_status: 'success', last_sync_at: new Date().toISOString() }).eq('id', project_id);
+    // STEP 4: Validate data (ANTI-ZERO)
+    const validation = validateSyncData(dailyRecords);
+    
+    if (!validation.isValid && retry_count < MAX_RETRIES) {
+      console.log(`[VALIDATION] Data appears invalid (all zeros), scheduling retry ${retry_count + 1}/${MAX_RETRIES}`);
+      
+      await supabase.from('sync_logs').insert({
+        project_id,
+        status: 'retry_scheduled',
+        message: JSON.stringify({
+          reason: 'all_zeros',
+          retry_count: retry_count + 1,
+          records: dailyRecords.length,
+        }),
+      });
+      
+      await supabase.from('projects').update({ webhook_status: 'retry_pending' }).eq('id', project_id);
+      
+      // Em produção, agendaria o retry via cron ou queue
+      // Aqui retornamos status para o caller fazer retry
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          needs_retry: true, 
+          retry_count: retry_count + 1,
+          error: 'Data validation failed: all records have zero values' 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // STEP 5: UPSERT to ads_daily_metrics
+    let upsertCount = 0;
+    for (const batch of chunk(dailyRecords, 200)) {
+      const { error } = await supabase
+        .from('ads_daily_metrics')
+        .upsert(batch, { 
+          onConflict: 'project_id,ad_id,date',
+          ignoreDuplicates: false 
+        });
+      
+      if (error) {
+        console.error('[UPSERT ERROR]', error);
+      } else {
+        upsertCount += batch.length;
+      }
+    }
+
+    console.log(`[UPSERT] ${upsertCount} daily records saved`);
+
+    // STEP 6: Also update aggregated tables for backward compatibility
+    // Aggregate metrics across all dates for main tables
+    const campaignAggregates = new Map<string, any>();
+    const adsetAggregates = new Map<string, any>();
+    const adAggregates = new Map<string, any>();
+    
+    for (const record of dailyRecords) {
+      // Campaign aggregates
+      if (!campaignAggregates.has(record.campaign_id)) {
+        campaignAggregates.set(record.campaign_id, {
+          id: record.campaign_id,
+          project_id,
+          name: record.campaign_name,
+          status: record.campaign_status,
+          objective: record.campaign_objective,
+          spend: 0, impressions: 0, clicks: 0, reach: 0,
+          conversions: 0, conversion_value: 0,
+        });
+      }
+      const ca = campaignAggregates.get(record.campaign_id);
+      ca.spend += record.spend;
+      ca.impressions += record.impressions;
+      ca.clicks += record.clicks;
+      ca.reach += record.reach;
+      ca.conversions += record.conversions;
+      ca.conversion_value += record.conversion_value;
+      
+      // Adset aggregates
+      if (!adsetAggregates.has(record.adset_id)) {
+        adsetAggregates.set(record.adset_id, {
+          id: record.adset_id,
+          project_id,
+          campaign_id: record.campaign_id,
+          name: record.adset_name,
+          status: record.adset_status,
+          spend: 0, impressions: 0, clicks: 0, reach: 0,
+          conversions: 0, conversion_value: 0,
+        });
+      }
+      const asa = adsetAggregates.get(record.adset_id);
+      asa.spend += record.spend;
+      asa.impressions += record.impressions;
+      asa.clicks += record.clicks;
+      asa.reach += record.reach;
+      asa.conversions += record.conversions;
+      asa.conversion_value += record.conversion_value;
+      
+      // Ad aggregates
+      if (!adAggregates.has(record.ad_id)) {
+        adAggregates.set(record.ad_id, {
+          id: record.ad_id,
+          project_id,
+          campaign_id: record.campaign_id,
+          ad_set_id: record.adset_id,
+          name: record.ad_name,
+          status: record.ad_status,
+          creative_id: record.creative_id,
+          creative_thumbnail: record.creative_thumbnail,
+          spend: 0, impressions: 0, clicks: 0, reach: 0,
+          conversions: 0, conversion_value: 0,
+        });
+      }
+      const ada = adAggregates.get(record.ad_id);
+      ada.spend += record.spend;
+      ada.impressions += record.impressions;
+      ada.clicks += record.clicks;
+      ada.reach += record.reach;
+      ada.conversions += record.conversions;
+      ada.conversion_value += record.conversion_value;
+    }
+    
+    // Calculate derived metrics and upsert
+    const calculateMetrics = (agg: any) => ({
+      ...agg,
+      ctr: agg.impressions > 0 ? (agg.clicks / agg.impressions) * 100 : 0,
+      cpm: agg.impressions > 0 ? (agg.spend / agg.impressions) * 1000 : 0,
+      cpc: agg.clicks > 0 ? agg.spend / agg.clicks : 0,
+      roas: agg.spend > 0 ? agg.conversion_value / agg.spend : 0,
+      cpa: agg.conversions > 0 ? agg.spend / agg.conversions : 0,
+      frequency: agg.reach > 0 ? agg.impressions / agg.reach : 0,
+      synced_at: new Date().toISOString(),
+    });
+    
+    const campaignRecords = Array.from(campaignAggregates.values()).map(calculateMetrics);
+    const adsetRecords = Array.from(adsetAggregates.values()).map(calculateMetrics);
+    const adRecords = Array.from(adAggregates.values()).map(calculateMetrics);
+    
+    // Upsert to main tables
+    await Promise.all([
+      supabase.from('campaigns').upsert(campaignRecords, { onConflict: 'id' }),
+      supabase.from('ad_sets').upsert(adsetRecords, { onConflict: 'id' }),
+      supabase.from('ads').upsert(adRecords, { onConflict: 'id' }),
+    ]);
+    
+    console.log(`[AGGREGATE] Campaigns: ${campaignRecords.length}, Adsets: ${adsetRecords.length}, Ads: ${adRecords.length}`);
+
+    // STEP 7: Save to period_metrics for backward compatibility
+    if (period_key) {
+      const periodRecords = [
+        ...campaignRecords.map(r => ({ 
+          project_id, 
+          period_key, 
+          entity_type: 'campaign', 
+          entity_id: r.id, 
+          entity_name: r.name, 
+          status: r.status, 
+          metrics: r, 
+          synced_at: new Date().toISOString() 
+        })),
+        ...adsetRecords.map(r => ({ 
+          project_id, 
+          period_key, 
+          entity_type: 'ad_set', 
+          entity_id: r.id, 
+          entity_name: r.name, 
+          status: r.status, 
+          metrics: r, 
+          synced_at: new Date().toISOString() 
+        })),
+        ...adRecords.map(r => ({ 
+          project_id, 
+          period_key, 
+          entity_type: 'ad', 
+          entity_id: r.id, 
+          entity_name: r.name, 
+          status: r.status, 
+          metrics: r, 
+          synced_at: new Date().toISOString() 
+        })),
+      ];
+
+      for (const batch of chunk(periodRecords, 200)) {
+        await supabase.from('period_metrics').upsert(batch, { 
+          onConflict: 'project_id,period_key,entity_type,entity_id' 
+        });
+      }
+      console.log(`[PERIOD_METRICS] Saved ${periodRecords.length} records for period ${period_key}`);
+    }
+
+    // STEP 8: Update project status
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    
+    await supabase.from('projects').update({ 
+      webhook_status: 'success', 
+      last_sync_at: new Date().toISOString() 
+    }).eq('id', project_id);
     
     await supabase.from('sync_logs').insert({
       project_id,
       status: 'success',
-      message: JSON.stringify({ period: finalPeriodKey, campaigns: entities.campaigns.length, adsets: entities.adsets.length, ads: entities.ads.length, insights: insightsMap.size, elapsed: elapsed + 's' }),
+      message: JSON.stringify({ 
+        period: period_key || 'full_sync',
+        range: `${since} to ${until}`,
+        daily_records: dailyRecords.length,
+        campaigns: campaignRecords.length,
+        adsets: adsetRecords.length,
+        ads: adRecords.length,
+        total_spend: validation.totalSpend.toFixed(2),
+        elapsed: elapsed + 's' 
+      }),
     });
 
+    console.log(`[COMPLETE] ${dailyRecords.length} daily records in ${elapsed}s`);
+
     return new Response(
-      JSON.stringify({ success: true, data: { period: finalPeriodKey, campaigns_count: entities.campaigns.length, ad_sets_count: entities.adsets.length, ads_count: entities.ads.length, insights_count: insightsMap.size, period_metrics_count: periodCount, elapsed_seconds: parseFloat(elapsed) } }),
+      JSON.stringify({ 
+        success: true, 
+        data: { 
+          period: period_key || 'full_sync',
+          range: { since, until },
+          daily_records_count: dailyRecords.length,
+          campaigns_count: campaignRecords.length,
+          ad_sets_count: adsetRecords.length,
+          ads_count: adRecords.length,
+          total_spend: validation.totalSpend,
+          elapsed_seconds: parseFloat(elapsed)
+        } 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('[SYNC ERROR]', error);
-    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });

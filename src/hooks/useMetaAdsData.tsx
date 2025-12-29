@@ -197,7 +197,7 @@ export function useMetaAdsData() {
     }
   }, [selectedProject]);
 
-  // Load metrics by period from period_metrics table - INSTANT loading
+  // Load metrics by period - CALCULATES from ads_daily_metrics via SQL
   const loadMetricsByPeriod = useCallback(async (periodKey: string, forceReload: boolean = false) => {
     if (!selectedProject) {
       setLoading(false);
@@ -210,24 +210,71 @@ export function useMetaAdsData() {
       return { found: true };
     }
 
-    console.log(`[PERIOD] Loading metrics for period: ${periodKey}`);
+    console.log(`[PERIOD] Loading metrics for period: ${periodKey} from ads_daily_metrics`);
     setLoading(true);
 
     try {
-      // Fetch all metrics for this period in one query
-      const { data: periodMetrics, error } = await supabase
-        .from('period_metrics')
+      // Calculate date range based on period key
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const yesterday = new Date(now.setDate(now.getDate() - 1)).toISOString().split('T')[0];
+      
+      let since: string, until: string;
+      
+      switch (periodKey) {
+        case 'yesterday':
+          since = until = yesterday;
+          break;
+        case 'last_7d':
+          since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          until = yesterday;
+          break;
+        case 'last_14d':
+          since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          until = yesterday;
+          break;
+        case 'last_30d':
+          since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          until = yesterday;
+          break;
+        case 'last_60d':
+          since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          until = yesterday;
+          break;
+        case 'last_90d':
+          since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          until = yesterday;
+          break;
+        case 'this_month':
+          since = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+          until = today;
+          break;
+        case 'this_year':
+          since = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+          until = today;
+          break;
+        default:
+          since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          until = today;
+      }
+
+      console.log(`[PERIOD] Date range: ${since} to ${until}`);
+
+      // Query ads_daily_metrics and aggregate
+      const { data: dailyMetrics, error } = await supabase
+        .from('ads_daily_metrics')
         .select('*')
         .eq('project_id', selectedProject.id)
-        .eq('period_key', periodKey);
+        .gte('date', since)
+        .lte('date', until);
 
       if (error) {
-        console.error('Error loading period metrics:', error);
+        console.error('Error loading daily metrics:', error);
         throw error;
       }
 
-      if (!periodMetrics || periodMetrics.length === 0) {
-        console.log(`[PERIOD] No data found for period ${periodKey}, loading from main tables (fallback)`);
+      if (!dailyMetrics || dailyMetrics.length === 0) {
+        console.log(`[PERIOD] No daily data found, loading from main tables`);
         setUsingFallbackData(true);
         await loadDataFromDatabase();
         lastLoadedPeriodRef.current = periodKey;
@@ -235,112 +282,94 @@ export function useMetaAdsData() {
       }
 
       setUsingFallbackData(false);
+      console.log(`[PERIOD] Found ${dailyMetrics.length} daily records`);
 
-      console.log(`[PERIOD] Found ${periodMetrics.length} records for period ${periodKey}`);
+      // Aggregate by campaign
+      const campaignAgg = new Map<string, any>();
+      const adsetAgg = new Map<string, any>();
+      const adAgg = new Map<string, any>();
 
-      // Parse and set campaigns
-      const campaignMetrics = periodMetrics.filter(m => m.entity_type === 'campaign');
-      const campaignsFromPeriod: Campaign[] = campaignMetrics.map(m => {
-        const metrics = m.metrics as Record<string, unknown>;
-        return {
-          id: m.entity_id,
-          project_id: selectedProject.id,
-          name: m.entity_name,
-          status: m.status || 'UNKNOWN',
-          objective: (metrics.objective as string) || null,
-          daily_budget: (metrics.daily_budget as number) || null,
-          lifetime_budget: (metrics.lifetime_budget as number) || null,
-          spend: (metrics.spend as number) || 0,
-          impressions: (metrics.impressions as number) || 0,
-          clicks: (metrics.clicks as number) || 0,
-          ctr: (metrics.ctr as number) || 0,
-          cpm: (metrics.cpm as number) || 0,
-          cpc: (metrics.cpc as number) || 0,
-          reach: (metrics.reach as number) || 0,
-          frequency: (metrics.frequency as number) || 0,
-          conversions: (metrics.conversions as number) || 0,
-          conversion_value: (metrics.conversion_value as number) || 0,
-          roas: (metrics.roas as number) || 0,
-          cpa: (metrics.cpa as number) || 0,
-          created_time: null,
-          updated_time: null,
-          synced_at: m.synced_at || '',
-        };
+      for (const row of dailyMetrics) {
+        // Campaign aggregation
+        if (!campaignAgg.has(row.campaign_id)) {
+          campaignAgg.set(row.campaign_id, {
+            id: row.campaign_id, project_id: selectedProject.id, name: row.campaign_name,
+            status: row.campaign_status, objective: row.campaign_objective,
+            spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0,
+          });
+        }
+        const ca = campaignAgg.get(row.campaign_id);
+        ca.spend += Number(row.spend) || 0;
+        ca.impressions += Number(row.impressions) || 0;
+        ca.clicks += Number(row.clicks) || 0;
+        ca.reach += Number(row.reach) || 0;
+        ca.conversions += Number(row.conversions) || 0;
+        ca.conversion_value += Number(row.conversion_value) || 0;
+
+        // Adset aggregation
+        if (!adsetAgg.has(row.adset_id)) {
+          adsetAgg.set(row.adset_id, {
+            id: row.adset_id, project_id: selectedProject.id, campaign_id: row.campaign_id,
+            name: row.adset_name, status: row.adset_status,
+            spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0,
+          });
+        }
+        const asa = adsetAgg.get(row.adset_id);
+        asa.spend += Number(row.spend) || 0;
+        asa.impressions += Number(row.impressions) || 0;
+        asa.clicks += Number(row.clicks) || 0;
+        asa.reach += Number(row.reach) || 0;
+        asa.conversions += Number(row.conversions) || 0;
+        asa.conversion_value += Number(row.conversion_value) || 0;
+
+        // Ad aggregation
+        if (!adAgg.has(row.ad_id)) {
+          adAgg.set(row.ad_id, {
+            id: row.ad_id, project_id: selectedProject.id, campaign_id: row.campaign_id,
+            ad_set_id: row.adset_id, name: row.ad_name, status: row.ad_status,
+            creative_id: row.creative_id, creative_thumbnail: row.creative_thumbnail,
+            spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0,
+          });
+        }
+        const ada = adAgg.get(row.ad_id);
+        ada.spend += Number(row.spend) || 0;
+        ada.impressions += Number(row.impressions) || 0;
+        ada.clicks += Number(row.clicks) || 0;
+        ada.reach += Number(row.reach) || 0;
+        ada.conversions += Number(row.conversions) || 0;
+        ada.conversion_value += Number(row.conversion_value) || 0;
+      }
+
+      // Calculate derived metrics
+      const calcMetrics = (agg: any) => ({
+        ...agg,
+        ctr: agg.impressions > 0 ? (agg.clicks / agg.impressions) * 100 : 0,
+        cpm: agg.impressions > 0 ? (agg.spend / agg.impressions) * 1000 : 0,
+        cpc: agg.clicks > 0 ? agg.spend / agg.clicks : 0,
+        roas: agg.spend > 0 ? agg.conversion_value / agg.spend : 0,
+        cpa: agg.conversions > 0 ? agg.spend / agg.conversions : 0,
+        frequency: agg.reach > 0 ? agg.impressions / agg.reach : 0,
+        synced_at: new Date().toISOString(),
+        daily_budget: null, lifetime_budget: null, targeting: null,
+        created_time: null, updated_time: null,
+        creative_image_url: null, headline: null, primary_text: null, cta: null,
       });
 
-      // Parse and set ad sets
-      const adSetMetrics = periodMetrics.filter(m => m.entity_type === 'ad_set');
-      const adSetsFromPeriod: AdSet[] = adSetMetrics.map(m => {
-        const metrics = m.metrics as Record<string, unknown>;
-        return {
-          id: m.entity_id,
-          campaign_id: (metrics.campaign_id as string) || '',
-          project_id: selectedProject.id,
-          name: m.entity_name,
-          status: m.status || 'UNKNOWN',
-          daily_budget: (metrics.daily_budget as number) || null,
-          lifetime_budget: (metrics.lifetime_budget as number) || null,
-          targeting: null,
-          spend: (metrics.spend as number) || 0,
-          impressions: (metrics.impressions as number) || 0,
-          clicks: (metrics.clicks as number) || 0,
-          ctr: (metrics.ctr as number) || 0,
-          cpm: (metrics.cpm as number) || 0,
-          cpc: (metrics.cpc as number) || 0,
-          reach: (metrics.reach as number) || 0,
-          frequency: (metrics.frequency as number) || 0,
-          conversions: (metrics.conversions as number) || 0,
-          conversion_value: (metrics.conversion_value as number) || 0,
-          roas: (metrics.roas as number) || 0,
-          cpa: (metrics.cpa as number) || 0,
-          synced_at: m.synced_at || '',
-        };
-      });
+      const campaignsResult = Array.from(campaignAgg.values()).map(calcMetrics);
+      const adsetsResult = Array.from(adsetAgg.values()).map(calcMetrics);
+      const adsResult = Array.from(adAgg.values()).map(calcMetrics);
 
-      // Parse and set ads
-      const adMetrics = periodMetrics.filter(m => m.entity_type === 'ad');
-      const adsFromPeriod: Ad[] = adMetrics.map(m => {
-        const metrics = m.metrics as Record<string, unknown>;
-        return {
-          id: m.entity_id,
-          ad_set_id: (metrics.ad_set_id as string) || '',
-          campaign_id: (metrics.campaign_id as string) || '',
-          project_id: selectedProject.id,
-          name: m.entity_name,
-          status: m.status || 'UNKNOWN',
-          creative_id: (metrics.creative_id as string) || null,
-          creative_thumbnail: (metrics.creative_thumbnail as string) || null,
-          creative_image_url: (metrics.creative_image_url as string) || null,
-          headline: (metrics.headline as string) || null,
-          primary_text: null,
-          cta: (metrics.cta as string) || null,
-          spend: (metrics.spend as number) || 0,
-          impressions: (metrics.impressions as number) || 0,
-          clicks: (metrics.clicks as number) || 0,
-          ctr: (metrics.ctr as number) || 0,
-          cpm: (metrics.cpm as number) || 0,
-          cpc: (metrics.cpc as number) || 0,
-          reach: (metrics.reach as number) || 0,
-          frequency: (metrics.frequency as number) || 0,
-          conversions: (metrics.conversions as number) || 0,
-          conversion_value: (metrics.conversion_value as number) || 0,
-          roas: (metrics.roas as number) || 0,
-          cpa: (metrics.cpa as number) || 0,
-          synced_at: m.synced_at || '',
-        };
-      });
+      // Sort by spend
+      campaignsResult.sort((a, b) => b.spend - a.spend);
+      adsetsResult.sort((a, b) => b.spend - a.spend);
+      adsResult.sort((a, b) => b.spend - a.spend);
 
-      // Sort by spend descending
-      campaignsFromPeriod.sort((a, b) => b.spend - a.spend);
-      adSetsFromPeriod.sort((a, b) => b.spend - a.spend);
-      adsFromPeriod.sort((a, b) => b.spend - a.spend);
-
-      setCampaigns(campaignsFromPeriod);
-      setAdSets(adSetsFromPeriod);
-      setAds(adsFromPeriod);
+      setCampaigns(campaignsResult as Campaign[]);
+      setAdSets(adsetsResult as AdSet[]);
+      setAds(adsResult as Ad[]);
       lastLoadedPeriodRef.current = periodKey;
 
-      console.log(`[PERIOD] Loaded: ${campaignsFromPeriod.length} campaigns, ${adSetsFromPeriod.length} ad sets, ${adsFromPeriod.length} ads`);
+      console.log(`[PERIOD] Loaded: ${campaignsResult.length} campaigns, ${adsetsResult.length} adsets, ${adsResult.length} ads`);
       return { found: true };
     } catch (error) {
       console.error('Error loading period metrics:', error);
