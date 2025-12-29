@@ -132,13 +132,13 @@ async function fetchWithRetry(url: string, retries = 3, timeout = 20000): Promis
 }
 
 // Fetch all pages with uniform request spreading
-async function fetchAllPages(baseUrl: string, token: string, entityName: string, limit = 100): Promise<any[]> {
+async function fetchAllPages(baseUrl: string, token: string, entityName: string, limit = 100, maxItems = 2000): Promise<any[]> {
   const allData: any[] = [];
   let nextUrl: string | null = `${baseUrl}&limit=${limit}&access_token=${token}`;
   let pageCount = 0;
-  const maxPages = 50; // Limit pages to avoid excessive calls
+  const maxPages = 20; // Reduced to avoid edge function timeout (max ~2000 items)
   
-  while (nextUrl && pageCount < maxPages) {
+  while (nextUrl && pageCount < maxPages && allData.length < maxItems) {
     pageCount++;
     console.log(`[${entityName}] Fetching page ${pageCount}...`);
     
@@ -164,10 +164,14 @@ async function fetchAllPages(baseUrl: string, token: string, entityName: string,
     
     nextUrl = data.paging?.next || null;
     
-    // Conservative delay between pages (3 seconds base)
-    if (nextUrl) {
-      await delay(3000);
+    // Delay between pages (2 seconds - balanced for speed and rate limits)
+    if (nextUrl && allData.length < maxItems) {
+      await delay(2000);
     }
+  }
+  
+  if (allData.length >= maxItems) {
+    console.log(`[${entityName}] Reached max items limit (${maxItems}). Returning ${allData.length} items.`);
   }
   
   return allData;

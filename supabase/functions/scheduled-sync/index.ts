@@ -108,7 +108,10 @@ Deno.serve(async (req) => {
         console.log(`[PROJECT ${project.name}] Syncing period ${period.key} (${period.since} to ${period.until})`);
         
         try {
-          // Call meta-ads-sync for this project and period
+          // Call meta-ads-sync for this project and period with timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+          
           const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
             method: 'POST',
             headers: {
@@ -122,11 +125,23 @@ Deno.serve(async (req) => {
                 since: period.since,
                 until: period.until,
               },
-              batch_mode: true, // Signal to use more conservative rate limiting
+              batch_mode: true,
             }),
+            signal: controller.signal,
           });
+          
+          clearTimeout(timeoutId);
 
-          const syncResult = await syncResponse.json();
+          // Handle potential timeout/empty response
+          const responseText = await syncResponse.text();
+          let syncResult;
+          
+          try {
+            syncResult = responseText ? JSON.parse(responseText) : { success: false, error: 'Empty response' };
+          } catch {
+            console.error(`[PROJECT ${project.name}] Period ${period.key}: Invalid JSON response`);
+            syncResult = { success: false, error: 'Invalid response format' };
+          }
           
           if (syncResult.success) {
             projectResult.periods_synced.push(period.key);
@@ -134,7 +149,7 @@ Deno.serve(async (req) => {
           } else {
             projectResult.periods_failed.push(period.key);
             projectResult.success = false;
-            console.log(`[PROJECT ${project.name}] Period ${period.key}: ✗ Failed - ${syncResult.error}`);
+            console.log(`[PROJECT ${project.name}] Period ${period.key}: ✗ Failed - ${syncResult.error || 'Unknown error'}`);
             
             // If rate limited, wait much longer before next period
             if (syncResult.rate_limited) {
@@ -145,7 +160,14 @@ Deno.serve(async (req) => {
         } catch (error) {
           projectResult.periods_failed.push(period.key);
           projectResult.success = false;
-          console.error(`[PROJECT ${project.name}] Period ${period.key}: Error -`, error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error(`[PROJECT ${project.name}] Period ${period.key}: Error - ${errorMessage}`);
+          
+          // If it was an abort/timeout, wait before continuing
+          if (errorMessage.includes('abort')) {
+            console.log(`[PROJECT ${project.name}] Request timeout, waiting 30s before next period...`);
+            await delay(30000);
+          }
         }
 
         // Conservative delay between periods (60 seconds)
