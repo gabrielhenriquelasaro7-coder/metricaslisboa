@@ -52,6 +52,8 @@ export default function CreativeDetail() {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: selectedProject?.currency || 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(num);
   };
 
