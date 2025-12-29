@@ -118,7 +118,33 @@ export default function AdSets() {
       const { since, until } = getDateRangeFromPeriod(preset);
       console.log(`[AdSets] Loading period: ${preset} (${since} to ${until})`);
 
-      // Query ads_daily_metrics and aggregate by adset
+      // Always check what dates we have data for (for display purposes)
+      const { data: firstDateData } = await supabase
+        .from('ads_daily_metrics')
+        .select('date')
+        .eq('project_id', campaignData.project_id)
+        .eq('campaign_id', campaignId)
+        .order('date', { ascending: true })
+        .limit(1);
+      
+      const { data: lastDateData } = await supabase
+        .from('ads_daily_metrics')
+        .select('date')
+        .eq('project_id', campaignData.project_id)
+        .eq('campaign_id', campaignId)
+        .order('date', { ascending: false })
+        .limit(1);
+      
+      if (firstDateData?.length && lastDateData?.length) {
+        setDataDateRange({
+          from: new Date(firstDateData[0].date + 'T00:00:00').toLocaleDateString('pt-BR'),
+          to: new Date(lastDateData[0].date + 'T00:00:00').toLocaleDateString('pt-BR'),
+        });
+      } else {
+        setDataDateRange(null);
+      }
+
+      // Query ads_daily_metrics and aggregate by adset FOR THE SELECTED PERIOD
       const { data: dailyMetrics, error } = await supabase
         .from('ads_daily_metrics')
         .select('*')
@@ -129,47 +155,16 @@ export default function AdSets() {
 
       if (error) throw error;
 
+      // If no data for selected period, show empty state with zeros
       if (!dailyMetrics || dailyMetrics.length === 0) {
-        console.log(`[AdSets] No daily metrics for period ${preset}, loading from ad_sets table`);
-        
-        // Check what dates we actually have data for
-        const { data: firstDateData } = await supabase
-          .from('ads_daily_metrics')
-          .select('date')
-          .eq('project_id', campaignData.project_id)
-          .eq('campaign_id', campaignId)
-          .order('date', { ascending: true })
-          .limit(1);
-        
-        const { data: lastDateData } = await supabase
-          .from('ads_daily_metrics')
-          .select('date')
-          .eq('project_id', campaignData.project_id)
-          .eq('campaign_id', campaignId)
-          .order('date', { ascending: false })
-          .limit(1);
-        
-        if (firstDateData?.length && lastDateData?.length) {
-          setDataDateRange({
-            from: new Date(firstDateData[0].date + 'T00:00:00').toLocaleDateString('pt-BR'),
-            to: new Date(lastDateData[0].date + 'T00:00:00').toLocaleDateString('pt-BR'),
-          });
-        }
-        
+        console.log(`[AdSets] No data for period ${preset} (${since} to ${until})`);
         setUsingFallbackData(true);
-        
-        const { data: adSetsData } = await supabase
-          .from('ad_sets')
-          .select('*')
-          .eq('campaign_id', campaignId)
-          .order('spend', { ascending: false });
-        setAdSets((adSetsData as AdSet[]) || []);
+        setAdSets([]);
         setLoading(false);
         return;
       }
       
       setUsingFallbackData(false);
-      setDataDateRange(null);
 
       // Aggregate by adset_id
       const adsetAgg = new Map<string, any>();
@@ -207,7 +202,7 @@ export default function AdSets() {
 
       adsetsResult.sort((a, b) => b.spend - a.spend);
       setAdSets(adsetsResult as AdSet[]);
-      console.log(`[AdSets] Loaded ${adsetsResult.length} ad sets for period ${preset}`);
+      console.log(`[AdSets] Loaded ${adsetsResult.length} ad sets for period ${preset} with ${dailyMetrics.length} daily records`);
     } catch (error) {
       console.error('Error loading ad sets:', error);
     } finally {
@@ -312,6 +307,19 @@ export default function AdSets() {
           <div className="flex justify-center py-20">
             <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
           </div>
+        ) : usingFallbackData ? (
+          <div className="glass-card p-12 text-center">
+            <Calendar className="w-12 h-12 mx-auto text-metric-warning mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Sem dados para o período selecionado</h3>
+            <p className="text-muted-foreground mb-4">
+              Não há métricas registradas para este período.
+            </p>
+            {dataDateRange && (
+              <p className="text-sm text-muted-foreground">
+                Os dados disponíveis são de <span className="font-medium text-foreground">{dataDateRange.from}</span> a <span className="font-medium text-foreground">{dataDateRange.to}</span>.
+              </p>
+            )}
+          </div>
         ) : adSets.length === 0 ? (
           <div className="glass-card p-12 text-center">
             <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -320,21 +328,6 @@ export default function AdSets() {
           </div>
         ) : (
           <>
-            {/* Warning when using fallback data */}
-            {usingFallbackData && dataDateRange && (
-              <div className="bg-metric-warning/10 border border-metric-warning/30 rounded-lg p-4 flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-metric-warning flex-shrink-0" />
-                <div>
-                  <p className="font-medium text-foreground">
-                    Período selecionado não tem dados
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Os dados disponíveis são de <span className="font-medium text-foreground">{dataDateRange.from}</span> a <span className="font-medium text-foreground">{dataDateRange.to}</span>. Mostrando dados totais acumulados.
-                  </p>
-                </div>
-              </div>
-            )}
-            
             {/* Summary Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <MetricCard title="Gasto Total" value={formatCurrency(totals.spend)} icon={DollarSign} />
