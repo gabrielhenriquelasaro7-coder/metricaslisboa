@@ -217,7 +217,11 @@ export function useMetaAdsData() {
       // Calculate date range based on period key
       const now = new Date();
       const today = now.toISOString().split('T')[0];
-      const yesterday = new Date(now.setDate(now.getDate() - 1)).toISOString().split('T')[0];
+      
+      // Create separate date for yesterday to avoid mutating 'now'
+      const yesterdayDate = new Date(now);
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const yesterday = yesterdayDate.toISOString().split('T')[0];
       
       let since: string, until: string;
       
@@ -246,11 +250,11 @@ export function useMetaAdsData() {
           until = yesterday;
           break;
         case 'this_month':
-          since = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+          since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
           until = today;
           break;
         case 'this_year':
-          since = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+          since = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
           until = today;
           break;
         default:
