@@ -248,6 +248,14 @@ async function fetchAsyncResults(reportId: string, token: string): Promise<any[]
     
     if (response.data && response.data.length > 0) {
       results.push(...response.data);
+      // Log sample for debugging
+      if (results.length <= 5) {
+        const sample = response.data[0];
+        console.log(`[ASYNC SAMPLE] Keys: ${Object.keys(sample).join(', ')}`);
+        if (sample.campaign_id) console.log(`[ASYNC SAMPLE] campaign_id type: ${typeof sample.campaign_id}, value: ${JSON.stringify(sample.campaign_id)}`);
+        if (sample.adset_id) console.log(`[ASYNC SAMPLE] adset_id type: ${typeof sample.adset_id}, value: ${JSON.stringify(sample.adset_id)}`);
+        if (sample.ad_id) console.log(`[ASYNC SAMPLE] ad_id type: ${typeof sample.ad_id}, value: ${JSON.stringify(sample.ad_id)}`);
+      }
     }
     
     nextUrl = response.paging?.next || null;
@@ -296,17 +304,35 @@ async function fetchInsightsOptimized(
     for (let i = 0; i < levels.length; i++) {
       const reportId = reportIds[i];
       const pollSuccess = pollResults[i];
+      const levelName = levels[i];
       
       if (reportId && pollSuccess) {
         const results = await fetchAsyncResults(reportId, token);
+        console.log(`[ASYNC ${levelName.toUpperCase()}] Processing ${results.length} rows`);
+        
+        let mapped = 0;
         for (const ins of results) {
-          // Try all possible ID fields - Meta returns different field names depending on level
-          const id = ins.campaign_id || ins.adset_id || ins.ad_id || ins.id;
-          if (id) insightsMap.set(id, ins);
+          // Get the appropriate ID based on level
+          let id: string | null = null;
+          if (levelName === 'campaign' && ins.campaign_id) {
+            id = String(ins.campaign_id);
+          } else if (levelName === 'adset' && ins.adset_id) {
+            id = String(ins.adset_id);
+          } else if (levelName === 'ad' && ins.ad_id) {
+            id = String(ins.ad_id);
+          }
+          
+          if (id) {
+            insightsMap.set(id, ins);
+            mapped++;
+          } else if (mapped === 0) {
+            // Log first row keys for debugging
+            console.log(`[ASYNC ${levelName.toUpperCase()} DEBUG] Keys: ${Object.keys(ins).join(', ')}`);
+          }
         }
+        console.log(`[ASYNC ${levelName.toUpperCase()}] Mapped: ${mapped}/${results.length}`);
       } else if (!reportId) {
         // Fallback to direct fetch if no async report was created
-        const levelName = levels[i];
         const levelFieldsMap: Record<string, string> = {
           campaign: campaignFields,
           adset: adsetFields,
@@ -317,7 +343,11 @@ async function fetchInsightsOptimized(
         const response = await fetchWithRetry(url, `INSIGHTS_${levelName.toUpperCase()}`);
         if (response.data) {
           for (const ins of response.data) {
-            const id = ins.campaign_id || ins.adset_id || ins.ad_id;
+            let id: string | null = null;
+            if (levelName === 'campaign' && ins.campaign_id) id = String(ins.campaign_id);
+            else if (levelName === 'adset' && ins.adset_id) id = String(ins.adset_id);
+            else if (levelName === 'ad' && ins.ad_id) id = String(ins.ad_id);
+            
             if (id) insightsMap.set(id, ins);
           }
         }
@@ -334,15 +364,12 @@ async function fetchInsightsOptimized(
     const results = await executeBatch(batchRequests, token, 'INSIGHTS');
     
     for (const ins of results) {
-      // Try all possible ID fields - Meta returns different field names depending on level
-      const id = ins.campaign_id || ins.adset_id || ins.ad_id || ins.id;
+      // Try all possible ID fields
+      const id = ins.campaign_id || ins.adset_id || ins.ad_id;
       if (id) {
-        insightsMap.set(id, ins);
-      } else {
-        // Log first unmatched insight for debugging
-        if (insightsMap.size === 0) {
-          console.log(`[INSIGHTS DEBUG] Sample insight keys: ${Object.keys(ins).join(', ')}`);
-        }
+        insightsMap.set(String(id), ins);
+      } else if (insightsMap.size === 0) {
+        console.log(`[BATCH DEBUG] Sample keys: ${Object.keys(ins).join(', ')}`);
       }
     }
   }
