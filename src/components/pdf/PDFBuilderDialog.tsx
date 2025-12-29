@@ -11,78 +11,27 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Download, Loader2, CalendarIcon, BarChart3, LineChart, AreaChart, TrendingUp, Upload, ImageIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { FileText, Download, Loader2, CalendarIcon, BarChart3, LineChart, AreaChart, TrendingUp, Upload } from 'lucide-react';
+import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { usePDFMetrics } from '@/hooks/usePDFMetrics';
 import jsPDF from 'jspdf';
-import {
-  ResponsiveContainer,
-  ComposedChart,
-  LineChart as RechartsLineChart,
-  BarChart as RechartsBarChart,
-  AreaChart as RechartsAreaChart,
-  Line,
-  Bar,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-} from 'recharts';
-
-type ChartType = 'line' | 'bar' | 'area' | 'composed';
-type MetricKey = 'spend' | 'impressions' | 'clicks' | 'reach' | 'conversions' | 'conversion_value' | 'ctr' | 'cpm' | 'cpc' | 'roas' | 'cpa';
-
-interface PDFBuilderDialogProps {
-  projectName: string;
-  periodLabel: string;
-  metrics: {
-    totalSpend: number;
-    totalImpressions: number;
-    totalClicks: number;
-    totalReach: number;
-    totalConversions: number;
-    totalConversionValue: number;
-    ctr: number;
-    cpm: number;
-    cpc: number;
-    cpa: number;
-    roas: number;
-    avgFrequency?: number;
-    campaignCount: number;
-  };
-  businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | null;
-  currency: string;
-  chartRef?: React.RefObject<HTMLDivElement>;
-  projectId?: string;
-}
-
-interface ChartConfig {
-  type: ChartType;
-  primaryMetric: MetricKey;
-  secondaryMetric: MetricKey | 'none';
-  primaryColor: string;
-  secondaryColor: string;
-  showGrid: boolean;
-}
-
-const metricLabels: Record<MetricKey, string> = {
-  spend: 'Gasto',
-  impressions: 'Impressões',
-  clicks: 'Cliques',
-  reach: 'Alcance',
-  conversions: 'Conversões',
-  conversion_value: 'Receita',
-  ctr: 'CTR (%)',
-  cpm: 'CPM',
-  cpc: 'CPC',
-  roas: 'ROAS',
-  cpa: 'CPA',
-};
+import { PDFPreview } from './PDFPreview';
+import { 
+  ChartConfig, 
+  ChartType, 
+  MetricKey, 
+  MetricItem, 
+  PageStyle, 
+  PDFBuilderDialogProps,
+  METRIC_LABELS, 
+  COLOR_PRESETS, 
+  PERIOD_PRESETS, 
+  FONT_OPTIONS,
+  CURRENCY_METRICS 
+} from './types';
 
 const chartTypeIcons = {
   line: LineChart,
@@ -91,27 +40,23 @@ const chartTypeIcons = {
   composed: TrendingUp,
 };
 
-// V4 Company colors - Red primary
-const colorPresets = [
-  '#dc2626', // Red (V4 Primary)
-  '#ef4444', // Red lighter
-  '#1f2937', // Dark gray
-  '#374151', // Gray
-  '#22c55e', // Green
-  '#3b82f6', // Blue
-  '#8b5cf6', // Purple
-  '#f59e0b', // Amber
-];
-
-export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMetrics, businessModel, currency, projectId }: PDFBuilderDialogProps) {
+export function PDFBuilderDialog({ 
+  projectName, 
+  periodLabel, 
+  metrics: initialMetrics, 
+  businessModel, 
+  currency, 
+  projectId 
+}: PDFBuilderDialogProps) {
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [reportTitle, setReportTitle] = useState(`Relatório - ${projectName}`);
   const [logoFile, setLogoFile] = useState<string | null>(null);
+  const [periodPreset, setPeriodPreset] = useState('30d');
+  const [showCustomCalendar, setShowCustomCalendar] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - 30);
+    const start = subDays(end, 30);
     return { from: start, to: end };
   });
   
@@ -124,30 +69,67 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
     chart: true 
   });
   
-  // Metric selection (which metrics to show)
+  // Metric selection
   const [selectedMetrics, setSelectedMetrics] = useState<Set<MetricKey>>(new Set([
     'spend', 'impressions', 'clicks', 'reach', 'ctr', 'cpm', 'cpc', 
     'conversions', 'conversion_value', 'roas', 'cpa'
   ]));
   
-  // Chart config - V4 Red as default
+  // Chart config
   const [chartConfig, setChartConfig] = useState<ChartConfig>({
     type: 'composed',
     primaryMetric: 'spend',
     secondaryMetric: businessModel === 'ecommerce' ? 'conversion_value' : 'conversions',
-    primaryColor: '#dc2626', // V4 Red
-    secondaryColor: '#22c55e', // Green
+    primaryColor: '#dc2626',
+    secondaryColor: '#22c55e',
     showGrid: true,
+  });
+
+  // Page style - NEW!
+  const [pageStyle, setPageStyle] = useState<PageStyle>({
+    headerColor: '#dc2626', // V4 Red
+    footerColor: '#dc2626', // V4 Red
+    accentColor: '#dc2626', // V4 Red
+    fontFamily: 'helvetica',
+    showHeaderBar: true,
+    showFooterBar: true,
   });
 
   const { dailyData, totals, loading: metricsLoading, loadMetrics, getAvailableDateRange } = usePDFMetrics(projectId);
   const pdfChartRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Handle period preset change
+  const handlePeriodPresetChange = useCallback((value: string) => {
+    setPeriodPreset(value);
+    
+    if (value === 'custom') {
+      setShowCustomCalendar(true);
+      return;
+    }
+    
+    setShowCustomCalendar(false);
+    const today = new Date();
+    
+    if (value === 'this_month') {
+      setDateRange({ from: startOfMonth(today), to: today });
+    } else if (value === 'last_month') {
+      const lastMonth = subMonths(today, 1);
+      setDateRange({ from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) });
+    } else {
+      const preset = PERIOD_PRESETS.find(p => p.value === value);
+      if (preset && preset.days > 0) {
+        setDateRange({ from: subDays(today, preset.days), to: today });
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (open && projectId) {
       getAvailableDateRange().then(range => {
-        if (range) setDateRange({ from: new Date(range.minDate), to: new Date(range.maxDate) });
+        if (range) {
+          // Keep current selection, don't auto-set
+        }
       });
     }
   }, [open, projectId, getAvailableDateRange]);
@@ -194,79 +176,63 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
     });
   };
 
-  const formatCurrencyValue = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(value);
-  const formatNumber = (num: number) => num >= 1000000 ? (num / 1000000).toFixed(1) + 'M' : num >= 1000 ? (num / 1000).toFixed(1) + 'K' : num.toLocaleString('pt-BR');
+  // Format with currency symbol when appropriate
+  const formatValue = (value: number, metricKey: MetricKey): string => {
+    if (CURRENCY_METRICS.includes(metricKey)) {
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(value);
+    }
+    if (metricKey === 'ctr') {
+      return `${value.toFixed(2)}%`;
+    }
+    if (metricKey === 'roas') {
+      return `${value.toFixed(2)}x`;
+    }
+    return value >= 1000000 
+      ? (value / 1000000).toFixed(1) + 'M' 
+      : value >= 1000 
+      ? (value / 1000).toFixed(1) + 'K' 
+      : value.toLocaleString('pt-BR');
+  };
 
-  // All available metrics based on business model
-  const allMetrics = useMemo(() => {
-    const base: { key: MetricKey; label: string; value: string; category: 'general' | 'result' }[] = [
-      { key: 'spend', label: 'Gasto Total', value: formatCurrencyValue(currentMetrics.spend), category: 'general' },
-      { key: 'impressions', label: 'Impressões', value: formatNumber(currentMetrics.impressions), category: 'general' },
-      { key: 'clicks', label: 'Cliques', value: formatNumber(currentMetrics.clicks), category: 'general' },
-      { key: 'reach', label: 'Alcance', value: formatNumber(currentMetrics.reach), category: 'general' },
-      { key: 'ctr', label: 'CTR', value: `${currentMetrics.ctr.toFixed(2)}%`, category: 'general' },
-      { key: 'cpm', label: 'CPM', value: formatCurrencyValue(currentMetrics.cpm), category: 'general' },
-      { key: 'cpc', label: 'CPC', value: formatCurrencyValue(currentMetrics.cpc), category: 'general' },
+  // Build metrics list
+  const allMetrics: MetricItem[] = useMemo(() => {
+    const base: MetricItem[] = [
+      { key: 'spend', label: 'Gasto Total', value: formatValue(currentMetrics.spend, 'spend'), category: 'general', isCurrency: true },
+      { key: 'impressions', label: 'Impressões', value: formatValue(currentMetrics.impressions, 'impressions'), category: 'general' },
+      { key: 'clicks', label: 'Cliques', value: formatValue(currentMetrics.clicks, 'clicks'), category: 'general' },
+      { key: 'reach', label: 'Alcance', value: formatValue(currentMetrics.reach, 'reach'), category: 'general' },
+      { key: 'ctr', label: 'CTR', value: formatValue(currentMetrics.ctr, 'ctr'), category: 'general' },
+      { key: 'cpm', label: 'CPM', value: formatValue(currentMetrics.cpm, 'cpm'), category: 'general', isCurrency: true },
+      { key: 'cpc', label: 'CPC', value: formatValue(currentMetrics.cpc, 'cpc'), category: 'general', isCurrency: true },
     ];
     
     if (businessModel === 'ecommerce') {
       return [...base,
-        { key: 'conversions' as MetricKey, label: 'Compras', value: formatNumber(currentMetrics.conversions), category: 'result' as const },
-        { key: 'conversion_value' as MetricKey, label: 'Receita', value: formatCurrencyValue(currentMetrics.conversion_value), category: 'result' as const },
-        { key: 'roas' as MetricKey, label: 'ROAS', value: `${currentMetrics.roas.toFixed(2)}x`, category: 'result' as const },
-        { key: 'cpa' as MetricKey, label: 'CPA', value: formatCurrencyValue(currentMetrics.cpa), category: 'result' as const },
+        { key: 'conversions' as MetricKey, label: 'Compras', value: formatValue(currentMetrics.conversions, 'conversions'), category: 'result' as const },
+        { key: 'conversion_value' as MetricKey, label: 'Receita', value: formatValue(currentMetrics.conversion_value, 'conversion_value'), category: 'result' as const, isCurrency: true },
+        { key: 'roas' as MetricKey, label: 'ROAS', value: formatValue(currentMetrics.roas, 'roas'), category: 'result' as const },
+        { key: 'cpa' as MetricKey, label: 'CPA', value: formatValue(currentMetrics.cpa, 'cpa'), category: 'result' as const, isCurrency: true },
       ];
     }
     if (businessModel === 'inside_sales') {
       return [...base,
-        { key: 'conversions' as MetricKey, label: 'Leads', value: formatNumber(currentMetrics.conversions), category: 'result' as const },
-        { key: 'cpa' as MetricKey, label: 'CPL', value: formatCurrencyValue(currentMetrics.cpa), category: 'result' as const },
+        { key: 'conversions' as MetricKey, label: 'Leads', value: formatValue(currentMetrics.conversions, 'conversions'), category: 'result' as const },
+        { key: 'cpa' as MetricKey, label: 'CPL', value: formatValue(currentMetrics.cpa, 'cpa'), category: 'result' as const, isCurrency: true },
       ];
     }
     if (businessModel === 'pdv') {
       return [...base,
-        { key: 'conversions' as MetricKey, label: 'Visitas', value: formatNumber(currentMetrics.conversions), category: 'result' as const },
-        { key: 'cpa' as MetricKey, label: 'Custo/Visita', value: formatCurrencyValue(currentMetrics.cpa), category: 'result' as const },
+        { key: 'conversions' as MetricKey, label: 'Visitas', value: formatValue(currentMetrics.conversions, 'conversions'), category: 'result' as const },
+        { key: 'cpa' as MetricKey, label: 'Custo/Visita', value: formatValue(currentMetrics.cpa, 'cpa'), category: 'result' as const, isCurrency: true },
       ];
     }
     return base;
   }, [currentMetrics, businessModel, currency]);
 
-  // Filtered metrics based on selection
-  const filteredMetrics = useMemo(() => {
-    return allMetrics.filter(m => selectedMetrics.has(m.key));
-  }, [allMetrics, selectedMetrics]);
-
+  const filteredMetrics = useMemo(() => allMetrics.filter(m => selectedMetrics.has(m.key)), [allMetrics, selectedMetrics]);
   const generalMetrics = filteredMetrics.filter(m => m.category === 'general');
   const resultMetrics = filteredMetrics.filter(m => m.category === 'result');
-
   const chartData = useMemo(() => dailyData.map(d => ({ ...d, date: format(new Date(d.date), 'dd/MM', { locale: ptBR }) })), [dailyData]);
-
-  // Chart with WHITE background for PDF
-  const renderChart = useCallback(() => {
-    if (!chartData.length) return <div className="flex items-center justify-center h-full text-gray-500">Sem dados</div>;
-    const ChartComponent = chartConfig.type === 'line' ? RechartsLineChart : chartConfig.type === 'bar' ? RechartsBarChart : chartConfig.type === 'area' ? RechartsAreaChart : ComposedChart;
-    return (
-      <ChartComponent data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-        {chartConfig.showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />}
-        <XAxis dataKey="date" tick={{ fill: '#374151', fontSize: 10 }} axisLine={{ stroke: '#d1d5db' }} tickLine={{ stroke: '#d1d5db' }} />
-        <YAxis yAxisId="left" tick={{ fill: '#374151', fontSize: 10 }} axisLine={{ stroke: '#d1d5db' }} tickLine={{ stroke: '#d1d5db' }} />
-        {chartConfig.secondaryMetric !== 'none' && <YAxis yAxisId="right" orientation="right" tick={{ fill: '#374151', fontSize: 10 }} axisLine={{ stroke: '#d1d5db' }} tickLine={{ stroke: '#d1d5db' }} />}
-        <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', color: '#111' }} />
-        <Legend wrapperStyle={{ color: '#374151' }} />
-        {chartConfig.type === 'bar' || chartConfig.type === 'composed' ? (
-          <Bar yAxisId="left" dataKey={chartConfig.primaryMetric} fill={chartConfig.primaryColor} radius={[4, 4, 0, 0]} name={metricLabels[chartConfig.primaryMetric]} />
-        ) : chartConfig.type === 'area' ? (
-          <Area yAxisId="left" type="monotone" dataKey={chartConfig.primaryMetric} stroke={chartConfig.primaryColor} fill={chartConfig.primaryColor} fillOpacity={0.3} name={metricLabels[chartConfig.primaryMetric]} />
-        ) : (
-          <Line yAxisId="left" type="monotone" dataKey={chartConfig.primaryMetric} stroke={chartConfig.primaryColor} strokeWidth={2} dot={false} name={metricLabels[chartConfig.primaryMetric]} />
-        )}
-        {chartConfig.secondaryMetric !== 'none' && (
-          <Line yAxisId="right" type="monotone" dataKey={chartConfig.secondaryMetric} stroke={chartConfig.secondaryColor} strokeWidth={2} dot={false} name={metricLabels[chartConfig.secondaryMetric]} />
-        )}
-      </ChartComponent>
-    );
-  }, [chartData, chartConfig]);
 
   const generatePDF = async () => {
     setGenerating(true);
@@ -276,19 +242,27 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
       const margin = 15;
       let yPos = margin;
 
-      // White background is default for PDF
+      pdf.setFont(pageStyle.fontFamily);
+
+      // Header bar
+      if (pageStyle.showHeaderBar) {
+        const [r, g, b] = hexToRgb(pageStyle.headerColor);
+        pdf.setFillColor(r, g, b);
+        pdf.rect(0, 0, pageWidth, 8, 'F');
+        yPos = 12;
+      }
 
       if (sections.header) {
         if (logoFile) { 
           try { pdf.addImage(logoFile, 'PNG', margin, yPos, 25, 25); } catch {} 
         }
         pdf.setFontSize(18); 
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(17, 24, 39); // Dark gray
+        pdf.setFont(pageStyle.fontFamily, 'bold');
+        pdf.setTextColor(17, 24, 39);
         pdf.text(reportTitle, logoFile ? margin + 30 : margin, yPos + 10);
         pdf.setFontSize(10); 
-        pdf.setFont('helvetica', 'normal'); 
-        pdf.setTextColor(107, 114, 128); // Gray
+        pdf.setFont(pageStyle.fontFamily, 'normal'); 
+        pdf.setTextColor(107, 114, 128);
         const periodText = dateRange?.from && dateRange?.to 
           ? `${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}` 
           : periodLabel;
@@ -303,7 +277,7 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
 
       if (sections.summary) {
         pdf.setFontSize(12); 
-        pdf.setFont('helvetica', 'bold'); 
+        pdf.setFont(pageStyle.fontFamily, 'bold'); 
         pdf.setTextColor(17, 24, 39);
         pdf.text('Resumo Executivo', margin, yPos); 
         yPos += 8;
@@ -312,20 +286,20 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
         pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 15, 2, 2, 'F');
         
         pdf.setFontSize(9); 
-        pdf.setFont('helvetica', 'normal');
+        pdf.setFont(pageStyle.fontFamily, 'normal');
         pdf.setTextColor(55, 65, 81);
         const summary = businessModel === 'ecommerce' 
-          ? `Investimento: ${formatCurrencyValue(currentMetrics.spend)} | Vendas: ${formatNumber(currentMetrics.conversions)} | Receita: ${formatCurrencyValue(currentMetrics.conversion_value)} | ROAS: ${currentMetrics.roas.toFixed(2)}x`
+          ? `Investimento: ${formatValue(currentMetrics.spend, 'spend')} | Vendas: ${formatValue(currentMetrics.conversions, 'conversions')} | Receita: ${formatValue(currentMetrics.conversion_value, 'conversion_value')} | ROAS: ${formatValue(currentMetrics.roas, 'roas')}`
           : businessModel === 'inside_sales' 
-          ? `Investimento: ${formatCurrencyValue(currentMetrics.spend)} | Leads: ${formatNumber(currentMetrics.conversions)} | CPL: ${formatCurrencyValue(currentMetrics.cpa)}`
-          : `Investimento: ${formatCurrencyValue(currentMetrics.spend)} | Alcance: ${formatNumber(currentMetrics.reach)} | Cliques: ${formatNumber(currentMetrics.clicks)}`;
+          ? `Investimento: ${formatValue(currentMetrics.spend, 'spend')} | Leads: ${formatValue(currentMetrics.conversions, 'conversions')} | CPL: ${formatValue(currentMetrics.cpa, 'cpa')}`
+          : `Investimento: ${formatValue(currentMetrics.spend, 'spend')} | Alcance: ${formatValue(currentMetrics.reach, 'reach')} | Cliques: ${formatValue(currentMetrics.clicks, 'clicks')}`;
         pdf.text(summary, margin + 5, yPos + 9); 
         yPos += 22;
       }
 
       if (sections.generalMetrics && generalMetrics.length > 0) {
         pdf.setFontSize(12); 
-        pdf.setFont('helvetica', 'bold'); 
+        pdf.setFont(pageStyle.fontFamily, 'bold'); 
         pdf.setTextColor(17, 24, 39);
         pdf.text('Métricas Gerais', margin, yPos); 
         yPos += 8;
@@ -343,43 +317,45 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
           pdf.setTextColor(107, 114, 128); 
           pdf.text(m.label, x + 3, y + 6);
           pdf.setFontSize(11); 
-          pdf.setFont('helvetica', 'bold'); 
+          pdf.setFont(pageStyle.fontFamily, 'bold'); 
           pdf.setTextColor(17, 24, 39); 
           pdf.text(m.value, x + 3, y + 14);
-          pdf.setFont('helvetica', 'normal');
+          pdf.setFont(pageStyle.fontFamily, 'normal');
         });
         yPos += Math.ceil(generalMetrics.length / 4) * 20 + 8;
       }
 
       if (sections.resultMetrics && resultMetrics.length > 0) {
         pdf.setFontSize(12); 
-        pdf.setFont('helvetica', 'bold'); 
+        pdf.setFont(pageStyle.fontFamily, 'bold'); 
         pdf.setTextColor(17, 24, 39);
         const resultLabel = businessModel === 'ecommerce' ? 'E-commerce' : businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV';
         pdf.text(`Métricas de Resultado (${resultLabel})`, margin, yPos); 
         yPos += 8;
         
         const cardW = (pageWidth - margin * 2 - 9) / 4;
+        const [ar, ag, ab] = hexToRgb(pageStyle.accentColor);
+        
         resultMetrics.forEach((m, i) => {
           const x = margin + i * (cardW + 3);
-          // Light red background for V4
+          // Use accent color with light opacity
           pdf.setFillColor(254, 242, 242); 
           pdf.roundedRect(x, yPos, cardW, 18, 2, 2, 'F');
           pdf.setFontSize(8); 
           pdf.setTextColor(107, 114, 128); 
           pdf.text(m.label, x + 3, yPos + 6);
           pdf.setFontSize(11); 
-          pdf.setFont('helvetica', 'bold'); 
-          pdf.setTextColor(220, 38, 38); // V4 Red
+          pdf.setFont(pageStyle.fontFamily, 'bold'); 
+          pdf.setTextColor(ar, ag, ab); // Accent color
           pdf.text(m.value, x + 3, yPos + 14);
-          pdf.setFont('helvetica', 'normal');
+          pdf.setFont(pageStyle.fontFamily, 'normal');
         });
         yPos += 26;
       }
 
       if (sections.chart && pdfChartRef.current) {
         pdf.setFontSize(12); 
-        pdf.setFont('helvetica', 'bold'); 
+        pdf.setFont(pageStyle.fontFamily, 'bold'); 
         pdf.setTextColor(17, 24, 39);
         pdf.text('Evolução Diária', margin, yPos); 
         yPos += 6;
@@ -396,11 +372,18 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
         } catch (e) { console.error(e); }
       }
 
-      // Footer
+      // Footer bar
       const pageHeight = pdf.internal.pageSize.getHeight();
+      if (pageStyle.showFooterBar) {
+        const [r, g, b] = hexToRgb(pageStyle.footerColor);
+        pdf.setFillColor(r, g, b);
+        pdf.rect(0, pageHeight - 8, pageWidth, 8, 'F');
+      }
+      
+      // Footer text
       pdf.setFontSize(8);
       pdf.setTextColor(156, 163, 175);
-      pdf.text(`${projectName} • Relatório gerado automaticamente`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      pdf.text(`${projectName} • Relatório gerado automaticamente`, pageWidth / 2, pageHeight - (pageStyle.showFooterBar ? 12 : 10), { align: 'center' });
 
       pdf.save(`${reportTitle.replace(/[^a-zA-Z0-9]/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     } finally { setGenerating(false); }
@@ -433,28 +416,51 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
                 <TabsTrigger value="style">Estilo</TabsTrigger>
               </TabsList>
               
+              {/* CONTENT TAB */}
               <TabsContent value="content" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label>Título do Relatório</Label>
                   <Input value={reportTitle} onChange={(e) => setReportTitle(e.target.value)} />
                 </div>
                 
+                {/* Period Presets */}
                 <div className="space-y-2">
                   <Label>Período</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start", !dateRange && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (dateRange.to ? `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}` : format(dateRange.from, "dd/MM/yyyy")) : "Selecione o período"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="range" selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={ptBR} className="pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
+                  <Select value={periodPreset} onValueChange={handlePeriodPresetChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o período" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERIOD_PRESETS.map(p => (
+                        <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Custom Calendar */}
+                  {showCustomCalendar && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start mt-2", !dateRange && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateRange?.from ? (dateRange.to ? `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}` : format(dateRange.from, "dd/MM/yyyy")) : "Selecione as datas"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="range" selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={ptBR} className="pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                  
+                  {/* Show selected period */}
+                  {dateRange?.from && dateRange?.to && !showCustomCalendar && (
+                    <p className="text-xs text-muted-foreground">
+                      {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
+                    </p>
+                  )}
                 </div>
                 
-                {/* Improved Logo Upload */}
+                {/* Logo Upload */}
                 <div className="space-y-2">
                   <Label>Logo da Empresa</Label>
                   <div className="flex items-center gap-3">
@@ -510,7 +516,7 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
                 </div>
               </TabsContent>
               
-              {/* NEW: Metrics Selection Tab */}
+              {/* METRICS TAB */}
               <TabsContent value="metrics" className="space-y-4 mt-4">
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Selecione as Métricas</Label>
@@ -558,6 +564,7 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
                 </div>
               </TabsContent>
               
+              {/* CHART TAB */}
               <TabsContent value="chart" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label>Tipo de Gráfico</Label>
@@ -600,18 +607,13 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
                     </SelectContent>
                   </Select>
                 </div>
+
+                <Separator />
                 
-                <div className="flex items-center justify-between">
-                  <Label>Mostrar Grade</Label>
-                  <Switch checked={chartConfig.showGrid} onCheckedChange={(c) => setChartConfig(p => ({ ...p, showGrid: c }))} />
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="style" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label>Cor Principal (V4 Vermelho como padrão)</Label>
+                  <Label>Cor Principal do Gráfico</Label>
                   <div className="flex gap-2 flex-wrap">
-                    {colorPresets.map(c => (
+                    {COLOR_PRESETS.map(c => (
                       <button 
                         key={c} 
                         className={cn(
@@ -626,9 +628,9 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Cor Secundária</Label>
+                  <Label>Cor Secundária do Gráfico</Label>
                   <div className="flex gap-2 flex-wrap">
-                    {colorPresets.map(c => (
+                    {COLOR_PRESETS.map(c => (
                       <button 
                         key={c} 
                         className={cn(
@@ -641,94 +643,114 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
                     ))}
                   </div>
                 </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label>Mostrar Grade</Label>
+                  <Switch checked={chartConfig.showGrid} onCheckedChange={(c) => setChartConfig(p => ({ ...p, showGrid: c }))} />
+                </div>
+              </TabsContent>
+              
+              {/* STYLE TAB - NEW! */}
+              <TabsContent value="style" className="space-y-4 mt-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Tipografia</Label>
+                    <Select value={pageStyle.fontFamily} onValueChange={(v) => setPageStyle(p => ({ ...p, fontFamily: v as 'helvetica' | 'times' | 'courier' }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {FONT_OPTIONS.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <Label>Cor do Cabeçalho (Barra superior)</Label>
+                    <div className="flex gap-2 flex-wrap">
+                      {COLOR_PRESETS.map(c => (
+                        <button 
+                          key={c} 
+                          className={cn(
+                            "w-8 h-8 rounded-full border-2 transition-all hover:scale-110",
+                            pageStyle.headerColor === c ? "border-foreground scale-110" : "border-transparent"
+                          )} 
+                          style={{ backgroundColor: c }} 
+                          onClick={() => setPageStyle(p => ({ ...p, headerColor: c }))} 
+                        />
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <Label className="text-sm">Mostrar barra do cabeçalho</Label>
+                      <Switch checked={pageStyle.showHeaderBar} onCheckedChange={(c) => setPageStyle(p => ({ ...p, showHeaderBar: c }))} />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Cor do Rodapé (Barra inferior)</Label>
+                    <div className="flex gap-2 flex-wrap">
+                      {COLOR_PRESETS.map(c => (
+                        <button 
+                          key={c} 
+                          className={cn(
+                            "w-8 h-8 rounded-full border-2 transition-all hover:scale-110",
+                            pageStyle.footerColor === c ? "border-foreground scale-110" : "border-transparent"
+                          )} 
+                          style={{ backgroundColor: c }} 
+                          onClick={() => setPageStyle(p => ({ ...p, footerColor: c }))} 
+                        />
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <Label className="text-sm">Mostrar barra do rodapé</Label>
+                      <Switch checked={pageStyle.showFooterBar} onCheckedChange={(c) => setPageStyle(p => ({ ...p, showFooterBar: c }))} />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Cor de Destaque (Métricas de resultado)</Label>
+                    <div className="flex gap-2 flex-wrap">
+                      {COLOR_PRESETS.map(c => (
+                        <button 
+                          key={c} 
+                          className={cn(
+                            "w-8 h-8 rounded-full border-2 transition-all hover:scale-110",
+                            pageStyle.accentColor === c ? "border-foreground scale-110" : "border-transparent"
+                          )} 
+                          style={{ backgroundColor: c }} 
+                          onClick={() => setPageStyle(p => ({ ...p, accentColor: c }))} 
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </TabsContent>
             </Tabs>
           </div>
           
-          {/* Preview Panel - WHITE BACKGROUND */}
+          {/* Preview Panel */}
           <div className="border rounded-lg overflow-hidden flex flex-col">
             <div className="p-3 border-b bg-muted/50 flex items-center justify-between">
               <span className="text-sm font-medium">Preview do PDF</span>
               {metricsLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             </div>
             <ScrollArea className="flex-1">
-              {/* White background for PDF preview */}
-              <div className="p-6 space-y-4 bg-white text-gray-900 min-h-full">
-                {/* Header */}
-                {sections.header && (
-                  <div className="flex items-start gap-4">
-                    {logoFile && <img src={logoFile} alt="Logo" className="h-12 w-12 object-contain rounded" />}
-                    <div>
-                      <h1 className="text-xl font-bold text-gray-900">{reportTitle}</h1>
-                      <p className="text-sm text-gray-500">
-                        {dateRange?.from && dateRange?.to 
-                          ? `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}` 
-                          : periodLabel}
-                      </p>
-                      <p className="text-xs text-gray-400">Gerado em {format(new Date(), "dd/MM/yyyy 'às' HH:mm")}</p>
-                    </div>
-                  </div>
-                )}
-                {sections.header && <Separator className="bg-gray-200" />}
-                
-                {/* Summary */}
-                {sections.summary && (
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <h3 className="text-xs font-semibold text-gray-600 mb-1">Resumo Executivo</h3>
-                    <p className="text-sm text-gray-700">
-                      {businessModel === 'ecommerce' 
-                        ? `Investimento ${formatCurrencyValue(currentMetrics.spend)} → ${formatNumber(currentMetrics.conversions)} vendas, ${formatCurrencyValue(currentMetrics.conversion_value)} receita, ROAS ${currentMetrics.roas.toFixed(2)}x` 
-                        : businessModel === 'inside_sales' 
-                        ? `Investimento ${formatCurrencyValue(currentMetrics.spend)} → ${formatNumber(currentMetrics.conversions)} leads, CPL ${formatCurrencyValue(currentMetrics.cpa)}` 
-                        : `Investimento ${formatCurrencyValue(currentMetrics.spend)} → ${formatNumber(currentMetrics.reach)} alcance, ${formatNumber(currentMetrics.clicks)} cliques`}
-                    </p>
-                  </div>
-                )}
-                
-                {/* General Metrics */}
-                {sections.generalMetrics && generalMetrics.length > 0 && (
-                  <div className="space-y-2">
-                    <h2 className="text-sm font-semibold text-gray-800">Métricas Gerais</h2>
-                    <div className="grid grid-cols-3 gap-2">
-                      {generalMetrics.map(m => (
-                        <div key={m.key} className="p-2 bg-gray-50 rounded text-center">
-                          <p className="text-[10px] text-gray-500">{m.label}</p>
-                          <p className="text-sm font-semibold text-gray-900">{m.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Result Metrics */}
-                {sections.resultMetrics && resultMetrics.length > 0 && (
-                  <div className="space-y-2">
-                    <h2 className="text-sm font-semibold text-gray-800">
-                      Métricas de Resultado
-                    </h2>
-                    <div className="grid grid-cols-2 gap-2">
-                      {resultMetrics.map(m => (
-                        <div key={m.key} className="p-2 bg-red-50 rounded text-center">
-                          <p className="text-[10px] text-gray-500">{m.label}</p>
-                          <p className="text-sm font-semibold text-red-600">{m.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Chart - WHITE BACKGROUND */}
-                {sections.chart && (
-                  <div className="space-y-2">
-                    <h2 className="text-sm font-semibold text-gray-800">Evolução Diária</h2>
-                    <div ref={pdfChartRef} className="h-48 bg-white rounded-lg border border-gray-200 p-3">
-                      <ResponsiveContainer width="100%" height="100%">
-                        {renderChart()}
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <PDFPreview
+                ref={pdfChartRef}
+                reportTitle={reportTitle}
+                dateRange={dateRange}
+                periodLabel={periodLabel}
+                logoFile={logoFile}
+                sections={sections}
+                generalMetrics={generalMetrics}
+                resultMetrics={resultMetrics}
+                currentMetrics={currentMetrics}
+                businessModel={businessModel}
+                currency={currency}
+                chartConfig={chartConfig}
+                chartData={chartData}
+                pageStyle={pageStyle}
+              />
             </ScrollArea>
           </div>
         </div>
@@ -757,4 +779,12 @@ export function PDFBuilderDialog({ projectName, periodLabel, metrics: initialMet
       </DialogContent>
     </Dialog>
   );
+}
+
+// Helper function to convert hex to RGB
+function hexToRgb(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result 
+    ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)]
+    : [220, 38, 38]; // Default to V4 red
 }
