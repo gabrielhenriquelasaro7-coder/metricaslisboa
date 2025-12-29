@@ -1,34 +1,41 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   FileDown, 
-  Image, 
   BarChart3, 
   LineChart, 
-  PieChart, 
   Table2, 
   TrendingUp,
   Users,
   Loader2,
   Eye,
   Download,
-  Upload
+  Upload,
+  ShoppingCart,
+  Store,
+  DollarSign,
+  MousePointerClick,
+  Target,
+  Percent
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
-interface PDFSection {
+interface MetricOption {
   id: string;
   label: string;
   icon: React.ElementType;
   enabled: boolean;
-  chartType?: 'line' | 'bar' | 'area';
+  getValue: () => string;
+  category: 'general' | 'performance' | 'result';
+  businessModels?: ('ecommerce' | 'inside_sales' | 'pdv')[];
 }
 
 interface PDFBuilderDialogProps {
@@ -38,6 +45,7 @@ interface PDFBuilderDialogProps {
     totalSpend: number;
     totalImpressions: number;
     totalClicks: number;
+    totalReach?: number;
     totalConversions: number;
     totalConversionValue: number;
     ctr: number;
@@ -45,9 +53,11 @@ interface PDFBuilderDialogProps {
     cpc: number;
     cpa: number;
     roas: number;
+    avgFrequency?: number;
   };
   businessModel: 'ecommerce' | 'inside_sales' | 'pdv' | null;
   currency?: string;
+  chartRef?: React.RefObject<HTMLDivElement>;
 }
 
 export function PDFBuilderDialog({ 
@@ -55,34 +65,200 @@ export function PDFBuilderDialog({
   periodLabel, 
   metrics, 
   businessModel,
-  currency = 'BRL'
+  currency = 'BRL',
+  chartRef
 }: PDFBuilderDialogProps) {
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [reportTitle, setReportTitle] = useState(`Relatório de Performance - ${projectName}`);
+  const [includeChart, setIncludeChart] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [sections, setSections] = useState<PDFSection[]>([
-    { id: 'header', label: 'Cabeçalho com Logo', icon: Image, enabled: true },
-    { id: 'summary', label: 'Resumo de Métricas', icon: Table2, enabled: true },
-    { id: 'performance', label: 'Métricas de Performance', icon: TrendingUp, enabled: true },
-    { id: 'results', label: 'Métricas de Resultado', icon: BarChart3, enabled: true },
-    { id: 'demographics', label: 'Dados Demográficos', icon: Users, enabled: false },
-  ]);
+  // Reset title when project changes
+  useEffect(() => {
+    setReportTitle(`Relatório de Performance - ${projectName}`);
+  }, [projectName]);
+
+  const formatNum = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toLocaleString('pt-BR');
+  };
+
+  // Dynamic metrics based on business model
+  const [metricOptions, setMetricOptions] = useState<MetricOption[]>([]);
+
+  useEffect(() => {
+    const baseMetrics: MetricOption[] = [
+      // General metrics (always available)
+      { 
+        id: 'spend', 
+        label: 'Investimento Total', 
+        icon: DollarSign, 
+        enabled: true, 
+        getValue: () => formatCurrency(metrics.totalSpend, currency),
+        category: 'general'
+      },
+      { 
+        id: 'impressions', 
+        label: 'Impressões', 
+        icon: Eye, 
+        enabled: true, 
+        getValue: () => formatNum(metrics.totalImpressions),
+        category: 'general'
+      },
+      { 
+        id: 'clicks', 
+        label: 'Cliques', 
+        icon: MousePointerClick, 
+        enabled: true, 
+        getValue: () => formatNum(metrics.totalClicks),
+        category: 'general'
+      },
+      { 
+        id: 'reach', 
+        label: 'Alcance', 
+        icon: Users, 
+        enabled: false, 
+        getValue: () => formatNum(metrics.totalReach || 0),
+        category: 'general'
+      },
+      
+      // Performance metrics
+      { 
+        id: 'ctr', 
+        label: 'CTR', 
+        icon: Target, 
+        enabled: true, 
+        getValue: () => `${metrics.ctr.toFixed(2)}%`,
+        category: 'performance'
+      },
+      { 
+        id: 'cpm', 
+        label: 'CPM', 
+        icon: Eye, 
+        enabled: true, 
+        getValue: () => formatCurrency(metrics.cpm, currency),
+        category: 'performance'
+      },
+      { 
+        id: 'cpc', 
+        label: 'CPC', 
+        icon: MousePointerClick, 
+        enabled: true, 
+        getValue: () => formatCurrency(metrics.cpc, currency),
+        category: 'performance'
+      },
+      { 
+        id: 'frequency', 
+        label: 'Frequência', 
+        icon: Percent, 
+        enabled: false, 
+        getValue: () => (metrics.avgFrequency || 0).toFixed(2),
+        category: 'performance'
+      },
+    ];
+
+    // Result metrics based on business model
+    const resultMetrics: MetricOption[] = [];
+
+    if (businessModel === 'ecommerce') {
+      resultMetrics.push(
+        { 
+          id: 'roas', 
+          label: 'ROAS', 
+          icon: TrendingUp, 
+          enabled: true, 
+          getValue: () => `${metrics.roas.toFixed(2)}x`,
+          category: 'result',
+          businessModels: ['ecommerce']
+        },
+        { 
+          id: 'purchases', 
+          label: 'Compras', 
+          icon: ShoppingCart, 
+          enabled: true, 
+          getValue: () => formatNum(metrics.totalConversions),
+          category: 'result',
+          businessModels: ['ecommerce']
+        },
+        { 
+          id: 'revenue', 
+          label: 'Receita Total', 
+          icon: DollarSign, 
+          enabled: true, 
+          getValue: () => formatCurrency(metrics.totalConversionValue, currency),
+          category: 'result',
+          businessModels: ['ecommerce']
+        },
+        { 
+          id: 'cpa', 
+          label: 'CPA (Custo por Compra)', 
+          icon: Target, 
+          enabled: true, 
+          getValue: () => formatCurrency(metrics.cpa, currency),
+          category: 'result',
+          businessModels: ['ecommerce']
+        }
+      );
+    } else if (businessModel === 'inside_sales') {
+      resultMetrics.push(
+        { 
+          id: 'leads', 
+          label: 'Leads Gerados', 
+          icon: Users, 
+          enabled: true, 
+          getValue: () => formatNum(metrics.totalConversions),
+          category: 'result',
+          businessModels: ['inside_sales']
+        },
+        { 
+          id: 'cpl', 
+          label: 'CPL (Custo por Lead)', 
+          icon: Target, 
+          enabled: true, 
+          getValue: () => formatCurrency(metrics.cpa, currency),
+          category: 'result',
+          businessModels: ['inside_sales']
+        }
+      );
+    } else if (businessModel === 'pdv') {
+      resultMetrics.push(
+        { 
+          id: 'visits', 
+          label: 'Visitas na Loja', 
+          icon: Store, 
+          enabled: true, 
+          getValue: () => formatNum(metrics.totalConversions),
+          category: 'result',
+          businessModels: ['pdv']
+        },
+        { 
+          id: 'cpv', 
+          label: 'Custo por Visita', 
+          icon: Target, 
+          enabled: true, 
+          getValue: () => formatCurrency(metrics.cpa, currency),
+          category: 'result',
+          businessModels: ['pdv']
+        }
+      );
+    }
+
+    setMetricOptions([...baseMetrics, ...resultMetrics]);
+  }, [businessModel, metrics, currency]);
+
+  const toggleMetric = (metricId: string) => {
+    setMetricOptions(prev => prev.map(m => 
+      m.id === metricId ? { ...m, enabled: !m.enabled } : m
+    ));
+  };
 
   const [chartStyles, setChartStyles] = useState({
     primaryColor: '#ef4444',
     secondaryColor: '#22c55e',
-    showGrid: true,
-    showLabels: true,
   });
-
-  const toggleSection = (sectionId: string) => {
-    setSections(prev => prev.map(s => 
-      s.id === sectionId ? { ...s, enabled: !s.enabled } : s
-    ));
-  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,10 +271,20 @@ export function PDFBuilderDialog({
     }
   };
 
-  const formatNum = (num: number) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toLocaleString('pt-BR');
+  const captureChart = async (): Promise<string | null> => {
+    if (!chartRef?.current || !includeChart) return null;
+    
+    try {
+      const canvas = await html2canvas(chartRef.current, {
+        backgroundColor: '#1a1a1a',
+        scale: 2,
+        logging: false,
+      });
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error('Error capturing chart:', error);
+      return null;
+    }
   };
 
   const generatePDF = async () => {
@@ -108,208 +294,196 @@ export function PDFBuilderDialog({
       const doc = new jsPDF('p', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 20;
+      const margin = 15;
       let yPos = margin;
 
       // Colors
       const primaryColor = [239, 68, 68]; // Red
       const textColor = [30, 30, 30];
       const mutedColor = [120, 120, 120];
-      const bgColor = [250, 250, 250];
+      const bgColor = [245, 245, 245];
 
-      // Header Section
-      if (sections.find(s => s.id === 'header')?.enabled) {
-        // Background header bar
-        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.rect(0, 0, pageWidth, 40, 'F');
-        
-        // Logo if uploaded
-        if (logoUrl) {
-          try {
-            doc.addImage(logoUrl, 'PNG', margin, 8, 25, 25);
-          } catch (e) {
-            console.error('Error adding logo:', e);
-          }
+      // Header
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      
+      if (logoUrl) {
+        try {
+          doc.addImage(logoUrl, 'PNG', margin, 6, 22, 22);
+        } catch (e) {
+          console.error('Error adding logo:', e);
         }
-
-        // Title
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text(reportTitle, logoUrl ? margin + 32 : margin, 20);
-        
-        // Period
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Período: ${periodLabel}`, logoUrl ? margin + 32 : margin, 28);
-        
-        // Date
-        doc.setFontSize(9);
-        const today = new Date().toLocaleDateString('pt-BR', { 
-          day: '2-digit', 
-          month: 'long', 
-          year: 'numeric' 
-        });
-        doc.text(`Gerado em: ${today}`, pageWidth - margin - 50, 28);
-        
-        yPos = 55;
       }
 
-      // Summary Section
-      if (sections.find(s => s.id === 'summary')?.enabled) {
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(reportTitle, logoUrl ? margin + 28 : margin, 16);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Período: ${periodLabel}`, logoUrl ? margin + 28 : margin, 24);
+      
+      const modelLabel = businessModel === 'ecommerce' ? 'E-commerce' : 
+                        businessModel === 'inside_sales' ? 'Inside Sales' : 
+                        businessModel === 'pdv' ? 'PDV' : '';
+      if (modelLabel) {
+        doc.text(`Modelo: ${modelLabel}`, logoUrl ? margin + 28 : margin, 30);
+      }
+      
+      doc.setFontSize(8);
+      const today = new Date().toLocaleDateString('pt-BR', { 
+        day: '2-digit', month: 'long', year: 'numeric' 
+      });
+      doc.text(`Gerado em: ${today}`, pageWidth - margin - 40, 24);
+      
+      yPos = 45;
+
+      // Get enabled metrics by category
+      const enabledGeneral = metricOptions.filter(m => m.enabled && m.category === 'general');
+      const enabledPerformance = metricOptions.filter(m => m.enabled && m.category === 'performance');
+      const enabledResult = metricOptions.filter(m => m.enabled && m.category === 'result');
+
+      // General Metrics Section
+      if (enabledGeneral.length > 0) {
         doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-        doc.setFontSize(14);
+        doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        doc.text('Resumo Executivo', margin, yPos);
-        yPos += 10;
+        doc.text('Métricas Gerais', margin, yPos);
+        yPos += 8;
 
-        // Summary cards
-        const summaryData = [
-          { label: 'Investimento Total', value: formatCurrency(metrics.totalSpend, currency) },
-          { label: 'Impressões', value: formatNum(metrics.totalImpressions) },
-          { label: 'Cliques', value: formatNum(metrics.totalClicks) },
-          { label: 'CTR', value: `${metrics.ctr.toFixed(2)}%` },
-        ];
-
-        const cardWidth = (pageWidth - margin * 2 - 15) / 4;
+        const cardWidth = (pageWidth - margin * 2 - (enabledGeneral.length - 1) * 4) / enabledGeneral.length;
         
-        summaryData.forEach((item, index) => {
-          const xPos = margin + (index * (cardWidth + 5));
+        enabledGeneral.forEach((item, index) => {
+          const xPos = margin + (index * (cardWidth + 4));
           
-          // Card background
           doc.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
-          doc.roundedRect(xPos, yPos, cardWidth, 25, 2, 2, 'F');
+          doc.roundedRect(xPos, yPos, cardWidth, 22, 2, 2, 'F');
           
-          // Border accent
           doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-          doc.rect(xPos, yPos, 3, 25, 'F');
+          doc.rect(xPos, yPos, 2, 22, 'F');
           
-          // Label
           doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
-          doc.setFontSize(8);
+          doc.setFontSize(7);
           doc.setFont('helvetica', 'normal');
-          doc.text(item.label, xPos + 8, yPos + 8);
+          doc.text(item.label, xPos + 6, yPos + 7);
           
-          // Value
           doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-          doc.setFontSize(12);
+          doc.setFontSize(10);
           doc.setFont('helvetica', 'bold');
-          doc.text(item.value, xPos + 8, yPos + 18);
+          doc.text(item.getValue(), xPos + 6, yPos + 16);
         });
 
-        yPos += 35;
+        yPos += 30;
       }
 
       // Performance Metrics Section
-      if (sections.find(s => s.id === 'performance')?.enabled) {
+      if (enabledPerformance.length > 0) {
         doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-        doc.setFontSize(14);
+        doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text('Métricas de Performance', margin, yPos);
-        yPos += 10;
+        yPos += 8;
 
-        const perfData = [
-          { label: 'CPM (Custo por Mil)', value: formatCurrency(metrics.cpm, currency) },
-          { label: 'CPC (Custo por Clique)', value: formatCurrency(metrics.cpc, currency) },
-          { label: 'CPA (Custo por Aquisição)', value: formatCurrency(metrics.cpa, currency) },
-        ];
-
-        const perfCardWidth = (pageWidth - margin * 2 - 10) / 3;
+        const cardWidth = (pageWidth - margin * 2 - (enabledPerformance.length - 1) * 4) / enabledPerformance.length;
         
-        perfData.forEach((item, index) => {
-          const xPos = margin + (index * (perfCardWidth + 5));
+        enabledPerformance.forEach((item, index) => {
+          const xPos = margin + (index * (cardWidth + 4));
           
           doc.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
-          doc.roundedRect(xPos, yPos, perfCardWidth, 22, 2, 2, 'F');
+          doc.roundedRect(xPos, yPos, cardWidth, 22, 2, 2, 'F');
           
           doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
-          doc.setFontSize(8);
+          doc.setFontSize(7);
           doc.setFont('helvetica', 'normal');
-          doc.text(item.label, xPos + 5, yPos + 8);
+          doc.text(item.label, xPos + 5, yPos + 7);
           
           doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-          doc.setFontSize(11);
+          doc.setFontSize(10);
           doc.setFont('helvetica', 'bold');
-          doc.text(item.value, xPos + 5, yPos + 17);
+          doc.text(item.getValue(), xPos + 5, yPos + 16);
         });
 
-        yPos += 32;
+        yPos += 30;
       }
 
-      // Results Metrics Section (Business Model Specific)
-      if (sections.find(s => s.id === 'results')?.enabled && businessModel) {
+      // Result Metrics Section (Business Model Specific)
+      if (enabledResult.length > 0) {
         doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-        doc.setFontSize(14);
+        doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
+        const resultTitle = businessModel === 'ecommerce' ? 'Resultados E-commerce' : 
+                           businessModel === 'inside_sales' ? 'Resultados Inside Sales' : 
+                           'Resultados PDV';
+        doc.text(resultTitle, margin, yPos);
+        yPos += 8;
+
+        const cardWidth = (pageWidth - margin * 2 - (enabledResult.length - 1) * 4) / enabledResult.length;
         
-        const modelLabel = businessModel === 'ecommerce' ? 'E-commerce' : 
-                          businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV';
-        doc.text(`Métricas de Resultado (${modelLabel})`, margin, yPos);
-        yPos += 10;
-
-        let resultsData: { label: string; value: string; highlight?: boolean }[] = [];
-
-        if (businessModel === 'ecommerce') {
-          resultsData = [
-            { label: 'ROAS', value: `${metrics.roas.toFixed(2)}x`, highlight: true },
-            { label: 'Compras', value: formatNum(metrics.totalConversions) },
-            { label: 'Receita Total', value: formatCurrency(metrics.totalConversionValue, currency), highlight: true },
-          ];
-        } else if (businessModel === 'inside_sales') {
-          resultsData = [
-            { label: 'Leads Gerados', value: formatNum(metrics.totalConversions), highlight: true },
-            { label: 'CPL', value: formatCurrency(metrics.cpa, currency) },
-          ];
-        } else if (businessModel === 'pdv') {
-          resultsData = [
-            { label: 'Visitas', value: formatNum(metrics.totalConversions), highlight: true },
-            { label: 'Custo por Visita', value: formatCurrency(metrics.cpa, currency) },
-          ];
-        }
-
-        const resCardWidth = (pageWidth - margin * 2 - 10) / resultsData.length;
-        
-        resultsData.forEach((item, index) => {
-          const xPos = margin + (index * (resCardWidth + 5));
+        enabledResult.forEach((item, index) => {
+          const xPos = margin + (index * (cardWidth + 4));
+          const isHighlight = item.id === 'roas' || item.id === 'revenue' || item.id === 'leads' || item.id === 'visits';
           
-          if (item.highlight) {
+          if (isHighlight) {
             doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-            doc.roundedRect(xPos, yPos, resCardWidth, 28, 2, 2, 'F');
+            doc.roundedRect(xPos, yPos, cardWidth, 26, 2, 2, 'F');
             
             doc.setTextColor(255, 255, 255);
           } else {
             doc.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
-            doc.roundedRect(xPos, yPos, resCardWidth, 28, 2, 2, 'F');
+            doc.roundedRect(xPos, yPos, cardWidth, 26, 2, 2, 'F');
             
             doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
           }
           
-          doc.setFontSize(9);
+          doc.setFontSize(8);
           doc.setFont('helvetica', 'normal');
-          doc.text(item.label, xPos + 5, yPos + 10);
+          doc.text(item.label, xPos + 5, yPos + 9);
           
-          if (item.highlight) {
+          if (isHighlight) {
             doc.setTextColor(255, 255, 255);
           } else {
             doc.setTextColor(textColor[0], textColor[1], textColor[2]);
           }
-          doc.setFontSize(14);
+          doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
-          doc.text(item.value, xPos + 5, yPos + 22);
+          doc.text(item.getValue(), xPos + 5, yPos + 20);
         });
 
-        yPos += 38;
+        yPos += 34;
+      }
+
+      // Chart capture
+      if (includeChart && chartRef?.current) {
+        const chartImage = await captureChart();
+        if (chartImage) {
+          doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Evolução no Período', margin, yPos);
+          yPos += 6;
+
+          const chartWidth = pageWidth - margin * 2;
+          const chartHeight = 60;
+          
+          try {
+            doc.addImage(chartImage, 'PNG', margin, yPos, chartWidth, chartHeight);
+            yPos += chartHeight + 10;
+          } catch (e) {
+            console.error('Error adding chart to PDF:', e);
+          }
+        }
       }
 
       // Footer
       doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(0, pageHeight - 15, pageWidth, 15, 'F');
+      doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
       
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
-      doc.text(`${projectName} • Relatório gerado automaticamente`, margin, pageHeight - 6);
-      doc.text(`Página 1 de 1`, pageWidth - margin - 20, pageHeight - 6);
+      doc.text(`${projectName} • Relatório gerado automaticamente`, margin, pageHeight - 5);
+      doc.text(`Página 1 de 1`, pageWidth - margin - 18, pageHeight - 5);
 
       // Download
       const fileName = `relatorio-${projectName.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
@@ -322,7 +496,10 @@ export function PDFBuilderDialog({
     }
   };
 
-  const enabledSections = sections.filter(s => s.enabled);
+  const enabledMetricsCount = metricOptions.filter(m => m.enabled).length;
+  const generalMetrics = metricOptions.filter(m => m.category === 'general');
+  const performanceMetrics = metricOptions.filter(m => m.category === 'performance');
+  const resultMetrics = metricOptions.filter(m => m.category === 'result');
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -332,7 +509,7 @@ export function PDFBuilderDialog({
           Exportar PDF
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileDown className="w-5 h-5 text-primary" />
@@ -340,274 +517,344 @@ export function PDFBuilderDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="sections" className="mt-4">
+        <Tabs defaultValue="metrics" className="mt-4">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="sections">Seções</TabsTrigger>
-            <TabsTrigger value="style">Estilo</TabsTrigger>
+            <TabsTrigger value="metrics">Métricas</TabsTrigger>
+            <TabsTrigger value="options">Opções</TabsTrigger>
             <TabsTrigger value="preview">Preview</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="sections" className="space-y-4 mt-4">
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Título do Relatório</Label>
-              <Input 
-                value={reportTitle}
-                onChange={(e) => setReportTitle(e.target.value)}
-                placeholder="Digite o título do relatório"
-              />
-            </div>
+          <ScrollArea className="h-[55vh]">
+            <TabsContent value="metrics" className="space-y-6 mt-4 pr-4">
+              <p className="text-sm text-muted-foreground">
+                Selecione quais métricas deseja incluir no relatório. As métricas de resultado são específicas para o modelo <span className="font-medium text-primary">{businessModel === 'ecommerce' ? 'E-commerce' : businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV'}</span>.
+              </p>
 
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Logo (opcional)</Label>
-              <div className="flex items-center gap-4">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                  className="hidden"
-                />
-                <Button 
-                  variant="outline" 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="gap-2"
-                >
-                  <Upload className="w-4 h-4" />
-                  {logoUrl ? 'Trocar Logo' : 'Carregar Logo'}
-                </Button>
-                {logoUrl && (
-                  <div className="flex items-center gap-2">
-                    <img src={logoUrl} alt="Logo" className="h-10 w-auto rounded" />
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setLogoUrl(null)}
-                    >
-                      Remover
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-sm font-medium mb-3 block">Seções do Relatório</Label>
-              <div className="grid grid-cols-1 gap-2">
-                {sections.map((section) => {
-                  const Icon = section.icon;
-                  return (
-                    <div 
-                      key={section.id}
-                      className={cn(
-                        "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
-                        section.enabled 
-                          ? "border-primary/50 bg-primary/5" 
-                          : "border-border hover:border-primary/30"
-                      )}
-                      onClick={() => toggleSection(section.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Checkbox 
-                          checked={section.enabled} 
-                          onCheckedChange={() => toggleSection(section.id)}
-                        />
-                        <Icon className={cn(
-                          "w-4 h-4",
-                          section.enabled ? "text-primary" : "text-muted-foreground"
-                        )} />
-                        <span className={cn(
-                          "font-medium",
-                          section.enabled ? "text-foreground" : "text-muted-foreground"
-                        )}>
-                          {section.label}
+              {/* General Metrics */}
+              <div>
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Table2 className="w-4 h-4 text-muted-foreground" />
+                  Métricas Gerais
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {generalMetrics.map((metric) => {
+                    const Icon = metric.icon;
+                    return (
+                      <div 
+                        key={metric.id}
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
+                          metric.enabled 
+                            ? "border-primary/50 bg-primary/5" 
+                            : "border-border hover:border-primary/30"
+                        )}
+                        onClick={() => toggleMetric(metric.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Checkbox checked={metric.enabled} />
+                          <Icon className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">{metric.label}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {metric.getValue()}
                         </span>
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Performance Metrics */}
+              <div>
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-muted-foreground" />
+                  Métricas de Performance
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {performanceMetrics.map((metric) => {
+                    const Icon = metric.icon;
+                    return (
+                      <div 
+                        key={metric.id}
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
+                          metric.enabled 
+                            ? "border-primary/50 bg-primary/5" 
+                            : "border-border hover:border-primary/30"
+                        )}
+                        onClick={() => toggleMetric(metric.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Checkbox checked={metric.enabled} />
+                          <Icon className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">{metric.label}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {metric.getValue()}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Result Metrics (Business Model Specific) */}
+              {resultMetrics.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-primary" />
+                    Métricas de Resultado 
+                    <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">
+                      {businessModel === 'ecommerce' ? 'E-commerce' : businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV'}
+                    </span>
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {resultMetrics.map((metric) => {
+                      const Icon = metric.icon;
+                      return (
+                        <div 
+                          key={metric.id}
+                          className={cn(
+                            "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
+                            metric.enabled 
+                              ? "border-primary/50 bg-primary/10" 
+                              : "border-border hover:border-primary/30"
+                          )}
+                          onClick={() => toggleMetric(metric.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Checkbox checked={metric.enabled} />
+                            <Icon className="w-4 h-4 text-primary" />
+                            <span className="text-sm font-medium">{metric.label}</span>
+                          </div>
+                          <span className="text-xs text-primary font-mono font-medium">
+                            {metric.getValue()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="options" className="space-y-4 mt-4 pr-4">
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Título do Relatório</Label>
+                <Input 
+                  value={reportTitle}
+                  onChange={(e) => setReportTitle(e.target.value)}
+                  placeholder="Digite o título do relatório"
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Logo do Projeto (opcional)</Label>
+                <div className="flex items-center gap-4">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                  <Button 
+                    variant="outline" 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {logoUrl ? 'Trocar Logo' : 'Carregar Logo'}
+                  </Button>
+                  {logoUrl && (
+                    <div className="flex items-center gap-2">
+                      <img src={logoUrl} alt="Logo" className="h-10 w-auto rounded" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setLogoUrl(null)}
+                      >
+                        Remover
+                      </Button>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="style" className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Cor Principal</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={chartStyles.primaryColor}
-                    onChange={(e) => setChartStyles(prev => ({ ...prev, primaryColor: e.target.value }))}
-                    className="w-10 h-10 rounded cursor-pointer"
-                  />
-                  <span className="text-sm text-muted-foreground">{chartStyles.primaryColor}</span>
+                  )}
                 </div>
               </div>
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Cor de Destaque</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={chartStyles.secondaryColor}
-                    onChange={(e) => setChartStyles(prev => ({ ...prev, secondaryColor: e.target.value }))}
-                    className="w-10 h-10 rounded cursor-pointer"
-                  />
-                  <span className="text-sm text-muted-foreground">{chartStyles.secondaryColor}</span>
+
+              <div className="flex items-center gap-4 p-4 rounded-lg border">
+                <Checkbox 
+                  id="includeChart"
+                  checked={includeChart}
+                  onCheckedChange={(checked) => setIncludeChart(!!checked)}
+                />
+                <div className="flex-1">
+                  <Label htmlFor="includeChart" className="cursor-pointer">
+                    Incluir Gráfico de Evolução
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Captura o gráfico de evolução diária do dashboard e adiciona ao PDF
+                  </p>
+                </div>
+                <LineChart className="w-5 h-5 text-muted-foreground" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Cor Principal</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={chartStyles.primaryColor}
+                      onChange={(e) => setChartStyles(prev => ({ ...prev, primaryColor: e.target.value }))}
+                      className="w-10 h-10 rounded cursor-pointer"
+                    />
+                    <span className="text-sm text-muted-foreground">{chartStyles.primaryColor}</span>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Cor de Destaque</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={chartStyles.secondaryColor}
+                      onChange={(e) => setChartStyles(prev => ({ ...prev, secondaryColor: e.target.value }))}
+                      className="w-10 h-10 rounded cursor-pointer"
+                    />
+                    <span className="text-sm text-muted-foreground">{chartStyles.secondaryColor}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            </TabsContent>
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Checkbox 
-                  id="showGrid"
-                  checked={chartStyles.showGrid}
-                  onCheckedChange={(checked) => 
-                    setChartStyles(prev => ({ ...prev, showGrid: !!checked }))
-                  }
-                />
-                <Label htmlFor="showGrid">Mostrar grid nos gráficos</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox 
-                  id="showLabels"
-                  checked={chartStyles.showLabels}
-                  onCheckedChange={(checked) => 
-                    setChartStyles(prev => ({ ...prev, showLabels: !!checked }))
-                  }
-                />
-                <Label htmlFor="showLabels">Mostrar labels</Label>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="preview" className="mt-4">
-            <div className="border rounded-lg p-4 bg-white text-black min-h-[400px]">
-              {/* Preview Header */}
-              {sections.find(s => s.id === 'header')?.enabled && (
+            <TabsContent value="preview" className="mt-4 pr-4">
+              <div className="border rounded-lg p-4 bg-white text-black min-h-[400px] text-sm">
+                {/* Preview Header */}
                 <div 
-                  className="rounded-t-lg p-4 mb-4 flex items-center gap-4"
+                  className="rounded-t-lg p-3 mb-4 flex items-center gap-3"
                   style={{ backgroundColor: chartStyles.primaryColor }}
                 >
                   {logoUrl && (
-                    <img src={logoUrl} alt="Logo" className="h-12 w-auto rounded" />
+                    <img src={logoUrl} alt="Logo" className="h-10 w-auto rounded" />
                   )}
-                  <div className="text-white">
-                    <h2 className="font-bold text-lg">{reportTitle}</h2>
-                    <p className="text-sm opacity-90">Período: {periodLabel}</p>
+                  <div className="text-white flex-1">
+                    <h2 className="font-bold">{reportTitle}</h2>
+                    <div className="flex items-center gap-4 text-xs opacity-90">
+                      <span>Período: {periodLabel}</span>
+                      {businessModel && (
+                        <span>Modelo: {businessModel === 'ecommerce' ? 'E-commerce' : businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV'}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
 
-              {/* Preview Summary */}
-              {sections.find(s => s.id === 'summary')?.enabled && (
-                <div className="mb-4">
-                  <h3 className="font-semibold text-sm mb-2">Resumo Executivo</h3>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { label: 'Investimento', value: formatCurrency(metrics.totalSpend, currency) },
-                      { label: 'Impressões', value: formatNum(metrics.totalImpressions) },
-                      { label: 'Cliques', value: formatNum(metrics.totalClicks) },
-                      { label: 'CTR', value: `${metrics.ctr.toFixed(2)}%` },
-                    ].map((item) => (
-                      <div 
-                        key={item.label} 
-                        className="p-2 rounded bg-gray-100 border-l-2"
-                        style={{ borderColor: chartStyles.primaryColor }}
-                      >
-                        <p className="text-xs text-gray-500">{item.label}</p>
-                        <p className="font-bold text-sm">{item.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Preview Performance */}
-              {sections.find(s => s.id === 'performance')?.enabled && (
-                <div className="mb-4">
-                  <h3 className="font-semibold text-sm mb-2">Performance</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { label: 'CPM', value: formatCurrency(metrics.cpm, currency) },
-                      { label: 'CPC', value: formatCurrency(metrics.cpc, currency) },
-                      { label: 'CPA', value: formatCurrency(metrics.cpa, currency) },
-                    ].map((item) => (
-                      <div key={item.label} className="p-2 rounded bg-gray-100">
-                        <p className="text-xs text-gray-500">{item.label}</p>
-                        <p className="font-bold text-sm">{item.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Preview Results */}
-              {sections.find(s => s.id === 'results')?.enabled && businessModel && (
-                <div className="mb-4">
-                  <h3 className="font-semibold text-sm mb-2">
-                    Resultados ({businessModel === 'ecommerce' ? 'E-commerce' : 
-                               businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV'})
-                  </h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {businessModel === 'ecommerce' && (
-                      <>
+                {/* Preview General */}
+                {generalMetrics.filter(m => m.enabled).length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold text-xs mb-2 text-gray-600">Métricas Gerais</h3>
+                    <div className="grid grid-cols-4 gap-2">
+                      {generalMetrics.filter(m => m.enabled).map((item) => (
                         <div 
-                          className="p-2 rounded text-white"
-                          style={{ backgroundColor: chartStyles.primaryColor }}
+                          key={item.id} 
+                          className="p-2 rounded bg-gray-100 border-l-2"
+                          style={{ borderColor: chartStyles.primaryColor }}
                         >
-                          <p className="text-xs opacity-80">ROAS</p>
-                          <p className="font-bold">{metrics.roas.toFixed(2)}x</p>
+                          <p className="text-[10px] text-gray-500">{item.label}</p>
+                          <p className="font-bold text-xs">{item.getValue()}</p>
                         </div>
-                        <div className="p-2 rounded bg-gray-100">
-                          <p className="text-xs text-gray-500">Compras</p>
-                          <p className="font-bold text-sm">{formatNum(metrics.totalConversions)}</p>
-                        </div>
-                        <div 
-                          className="p-2 rounded text-white"
-                          style={{ backgroundColor: chartStyles.primaryColor }}
-                        >
-                          <p className="text-xs opacity-80">Receita</p>
-                          <p className="font-bold">{formatCurrency(metrics.totalConversionValue, currency)}</p>
-                        </div>
-                      </>
-                    )}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {enabledSections.length === 0 && (
-                <div className="text-center py-8 text-gray-400">
-                  <Eye className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Selecione seções para visualizar o preview</p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
+                {/* Preview Performance */}
+                {performanceMetrics.filter(m => m.enabled).length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold text-xs mb-2 text-gray-600">Performance</h3>
+                    <div className="grid grid-cols-4 gap-2">
+                      {performanceMetrics.filter(m => m.enabled).map((item) => (
+                        <div key={item.id} className="p-2 rounded bg-gray-100">
+                          <p className="text-[10px] text-gray-500">{item.label}</p>
+                          <p className="font-bold text-xs">{item.getValue()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Preview Results */}
+                {resultMetrics.filter(m => m.enabled).length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold text-xs mb-2 text-gray-600">
+                      Resultados ({businessModel === 'ecommerce' ? 'E-commerce' : businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV'})
+                    </h3>
+                    <div className="grid grid-cols-4 gap-2">
+                      {resultMetrics.filter(m => m.enabled).map((item) => {
+                        const isHighlight = item.id === 'roas' || item.id === 'revenue' || item.id === 'leads' || item.id === 'visits';
+                        return (
+                          <div 
+                            key={item.id} 
+                            className={cn("p-2 rounded", isHighlight ? "text-white" : "bg-gray-100")}
+                            style={isHighlight ? { backgroundColor: chartStyles.primaryColor } : undefined}
+                          >
+                            <p className={cn("text-[10px]", isHighlight ? "opacity-80" : "text-gray-500")}>{item.label}</p>
+                            <p className="font-bold text-xs">{item.getValue()}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Preview Chart */}
+                {includeChart && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold text-xs mb-2 text-gray-600">Evolução no Período</h3>
+                    <div className="h-20 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">
+                      <LineChart className="w-5 h-5 mr-2" />
+                      Gráfico será capturado do dashboard
+                    </div>
+                  </div>
+                )}
+
+                {enabledMetricsCount === 0 && !includeChart && (
+                  <div className="text-center py-8 text-gray-400">
+                    <Eye className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p>Selecione métricas para visualizar o preview</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </ScrollArea>
         </Tabs>
 
-        <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="gradient" 
-            onClick={generatePDF}
-            disabled={generating || enabledSections.length === 0}
-            className="gap-2"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Gerando...
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4" />
-                Baixar PDF
-              </>
-            )}
-          </Button>
+        <div className="flex items-center justify-between mt-6 pt-4 border-t">
+          <p className="text-xs text-muted-foreground">
+            {enabledMetricsCount} métricas selecionadas
+            {includeChart && ' • Gráfico incluído'}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="gradient" 
+              onClick={generatePDF}
+              disabled={generating || (enabledMetricsCount === 0 && !includeChart)}
+              className="gap-2"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Baixar PDF
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
