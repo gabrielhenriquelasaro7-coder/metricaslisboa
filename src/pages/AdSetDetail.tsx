@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import AdSetCharts from '@/components/dashboard/AdSetCharts';
+import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { useAdSetDailyMetrics } from '@/hooks/useAdSetDailyMetrics';
+import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
+import { DateRange } from 'react-day-picker';
 import { 
   ChevronLeft,
   Layers,
@@ -21,7 +24,8 @@ import {
   BarChart3,
   Play,
   Image as ImageIcon,
-  ExternalLink
+  ExternalLink,
+  Calendar
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -78,6 +82,7 @@ interface Campaign {
 export default function AdSetDetail() {
   const { adSetId } = useParams<{ adSetId: string }>();
   const { projects } = useProjects();
+  const { selectedPreset, dateRange, periodLabel, periodDescription, setSelectedPreset, setDateRange } = usePeriodContext();
   const [adSet, setAdSet] = useState<AdSet | null>(null);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [ads, setAds] = useState<Ad[]>([]);
@@ -88,15 +93,34 @@ export default function AdSetDetail() {
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
   
-  // Fetch real daily metrics for this ad set - use projectId from state (set before adSet)
-  const { dailyData: adSetDailyData } = useAdSetDailyMetrics(adSetId, projectId);
+  // Calculate date range for the hook
+  const metricsDateRange = useMemo(() => {
+    if (dateRange?.from && dateRange?.to) {
+      return {
+        since: dateRange.from.toISOString().split('T')[0],
+        until: dateRange.to.toISOString().split('T')[0],
+      };
+    }
+    return undefined;
+  }, [dateRange]);
+  
+  // Fetch real daily metrics for this ad set with period filter
+  const { dailyData: adSetDailyData, aggregated: periodMetrics, loading: metricsLoading } = useAdSetDailyMetrics(adSetId, projectId, metricsDateRange);
+
+  // Handle date range change
+  const handleDateRangeChange = (newRange: DateRange | undefined) => {
+    setDateRange(newRange);
+  };
+
+  const handlePresetChange = (preset: any) => {
+    setSelectedPreset(preset);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       if (!adSetId) return;
       setLoading(true);
       try {
-        // Fetch ad set - get project_id first for charts
         const { data: adSetData } = await supabase
           .from('ad_sets')
           .select('*')
@@ -104,11 +128,9 @@ export default function AdSetDetail() {
           .maybeSingle();
         
         if (adSetData) {
-          // Set project_id FIRST so charts can start loading
           setProjectId(adSetData.project_id);
           setAdSet(adSetData as AdSet);
           
-          // Fetch campaign
           const { data: campaignData } = await supabase
             .from('campaigns')
             .select('id, name, project_id')
@@ -117,7 +139,6 @@ export default function AdSetDetail() {
           if (campaignData) setCampaign(campaignData);
         }
 
-        // Fetch ads for this ad set
         const { data: adsData } = await supabase
           .from('ads')
           .select('*')
@@ -139,13 +160,11 @@ export default function AdSetDetail() {
   const formatCurrency = (n: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
 
-  // Sort ads: active first
   const sortedAds = [...ads].sort((a, b) => {
     if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1;
     if (a.status !== 'ACTIVE' && b.status === 'ACTIVE') return 1;
     return b.spend - a.spend;
   });
-
 
   if (loading) {
     return (
@@ -175,7 +194,7 @@ export default function AdSetDetail() {
     <DashboardLayout>
       <div className="p-8 space-y-8 animate-fade-in">
         {/* Header */}
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link 
               to={campaign ? `/campaign/${campaign.id}/adsets` : '/campaigns'} 
@@ -207,59 +226,76 @@ export default function AdSetDetail() {
               </div>
             </div>
           </div>
-          <div className="text-right text-sm text-muted-foreground">
-            <p>Orçamento: {formatCurrency(adSet.daily_budget || adSet.lifetime_budget || 0)}</p>
-            {adSet.synced_at && (
-              <p className="text-xs mt-1">
-                Atualizado: {new Date(adSet.synced_at).toLocaleString('pt-BR')}
-              </p>
-            )}
+          <div className="flex flex-col items-end gap-2">
+            <DateRangePicker 
+              dateRange={dateRange} 
+              onDateRangeChange={handleDateRangeChange}
+              timezone={selectedProject?.timezone}
+              onPresetChange={handlePresetChange}
+            />
+            <p className="text-xs text-muted-foreground">
+              Orçamento: {formatCurrency(adSet.daily_budget || adSet.lifetime_budget || 0)}
+            </p>
           </div>
         </div>
 
-        {/* Main Metrics */}
+        {/* Period Banner */}
+        <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 flex items-center gap-3">
+          <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
+          <div>
+            <p className="font-medium text-foreground">
+              Analisando: <span className="text-primary">{periodLabel}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {periodDescription}
+              {metricsLoading && ' • Carregando métricas...'}
+            </p>
+          </div>
+        </div>
+
+        {/* Main Metrics - Using period aggregated data */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <MetricCard 
             title="Gasto" 
-            value={formatCurrency(adSet.spend)} 
+            value={formatCurrency(periodMetrics.spend)} 
             icon={DollarSign} 
-            tooltip="Total investido neste conjunto de anúncios"
+            tooltip="Total investido neste conjunto de anúncios no período"
           />
           <MetricCard 
             title="Alcance" 
-            value={formatNumber(adSet.reach)} 
+            value={formatNumber(periodMetrics.reach)} 
             icon={Users} 
             tooltip="Número de pessoas únicas que viram seus anúncios"
           />
           <MetricCard 
             title="Impressões" 
-            value={formatNumber(adSet.impressions)} 
+            value={formatNumber(periodMetrics.impressions)} 
             icon={Eye} 
             tooltip="Número total de vezes que seus anúncios foram exibidos"
           />
           <MetricCard 
             title="Cliques" 
-            value={formatNumber(adSet.clicks)} 
+            value={formatNumber(periodMetrics.clicks)} 
             icon={MousePointerClick} 
             tooltip="Total de cliques nos anúncios"
           />
           <MetricCard 
             title="CTR" 
-            value={`${adSet.ctr.toFixed(2)}%`} 
+            value={`${periodMetrics.ctr.toFixed(2)}%`} 
             icon={Percent} 
-            tooltip="Click-Through Rate: Taxa de cliques (Cliques ÷ Impressões × 100)"
+            tooltip="Click-Through Rate: Taxa de cliques"
           />
           <MetricCard 
             title="CPM" 
-            value={formatCurrency(adSet.cpm)} 
+            value={formatCurrency(periodMetrics.cpm)} 
             icon={BarChart3} 
-            tooltip="Custo por Mil: Custo para cada 1.000 impressões"
+            tooltip="Custo por Mil impressões"
           />
           <MetricCard 
             title="CPC" 
-            value={formatCurrency(adSet.cpc)} 
+            value={formatCurrency(periodMetrics.cpc)} 
             icon={Target} 
-            tooltip="Custo Por Clique: Valor médio pago por cada clique"
+            tooltip="Custo Por Clique"
           />
         </div>
 
@@ -274,11 +310,11 @@ export default function AdSetDetail() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Compras</p>
-                    <p className="text-3xl font-bold">{adSet.conversions}</p>
+                    <p className="text-3xl font-bold">{periodMetrics.conversions}</p>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {adSet.impressions > 0 ? ((adSet.conversions / adSet.impressions) * 100).toFixed(3) : 0}% taxa de conversão
+                  {periodMetrics.impressions > 0 ? ((periodMetrics.conversions / periodMetrics.impressions) * 100).toFixed(3) : 0}% taxa de conversão
                 </p>
               </div>
               <div className="glass-card p-6">
@@ -290,14 +326,14 @@ export default function AdSetDetail() {
                     <p className="text-sm text-muted-foreground">ROAS</p>
                     <p className={cn(
                       "text-3xl font-bold",
-                      adSet.roas >= 5 ? 'text-metric-positive' : adSet.roas >= 3 ? 'text-metric-warning' : 'text-metric-negative'
+                      periodMetrics.roas >= 5 ? 'text-metric-positive' : periodMetrics.roas >= 3 ? 'text-metric-warning' : 'text-metric-negative'
                     )}>
-                      {adSet.roas.toFixed(2)}x
+                      {periodMetrics.roas.toFixed(2)}x
                     </p>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Receita: {formatCurrency(adSet.conversion_value)}
+                  Receita: {formatCurrency(periodMetrics.conversion_value)}
                 </p>
               </div>
               <div className="glass-card p-6">
@@ -307,7 +343,7 @@ export default function AdSetDetail() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">CPA</p>
-                    <p className="text-3xl font-bold">{formatCurrency(adSet.cpa)}</p>
+                    <p className="text-3xl font-bold">{formatCurrency(periodMetrics.cpa)}</p>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -324,11 +360,11 @@ export default function AdSetDetail() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Leads</p>
-                    <p className="text-3xl font-bold">{adSet.conversions}</p>
+                    <p className="text-3xl font-bold">{periodMetrics.conversions}</p>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {adSet.impressions > 0 ? ((adSet.conversions / adSet.impressions) * 100).toFixed(3) : 0}% taxa de conversão
+                  {periodMetrics.impressions > 0 ? ((periodMetrics.conversions / periodMetrics.impressions) * 100).toFixed(3) : 0}% taxa de conversão
                 </p>
               </div>
               <div className="glass-card p-6">
@@ -338,7 +374,7 @@ export default function AdSetDetail() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">CPL</p>
-                    <p className="text-3xl font-bold">{formatCurrency(adSet.cpa)}</p>
+                    <p className="text-3xl font-bold">{formatCurrency(periodMetrics.cpa)}</p>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -352,7 +388,7 @@ export default function AdSetDetail() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Custo/Clique</p>
-                    <p className="text-3xl font-bold">{formatCurrency(adSet.cpc)}</p>
+                    <p className="text-3xl font-bold">{formatCurrency(periodMetrics.cpc)}</p>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">

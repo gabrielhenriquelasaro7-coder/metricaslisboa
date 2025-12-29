@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { PeriodProvider } from "@/hooks/usePeriodContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ProjectSelector from "./pages/ProjectSelector";
@@ -25,29 +26,31 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/projects" element={<ProjectSelector />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/campaigns" element={<Campaigns />} />
-            <Route path="/campaign/:campaignId/adsets" element={<AdSets />} />
-            <Route path="/adset/:adSetId" element={<AdSetDetail />} />
-            <Route path="/ad/:adId" element={<AdDetail />} />
-            <Route path="/adset/:adSetId/ads" element={<Ads />} />
-            <Route path="/creatives" element={<Creatives />} />
-            <Route path="/creative/:id" element={<CreativeDetail />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/sync-history" element={<SyncHistory />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <PeriodProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/projects" element={<ProjectSelector />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/campaigns" element={<Campaigns />} />
+              <Route path="/campaign/:campaignId/adsets" element={<AdSets />} />
+              <Route path="/adset/:adSetId" element={<AdSetDetail />} />
+              <Route path="/ad/:adId" element={<AdDetail />} />
+              <Route path="/adset/:adSetId/ads" element={<Ads />} />
+              <Route path="/creatives" element={<Creatives />} />
+              <Route path="/creative/:id" element={<CreativeDetail />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/sync-history" element={<SyncHistory />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </PeriodProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
