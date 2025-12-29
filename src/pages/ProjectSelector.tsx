@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects, Project, CreateProjectData, HealthScore, BusinessModel } from '@/hooks/useProjects';
@@ -27,18 +27,19 @@ import {
   AlertCircle,
   Zap,
   Clock,
-  Settings,
   TrendingUp,
   ChevronRight,
   MoreVertical,
   Pencil,
   ArchiveRestore,
   Timer,
-  CheckCircle2
+  CheckCircle2,
+  Camera,
+  ImagePlus
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { formatDistanceToNow, addHours, format } from 'date-fns';
+import { formatDistanceToNow, addHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   DropdownMenu,
@@ -113,17 +114,25 @@ function ProjectCard({ project, health, onSelect, onEdit, onDelete, onArchive, o
       {/* Glow effect on hover */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
-      {/* Header with Icon and Health */}
+      {/* Header with Avatar and Health */}
       <div className="relative flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          {/* Project Icon with Health Color */}
+          {/* Project Avatar */}
           <div className={cn(
-            "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
-            healthOption?.bgColor,
+            "w-14 h-14 rounded-xl flex items-center justify-center transition-all overflow-hidden",
+            !project.avatar_url && healthOption?.bgColor,
             "ring-2 ring-offset-2 ring-offset-card",
             healthOption?.borderColor?.replace('border-', 'ring-')
           )}>
-            <Icon className={cn("w-6 h-6", healthOption?.textColor)} />
+            {project.avatar_url ? (
+              <img 
+                src={project.avatar_url} 
+                alt={project.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Icon className={cn("w-7 h-7", healthOption?.textColor)} />
+            )}
           </div>
           
           <div className="flex flex-col">
@@ -249,8 +258,14 @@ export default function ProjectSelector() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [activeTab, setActiveTab] = useState('projects');
   const [showArchived, setShowArchived] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const editAvatarInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState<CreateProjectData>({
     name: '',
     ad_account_id: '',
@@ -258,6 +273,7 @@ export default function ProjectSelector() {
     timezone: 'America/Sao_Paulo',
     currency: 'BRL',
     health_score: null,
+    avatar_url: null,
   });
   const [editFormData, setEditFormData] = useState<{
     name: string;
@@ -266,6 +282,7 @@ export default function ProjectSelector() {
     timezone: string;
     currency: string;
     health_score: HealthScore | null;
+    avatar_url: string | null;
   }>({
     name: '',
     ad_account_id: '',
@@ -273,6 +290,7 @@ export default function ProjectSelector() {
     timezone: 'America/Sao_Paulo',
     currency: 'BRL',
     health_score: null,
+    avatar_url: null,
   });
 
   useEffect(() => {
@@ -316,7 +334,9 @@ export default function ProjectSelector() {
           timezone: 'America/Sao_Paulo',
           currency: 'BRL',
           health_score: null,
+          avatar_url: null,
         });
+        setAvatarPreview(null);
       }
     } catch (error) {
       console.error('Error creating project:', error);
@@ -334,8 +354,63 @@ export default function ProjectSelector() {
       timezone: project.timezone,
       currency: project.currency,
       health_score: project.health_score,
+      avatar_url: project.avatar_url,
     });
+    setEditAvatarPreview(project.avatar_url);
     setEditDialogOpen(true);
+  };
+
+  const uploadAvatar = async (file: File, projectId?: string): Promise<string | null> => {
+    try {
+      setIsUploadingAvatar(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${projectId || 'temp'}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('project-avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('project-avatars')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast.error('Erro ao fazer upload da imagem');
+      return null;
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (isEdit) {
+        setEditAvatarPreview(reader.result as string);
+      } else {
+        setAvatarPreview(reader.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+
+    // Upload
+    const url = await uploadAvatar(file, isEdit && selectedProject ? selectedProject.id : undefined);
+    if (url) {
+      if (isEdit) {
+        setEditFormData(prev => ({ ...prev, avatar_url: url }));
+      } else {
+        setFormData(prev => ({ ...prev, avatar_url: url }));
+      }
+    }
   };
 
   const handleUpdateProject = async (e: React.FormEvent) => {
@@ -473,6 +548,51 @@ export default function ProjectSelector() {
                           <DialogTitle className="text-xl">Criar novo projeto</DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleCreateProject} className="space-y-5 mt-4">
+                          {/* Avatar Upload */}
+                          <div className="flex justify-center">
+                            <div className="relative">
+                              <div 
+                                onClick={() => avatarInputRef.current?.click()}
+                                className={cn(
+                                  "w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer transition-all",
+                                  "hover:border-primary hover:bg-primary/5",
+                                  avatarPreview && "border-solid border-primary"
+                                )}
+                              >
+                                {avatarPreview ? (
+                                  <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
+                                ) : isUploadingAvatar ? (
+                                  <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+                                ) : (
+                                  <div className="text-center">
+                                    <ImagePlus className="w-8 h-8 text-muted-foreground mx-auto" />
+                                    <span className="text-xs text-muted-foreground mt-1">Avatar</span>
+                                  </div>
+                                )}
+                              </div>
+                              <input
+                                ref={avatarInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleAvatarChange(e, false)}
+                              />
+                              {avatarPreview && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAvatarPreview(null);
+                                    setFormData(prev => ({ ...prev, avatar_url: null }));
+                                  }}
+                                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="name">Nome do projeto *</Label>
@@ -690,6 +810,51 @@ export default function ProjectSelector() {
             <DialogTitle className="text-xl">Editar Projeto</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdateProject} className="space-y-5 mt-4">
+            {/* Avatar Upload */}
+            <div className="flex justify-center">
+              <div className="relative">
+                <div 
+                  onClick={() => editAvatarInputRef.current?.click()}
+                  className={cn(
+                    "w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer transition-all",
+                    "hover:border-primary hover:bg-primary/5",
+                    editAvatarPreview && "border-solid border-primary"
+                  )}
+                >
+                  {editAvatarPreview ? (
+                    <img src={editAvatarPreview} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
+                  ) : isUploadingAvatar ? (
+                    <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+                  ) : (
+                    <div className="text-center">
+                      <Camera className="w-8 h-8 text-muted-foreground mx-auto" />
+                      <span className="text-xs text-muted-foreground mt-1">Avatar</span>
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={editAvatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleAvatarChange(e, true)}
+                />
+                {editAvatarPreview && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditAvatarPreview(null);
+                      setEditFormData(prev => ({ ...prev, avatar_url: null }));
+                    }}
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nome do projeto *</Label>
