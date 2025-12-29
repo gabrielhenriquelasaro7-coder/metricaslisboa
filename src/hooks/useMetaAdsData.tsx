@@ -457,9 +457,11 @@ export function useMetaAdsData() {
 
   // Reset lastLoadedPeriod when project changes
   useEffect(() => {
+    if (!selectedProject?.id) return;
+    
     lastLoadedPeriodRef.current = null;
     loadDataFromDatabase();
-  }, [selectedProject?.id]);
+  }, [selectedProject?.id, loadDataFromDatabase]);
 
   return {
     campaigns,
