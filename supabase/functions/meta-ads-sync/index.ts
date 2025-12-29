@@ -21,6 +21,10 @@ const MAX_CAMPAIGNS = 200;
 const MAX_ADSETS = 400;
 const MAX_ADS = 600;
 
+// Exponential backoff retry delays (in ms): 30s, 60s, 120s, 240s
+const RETRY_DELAYS = [30000, 60000, 120000, 240000];
+const MAX_RETRIES = 4;
+
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -31,6 +35,18 @@ function chunk<T>(arr: T[], size: number): T[][] {
     chunks.push(arr.slice(i, i + size));
   }
   return chunks;
+}
+
+// Check if error is a rate limit error (code 17 or "User request limit reached")
+function isRateLimitError(data: any): boolean {
+  if (!data?.error) return false;
+  const errorCode = data.error.code;
+  const errorMessage = data.error.message || '';
+  return errorCode === 17 || 
+         errorCode === '17' || 
+         errorMessage.includes('User request limit reached') ||
+         errorMessage.includes('rate limit') ||
+         errorMessage.includes('too many calls');
 }
 
 async function simpleFetch(url: string, timeoutMs = 25000): Promise<any> {
@@ -45,6 +61,38 @@ async function simpleFetch(url: string, timeoutMs = 25000): Promise<any> {
   }
 }
 
+// Fetch with exponential backoff retry for rate limit errors
+async function fetchWithRetry(url: string, entityName: string, timeoutMs = 25000): Promise<any> {
+  let lastError: any = null;
+  
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const data = await simpleFetch(url, timeoutMs);
+    
+    if (!data.error) {
+      return data;
+    }
+    
+    // Check if it's a rate limit error
+    if (isRateLimitError(data)) {
+      if (attempt < MAX_RETRIES) {
+        const waitTime = RETRY_DELAYS[attempt];
+        console.log(`[${entityName}] Rate limit hit, retry ${attempt + 1}/${MAX_RETRIES} after ${waitTime / 1000}s...`);
+        await delay(waitTime);
+        continue;
+      } else {
+        console.error(`[${entityName}] Rate limit: max retries (${MAX_RETRIES}) exceeded`);
+        lastError = data;
+        break;
+      }
+    }
+    
+    // Not a rate limit error, return immediately
+    return data;
+  }
+  
+  return lastError || { error: { message: 'Max retries exceeded' } };
+}
+
 async function fetchAllPages(baseUrl: string, token: string, entityName: string, maxItems: number): Promise<any[]> {
   const allData: any[] = [];
   let nextUrl: string | null = `${baseUrl}&limit=100&access_token=${token}`;
@@ -53,7 +101,7 @@ async function fetchAllPages(baseUrl: string, token: string, entityName: string,
   
   while (nextUrl && pageCount < maxPages && allData.length < maxItems) {
     pageCount++;
-    const data = await simpleFetch(nextUrl);
+    const data = await fetchWithRetry(nextUrl, entityName);
     
     if (data.error) {
       console.error(`[${entityName}] Error:`, data.error.message);
@@ -67,7 +115,8 @@ async function fetchAllPages(baseUrl: string, token: string, entityName: string,
     }
     
     nextUrl = data.paging?.next || null;
-    if (nextUrl && allData.length < maxItems) await delay(500);
+    // Increased delay between pages (1 second)
+    if (nextUrl && allData.length < maxItems) await delay(1000);
   }
   
   console.log(`[${entityName}] Total: ${allData.length}`);
@@ -108,7 +157,7 @@ Deno.serve(async (req) => {
 
     await supabase.from('projects').update({ webhook_status: 'syncing' }).eq('id', project_id);
 
-    // STEP 1: Fetch all entities
+    // STEP 1: Fetch all entities with retry
     const campaigns = await fetchAllPages(
       `https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget`,
       token, 'CAMPAIGNS', MAX_CAMPAIGNS
@@ -120,31 +169,31 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    await delay(1000);
+    await delay(2000); // Increased delay
 
     const adSets = await fetchAllPages(
       `https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget`,
       token, 'AD_SETS', MAX_ADSETS
     );
 
-    await delay(1000);
+    await delay(2000); // Increased delay
 
     const ads = await fetchAllPages(
       `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}`,
       token, 'ADS', MAX_ADS
     );
 
-    await delay(1000);
+    await delay(3000); // Delay before insights
 
-    // STEP 2: Fetch insights using BATCH API (3 levels in parallel)
+    // STEP 2: Fetch insights using BATCH API with retry
     console.log(`[INSIGHTS] Fetching for ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads...`);
     
     const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
     const insightsMap = new Map<string, any>();
     
-    // Fetch campaign insights (all at once with level=campaign)
+    // Fetch campaign insights with retry
     const campaignInsightsUrl = `https://graph.facebook.com/v19.0/${ad_account_id}/insights?fields=${insightsFields}&${timeParam}&level=campaign&access_token=${token}&limit=500`;
-    const campaignInsights = await simpleFetch(campaignInsightsUrl);
+    const campaignInsights = await fetchWithRetry(campaignInsightsUrl, 'INSIGHTS_CAMPAIGN');
     if (campaignInsights.data) {
       for (const ins of campaignInsights.data) {
         if (ins.campaign_id) insightsMap.set(ins.campaign_id, ins);
@@ -152,11 +201,11 @@ Deno.serve(async (req) => {
     }
     console.log(`[INSIGHTS] Campaigns: ${insightsMap.size}`);
 
-    await delay(1000);
+    await delay(3000); // Increased delay between insight levels
 
-    // Fetch adset insights (all at once with level=adset)
+    // Fetch adset insights with retry
     const adsetInsightsUrl = `https://graph.facebook.com/v19.0/${ad_account_id}/insights?fields=${insightsFields}&${timeParam}&level=adset&access_token=${token}&limit=500`;
-    const adsetInsights = await simpleFetch(adsetInsightsUrl);
+    const adsetInsights = await fetchWithRetry(adsetInsightsUrl, 'INSIGHTS_ADSET');
     if (adsetInsights.data) {
       for (const ins of adsetInsights.data) {
         if (ins.adset_id) insightsMap.set(ins.adset_id, ins);
@@ -164,11 +213,11 @@ Deno.serve(async (req) => {
     }
     console.log(`[INSIGHTS] Adsets: ${insightsMap.size}`);
 
-    await delay(1000);
+    await delay(3000); // Increased delay
 
-    // Fetch ad insights (all at once with level=ad)
+    // Fetch ad insights with retry
     const adInsightsUrl = `https://graph.facebook.com/v19.0/${ad_account_id}/insights?fields=${insightsFields}&${timeParam}&level=ad&access_token=${token}&limit=500`;
-    const adInsights = await simpleFetch(adInsightsUrl);
+    const adInsights = await fetchWithRetry(adInsightsUrl, 'INSIGHTS_AD');
     if (adInsights.data) {
       for (const ins of adInsights.data) {
         if (ins.ad_id) insightsMap.set(ins.ad_id, ins);
