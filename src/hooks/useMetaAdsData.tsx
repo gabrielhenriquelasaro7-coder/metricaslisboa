@@ -509,6 +509,53 @@ export function useMetaAdsData() {
     }
   }, [selectedProject, loadDataFromDatabase, loadMetricsByPeriod]);
 
+  // Sync demographic data from Meta API
+  const syncDemographics = useCallback(async (timeRange?: { since: string; until: string }) => {
+    if (!selectedProject) {
+      toast.error('Nenhum projeto selecionado');
+      return { success: false };
+    }
+
+    setSyncing(true);
+    try {
+      const body: Record<string, unknown> = {
+        project_id: selectedProject.id,
+        ad_account_id: selectedProject.ad_account_id,
+      };
+      
+      if (timeRange) {
+        body.time_range = timeRange;
+      }
+      
+      console.log('[DEMOGRAPHICS] Starting sync...');
+      
+      const { data, error } = await supabase.functions.invoke('sync-demographics', {
+        body,
+      });
+
+      if (error) {
+        console.error('Demographics sync error:', error);
+        throw error;
+      }
+
+      console.log('Demographics sync response:', data);
+
+      if (data.success) {
+        toast.success(`Dados demográficos sincronizados! ${data.records_count || 0} registros.`);
+        return { success: true, data };
+      } else {
+        toast.error(data.error || 'Erro ao sincronizar dados demográficos');
+        return { success: false, error: data.error };
+      }
+    } catch (error) {
+      console.error('Demographics sync error:', error);
+      toast.error('Erro ao sincronizar dados demográficos');
+      return { success: false, error };
+    } finally {
+      setSyncing(false);
+    }
+  }, [selectedProject]);
+
   // Reset lastLoadedPeriod when project changes
   useEffect(() => {
     if (!selectedProject?.id) return;
@@ -528,6 +575,7 @@ export function useMetaAdsData() {
     usingFallbackData,
     dataDateRange,
     syncData,
+    syncDemographics,
     loadDataFromDatabase,
     loadMetricsByPeriod,
     loadByDateRange,

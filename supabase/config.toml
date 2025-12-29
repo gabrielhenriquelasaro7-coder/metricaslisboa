@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.n8n-meta-sync]
 verify_jwt = false
+
+[functions.sync-demographics]
+verify_jwt = false
