@@ -3,12 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import AdSetCharts from '@/components/dashboard/AdSetCharts';
-import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { useAdSetDailyMetrics } from '@/hooks/useAdSetDailyMetrics';
-import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
-import { DateRange } from 'react-day-picker';
 import { 
   ChevronLeft,
   Layers,
@@ -82,7 +79,6 @@ interface Campaign {
 export default function AdSetDetail() {
   const { adSetId } = useParams<{ adSetId: string }>();
   const { projects } = useProjects();
-  const { selectedPreset, dateRange, periodLabel, periodDescription, setSelectedPreset, setDateRange } = usePeriodContext();
   const [adSet, setAdSet] = useState<AdSet | null>(null);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [ads, setAds] = useState<Ad[]>([]);
@@ -93,28 +89,19 @@ export default function AdSetDetail() {
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
   
-  // Calculate date range for the hook
-  const metricsDateRange = useMemo(() => {
-    if (dateRange?.from && dateRange?.to) {
-      return {
-        since: dateRange.from.toISOString().split('T')[0],
-        until: dateRange.to.toISOString().split('T')[0],
-      };
-    }
-    return undefined;
-  }, [dateRange]);
-  
-  // Fetch real daily metrics for this ad set with period filter
-  const { dailyData: adSetDailyData, aggregated: periodMetrics, loading: metricsLoading } = useAdSetDailyMetrics(adSetId, projectId, metricsDateRange);
+  // Fetch ALL daily metrics for this ad set (not filtered by period)
+  const { dailyData: adSetDailyData, aggregated: periodMetrics, loading: metricsLoading } = useAdSetDailyMetrics(adSetId, projectId);
 
-  // Handle date range change
-  const handleDateRangeChange = (newRange: DateRange | undefined) => {
-    setDateRange(newRange);
-  };
-
-  const handlePresetChange = (preset: any) => {
-    setSelectedPreset(preset);
-  };
+  // Calculate date range from daily data for display
+  const dataDateRange = useMemo(() => {
+    if (adSetDailyData.length === 0) return null;
+    const firstDate = adSetDailyData[0].date;
+    const lastDate = adSetDailyData[adSetDailyData.length - 1].date;
+    return {
+      from: new Date(firstDate + 'T00:00:00').toLocaleDateString('pt-BR'),
+      to: new Date(lastDate + 'T00:00:00').toLocaleDateString('pt-BR'),
+    };
+  }, [adSetDailyData]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -226,32 +213,31 @@ export default function AdSetDetail() {
               </div>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <DateRangePicker 
-              dateRange={dateRange} 
-              onDateRangeChange={handleDateRangeChange}
-              timezone={selectedProject?.timezone}
-              onPresetChange={handlePresetChange}
-            />
-            <p className="text-xs text-muted-foreground">
-              Orçamento: {formatCurrency(adSet.daily_budget || adSet.lifetime_budget || 0)}
-            </p>
+          <div className="text-right text-sm text-muted-foreground">
+            <p>Orçamento: {formatCurrency(adSet.daily_budget || adSet.lifetime_budget || 0)}</p>
+            {adSet.synced_at && (
+              <p className="text-xs mt-1">
+                Atualizado: {new Date(adSet.synced_at).toLocaleString('pt-BR')}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Period Banner */}
-        <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 flex items-center gap-3">
-          <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
-          <div>
-            <p className="font-medium text-foreground">
-              Analisando: <span className="text-primary">{periodLabel}</span>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {periodDescription}
-              {metricsLoading && ' • Carregando métricas...'}
-            </p>
+        {/* Period Banner - Shows date range of available data */}
+        {dataDateRange && (
+          <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 flex items-center gap-3">
+            <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
+            <div>
+              <p className="font-medium text-foreground">
+                Período dos dados disponíveis
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {dataDateRange.from} - {dataDateRange.to}
+                {metricsLoading && ' • Carregando métricas...'}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Main Metrics - Using period aggregated data */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
