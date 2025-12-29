@@ -46,14 +46,17 @@ export default function MetricCard({
   );
 
   return (
-    <div className={cn('metric-card', className)}>
+    <div className={cn('metric-card group hover-lift', className)}>
+      {/* Top red border accent */}
+      <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      
       <div className="flex items-start justify-between mb-4">
         <div>
           {titleElement}
           <p className="text-3xl font-bold">{value}</p>
         </div>
         {Icon && (
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
             <Icon className="w-6 h-6 text-primary" />
           </div>
         )}

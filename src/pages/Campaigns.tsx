@@ -177,8 +177,10 @@ export default function Campaigns() {
       <div className="p-8 space-y-8 animate-fade-in">
         {/* Info Banner - Sync automático */}
         {usingFallbackData && !loading && (
-          <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 flex items-center gap-3">
-            <Clock className="w-5 h-5 text-primary flex-shrink-0" />
+          <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 flex items-center gap-3 red-gradient-card">
+            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-primary" />
+            </div>
             <div>
               <p className="font-medium text-foreground">Dados sincronizados automaticamente às 2h</p>
               <p className="text-sm text-muted-foreground">
@@ -192,19 +194,20 @@ export default function Campaigns() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Campanhas</h1>
+            <h1 className="text-3xl font-bold mb-2 gradient-text inline-block">Campanhas</h1>
             <p className="text-muted-foreground">
               {selectedProject ? `Projeto: ${selectedProject.name}` : 'Selecione um projeto'}
               {selectedProject && (
-                <span className="ml-2 text-xs">
-                  ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'})
+                <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  {isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'}
                 </span>
               )}
             </p>
           </div>
           <div className="flex items-center gap-3">
             {selectedProject?.last_sync_at && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 px-3 py-2 rounded-lg">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 px-3 py-2 rounded-lg border border-border/50">
+                <div className="w-2 h-2 rounded-full bg-metric-positive animate-pulse" />
                 <Clock className="w-3.5 h-3.5" />
                 <span>Sync: {lastSyncDisplay}</span>
               </div>
@@ -239,7 +242,7 @@ export default function Campaigns() {
           <>
             {/* Summary Metrics */}
             <div className={cn(
-              "grid gap-4",
+              "grid gap-4 stagger-fade-in",
               isEcommerce ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-8" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
             )}>
               <MetricCard
@@ -310,7 +313,7 @@ export default function Campaigns() {
             />
 
             {/* Campaigns Table */}
-            <div className="glass-card overflow-hidden">
+            <div className="glass-card overflow-hidden border-t-2 border-t-primary/50">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>

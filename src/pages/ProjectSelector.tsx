@@ -68,10 +68,13 @@ const businessModels: { value: BusinessModel; label: string; description: string
   { value: 'pdv', label: 'PDV', description: 'Loja física', icon: Store },
 ];
 
-const healthScoreOptions: { value: HealthScore; label: string; bgColor: string; textColor: string; borderColor: string; icon: typeof ShieldCheck }[] = [
+type ExtendedHealthScore = HealthScore | 'undefined';
+
+const healthScoreOptions: { value: ExtendedHealthScore; label: string; bgColor: string; textColor: string; borderColor: string; icon: typeof ShieldCheck }[] = [
   { value: 'safe', label: 'Safe', bgColor: 'bg-emerald-500/20', textColor: 'text-emerald-400', borderColor: 'border-emerald-500', icon: ShieldCheck },
   { value: 'care', label: 'Care', bgColor: 'bg-amber-500/20', textColor: 'text-amber-400', borderColor: 'border-amber-500', icon: AlertTriangle },
   { value: 'danger', label: 'Danger', bgColor: 'bg-red-500/20', textColor: 'text-red-400', borderColor: 'border-red-500', icon: AlertCircle },
+  { value: 'undefined', label: 'Indefinido', bgColor: 'bg-muted/50', textColor: 'text-muted-foreground', borderColor: 'border-muted', icon: AlertCircle },
 ];
 
 interface ProjectCardProps {
@@ -85,13 +88,14 @@ interface ProjectCardProps {
   onResync: (project: Project) => void;
 }
 
-function ProjectCard({ project, health, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: ProjectCardProps) {
+function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: Omit<ProjectCardProps, 'health'>) {
   const model = businessModels.find(m => m.value === project.business_model);
   const Icon = model?.icon || Users;
   
-  const displayHealthScore = project.health_score || health?.status || 'care';
+  // CORREÇÃO: Usar APENAS o health_score definido manualmente, sem fallback automático
+  const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
   const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore);
-  const HealthIcon = healthOption?.icon || AlertTriangle;
+  const HealthIcon = healthOption?.icon || AlertCircle;
   
   const syncProgress = project.sync_progress;
   const isSyncing = project.webhook_status === 'syncing' || 
@@ -115,16 +119,19 @@ function ProjectCard({ project, health, onSelect, onEdit, onDelete, onArchive, o
   return (
     <div 
       className={cn(
-        "group relative rounded-2xl border-2 p-5 transition-all duration-300 cursor-pointer overflow-hidden",
+        "group relative rounded-2xl border-2 p-5 transition-all duration-300 cursor-pointer overflow-hidden hover-lift",
         "bg-gradient-to-br from-card via-card to-card/50",
-        "hover:shadow-[0_0_40px_rgba(239,68,68,0.15)] hover:border-primary/50",
+        "hover:border-primary/50",
         healthOption?.borderColor || 'border-border',
         project.archived && 'opacity-60'
       )}
       onClick={() => onSelect(project)}
     >
+      {/* Red texture background */}
+      <div className="absolute inset-0 red-texture-bg opacity-50" />
+      
       {/* Glow effect on hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
       {/* Header with Avatar and Health */}
       <div className="relative flex items-start justify-between mb-4">
@@ -547,9 +554,9 @@ export default function ProjectSelector() {
 
   if (authLoading || projectsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-background red-texture-bg">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <div className="w-16 h-16 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
           <p className="text-muted-foreground">Carregando...</p>
         </div>
       </div>
@@ -557,21 +564,21 @@ export default function ProjectSelector() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background red-texture-bg">
       {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-red-700 flex items-center justify-center shadow-lg shadow-primary/30">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-red-700 flex items-center justify-center logo-glow red-glow-pulse">
               <Zap className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold">MetaAds Manager</span>
+            <span className="text-xl font-bold gradient-text">MetaAds Manager</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => refetch()} title="Atualizar">
+            <Button variant="ghost" size="icon" onClick={() => refetch()} title="Atualizar" className="hover:bg-primary/10">
               <RefreshCw className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" onClick={handleLogout} className="text-muted-foreground hover:text-primary hover:bg-primary/10">
               <LogOut className="w-4 h-4 mr-2" />
               Sair
             </Button>
@@ -586,7 +593,7 @@ export default function ProjectSelector() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
               <div>
-                <h1 className="text-3xl font-bold mb-1">
+                <h1 className="text-3xl font-bold mb-1 gradient-text inline-block">
                   {showArchived ? 'Arquivados' : 'Seus Projetos'}
                 </h1>
                 <p className="text-muted-foreground">
@@ -728,13 +735,13 @@ export default function ProjectSelector() {
                           <div className="space-y-2">
                             <Label>Health Score do Cliente</Label>
                             <div className="grid grid-cols-3 gap-3">
-                              {healthScoreOptions.map((option) => {
+                              {healthScoreOptions.filter(opt => opt.value !== 'undefined').map((option) => {
                                 const OptionIcon = option.icon;
                                 return (
                                   <button
                                     key={option.value}
                                     type="button"
-                                    onClick={() => setFormData({ ...formData, health_score: formData.health_score === option.value ? null : option.value })}
+                                    onClick={() => setFormData({ ...formData, health_score: formData.health_score === option.value ? null : option.value as HealthScore })}
                                     className={cn(
                                       "p-3 rounded-xl border-2 text-center transition-all",
                                       formData.health_score === option.value
@@ -811,15 +818,13 @@ export default function ProjectSelector() {
               </div>
             </div>
 
-            {/* Projects Tab */}
             <TabsContent value="projects" className="mt-0">
               {(showArchived ? archivedProjects : activeProjects).length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-fade-in">
                   {(showArchived ? archivedProjects : activeProjects).map((project) => (
                     <ProjectCard
                       key={project.id}
                       project={project}
-                      health={healthData.get(project.id)}
                       onSelect={handleSelectProject}
                       onEdit={handleEditClick}
                       onDelete={handleDeleteClick}
@@ -1120,13 +1125,13 @@ export default function ProjectSelector() {
             <div className="space-y-2">
               <Label>Health Score do Cliente</Label>
               <div className="grid grid-cols-3 gap-3">
-                {healthScoreOptions.map((option) => {
+                {healthScoreOptions.filter(opt => opt.value !== 'undefined').map((option) => {
                   const OptionIcon = option.icon;
                   return (
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => setEditFormData({ ...editFormData, health_score: editFormData.health_score === option.value ? null : option.value })}
+                      onClick={() => setEditFormData({ ...editFormData, health_score: editFormData.health_score === option.value ? null : option.value as HealthScore })}
                       className={cn(
                         "p-3 rounded-xl border-2 text-center transition-all",
                         editFormData.health_score === option.value

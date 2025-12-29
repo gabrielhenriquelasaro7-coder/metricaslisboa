@@ -100,11 +100,14 @@ export default function Sidebar() {
         collapsed ? 'w-20' : 'w-72'
       )}
     >
-      <div className="flex flex-col h-full">
+      {/* Subtle red texture overlay */}
+      <div className="absolute inset-0 red-texture-bg opacity-30 pointer-events-none" />
+      
+      <div className="relative flex flex-col h-full">
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
           <Link to="/projects" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/20">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 logo-glow red-glow-pulse">
               <span className="text-lg font-black text-primary-foreground">V4</span>
             </div>
             {!collapsed && (
@@ -118,7 +121,7 @@ export default function Sidebar() {
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className="flex-shrink-0"
+            className="flex-shrink-0 hover:bg-primary/10"
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </Button>
@@ -330,7 +333,7 @@ export default function Sidebar() {
         {/* User section */}
         <div className="p-4 border-t border-sidebar-border">
           <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-md shadow-primary/20">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/30 ring-2 ring-primary/20">
               <span className="text-sm font-bold text-primary-foreground">
                 {user?.email?.[0].toUpperCase()}
               </span>
@@ -344,7 +347,7 @@ export default function Sidebar() {
           <Button
             variant="ghost"
             onClick={handleSignOut}
-            className={cn('mt-4 w-full', collapsed ? 'px-0' : '')}
+            className={cn('mt-4 w-full hover:bg-primary/10 hover:text-primary transition-colors', collapsed ? 'px-0' : '')}
           >
             <LogOut className="w-4 h-4" />
             {!collapsed && <span className="ml-2">Sair</span>}
