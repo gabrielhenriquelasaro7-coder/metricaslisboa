@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { SkeletonCard, SkeletonProfileCard } from '@/components/ui/skeleton-card';
 import { 
   Plus, 
   FolderKanban, 
@@ -554,11 +555,44 @@ export default function ProjectSelector() {
 
   if (authLoading || projectsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background red-texture-bg">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
+      <div className="min-h-screen bg-background red-texture-bg">
+        {/* Header skeleton */}
+        <header className="border-b border-border bg-card/80 backdrop-blur-xl sticky top-0 z-50">
+          <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-muted animate-pulse" />
+              <div className="h-6 w-40 bg-muted rounded animate-pulse" />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-md bg-muted/40 animate-pulse" />
+              <div className="w-20 h-9 rounded-md bg-muted/40 animate-pulse" />
+            </div>
+          </div>
+        </header>
+        
+        {/* Main content skeleton */}
+        <main className="container mx-auto px-6 py-8">
+          <div className="max-w-7xl mx-auto">
+            {/* Header skeleton */}
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <div className="h-8 w-48 bg-muted rounded mb-2 animate-pulse" />
+                <div className="h-4 w-32 bg-muted/60 rounded animate-pulse" />
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-24 bg-muted/40 rounded-lg animate-pulse" />
+                <div className="h-10 w-32 bg-primary/30 rounded-lg animate-pulse" />
+              </div>
+            </div>
+            
+            {/* Grid skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
