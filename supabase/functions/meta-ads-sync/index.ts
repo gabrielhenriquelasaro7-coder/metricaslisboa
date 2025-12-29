@@ -56,16 +56,16 @@ interface RateLimitState {
 }
 
 const rateLimit: RateLimitState = {
-  currentDelay: 300, // Start conservative for high-volume accounts
+  currentDelay: 2000, // Very conservative for scheduled syncs (6h available)
   consecutiveSuccesses: 0,
   consecutiveErrors: 0,
   lastErrorTime: 0,
 };
 
-const MAX_DELAY = 5000;
-const MIN_DELAY = 150;
+const MAX_DELAY = 30000; // Max 30 seconds between requests
+const MIN_DELAY = 1000;  // Minimum 1 second between requests
 const BACKOFF_MULTIPLIER = 2.5;
-const RECOVERY_THRESHOLD = 10; // Successful requests before speeding up
+const RECOVERY_THRESHOLD = 15; // More successes needed before speeding up
 
 function increaseDelay() {
   rateLimit.consecutiveErrors++;
@@ -164,9 +164,9 @@ async function fetchAllPages(baseUrl: string, token: string, entityName: string,
     
     nextUrl = data.paging?.next || null;
     
-    // Uniform delay between pages (with jitter built into delay function)
+    // Conservative delay between pages (3 seconds base)
     if (nextUrl) {
-      await delay(rateLimit.currentDelay);
+      await delay(3000);
     }
   }
   
@@ -212,8 +212,8 @@ Deno.serve(async (req) => {
     console.log(`[SYNC] Starting for project: ${project_id}, account: ${ad_account_id}`);
     const startTime = Date.now();
 
-    // Reset rate limit state for this sync
-    rateLimit.currentDelay = 300;
+    // Reset rate limit state for this sync (conservative start)
+    rateLimit.currentDelay = 2000;
     rateLimit.consecutiveSuccesses = 0;
     rateLimit.consecutiveErrors = 0;
 
@@ -387,15 +387,15 @@ Deno.serve(async (req) => {
       return { conversions, conversionValue };
     };
 
-    // Controlled parallelization with uniform request spreading
+    // Controlled parallelization with very conservative request spreading (6h window)
     const fetchInsightsForEntities = async (entities: any[], entityType: string): Promise<Map<string, any>> => {
       const insightsMap = new Map<string, any>();
       
-      // Smaller batches for high-volume accounts (was 50, now 15)
-      const BATCH_SIZE = 15;
+      // Very small batches to avoid rate limits completely (5 parallel requests max)
+      const BATCH_SIZE = 5;
       const batches = chunk(entities, BATCH_SIZE);
       
-      console.log(`[INSIGHTS ${entityType}] ${entities.length} entities in ${batches.length} batches of ${BATCH_SIZE}`);
+      console.log(`[INSIGHTS ${entityType}] ${entities.length} entities in ${batches.length} batches of ${BATCH_SIZE} (conservative mode)`);
       
       let processedCount = 0;
       let rateLimitHits = 0;
@@ -403,11 +403,11 @@ Deno.serve(async (req) => {
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
         
-        // Stagger requests within batch to avoid traffic spikes
+        // Stagger requests within batch with generous spacing
         const results = await Promise.all(
           batch.map(async (entity: any, idx: number) => {
-            // Add staggered delay within batch (0ms, 50ms, 100ms, etc.)
-            await delay(idx * 50);
+            // Add staggered delay within batch (0ms, 500ms, 1000ms, etc.)
+            await delay(idx * 500);
             
             try {
               const controller = new AbortController();
@@ -442,8 +442,8 @@ Deno.serve(async (req) => {
         const batchRateLimited = results.filter(r => r.rateLimited).length;
         if (batchRateLimited > 0) {
           rateLimitHits += batchRateLimited;
-          const waitTime = rateLimit.currentDelay * 5;
-          console.log(`[INSIGHTS ${entityType}] ${batchRateLimited} rate limits in batch, waiting ${(waitTime/1000).toFixed(1)}s...`);
+          const waitTime = 30000; // Wait 30 seconds on any rate limit
+          console.log(`[INSIGHTS ${entityType}] ${batchRateLimited} rate limits in batch, waiting 30s...`);
           await delay(waitTime);
         }
         
@@ -455,9 +455,9 @@ Deno.serve(async (req) => {
           console.log(`[INSIGHTS ${entityType}] Progress: ${processedCount}/${entities.length} (rate limits: ${rateLimitHits})`);
         }
         
-        // Uniform delay between batches with current adaptive rate
+        // Conservative delay between batches (5 seconds)
         if (i < batches.length - 1) {
-          await delay(rateLimit.currentDelay);
+          await delay(5000);
         }
       }
       

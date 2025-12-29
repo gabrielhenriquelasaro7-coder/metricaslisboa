@@ -136,10 +136,10 @@ Deno.serve(async (req) => {
             projectResult.success = false;
             console.log(`[PROJECT ${project.name}] Period ${period.key}: ✗ Failed - ${syncResult.error}`);
             
-            // If rate limited, wait longer before next period
+            // If rate limited, wait much longer before next period
             if (syncResult.rate_limited) {
-              console.log(`[PROJECT ${project.name}] Rate limited, waiting 60s before next period...`);
-              await delay(60000);
+              console.log(`[PROJECT ${project.name}] Rate limited, waiting 3 minutes before next period...`);
+              await delay(180000);
             }
           }
         } catch (error) {
@@ -148,10 +148,10 @@ Deno.serve(async (req) => {
           console.error(`[PROJECT ${project.name}] Period ${period.key}: Error -`, error);
         }
 
-        // Delay between periods (10 seconds with jitter)
+        // Conservative delay between periods (60 seconds)
         if (periodIndex < dateRanges.length - 1) {
-          console.log(`[PROJECT ${project.name}] Waiting 10s before next period...`);
-          await delay(10000);
+          console.log(`[PROJECT ${project.name}] Waiting 60s before next period...`);
+          await delay(60000);
         }
       }
 
@@ -172,10 +172,10 @@ Deno.serve(async (req) => {
 
       results.push(projectResult);
 
-      // Delay between projects (30 seconds with jitter)
+      // Conservative delay between projects (2 minutes)
       if (projectIndex < projects!.length - 1) {
-        console.log(`\n[SCHEDULED SYNC] Waiting 30s before next project...`);
-        await delay(30000);
+        console.log(`\n[SCHEDULED SYNC] Waiting 2 minutes before next project...`);
+        await delay(120000);
       }
     }
 
