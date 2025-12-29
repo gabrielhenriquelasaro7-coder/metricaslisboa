@@ -68,19 +68,26 @@ export default function Creatives() {
     const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
     return period ? datePeriodToDateRange(period) : undefined;
   });
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
 
   const projectTimezone = selectedProject?.timezone || 'America/Sao_Paulo';
 
-  // Load metrics when date range changes - INSTANT from local database
+  // Load metrics when preset changes - INSTANT from local database
   useEffect(() => {
-    if (!selectedProject || !dateRange?.from || !dateRange?.to) return;
-    loadMetricsByPeriod('this_month');
-  }, [dateRange, selectedProject, loadMetricsByPeriod]);
+    if (!selectedProject) return;
+    console.log(`[Creatives] Loading period: ${selectedPreset}`);
+    loadMetricsByPeriod(selectedPreset);
+  }, [selectedPreset, selectedProject, loadMetricsByPeriod]);
 
-  // Handle date range change - NO sync, just load from database
+  // Handle date range change
   const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
     setDateRange(range);
     setCurrentPage(1);
+  }, []);
+
+  // Handle preset change - load data by period
+  const handlePresetChange = useCallback((preset: DatePresetKey) => {
+    setSelectedPreset(preset);
   }, []);
 
   const handleManualSync = useCallback(() => {
@@ -253,6 +260,7 @@ export default function Creatives() {
               dateRange={dateRange}
               onDateRangeChange={handleDateRangeChange}
               timezone={projectTimezone}
+              onPresetChange={handlePresetChange}
             />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
