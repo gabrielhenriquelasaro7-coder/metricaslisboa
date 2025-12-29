@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import ProjectCard from '@/components/projects/ProjectCard';
+import EnhancedProjectCard from '@/components/projects/EnhancedProjectCard';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import EditProjectDialog from '@/components/projects/EditProjectDialog';
 import { useProjects, Project } from '@/hooks/useProjects';
-import { Search, FolderKanban, Archive, Download, FileSpreadsheet } from 'lucide-react';
+import { useProjectHealth } from '@/hooks/useProjectHealth';
+import { Search, FolderKanban, Archive, Download, FileSpreadsheet, ShieldCheck, Shield, ShieldAlert } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -26,22 +27,45 @@ import {
 } from '@/components/ui/alert-dialog';
 import { exportProjectsToCSV, exportProjectsToExcel } from '@/utils/exportData';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 type ActionType = 'delete' | 'archive' | 'unarchive';
+type HealthFilter = 'all' | 'safe' | 'care' | 'danger';
 
 export default function Projects() {
   const { projects, loading, deleteProject, archiveProject, unarchiveProject } = useProjects();
+  const { healthData, loading: healthLoading } = useProjectHealth(projects);
   const [search, setSearch] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [actionType, setActionType] = useState<ActionType | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [healthFilter, setHealthFilter] = useState<HealthFilter>('all');
 
-  const filteredProjects = projects.filter((project) => {
-    const matchesSearch = project.name.toLowerCase().includes(search.toLowerCase());
-    const matchesArchiveFilter = showArchived ? project.archived : !project.archived;
-    return matchesSearch && matchesArchiveFilter;
-  });
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project) => {
+      const matchesSearch = project.name.toLowerCase().includes(search.toLowerCase());
+      const matchesArchiveFilter = showArchived ? project.archived : !project.archived;
+      
+      // Health filter
+      if (healthFilter !== 'all') {
+        const health = healthData.get(project.id);
+        if (!health || health.status !== healthFilter) return false;
+      }
+      
+      return matchesSearch && matchesArchiveFilter;
+    });
+  }, [projects, search, showArchived, healthFilter, healthData]);
+
+  // Health summary counts
+  const healthCounts = useMemo(() => {
+    const activeProjects = projects.filter(p => !p.archived);
+    return {
+      safe: activeProjects.filter(p => healthData.get(p.id)?.status === 'safe').length,
+      care: activeProjects.filter(p => healthData.get(p.id)?.status === 'care').length,
+      danger: activeProjects.filter(p => healthData.get(p.id)?.status === 'danger').length,
+    };
+  }, [projects, healthData]);
 
   const handleEdit = (project: Project) => {
     setEditingProject(project);
@@ -161,6 +185,57 @@ export default function Projects() {
           </div>
         </div>
 
+        {/* Health Summary */}
+        {!showArchived && !loading && projects.length > 0 && (
+          <div className="grid grid-cols-3 gap-4">
+            <button
+              onClick={() => setHealthFilter(healthFilter === 'safe' ? 'all' : 'safe')}
+              className={cn(
+                'glass-card p-4 flex items-center gap-3 transition-all hover:scale-[1.02]',
+                healthFilter === 'safe' && 'ring-2 ring-metric-positive'
+              )}
+            >
+              <div className="w-10 h-10 rounded-lg bg-metric-positive/10 flex items-center justify-center">
+                <ShieldCheck className="w-5 h-5 text-metric-positive" />
+              </div>
+              <div className="text-left">
+                <p className="text-2xl font-bold text-metric-positive">{healthCounts.safe}</p>
+                <p className="text-xs text-muted-foreground">Safe</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setHealthFilter(healthFilter === 'care' ? 'all' : 'care')}
+              className={cn(
+                'glass-card p-4 flex items-center gap-3 transition-all hover:scale-[1.02]',
+                healthFilter === 'care' && 'ring-2 ring-metric-warning'
+              )}
+            >
+              <div className="w-10 h-10 rounded-lg bg-metric-warning/10 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-metric-warning" />
+              </div>
+              <div className="text-left">
+                <p className="text-2xl font-bold text-metric-warning">{healthCounts.care}</p>
+                <p className="text-xs text-muted-foreground">Care</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setHealthFilter(healthFilter === 'danger' ? 'all' : 'danger')}
+              className={cn(
+                'glass-card p-4 flex items-center gap-3 transition-all hover:scale-[1.02]',
+                healthFilter === 'danger' && 'ring-2 ring-metric-negative'
+              )}
+            >
+              <div className="w-10 h-10 rounded-lg bg-metric-negative/10 flex items-center justify-center">
+                <ShieldAlert className="w-5 h-5 text-metric-negative" />
+              </div>
+              <div className="text-left">
+                <p className="text-2xl font-bold text-metric-negative">{healthCounts.danger}</p>
+                <p className="text-xs text-muted-foreground">Danger</p>
+              </div>
+            </button>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1 max-w-md">
@@ -185,21 +260,23 @@ export default function Projects() {
         </div>
 
         {/* Projects Grid */}
-        {loading ? (
+        {loading || healthLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="glass-card p-6 animate-pulse">
+              <div key={i} className="glass-card p-6 animate-pulse border-l-4 border-l-muted">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-secondary" />
+                  <div className="w-11 h-11 rounded-xl bg-secondary" />
                   <div className="space-y-2">
                     <div className="h-4 w-32 bg-secondary rounded" />
                     <div className="h-3 w-20 bg-secondary rounded" />
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <div className="h-6 w-24 bg-secondary rounded" />
-                  <div className="h-4 w-full bg-secondary rounded" />
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="h-14 bg-secondary rounded-lg" />
+                  <div className="h-14 bg-secondary rounded-lg" />
+                  <div className="h-14 bg-secondary rounded-lg" />
                 </div>
+                <div className="h-12 bg-secondary/50 rounded" />
               </div>
             ))}
           </div>
@@ -211,25 +288,30 @@ export default function Projects() {
             <h2 className="text-xl font-semibold mb-2">
               {search 
                 ? 'Nenhum projeto encontrado' 
-                : showArchived 
-                  ? 'Nenhum projeto arquivado'
-                  : 'Nenhum projeto ainda'}
+                : healthFilter !== 'all'
+                  ? `Nenhum projeto ${healthFilter === 'safe' ? 'Safe' : healthFilter === 'care' ? 'Care' : 'Danger'}`
+                  : showArchived 
+                    ? 'Nenhum projeto arquivado'
+                    : 'Nenhum projeto ainda'}
             </h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
               {search 
                 ? 'Tente buscar com outros termos.'
-                : showArchived
-                  ? 'Projetos arquivados aparecerão aqui.'
-                  : 'Crie seu primeiro projeto para começar a analisar suas campanhas.'}
+                : healthFilter !== 'all'
+                  ? 'Clique no filtro novamente para ver todos os projetos.'
+                  : showArchived
+                    ? 'Projetos arquivados aparecerão aqui.'
+                    : 'Crie seu primeiro projeto para começar a analisar suas campanhas.'}
             </p>
-            {!search && !showArchived && <CreateProjectDialog />}
+            {!search && !showArchived && healthFilter === 'all' && <CreateProjectDialog />}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map((project) => (
-              <ProjectCard
+              <EnhancedProjectCard
                 key={project.id}
                 project={project}
+                health={healthData.get(project.id)}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onArchive={handleArchive}
