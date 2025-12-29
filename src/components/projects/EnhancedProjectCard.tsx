@@ -96,8 +96,8 @@ export default function EnhancedProjectCard({
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: project.currency || 'BRL',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(value);
   };
 

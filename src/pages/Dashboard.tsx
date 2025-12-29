@@ -224,16 +224,16 @@ export default function Dashboard() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      currency: selectedProject?.currency || 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(value);
   };
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toFixed(0);
+    return num.toLocaleString('pt-BR');
   };
   const loading = projectsLoading || dataLoading || dailyLoading;
 

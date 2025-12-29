@@ -183,10 +183,10 @@ export default function AdDetail() {
   }, [dateRange, syncData]);
 
   const formatNumber = (n: number) => 
-    n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString();
+    n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString('pt-BR');
   
   const formatCurrency = (n: number) => 
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
   const hasVideo = ad?.creative_video_url;
   const hasImage = ad?.creative_image_url || ad?.creative_thumbnail;
