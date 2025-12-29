@@ -5,10 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Delay helper with jitter to spread requests uniformly
+// Delay helper
 function delay(ms: number): Promise<void> {
-  const jitter = ms * (Math.random() * 0.3);
-  return new Promise(resolve => setTimeout(resolve, ms + jitter));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // Format date as YYYY-MM-DD
@@ -60,7 +59,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch all active projects with ad_account_id
+    // Fetch all active projects
     const { data: projects, error: projectsError } = await supabase
       .from('projects')
       .select('id, ad_account_id, name')
@@ -75,44 +74,33 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[SCHEDULED SYNC] Found ${projects?.length || 0} projects to sync`);
-    console.log(`[SCHEDULED SYNC] Started at: ${new Date().toISOString()}`);
+    console.log(`[SCHEDULED SYNC] Found ${projects?.length || 0} projects`);
 
     const dateRanges = getDateRanges();
-    console.log(`[SCHEDULED SYNC] Will sync ${dateRanges.length} periods: ${dateRanges.map(d => d.key).join(', ')}`);
+    console.log(`[SCHEDULED SYNC] Periods: ${dateRanges.map(d => d.key).join(', ')}`);
 
-    const results: {
-      project_id: string;
-      project_name: string;
-      periods_synced: string[];
-      periods_failed: string[];
-      success: boolean;
-    }[] = [];
+    const results: any[] = [];
 
-    // Process each project sequentially with delays to avoid rate limits
-    for (let projectIndex = 0; projectIndex < (projects || []).length; projectIndex++) {
-      const project = projects![projectIndex];
-      console.log(`\n[PROJECT ${projectIndex + 1}/${projects!.length}] Starting sync for: ${project.name}`);
+    // Process each project
+    for (const project of (projects || [])) {
+      console.log(`\n[PROJECT ${project.name}] Starting...`);
       
       const projectResult = {
         project_id: project.id,
         project_name: project.name,
         periods_synced: [] as string[],
         periods_failed: [] as string[],
-        success: true,
       };
 
-      // Sync all periods for this project
-      for (let periodIndex = 0; periodIndex < dateRanges.length; periodIndex++) {
-        const period = dateRanges[periodIndex];
-        console.log(`[PROJECT ${project.name}] Syncing period ${period.key} (${period.since} to ${period.until})`);
+      // Sync each period
+      for (const period of dateRanges) {
+        console.log(`[${project.name}] Syncing ${period.key}...`);
         
         try {
-          // Call meta-ads-sync for this project and period with timeout
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+          const timeoutId = setTimeout(() => controller.abort(), 55000); // 55s timeout
           
-          const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+          const response = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -121,118 +109,66 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               project_id: project.id,
               ad_account_id: project.ad_account_id,
-              time_range: {
-                since: period.since,
-                until: period.until,
-              },
-              batch_mode: true,
+              time_range: { since: period.since, until: period.until },
             }),
             signal: controller.signal,
           });
           
           clearTimeout(timeoutId);
-
-          // Handle potential timeout/empty response
-          const responseText = await syncResponse.text();
-          let syncResult;
           
-          try {
-            syncResult = responseText ? JSON.parse(responseText) : { success: false, error: 'Empty response' };
-          } catch {
-            console.error(`[PROJECT ${project.name}] Period ${period.key}: Invalid JSON response`);
-            syncResult = { success: false, error: 'Invalid response format' };
-          }
+          const result = await response.json().catch(() => ({ success: false }));
           
-          if (syncResult.success) {
+          if (result.success) {
             projectResult.periods_synced.push(period.key);
-            console.log(`[PROJECT ${project.name}] Period ${period.key}: ✓ Success`);
+            console.log(`[${project.name}] ${period.key}: ✓ Success`);
           } else {
             projectResult.periods_failed.push(period.key);
-            projectResult.success = false;
-            console.log(`[PROJECT ${project.name}] Period ${period.key}: ✗ Failed - ${syncResult.error || 'Unknown error'}`);
-            
-            // If rate limited, wait much longer before next period
-            if (syncResult.rate_limited) {
-              console.log(`[PROJECT ${project.name}] Rate limited, waiting 3 minutes before next period...`);
-              await delay(180000);
-            }
+            console.log(`[${project.name}] ${period.key}: ✗ Failed`);
           }
         } catch (error) {
           projectResult.periods_failed.push(period.key);
-          projectResult.success = false;
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[PROJECT ${project.name}] Period ${period.key}: Error - ${errorMessage}`);
-          
-          // If it was an abort/timeout, wait before continuing
-          if (errorMessage.includes('abort')) {
-            console.log(`[PROJECT ${project.name}] Request timeout, waiting 30s before next period...`);
-            await delay(30000);
-          }
+          console.log(`[${project.name}] ${period.key}: ✗ Error`);
         }
 
-        // Conservative delay between periods (60 seconds)
-        if (periodIndex < dateRanges.length - 1) {
-          console.log(`[PROJECT ${project.name}] Waiting 60s before next period...`);
-          await delay(60000);
-        }
+        // Short delay between periods (10s)
+        await delay(10000);
       }
 
-      // Log sync completion to sync_logs table
-      await supabase.from('sync_logs').insert({
-        project_id: project.id,
-        status: projectResult.success ? 'success' : 'partial',
-        message: projectResult.success 
-          ? `Sync completed: ${projectResult.periods_synced.length} periods synced`
-          : `Sync partial: ${projectResult.periods_synced.length} synced, ${projectResult.periods_failed.length} failed (${projectResult.periods_failed.join(', ')})`,
-      });
-
-      // Update project last_sync_at
+      // Update project status
+      const success = projectResult.periods_failed.length === 0;
+      const partial = projectResult.periods_synced.length > 0 && projectResult.periods_failed.length > 0;
+      
       await supabase.from('projects').update({
         last_sync_at: new Date().toISOString(),
-        webhook_status: projectResult.success ? 'success' : 'partial',
+        webhook_status: success ? 'success' : (partial ? 'partial' : 'error'),
       }).eq('id', project.id);
 
-      results.push(projectResult);
+      // Log completion
+      await supabase.from('sync_logs').insert({
+        project_id: project.id,
+        status: success ? 'success' : (partial ? 'partial' : 'error'),
+        message: JSON.stringify({
+          synced: projectResult.periods_synced,
+          failed: projectResult.periods_failed,
+        }),
+      });
 
-      // Conservative delay between projects (2 minutes)
-      if (projectIndex < projects!.length - 1) {
-        console.log(`\n[SCHEDULED SYNC] Waiting 2 minutes before next project...`);
-        await delay(120000);
-      }
+      results.push(projectResult);
+      
+      // Delay between projects (30s)
+      await delay(30000);
     }
 
-    const successCount = results.filter(r => r.success).length;
-    const partialCount = results.filter(r => !r.success && r.periods_synced.length > 0).length;
-    const failedCount = results.filter(r => r.periods_synced.length === 0).length;
-
-    console.log('\n[SCHEDULED SYNC] ============ SUMMARY ============');
-    console.log(`[SCHEDULED SYNC] Total projects: ${results.length}`);
-    console.log(`[SCHEDULED SYNC] Fully synced: ${successCount}`);
-    console.log(`[SCHEDULED SYNC] Partially synced: ${partialCount}`);
-    console.log(`[SCHEDULED SYNC] Failed: ${failedCount}`);
-    console.log(`[SCHEDULED SYNC] Completed at: ${new Date().toISOString()}`);
+    console.log('\n[SCHEDULED SYNC] Complete');
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        summary: {
-          total_projects: results.length,
-          fully_synced: successCount,
-          partially_synced: partialCount,
-          failed: failedCount,
-          periods_per_project: dateRanges.length,
-        },
-        results,
-      }),
+      JSON.stringify({ success: true, results }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('[SCHEDULED SYNC] Fatal error:', error);
+    console.error('[SCHEDULED SYNC] Error:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
