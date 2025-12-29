@@ -42,6 +42,18 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
+// CRITICAL: Meta API returns IDs as objects { id: "123" } or strings "123"
+// This helper safely extracts the ID in both cases
+function extractId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'object' && value.id) {
+    return typeof value.id === 'string' ? value.id : String(value.id);
+  }
+  return null;
+}
+
 function isRateLimitError(data: any): boolean {
   if (!data?.error) return false;
   const errorCode = data.error.code;
@@ -312,22 +324,25 @@ async function fetchInsightsOptimized(
         
         let mapped = 0;
         for (const ins of results) {
-          // Get the appropriate ID based on level
+          // Get the appropriate ID based on level using extractId helper
           let id: string | null = null;
-          if (levelName === 'campaign' && ins.campaign_id) {
-            id = String(ins.campaign_id);
-          } else if (levelName === 'adset' && ins.adset_id) {
-            id = String(ins.adset_id);
-          } else if (levelName === 'ad' && ins.ad_id) {
-            id = String(ins.ad_id);
+          if (levelName === 'campaign') {
+            id = extractId(ins.campaign_id);
+          } else if (levelName === 'adset') {
+            id = extractId(ins.adset_id);
+          } else if (levelName === 'ad') {
+            id = extractId(ins.ad_id);
           }
           
           if (id) {
             insightsMap.set(id, ins);
             mapped++;
           } else if (mapped === 0) {
-            // Log first row keys for debugging
+            // Log first row for debugging unmapped insights
             console.log(`[ASYNC ${levelName.toUpperCase()} DEBUG] Keys: ${Object.keys(ins).join(', ')}`);
+            console.log(`[ASYNC ${levelName.toUpperCase()} DEBUG] campaign_id: ${JSON.stringify(ins.campaign_id)}`);
+            console.log(`[ASYNC ${levelName.toUpperCase()} DEBUG] adset_id: ${JSON.stringify(ins.adset_id)}`);
+            console.log(`[ASYNC ${levelName.toUpperCase()} DEBUG] ad_id: ${JSON.stringify(ins.ad_id)}`);
           }
         }
         console.log(`[ASYNC ${levelName.toUpperCase()}] Mapped: ${mapped}/${results.length}`);
@@ -344,9 +359,9 @@ async function fetchInsightsOptimized(
         if (response.data) {
           for (const ins of response.data) {
             let id: string | null = null;
-            if (levelName === 'campaign' && ins.campaign_id) id = String(ins.campaign_id);
-            else if (levelName === 'adset' && ins.adset_id) id = String(ins.adset_id);
-            else if (levelName === 'ad' && ins.ad_id) id = String(ins.ad_id);
+            if (levelName === 'campaign') id = extractId(ins.campaign_id);
+            else if (levelName === 'adset') id = extractId(ins.adset_id);
+            else if (levelName === 'ad') id = extractId(ins.ad_id);
             
             if (id) insightsMap.set(id, ins);
           }
@@ -364,12 +379,12 @@ async function fetchInsightsOptimized(
     const results = await executeBatch(batchRequests, token, 'INSIGHTS');
     
     for (const ins of results) {
-      // Try all possible ID fields
-      const id = ins.campaign_id || ins.adset_id || ins.ad_id;
+      // Try all possible ID fields using extractId helper
+      const id = extractId(ins.campaign_id) || extractId(ins.adset_id) || extractId(ins.ad_id);
       if (id) {
-        insightsMap.set(String(id), ins);
+        insightsMap.set(id, ins);
       } else if (insightsMap.size === 0) {
-        console.log(`[BATCH DEBUG] Sample keys: ${Object.keys(ins).join(', ')}`);
+        console.log(`[BATCH DEBUG] Sample: ${JSON.stringify(ins).substring(0, 500)}`);
       }
     }
   }
