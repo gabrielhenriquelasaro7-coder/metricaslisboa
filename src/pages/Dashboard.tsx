@@ -47,7 +47,7 @@ export default function Dashboard() {
   const [showComparison, setShowComparison] = useState(true);
 
   // Get campaigns and selected project from hook (uses localStorage)
-  const { campaigns, loading: dataLoading, syncing, syncData, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
+  const { campaigns, loading: dataLoading, syncing, syncData, syncDemographics, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
   
   // Get daily metrics for charts
   const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset);
@@ -102,6 +102,18 @@ export default function Dashboard() {
       syncData();
     }
   }, [dateRange, syncData]);
+
+  // Sync demographics
+  const handleSyncDemographics = useCallback(() => {
+    if (dateRange?.from && dateRange?.to) {
+      syncDemographics({
+        since: format(dateRange.from, 'yyyy-MM-dd'),
+        until: format(dateRange.to, 'yyyy-MM-dd')
+      });
+    } else {
+      syncDemographics();
+    }
+  }, [dateRange, syncDemographics]);
 
   const calculateMetrics = (campaignsList: typeof campaigns) => {
     const totalSpend = campaignsList.reduce((sum, c) => sum + (c.spend || 0), 0);
@@ -235,7 +247,11 @@ export default function Dashboard() {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleManualSync} disabled={syncing || !selectedProject}>
                   <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-                  {syncing ? 'Sincronizando...' : 'Forçar Sincronização'}
+                  {syncing ? 'Sincronizando...' : 'Sincronizar Campanhas'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSyncDemographics} disabled={syncing || !selectedProject}>
+                  <Users className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+                  Sincronizar Demográficos
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
