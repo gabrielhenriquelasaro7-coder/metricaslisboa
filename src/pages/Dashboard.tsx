@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import SparklineCard from '@/components/dashboard/SparklineCard';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -46,6 +46,7 @@ export default function Dashboard() {
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [showComparison, setShowComparison] = useState(true);
+  const chartRef = useRef<HTMLDivElement>(null);
 
   // Get campaigns and selected project from hook (uses localStorage)
   const { campaigns, loading: dataLoading, syncing, syncData, syncDemographics, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
@@ -267,9 +268,10 @@ export default function Dashboard() {
                             selectedPreset === 'last_60d' ? 'Últimos 60 dias' :
                             selectedPreset === 'last_90d' ? 'Últimos 90 dias' :
                             selectedPreset === 'this_year' ? 'Este Ano' : 'Período Selecionado'}
-                metrics={metrics}
+                metrics={{...metrics, totalReach: metrics.totalReach, avgFrequency: metrics.avgFrequency}}
                 businessModel={businessModel || null}
                 currency={selectedProject?.currency || 'BRL'}
+                chartRef={chartRef}
               />
             )}
             
@@ -522,14 +524,16 @@ export default function Dashboard() {
 
             {/* Customizable Charts - Real daily data */}
             <div className="space-y-6">
-              <CustomizableChart
-                chartKey="dashboard-chart-1"
-                data={dailyData}
-                defaultTitle="Gráfico 1 - Performance"
-                defaultPrimaryMetric="spend"
-                defaultSecondaryMetric={isEcommerce ? 'conversions' : 'conversions'}
-                defaultChartType="composed"
-              />
+              <div ref={chartRef}>
+                <CustomizableChart
+                  chartKey="dashboard-chart-1"
+                  data={dailyData}
+                  defaultTitle="Gráfico 1 - Performance"
+                  defaultPrimaryMetric="spend"
+                  defaultSecondaryMetric={isEcommerce ? 'conversions' : 'conversions'}
+                  defaultChartType="composed"
+                />
+              </div>
               <CustomizableChart
                 chartKey="dashboard-chart-2"
                 data={dailyData}
