@@ -15,14 +15,19 @@ interface SyncRequest {
     until: string;
   };
   period_key?: string;
+  use_async?: boolean; // Use async reports for large data
 }
 
-const MAX_CAMPAIGNS = 200;
-const MAX_ADSETS = 400;
-const MAX_ADS = 600;
+const MAX_CAMPAIGNS = 500;
+const MAX_ADSETS = 1000;
+const MAX_ADS = 2000;
 
-// Exponential backoff retry delays (in ms): 30s, 60s, 120s, 240s
-const RETRY_DELAYS = [30000, 60000, 120000, 240000];
+// Batch API constants
+const BATCH_SIZE = 50; // Meta allows up to 50 requests per batch
+const ASYNC_THRESHOLD = 100; // Use async reports if entities > this
+
+// Retry delays for rate limits
+const RETRY_DELAYS = [10000, 20000, 40000, 80000];
 const MAX_RETRIES = 4;
 
 function delay(ms: number): Promise<void> {
@@ -37,7 +42,6 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
-// Check if error is a rate limit error (code 17 or "User request limit reached")
 function isRateLimitError(data: any): boolean {
   if (!data?.error) return false;
   const errorCode = data.error.code;
@@ -49,11 +53,11 @@ function isRateLimitError(data: any): boolean {
          errorMessage.includes('too many calls');
 }
 
-async function simpleFetch(url: string, timeoutMs = 25000): Promise<any> {
+async function simpleFetch(url: string, options?: RequestInit, timeoutMs = 30000): Promise<any> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(timeoutId);
     return await res.json();
   } catch (error) {
@@ -61,68 +65,359 @@ async function simpleFetch(url: string, timeoutMs = 25000): Promise<any> {
   }
 }
 
-// Fetch with exponential backoff retry for rate limit errors
-async function fetchWithRetry(url: string, entityName: string, timeoutMs = 25000): Promise<any> {
+async function fetchWithRetry(url: string, entityName: string, options?: RequestInit, timeoutMs = 30000): Promise<any> {
   let lastError: any = null;
   
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const data = await simpleFetch(url, timeoutMs);
+    const data = await simpleFetch(url, options, timeoutMs);
     
     if (!data.error) {
       return data;
     }
     
-    // Check if it's a rate limit error
     if (isRateLimitError(data)) {
       if (attempt < MAX_RETRIES) {
         const waitTime = RETRY_DELAYS[attempt];
-        console.log(`[${entityName}] Rate limit hit, retry ${attempt + 1}/${MAX_RETRIES} after ${waitTime / 1000}s...`);
+        console.log(`[${entityName}] Rate limit, retry ${attempt + 1}/${MAX_RETRIES} in ${waitTime / 1000}s...`);
         await delay(waitTime);
         continue;
       } else {
-        console.error(`[${entityName}] Rate limit: max retries (${MAX_RETRIES}) exceeded`);
+        console.error(`[${entityName}] Rate limit: max retries exceeded`);
         lastError = data;
         break;
       }
     }
     
-    // Not a rate limit error, return immediately
     return data;
   }
   
   return lastError || { error: { message: 'Max retries exceeded' } };
 }
 
-async function fetchAllPages(baseUrl: string, token: string, entityName: string, maxItems: number): Promise<any[]> {
-  const allData: any[] = [];
-  let nextUrl: string | null = `${baseUrl}&limit=100&access_token=${token}`;
-  let pageCount = 0;
-  const maxPages = Math.ceil(maxItems / 100);
-  
-  while (nextUrl && pageCount < maxPages && allData.length < maxItems) {
-    pageCount++;
-    const data = await fetchWithRetry(nextUrl, entityName);
-    
-    if (data.error) {
-      console.error(`[${entityName}] Error:`, data.error.message);
-      break;
-    }
-    
-    if (data.data && data.data.length > 0) {
-      allData.push(...data.data);
-    } else {
-      break;
-    }
-    
-    nextUrl = data.paging?.next || null;
-    // Increased delay between pages (1 second)
-    if (nextUrl && allData.length < maxItems) await delay(1000);
-  }
-  
-  console.log(`[${entityName}] Total: ${allData.length}`);
-  return allData.slice(0, maxItems);
+// ============ BATCH API IMPLEMENTATION ============
+interface BatchRequest {
+  method: string;
+  relative_url: string;
 }
 
+interface BatchResponse {
+  code: number;
+  headers?: { name: string; value: string }[];
+  body: string;
+}
+
+async function executeBatch(batchRequests: BatchRequest[], token: string, entityName: string): Promise<any[]> {
+  const results: any[] = [];
+  const batches = chunk(batchRequests, BATCH_SIZE);
+  
+  console.log(`[BATCH] ${entityName}: ${batchRequests.length} requests in ${batches.length} batches`);
+  
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    const formData = new FormData();
+    formData.append('access_token', token);
+    formData.append('batch', JSON.stringify(batch));
+    
+    const response = await fetchWithRetry(
+      'https://graph.facebook.com/v19.0/',
+      `${entityName}_BATCH_${i + 1}`,
+      { method: 'POST', body: formData },
+      60000 // 60s timeout for batch
+    );
+    
+    if (Array.isArray(response)) {
+      for (const item of response) {
+        if (item?.body) {
+          try {
+            const parsed = JSON.parse(item.body);
+            if (parsed.data) {
+              results.push(...parsed.data);
+            } else if (!parsed.error) {
+              results.push(parsed);
+            }
+          } catch {
+            // Skip unparseable responses
+          }
+        }
+      }
+    }
+    
+    // Small delay between batches
+    if (i < batches.length - 1) {
+      await delay(500);
+    }
+  }
+  
+  console.log(`[BATCH] ${entityName}: Got ${results.length} results`);
+  return results;
+}
+
+// ============ ASYNC REPORTS IMPLEMENTATION ============
+interface AsyncReportStatus {
+  id: string;
+  account_id: string;
+  async_status: string;
+  async_percent_completion: number;
+}
+
+async function createAsyncReport(
+  adAccountId: string,
+  token: string,
+  timeRange: { since: string; until: string },
+  level: 'campaign' | 'adset' | 'ad'
+): Promise<string | null> {
+  const fields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
+  
+  const params = new URLSearchParams({
+    access_token: token,
+    fields,
+    level,
+    time_range: JSON.stringify(timeRange),
+  });
+  
+  const response = await fetchWithRetry(
+    `https://graph.facebook.com/v19.0/${adAccountId}/insights?${params}`,
+    `ASYNC_CREATE_${level}`,
+    { method: 'POST' },
+    30000
+  );
+  
+  if (response.report_run_id) {
+    console.log(`[ASYNC] Created ${level} report: ${response.report_run_id}`);
+    return response.report_run_id;
+  }
+  
+  // If no async report created, data might be returned directly
+  if (response.data) {
+    console.log(`[ASYNC] ${level}: Direct data returned (${response.data.length} rows)`);
+    return null;
+  }
+  
+  console.log(`[ASYNC] Failed to create ${level} report:`, response.error?.message);
+  return null;
+}
+
+async function pollAsyncReport(reportId: string, token: string, maxWaitMs = 300000): Promise<boolean> {
+  const startTime = Date.now();
+  const pollInterval = 5000; // 5 seconds
+  
+  while (Date.now() - startTime < maxWaitMs) {
+    const response = await simpleFetch(
+      `https://graph.facebook.com/v19.0/${reportId}?access_token=${token}`
+    );
+    
+    if (response.error) {
+      console.log(`[ASYNC POLL] Error: ${response.error.message}`);
+      return false;
+    }
+    
+    const status = response.async_status;
+    const percent = response.async_percent_completion || 0;
+    
+    if (status === 'Job Completed') {
+      console.log(`[ASYNC POLL] Report ${reportId} completed (${percent}%)`);
+      return true;
+    }
+    
+    if (status === 'Job Failed' || status === 'Job Skipped') {
+      console.log(`[ASYNC POLL] Report ${reportId} failed: ${status}`);
+      return false;
+    }
+    
+    console.log(`[ASYNC POLL] ${reportId}: ${status} (${percent}%)`);
+    await delay(pollInterval);
+  }
+  
+  console.log(`[ASYNC POLL] Report ${reportId} timeout after ${maxWaitMs / 1000}s`);
+  return false;
+}
+
+async function fetchAsyncResults(reportId: string, token: string): Promise<any[]> {
+  const results: any[] = [];
+  let nextUrl: string | null = 
+    `https://graph.facebook.com/v19.0/${reportId}/insights?access_token=${token}&limit=500`;
+  
+  while (nextUrl) {
+    const response = await simpleFetch(nextUrl);
+    
+    if (response.data && response.data.length > 0) {
+      results.push(...response.data);
+    }
+    
+    nextUrl = response.paging?.next || null;
+    if (nextUrl) await delay(200);
+  }
+  
+  console.log(`[ASYNC RESULTS] Report ${reportId}: ${results.length} rows`);
+  return results;
+}
+
+// ============ OPTIMIZED INSIGHTS FETCH ============
+async function fetchInsightsOptimized(
+  adAccountId: string,
+  token: string,
+  timeRange: { since: string; until: string },
+  entityCounts: { campaigns: number; adsets: number; ads: number }
+): Promise<Map<string, any>> {
+  const insightsMap = new Map<string, any>();
+  const totalEntities = entityCounts.campaigns + entityCounts.adsets + entityCounts.ads;
+  const useAsync = totalEntities > ASYNC_THRESHOLD;
+  
+  console.log(`[INSIGHTS] Total entities: ${totalEntities}, using ${useAsync ? 'ASYNC' : 'BATCH'} mode`);
+  
+  const timeParam = `time_range=${encodeURIComponent(JSON.stringify(timeRange))}`;
+  const fields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
+  
+  if (useAsync) {
+    // Use Async Reports for large data volumes
+    const levels: ('campaign' | 'adset' | 'ad')[] = ['campaign', 'adset', 'ad'];
+    
+    // Create all reports in parallel
+    const reportPromises = levels.map(level => createAsyncReport(adAccountId, token, timeRange, level));
+    const reportIds = await Promise.all(reportPromises);
+    
+    // Poll all reports in parallel
+    const pollPromises = reportIds.map((id, i) => 
+      id ? pollAsyncReport(id, token) : Promise.resolve(true)
+    );
+    const pollResults = await Promise.all(pollPromises);
+    
+    // Fetch results for completed reports
+    for (let i = 0; i < levels.length; i++) {
+      const reportId = reportIds[i];
+      const pollSuccess = pollResults[i];
+      
+      if (reportId && pollSuccess) {
+        const results = await fetchAsyncResults(reportId, token);
+        for (const ins of results) {
+          const id = ins.campaign_id || ins.adset_id || ins.ad_id;
+          if (id) insightsMap.set(id, ins);
+        }
+      } else if (!reportId) {
+        // Fallback to direct fetch if no async report was created
+        const url = `https://graph.facebook.com/v19.0/${adAccountId}/insights?fields=${fields}&${timeParam}&level=${levels[i]}&access_token=${token}&limit=500`;
+        const response = await fetchWithRetry(url, `INSIGHTS_${levels[i].toUpperCase()}`);
+        if (response.data) {
+          for (const ins of response.data) {
+            const id = ins.campaign_id || ins.adset_id || ins.ad_id;
+            if (id) insightsMap.set(id, ins);
+          }
+        }
+      }
+    }
+  } else {
+    // Use Batch API for smaller data volumes
+    const batchRequests: BatchRequest[] = [
+      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${fields}&${timeParam}&level=campaign&limit=500` },
+      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${fields}&${timeParam}&level=adset&limit=500` },
+      { method: 'GET', relative_url: `${adAccountId}/insights?fields=${fields}&${timeParam}&level=ad&limit=500` },
+    ];
+    
+    const results = await executeBatch(batchRequests, token, 'INSIGHTS');
+    
+    for (const ins of results) {
+      const id = ins.campaign_id || ins.adset_id || ins.ad_id;
+      if (id) insightsMap.set(id, ins);
+    }
+  }
+  
+  console.log(`[INSIGHTS] Total mapped: ${insightsMap.size}`);
+  return insightsMap;
+}
+
+// ============ OPTIMIZED ENTITY FETCH WITH BATCH ============
+async function fetchEntitiesOptimized(
+  adAccountId: string,
+  token: string
+): Promise<{ campaigns: any[]; adsets: any[]; ads: any[] }> {
+  // Use Batch API to fetch all entity types in parallel
+  const batchRequests: BatchRequest[] = [
+    { method: 'GET', relative_url: `${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500` },
+    { method: 'GET', relative_url: `${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500` },
+    { method: 'GET', relative_url: `${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}&limit=500` },
+  ];
+  
+  const formData = new FormData();
+  formData.append('access_token', token);
+  formData.append('batch', JSON.stringify(batchRequests));
+  
+  const response = await fetchWithRetry(
+    'https://graph.facebook.com/v19.0/',
+    'ENTITIES_BATCH',
+    { method: 'POST', body: formData },
+    60000
+  );
+  
+  const campaigns: any[] = [];
+  const adsets: any[] = [];
+  const ads: any[] = [];
+  
+  if (Array.isArray(response)) {
+    for (let i = 0; i < response.length; i++) {
+      const item = response[i];
+      if (item?.body) {
+        try {
+          const parsed = JSON.parse(item.body);
+          if (parsed.data) {
+            if (i === 0) campaigns.push(...parsed.data);
+            else if (i === 1) adsets.push(...parsed.data);
+            else if (i === 2) ads.push(...parsed.data);
+          }
+        } catch {
+          // Skip unparseable responses
+        }
+      }
+    }
+  }
+  
+  // Handle pagination for large accounts
+  const fetchRemainingPages = async (
+    endpoint: string,
+    existing: any[],
+    max: number,
+    token: string,
+    name: string
+  ): Promise<any[]> => {
+    if (existing.length >= max) return existing.slice(0, max);
+    
+    // Check if there's pagination in the original response
+    let nextUrl: string | null = null;
+    
+    // Try to get next page URL from the batch response
+    const idx = endpoint.includes('campaigns') ? 0 : endpoint.includes('adsets') ? 1 : 2;
+    if (Array.isArray(response) && response[idx]?.body) {
+      try {
+        const parsed = JSON.parse(response[idx].body);
+        nextUrl = parsed.paging?.next || null;
+      } catch {}
+    }
+    
+    while (nextUrl && existing.length < max) {
+      const pageData = await fetchWithRetry(nextUrl, `${name}_PAGE`);
+      if (pageData.data && pageData.data.length > 0) {
+        existing.push(...pageData.data);
+      } else {
+        break;
+      }
+      nextUrl = pageData.paging?.next || null;
+      if (nextUrl) await delay(300);
+    }
+    
+    return existing.slice(0, max);
+  };
+  
+  const [finalCampaigns, finalAdsets, finalAds] = await Promise.all([
+    fetchRemainingPages('campaigns', campaigns, MAX_CAMPAIGNS, token, 'CAMPAIGNS'),
+    fetchRemainingPages('adsets', adsets, MAX_ADSETS, token, 'ADSETS'),
+    fetchRemainingPages('ads', ads, MAX_ADS, token, 'ADS'),
+  ]);
+  
+  console.log(`[ENTITIES] Campaigns: ${finalCampaigns.length}, Adsets: ${finalAdsets.length}, Ads: ${finalAds.length}`);
+  
+  return { campaigns: finalCampaigns, adsets: finalAdsets, ads: finalAds };
+}
+
+// ============ MAIN HANDLER ============
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -139,9 +434,10 @@ Deno.serve(async (req) => {
 
     const { project_id, ad_account_id, access_token, date_preset, time_range, period_key }: SyncRequest = await req.json();
     
-    const timeParam = time_range 
-      ? `time_range=${encodeURIComponent(JSON.stringify({ since: time_range.since, until: time_range.until }))}`
-      : `date_preset=${date_preset || 'last_30d'}`;
+    const timeRange = time_range || { 
+      since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      until: new Date().toISOString().split('T')[0]
+    };
     
     const finalPeriodKey = period_key || date_preset || 'last_30d';
     const token = access_token || metaAccessToken;
@@ -153,77 +449,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[SYNC] Period: ${finalPeriodKey}, Range: ${time_range?.since || date_preset} to ${time_range?.until || ''}`);
+    console.log(`[SYNC] Period: ${finalPeriodKey}, Range: ${timeRange.since} to ${timeRange.until}`);
 
     await supabase.from('projects').update({ webhook_status: 'syncing' }).eq('id', project_id);
 
-    // STEP 1: Fetch all entities with retry
-    const campaigns = await fetchAllPages(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget`,
-      token, 'CAMPAIGNS', MAX_CAMPAIGNS
-    );
+    // STEP 1: Fetch all entities using optimized batch
+    const entities = await fetchEntitiesOptimized(ad_account_id, token);
     
-    if (campaigns.length === 0) {
+    if (entities.campaigns.length === 0) {
       await supabase.from('projects').update({ webhook_status: 'error' }).eq('id', project_id);
-      return new Response(JSON.stringify({ success: false, error: 'No campaigns' }), 
+      return new Response(JSON.stringify({ success: false, error: 'No campaigns found' }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    await delay(2000); // Increased delay
-
-    const adSets = await fetchAllPages(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget`,
-      token, 'AD_SETS', MAX_ADSETS
+    // STEP 2: Fetch insights using optimized method (batch or async)
+    const insightsMap = await fetchInsightsOptimized(
+      ad_account_id,
+      token,
+      timeRange,
+      {
+        campaigns: entities.campaigns.length,
+        adsets: entities.adsets.length,
+        ads: entities.ads.length,
+      }
     );
-
-    await delay(2000); // Increased delay
-
-    const ads = await fetchAllPages(
-      `https://graph.facebook.com/v19.0/${ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}`,
-      token, 'ADS', MAX_ADS
-    );
-
-    await delay(3000); // Delay before insights
-
-    // STEP 2: Fetch insights using BATCH API with retry
-    console.log(`[INSIGHTS] Fetching for ${campaigns.length} campaigns, ${adSets.length} adsets, ${ads.length} ads...`);
-    
-    const insightsFields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
-    const insightsMap = new Map<string, any>();
-    
-    // Fetch campaign insights with retry
-    const campaignInsightsUrl = `https://graph.facebook.com/v19.0/${ad_account_id}/insights?fields=${insightsFields}&${timeParam}&level=campaign&access_token=${token}&limit=500`;
-    const campaignInsights = await fetchWithRetry(campaignInsightsUrl, 'INSIGHTS_CAMPAIGN');
-    if (campaignInsights.data) {
-      for (const ins of campaignInsights.data) {
-        if (ins.campaign_id) insightsMap.set(ins.campaign_id, ins);
-      }
-    }
-    console.log(`[INSIGHTS] Campaigns: ${insightsMap.size}`);
-
-    await delay(3000); // Increased delay between insight levels
-
-    // Fetch adset insights with retry
-    const adsetInsightsUrl = `https://graph.facebook.com/v19.0/${ad_account_id}/insights?fields=${insightsFields}&${timeParam}&level=adset&access_token=${token}&limit=500`;
-    const adsetInsights = await fetchWithRetry(adsetInsightsUrl, 'INSIGHTS_ADSET');
-    if (adsetInsights.data) {
-      for (const ins of adsetInsights.data) {
-        if (ins.adset_id) insightsMap.set(ins.adset_id, ins);
-      }
-    }
-    console.log(`[INSIGHTS] Adsets: ${insightsMap.size}`);
-
-    await delay(3000); // Increased delay
-
-    // Fetch ad insights with retry
-    const adInsightsUrl = `https://graph.facebook.com/v19.0/${ad_account_id}/insights?fields=${insightsFields}&${timeParam}&level=ad&access_token=${token}&limit=500`;
-    const adInsights = await fetchWithRetry(adInsightsUrl, 'INSIGHTS_AD');
-    if (adInsights.data) {
-      for (const ins of adInsights.data) {
-        if (ins.ad_id) insightsMap.set(ins.ad_id, ins);
-      }
-    }
-    console.log(`[INSIGHTS] Total: ${insightsMap.size}`);
 
     // STEP 3: Build records
     const extractConversions = (insights: any) => {
@@ -277,11 +526,11 @@ Deno.serve(async (req) => {
       }
     };
 
-    const campaignRecords = campaigns.map(c => buildRecord(c, 'campaign'));
-    const adSetRecords = adSets.map(as => buildRecord(as, 'adset'));
-    const adRecords = ads.map(ad => buildRecord(ad, 'ad'));
+    const campaignRecords = entities.campaigns.map(c => buildRecord(c, 'campaign'));
+    const adSetRecords = entities.adsets.map(as => buildRecord(as, 'adset'));
+    const adRecords = entities.ads.map(ad => buildRecord(ad, 'ad'));
 
-    // STEP 4: Upsert to database
+    // STEP 4: Upsert to database in parallel
     const upsertBatch = async (table: string, records: any[]) => {
       if (records.length === 0) return 0;
       let count = 0;
@@ -314,18 +563,18 @@ Deno.serve(async (req) => {
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[COMPLETE] ${finalPeriodKey}: ${campaigns.length}c/${adSets.length}as/${ads.length}ads, ${insightsMap.size} insights in ${elapsed}s`);
+    console.log(`[COMPLETE] ${finalPeriodKey}: ${entities.campaigns.length}c/${entities.adsets.length}as/${entities.ads.length}ads, ${insightsMap.size} insights in ${elapsed}s`);
 
     await supabase.from('projects').update({ webhook_status: 'success', last_sync_at: new Date().toISOString() }).eq('id', project_id);
     
     await supabase.from('sync_logs').insert({
       project_id,
       status: 'success',
-      message: JSON.stringify({ period: finalPeriodKey, campaigns: campaigns.length, adsets: adSets.length, ads: ads.length, insights: insightsMap.size, elapsed: elapsed + 's' }),
+      message: JSON.stringify({ period: finalPeriodKey, campaigns: entities.campaigns.length, adsets: entities.adsets.length, ads: entities.ads.length, insights: insightsMap.size, elapsed: elapsed + 's' }),
     });
 
     return new Response(
-      JSON.stringify({ success: true, data: { period: finalPeriodKey, campaigns_count: campaigns.length, ad_sets_count: adSets.length, ads_count: ads.length, insights_count: insightsMap.size, period_metrics_count: periodCount, elapsed_seconds: parseFloat(elapsed) } }),
+      JSON.stringify({ success: true, data: { period: finalPeriodKey, campaigns_count: entities.campaigns.length, ad_sets_count: entities.adsets.length, ads_count: entities.ads.length, insights_count: insightsMap.size, period_metrics_count: periodCount, elapsed_seconds: parseFloat(elapsed) } }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
