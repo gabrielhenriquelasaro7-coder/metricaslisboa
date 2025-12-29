@@ -568,9 +568,11 @@ export type Database = {
           business_model: Database["public"]["Enums"]["business_model"]
           created_at: string
           currency: string
+          health_score: string | null
           id: string
           last_sync_at: string | null
           name: string
+          sync_progress: Json | null
           timezone: string
           updated_at: string
           user_id: string
@@ -583,9 +585,11 @@ export type Database = {
           business_model: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
+          health_score?: string | null
           id?: string
           last_sync_at?: string | null
           name: string
+          sync_progress?: Json | null
           timezone?: string
           updated_at?: string
           user_id: string
@@ -598,9 +602,11 @@ export type Database = {
           business_model?: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
+          health_score?: string | null
           id?: string
           last_sync_at?: string | null
           name?: string
+          sync_progress?: Json | null
           timezone?: string
           updated_at?: string
           user_id?: string

@@ -92,7 +92,7 @@ export default function ProjectDetail() {
         .single();
       
       if (!error && data) {
-        setProject(data as Project);
+        setProject(data as unknown as Project);
       }
       setLoading(false);
     };

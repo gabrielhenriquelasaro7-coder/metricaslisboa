@@ -4,6 +4,14 @@ import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
 export type BusinessModel = 'inside_sales' | 'ecommerce' | 'pdv';
+export type HealthScore = 'safe' | 'care' | 'danger' | null;
+
+export interface SyncProgress {
+  status: 'idle' | 'syncing' | 'importing' | 'success' | 'error';
+  progress: number;
+  message: string;
+  started_at: string | null;
+}
 
 export interface Project {
   id: string;
@@ -18,6 +26,8 @@ export interface Project {
   updated_at: string;
   archived: boolean;
   archived_at: string | null;
+  health_score: HealthScore;
+  sync_progress: SyncProgress | null;
 }
 
 export interface CreateProjectData {
@@ -26,6 +36,7 @@ export interface CreateProjectData {
   business_model: BusinessModel;
   timezone: string;
   currency: string;
+  health_score?: HealthScore;
 }
 
 export function useProjects() {
@@ -43,7 +54,14 @@ export function useProjects() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProjects(data as Project[] || []);
+      
+      // Parse sync_progress from JSON
+      const parsedProjects = (data || []).map((p: any) => ({
+        ...p,
+        sync_progress: p.sync_progress ? (typeof p.sync_progress === 'string' ? JSON.parse(p.sync_progress) : p.sync_progress) : null,
+      })) as Project[];
+      
+      setProjects(parsedProjects);
     } catch (error) {
       toast.error('Erro ao carregar projetos');
     } finally {
@@ -55,6 +73,43 @@ export function useProjects() {
     fetchProjects();
   }, [fetchProjects]);
 
+  // Subscribe to realtime updates for sync progress
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('projects-sync-progress')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'projects',
+        },
+        (payload) => {
+          const updated = payload.new as any;
+          setProjects(prev => prev.map(p => 
+            p.id === updated.id 
+              ? { 
+                  ...p, 
+                  ...updated,
+                  sync_progress: updated.sync_progress 
+                    ? (typeof updated.sync_progress === 'string' 
+                        ? JSON.parse(updated.sync_progress) 
+                        : updated.sync_progress) 
+                    : null 
+                }
+              : p
+          ));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const createProject = async (data: CreateProjectData) => {
     if (!user) throw new Error('Usuário não autenticado');
 
@@ -64,6 +119,7 @@ export function useProjects() {
         .insert({
           user_id: user.id,
           ...data,
+          sync_progress: { status: 'importing', progress: 0, message: 'Iniciando importação...', started_at: new Date().toISOString() },
         })
         .select()
         .single();
@@ -96,19 +152,28 @@ export function useProjects() {
           if (result.error) {
             console.error('[PROJECT] Historical import error:', result.error);
           } else {
-            console.log('[PROJECT] Historical import started:', result.data);
-            toast.success('Importação histórica iniciada em background!');
+            console.log('[PROJECT] Historical import completed:', result.data);
           }
         }).catch(err => {
           console.error('[PROJECT] Historical import invoke error:', err);
+        });
+        
+        // Also trigger demographic sync
+        supabase.functions.invoke('sync-demographics', {
+          body: {
+            project_id: project.id,
+            ad_account_id: data.ad_account_id,
+          },
+        }).catch(err => {
+          console.error('[PROJECT] Demographics sync error:', err);
         });
       } catch (importError) {
         console.error('Historical import trigger error:', importError);
       }
 
       await fetchProjects();
-      toast.success('Projeto criado com sucesso!');
-      return project as Project;
+      toast.success('Projeto criado! Sincronização iniciada em background.');
+      return project as unknown as Project;
     } catch (error) {
       toast.error('Erro ao criar projeto');
       throw error;
@@ -134,6 +199,16 @@ export function useProjects() {
 
   const deleteProject = async (id: string) => {
     try {
+      // Delete related data first
+      await supabase.from('ads_daily_metrics').delete().eq('project_id', id);
+      await supabase.from('demographic_insights').delete().eq('project_id', id);
+      await supabase.from('period_metrics').delete().eq('project_id', id);
+      await supabase.from('sync_logs').delete().eq('project_id', id);
+      await supabase.from('ads').delete().eq('project_id', id);
+      await supabase.from('ad_sets').delete().eq('project_id', id);
+      await supabase.from('campaigns').delete().eq('project_id', id);
+      
+      // Then delete the project
       const { error } = await supabase
         .from('projects')
         .delete()
@@ -189,6 +264,40 @@ export function useProjects() {
     }
   };
 
+  const resyncProject = async (project: Project) => {
+    try {
+      // Update status to syncing
+      await supabase
+        .from('projects')
+        .update({ 
+          sync_progress: { status: 'syncing', progress: 0, message: 'Iniciando sincronização...', started_at: new Date().toISOString() },
+          webhook_status: 'syncing'
+        })
+        .eq('id', project.id);
+
+      // Trigger sync
+      const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
+        body: {
+          project_id: project.id,
+          ad_account_id: project.ad_account_id,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success('Sincronização concluída!');
+      } else {
+        toast.error(data?.error || 'Erro na sincronização');
+      }
+
+      await fetchProjects();
+    } catch (error) {
+      toast.error('Erro ao sincronizar');
+      throw error;
+    }
+  };
+
   return {
     projects,
     loading,
@@ -197,6 +306,7 @@ export function useProjects() {
     deleteProject,
     archiveProject,
     unarchiveProject,
+    resyncProject,
     refetch: fetchProjects,
   };
 }

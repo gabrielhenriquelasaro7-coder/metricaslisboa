@@ -106,10 +106,20 @@ Deno.serve(async (req) => {
     console.log(`[IMPORT] Range: ${since} to ${finalUntil}`);
     console.log(`[IMPORT] Batch size: ${BATCH_SIZE_DAYS} days`);
 
-    // Update project status
-    await supabase.from('projects').update({ 
-      webhook_status: 'importing_history' 
-    }).eq('id', project_id);
+    // Update project status with progress
+    const updateProgress = async (progress: number, message: string, status: string = 'importing') => {
+      await supabase.from('projects').update({ 
+        webhook_status: status === 'importing' ? 'importing_history' : status,
+        sync_progress: {
+          status,
+          progress,
+          message,
+          started_at: new Date().toISOString()
+        }
+      }).eq('id', project_id);
+    };
+
+    await updateProgress(0, 'Iniciando importação histórica...');
 
     // Generate date batches
     const batches = generateDateBatches(since, finalUntil, BATCH_SIZE_DAYS);
@@ -121,7 +131,10 @@ Deno.serve(async (req) => {
 
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
+      const progress = Math.round(((i + 1) / batches.length) * 100);
+      
       console.log(`\n[IMPORT] Batch ${i + 1}/${batches.length}: ${batch.since} to ${batch.until}`);
+      await updateProgress(progress, `Importando período ${batch.since} a ${batch.until}...`);
 
       try {
         // Call meta-ads-sync for this date range
@@ -166,10 +179,16 @@ Deno.serve(async (req) => {
     const elapsed = (Date.now() - startTime) / 1000;
     const success = successBatches === batches.length;
 
-    // Update project status
+    // Update project status with final progress
     await supabase.from('projects').update({ 
       webhook_status: success ? 'success' : 'partial',
-      last_sync_at: new Date().toISOString()
+      last_sync_at: new Date().toISOString(),
+      sync_progress: {
+        status: success ? 'success' : 'error',
+        progress: 100,
+        message: success ? `Importação concluída: ${totalRecords} registros` : `Importação parcial: ${successBatches}/${batches.length} lotes`,
+        started_at: null
+      }
     }).eq('id', project_id);
 
     // Log completion
