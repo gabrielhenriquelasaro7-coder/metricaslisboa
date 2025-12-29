@@ -57,6 +57,12 @@ export default function Creatives() {
   const [sortBy, setSortBy] = useState<string>('status');
   const [currentPage, setCurrentPage] = useState(1);
   
+  // Business model detection
+  const businessModel = selectedProject?.business_model;
+  const isEcommerce = businessModel === 'ecommerce';
+  const isInsideSales = businessModel === 'inside_sales';
+  const isPdv = businessModel === 'pdv';
+  
   // Date range state
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
@@ -203,12 +209,13 @@ export default function Creatives() {
     return statusMap[status] || { label: status, className: 'bg-muted text-muted-foreground' };
   };
 
-  // E-commerce metrics calculations
+  // Metrics calculations
   const totalSpend = filteredCreatives.reduce((sum, c) => sum + (c.spend || 0), 0);
   const totalConversions = filteredCreatives.reduce((sum, c) => sum + (c.conversions || 0), 0);
   const totalConversionValue = filteredCreatives.reduce((sum, c) => sum + (c.conversion_value || 0), 0);
   const avgRoas = totalSpend > 0 ? totalConversionValue / totalSpend : 0;
   const avgTicket = totalConversions > 0 ? totalConversionValue / totalConversions : 0;
+  const avgCpl = totalConversions > 0 ? totalSpend / totalConversions : 0;
 
   if (loading) {
     return (
@@ -228,7 +235,12 @@ export default function Creatives() {
           <div>
             <h1 className="text-3xl font-bold mb-2 gradient-text">Galeria de Criativos</h1>
             <p className="text-muted-foreground">
-              Análise de performance dos seus criativos de e-commerce
+              Análise de performance dos seus criativos
+              {selectedProject && (
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'}
+                </Badge>
+              )}
               {dateRange?.from && dateRange?.to && (
                 <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                   {dateRange.from.toLocaleDateString('pt-BR')} - {dateRange.to.toLocaleDateString('pt-BR')}
@@ -316,16 +328,16 @@ export default function Creatives() {
             <SelectContent className="bg-popover">
               <SelectItem value="status">Ativos Primeiro</SelectItem>
               <SelectItem value="spend">Maior Gasto</SelectItem>
-              <SelectItem value="conversions">Mais Compras</SelectItem>
-              <SelectItem value="roas">Maior ROAS</SelectItem>
-              <SelectItem value="ticket">Maior Ticket</SelectItem>
+              <SelectItem value="conversions">{isEcommerce ? 'Mais Compras' : 'Mais Leads'}</SelectItem>
+              {isEcommerce && <SelectItem value="roas">Maior ROAS</SelectItem>}
+              {isEcommerce && <SelectItem value="ticket">Maior Ticket</SelectItem>}
               <SelectItem value="ctr">Maior CTR</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        {/* E-commerce Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {/* Stats - Dynamic based on business model */}
+        <div className={cn("grid gap-4", isEcommerce ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-6" : "grid-cols-2 md:grid-cols-4")}>
           <div className="glass-card p-4 v4-accent">
             <div className="flex items-center gap-2 mb-1">
               <Target className="w-4 h-4 text-primary" />
@@ -343,33 +355,61 @@ export default function Creatives() {
           <div className="glass-card p-4">
             <div className="flex items-center gap-2 mb-1">
               <ShoppingCart className="w-4 h-4 text-metric-positive" />
-              <p className="text-xs text-muted-foreground">Total Compras</p>
+              <p className="text-xs text-muted-foreground">{isEcommerce ? 'Total Compras' : 'Total Leads'}</p>
             </div>
             <p className="text-2xl font-bold text-metric-positive">{formatNumber(totalConversions)}</p>
           </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="w-4 h-4 text-metric-positive" />
-              <p className="text-xs text-muted-foreground">Faturamento</p>
+          
+          {/* E-commerce specific metrics */}
+          {isEcommerce && (
+            <>
+              <div className="glass-card p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <DollarSign className="w-4 h-4 text-metric-positive" />
+                  <p className="text-xs text-muted-foreground">Faturamento</p>
+                </div>
+                <p className="text-2xl font-bold">{formatCurrency(totalConversionValue)}</p>
+              </div>
+              <div className="glass-card p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="w-4 h-4 text-metric-positive" />
+                  <p className="text-xs text-muted-foreground">ROAS Médio</p>
+                </div>
+                <p className={cn("text-2xl font-bold", avgRoas >= 3 ? "text-metric-positive" : avgRoas >= 1 ? "text-metric-warning" : "text-metric-negative")}>
+                  {avgRoas.toFixed(2)}x
+                </p>
+              </div>
+              <div className="glass-card p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShoppingCart className="w-4 h-4 text-primary" />
+                  <p className="text-xs text-muted-foreground">Ticket Médio</p>
+                </div>
+                <p className="text-2xl font-bold">{formatCurrency(avgTicket)}</p>
+              </div>
+            </>
+          )}
+          
+          {/* Inside Sales specific metrics */}
+          {isInsideSales && (
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <DollarSign className="w-4 h-4 text-chart-1" />
+                <p className="text-xs text-muted-foreground">CPL Médio</p>
+              </div>
+              <p className="text-2xl font-bold text-chart-1">{formatCurrency(avgCpl)}</p>
             </div>
-            <p className="text-2xl font-bold">{formatCurrency(totalConversionValue)}</p>
-          </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="w-4 h-4 text-metric-positive" />
-              <p className="text-xs text-muted-foreground">ROAS Médio</p>
+          )}
+          
+          {/* PDV specific metrics */}
+          {isPdv && (
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <DollarSign className="w-4 h-4 text-chart-2" />
+                <p className="text-xs text-muted-foreground">Custo por Visita</p>
+              </div>
+              <p className="text-2xl font-bold text-chart-2">{formatCurrency(avgCpl)}</p>
             </div>
-            <p className={cn("text-2xl font-bold", avgRoas >= 3 ? "text-metric-positive" : avgRoas >= 1 ? "text-metric-warning" : "text-metric-negative")}>
-              {avgRoas.toFixed(2)}x
-            </p>
-          </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <ShoppingCart className="w-4 h-4 text-primary" />
-              <p className="text-xs text-muted-foreground">Ticket Médio</p>
-            </div>
-            <p className="text-2xl font-bold">{formatCurrency(avgTicket)}</p>
-          </div>
+          )}
         </div>
 
         {/* Empty State */}
@@ -395,7 +435,7 @@ export default function Creatives() {
           </div>
         )}
 
-        {/* Creative List - E-commerce focused */}
+        {/* Creative List - Dynamic based on business model */}
         {paginatedCreatives.length > 0 && (
           <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
@@ -407,10 +447,14 @@ export default function Creatives() {
                     <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">Conjunto</th>
                     <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
                     <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Gasto</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Compras</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">ROAS</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden sm:table-cell">CPA</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden xl:table-cell">Ticket</th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">{isEcommerce ? 'Compras' : 'Leads'}</th>
+                    {isEcommerce && (
+                      <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">ROAS</th>
+                    )}
+                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden sm:table-cell">{isEcommerce ? 'CPA' : 'CPL'}</th>
+                    {isEcommerce && (
+                      <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden xl:table-cell">Ticket</th>
+                    )}
                     <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">CTR</th>
                   </tr>
                 </thead>
@@ -470,25 +514,29 @@ export default function Creatives() {
                             {ad.conversions}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <Badge 
-                            variant="outline"
-                            className={cn(
-                              "font-semibold",
-                              ad.roas >= 5 && "bg-metric-positive/20 text-metric-positive border-metric-positive/30",
-                              ad.roas >= 3 && ad.roas < 5 && "bg-metric-warning/20 text-metric-warning border-metric-warning/30",
-                              ad.roas < 3 && ad.roas > 0 && "bg-metric-negative/20 text-metric-negative border-metric-negative/30"
-                            )}
-                          >
-                            {ad.roas.toFixed(2)}x
-                          </Badge>
-                        </td>
+                        {isEcommerce && (
+                          <td className="py-3 px-4 text-right">
+                            <Badge 
+                              variant="outline"
+                              className={cn(
+                                "font-semibold",
+                                ad.roas >= 5 && "bg-metric-positive/20 text-metric-positive border-metric-positive/30",
+                                ad.roas >= 3 && ad.roas < 5 && "bg-metric-warning/20 text-metric-warning border-metric-warning/30",
+                                ad.roas < 3 && ad.roas > 0 && "bg-metric-negative/20 text-metric-negative border-metric-negative/30"
+                              )}
+                            >
+                              {ad.roas.toFixed(2)}x
+                            </Badge>
+                          </td>
+                        )}
                         <td className="py-3 px-4 text-right hidden sm:table-cell">
                           {ad.conversions > 0 ? formatCurrency(cpa) : '-'}
                         </td>
-                        <td className="py-3 px-4 text-right hidden xl:table-cell">
-                          {ad.conversions > 0 ? formatCurrency(ticket) : '-'}
-                        </td>
+                        {isEcommerce && (
+                          <td className="py-3 px-4 text-right hidden xl:table-cell">
+                            {ad.conversions > 0 ? formatCurrency(ticket) : '-'}
+                          </td>
+                        )}
                         <td className="py-3 px-4 text-right hidden lg:table-cell">
                           {ad.ctr.toFixed(2)}%
                         </td>
