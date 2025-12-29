@@ -20,7 +20,8 @@ import {
   Users,
   RefreshCw,
   AlertCircle,
-  Target
+  Target,
+  Calendar
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -59,6 +60,8 @@ export default function AdSets() {
     return period ? datePeriodToDateRange(period) : undefined;
   });
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
+  const [dataDateRange, setDataDateRange] = useState<{ from: string; to: string } | null>(null);
+  const [usingFallbackData, setUsingFallbackData] = useState(false);
   const selectedProject = projects.find(p => p.id === campaign?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
@@ -127,7 +130,34 @@ export default function AdSets() {
       if (error) throw error;
 
       if (!dailyMetrics || dailyMetrics.length === 0) {
-        console.log(`[AdSets] No daily metrics, loading from ad_sets table`);
+        console.log(`[AdSets] No daily metrics for period ${preset}, loading from ad_sets table`);
+        
+        // Check what dates we actually have data for
+        const { data: firstDateData } = await supabase
+          .from('ads_daily_metrics')
+          .select('date')
+          .eq('project_id', campaignData.project_id)
+          .eq('campaign_id', campaignId)
+          .order('date', { ascending: true })
+          .limit(1);
+        
+        const { data: lastDateData } = await supabase
+          .from('ads_daily_metrics')
+          .select('date')
+          .eq('project_id', campaignData.project_id)
+          .eq('campaign_id', campaignId)
+          .order('date', { ascending: false })
+          .limit(1);
+        
+        if (firstDateData?.length && lastDateData?.length) {
+          setDataDateRange({
+            from: new Date(firstDateData[0].date + 'T00:00:00').toLocaleDateString('pt-BR'),
+            to: new Date(lastDateData[0].date + 'T00:00:00').toLocaleDateString('pt-BR'),
+          });
+        }
+        
+        setUsingFallbackData(true);
+        
         const { data: adSetsData } = await supabase
           .from('ad_sets')
           .select('*')
@@ -137,6 +167,9 @@ export default function AdSets() {
         setLoading(false);
         return;
       }
+      
+      setUsingFallbackData(false);
+      setDataDateRange(null);
 
       // Aggregate by adset_id
       const adsetAgg = new Map<string, any>();
@@ -287,6 +320,21 @@ export default function AdSets() {
           </div>
         ) : (
           <>
+            {/* Warning when using fallback data */}
+            {usingFallbackData && dataDateRange && (
+              <div className="bg-metric-warning/10 border border-metric-warning/30 rounded-lg p-4 flex items-center gap-3">
+                <Calendar className="w-5 h-5 text-metric-warning flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-foreground">
+                    Período selecionado não tem dados
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Os dados disponíveis são de <span className="font-medium text-foreground">{dataDateRange.from}</span> a <span className="font-medium text-foreground">{dataDateRange.to}</span>. Mostrando dados totais acumulados.
+                  </p>
+                </div>
+              </div>
+            )}
+            
             {/* Summary Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <MetricCard title="Gasto Total" value={formatCurrency(totals.spend)} icon={DollarSign} />
