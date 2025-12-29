@@ -8,6 +8,7 @@ import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { DateRange } from 'react-day-picker';
 import { differenceInDays, format } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
+import { SkeletonMetricCard, SkeletonTableRow } from '@/components/ui/skeleton-card';
 import { 
   Megaphone, 
   TrendingUp, 
@@ -222,9 +223,42 @@ export default function Campaigns() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div>
+          <>
+            {/* Skeleton Metrics */}
+            <div className={cn(
+              "grid gap-4 stagger-fade-in",
+              "grid-cols-2 md:grid-cols-4 lg:grid-cols-8"
+            )}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <SkeletonMetricCard key={i} />
+              ))}
+            </div>
+            
+            {/* Skeleton Table */}
+            <div className="glass-card overflow-hidden border-t-2 border-t-primary/50">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border bg-secondary/50">
+                      <th className="py-4 px-4"><div className="h-3 w-20 bg-muted rounded animate-pulse" /></th>
+                      <th className="py-4 px-3"><div className="h-3 w-12 bg-muted rounded animate-pulse mx-auto" /></th>
+                      <th className="py-4 px-3"><div className="h-3 w-14 bg-muted rounded animate-pulse mx-auto" /></th>
+                      <th className="py-4 px-3"><div className="h-3 w-16 bg-muted rounded animate-pulse ml-auto" /></th>
+                      <th className="py-4 px-3"><div className="h-3 w-12 bg-muted rounded animate-pulse ml-auto" /></th>
+                      <th className="py-4 px-3"><div className="h-3 w-14 bg-muted rounded animate-pulse ml-auto" /></th>
+                      <th className="py-4 px-3"><div className="h-3 w-16 bg-muted rounded animate-pulse ml-auto" /></th>
+                      <th className="py-4 px-3"><div className="h-3 w-12 bg-muted rounded animate-pulse ml-auto" /></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <SkeletonTableRow key={i} columns={8} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         ) : campaigns.length === 0 ? (
           <div className="glass-card p-12 text-center">
             <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
