@@ -28,6 +28,7 @@ export interface Project {
   archived_at: string | null;
   health_score: HealthScore;
   sync_progress: SyncProgress | null;
+  avatar_url: string | null;
 }
 
 export interface CreateProjectData {
@@ -37,6 +38,7 @@ export interface CreateProjectData {
   timezone: string;
   currency: string;
   health_score?: HealthScore;
+  avatar_url?: string | null;
 }
 
 export function useProjects() {
