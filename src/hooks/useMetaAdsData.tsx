@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from './useProjects';
 import { toast } from 'sonner';
@@ -91,9 +91,11 @@ export function useMetaAdsData() {
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [lastLoadedPeriod, setLastLoadedPeriod] = useState<string | null>(null);
   const [usingFallbackData, setUsingFallbackData] = useState(false);
   const { projects, loading: projectsLoading } = useProjects();
+  
+  // Use ref to track loaded period without causing re-renders/recreations
+  const lastLoadedPeriodRef = useRef<string | null>(null);
 
   // Get selected project from localStorage
   const selectedProjectId = localStorage.getItem('selectedProjectId');
@@ -196,14 +198,14 @@ export function useMetaAdsData() {
   }, [selectedProject]);
 
   // Load metrics by period from period_metrics table - INSTANT loading
-  const loadMetricsByPeriod = useCallback(async (periodKey: string) => {
+  const loadMetricsByPeriod = useCallback(async (periodKey: string, forceReload: boolean = false) => {
     if (!selectedProject) {
       setLoading(false);
       return { found: false };
     }
 
-    // Skip if already loaded this period
-    if (lastLoadedPeriod === periodKey) {
+    // Skip if already loaded this period (unless forced)
+    if (!forceReload && lastLoadedPeriodRef.current === periodKey) {
       console.log(`[PERIOD] Already loaded period ${periodKey}, skipping`);
       return { found: true };
     }
@@ -228,7 +230,7 @@ export function useMetaAdsData() {
         console.log(`[PERIOD] No data found for period ${periodKey}, loading from main tables (fallback)`);
         setUsingFallbackData(true);
         await loadDataFromDatabase();
-        setLastLoadedPeriod(periodKey);
+        lastLoadedPeriodRef.current = periodKey;
         return { found: false, fallback: true };
       }
 
@@ -336,7 +338,7 @@ export function useMetaAdsData() {
       setCampaigns(campaignsFromPeriod);
       setAdSets(adSetsFromPeriod);
       setAds(adsFromPeriod);
-      setLastLoadedPeriod(periodKey);
+      lastLoadedPeriodRef.current = periodKey;
 
       console.log(`[PERIOD] Loaded: ${campaignsFromPeriod.length} campaigns, ${adSetsFromPeriod.length} ad sets, ${adsFromPeriod.length} ads`);
       return { found: true };
@@ -347,7 +349,7 @@ export function useMetaAdsData() {
     } finally {
       setLoading(false);
     }
-  }, [selectedProject, lastLoadedPeriod, loadDataFromDatabase]);
+  }, [selectedProject, loadDataFromDatabase]);
 
   // Load metrics by date range - calculates period key and loads from period_metrics
   const loadByDateRange = useCallback(async (dateRange: { from: Date; to: Date }) => {
@@ -394,7 +396,7 @@ export function useMetaAdsData() {
         toast.success(`Sincronização concluída! ${data.data?.campaigns_count || 0} campanhas, ${data.data?.ad_sets_count || 0} conjuntos, ${data.data?.ads_count || 0} anúncios.`);
         
         // Reset loaded period to force reload
-        setLastLoadedPeriod(null);
+        lastLoadedPeriodRef.current = null;
         
         // Reload data from database
         if (periodKey) {
@@ -424,10 +426,11 @@ export function useMetaAdsData() {
     }
   }, [selectedProject, loadDataFromDatabase, loadMetricsByPeriod]);
 
-  // Initial load from database when project changes
+  // Reset lastLoadedPeriod when project changes
   useEffect(() => {
+    lastLoadedPeriodRef.current = null;
     loadDataFromDatabase();
-  }, [loadDataFromDatabase]);
+  }, [selectedProject?.id]);
 
   return {
     campaigns,
