@@ -450,7 +450,7 @@ export default function Creatives() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-secondary/30">
-                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Criativo</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Anúncio</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Campanha</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">Conjunto</th>
                     <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
@@ -469,7 +469,6 @@ export default function Creatives() {
                 <tbody>
                   {paginatedCreatives.map((ad, index) => {
                     const statusBadge = getStatusBadge(ad.status);
-                    const hasCreative = ad.creative_thumbnail || ad.creative_image_url;
                     const ticket = ad.conversions > 0 ? ad.conversion_value / ad.conversions : 0;
                     const cpa = ad.conversions > 0 ? ad.spend / ad.conversions : 0;
 
@@ -480,27 +479,11 @@ export default function Creatives() {
                         onClick={() => navigate(`/ad/${ad.id}`)}
                       >
                         <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-lg bg-secondary/50 flex items-center justify-center overflow-hidden flex-shrink-0">
-                              {hasCreative ? (
-                                <img 
-                                  src={cleanImageUrl(ad.creative_image_url) || cleanImageUrl(ad.creative_thumbnail) || ''} 
-                                  alt={ad.name}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                  }}
-                                />
-                              ) : null}
-                              <ImageOff className={cn("w-5 h-5 text-muted-foreground", hasCreative && "hidden")} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium truncate max-w-[200px]">{ad.name}</p>
-                              {ad.headline && (
-                                <p className="text-xs text-muted-foreground truncate max-w-[200px]">{ad.headline}</p>
-                              )}
-                            </div>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate max-w-[250px]">{ad.name}</p>
+                            {ad.headline && (
+                              <p className="text-xs text-muted-foreground truncate max-w-[250px]">{ad.headline}</p>
+                            )}
                           </div>
                         </td>
                         <td className="py-3 px-4 hidden lg:table-cell">
