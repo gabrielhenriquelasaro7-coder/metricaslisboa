@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { FileText, Download, Loader2, Calendar, Palette, BarChart3, Settings2 } from 'lucide-react';
+import { FileText, Download, Loader2, Calendar, Palette, Settings2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -21,6 +22,18 @@ import { usePDFMetrics } from '@/hooks/usePDFMetrics';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  Legend,
+  Tooltip,
+} from 'recharts';
 
 type BusinessModel = 'ecommerce' | 'inside_sales' | 'pdv' | null;
 
@@ -40,19 +53,17 @@ interface Props {
 }
 
 const GENERAL_METRICS: MetricDef[] = [
-  { key: 'spend', label: 'Investimento', type: 'currency' },
+  { key: 'spend', label: 'Gasto Total', type: 'currency' },
   { key: 'impressions', label: 'Impressões', type: 'number' },
-  { key: 'reach', label: 'Alcance', type: 'number' },
   { key: 'clicks', label: 'Cliques', type: 'number' },
   { key: 'ctr', label: 'CTR', type: 'percent' },
   { key: 'cpm', label: 'CPM', type: 'currency' },
   { key: 'cpc', label: 'CPC', type: 'currency' },
-  { key: 'frequency', label: 'Frequência', type: 'decimal' },
 ];
 
 const RESULT_METRICS: Record<string, MetricDef[]> = {
   ecommerce: [
-    { key: 'conversions', label: 'Vendas', type: 'number' },
+    { key: 'conversions', label: 'Compras', type: 'number' },
     { key: 'conversion_value', label: 'Receita', type: 'currency' },
     { key: 'roas', label: 'ROAS', type: 'decimal' },
     { key: 'cpa', label: 'CPA', type: 'currency' },
@@ -82,13 +93,13 @@ function fmtValue(v: number, t: string, c: string): string {
   if (t === 'currency') return fmtCurrency(v, c);
   if (t === 'number') return fmtNumber(v);
   if (t === 'percent') return `${v.toFixed(2)}%`;
-  return v.toFixed(2);
+  return `${v.toFixed(2)}x`;
 }
 
 function fmtDateRange(since: string, until: string): string {
   const s = new Date(since + 'T00:00:00');
   const e = new Date(until + 'T00:00:00');
-  return `${format(s, "dd 'de' MMMM", { locale: ptBR })} a ${format(e, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`;
+  return `${format(s, 'dd/MM/yyyy')} - ${format(e, 'dd/MM/yyyy')}`;
 }
 
 export function PDFBuilderDialog({ 
@@ -113,28 +124,57 @@ export function PDFBuilderDialog({
   );
   
   const [primaryColor, setPrimaryColor] = useState('#E11D48');
-  const [secondaryColor, setSecondaryColor] = useState('#374151');
-  const [includeChart, setIncludeChart] = useState(false);
+  const [includeChart, setIncludeChart] = useState(true);
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [showRevenue, setShowRevenue] = useState(true);
   
   const { dailyData, totals, loading, loadMetrics } = usePDFMetrics(projectId);
 
+  const activePeriod = useMemo(() => {
+    if (useDashboardPeriod) return currentPeriod;
+    if (customStart && customEnd) {
+      return { since: format(customStart, 'yyyy-MM-dd'), until: format(customEnd, 'yyyy-MM-dd') };
+    }
+    return currentPeriod;
+  }, [useDashboardPeriod, customStart, customEnd, currentPeriod]);
+
   useEffect(() => {
     if (!open) return;
-    if (useDashboardPeriod) {
-      loadMetrics(currentPeriod.since, currentPeriod.until);
-    } else if (customStart && customEnd) {
-      loadMetrics(format(customStart, 'yyyy-MM-dd'), format(customEnd, 'yyyy-MM-dd'));
-    }
-  }, [open, useDashboardPeriod, customStart, customEnd, currentPeriod, loadMetrics]);
+    loadMetrics(activePeriod.since, activePeriod.until);
+  }, [open, activePeriod, loadMetrics]);
 
   const toggleGeneral = (k: string) => setSelGeneral(p => p.includes(k) ? p.filter(x => x !== k) : [...p, k]);
   const toggleResult = (k: string) => setSelResult(p => p.includes(k) ? p.filter(x => x !== k) : [...p, k]);
 
-  const getActivePeriod = () => {
-    if (useDashboardPeriod) return currentPeriod;
-    if (customStart && customEnd) return { since: format(customStart, 'yyyy-MM-dd'), until: format(customEnd, 'yyyy-MM-dd') };
-    return currentPeriod;
-  };
+  const resultDefs = businessModel ? RESULT_METRICS[businessModel] || [] : [];
+
+  // Chart data for preview
+  const chartData = useMemo(() => {
+    return dailyData.map(d => ({
+      date: format(new Date(d.date + 'T00:00:00'), 'dd/MM'),
+      spend: d.spend,
+      revenue: d.conversion_value,
+    }));
+  }, [dailyData]);
+
+  // Summary text
+  const summaryText = useMemo(() => {
+    if (!totals) return '';
+    const parts = [
+      `Investimento: ${fmtCurrency(totals.spend, currency)}`,
+    ];
+    if (businessModel === 'ecommerce') {
+      parts.push(`Vendas: ${fmtNumber(totals.conversions)}`);
+      parts.push(`Receita: ${fmtCurrency(totals.conversion_value, currency)}`);
+      parts.push(`ROAS: ${totals.roas.toFixed(2)}x`);
+    } else if (businessModel === 'inside_sales') {
+      parts.push(`Leads: ${fmtNumber(totals.conversions)}`);
+      parts.push(`CPL: ${fmtCurrency(totals.cpa, currency)}`);
+    } else if (businessModel === 'pdv') {
+      parts.push(`Visitas: ${fmtNumber(totals.conversions)}`);
+    }
+    return parts.join(' | ');
+  }, [totals, businessModel, currency]);
 
   const generate = async () => {
     if (!totals) return;
@@ -143,154 +183,155 @@ export function PDFBuilderDialog({
     try {
       const doc = new jsPDF();
       const pw = doc.internal.pageSize.getWidth();
-      const m = 20;
-      let y = 20;
+      const m = 15;
+      let y = 15;
       
-      doc.setFillColor(primaryColor);
-      doc.rect(0, 0, pw, 25, 'F');
+      // Header line
+      doc.setDrawColor(primaryColor);
+      doc.setLineWidth(2);
+      doc.line(m, y, pw - m, y);
+      y += 10;
       
-      doc.setTextColor(255, 255, 255);
+      // Title
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.text(title, m, 16);
+      doc.setTextColor(33, 33, 33);
+      doc.text(title, m, y);
+      y += 6;
       
-      y = 40;
-      const period = getActivePeriod();
-      doc.setTextColor(secondaryColor);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Período: ${fmtDateRange(period.since, period.until)}`, m, y);
-      y += 8;
-      doc.text(`Projeto: ${projectName}`, m, y);
-      y += 15;
-      
-      // Executive Summary
-      doc.setFillColor(primaryColor);
-      doc.rect(m, y, 3, 8, 'F');
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(secondaryColor);
-      doc.text('Resumo Executivo', m + 8, y + 6);
-      y += 18;
-      
+      // Period and date
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      const summaryItems = [
-        `Investimento Total: ${fmtCurrency(totals.spend, currency)}`,
-        `Alcance: ${fmtNumber(totals.reach)} pessoas`,
-        `Cliques: ${fmtNumber(totals.clicks)}`,
-      ];
+      doc.setTextColor(100, 100, 100);
+      doc.text(fmtDateRange(activePeriod.since, activePeriod.until), m, y);
+      y += 5;
+      doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`, m, y);
+      y += 12;
       
-      if (businessModel === 'ecommerce') {
-        summaryItems.push(`Receita: ${fmtCurrency(totals.conversion_value, currency)}`);
-        summaryItems.push(`ROAS: ${totals.roas.toFixed(2)}x`);
-      } else if (businessModel === 'inside_sales') {
-        summaryItems.push(`Leads: ${fmtNumber(totals.conversions)}`);
-        summaryItems.push(`CPL: ${fmtCurrency(totals.cpa, currency)}`);
-      } else if (businessModel === 'pdv') {
-        summaryItems.push(`Visitas: ${fmtNumber(totals.conversions)}`);
-      }
-      
-      summaryItems.forEach(item => {
-        doc.text(item, m, y);
-        y += 6;
-      });
+      // Separator
+      doc.setDrawColor(230, 230, 230);
+      doc.setLineWidth(0.5);
+      doc.line(m, y, pw - m, y);
       y += 10;
+      
+      // Executive Summary
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(33, 33, 33);
+      doc.text('Resumo Executivo', m, y);
+      y += 8;
+      
+      doc.setFillColor(248, 249, 250);
+      doc.roundedRect(m, y, pw - 2 * m, 12, 2, 2, 'F');
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(primaryColor);
+      doc.text(summaryText, m + 5, y + 7);
+      y += 20;
       
       // General Metrics
       const activeGeneral = GENERAL_METRICS.filter(x => selGeneral.includes(x.key));
       if (activeGeneral.length > 0) {
-        doc.setFillColor(primaryColor);
-        doc.rect(m, y, 3, 8, 'F');
-        doc.setFontSize(14);
+        doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        doc.text('Métricas Gerais', m + 8, y + 6);
-        y += 18;
+        doc.setTextColor(33, 33, 33);
+        doc.text('Métricas Gerais', m, y);
+        y += 8;
         
-        doc.setFontSize(10);
-        const cw = (pw - 2 * m) / 2;
-        let col = 0;
-        let ry = y;
+        const cols = Math.min(activeGeneral.length, 4);
+        const cw = (pw - 2 * m - (cols - 1) * 3) / cols;
         
-        activeGeneral.forEach(met => {
+        activeGeneral.forEach((met, i) => {
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const x = m + col * (cw + 3);
+          const cy = y + row * 22;
+          
+          doc.setFillColor(248, 249, 250);
+          doc.roundedRect(x, cy, cw, 20, 2, 2, 'F');
+          
+          doc.setFontSize(8);
+          doc.setTextColor(100, 100, 100);
+          doc.text(met.label, x + 4, cy + 7);
+          
           const val = (totals as unknown as Record<string, number>)[met.key] || 0;
-          const x = m + col * cw;
+          doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
-          doc.text(met.label, x, ry);
+          doc.setTextColor(primaryColor);
+          doc.text(fmtValue(val, met.type, currency), x + 4, cy + 15);
           doc.setFont('helvetica', 'normal');
-          doc.text(fmtValue(val, met.type, currency), x, ry + 5);
-          col++;
-          if (col >= 2) { col = 0; ry += 14; }
         });
-        y = ry + (col > 0 ? 14 : 0) + 10;
+        
+        y += Math.ceil(activeGeneral.length / cols) * 22 + 8;
       }
       
       // Result Metrics
-      const resultDefs = businessModel ? RESULT_METRICS[businessModel] || [] : [];
       const activeResult = resultDefs.filter(x => selResult.includes(x.key));
       if (activeResult.length > 0) {
-        doc.setFillColor(primaryColor);
-        doc.rect(m, y, 3, 8, 'F');
-        doc.setFontSize(14);
+        doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        const sectionTitle = businessModel === 'ecommerce' ? 'Resultados de Vendas' :
-                            businessModel === 'inside_sales' ? 'Resultados de Leads' : 'Resultados de Visitas';
-        doc.text(sectionTitle, m + 8, y + 6);
-        y += 18;
+        doc.setTextColor(33, 33, 33);
+        const label = businessModel === 'ecommerce' ? 'E-commerce' : 
+                      businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV';
+        doc.text(`Métricas de Resultado (${label})`, m, y);
+        y += 8;
         
-        doc.setFontSize(10);
-        const cw = (pw - 2 * m) / 2;
-        let col = 0;
-        let ry = y;
+        const cols = Math.min(activeResult.length, 4);
+        const cw = (pw - 2 * m - (cols - 1) * 3) / cols;
         
-        activeResult.forEach(met => {
+        activeResult.forEach((met, i) => {
+          const x = m + i * (cw + 3);
+          
+          doc.setFillColor(254, 242, 242);
+          doc.roundedRect(x, y, cw, 20, 2, 2, 'F');
+          
+          doc.setFontSize(8);
+          doc.setTextColor(100, 100, 100);
+          doc.text(met.label, x + 4, y + 7);
+          
           const val = (totals as unknown as Record<string, number>)[met.key] || 0;
-          const x = m + col * cw;
+          doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
-          doc.text(met.label, x, ry);
+          doc.setTextColor(primaryColor);
+          doc.text(fmtValue(val, met.type, currency), x + 4, y + 15);
           doc.setFont('helvetica', 'normal');
-          doc.text(fmtValue(val, met.type, currency), x, ry + 5);
-          col++;
-          if (col >= 2) { col = 0; ry += 14; }
         });
-        y = ry + (col > 0 ? 14 : 0) + 10;
+        
+        y += 28;
       }
       
       // Chart
-      if (includeChart && chartRef?.current) {
-        try {
-          const canvas = await html2canvas(chartRef.current, { scale: 2, backgroundColor: '#fff', logging: false });
-          const imgData = canvas.toDataURL('image/png');
-          const imgW = pw - 2 * m;
-          const imgH = (canvas.height / canvas.width) * imgW;
-          
-          if (y + imgH + 20 > doc.internal.pageSize.getHeight() - 30) {
-            doc.addPage();
-            y = 20;
+      if (includeChart && chartData.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(33, 33, 33);
+        doc.text('Evolução Diária', m, y);
+        y += 5;
+        
+        // Capture chart from preview
+        const chartPreview = document.getElementById('pdf-chart-preview');
+        if (chartPreview) {
+          try {
+            const canvas = await html2canvas(chartPreview, { 
+              scale: 2, 
+              backgroundColor: '#fff',
+              logging: false 
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const imgW = pw - 2 * m;
+            const imgH = (canvas.height / canvas.width) * imgW;
+            doc.addImage(imgData, 'PNG', m, y, imgW, Math.min(imgH, 70));
+          } catch (e) {
+            console.error('Chart capture error:', e);
           }
-          
-          doc.setFillColor(primaryColor);
-          doc.rect(m, y, 3, 8, 'F');
-          doc.setFontSize(14);
-          doc.setFont('helvetica', 'bold');
-          doc.text('Evolução Diária', m + 8, y + 6);
-          y += 15;
-          
-          doc.addImage(imgData, 'PNG', m, y, imgW, imgH);
-        } catch (e) {
-          console.error('Chart capture error:', e);
         }
       }
       
       // Footer
-      const fY = doc.internal.pageSize.getHeight() - 15;
-      doc.setFillColor(primaryColor);
-      doc.rect(0, fY - 5, pw, 20, 'F');
-      doc.setTextColor(255, 255, 255);
+      const fY = doc.internal.pageSize.getHeight() - 10;
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, m, fY + 3);
-      doc.text('V4 Company', pw - m - 25, fY + 3);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`${projectName} • Relatório gerado automaticamente`, pw / 2, fY, { align: 'center' });
       
       doc.save(`${title.replace(/[^a-zA-Z0-9]/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`);
       setOpen(false);
@@ -301,203 +342,354 @@ export function PDFBuilderDialog({
     }
   };
 
-  const resultDefs = businessModel ? RESULT_METRICS[businessModel] || [] : [];
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <FileText className="h-4 w-4" />
-          Gerar PDF
+          Exportar PDF
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Construtor de Relatório PDF</DialogTitle>
-        </DialogHeader>
-        
-        <Tabs defaultValue="content" className="mt-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="content" className="gap-1 text-xs sm:text-sm">
-              <Settings2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Conteúdo</span>
-            </TabsTrigger>
-            <TabsTrigger value="metrics" className="gap-1 text-xs sm:text-sm">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Métricas</span>
-            </TabsTrigger>
-            <TabsTrigger value="style" className="gap-1 text-xs sm:text-sm">
-              <Palette className="h-4 w-4" />
-              <span className="hidden sm:inline">Estilo</span>
-            </TabsTrigger>
-            <TabsTrigger value="chart" className="gap-1 text-xs sm:text-sm">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Gráfico</span>
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="content" className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label>Título do Relatório</Label>
-              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Nome do relatório" />
-            </div>
+      <DialogContent className="max-w-5xl h-[90vh] p-0 gap-0">
+        <div className="flex h-full">
+          {/* Left Panel - Configuration */}
+          <div className="w-80 border-r flex flex-col">
+            <DialogHeader className="p-4 border-b">
+              <DialogTitle className="flex items-center gap-2">
+                <Settings2 className="h-5 w-5" />
+                Configurações
+              </DialogTitle>
+            </DialogHeader>
             
-            <div className="space-y-3">
-              <Label>Período</Label>
-              <div className="flex items-center space-x-2">
-                <Switch checked={useDashboardPeriod} onCheckedChange={setUseDashboardPeriod} />
-                <Label className="font-normal">
-                  Usar período do dashboard ({fmtDateRange(currentPeriod.since, currentPeriod.until)})
-                </Label>
-              </div>
-              
-              {!useDashboardPeriod && (
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Data Inicial</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {customStart ? format(customStart, 'dd/MM/yyyy') : 'Selecionar'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={customStart}
-                          onSelect={setCustomStart}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
+            <ScrollArea className="flex-1 p-4">
+              <div className="space-y-6">
+                {/* Title */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium uppercase text-muted-foreground">Título</Label>
+                  <Input 
+                    value={title} 
+                    onChange={e => setTitle(e.target.value)} 
+                    placeholder="Nome do relatório"
+                    className="h-9"
+                  />
+                </div>
+                
+                <Separator />
+                
+                {/* Period */}
+                <div className="space-y-3">
+                  <Label className="text-xs font-medium uppercase text-muted-foreground">Período</Label>
+                  <div className="flex items-center gap-2">
+                    <Switch 
+                      checked={useDashboardPeriod} 
+                      onCheckedChange={setUseDashboardPeriod}
+                      id="use-dashboard"
+                    />
+                    <Label htmlFor="use-dashboard" className="text-sm font-normal">
+                      Usar período do dashboard
+                    </Label>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Data Final</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {customEnd ? format(customEnd, 'dd/MM/yyyy') : 'Selecionar'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={customEnd}
-                          onSelect={setCustomEnd}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="metrics" className="space-y-6 mt-4">
-            <div className="space-y-3">
-              <Label>Métricas Gerais</Label>
-              <div className="grid grid-cols-2 gap-3">
-                {GENERAL_METRICS.map(m => (
-                  <div key={m.key} className="flex items-center space-x-2">
-                    <Checkbox 
-                      id={`g-${m.key}`}
-                      checked={selGeneral.includes(m.key)}
-                      onCheckedChange={() => toggleGeneral(m.key)}
-                    />
-                    <Label htmlFor={`g-${m.key}`} className="font-normal cursor-pointer">{m.label}</Label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {resultDefs.length > 0 && (
-              <div className="space-y-3">
-                <Label>
-                  Métricas de Resultado
-                  <span className="text-muted-foreground text-sm ml-2">
-                    ({businessModel === 'ecommerce' ? 'E-commerce' : businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV'})
-                  </span>
-                </Label>
-                <div className="grid grid-cols-2 gap-3">
-                  {resultDefs.map(m => (
-                    <div key={m.key} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`r-${m.key}`}
-                        checked={selResult.includes(m.key)}
-                        onCheckedChange={() => toggleResult(m.key)}
-                      />
-                      <Label htmlFor={`r-${m.key}`} className="font-normal cursor-pointer">{m.label}</Label>
+                  {!useDashboardPeriod && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="justify-start text-left font-normal h-9">
+                            <Calendar className="mr-2 h-3 w-3" />
+                            {customStart ? format(customStart, 'dd/MM/yy') : 'Início'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={customStart}
+                            onSelect={setCustomStart}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="justify-start text-left font-normal h-9">
+                            <Calendar className="mr-2 h-3 w-3" />
+                            {customEnd ? format(customEnd, 'dd/MM/yy') : 'Fim'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={customEnd}
+                            onSelect={setCustomEnd}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
-                  ))}
+                  )}
+                </div>
+                
+                <Separator />
+                
+                {/* General Metrics */}
+                <div className="space-y-3">
+                  <Label className="text-xs font-medium uppercase text-muted-foreground">Métricas Gerais</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {GENERAL_METRICS.map(m => (
+                      <div key={m.key} className="flex items-center gap-2">
+                        <Checkbox 
+                          id={`g-${m.key}`}
+                          checked={selGeneral.includes(m.key)}
+                          onCheckedChange={() => toggleGeneral(m.key)}
+                        />
+                        <Label htmlFor={`g-${m.key}`} className="text-sm font-normal cursor-pointer">
+                          {m.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Result Metrics */}
+                {resultDefs.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <Label className="text-xs font-medium uppercase text-muted-foreground">
+                        Métricas de Resultado
+                      </Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {resultDefs.map(m => (
+                          <div key={m.key} className="flex items-center gap-2">
+                            <Checkbox 
+                              id={`r-${m.key}`}
+                              checked={selResult.includes(m.key)}
+                              onCheckedChange={() => toggleResult(m.key)}
+                            />
+                            <Label htmlFor={`r-${m.key}`} className="text-sm font-normal cursor-pointer">
+                              {m.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                <Separator />
+                
+                {/* Chart Options */}
+                <div className="space-y-3">
+                  <Label className="text-xs font-medium uppercase text-muted-foreground">Gráfico</Label>
+                  <div className="flex items-center gap-2">
+                    <Switch 
+                      checked={includeChart} 
+                      onCheckedChange={setIncludeChart}
+                      id="include-chart"
+                    />
+                    <Label htmlFor="include-chart" className="text-sm font-normal">
+                      Incluir gráfico
+                    </Label>
+                  </div>
+                  
+                  {includeChart && (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Button 
+                          variant={chartType === 'bar' ? 'default' : 'outline'} 
+                          size="sm"
+                          onClick={() => setChartType('bar')}
+                          className="flex-1 h-8"
+                        >
+                          Barras
+                        </Button>
+                        <Button 
+                          variant={chartType === 'line' ? 'default' : 'outline'} 
+                          size="sm"
+                          onClick={() => setChartType('line')}
+                          className="flex-1 h-8"
+                        >
+                          Linha
+                        </Button>
+                      </div>
+                      
+                      {businessModel === 'ecommerce' && (
+                        <div className="flex items-center gap-2">
+                          <Switch 
+                            checked={showRevenue} 
+                            onCheckedChange={setShowRevenue}
+                            id="show-revenue"
+                          />
+                          <Label htmlFor="show-revenue" className="text-sm font-normal">
+                            Mostrar Receita
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                <Separator />
+                
+                {/* Colors */}
+                <div className="space-y-3">
+                  <Label className="text-xs font-medium uppercase text-muted-foreground">Cor Principal</Label>
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      type="color" 
+                      value={primaryColor} 
+                      onChange={e => setPrimaryColor(e.target.value)}
+                      className="w-12 h-9 p-1 cursor-pointer"
+                    />
+                    <Input 
+                      value={primaryColor} 
+                      onChange={e => setPrimaryColor(e.target.value)}
+                      className="flex-1 h-9 font-mono text-sm"
+                    />
+                  </div>
                 </div>
               </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="style" className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label>Cor Principal</Label>
-              <div className="flex items-center gap-3">
-                <Input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="w-16 h-10 p-1 cursor-pointer" />
-                <Input value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="flex-1" />
-                <div className="w-10 h-10 rounded border" style={{ backgroundColor: primaryColor }} />
-              </div>
-            </div>
+            </ScrollArea>
             
-            <div className="space-y-2">
-              <Label>Cor Secundária</Label>
-              <div className="flex items-center gap-3">
-                <Input type="color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="w-16 h-10 p-1 cursor-pointer" />
-                <Input value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="flex-1" />
-                <div className="w-10 h-10 rounded border" style={{ backgroundColor: secondaryColor }} />
-              </div>
+            {/* Generate Button */}
+            <div className="p-4 border-t">
+              <Button 
+                onClick={generate} 
+                disabled={generating || loading || !totals}
+                className="w-full gap-2"
+                style={{ backgroundColor: primaryColor }}
+              >
+                {generating ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" />Gerando...</>
+                ) : (
+                  <><Download className="h-4 w-4" />Baixar PDF</>
+                )}
+              </Button>
             </div>
-            
-            <div className="p-4 rounded-lg border bg-muted/30 mt-4">
-              <p className="text-sm text-muted-foreground">
-                A cor principal será usada no cabeçalho, rodapé e destaques. A cor secundária nos textos.
-              </p>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="chart" className="space-y-4 mt-4">
-            <div className="flex items-center space-x-2">
-              <Switch checked={includeChart} onCheckedChange={setIncludeChart} disabled={!chartRef?.current} />
-              <Label className="font-normal">Incluir gráfico de evolução diária</Label>
-            </div>
-            
-            {!chartRef?.current && (
-              <p className="text-sm text-muted-foreground">O gráfico não está disponível no momento.</p>
-            )}
-            
-            {includeChart && chartRef?.current && (
-              <div className="p-4 rounded-lg border bg-muted/30">
-                <p className="text-sm text-muted-foreground">
-                  O gráfico de evolução diária será capturado e incluído no PDF.
-                </p>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-        
-        <div className="flex justify-between items-center pt-4 border-t mt-4">
-          <div className="text-sm text-muted-foreground">
-            {loading ? 'Carregando...' : totals ? `${dailyData.length} dias` : 'Sem dados'}
           </div>
           
-          <Button onClick={generate} disabled={generating || loading || !totals} className="gap-2">
-            {generating ? (
-              <><Loader2 className="h-4 w-4 animate-spin" />Gerando...</>
-            ) : (
-              <><Download className="h-4 w-4" />Baixar PDF</>
-            )}
-          </Button>
+          {/* Right Panel - Preview */}
+          <div className="flex-1 flex flex-col bg-muted/30">
+            <div className="p-4 border-b bg-background flex items-center gap-2">
+              <Eye className="h-5 w-5 text-muted-foreground" />
+              <span className="font-medium">Preview</span>
+              {loading && <Loader2 className="h-4 w-4 animate-spin ml-auto" />}
+            </div>
+            
+            <ScrollArea className="flex-1 p-6">
+              <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto" style={{ minHeight: 800 }}>
+                {/* Header Line */}
+                <div className="h-0.5 mb-6" style={{ backgroundColor: primaryColor }} />
+                
+                {/* Title */}
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">{title}</h1>
+                <p className="text-sm text-gray-500 mb-1">{fmtDateRange(activePeriod.since, activePeriod.until)}</p>
+                <p className="text-xs text-gray-400 mb-6">Gerado em {format(new Date(), "dd/MM/yyyy 'às' HH:mm")}</p>
+                
+                <Separator className="mb-6" />
+                
+                {/* Executive Summary */}
+                <h2 className="text-sm font-semibold text-gray-900 mb-3">Resumo Executivo</h2>
+                <div className="bg-gray-50 rounded-lg p-3 mb-6">
+                  <p className="text-sm" style={{ color: primaryColor }}>
+                    {loading ? 'Carregando...' : summaryText || 'Sem dados'}
+                  </p>
+                </div>
+                
+                {/* General Metrics */}
+                {selGeneral.length > 0 && totals && (
+                  <>
+                    <h2 className="text-sm font-semibold text-gray-900 mb-3">Métricas Gerais</h2>
+                    <div className="grid grid-cols-4 gap-2 mb-6">
+                      {GENERAL_METRICS.filter(m => selGeneral.includes(m.key)).map(m => {
+                        const val = (totals as unknown as Record<string, number>)[m.key] || 0;
+                        return (
+                          <div key={m.key} className="bg-gray-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">{m.label}</p>
+                            <p className="text-sm font-bold" style={{ color: primaryColor }}>
+                              {fmtValue(val, m.type, currency)}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+                
+                {/* Result Metrics */}
+                {selResult.length > 0 && totals && resultDefs.length > 0 && (
+                  <>
+                    <h2 className="text-sm font-semibold text-gray-900 mb-3">
+                      Métricas de Resultado ({businessModel === 'ecommerce' ? 'E-commerce' : 
+                        businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV'})
+                    </h2>
+                    <div className="grid grid-cols-4 gap-2 mb-6">
+                      {resultDefs.filter(m => selResult.includes(m.key)).map(m => {
+                        const val = (totals as unknown as Record<string, number>)[m.key] || 0;
+                        return (
+                          <div key={m.key} className="bg-red-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">{m.label}</p>
+                            <p className="text-sm font-bold" style={{ color: primaryColor }}>
+                              {fmtValue(val, m.type, currency)}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+                
+                {/* Chart */}
+                {includeChart && chartData.length > 0 && (
+                  <>
+                    <h2 className="text-sm font-semibold text-gray-900 mb-3">Evolução Diária</h2>
+                    <div id="pdf-chart-preview" className="bg-white rounded-lg border p-4" style={{ height: 200 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        {chartType === 'bar' ? (
+                          <BarChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                            <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
+                            {showRevenue && businessModel === 'ecommerce' && (
+                              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
+                            )}
+                            <Tooltip />
+                            <Legend wrapperStyle={{ fontSize: 10 }} />
+                            <Bar yAxisId="left" dataKey="spend" name="Gasto" fill={primaryColor} />
+                            {showRevenue && businessModel === 'ecommerce' && (
+                              <Line yAxisId="right" type="monotone" dataKey="revenue" name="Receita" stroke="#22c55e" strokeWidth={2} />
+                            )}
+                          </BarChart>
+                        ) : (
+                          <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                            <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
+                            {showRevenue && businessModel === 'ecommerce' && (
+                              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
+                            )}
+                            <Tooltip />
+                            <Legend wrapperStyle={{ fontSize: 10 }} />
+                            <Line yAxisId="left" type="monotone" dataKey="spend" name="Gasto" stroke={primaryColor} strokeWidth={2} />
+                            {showRevenue && businessModel === 'ecommerce' && (
+                              <Line yAxisId="right" type="monotone" dataKey="revenue" name="Receita" stroke="#22c55e" strokeWidth={2} />
+                            )}
+                          </LineChart>
+                        )}
+                      </ResponsiveContainer>
+                    </div>
+                  </>
+                )}
+                
+                {/* Footer */}
+                <div className="mt-8 pt-4 border-t text-center">
+                  <p className="text-xs text-gray-400">{projectName} • Relatório gerado automaticamente</p>
+                </div>
+              </div>
+            </ScrollArea>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
