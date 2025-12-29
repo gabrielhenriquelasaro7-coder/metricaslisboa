@@ -278,21 +278,14 @@ export default function Dashboard() {
             />
             
             {/* PDF Builder Button */}
-            {hasSelectedProject && (
+            {hasSelectedProject && selectedProject && (
               <PDFBuilderDialog
-                projectName={selectedProject?.name || 'Projeto'}
-                periodLabel={selectedPreset === 'this_month' ? 'Este Mês' : 
-                            selectedPreset === 'last_7d' ? 'Últimos 7 dias' : 
-                            selectedPreset === 'last_14d' ? 'Últimos 14 dias' :
-                            selectedPreset === 'last_30d' ? 'Últimos 30 dias' :
-                            selectedPreset === 'last_60d' ? 'Últimos 60 dias' :
-                            selectedPreset === 'last_90d' ? 'Últimos 90 dias' :
-                            selectedPreset === 'this_year' ? 'Este Ano' : 'Período Selecionado'}
-                metrics={{...metrics, totalReach: metrics.totalReach, avgFrequency: metrics.avgFrequency}}
+                projectId={selectedProject.id}
+                projectName={selectedProject.name}
                 businessModel={businessModel || null}
-                currency={selectedProject?.currency || 'BRL'}
+                currency={selectedProject.currency || 'BRL'}
+                currentPeriod={getDateRangeFromPreset(selectedPreset, projectTimezone) || { since: format(new Date(), 'yyyy-MM-dd'), until: format(new Date(), 'yyyy-MM-dd') }}
                 chartRef={chartRef}
-                projectId={selectedProject?.id}
               />
             )}
             
