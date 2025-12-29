@@ -52,11 +52,27 @@ export default function Dashboard() {
   // Get daily metrics for charts
   const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset);
   
+  // Calculate date range for demographics based on preset
+  const demographicDateRange = useMemo(() => {
+    const period = getDateRangeFromPreset(selectedPreset, selectedProject?.timezone || 'America/Sao_Paulo');
+    if (period) {
+      return {
+        startDate: new Date(period.since),
+        endDate: new Date(period.until),
+      };
+    }
+    // Fallback to last 30 days
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    return { startDate: start, endDate: end };
+  }, [selectedPreset, selectedProject?.timezone]);
+
   // Get demographic insights
   const { data: demographicData, isLoading: demographicLoading } = useDemographicInsights({
     projectId: selectedProject?.id || null,
-    startDate: dateRange?.from || new Date(),
-    endDate: dateRange?.to || new Date(),
+    startDate: demographicDateRange.startDate,
+    endDate: demographicDateRange.endDate,
   });
 
   // Get active (non-archived) projects
