@@ -217,23 +217,84 @@ async function fetchDailyInsights(
 }
 
 // ============ EXTRACT CONVERSIONS ============
-function extractConversions(insights: any): { conversions: number; conversionValue: number } {
-  let conversions = 0, conversionValue = 0;
-  const types = ['purchase', 'omni_purchase', 'lead', 'contact', 'offsite_conversion.fb_pixel_lead'];
+// Lista completa de action_types que representam conversões/leads no Meta Ads
+const CONVERSION_ACTION_TYPES = [
+  // Conversas/Mensagens (mais comum para campanhas de leads via WhatsApp/Messenger)
+  'onsite_conversion.messaging_conversation_started_7d',
+  'onsite_conversion.messaging_first_reply',
+  'onsite_conversion.messaging_blocked',
+  'messaging_conversation_started_7d',
+  'messaging_first_reply',
   
-  if (insights?.actions) {
-    for (const t of types) {
-      const a = insights.actions.find((x: any) => x.action_type === t);
-      if (a && parseInt(a.value) > 0) { 
-        conversions = parseInt(a.value); 
-        break; 
+  // Leads diretos
+  'lead',
+  'leadgen.other',
+  'leadgen_grouped',
+  'onsite_conversion.lead_grouped',
+  'offsite_conversion.fb_pixel_lead',
+  
+  // Contatos
+  'contact',
+  'contact_total',
+  'contact_website',
+  'contact_mobile_app',
+  'contact_offline',
+  
+  // Formulários de leads
+  'onsite_conversion.flow_complete',
+  'onsite_conversion.messaging_block',
+  
+  // Compras (para e-commerce)
+  'purchase',
+  'omni_purchase',
+  'offsite_conversion.fb_pixel_purchase',
+  
+  // Outros tipos de conversão
+  'app_install',
+  'complete_registration',
+  'offsite_conversion.fb_pixel_complete_registration',
+  'submit_application',
+  'subscribe',
+  'offsite_conversion.fb_pixel_subscribe',
+];
+
+// Lista de action_types para valores de conversão
+const VALUE_ACTION_TYPES = [
+  'purchase',
+  'omni_purchase',
+  'offsite_conversion.fb_pixel_purchase',
+];
+
+function extractConversions(insights: any): { conversions: number; conversionValue: number } {
+  let conversions = 0;
+  let conversionValue = 0;
+  
+  // Extrair conversões - busca todos os tipos e soma
+  if (insights?.actions && Array.isArray(insights.actions)) {
+    for (const action of insights.actions) {
+      const actionType = action.action_type;
+      const actionValue = parseInt(action.value) || 0;
+      
+      if (CONVERSION_ACTION_TYPES.includes(actionType) && actionValue > 0) {
+        // Pega o maior valor encontrado (para evitar dupla contagem)
+        if (actionValue > conversions) {
+          conversions = actionValue;
+          console.log(`[CONVERSIONS] Found ${actionType}: ${actionValue}`);
+        }
       }
     }
   }
-  if (insights?.action_values) {
-    const pv = insights.action_values.find((x: any) => x.action_type === 'purchase' || x.action_type === 'omni_purchase');
-    conversionValue = parseFloat(pv?.value || '0');
+  
+  // Extrair valor de conversão
+  if (insights?.action_values && Array.isArray(insights.action_values)) {
+    for (const av of insights.action_values) {
+      if (VALUE_ACTION_TYPES.includes(av.action_type)) {
+        conversionValue = parseFloat(av.value) || 0;
+        break;
+      }
+    }
   }
+  
   return { conversions, conversionValue };
 }
 
