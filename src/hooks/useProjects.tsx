@@ -81,8 +81,29 @@ export function useProjects() {
           },
         });
       } catch (webhookError) {
-        // Log webhook error but don't fail project creation
         console.error('Webhook error:', webhookError);
+      }
+
+      // ALWAYS trigger historical import for new projects
+      try {
+        console.log('[PROJECT] Starting historical import for new project:', project.id);
+        supabase.functions.invoke('import-historical-data', {
+          body: {
+            project_id: project.id,
+            since: '2025-01-01',
+          },
+        }).then(result => {
+          if (result.error) {
+            console.error('[PROJECT] Historical import error:', result.error);
+          } else {
+            console.log('[PROJECT] Historical import started:', result.data);
+            toast.success('Importação histórica iniciada em background!');
+          }
+        }).catch(err => {
+          console.error('[PROJECT] Historical import invoke error:', err);
+        });
+      } catch (importError) {
+        console.error('Historical import trigger error:', importError);
       }
 
       await fetchProjects();
