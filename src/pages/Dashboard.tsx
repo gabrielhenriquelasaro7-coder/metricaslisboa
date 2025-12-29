@@ -7,6 +7,7 @@ import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
 import { useDemographicInsights } from '@/hooks/useDemographicInsights';
 import PeriodComparison from '@/components/dashboard/PeriodComparison';
+import { PDFBuilderDialog } from '@/components/pdf/PDFBuilderDialog';
 import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { useDailyMetrics } from '@/hooks/useDailyMetrics';
@@ -254,6 +255,24 @@ export default function Dashboard() {
               timezone={projectTimezone}
               onPresetChange={handlePresetChange}
             />
+            
+            {/* PDF Builder Button */}
+            {hasSelectedProject && (
+              <PDFBuilderDialog
+                projectName={selectedProject?.name || 'Projeto'}
+                periodLabel={selectedPreset === 'this_month' ? 'Este Mês' : 
+                            selectedPreset === 'last_7d' ? 'Últimos 7 dias' : 
+                            selectedPreset === 'last_14d' ? 'Últimos 14 dias' :
+                            selectedPreset === 'last_30d' ? 'Últimos 30 dias' :
+                            selectedPreset === 'last_60d' ? 'Últimos 60 dias' :
+                            selectedPreset === 'last_90d' ? 'Últimos 90 dias' :
+                            selectedPreset === 'this_year' ? 'Este Ano' : 'Período Selecionado'}
+                metrics={metrics}
+                businessModel={businessModel || null}
+                currency={selectedProject?.currency || 'BRL'}
+              />
+            )}
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-9 w-9">

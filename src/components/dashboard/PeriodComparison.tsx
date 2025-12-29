@@ -200,11 +200,46 @@ export default function PeriodComparison({
     return items;
   }, [currentMetrics, previousMetrics, businessModel]);
 
+  // Check if previous period has no data (all zeros)
+  const hasPreviousData = previousMetrics && (
+    previousMetrics.totalSpend > 0 || 
+    previousMetrics.totalImpressions > 0 || 
+    previousMetrics.totalClicks > 0
+  );
+
   if (!previousMetrics || !comparisons) {
     return (
       <div className="glass-card p-6 text-center text-muted-foreground">
         <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
         <p>Selecione um período para ver a comparação com o período anterior.</p>
+      </div>
+    );
+  }
+
+  if (!hasPreviousData) {
+    return (
+      <div className="glass-card p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+          <h3 className="text-lg font-semibold">Comparação de Períodos</h3>
+          <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span className="font-medium text-primary">{currentPeriodLabel}</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground" />
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-full">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">{previousPeriodLabel}</span>
+            </div>
+          </div>
+        </div>
+        <div className="text-center py-8 text-muted-foreground">
+          <Calendar className="w-10 h-10 mx-auto mb-3 opacity-40" />
+          <p className="font-medium">Sem dados para o período anterior</p>
+          <p className="text-sm mt-1 opacity-75">
+            Não existem dados históricos suficientes para comparar com "{previousPeriodLabel}"
+          </p>
+        </div>
       </div>
     );
   }
