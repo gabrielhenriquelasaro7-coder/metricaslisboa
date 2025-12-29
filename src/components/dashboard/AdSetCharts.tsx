@@ -13,7 +13,7 @@ import {
   BarChart
 } from 'recharts';
 import { cn } from '@/lib/utils';
-import { DailyMetric } from '@/hooks/useDailyMetrics';
+import { AdSetDailyMetric } from '@/hooks/useAdSetDailyMetrics';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -29,8 +29,8 @@ interface MetricOption {
   color: string;
 }
 
-interface AdvancedChartsProps {
-  data: DailyMetric[];
+interface AdSetChartsProps {
+  data: AdSetDailyMetric[];
   businessModel: 'ecommerce' | 'inside_sales' | 'pdv' | null;
   className?: string;
 }
@@ -63,30 +63,20 @@ const METRIC_OPTIONS: MetricOption[] = [
   { key: 'ctr', label: 'CTR', format: formatPercent, color: 'hsl(var(--chart-5))' },
   { key: 'cpc', label: 'CPC', format: formatCurrency, color: 'hsl(280, 70%, 50%)' },
   { key: 'cpm', label: 'CPM', format: formatCurrency, color: 'hsl(200, 70%, 50%)' },
-  { key: 'cpl', label: 'CPL/CPA', format: formatCurrency, color: 'hsl(30, 70%, 50%)' },
+  { key: 'cpa', label: 'CPL/CPA', format: formatCurrency, color: 'hsl(30, 70%, 50%)' },
   { key: 'roas', label: 'ROAS', format: formatMultiplier, color: 'hsl(142, 76%, 36%)' },
-  { key: 'frequency', label: 'Frequência', format: (v) => v.toFixed(2), color: 'hsl(var(--muted-foreground))' },
 ];
 
-export default function AdvancedCharts({ 
+export default function AdSetCharts({ 
   data, 
   businessModel,
   className 
-}: AdvancedChartsProps) {
+}: AdSetChartsProps) {
   const isEcommerce = businessModel === 'ecommerce';
   
-  // State for customizable charts
-  const [chart1Type, setChart1Type] = useState<ChartType>('composed');
-  const [chart1Primary, setChart1Primary] = useState('spend');
-  const [chart1Secondary, setChart1Secondary] = useState(isEcommerce ? 'conversions' : 'conversions');
-  
-  const [chart2Type, setChart2Type] = useState<ChartType>('area');
-  const [chart2Primary, setChart2Primary] = useState('impressions');
-  const [chart2Secondary, setChart2Secondary] = useState('ctr');
-  
-  const [chart3Type, setChart3Type] = useState<ChartType>('bar');
-  const [chart3Primary, setChart3Primary] = useState('cpc');
-  const [chart3Secondary, setChart3Secondary] = useState('clicks');
+  const [chartType, setChartType] = useState<ChartType>('composed');
+  const [primaryMetric, setPrimaryMetric] = useState('spend');
+  const [secondaryMetric, setSecondaryMetric] = useState(isEcommerce ? 'conversions' : 'conversions');
   
   const chartData = useMemo(() => {
     return data.map(d => ({
@@ -96,14 +86,13 @@ export default function AdvancedCharts({
       conversions: d.conversions,
       revenue: d.conversion_value,
       roas: d.roas,
-      cpl: d.cpa,
+      cpa: d.cpa,
       ctr: d.ctr,
       cpm: d.cpm,
       cpc: d.cpc,
       impressions: d.impressions,
       clicks: d.clicks,
       reach: d.reach,
-      frequency: d.reach > 0 ? d.impressions / d.reach : 0,
     }));
   }, [data]);
 
@@ -142,7 +131,8 @@ export default function AdvancedCharts({
         className="h-7 px-2 text-xs"
         onClick={() => onChange('area')}
       >
-        <TrendingUp className="w-3 h-3" />
+        <TrendingUp className="w-3 h-3 mr-1" />
+        Área
       </Button>
       <Button
         size="sm"
@@ -150,7 +140,8 @@ export default function AdvancedCharts({
         className="h-7 px-2 text-xs"
         onClick={() => onChange('bar')}
       >
-        <BarChart2 className="w-3 h-3" />
+        <BarChart2 className="w-3 h-3 mr-1" />
+        Barras
       </Button>
       <Button
         size="sm"
@@ -158,14 +149,15 @@ export default function AdvancedCharts({
         className="h-7 px-2 text-xs"
         onClick={() => onChange('composed')}
       >
-        <LineChart className="w-3 h-3" />
+        <LineChart className="w-3 h-3 mr-1" />
+        Combinado
       </Button>
     </div>
   );
 
   const MetricSelector = ({ value, onChange, exclude }: { value: string; onChange: (v: string) => void; exclude?: string }) => (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-7 text-xs w-[110px] bg-secondary/50 border-0">
+      <SelectTrigger className="h-8 text-xs w-[120px] bg-secondary/50 border-0">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -178,16 +170,12 @@ export default function AdvancedCharts({
     </Select>
   );
 
-  const renderChart = (
-    chartType: ChartType,
-    primaryKey: string,
-    secondaryKey: string
-  ) => {
-    const primary = getMetric(primaryKey);
-    const secondary = getMetric(secondaryKey);
-    const gradientId1 = `gradient-${primaryKey}-${Math.random().toString(36).substr(2, 9)}`;
-    const gradientId2 = `gradient-${secondaryKey}-${Math.random().toString(36).substr(2, 9)}`;
+  const primary = getMetric(primaryMetric);
+  const secondary = getMetric(secondaryMetric);
+  const gradientId1 = `adset-gradient-${primaryMetric}`;
+  const gradientId2 = `adset-gradient-${secondaryMetric}`;
 
+  const renderChart = () => {
     if (chartType === 'area') {
       return (
         <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -207,8 +195,8 @@ export default function AdvancedCharts({
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Area yAxisId="left" type="monotone" dataKey={primaryKey} name={primary.label} stroke={primary.color} strokeWidth={2} fill={`url(#${gradientId1})`} animationDuration={800} />
-          <Area yAxisId="right" type="monotone" dataKey={secondaryKey} name={secondary.label} stroke={secondary.color} strokeWidth={2} fill={`url(#${gradientId2})`} animationDuration={800} />
+          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primary.color} strokeWidth={2} fill={`url(#${gradientId1})`} animationDuration={800} />
+          <Area yAxisId="right" type="monotone" dataKey={secondaryMetric} name={secondary.label} stroke={secondary.color} strokeWidth={2} fill={`url(#${gradientId2})`} animationDuration={800} />
         </AreaChart>
       );
     } else if (chartType === 'bar') {
@@ -220,8 +208,8 @@ export default function AdvancedCharts({
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Bar yAxisId="left" dataKey={primaryKey} name={primary.label} fill={primary.color} radius={[4, 4, 0, 0]} animationDuration={800} />
-          <Bar yAxisId="right" dataKey={secondaryKey} name={secondary.label} fill={secondary.color} radius={[4, 4, 0, 0]} animationDuration={800} />
+          <Bar yAxisId="left" dataKey={primaryMetric} name={primary.label} fill={primary.color} radius={[4, 4, 0, 0]} animationDuration={800} />
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondary.color} radius={[4, 4, 0, 0]} animationDuration={800} />
         </BarChart>
       );
     } else {
@@ -239,8 +227,8 @@ export default function AdvancedCharts({
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Area yAxisId="left" type="monotone" dataKey={primaryKey} name={primary.label} stroke={primary.color} strokeWidth={2} fill={`url(#${gradientId1})`} animationDuration={800} />
-          <Bar yAxisId="right" dataKey={secondaryKey} name={secondary.label} fill={secondary.color} radius={[4, 4, 0, 0]} opacity={0.8} animationDuration={800} />
+          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primary.color} strokeWidth={2} fill={`url(#${gradientId1})`} animationDuration={800} />
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondary.color} radius={[4, 4, 0, 0]} opacity={0.8} animationDuration={800} />
         </ComposedChart>
       );
     }
@@ -249,36 +237,20 @@ export default function AdvancedCharts({
   if (data.length === 0) {
     return (
       <div className={cn('glass-card p-6', className)}>
-        <h3 className="text-lg font-semibold mb-4">Análise de Performance</h3>
+        <h3 className="text-lg font-semibold mb-4">Evolução de Performance</h3>
         <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-          Sem dados para o período selecionado
+          Sem dados diários para este conjunto de anúncios
         </div>
       </div>
     );
   }
 
-  const ChartCard = ({ 
-    title, 
-    chartType, 
-    setChartType, 
-    primaryMetric, 
-    setPrimaryMetric, 
-    secondaryMetric, 
-    setSecondaryMetric 
-  }: {
-    title: string;
-    chartType: ChartType;
-    setChartType: (v: ChartType) => void;
-    primaryMetric: string;
-    setPrimaryMetric: (v: string) => void;
-    secondaryMetric: string;
-    setSecondaryMetric: (v: string) => void;
-  }) => (
-    <div className="glass-card p-6 transition-all duration-300 hover:shadow-lg">
+  return (
+    <div className={cn('glass-card p-6 transition-all duration-300', className)}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">
           <Settings2 className="w-4 h-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold">{title}</h3>
+          <h3 className="text-lg font-semibold">Evolução de Performance</h3>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
@@ -287,45 +259,11 @@ export default function AdvancedCharts({
           <ChartTypeSelector value={chartType} onChange={setChartType} />
         </div>
       </div>
-      <div className="h-[280px]">
+      <div className="h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
-          {renderChart(chartType, primaryMetric, secondaryMetric)}
+          {renderChart()}
         </ResponsiveContainer>
       </div>
-    </div>
-  );
-
-  return (
-    <div className={cn('space-y-6', className)}>
-      <ChartCard
-        title="Gráfico 1"
-        chartType={chart1Type}
-        setChartType={setChart1Type}
-        primaryMetric={chart1Primary}
-        setPrimaryMetric={setChart1Primary}
-        secondaryMetric={chart1Secondary}
-        setSecondaryMetric={setChart1Secondary}
-      />
-      
-      <ChartCard
-        title="Gráfico 2"
-        chartType={chart2Type}
-        setChartType={setChart2Type}
-        primaryMetric={chart2Primary}
-        setPrimaryMetric={setChart2Primary}
-        secondaryMetric={chart2Secondary}
-        setSecondaryMetric={setChart2Secondary}
-      />
-      
-      <ChartCard
-        title="Gráfico 3"
-        chartType={chart3Type}
-        setChartType={setChart3Type}
-        primaryMetric={chart3Primary}
-        setPrimaryMetric={setChart3Primary}
-        secondaryMetric={chart3Secondary}
-        setSecondaryMetric={setChart3Secondary}
-      />
     </div>
   );
 }

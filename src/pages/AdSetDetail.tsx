@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
-import PerformanceChart from '@/components/dashboard/PerformanceChart';
+import AdSetCharts from '@/components/dashboard/AdSetCharts';
+import { useAdSetDailyMetrics } from '@/hooks/useAdSetDailyMetrics';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
 import { 
@@ -85,6 +86,9 @@ export default function AdSetDetail() {
   const selectedProject = projects.find(p => p.id === adSet?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
+  
+  // Fetch real daily metrics for this ad set
+  const { dailyData: adSetDailyData } = useAdSetDailyMetrics(adSetId, adSet?.project_id);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -139,13 +143,6 @@ export default function AdSetDetail() {
     return b.spend - a.spend;
   });
 
-  // Generate mock chart data based on ad set metrics
-  const chartData = adSet ? [
-    { date: 'Sem 1', value: adSet.spend * 0.15, value2: adSet.conversions * 0.12 },
-    { date: 'Sem 2', value: adSet.spend * 0.22, value2: adSet.conversions * 0.20 },
-    { date: 'Sem 3', value: adSet.spend * 0.28, value2: adSet.conversions * 0.30 },
-    { date: 'Sem 4', value: adSet.spend * 0.35, value2: adSet.conversions * 0.38 },
-  ] : [];
 
   if (loading) {
     return (
@@ -364,17 +361,10 @@ export default function AdSetDetail() {
         </div>
 
         {/* Performance Chart */}
-        <div className="glass-card p-6">
-          <h3 className="text-lg font-semibold mb-4">Evolução de Performance</h3>
-          <PerformanceChart 
-            data={chartData} 
-            title=""
-            dataKey="value"
-            dataKey2="value2"
-            color="hsl(var(--primary))"
-            color2="hsl(var(--chart-1))"
-          />
-        </div>
+        <AdSetCharts
+          data={adSetDailyData}
+          businessModel={selectedProject?.business_model || null}
+        />
 
         {/* Ads in this Ad Set */}
         <div>
