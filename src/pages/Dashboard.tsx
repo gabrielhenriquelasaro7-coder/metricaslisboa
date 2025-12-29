@@ -465,7 +465,6 @@ export default function Dashboard() {
               <AdvancedCharts
                 data={dailyData}
                 businessModel={businessModel || null}
-                campaignData={campaigns.map(c => ({ name: c.name, spend: c.spend, conversions: c.conversions }))}
               />
             </div>
 
