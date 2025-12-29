@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { FileText, Download, Loader2, Calendar, Palette, Settings2, Eye } from 'lucide-react';
+import { FileText, Download, Loader2, Calendar, Palette, Settings2, Eye, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,6 +33,7 @@ import {
   ResponsiveContainer,
   Legend,
   Tooltip,
+  ComposedChart,
 } from 'recharts';
 
 type BusinessModel = 'ecommerce' | 'inside_sales' | 'pdv' | null;
@@ -79,8 +80,12 @@ const RESULT_METRICS: Record<string, MetricDef[]> = {
 };
 
 function fmtCurrency(v: number, curr: string): string {
-  const sym = curr === 'BRL' ? 'R$' : curr === 'USD' ? '$' : '€';
-  return `${sym} ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return new Intl.NumberFormat('pt-BR', { 
+    style: 'currency', 
+    currency: curr,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2 
+  }).format(v);
 }
 
 function fmtNumber(v: number): string {
@@ -127,8 +132,26 @@ export function PDFBuilderDialog({
   const [includeChart, setIncludeChart] = useState(true);
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
   const [showRevenue, setShowRevenue] = useState(true);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   
   const { dailyData, totals, loading, loadMetrics } = usePDFMetrics(projectId);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setLogoUrl(ev.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeLogo = () => {
+    setLogoUrl(null);
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
 
   const activePeriod = useMemo(() => {
     if (useDashboardPeriod) return currentPeriod;
@@ -183,35 +206,39 @@ export function PDFBuilderDialog({
     try {
       const doc = new jsPDF();
       const pw = doc.internal.pageSize.getWidth();
+      const ph = doc.internal.pageSize.getHeight();
       const m = 15;
-      let y = 15;
       
-      // Header line
-      doc.setDrawColor(primaryColor);
-      doc.setLineWidth(2);
-      doc.line(m, y, pw - m, y);
-      y += 10;
+      // Header Bar - Full Red
+      doc.setFillColor(primaryColor);
+      doc.rect(0, 0, pw, 25, 'F');
       
-      // Title
-      doc.setFontSize(18);
+      // Logo (if exists)
+      if (logoUrl) {
+        try {
+          doc.addImage(logoUrl, 'PNG', pw - m - 25, 5, 20, 15);
+        } catch (e) {
+          console.error('Logo error:', e);
+        }
+      }
+      
+      // Title on header
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(33, 33, 33);
-      doc.text(title, m, y);
-      y += 6;
+      doc.text(title, m, 12);
       
-      // Period and date
+      // Period on header
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 100, 100);
-      doc.text(fmtDateRange(activePeriod.since, activePeriod.until), m, y);
-      y += 5;
-      doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`, m, y);
-      y += 12;
+      doc.text(fmtDateRange(activePeriod.since, activePeriod.until), m, 20);
       
-      // Separator
-      doc.setDrawColor(230, 230, 230);
-      doc.setLineWidth(0.5);
-      doc.line(m, y, pw - m, y);
+      let y = 35;
+      
+      // Generation date
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(9);
+      doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`, m, y);
       y += 10;
       
       // Executive Summary
@@ -221,7 +248,7 @@ export function PDFBuilderDialog({
       doc.text('Resumo Executivo', m, y);
       y += 8;
       
-      doc.setFillColor(248, 249, 250);
+      doc.setFillColor(254, 242, 242);
       doc.roundedRect(m, y, pw - 2 * m, 12, 2, 2, 'F');
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
@@ -327,11 +354,12 @@ export function PDFBuilderDialog({
         }
       }
       
-      // Footer
-      const fY = doc.internal.pageSize.getHeight() - 10;
+      // Footer Bar - Full Red
+      doc.setFillColor(primaryColor);
+      doc.rect(0, ph - 15, pw, 15, 'F');
       doc.setFontSize(8);
-      doc.setTextColor(150, 150, 150);
-      doc.text(`${projectName} • Relatório gerado automaticamente`, pw / 2, fY, { align: 'center' });
+      doc.setTextColor(255, 255, 255);
+      doc.text(`${projectName} • Relatório gerado automaticamente`, pw / 2, ph - 6, { align: 'center' });
       
       doc.save(`${title.replace(/[^a-zA-Z0-9]/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`);
       setOpen(false);
@@ -533,6 +561,38 @@ export function PDFBuilderDialog({
                 
                 <Separator />
                 
+                {/* Logo */}
+                <div className="space-y-3">
+                  <Label className="text-xs font-medium uppercase text-muted-foreground">Logo</Label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    ref={logoInputRef}
+                    className="hidden"
+                  />
+                  {logoUrl ? (
+                    <div className="flex items-center gap-2">
+                      <img src={logoUrl} alt="Logo" className="h-10 w-auto max-w-20 object-contain rounded" />
+                      <Button variant="ghost" size="sm" onClick={removeLogo} className="h-8 w-8 p-0">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => logoInputRef.current?.click()}
+                      className="gap-2 h-9"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Adicionar Logo
+                    </Button>
+                  )}
+                </div>
+                
+                <Separator />
+                
                 {/* Colors */}
                 <div className="space-y-3">
                   <Label className="text-xs font-medium uppercase text-muted-foreground">Cor Principal</Label>
@@ -579,113 +639,119 @@ export function PDFBuilderDialog({
             </div>
             
             <ScrollArea className="flex-1 p-6">
-              <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto" style={{ minHeight: 800 }}>
-                {/* Header Line */}
-                <div className="h-0.5 mb-6" style={{ backgroundColor: primaryColor }} />
-                
-                {/* Title */}
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">{title}</h1>
-                <p className="text-sm text-gray-500 mb-1">{fmtDateRange(activePeriod.since, activePeriod.until)}</p>
-                <p className="text-xs text-gray-400 mb-6">Gerado em {format(new Date(), "dd/MM/yyyy 'às' HH:mm")}</p>
-                
-                <Separator className="mb-6" />
-                
-                {/* Executive Summary */}
-                <h2 className="text-sm font-semibold text-gray-900 mb-3">Resumo Executivo</h2>
-                <div className="bg-gray-50 rounded-lg p-3 mb-6">
-                  <p className="text-sm" style={{ color: primaryColor }}>
-                    {loading ? 'Carregando...' : summaryText || 'Sem dados'}
-                  </p>
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden max-w-2xl mx-auto" style={{ minHeight: 800 }}>
+                {/* Header Bar - Full Red */}
+                <div className="px-6 py-4 flex items-center justify-between" style={{ backgroundColor: primaryColor }}>
+                  <div>
+                    <h1 className="text-xl font-bold text-white">{title}</h1>
+                    <p className="text-sm text-white/80">{fmtDateRange(activePeriod.since, activePeriod.until)}</p>
+                  </div>
+                  {logoUrl && (
+                    <img src={logoUrl} alt="Logo" className="h-10 w-auto max-w-24 object-contain" />
+                  )}
                 </div>
                 
-                {/* General Metrics */}
-                {selGeneral.length > 0 && totals && (
-                  <>
-                    <h2 className="text-sm font-semibold text-gray-900 mb-3">Métricas Gerais</h2>
-                    <div className="grid grid-cols-4 gap-2 mb-6">
-                      {GENERAL_METRICS.filter(m => selGeneral.includes(m.key)).map(m => {
-                        const val = (totals as unknown as Record<string, number>)[m.key] || 0;
-                        return (
-                          <div key={m.key} className="bg-gray-50 rounded-lg p-3">
-                            <p className="text-xs text-gray-500 mb-1">{m.label}</p>
-                            <p className="text-sm font-bold" style={{ color: primaryColor }}>
-                              {fmtValue(val, m.type, currency)}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
+                <div className="p-6">
+                  {/* Generation Date */}
+                  <p className="text-xs text-gray-400 mb-6">Gerado em {format(new Date(), "dd/MM/yyyy 'às' HH:mm")}</p>
+                  
+                  {/* Executive Summary */}
+                  <h2 className="text-sm font-semibold text-gray-900 mb-3">Resumo Executivo</h2>
+                  <div className="rounded-lg border p-3 mb-6" style={{ borderColor: primaryColor, backgroundColor: `${primaryColor}08` }}>
+                    <p className="text-sm font-medium" style={{ color: primaryColor }}>
+                      {loading ? 'Carregando...' : summaryText || 'Sem dados'}
+                    </p>
+                  </div>
+                  
+                  {/* General Metrics */}
+                  {selGeneral.length > 0 && totals && (
+                    <>
+                      <h2 className="text-sm font-semibold text-gray-900 mb-3">Métricas Gerais</h2>
+                      <div className="grid grid-cols-3 gap-3 mb-6">
+                        {GENERAL_METRICS.filter(m => selGeneral.includes(m.key)).map(m => {
+                          const val = (totals as unknown as Record<string, number>)[m.key] || 0;
+                          return (
+                            <div key={m.key} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                              <p className="text-xs text-gray-500 mb-1">{m.label}</p>
+                              <p className="text-lg font-bold" style={{ color: primaryColor }}>
+                                {fmtValue(val, m.type, currency)}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* Result Metrics */}
+                  {selResult.length > 0 && totals && resultDefs.length > 0 && (
+                    <>
+                      <h2 className="text-sm font-semibold text-gray-900 mb-3">
+                        Métricas de Resultado ({businessModel === 'ecommerce' ? 'E-commerce' : 
+                          businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV'})
+                      </h2>
+                      <div className="grid grid-cols-4 gap-3 mb-6">
+                        {resultDefs.filter(m => selResult.includes(m.key)).map(m => {
+                          const val = (totals as unknown as Record<string, number>)[m.key] || 0;
+                          return (
+                            <div key={m.key} className="rounded-lg p-4 border" style={{ borderColor: primaryColor, backgroundColor: `${primaryColor}08` }}>
+                              <p className="text-xs text-gray-500 mb-1">{m.label}</p>
+                              <p className="text-lg font-bold" style={{ color: primaryColor }}>
+                                {fmtValue(val, m.type, currency)}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* Chart */}
+                  {includeChart && chartData.length > 0 && (
+                    <>
+                      <h2 className="text-sm font-semibold text-gray-900 mb-3">Evolução Diária</h2>
+                      <div id="pdf-chart-preview" className="bg-white rounded-lg border p-4" style={{ height: 220 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          {chartType === 'bar' ? (
+                            <ComposedChart data={chartData}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                              <YAxis yAxisId="left" tick={{ fontSize: 10 }} tickFormatter={(v) => fmtNumber(v)} />
+                              {showRevenue && businessModel === 'ecommerce' && (
+                                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={(v) => fmtNumber(v)} />
+                              )}
+                              <Tooltip formatter={(value: number, name: string) => [name === 'Gasto' || name === 'Receita' ? fmtCurrency(value, currency) : fmtNumber(value), name]} />
+                              <Legend wrapperStyle={{ fontSize: 11 }} />
+                              <Bar yAxisId="left" dataKey="spend" name="Gasto" fill={primaryColor} radius={[2, 2, 0, 0]} />
+                              {showRevenue && businessModel === 'ecommerce' && (
+                                <Line yAxisId="right" type="monotone" dataKey="revenue" name="Receita" stroke="#22c55e" strokeWidth={2} dot={false} />
+                              )}
+                            </ComposedChart>
+                          ) : (
+                            <LineChart data={chartData}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                              <YAxis yAxisId="left" tick={{ fontSize: 10 }} tickFormatter={(v) => fmtNumber(v)} />
+                              {showRevenue && businessModel === 'ecommerce' && (
+                                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={(v) => fmtNumber(v)} />
+                              )}
+                              <Tooltip formatter={(value: number, name: string) => [name === 'Gasto' || name === 'Receita' ? fmtCurrency(value, currency) : fmtNumber(value), name]} />
+                              <Legend wrapperStyle={{ fontSize: 11 }} />
+                              <Line yAxisId="left" type="monotone" dataKey="spend" name="Gasto" stroke={primaryColor} strokeWidth={2} dot={false} />
+                              {showRevenue && businessModel === 'ecommerce' && (
+                                <Line yAxisId="right" type="monotone" dataKey="revenue" name="Receita" stroke="#22c55e" strokeWidth={2} dot={false} />
+                              )}
+                            </LineChart>
+                          )}
+                        </ResponsiveContainer>
+                      </div>
+                    </>
+                  )}
+                </div>
                 
-                {/* Result Metrics */}
-                {selResult.length > 0 && totals && resultDefs.length > 0 && (
-                  <>
-                    <h2 className="text-sm font-semibold text-gray-900 mb-3">
-                      Métricas de Resultado ({businessModel === 'ecommerce' ? 'E-commerce' : 
-                        businessModel === 'inside_sales' ? 'Inside Sales' : 'PDV'})
-                    </h2>
-                    <div className="grid grid-cols-4 gap-2 mb-6">
-                      {resultDefs.filter(m => selResult.includes(m.key)).map(m => {
-                        const val = (totals as unknown as Record<string, number>)[m.key] || 0;
-                        return (
-                          <div key={m.key} className="bg-red-50 rounded-lg p-3">
-                            <p className="text-xs text-gray-500 mb-1">{m.label}</p>
-                            <p className="text-sm font-bold" style={{ color: primaryColor }}>
-                              {fmtValue(val, m.type, currency)}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-                
-                {/* Chart */}
-                {includeChart && chartData.length > 0 && (
-                  <>
-                    <h2 className="text-sm font-semibold text-gray-900 mb-3">Evolução Diária</h2>
-                    <div id="pdf-chart-preview" className="bg-white rounded-lg border p-4" style={{ height: 200 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        {chartType === 'bar' ? (
-                          <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                            <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
-                            {showRevenue && businessModel === 'ecommerce' && (
-                              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
-                            )}
-                            <Tooltip />
-                            <Legend wrapperStyle={{ fontSize: 10 }} />
-                            <Bar yAxisId="left" dataKey="spend" name="Gasto" fill={primaryColor} />
-                            {showRevenue && businessModel === 'ecommerce' && (
-                              <Line yAxisId="right" type="monotone" dataKey="revenue" name="Receita" stroke="#22c55e" strokeWidth={2} />
-                            )}
-                          </BarChart>
-                        ) : (
-                          <LineChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                            <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
-                            {showRevenue && businessModel === 'ecommerce' && (
-                              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
-                            )}
-                            <Tooltip />
-                            <Legend wrapperStyle={{ fontSize: 10 }} />
-                            <Line yAxisId="left" type="monotone" dataKey="spend" name="Gasto" stroke={primaryColor} strokeWidth={2} />
-                            {showRevenue && businessModel === 'ecommerce' && (
-                              <Line yAxisId="right" type="monotone" dataKey="revenue" name="Receita" stroke="#22c55e" strokeWidth={2} />
-                            )}
-                          </LineChart>
-                        )}
-                      </ResponsiveContainer>
-                    </div>
-                  </>
-                )}
-                
-                {/* Footer */}
-                <div className="mt-8 pt-4 border-t text-center">
-                  <p className="text-xs text-gray-400">{projectName} • Relatório gerado automaticamente</p>
+                {/* Footer Bar - Full Red */}
+                <div className="px-6 py-3 text-center" style={{ backgroundColor: primaryColor }}>
+                  <p className="text-xs text-white/80">{projectName} • Relatório gerado automaticamente</p>
                 </div>
               </div>
             </ScrollArea>
