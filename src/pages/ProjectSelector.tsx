@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects, Project, CreateProjectData, HealthScore, BusinessModel } from '@/hooks/useProjects';
 import { useProjectHealth, ProjectHealth } from '@/hooks/useProjectHealth';
+import { useProfile, UserCargo } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,7 +36,11 @@ import {
   Timer,
   CheckCircle2,
   Camera,
-  ImagePlus
+  ImagePlus,
+  Lock,
+  Mail,
+  Briefcase,
+  Save
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -49,6 +54,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+
+const cargoOptions: { value: UserCargo; label: string }[] = [
+  { value: 'gestor_trafego', label: 'Gestor de Tráfego' },
+  { value: 'account_manager', label: 'Account Manager' },
+  { value: 'coordenador', label: 'Coordenador' },
+  { value: 'gerente', label: 'Gerente' },
+];
 
 const businessModels: { value: BusinessModel; label: string; description: string; icon: typeof Users }[] = [
   { value: 'inside_sales', label: 'Inside Sales', description: 'Leads e vendas internas', icon: Users },
@@ -251,6 +263,7 @@ export default function ProjectSelector() {
   const { user, loading: authLoading } = useAuth();
   const { projects, loading: projectsLoading, createProject, updateProject, deleteProject, archiveProject, unarchiveProject, resyncProject, refetch } = useProjects();
   const { healthData, loading: healthLoading } = useProjectHealth(projects.filter(p => !p.archived));
+  const { profile, updateProfile, updatePassword, uploadAvatar: uploadProfileAvatar } = useProfile();
   const navigate = useNavigate();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -265,6 +278,25 @@ export default function ProjectSelector() {
   const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const editAvatarInputRef = useRef<HTMLInputElement>(null);
+  const profileAvatarInputRef = useRef<HTMLInputElement>(null);
+  
+  // Profile editing state
+  const [profileName, setProfileName] = useState('');
+  const [profileCargo, setProfileCargo] = useState<UserCargo>(null);
+  const [profileAvatarPreview, setProfileAvatarPreview] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Initialize profile form data
+  useEffect(() => {
+    if (profile) {
+      setProfileName(profile.full_name || '');
+      setProfileCargo(profile.cargo);
+      setProfileAvatarPreview(profile.avatar_url);
+    }
+  }, [profile]);
   
   const [formData, setFormData] = useState<CreateProjectData>({
     name: '',
@@ -454,6 +486,58 @@ export default function ProjectSelector() {
 
   const handleResync = async (project: Project) => {
     await resyncProject(project);
+  };
+
+  const handleProfileAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProfileAvatarPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    const url = await uploadProfileAvatar(file);
+    if (url) {
+      await updateProfile({ avatar_url: url });
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    setIsUpdatingProfile(true);
+    try {
+      await updateProfile({
+        full_name: profileName,
+        cargo: profileCargo,
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword.length < 6) {
+      toast.error('A senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('As senhas não coincidem');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await updatePassword(newPassword);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Error changing password:', error);
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -770,29 +854,186 @@ export default function ProjectSelector() {
 
             {/* Profile Tab */}
             <TabsContent value="profile" className="mt-0">
-              <div className="max-w-2xl mx-auto">
+              <div className="max-w-3xl mx-auto space-y-6">
+                {/* Profile Header with Avatar */}
                 <div className="glass-card p-8">
-                  <div className="flex items-center gap-6 mb-8">
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-red-700 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-primary/30">
-                      {user?.email?.charAt(0).toUpperCase() || 'U'}
+                  <div className="flex items-start gap-6">
+                    {/* Avatar Upload */}
+                    <div className="relative">
+                      <div 
+                        onClick={() => profileAvatarInputRef.current?.click()}
+                        className={cn(
+                          "w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer transition-all overflow-hidden",
+                          "hover:border-primary hover:bg-primary/5",
+                          profileAvatarPreview && "border-solid border-primary"
+                        )}
+                      >
+                        {profileAvatarPreview ? (
+                          <img src={profileAvatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-center">
+                            <Camera className="w-8 h-8 text-muted-foreground mx-auto" />
+                            <span className="text-xs text-muted-foreground">Foto</span>
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        ref={profileAvatarInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleProfileAvatarChange}
+                      />
+                      <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center cursor-pointer hover:bg-primary/80 transition-colors" onClick={() => profileAvatarInputRef.current?.click()}>
+                        <Pencil className="w-3.5 h-3.5 text-white" />
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-2xl font-bold">{user?.email?.split('@')[0] || 'Usuário'}</h2>
-                      <p className="text-muted-foreground">{user?.email}</p>
+
+                    <div className="flex-1">
+                      <h2 className="text-2xl font-bold mb-1">{profileName || user?.email?.split('@')[0] || 'Usuário'}</h2>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Mail className="w-4 h-4" />
+                        <span>{user?.email}</span>
+                      </div>
+                      {profileCargo && (
+                        <div className="flex items-center gap-2 text-primary mt-1">
+                          <Briefcase className="w-4 h-4" />
+                          <span className="font-medium">{cargoOptions.find(c => c.value === profileCargo)?.label}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
+                </div>
+
+                {/* Profile Edit Form */}
+                <div className="glass-card p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <User className="w-5 h-5 text-primary" />
+                    Informações do Perfil
+                  </h3>
                   
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="space-y-2">
+                      <Label>Nome Completo</Label>
+                      <Input
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
+                        placeholder="Seu nome"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <Input
+                        value={user?.email || ''}
+                        disabled
+                        className="opacity-50"
+                      />
+                      <p className="text-xs text-muted-foreground">O email não pode ser alterado</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mb-6">
+                    <Label>Cargo</Label>
+                    <div className="grid grid-cols-4 gap-3">
+                      {cargoOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setProfileCargo(option.value)}
+                          className={cn(
+                            "p-3 rounded-xl border-2 text-center transition-all",
+                            profileCargo === option.value
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border hover:border-primary/50'
+                          )}
+                        >
+                          <Briefcase className={cn("w-5 h-5 mx-auto mb-1", profileCargo === option.value ? 'text-primary' : 'text-muted-foreground')} />
+                          <p className="font-medium text-xs">{option.label}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={handleUpdateProfile} 
+                    disabled={isUpdatingProfile}
+                    className="bg-gradient-to-r from-primary to-red-700"
+                  >
+                    {isUpdatingProfile ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Salvar Alterações
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Change Password */}
+                <div className="glass-card p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-primary" />
+                    Alterar Senha
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="space-y-2">
+                      <Label>Nova Senha</Label>
+                      <Input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Confirmar Senha</Label>
+                      <Input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={handleChangePassword} 
+                    disabled={isChangingPassword || !newPassword}
+                    variant="outline"
+                  >
+                    {isChangingPassword ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Alterando...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4 mr-2" />
+                        Alterar Senha
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Stats */}
+                <div className="glass-card p-6">
+                  <h3 className="text-lg font-semibold mb-4">Resumo</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="p-4 rounded-xl bg-secondary/50 text-center">
                       <p className="text-3xl font-bold text-primary">{activeProjects.length}</p>
                       <p className="text-sm text-muted-foreground">Projetos Ativos</p>
                     </div>
                     <div className="p-4 rounded-xl bg-secondary/50 text-center">
-                      <p className="text-3xl font-bold text-emerald-400">{activeProjects.filter(p => (p.health_score || healthData.get(p.id)?.status) === 'safe').length}</p>
+                      <p className="text-3xl font-bold text-emerald-400">{activeProjects.filter(p => p.health_score === 'safe').length}</p>
                       <p className="text-sm text-muted-foreground">Projetos Safe</p>
                     </div>
                     <div className="p-4 rounded-xl bg-secondary/50 text-center">
-                      <p className="text-3xl font-bold text-red-400">{activeProjects.filter(p => (p.health_score || healthData.get(p.id)?.status) === 'danger').length}</p>
+                      <p className="text-3xl font-bold text-red-400">{activeProjects.filter(p => p.health_score === 'danger').length}</p>
                       <p className="text-sm text-muted-foreground">Projetos Danger</p>
                     </div>
                   </div>

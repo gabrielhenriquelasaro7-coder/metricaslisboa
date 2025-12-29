@@ -536,6 +536,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          cargo: Database["public"]["Enums"]["user_cargo"] | null
           created_at: string
           full_name: string | null
           id: string
@@ -544,6 +545,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          cargo?: Database["public"]["Enums"]["user_cargo"] | null
           created_at?: string
           full_name?: string | null
           id?: string
@@ -552,6 +554,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          cargo?: Database["public"]["Enums"]["user_cargo"] | null
           created_at?: string
           full_name?: string | null
           id?: string
@@ -658,6 +661,11 @@ export type Database = {
     }
     Enums: {
       business_model: "inside_sales" | "ecommerce" | "pdv"
+      user_cargo:
+        | "gestor_trafego"
+        | "account_manager"
+        | "coordenador"
+        | "gerente"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -786,6 +794,12 @@ export const Constants = {
   public: {
     Enums: {
       business_model: ["inside_sales", "ecommerce", "pdv"],
+      user_cargo: [
+        "gestor_trafego",
+        "account_manager",
+        "coordenador",
+        "gerente",
+      ],
     },
   },
 } as const
