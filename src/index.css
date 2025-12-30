@@ -78,6 +78,78 @@
     --undefined: 0 0% 40%;
     --undefined-foreground: 0 0% 70%;
   }
+
+  .light {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 0 85% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 10% 94%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 0 5% 92%;
+    --muted-foreground: 0 5% 45%;
+
+    --accent: 0 70% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 45%;
+    --warning-foreground: 0 0% 10%;
+
+    --border: 0 10% 88%;
+    --input: 0 10% 92%;
+    --ring: 0 85% 45%;
+
+    /* Custom semantic tokens - V4 Red Theme Light */
+    --gradient-primary: linear-gradient(135deg, hsl(0, 85%, 45%) 0%, hsl(0, 85%, 35%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(0, 5%, 97%) 100%);
+    --gradient-glow: radial-gradient(ellipse at center, hsl(0, 85%, 45%, 0.1) 0%, transparent 70%);
+    --gradient-hero: linear-gradient(135deg, hsl(0, 5%, 97%) 0%, hsl(0, 5%, 94%) 100%);
+    
+    --shadow-glow: 0 0 60px hsl(0, 85%, 45%, 0.15);
+    --shadow-card: 0 4px 24px hsl(0, 0%, 0%, 0.08);
+    --shadow-elevated: 0 8px 32px hsl(0, 0%, 0%, 0.12);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 0 85% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 10% 95%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 10% 90%;
+    --sidebar-ring: 0 85% 45%;
+
+    /* Metrics colors */
+    --metric-positive: 142 71% 40%;
+    --metric-negative: 0 72% 50%;
+    --metric-neutral: 0 85% 45%;
+    --metric-warning: 38 92% 45%;
+
+    /* Chart colors - V4 Red palette Light */
+    --chart-1: 0 85% 45%;
+    --chart-2: 0 70% 55%;
+    --chart-3: 142 71% 40%;
+    --chart-4: 38 92% 45%;
+    --chart-5: 0 50% 35%;
+
+    /* Undefined state */
+    --undefined: 0 0% 60%;
+    --undefined-foreground: 0 0% 40%;
+  }
 }
 
 @layer base {

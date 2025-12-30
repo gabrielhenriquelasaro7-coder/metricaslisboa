@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/hooks/useAuth';
+import { useProjects } from '@/hooks/useProjects';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,10 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { 
   User, 
   Bell, 
@@ -22,7 +26,17 @@ import {
   Trash2,
   AlertTriangle,
   Settings as SettingsIcon,
-  Save
+  Save,
+  History,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  RefreshCw,
+  Filter,
+  Clock,
+  Sun,
+  Moon,
+  Monitor
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -35,6 +49,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 interface Profile {
   id: string;
@@ -52,8 +74,19 @@ interface NotificationSettings {
   budgetAlerts: boolean;
 }
 
+interface SyncLog {
+  id: string;
+  project_id: string;
+  status: string;
+  message: string | null;
+  created_at: string;
+}
+
+type Theme = 'dark' | 'light' | 'system';
+
 export default function Settings() {
   const { user, signOut } = useAuth();
+  const { projects } = useProjects();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -66,6 +99,20 @@ export default function Settings() {
     roasAlerts: true,
     budgetAlerts: true,
   });
+  
+  // Theme state
+  const [theme, setTheme] = useState<Theme>(() => {
+    const stored = localStorage.getItem('theme') as Theme;
+    return stored || 'dark';
+  });
+
+  // Sync logs state
+  const [logs, setLogs] = useState<SyncLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  const selectedProjectId = localStorage.getItem('selectedProjectId');
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -86,6 +133,60 @@ export default function Settings() {
 
     fetchProfile();
   }, [user]);
+
+  // Apply theme
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark');
+    
+    if (theme === 'system') {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      root.classList.add(systemTheme);
+    } else {
+      root.classList.add(theme);
+    }
+    
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  // Fetch sync logs
+  const fetchLogs = async () => {
+    if (!selectedProjectId) {
+      setLogsLoading(false);
+      return;
+    }
+    
+    setLogsLoading(true);
+    try {
+      let query = supabase
+        .from('sync_logs')
+        .select('*')
+        .eq('project_id', selectedProjectId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching sync logs:', error);
+        return;
+      }
+
+      setLogs(data || []);
+    } catch (error) {
+      console.error('Error fetching sync logs:', error);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLogs();
+  }, [selectedProjectId, statusFilter]);
 
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -108,6 +209,51 @@ export default function Settings() {
 
   const handleDeleteAccount = async () => {
     toast.error('Funcionalidade em desenvolvimento');
+  };
+
+  const handleThemeChange = (newTheme: Theme) => {
+    setTheme(newTheme);
+    toast.success(`Tema ${newTheme === 'dark' ? 'escuro' : newTheme === 'light' ? 'claro' : 'do sistema'} ativado`);
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'success':
+        return <CheckCircle2 className="w-4 h-4 text-metric-positive" />;
+      case 'partial':
+        return <AlertCircle className="w-4 h-4 text-metric-warning" />;
+      case 'error':
+        return <XCircle className="w-4 h-4 text-metric-negative" />;
+      default:
+        return <Clock className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, string> = {
+      success: 'bg-metric-positive/10 text-metric-positive border-metric-positive/20',
+      partial: 'bg-metric-warning/10 text-metric-warning border-metric-warning/20',
+      error: 'bg-metric-negative/10 text-metric-negative border-metric-negative/20',
+      running: 'bg-primary/10 text-primary border-primary/20',
+    };
+
+    const labels: Record<string, string> = {
+      success: 'Sucesso',
+      partial: 'Parcial',
+      error: 'Erro',
+      running: 'Em execução',
+    };
+
+    return (
+      <Badge variant="outline" className={cn('font-medium', variants[status] || '')}>
+        {labels[status] || status}
+      </Badge>
+    );
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return format(date, "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR });
   };
 
   if (loading) {
@@ -135,7 +281,7 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="bg-card border border-border p-1">
+          <TabsList className="bg-card border border-border p-1 flex-wrap h-auto gap-1">
             <TabsTrigger value="profile" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <User className="w-4 h-4" />
               Perfil
@@ -151,6 +297,10 @@ export default function Settings() {
             <TabsTrigger value="appearance" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Palette className="w-4 h-4" />
               Aparência
+            </TabsTrigger>
+            <TabsTrigger value="sync-history" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <History className="w-4 h-4" />
+              Histórico Sync
             </TabsTrigger>
           </TabsList>
 
@@ -375,25 +525,147 @@ export default function Settings() {
                 <div>
                   <Label className="mb-4 block">Tema</Label>
                   <div className="grid grid-cols-3 gap-4 max-w-md">
-                    <button className="group p-4 rounded-xl border-2 border-primary bg-card text-center transition-all hover:shadow-lg hover:shadow-primary/20">
-                      <div className="w-full h-10 rounded-lg bg-background border border-border mb-3 flex items-center justify-center">
-                        <div className="w-3 h-3 rounded-full bg-primary" />
+                    <button 
+                      onClick={() => handleThemeChange('dark')}
+                      className={cn(
+                        "group p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg",
+                        theme === 'dark' 
+                          ? "border-primary hover:shadow-primary/20" 
+                          : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      <div className="w-full h-10 rounded-lg bg-zinc-900 border border-zinc-700 mb-3 flex items-center justify-center">
+                        <Moon className="w-4 h-4 text-zinc-400" />
                       </div>
                       <span className="text-sm font-medium">Escuro</span>
                     </button>
-                    <button className="p-4 rounded-xl border border-border bg-card text-center opacity-50 cursor-not-allowed">
-                      <div className="w-full h-10 rounded-lg bg-white border border-border mb-3" />
-                      <span className="text-sm text-muted-foreground">Claro</span>
+                    <button 
+                      onClick={() => handleThemeChange('light')}
+                      className={cn(
+                        "p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg",
+                        theme === 'light' 
+                          ? "border-primary hover:shadow-primary/20" 
+                          : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      <div className="w-full h-10 rounded-lg bg-white border border-gray-200 mb-3 flex items-center justify-center">
+                        <Sun className="w-4 h-4 text-amber-500" />
+                      </div>
+                      <span className="text-sm font-medium">Claro</span>
                     </button>
-                    <button className="p-4 rounded-xl border border-border bg-card text-center opacity-50 cursor-not-allowed">
-                      <div className="w-full h-10 rounded-lg bg-gradient-to-r from-background to-white border border-border mb-3" />
-                      <span className="text-sm text-muted-foreground">Sistema</span>
+                    <button 
+                      onClick={() => handleThemeChange('system')}
+                      className={cn(
+                        "p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg",
+                        theme === 'system' 
+                          ? "border-primary hover:shadow-primary/20" 
+                          : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      <div className="w-full h-10 rounded-lg bg-gradient-to-r from-zinc-900 to-white border border-border mb-3 flex items-center justify-center">
+                        <Monitor className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <span className="text-sm font-medium">Sistema</span>
                     </button>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-3">
-                    Tema claro em breve!
-                  </p>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Sync History Tab */}
+          <TabsContent value="sync-history" className="space-y-6">
+            <Card className="glass-card border-border/50">
+              <CardHeader>
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <History className="w-5 h-5 text-primary" />
+                      Histórico de Sincronização
+                    </CardTitle>
+                    <CardDescription className="mt-1">
+                      {selectedProject ? `Projeto: ${selectedProject.name}` : 'Selecione um projeto'}
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-[160px]">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Filtrar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="success">Sucesso</SelectItem>
+                        <SelectItem value="partial">Parcial</SelectItem>
+                        <SelectItem value="error">Erro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button variant="outline" size="icon" onClick={fetchLogs} disabled={logsLoading}>
+                      <RefreshCw className={cn("w-4 h-4", logsLoading && "animate-spin")} />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {logsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : logs.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <History className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Nenhum registro encontrado</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Os logs de sincronização aparecerão aqui após as sincronizações.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {logs.map((log) => (
+                      <div 
+                        key={log.id} 
+                        className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                      >
+                        {getStatusIcon(log.status)}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{formatDate(log.created_at)}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {log.message || 'Sem detalhes'}
+                          </p>
+                        </div>
+                        {getStatusBadge(log.status)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Summary */}
+                {!logsLoading && logs.length > 0 && (
+                  <div className="grid grid-cols-4 gap-3 mt-6 pt-6 border-t border-border/50">
+                    <div className="text-center">
+                      <p className="text-xl font-bold">{logs.length}</p>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-metric-positive">
+                        {logs.filter(l => l.status === 'success').length}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Sucesso</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-metric-warning">
+                        {logs.filter(l => l.status === 'partial').length}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Parcial</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-metric-negative">
+                        {logs.filter(l => l.status === 'error').length}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Erros</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
