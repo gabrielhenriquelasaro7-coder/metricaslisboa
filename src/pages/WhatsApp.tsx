@@ -56,6 +56,7 @@ interface WhatsAppSubscription {
   weekly_report_enabled: boolean;
   report_day_of_week: number;
   report_time: string;
+  report_period: string;
   message_template?: string | null;
   include_spend?: boolean | null;
   include_leads?: boolean | null;
@@ -64,6 +65,12 @@ interface WhatsAppSubscription {
   include_clicks?: boolean | null;
   include_ctr?: boolean | null;
   include_roas?: boolean | null;
+  include_reach?: boolean | null;
+  include_cpm?: boolean | null;
+  include_cpc?: boolean | null;
+  include_conversions?: boolean | null;
+  include_conversion_value?: boolean | null;
+  include_frequency?: boolean | null;
   last_report_sent_at: string | null;
   created_at: string;
   updated_at: string;
@@ -94,18 +101,53 @@ const TIME_OPTIONS = [
   '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
 ];
 
-const DEFAULT_MESSAGE_TEMPLATE = `📊 *Relatório Semanal de Tráfego*
-📅 {periodo}
+const PERIOD_OPTIONS = [
+  { value: 'last_7_days', label: 'Últimos 7 dias' },
+  { value: 'last_14_days', label: 'Últimos 14 dias' },
+  { value: 'last_30_days', label: 'Últimos 30 dias' },
+  { value: 'this_week', label: 'Esta semana' },
+  { value: 'last_week', label: 'Semana passada' },
+  { value: 'this_month', label: 'Este mês' },
+  { value: 'last_month', label: 'Mês passado' },
+];
+
+const DEFAULT_MESSAGE_TEMPLATE = `📊 *Relatório de Tráfego - {projeto}*
+📅 Período: {periodo}
 
 ━━━━━━━━━━━━━━━━━━━━━
 
-🎯 *{projeto}*
-
-{metricas}
+{investimento}
+{alcance}
+{impressoes}
+{frequencia}
+{cliques}
+{ctr}
+{cpm}
+{cpc}
+{conversoes}
+{valor_conversao}
+{cpl}
+{roas}
 
 ━━━━━━━━━━━━━━━━━━━━━
 
-_Relatório gerado automaticamente pela V4 Company_`;
+_Relatório gerado automaticamente_`;
+
+// All available metrics with their config
+const METRICS_CONFIG = [
+  { id: 'spend', key: 'investimento', label: '💰 Investimento', emoji: '💰', preview: 'R$ 5.234,50' },
+  { id: 'reach', key: 'alcance', label: '👁️ Alcance', emoji: '👁️', preview: '32.5K' },
+  { id: 'impressions', key: 'impressoes', label: '📺 Impressões', emoji: '📺', preview: '45.2K' },
+  { id: 'frequency', key: 'frequencia', label: '🔄 Frequência', emoji: '🔄', preview: '1.39' },
+  { id: 'clicks', key: 'cliques', label: '👆 Cliques', emoji: '👆', preview: '1.823' },
+  { id: 'ctr', key: 'ctr', label: '📈 CTR', emoji: '📈', preview: '3.98%' },
+  { id: 'cpm', key: 'cpm', label: '💵 CPM', emoji: '💵', preview: 'R$ 115,78' },
+  { id: 'cpc', key: 'cpc', label: '💳 CPC', emoji: '💳', preview: 'R$ 2,87' },
+  { id: 'conversions', key: 'conversoes', label: '🎯 Conversões', emoji: '🎯', preview: '127' },
+  { id: 'conversion_value', key: 'valor_conversao', label: '💎 Valor Conversão', emoji: '💎', preview: 'R$ 23.545,00' },
+  { id: 'leads', key: 'cpl', label: '📊 CPL / CPA', emoji: '📊', preview: 'R$ 41,22' },
+  { id: 'roas', key: 'roas', label: '🚀 ROAS', emoji: '🚀', preview: '4.5x' },
+];
 
 function formatPhoneNumber(value: string): string {
   const digits = value.replace(/\D/g, '');
@@ -125,50 +167,32 @@ function formatPhoneNumber(value: string): string {
 function generatePreview(
   template: string,
   projectName: string,
-  metrics: {
-    includeSpend: boolean;
-    includeLeads: boolean;
-    includeCpl: boolean;
-    includeImpressions: boolean;
-    includeClicks: boolean;
-    includeCtr: boolean;
-    includeRoas: boolean;
-  }
+  period: string,
+  enabledMetrics: Record<string, boolean>
 ): string {
-  const today = new Date();
-  const weekAgo = new Date(today);
-  weekAgo.setDate(weekAgo.getDate() - 7);
+  const periodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || 'Últimos 7 dias';
   
-  const periodo = `${weekAgo.toLocaleDateString('pt-BR')} a ${today.toLocaleDateString('pt-BR')}`;
+  let result = template
+    .replace('{periodo}', periodLabel)
+    .replace('{projeto}', projectName);
   
-  const metricLines: string[] = [];
+  // Replace each metric variable
+  METRICS_CONFIG.forEach(metric => {
+    const isEnabled = enabledMetrics[metric.id] ?? true;
+    const varName = `{${metric.key}}`;
+    
+    if (isEnabled) {
+      result = result.replace(varName, `${metric.emoji} ${metric.label.replace(/^[^\s]+ /, '')}: ${metric.preview}`);
+    } else {
+      // Remove the line with this variable
+      result = result.replace(new RegExp(`.*\\{${metric.key}\\}.*\\n?`, 'g'), '');
+    }
+  });
   
-  if (metrics.includeSpend) {
-    metricLines.push('💰 Investido: R$ 5.234,50');
-  }
-  if (metrics.includeLeads) {
-    metricLines.push('👥 Leads: 127 📈 +15%');
-  }
-  if (metrics.includeCpl) {
-    metricLines.push('📊 CPL: R$ 41,22 📉 -8%');
-  }
-  if (metrics.includeImpressions) {
-    metricLines.push('👁️ Impressões: 45.2K');
-  }
-  if (metrics.includeClicks) {
-    metricLines.push('👆 Cliques: 1.8K');
-  }
-  if (metrics.includeCtr) {
-    metricLines.push('📈 CTR: 3.98%');
-  }
-  if (metrics.includeRoas) {
-    metricLines.push('💎 ROAS: 4.5x');
-  }
+  // Clean up multiple empty lines
+  result = result.replace(/\n{3,}/g, '\n\n');
   
-  return template
-    .replace('{periodo}', periodo)
-    .replace('{projeto}', projectName)
-    .replace('{metricas}', metricLines.join('\n'));
+  return result;
 }
 
 export default function WhatsApp() {
@@ -191,17 +215,29 @@ export default function WhatsApp() {
   const [weeklyReportEnabled, setWeeklyReportEnabled] = useState(true);
   const [reportDayOfWeek, setReportDayOfWeek] = useState(1);
   const [reportTime, setReportTime] = useState('08:00');
+  const [reportPeriod, setReportPeriod] = useState('last_7_days');
   const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
   const [hasChanges, setHasChanges] = useState(false);
   
-  // Metrics selection
-  const [includeSpend, setIncludeSpend] = useState(true);
-  const [includeLeads, setIncludeLeads] = useState(true);
-  const [includeCpl, setIncludeCpl] = useState(true);
-  const [includeImpressions, setIncludeImpressions] = useState(true);
-  const [includeClicks, setIncludeClicks] = useState(true);
-  const [includeCtr, setIncludeCtr] = useState(true);
-  const [includeRoas, setIncludeRoas] = useState(true);
+  // Metrics selection - all metrics
+  const [metricsEnabled, setMetricsEnabled] = useState<Record<string, boolean>>({
+    spend: true,
+    reach: true,
+    impressions: true,
+    frequency: true,
+    clicks: true,
+    ctr: true,
+    cpm: true,
+    cpc: true,
+    conversions: true,
+    conversion_value: true,
+    leads: true,
+    roas: true,
+  });
+
+  const toggleMetric = (id: string) => {
+    setMetricsEnabled(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Fetch subscription for current project
   const fetchSubscription = useCallback(async () => {
@@ -263,14 +299,22 @@ export default function WhatsApp() {
       setWeeklyReportEnabled(subscription.weekly_report_enabled);
       setReportDayOfWeek(subscription.report_day_of_week);
       setReportTime(subscription.report_time?.slice(0, 5) || '08:00');
+      setReportPeriod(subscription.report_period || 'last_7_days');
       setMessageTemplate(subscription.message_template || DEFAULT_MESSAGE_TEMPLATE);
-      setIncludeSpend(subscription.include_spend ?? true);
-      setIncludeLeads(subscription.include_leads ?? true);
-      setIncludeCpl(subscription.include_cpl ?? true);
-      setIncludeImpressions(subscription.include_impressions ?? true);
-      setIncludeClicks(subscription.include_clicks ?? true);
-      setIncludeCtr(subscription.include_ctr ?? true);
-      setIncludeRoas(subscription.include_roas ?? true);
+      setMetricsEnabled({
+        spend: subscription.include_spend ?? true,
+        reach: subscription.include_reach ?? true,
+        impressions: subscription.include_impressions ?? true,
+        frequency: subscription.include_frequency ?? true,
+        clicks: subscription.include_clicks ?? true,
+        ctr: subscription.include_ctr ?? true,
+        cpm: subscription.include_cpm ?? true,
+        cpc: subscription.include_cpc ?? true,
+        conversions: subscription.include_conversions ?? true,
+        conversion_value: subscription.include_conversion_value ?? true,
+        leads: subscription.include_leads ?? true,
+        roas: subscription.include_roas ?? true,
+      });
     }
   }, [subscription]);
 
@@ -285,18 +329,25 @@ export default function WhatsApp() {
     const enabledChanged = weeklyReportEnabled !== subscription.weekly_report_enabled;
     const dayChanged = reportDayOfWeek !== subscription.report_day_of_week;
     const timeChanged = reportTime !== subscription.report_time?.slice(0, 5);
+    const periodChanged = reportPeriod !== (subscription.report_period || 'last_7_days');
     const templateChanged = messageTemplate !== (subscription.message_template || DEFAULT_MESSAGE_TEMPLATE);
+    
     const metricsChanged = 
-      includeSpend !== (subscription.include_spend ?? true) ||
-      includeLeads !== (subscription.include_leads ?? true) ||
-      includeCpl !== (subscription.include_cpl ?? true) ||
-      includeImpressions !== (subscription.include_impressions ?? true) ||
-      includeClicks !== (subscription.include_clicks ?? true) ||
-      includeCtr !== (subscription.include_ctr ?? true) ||
-      includeRoas !== (subscription.include_roas ?? true);
+      metricsEnabled.spend !== (subscription.include_spend ?? true) ||
+      metricsEnabled.reach !== (subscription.include_reach ?? true) ||
+      metricsEnabled.impressions !== (subscription.include_impressions ?? true) ||
+      metricsEnabled.frequency !== (subscription.include_frequency ?? true) ||
+      metricsEnabled.clicks !== (subscription.include_clicks ?? true) ||
+      metricsEnabled.ctr !== (subscription.include_ctr ?? true) ||
+      metricsEnabled.cpm !== (subscription.include_cpm ?? true) ||
+      metricsEnabled.cpc !== (subscription.include_cpc ?? true) ||
+      metricsEnabled.conversions !== (subscription.include_conversions ?? true) ||
+      metricsEnabled.conversion_value !== (subscription.include_conversion_value ?? true) ||
+      metricsEnabled.leads !== (subscription.include_leads ?? true) ||
+      metricsEnabled.roas !== (subscription.include_roas ?? true);
 
-    setHasChanges(phoneChanged || enabledChanged || dayChanged || timeChanged || templateChanged || metricsChanged);
-  }, [subscription, phoneNumber, weeklyReportEnabled, reportDayOfWeek, reportTime, messageTemplate, includeSpend, includeLeads, includeCpl, includeImpressions, includeClicks, includeCtr, includeRoas]);
+    setHasChanges(phoneChanged || enabledChanged || dayChanged || timeChanged || periodChanged || templateChanged || metricsChanged);
+  }, [subscription, phoneNumber, weeklyReportEnabled, reportDayOfWeek, reportTime, reportPeriod, messageTemplate, metricsEnabled]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -326,14 +377,21 @@ export default function WhatsApp() {
         weekly_report_enabled: weeklyReportEnabled,
         report_day_of_week: reportDayOfWeek,
         report_time: reportTime,
+        report_period: reportPeriod,
         message_template: messageTemplate,
-        include_spend: includeSpend,
-        include_leads: includeLeads,
-        include_cpl: includeCpl,
-        include_impressions: includeImpressions,
-        include_clicks: includeClicks,
-        include_ctr: includeCtr,
-        include_roas: includeRoas,
+        include_spend: metricsEnabled.spend,
+        include_reach: metricsEnabled.reach,
+        include_impressions: metricsEnabled.impressions,
+        include_frequency: metricsEnabled.frequency,
+        include_clicks: metricsEnabled.clicks,
+        include_ctr: metricsEnabled.ctr,
+        include_cpm: metricsEnabled.cpm,
+        include_cpc: metricsEnabled.cpc,
+        include_conversions: metricsEnabled.conversions,
+        include_conversion_value: metricsEnabled.conversion_value,
+        include_leads: metricsEnabled.leads,
+        include_cpl: metricsEnabled.leads, // Keep backward compat
+        include_roas: metricsEnabled.roas,
       };
 
       if (subscription) {
@@ -387,7 +445,22 @@ export default function WhatsApp() {
       setWeeklyReportEnabled(true);
       setReportDayOfWeek(1);
       setReportTime('08:00');
+      setReportPeriod('last_7_days');
       setMessageTemplate(DEFAULT_MESSAGE_TEMPLATE);
+      setMetricsEnabled({
+        spend: true,
+        reach: true,
+        impressions: true,
+        frequency: true,
+        clicks: true,
+        ctr: true,
+        cpm: true,
+        cpc: true,
+        conversions: true,
+        conversion_value: true,
+        leads: true,
+        roas: true,
+      });
       toast.success('Configurações removidas');
     } catch (error) {
       console.error('Error deleting subscription:', error);
@@ -458,7 +531,8 @@ export default function WhatsApp() {
   const previewMessage = generatePreview(
     messageTemplate,
     selectedProject?.name || 'Projeto',
-    { includeSpend, includeLeads, includeCpl, includeImpressions, includeClicks, includeCtr, includeRoas }
+    reportPeriod,
+    metricsEnabled
   );
 
   if (authLoading || loading) {
@@ -486,7 +560,7 @@ export default function WhatsApp() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 space-y-6 max-w-6xl">
+      <div className="p-6 lg:p-8 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg">
@@ -495,7 +569,7 @@ export default function WhatsApp() {
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold">WhatsApp</h1>
             <p className="text-muted-foreground">
-              Configurar relatório semanal para <span className="font-medium text-foreground">{selectedProject.name}</span>
+              Configurar relatório para <span className="font-medium text-foreground">{selectedProject.name}</span>
             </p>
           </div>
         </div>
@@ -532,7 +606,7 @@ export default function WhatsApp() {
                   <div className="space-y-0.5">
                     <Label htmlFor="weekly-report">Relatório ativado</Label>
                     <p className="text-sm text-muted-foreground">
-                      Envio automático semanal
+                      Envio automático
                     </p>
                   </div>
                   <Switch
@@ -540,6 +614,23 @@ export default function WhatsApp() {
                     checked={weeklyReportEnabled}
                     onCheckedChange={setWeeklyReportEnabled}
                   />
+                </div>
+
+                {/* Period Selector */}
+                <div className="space-y-2">
+                  <Label>Período do relatório</Label>
+                  <Select value={reportPeriod} onValueChange={setReportPeriod}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERIOD_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Schedule */}
@@ -596,27 +687,19 @@ export default function WhatsApp() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { id: 'spend', label: '💰 Investimento', checked: includeSpend, onChange: setIncludeSpend },
-                    { id: 'leads', label: '👥 Leads', checked: includeLeads, onChange: setIncludeLeads },
-                    { id: 'cpl', label: '📊 CPL', checked: includeCpl, onChange: setIncludeCpl },
-                    { id: 'impressions', label: '👁️ Impressões', checked: includeImpressions, onChange: setIncludeImpressions },
-                    { id: 'clicks', label: '👆 Cliques', checked: includeClicks, onChange: setIncludeClicks },
-                    { id: 'ctr', label: '📈 CTR', checked: includeCtr, onChange: setIncludeCtr },
-                    { id: 'roas', label: '💎 ROAS', checked: includeRoas, onChange: setIncludeRoas },
-                  ].map(metric => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {METRICS_CONFIG.map(metric => (
                     <div
                       key={metric.id}
-                      className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30 border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => metric.onChange(!metric.checked)}
+                      className="flex items-center space-x-2 p-2.5 rounded-lg bg-muted/30 border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleMetric(metric.id)}
                     >
                       <Checkbox
                         id={metric.id}
-                        checked={metric.checked}
-                        onCheckedChange={(checked) => metric.onChange(checked as boolean)}
+                        checked={metricsEnabled[metric.id] ?? true}
+                        onCheckedChange={() => toggleMetric(metric.id)}
                       />
-                      <Label htmlFor={metric.id} className="cursor-pointer text-sm">
+                      <Label htmlFor={metric.id} className="cursor-pointer text-xs sm:text-sm truncate">
                         {metric.label}
                       </Label>
                     </div>
@@ -665,7 +748,7 @@ export default function WhatsApp() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Remover configuração?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Isso irá desativar o envio de relatórios semanais para seu WhatsApp neste projeto.
+                        Isso irá desativar o envio de relatórios para seu WhatsApp neste projeto.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -701,7 +784,7 @@ export default function WhatsApp() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="bg-[#0b141a] rounded-lg p-4 font-mono text-sm text-[#e9edef] whitespace-pre-wrap border border-[#2a3942]">
+                <div className="bg-[#0b141a] rounded-lg p-4 font-mono text-sm text-[#e9edef] whitespace-pre-wrap border border-[#2a3942] max-h-[400px] overflow-y-auto">
                   {previewMessage}
                 </div>
               </CardContent>
@@ -730,16 +813,27 @@ export default function WhatsApp() {
                 <Textarea
                   value={messageTemplate}
                   onChange={(e) => setMessageTemplate(e.target.value)}
-                  rows={10}
+                  rows={12}
                   className="font-mono text-sm bg-muted/30"
                 />
-                <div className="text-xs text-muted-foreground space-y-1">
+                <div className="text-xs text-muted-foreground space-y-2">
                   <p className="font-medium">Variáveis disponíveis:</p>
-                  <ul className="list-disc list-inside space-y-0.5 ml-2">
-                    <li><code className="bg-muted px-1 rounded">{'{periodo}'}</code> - Período do relatório</li>
-                    <li><code className="bg-muted px-1 rounded">{'{projeto}'}</code> - Nome do projeto</li>
-                    <li><code className="bg-muted px-1 rounded">{'{metricas}'}</code> - Métricas selecionadas</li>
-                  </ul>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <div><code className="bg-muted px-1 rounded">{'{projeto}'}</code> Nome do projeto</div>
+                    <div><code className="bg-muted px-1 rounded">{'{periodo}'}</code> Período selecionado</div>
+                    <div><code className="bg-muted px-1 rounded">{'{investimento}'}</code> Investimento</div>
+                    <div><code className="bg-muted px-1 rounded">{'{alcance}'}</code> Alcance</div>
+                    <div><code className="bg-muted px-1 rounded">{'{impressoes}'}</code> Impressões</div>
+                    <div><code className="bg-muted px-1 rounded">{'{frequencia}'}</code> Frequência</div>
+                    <div><code className="bg-muted px-1 rounded">{'{cliques}'}</code> Cliques</div>
+                    <div><code className="bg-muted px-1 rounded">{'{ctr}'}</code> CTR</div>
+                    <div><code className="bg-muted px-1 rounded">{'{cpm}'}</code> CPM</div>
+                    <div><code className="bg-muted px-1 rounded">{'{cpc}'}</code> CPC</div>
+                    <div><code className="bg-muted px-1 rounded">{'{conversoes}'}</code> Conversões</div>
+                    <div><code className="bg-muted px-1 rounded">{'{valor_conversao}'}</code> Valor</div>
+                    <div><code className="bg-muted px-1 rounded">{'{cpl}'}</code> CPL / CPA</div>
+                    <div><code className="bg-muted px-1 rounded">{'{roas}'}</code> ROAS</div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -762,7 +856,7 @@ export default function WhatsApp() {
                       >
                         <div className="space-y-0.5">
                           <span className="text-sm font-medium">
-                            {log.message_type === 'weekly_report' ? 'Relatório Semanal' : 'Teste'}
+                            {log.message_type === 'weekly_report' ? 'Relatório' : 'Teste'}
                           </span>
                           <p className="text-xs text-muted-foreground">
                             {format(new Date(log.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
