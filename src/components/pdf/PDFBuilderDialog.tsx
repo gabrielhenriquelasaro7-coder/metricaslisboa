@@ -132,6 +132,76 @@ function fmtValue(v: number, t: string, c: string): string {
   return `${v.toFixed(2)}x`;
 }
 
+// Remove emojis and special characters that jsPDF doesn't support
+function sanitizeForPDF(text: string): string {
+  return text
+    .replace(/[\u{1F600}-\u{1F64F}]/gu, '') // Emoticons
+    .replace(/[\u{1F300}-\u{1F5FF}]/gu, '') // Misc Symbols and Pictographs
+    .replace(/[\u{1F680}-\u{1F6FF}]/gu, '') // Transport and Map
+    .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '') // Flags
+    .replace(/[\u{2600}-\u{26FF}]/gu, '')   // Misc symbols
+    .replace(/[\u{2700}-\u{27BF}]/gu, '')   // Dingbats
+    .replace(/[\u{FE00}-\u{FE0F}]/gu, '')   // Variation Selectors
+    .replace(/[\u{1F900}-\u{1F9FF}]/gu, '') // Supplemental Symbols and Pictographs
+    .replace(/[\u{1FA00}-\u{1FA6F}]/gu, '') // Chess Symbols
+    .replace(/[\u{1FA70}-\u{1FAFF}]/gu, '') // Symbols and Pictographs Extended-A
+    .replace(/[\u{231A}-\u{231B}]/gu, '')   // Watch, Hourglass
+    .replace(/[\u{23E9}-\u{23F3}]/gu, '')   // Various symbols
+    .replace(/[\u{23F8}-\u{23FA}]/gu, '')   // Various symbols
+    .replace(/[\u{25AA}-\u{25AB}]/gu, '')   // Squares
+    .replace(/[\u{25B6}]/gu, '')            // Play button
+    .replace(/[\u{25C0}]/gu, '')            // Reverse button
+    .replace(/[\u{25FB}-\u{25FE}]/gu, '')   // Squares
+    .replace(/[\u{2614}-\u{2615}]/gu, '')   // Umbrella, Hot Beverage
+    .replace(/[\u{2648}-\u{2653}]/gu, '')   // Zodiac signs
+    .replace(/[\u{267F}]/gu, '')            // Wheelchair
+    .replace(/[\u{2693}]/gu, '')            // Anchor
+    .replace(/[\u{26A1}]/gu, '')            // High voltage
+    .replace(/[\u{26AA}-\u{26AB}]/gu, '')   // Circles
+    .replace(/[\u{26BD}-\u{26BE}]/gu, '')   // Soccer, Baseball
+    .replace(/[\u{26C4}-\u{26C5}]/gu, '')   // Snowman, Sun
+    .replace(/[\u{26CE}]/gu, '')            // Ophiuchus
+    .replace(/[\u{26D4}]/gu, '')            // No entry
+    .replace(/[\u{26EA}]/gu, '')            // Church
+    .replace(/[\u{26F2}-\u{26F3}]/gu, '')   // Fountain, Golf
+    .replace(/[\u{26F5}]/gu, '')            // Sailboat
+    .replace(/[\u{26FA}]/gu, '')            // Tent
+    .replace(/[\u{26FD}]/gu, '')            // Fuel pump
+    .replace(/[\u{2702}]/gu, '')            // Scissors
+    .replace(/[\u{2705}]/gu, '')            // Check mark
+    .replace(/[\u{2708}-\u{270D}]/gu, '')   // Various symbols
+    .replace(/[\u{270F}]/gu, '')            // Pencil
+    .replace(/[\u{2712}]/gu, '')            // Black nib
+    .replace(/[\u{2714}]/gu, '')            // Check mark
+    .replace(/[\u{2716}]/gu, '')            // X mark
+    .replace(/[\u{271D}]/gu, '')            // Cross
+    .replace(/[\u{2721}]/gu, '')            // Star of David
+    .replace(/[\u{2728}]/gu, '')            // Sparkles
+    .replace(/[\u{2733}-\u{2734}]/gu, '')   // Eight spoked asterisk
+    .replace(/[\u{2744}]/gu, '')            // Snowflake
+    .replace(/[\u{2747}]/gu, '')            // Sparkle
+    .replace(/[\u{274C}]/gu, '')            // Cross mark
+    .replace(/[\u{274E}]/gu, '')            // Cross mark
+    .replace(/[\u{2753}-\u{2755}]/gu, '')   // Question marks
+    .replace(/[\u{2757}]/gu, '')            // Exclamation mark
+    .replace(/[\u{2763}-\u{2764}]/gu, '')   // Heart
+    .replace(/[\u{2795}-\u{2797}]/gu, '')   // Plus, Minus, Divide
+    .replace(/[\u{27A1}]/gu, '')            // Right arrow
+    .replace(/[\u{27B0}]/gu, '')            // Curly loop
+    .replace(/[\u{27BF}]/gu, '')            // Double curly loop
+    .replace(/[\u{2934}-\u{2935}]/gu, '')   // Arrows
+    .replace(/[\u{2B05}-\u{2B07}]/gu, '')   // Arrows
+    .replace(/[\u{2B1B}-\u{2B1C}]/gu, '')   // Squares
+    .replace(/[\u{2B50}]/gu, '')            // Star
+    .replace(/[\u{2B55}]/gu, '')            // Circle
+    .replace(/[\u{3030}]/gu, '')            // Wavy dash
+    .replace(/[\u{303D}]/gu, '')            // Part alternation mark
+    .replace(/[\u{3297}]/gu, '')            // Circled Ideograph Congratulation
+    .replace(/[\u{3299}]/gu, '')            // Circled Ideograph Secret
+    .replace(/[❄️🔥⚡️✨💥💫⭐️🌟✅❌⚠️💡🎯🚀📈📉💰💵💸🛒🛍️]/gu, '') // Common emojis
+    .trim();
+}
+
 function fmtDateRange(since: string, until: string): string {
   const s = new Date(since + 'T00:00:00');
   const e = new Date(until + 'T00:00:00');
@@ -163,11 +233,11 @@ function DemoPieChart({ data, type, title, icon: Icon, id }: DemoPieChartProps) 
   if (data.length === 0) return null;
 
   return (
-    <div className="bg-gray-50 rounded p-2 border border-gray-100">
+    <div id={id} className="bg-gray-50 rounded p-2 border border-gray-100" style={{ minHeight: 100 }}>
       <p className="text-[10px] text-gray-500 flex items-center gap-1 mb-1">
         <Icon className="w-3 h-3" /> {title}
       </p>
-      <div id={id} className="flex items-center gap-2" style={{ height: 80 }}>
+      <div className="flex items-center gap-2" style={{ height: 80 }}>
         <div style={{ width: 70, height: 70 }}>
           <ResponsiveContainer width="100%" height="100%">
             <RechartsPieChart>
@@ -206,11 +276,11 @@ function AgeBarChartPreview({ data, id }: { data: DemographicData[]; id: string 
   if (data.length === 0) return null;
 
   return (
-    <div className="bg-gray-50 rounded p-2 border border-gray-100">
+    <div id={id} className="bg-gray-50 rounded p-2 border border-gray-100" style={{ minHeight: 100 }}>
       <p className="text-[10px] text-gray-500 flex items-center gap-1 mb-1">
         <Users className="w-3 h-3" /> Faixa Etária
       </p>
-      <div id={id} style={{ height: 80 }}>
+      <div style={{ height: 80 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
             <XAxis dataKey="name" tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
@@ -626,7 +696,8 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
           doc.setTextColor(31, 41, 55);
           
           let xPos = startX + 2;
-          const campaignName = c.campaign_name.length > 30 ? c.campaign_name.substring(0, 28) + '...' : c.campaign_name;
+          const sanitizedName = sanitizeForPDF(c.campaign_name);
+          const campaignName = sanitizedName.length > 30 ? sanitizedName.substring(0, 28) + '...' : sanitizedName;
           doc.text(campaignName, xPos, y + 5);
           
           xPos += colWidths[0];
