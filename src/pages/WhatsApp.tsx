@@ -43,7 +43,8 @@ import {
   Calendar,
   Eye,
   Edit3,
-  RotateCcw
+  RotateCcw,
+  History
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -885,28 +886,70 @@ export default function WhatsApp() {
             {/* Message History */}
             {subscription && messageLogs.length > 0 && (
               <Card className="glass-card border-border/50">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Histórico
-                  </CardTitle>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <History className="w-4 h-4" />
+                      Histórico de Envios
+                    </CardTitle>
+                    <Badge variant="outline" className="text-xs">
+                      {messageLogs.length} {messageLogs.length === 1 ? 'envio' : 'envios'}
+                    </Badge>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {messageLogs.map(log => (
+                <CardContent className="pt-0">
+                  <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                    {messageLogs.map((log, index) => (
                       <div
                         key={log.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"
+                        className={`relative flex items-start gap-3 p-4 rounded-xl transition-all duration-200 hover:scale-[1.01] ${
+                          log.status === 'sent' 
+                            ? 'bg-gradient-to-r from-green-500/10 to-green-500/5 border border-green-500/20' 
+                            : log.status === 'failed'
+                            ? 'bg-gradient-to-r from-red-500/10 to-red-500/5 border border-red-500/20'
+                            : 'bg-gradient-to-r from-yellow-500/10 to-yellow-500/5 border border-yellow-500/20'
+                        }`}
                       >
-                        <div className="space-y-0.5">
-                          <span className="text-sm font-medium">
-                            {log.message_type === 'weekly_report' ? 'Relatório' : 'Teste'}
-                          </span>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(log.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                          </p>
+                        {/* Status Icon */}
+                        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                          log.status === 'sent' 
+                            ? 'bg-green-500/20 text-green-500' 
+                            : log.status === 'failed'
+                            ? 'bg-red-500/20 text-red-500'
+                            : 'bg-yellow-500/20 text-yellow-500'
+                        }`}>
+                          {log.status === 'sent' ? (
+                            <CheckCircle2 className="w-5 h-5" />
+                          ) : log.status === 'failed' ? (
+                            <XCircle className="w-5 h-5" />
+                          ) : (
+                            <Clock className="w-5 h-5" />
+                          )}
                         </div>
-                        {getStatusBadge(log.status)}
+                        
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-sm">
+                              {log.message_type === 'weekly_report' ? '📊 Relatório Semanal' : '🧪 Teste de Envio'}
+                            </span>
+                            {getStatusBadge(log.status)}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Calendar className="w-3 h-3" />
+                            <span>{format(new Date(log.created_at), "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}</span>
+                          </div>
+                          {log.error_message && (
+                            <p className="mt-2 text-xs text-red-400 bg-red-500/10 rounded-md px-2 py-1">
+                              {log.error_message}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Index Badge */}
+                        <div className="absolute top-2 right-2 text-[10px] text-muted-foreground/50 font-mono">
+                          #{messageLogs.length - index}
+                        </div>
                       </div>
                     ))}
                   </div>
