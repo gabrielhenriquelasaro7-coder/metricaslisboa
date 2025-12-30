@@ -217,34 +217,27 @@ async function fetchDailyInsights(
 }
 
 // ============ EXTRACT CONVERSIONS ============
-// LISTA RESTRITIVA: Apenas LEADS REAIS conforme aparecem no Gerenciador de Anúncios do Meta
-// Dividido em categorias para clareza e manutenção
+// LISTA SUPER RESTRITIVA: Apenas LEADS REAIS conforme aparecem no Gerenciador de Anúncios do Meta
+// EXCLUI: mensagens, conversas, tráfego Instagram, contatos genéricos, etc.
 
 // LEADS REAIS - Formulários (Lead Ads / Instant Forms)
+// Estes são os únicos leads que aparecem como "Resultados" no Gerenciador
 const LEAD_FORM_ACTIONS = [
-  'lead',                                    // Lead genérico
+  'lead',                                    // Lead genérico (formulário)
   'leadgen.other',                           // Lead via formulário
-  'leadgen_grouped',                         // Leads agrupados de formulários
-  'onsite_conversion.lead_grouped',          // Leads on-Facebook agrupados
-  'on_facebook_lead',                        // Lead no Facebook
+  'on_facebook_lead',                        // Lead no Facebook (formulário)
 ];
 
 // LEADS VIA PIXEL - "Lead no site" / "Leads no site"
+// Apenas conversões trackadas pelo pixel do site
 const LEAD_PIXEL_ACTIONS = [
   'offsite_conversion.fb_pixel_lead',        // Lead via pixel (Lead no site)
-  'onsite_web_lead',                         // Lead web onsite
 ];
 
 // REGISTROS COMPLETOS - Contam como lead/conversão
 const REGISTRATION_ACTIONS = [
   'complete_registration',                             // Cadastro completo
   'offsite_conversion.fb_pixel_complete_registration', // Cadastro via pixel
-];
-
-// CONTATOS VIA PIXEL - "Contato no site" 
-// NOTA: Só conta se o objetivo da campanha for conversão de contato
-const CONTACT_PIXEL_ACTIONS = [
-  'offsite_conversion.fb_pixel_contact',     // Contato via pixel do site
 ];
 
 // COMPRAS - Para campanhas de e-commerce
@@ -255,12 +248,12 @@ const PURCHASE_ACTIONS = [
 ];
 
 // LISTA COMPLETA DE CONVERSÕES VÁLIDAS
-// Inclui apenas o que aparece como "Resultados" no Gerenciador de Anúncios
+// NÃO INCLUI: contact, messaging, conversations, onsite_web_lead, leadgen_grouped, etc.
+// Esses tipos causam dupla contagem ou não são leads reais
 const CONVERSION_ACTION_TYPES = [
   ...LEAD_FORM_ACTIONS,
   ...LEAD_PIXEL_ACTIONS,
   ...REGISTRATION_ACTIONS,
-  ...CONTACT_PIXEL_ACTIONS,
   ...PURCHASE_ACTIONS,
 ];
 
@@ -276,16 +269,14 @@ const VALUE_ACTION_TYPES = [
 ];
 
 // Mapeamento de action_types para uma categoria base para evitar dupla contagem
-// Ex: 'lead', 'onsite_web_lead', 'offsite_conversion.fb_pixel_lead' -> todos viram 'lead'
+// SIMPLIFICADO: Apenas 3 categorias (lead, registration, purchase)
+// NÃO inclui contact pois tráfego Instagram não gera leads
 function normalizeActionTypeToBase(actionType: string): string {
   // LEADS - todos os tipos de lead viram 'lead'
   if (actionType === 'lead' || 
-      actionType === 'onsite_web_lead' ||
       actionType === 'on_facebook_lead' ||
       actionType === 'offsite_conversion.fb_pixel_lead' ||
-      actionType === 'leadgen.other' ||
-      actionType === 'leadgen_grouped' ||
-      actionType === 'onsite_conversion.lead_grouped') {
+      actionType === 'leadgen.other') {
     return 'lead';
   }
   
@@ -302,14 +293,7 @@ function normalizeActionTypeToBase(actionType: string): string {
     return 'purchase';
   }
   
-  // CONTATO - todos viram 'contact'
-  if (actionType === 'offsite_conversion.fb_pixel_contact' ||
-      actionType === 'contact' ||
-      actionType === 'contact_website') {
-    return 'contact';
-  }
-  
-  // Default: retorna o próprio tipo
+  // Default: retorna o próprio tipo (será ignorado se não estiver na lista)
   return actionType;
 }
 
