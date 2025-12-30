@@ -22,6 +22,7 @@ interface DemographicChartsProps {
   data: DemographicInsights | null;
   isLoading: boolean;
   className?: string;
+  currency?: string;
 }
 
 const COLORS = [
@@ -35,14 +36,18 @@ const COLORS = [
   'hsl(50, 80%, 45%)',
 ];
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
+const createFormatCurrency = (currency: string = 'BRL') => (value: number) => {
+  const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'BRL',
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
 };
+
+// Default formatCurrency for static usage
+const formatCurrency = createFormatCurrency('BRL');
 
 const formatNumber = (value: number) => {
   if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';

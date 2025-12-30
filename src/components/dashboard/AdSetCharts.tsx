@@ -33,16 +33,8 @@ interface AdSetChartsProps {
   data: AdSetDailyMetric[];
   businessModel: 'ecommerce' | 'inside_sales' | 'pdv' | null;
   className?: string;
+  currency?: string;
 }
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-};
 
 const formatNumber = (value: number) => {
   if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
@@ -53,26 +45,39 @@ const formatNumber = (value: number) => {
 const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 const formatMultiplier = (value: number) => `${value.toFixed(2)}x`;
 
-const METRIC_OPTIONS: MetricOption[] = [
-  { key: 'spend', label: 'Gasto', format: formatCurrency, color: 'hsl(var(--primary))' },
-  { key: 'conversions', label: 'Conversões', format: formatNumber, color: 'hsl(var(--chart-1))' },
-  { key: 'revenue', label: 'Receita', format: formatCurrency, color: 'hsl(142, 76%, 36%)' },
-  { key: 'impressions', label: 'Impressões', format: formatNumber, color: 'hsl(var(--chart-2))' },
-  { key: 'clicks', label: 'Cliques', format: formatNumber, color: 'hsl(var(--chart-3))' },
-  { key: 'reach', label: 'Alcance', format: formatNumber, color: 'hsl(var(--chart-4))' },
-  { key: 'ctr', label: 'CTR', format: formatPercent, color: 'hsl(var(--chart-5))' },
-  { key: 'cpc', label: 'CPC', format: formatCurrency, color: 'hsl(280, 70%, 50%)' },
-  { key: 'cpm', label: 'CPM', format: formatCurrency, color: 'hsl(200, 70%, 50%)' },
-  { key: 'cpa', label: 'CPL/CPA', format: formatCurrency, color: 'hsl(30, 70%, 50%)' },
-  { key: 'roas', label: 'ROAS', format: formatMultiplier, color: 'hsl(142, 76%, 36%)' },
-];
+const createMetricOptions = (currency: string = 'BRL'): MetricOption[] => {
+  const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
+  const formatCurrency = (value: number) => new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+
+  return [
+    { key: 'spend', label: 'Gasto', format: formatCurrency, color: 'hsl(var(--primary))' },
+    { key: 'conversions', label: 'Conversões', format: formatNumber, color: 'hsl(var(--chart-1))' },
+    { key: 'revenue', label: 'Receita', format: formatCurrency, color: 'hsl(142, 76%, 36%)' },
+    { key: 'impressions', label: 'Impressões', format: formatNumber, color: 'hsl(var(--chart-2))' },
+    { key: 'clicks', label: 'Cliques', format: formatNumber, color: 'hsl(var(--chart-3))' },
+    { key: 'reach', label: 'Alcance', format: formatNumber, color: 'hsl(var(--chart-4))' },
+    { key: 'ctr', label: 'CTR', format: formatPercent, color: 'hsl(var(--chart-5))' },
+    { key: 'cpc', label: 'CPC', format: formatCurrency, color: 'hsl(280, 70%, 50%)' },
+    { key: 'cpm', label: 'CPM', format: formatCurrency, color: 'hsl(200, 70%, 50%)' },
+    { key: 'cpa', label: 'CPL/CPA', format: formatCurrency, color: 'hsl(30, 70%, 50%)' },
+    { key: 'roas', label: 'ROAS', format: formatMultiplier, color: 'hsl(142, 76%, 36%)' },
+  ];
+};
 
 export default function AdSetCharts({ 
   data, 
   businessModel,
-  className 
+  className,
+  currency = 'BRL'
 }: AdSetChartsProps) {
   const isEcommerce = businessModel === 'ecommerce';
+  
+  const METRIC_OPTIONS = useMemo(() => createMetricOptions(currency), [currency]);
   
   const [chartType, setChartType] = useState<ChartType>('composed');
   const [primaryMetric, setPrimaryMetric] = useState('spend');

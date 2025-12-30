@@ -201,9 +201,11 @@ export default function Creatives() {
   };
 
   const formatCurrency = (num: number) => {
-    return new Intl.NumberFormat('pt-BR', {
+    const currency = selectedProject?.currency || 'BRL';
+    const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'BRL',
+      currency,
     }).format(num);
   };
 

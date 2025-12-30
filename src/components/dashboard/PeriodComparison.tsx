@@ -21,6 +21,7 @@ interface PeriodComparisonProps {
   businessModel: 'ecommerce' | 'inside_sales' | 'pdv' | null;
   currentPeriodLabel?: string;
   previousPeriodLabel?: string;
+  currency?: string;
 }
 
 interface ComparisonItemProps {
