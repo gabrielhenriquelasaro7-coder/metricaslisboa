@@ -21,6 +21,7 @@ import CreativeDetail from "./pages/CreativeDetail";
 import Settings from "./pages/Settings";
 import SyncHistory from "./pages/SyncHistory";
 import Admin from "./pages/Admin";
+import AIAssistant from "./pages/AIAssistant";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ const App = () => (
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/sync-history" element={<SyncHistory />} />
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/ai-assistant" element={<AIAssistant />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
