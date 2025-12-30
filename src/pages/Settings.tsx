@@ -84,6 +84,16 @@ interface SyncLog {
 
 type Theme = 'dark' | 'light' | 'system';
 
+type PrimaryColor = 'red' | 'blue' | 'green' | 'purple' | 'orange';
+
+const COLOR_PRESETS: Record<PrimaryColor, { name: string; hue: number; saturation: number }> = {
+  red: { name: 'Vermelho', hue: 0, saturation: 85 },
+  blue: { name: 'Azul', hue: 220, saturation: 85 },
+  green: { name: 'Verde', hue: 142, saturation: 71 },
+  purple: { name: 'Roxo', hue: 270, saturation: 75 },
+  orange: { name: 'Laranja', hue: 25, saturation: 90 },
+};
+
 export default function Settings() {
   const { user, signOut } = useAuth();
   const { projects } = useProjects();
@@ -104,6 +114,12 @@ export default function Settings() {
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem('theme') as Theme;
     return stored || 'dark';
+  });
+
+  // Primary color state
+  const [primaryColor, setPrimaryColor] = useState<PrimaryColor>(() => {
+    const stored = localStorage.getItem('primaryColor') as PrimaryColor;
+    return stored || 'red';
   });
 
   // Sync logs state
@@ -148,6 +164,23 @@ export default function Settings() {
     
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Apply primary color
+  useEffect(() => {
+    const root = document.documentElement;
+    const colorPreset = COLOR_PRESETS[primaryColor];
+    
+    root.style.setProperty('--primary', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
+    root.style.setProperty('--ring', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
+    root.style.setProperty('--sidebar-primary', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
+    root.style.setProperty('--sidebar-ring', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
+    root.style.setProperty('--accent', `${colorPreset.hue} 70% 60%`);
+    root.style.setProperty('--chart-1', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
+    root.style.setProperty('--chart-2', `${colorPreset.hue} 70% 65%`);
+    root.style.setProperty('--metric-neutral', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
+    
+    localStorage.setItem('primaryColor', primaryColor);
+  }, [primaryColor]);
 
   // Fetch sync logs
   const fetchLogs = async () => {
@@ -214,6 +247,11 @@ export default function Settings() {
   const handleThemeChange = (newTheme: Theme) => {
     setTheme(newTheme);
     toast.success(`Tema ${newTheme === 'dark' ? 'escuro' : newTheme === 'light' ? 'claro' : 'do sistema'} ativado`);
+  };
+
+  const handleColorChange = (color: PrimaryColor) => {
+    setPrimaryColor(color);
+    toast.success(`Cor ${COLOR_PRESETS[color].name} ativada`);
   };
 
   const getStatusIcon = (status: string) => {
@@ -521,7 +559,8 @@ export default function Settings() {
                   Personalize a aparência do sistema
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
+                {/* Theme Selection */}
                 <div>
                   <Label className="mb-4 block">Tema</Label>
                   <div className="grid grid-cols-3 gap-4 max-w-md">
@@ -568,6 +607,38 @@ export default function Settings() {
                       <span className="text-sm font-medium">Sistema</span>
                     </button>
                   </div>
+                </div>
+
+                {/* Primary Color Selection */}
+                <div>
+                  <Label className="mb-4 block">Cor Primária</Label>
+                  <div className="grid grid-cols-5 gap-3 max-w-md">
+                    {(Object.keys(COLOR_PRESETS) as PrimaryColor[]).map((color) => {
+                      const preset = COLOR_PRESETS[color];
+                      const bgColor = `hsl(${preset.hue}, ${preset.saturation}%, 50%)`;
+                      return (
+                        <button
+                          key={color}
+                          onClick={() => handleColorChange(color)}
+                          className={cn(
+                            "p-3 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg",
+                            primaryColor === color
+                              ? "border-foreground shadow-lg"
+                              : "border-border hover:border-foreground/50"
+                          )}
+                        >
+                          <div 
+                            className="w-full h-10 rounded-lg mb-2"
+                            style={{ backgroundColor: bgColor }}
+                          />
+                          <span className="text-xs font-medium">{preset.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    A cor primária será aplicada em todo o sistema
+                  </p>
                 </div>
               </CardContent>
             </Card>
