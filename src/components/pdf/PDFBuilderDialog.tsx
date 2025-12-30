@@ -1299,14 +1299,7 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                           <tbody>
                             {topCampaigns.map((c, idx) => (
                               <tr key={c.campaign_id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'}>
-                                <td className="px-2 py-2">
-                                  <span 
-                                    className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[8px] font-bold text-white"
-                                    style={{ backgroundColor: idx === 0 ? primaryColor : idx === 1 ? '#6B7280' : '#9CA3AF' }}
-                                  >
-                                    {idx + 1}
-                                  </span>
-                                </td>
+                                <td className="px-2 py-2 text-center font-bold text-gray-700">{idx + 1}</td>
                                 <td className="px-2 py-2 text-gray-800 truncate max-w-[120px] font-medium" title={c.campaign_name}>{c.campaign_name}</td>
                                 <td className="text-right px-2 py-2 text-gray-800 font-semibold">{fmtCurrency(c.spend, currency)}</td>
                                 <td className="text-right px-2 py-2 text-gray-800">{fmtNumber(c.conversions)}</td>
