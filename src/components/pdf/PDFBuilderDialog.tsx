@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { FileText, Download, Loader2, Calendar, Upload, X, LayoutTemplate } from 'lucide-react';
+import { FileText, Download, Loader2, Calendar, Upload, X, LayoutTemplate, PieChart, Users, Smartphone, Globe, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,8 +18,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { usePDFMetrics } from '@/hooks/usePDFMetrics';
-import { format, differenceInDays, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { useDemographicInsights, DemographicData } from '@/hooks/useDemographicInsights';
+import { format, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
   LineChart,
@@ -32,6 +32,10 @@ import {
   Legend,
   Tooltip,
   ComposedChart,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  BarChart,
 } from 'recharts';
 
 type BusinessModel = 'ecommerce' | 'inside_sales' | 'pdv' | null;
@@ -90,10 +94,25 @@ const CHART_METRICS: MetricDef[] = [
 ];
 
 const TEMPLATES = [
-  { id: 'executive', name: 'Resumo Executivo', color: '#E11D48', generalMetrics: ['spend', 'ctr', 'cpc'], resultMetrics: ['roas', 'conversion_value'], includeChart: false },
-  { id: 'complete', name: 'Relatório Completo', color: '#E11D48', generalMetrics: GENERAL_METRICS.map(m => m.key), resultMetrics: ['conversions', 'conversion_value', 'roas', 'cpa'], includeChart: true },
-  { id: 'performance', name: 'Análise de Performance', color: '#3B82F6', generalMetrics: ['impressions', 'clicks', 'ctr'], resultMetrics: ['conversions', 'cpa'], includeChart: true },
+  { id: 'executive', name: 'Resumo Executivo', color: '#E11D48', generalMetrics: ['spend', 'ctr', 'cpc'], resultMetrics: ['roas', 'conversion_value'], includeChart: false, includeDemographics: false },
+  { id: 'complete', name: 'Relatório Completo', color: '#E11D48', generalMetrics: GENERAL_METRICS.map(m => m.key), resultMetrics: ['conversions', 'conversion_value', 'roas', 'cpa'], includeChart: true, includeDemographics: true },
+  { id: 'performance', name: 'Análise de Performance', color: '#3B82F6', generalMetrics: ['impressions', 'clicks', 'ctr'], resultMetrics: ['conversions', 'cpa'], includeChart: true, includeDemographics: false },
 ];
+
+const DEMO_COLORS = ['#3B82F6', '#22C55E', '#A855F7', '#F97316', '#EF4444', '#06B6D4', '#EC4899', '#EAB308'];
+
+const GENDER_LABELS: Record<string, string> = { male: 'Masculino', female: 'Feminino', unknown: 'Desconhecido' };
+const DEVICE_LABELS: Record<string, string> = { mobile: 'Mobile', desktop: 'Desktop', tablet: 'Tablet', unknown: 'Desconhecido' };
+const PLATFORM_LABELS: Record<string, string> = { facebook: 'Facebook', instagram: 'Instagram', messenger: 'Messenger', audience_network: 'Audience Network', whatsapp: 'WhatsApp', unknown: 'Desconhecido' };
+
+function translateLabel(type: string, value: string): string {
+  switch (type) {
+    case 'gender': return GENDER_LABELS[value.toLowerCase()] || value;
+    case 'device_platform': return DEVICE_LABELS[value.toLowerCase()] || value;
+    case 'publisher_platform': return PLATFORM_LABELS[value.toLowerCase()] || value;
+    default: return value;
+  }
+}
 
 function fmtCurrency(v: number, curr: string): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: curr, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
@@ -123,6 +142,86 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 225, g: 29, b: 72 };
 }
 
+interface DemoPieChartProps {
+  data: DemographicData[];
+  type: string;
+  title: string;
+  icon: React.ElementType;
+  id: string;
+}
+
+function DemoPieChart({ data, type, title, icon: Icon, id }: DemoPieChartProps) {
+  const totalSpend = data.reduce((sum, d) => sum + d.spend, 0);
+  const chartData = data.slice(0, 5).map((d, i) => ({
+    name: translateLabel(type, d.breakdown_value),
+    value: d.spend,
+    percent: totalSpend > 0 ? (d.spend / totalSpend * 100).toFixed(1) : '0',
+    color: DEMO_COLORS[i % DEMO_COLORS.length],
+  }));
+
+  if (data.length === 0) return null;
+
+  return (
+    <div className="bg-gray-50 rounded p-2 border border-gray-100">
+      <p className="text-[10px] text-gray-500 flex items-center gap-1 mb-1">
+        <Icon className="w-3 h-3" /> {title}
+      </p>
+      <div id={id} className="flex items-center gap-2" style={{ height: 80 }}>
+        <div style={{ width: 70, height: 70 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <RechartsPieChart>
+              <Pie data={chartData} cx="50%" cy="50%" innerRadius={18} outerRadius={32} dataKey="value" strokeWidth={1} stroke="#fff">
+                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+              </Pie>
+            </RechartsPieChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex-1 space-y-0.5">
+          {chartData.slice(0, 4).map((item, index) => (
+            <div key={index} className="flex items-center justify-between text-[9px]">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                <span className="truncate max-w-[60px]">{item.name}</span>
+              </div>
+              <span className="text-gray-500">{item.percent}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AgeBarChartPreview({ data, id }: { data: DemographicData[]; id: string }) {
+  const chartData = data.map((d) => ({
+    name: d.breakdown_value,
+    spend: d.spend,
+  })).sort((a, b) => {
+    const ageA = parseInt(a.name.split('-')[0]) || 0;
+    const ageB = parseInt(b.name.split('-')[0]) || 0;
+    return ageA - ageB;
+  }).slice(0, 6);
+
+  if (data.length === 0) return null;
+
+  return (
+    <div className="bg-gray-50 rounded p-2 border border-gray-100">
+      <p className="text-[10px] text-gray-500 flex items-center gap-1 mb-1">
+        <Users className="w-3 h-3" /> Faixa Etária
+      </p>
+      <div id={id} style={{ height: 80 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
+            <XAxis dataKey="name" tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
+            <YAxis tick={{ fontSize: 8 }} tickLine={false} axisLine={false} tickFormatter={(v) => fmtNumber(v)} />
+            <Bar dataKey="spend" fill="#3B82F6" radius={[2, 2, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
 export function PDFBuilderDialog({ projectId, projectName, businessModel, currency, currentPeriod }: Props) {
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -145,6 +244,13 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
   const [showSecondaryMetric, setShowSecondaryMetric] = useState(true);
   const [chartPrimaryColor, setChartPrimaryColor] = useState('#E11D48');
   const [chartSecondaryColor, setChartSecondaryColor] = useState('#22c55e');
+  
+  // Demographics
+  const [includeDemographics, setIncludeDemographics] = useState(false);
+  const [demoGender, setDemoGender] = useState(true);
+  const [demoAge, setDemoAge] = useState(true);
+  const [demoDevice, setDemoDevice] = useState(true);
+  const [demoPlatform, setDemoPlatform] = useState(true);
   
   // Appearance
   const [primaryColor, setPrimaryColor] = useState('#E11D48');
@@ -171,6 +277,13 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
     return differenceInDays(end, start) + 1;
   }, [activePeriod]);
 
+  // Demographic data
+  const { data: demographicData, isLoading: demoLoading } = useDemographicInsights({
+    projectId: open ? projectId : null,
+    startDate: new Date(activePeriod.since + 'T00:00:00'),
+    endDate: new Date(activePeriod.until + 'T00:00:00'),
+  });
+
   useEffect(() => {
     if (!open) return;
     loadMetrics(activePeriod.since, activePeriod.until);
@@ -191,6 +304,7 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
     setSelGeneral(template.generalMetrics);
     setSelResult(template.resultMetrics.filter(k => resultDefs.some(r => r.key === k)));
     setIncludeChart(template.includeChart);
+    setIncludeDemographics(template.includeDemographics);
     setPrimaryColor(template.color);
   };
 
@@ -217,6 +331,13 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
     }
     return parts.join(' | ');
   }, [totals, businessModel, currency]);
+
+  const hasDemoData = demographicData && (
+    (demoGender && demographicData.gender.length > 0) ||
+    (demoAge && demographicData.age.length > 0) ||
+    (demoDevice && demographicData.device_platform.length > 0) ||
+    (demoPlatform && demographicData.publisher_platform.length > 0)
+  );
 
   const generate = async () => {
     if (!totals) return;
@@ -336,7 +457,56 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
             const imgW = pw - 2 * m;
             const imgH = (canvas.height / canvas.width) * imgW;
             doc.addImage(imgData, 'PNG', m, y, imgW, Math.min(imgH, 70));
+            y += Math.min(imgH, 70) + 10;
           } catch (e) { console.error('Chart capture error:', e); }
+        }
+      }
+      
+      // Demographics
+      if (includeDemographics && hasDemoData) {
+        // Check if we need a new page
+        if (y > ph - 80) {
+          doc.addPage();
+          y = 20;
+        }
+        
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(33, 33, 33);
+        doc.text('Dados Demográficos', m, y);
+        y += 5;
+        
+        const demoCharts: string[] = [];
+        if (demoGender && demographicData?.gender.length) demoCharts.push('pdf-demo-gender');
+        if (demoAge && demographicData?.age.length) demoCharts.push('pdf-demo-age');
+        if (demoDevice && demographicData?.device_platform.length) demoCharts.push('pdf-demo-device');
+        if (demoPlatform && demographicData?.publisher_platform.length) demoCharts.push('pdf-demo-platform');
+        
+        // Capture all demo charts
+        const chartWidth = (pw - 2 * m - 4) / 2;
+        for (let i = 0; i < demoCharts.length; i++) {
+          const el = document.getElementById(demoCharts[i]);
+          if (el) {
+            try {
+              const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#f9fafb', logging: false });
+              const imgData = canvas.toDataURL('image/png');
+              const imgH = (canvas.height / canvas.width) * chartWidth;
+              const col = i % 2;
+              const row = Math.floor(i / 2);
+              const x = m + col * (chartWidth + 4);
+              const cy = y + row * (imgH + 4);
+              
+              if (cy + imgH > ph - 20) {
+                doc.addPage();
+                y = 20;
+              }
+              
+              doc.addImage(imgData, 'PNG', x, cy, chartWidth, imgH);
+              if (i === demoCharts.length - 1) {
+                y = cy + imgH + 10;
+              }
+            } catch (e) { console.error('Demo chart capture error:', e); }
+          }
         }
       }
       
@@ -402,7 +572,6 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                   <Label htmlFor="use-dashboard" className="text-sm font-normal">Usar período do dashboard</Label>
                 </div>
                 
-                {/* Show current period */}
                 <div className="bg-muted/50 rounded-md p-2 border">
                   <p className="text-xs text-muted-foreground mb-1">Período selecionado:</p>
                   <p className="text-sm font-medium">{fmtDateRange(activePeriod.since, activePeriod.until)}</p>
@@ -467,13 +636,15 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
               
               {/* Chart Options */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium uppercase text-muted-foreground">Gráfico</Label>
+                <Label className="text-xs font-medium uppercase text-muted-foreground flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" /> Gráfico de Evolução
+                </Label>
                 <div className="flex items-center gap-2">
                   <Switch checked={includeChart} onCheckedChange={setIncludeChart} id="include-chart" />
                   <Label htmlFor="include-chart" className="text-sm font-normal">Incluir gráfico</Label>
                 </div>
                 {includeChart && (
-                  <div className="space-y-2 mt-2">
+                  <div className="space-y-2 mt-2 pl-2 border-l-2 border-muted">
                     <div className="flex gap-2">
                       <Button variant={chartType === 'bar' ? 'default' : 'outline'} size="sm" onClick={() => setChartType('bar')} className="flex-1 h-7 text-xs">Barras</Button>
                       <Button variant={chartType === 'line' ? 'default' : 'outline'} size="sm" onClick={() => setChartType('line')} className="flex-1 h-7 text-xs">Linha</Button>
@@ -491,19 +662,16 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                       <Label htmlFor="show-secondary" className="text-xs font-normal">Métrica Secundária</Label>
                     </div>
                     {showSecondaryMetric && (
-                      <>
-                        <Select value={chartSecondaryMetric} onValueChange={setChartSecondaryMetric}>
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Métrica Secundária" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-background z-50">
-                            {CHART_METRICS.filter(m => m.key !== chartPrimaryMetric).map(m => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </>
+                      <Select value={chartSecondaryMetric} onValueChange={setChartSecondaryMetric}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Métrica Secundária" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background z-50">
+                          {CHART_METRICS.filter(m => m.key !== chartPrimaryMetric).map(m => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     )}
                     
-                    {/* Chart Colors */}
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t">
                       <div className="space-y-1">
                         <Label className="text-[10px] text-muted-foreground">Cor Primária</Label>
@@ -516,6 +684,49 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Demographics */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium uppercase text-muted-foreground flex items-center gap-1">
+                  <PieChart className="h-3 w-3" /> Dados Demográficos
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Switch checked={includeDemographics} onCheckedChange={setIncludeDemographics} id="include-demo" />
+                  <Label htmlFor="include-demo" className="text-sm font-normal">Incluir demográficos</Label>
+                </div>
+                {includeDemographics && (
+                  <div className="space-y-1 mt-2 pl-2 border-l-2 border-muted">
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="demo-gender" checked={demoGender} onCheckedChange={(c) => setDemoGender(!!c)} />
+                      <Label htmlFor="demo-gender" className="text-xs font-normal cursor-pointer flex items-center gap-1">
+                        <Users className="w-3 h-3" /> Gênero
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="demo-age" checked={demoAge} onCheckedChange={(c) => setDemoAge(!!c)} />
+                      <Label htmlFor="demo-age" className="text-xs font-normal cursor-pointer flex items-center gap-1">
+                        <Users className="w-3 h-3" /> Faixa Etária
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="demo-device" checked={demoDevice} onCheckedChange={(c) => setDemoDevice(!!c)} />
+                      <Label htmlFor="demo-device" className="text-xs font-normal cursor-pointer flex items-center gap-1">
+                        <Smartphone className="w-3 h-3" /> Dispositivos
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="demo-platform" checked={demoPlatform} onCheckedChange={(c) => setDemoPlatform(!!c)} />
+                      <Label htmlFor="demo-platform" className="text-xs font-normal cursor-pointer flex items-center gap-1">
+                        <Globe className="w-3 h-3" /> Plataformas
+                      </Label>
+                    </div>
+                    {demoLoading && <p className="text-[10px] text-muted-foreground">Carregando dados...</p>}
+                    {!demoLoading && !hasDemoData && includeDemographics && (
+                      <p className="text-[10px] text-amber-600">Sem dados demográficos para o período</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -572,7 +783,7 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
           <div className="flex-1 flex flex-col min-h-0 bg-muted/30">
             <div className="p-3 border-b bg-background flex items-center gap-2 shrink-0">
               <span className="font-medium text-sm">Preview</span>
-              {loading && <Loader2 className="h-4 w-4 animate-spin ml-auto" />}
+              {(loading || demoLoading) && <Loader2 className="h-4 w-4 animate-spin ml-auto" />}
             </div>
             
             <div className="flex-1 overflow-y-auto p-4">
@@ -725,6 +936,27 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                             </LineChart>
                           )}
                         </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Demographics Preview */}
+                  {includeDemographics && hasDemoData && (
+                    <div>
+                      <h2 className="text-xs font-semibold text-gray-900 mb-2">Dados Demográficos</h2>
+                      <div className="grid grid-cols-2 gap-2">
+                        {demoGender && demographicData?.gender && demographicData.gender.length > 0 && (
+                          <DemoPieChart data={demographicData.gender} type="gender" title="Gênero" icon={Users} id="pdf-demo-gender" />
+                        )}
+                        {demoAge && demographicData?.age && demographicData.age.length > 0 && (
+                          <AgeBarChartPreview data={demographicData.age} id="pdf-demo-age" />
+                        )}
+                        {demoDevice && demographicData?.device_platform && demographicData.device_platform.length > 0 && (
+                          <DemoPieChart data={demographicData.device_platform} type="device_platform" title="Dispositivos" icon={Smartphone} id="pdf-demo-device" />
+                        )}
+                        {demoPlatform && demographicData?.publisher_platform && demographicData.publisher_platform.length > 0 && (
+                          <DemoPieChart data={demographicData.publisher_platform} type="publisher_platform" title="Plataformas" icon={Globe} id="pdf-demo-platform" />
+                        )}
                       </div>
                     </div>
                   )}
