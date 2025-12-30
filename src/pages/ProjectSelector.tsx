@@ -770,13 +770,10 @@ export default function ProjectSelector() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
               <div className="animate-fade-in">
-                <div className="flex items-center gap-3 mb-1">
-                  <Sparkles className="w-6 h-6 text-primary animate-pulse-slow" />
-                  <h1 className="text-3xl font-bold gradient-text inline-block">
-                    {showArchived ? 'Arquivados' : 'Seus Projetos'}
-                  </h1>
-                </div>
-                <p className="text-muted-foreground ml-9">
+                <h1 className="text-2xl font-bold text-foreground">
+                  {showArchived ? 'Arquivados' : 'Seus Projetos'}
+                </h1>
+                <p className="text-sm text-muted-foreground">
                   {showArchived 
                     ? `${archivedProjects.length} projeto(s) arquivado(s)`
                     : `${activeProjects.length} projeto(s) ativo(s)`}
