@@ -39,7 +39,7 @@ import {
 } from 'recharts';
 
 type BusinessModel = 'ecommerce' | 'inside_sales' | 'pdv' | null;
-type CampaignSortBy = 'spend' | 'conversions' | 'roas';
+type CampaignSortBy = 'spend' | 'conversions' | 'roas' | 'cpl';
 
 interface MetricDef {
   key: string;
@@ -349,6 +349,11 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
     const sorted = [...campaigns].sort((a, b) => {
       if (campaignSortBy === 'spend') return b.spend - a.spend;
       if (campaignSortBy === 'conversions') return b.conversions - a.conversions;
+      if (campaignSortBy === 'cpl') {
+        const cplA = a.conversions > 0 ? a.spend / a.conversions : Infinity;
+        const cplB = b.conversions > 0 ? b.spend / b.conversions : Infinity;
+        return cplA - cplB; // Lower CPL is better
+      }
       return b.roas - a.roas;
     });
     return sorted.slice(0, parseInt(campaignCount));
@@ -652,7 +657,7 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(33, 33, 33);
-        const sortLabel = campaignSortBy === 'spend' ? 'Gasto' : campaignSortBy === 'conversions' ? 'Conversões' : 'ROAS';
+        const sortLabel = campaignSortBy === 'spend' ? 'Gasto' : campaignSortBy === 'conversions' ? (businessModel === 'inside_sales' ? 'Leads' : businessModel === 'pdv' ? 'Visitas' : 'Compras') : campaignSortBy === 'cpl' ? (businessModel === 'inside_sales' ? 'CPL' : businessModel === 'pdv' ? 'Custo/Visita' : 'CPA') : 'ROAS';
         doc.text(`Top ${campaignCount} Campanhas por ${sortLabel}`, m, y);
         y += 8;
         
@@ -674,8 +679,10 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
         
         doc.text('Campanha', startX + 3, y + 5);
         doc.text('Gasto', startX + col1 + col2 - 3, y + 5, { align: 'right' });
-        doc.text('Conv.', startX + col1 + col2 + col3 - 3, y + 5, { align: 'right' });
-        doc.text(businessModel === 'ecommerce' ? 'ROAS' : 'CPA', startX + tableWidth - 3, y + 5, { align: 'right' });
+        const convLabel = businessModel === 'inside_sales' ? 'Leads' : businessModel === 'pdv' ? 'Visitas' : 'Compras';
+        const metricLabel = businessModel === 'ecommerce' ? 'ROAS' : businessModel === 'inside_sales' ? 'CPL' : 'Custo/Vis';
+        doc.text(convLabel, startX + col1 + col2 + col3 - 3, y + 5, { align: 'right' });
+        doc.text(metricLabel, startX + tableWidth - 3, y + 5, { align: 'right' });
         
         y += 8;
         
@@ -1007,8 +1014,17 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                       </SelectTrigger>
                       <SelectContent className="bg-background z-50">
                         <SelectItem value="spend">Por Gasto</SelectItem>
-                        <SelectItem value="conversions">Por Conversões</SelectItem>
-                        <SelectItem value="roas">Por ROAS</SelectItem>
+                        <SelectItem value="conversions">
+                          {businessModel === 'inside_sales' ? 'Por Leads' : businessModel === 'pdv' ? 'Por Visitas' : 'Por Compras'}
+                        </SelectItem>
+                        {businessModel === 'ecommerce' && (
+                          <SelectItem value="roas">Por ROAS</SelectItem>
+                        )}
+                        {(businessModel === 'inside_sales' || businessModel === 'pdv') && (
+                          <SelectItem value="cpl">
+                            {businessModel === 'inside_sales' ? 'Por CPL (menor)' : 'Por Custo/Visita (menor)'}
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     {campaigns.length === 0 && !loading && (
@@ -1347,7 +1363,7 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                   {includeCampaigns && topCampaigns.length > 0 && (
                     <div>
                       <h2 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
-                        <Trophy className="w-3 h-3" /> Top {campaignCount} Campanhas por {campaignSortBy === 'spend' ? 'Gasto' : campaignSortBy === 'conversions' ? 'Conversões' : 'ROAS'}
+                        <Trophy className="w-3 h-3" /> Top {campaignCount} Campanhas por {campaignSortBy === 'spend' ? 'Gasto' : campaignSortBy === 'conversions' ? (businessModel === 'inside_sales' ? 'Leads' : businessModel === 'pdv' ? 'Visitas' : 'Compras') : campaignSortBy === 'cpl' ? (businessModel === 'inside_sales' ? 'CPL' : 'Custo/Visita') : 'ROAS'}
                       </h2>
                       <div id="pdf-campaigns-table" className="bg-white rounded-lg border overflow-hidden shadow-sm">
                         <table className="w-full text-[9px]">
@@ -1356,8 +1372,12 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                               <th className="text-left px-2 py-2 font-bold text-white w-8">#</th>
                               <th className="text-left px-2 py-2 font-bold text-white">Campanha</th>
                               <th className="text-right px-2 py-2 font-bold text-white">Gasto</th>
-                              <th className="text-right px-2 py-2 font-bold text-white">Conv.</th>
-                              <th className="text-right px-2 py-2 font-bold text-white">{businessModel === 'ecommerce' ? 'ROAS' : 'CPA'}</th>
+                              <th className="text-right px-2 py-2 font-bold text-white">
+                                {businessModel === 'inside_sales' ? 'Leads' : businessModel === 'pdv' ? 'Visitas' : 'Compras'}
+                              </th>
+                              <th className="text-right px-2 py-2 font-bold text-white">
+                                {businessModel === 'ecommerce' ? 'ROAS' : businessModel === 'inside_sales' ? 'CPL' : 'Custo/Visita'}
+                              </th>
                             </tr>
                           </thead>
                           <tbody>
