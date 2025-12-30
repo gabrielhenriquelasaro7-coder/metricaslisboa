@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { PeriodProvider } from "@/hooks/usePeriodContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
 import ProjectSelector from "./pages/ProjectSelector";
 import Dashboard from "./pages/Dashboard";
 import Campaigns from "./pages/Campaigns";
@@ -34,6 +35,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/projects" element={<ProjectSelector />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/campaigns" element={<Campaigns />} />
