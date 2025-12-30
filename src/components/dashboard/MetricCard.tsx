@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useEffect, useState, useRef } from 'react';
 
 interface MetricCardProps {
   title: string;
@@ -14,6 +15,72 @@ interface MetricCardProps {
   tooltip?: string;
 }
 
+// Hook para animação de contagem
+function useCountAnimation(value: string | number, duration: number = 1000) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValue = useRef(value);
+  
+  useEffect(() => {
+    // Se o valor não mudou, não anima
+    if (prevValue.current === value) return;
+    prevValue.current = value;
+    
+    const stringValue = String(value);
+    
+    // Extrai o número do valor (ex: "R$ 24.908,65" -> 24908.65)
+    const numericMatch = stringValue.match(/[\d.,]+/g);
+    if (!numericMatch) {
+      setDisplayValue(value);
+      return;
+    }
+    
+    // Pega a primeira ocorrência de número
+    const numericString = numericMatch.join('');
+    // Converte para número (considerando formato brasileiro)
+    const cleanNumber = numericString.replace(/\./g, '').replace(',', '.');
+    const targetNumber = parseFloat(cleanNumber);
+    
+    if (isNaN(targetNumber)) {
+      setDisplayValue(value);
+      return;
+    }
+    
+    const startTime = performance.now();
+    const startNumber = 0;
+    
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function (ease-out)
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      const currentNumber = startNumber + (targetNumber - startNumber) * easeOut;
+      
+      // Formata o número de volta ao formato original
+      const prefix = stringValue.match(/^[^\d]*/)?.[0] || '';
+      const suffix = stringValue.match(/[^\d.,]*$/)?.[0] || '';
+      
+      // Detecta formato do número original
+      const hasDecimal = stringValue.includes(',') && stringValue.match(/,\d{2}$/);
+      const formatted = hasDecimal 
+        ? currentNumber.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : currentNumber.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+      
+      setDisplayValue(`${prefix}${formatted}${suffix}`);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setDisplayValue(value); // Garante valor final exato
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  }, [value, duration]);
+  
+  return displayValue;
+}
+
 export default function MetricCard({
   title,
   value,
@@ -25,6 +92,7 @@ export default function MetricCard({
   tooltip,
 }: MetricCardProps) {
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
+  const animatedValue = useCountAnimation(value, 800);
   
   const trendColor = trend === 'up' 
     ? 'text-metric-positive' 
@@ -34,7 +102,7 @@ export default function MetricCard({
 
   const titleElement = tooltip ? (
     <Tooltip>
-      <TooltipTrigger className="text-sm text-muted-foreground mb-1 border-b border-dashed border-muted-foreground/50 cursor-help inline-block text-left">
+      <TooltipTrigger className="text-xs text-muted-foreground mb-1 border-b border-dashed border-muted-foreground/50 cursor-help inline-block text-left">
         {title}
       </TooltipTrigger>
       <TooltipContent className="max-w-xs">
@@ -42,7 +110,7 @@ export default function MetricCard({
       </TooltipContent>
     </Tooltip>
   ) : (
-    <span className="text-sm text-muted-foreground mb-1 block">{title}</span>
+    <span className="text-xs text-muted-foreground mb-1 block">{title}</span>
   );
 
   return (
@@ -50,14 +118,16 @@ export default function MetricCard({
       {/* Top red border accent */}
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="flex-1 min-w-0 overflow-hidden">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex-1 min-w-0">
           {titleElement}
-          <p className="text-lg sm:text-xl md:text-2xl font-bold break-all leading-tight">{value}</p>
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold whitespace-nowrap overflow-hidden text-ellipsis" title={String(value)}>
+            {animatedValue}
+          </p>
         </div>
         {Icon && (
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
-            <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
+            <Icon className="w-4 h-4 text-primary" />
           </div>
         )}
       </div>
