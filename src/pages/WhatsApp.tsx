@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
+import { useWhatsAppInstances, WhatsAppGroup } from '@/hooks/useWhatsAppInstances';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths, format as formatDate } from 'date-fns';
@@ -14,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -37,7 +39,7 @@ import {
   Loader2, 
   Save, 
   Send, 
-  Trash2,
+  Trash2, 
   CheckCircle2,
   XCircle,
   Clock,
@@ -45,10 +47,16 @@ import {
   Eye,
   Edit3,
   RotateCcw,
-  History
+  History,
+  Plus,
+  Smartphone,
+  Users
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { WhatsAppInstanceCard } from '@/components/whatsapp/WhatsAppInstanceCard';
+import { WhatsAppQRModal } from '@/components/whatsapp/WhatsAppQRModal';
+import { WhatsAppGroupSelector } from '@/components/whatsapp/WhatsAppGroupSelector';
 
 interface WhatsAppSubscription {
   id: string;
@@ -76,6 +84,10 @@ interface WhatsAppSubscription {
   last_report_sent_at: string | null;
   created_at: string;
   updated_at: string;
+  instance_id?: string | null;
+  target_type?: 'phone' | 'group';
+  group_id?: string | null;
+  group_name?: string | null;
 }
 
 interface WhatsAppMessageLog {
@@ -113,7 +125,6 @@ const PERIOD_OPTIONS = [
   { value: 'last_month', label: 'Mês passado' },
 ];
 
-// Default templates for each business model
 const DEFAULT_INSIDE_SALES_TEMPLATE = `📊 *Relatório de Tráfego - {projeto}*
 📅 Período: {periodo}
 
@@ -163,10 +174,6 @@ const getDefaultTemplate = (businessModel: 'inside_sales' | 'ecommerce' | 'pdv' 
   return DEFAULT_INSIDE_SALES_TEMPLATE;
 };
 
-// Metrics configuration by business model
-// Inside Sales: Focus on leads, CPL, spend, reach, impressions, clicks, CTR, CPM, CPC, frequency
-// E-commerce: Focus on ROAS, conversion value, conversions, spend, reach, impressions, clicks, CTR, CPM, CPC, frequency
-
 interface MetricConfig {
   id: string;
   key: string;
@@ -185,17 +192,14 @@ const ALL_METRICS_CONFIG: MetricConfig[] = [
   { id: 'ctr', key: 'ctr', label: '📈 CTR', emoji: '📈', preview: '3.98%', businessModels: ['inside_sales', 'ecommerce', 'pdv'] },
   { id: 'cpm', key: 'cpm', label: '💵 CPM', emoji: '💵', preview: 'R$ 115,78', businessModels: ['inside_sales', 'ecommerce', 'pdv'] },
   { id: 'cpc', key: 'cpc', label: '💳 CPC', emoji: '💳', preview: 'R$ 2,87', businessModels: ['inside_sales', 'ecommerce', 'pdv'] },
-  // Inside Sales specific
   { id: 'leads', key: 'leads', label: '🎯 Leads', emoji: '🎯', preview: '127', businessModels: ['inside_sales'] },
   { id: 'cpl', key: 'cpl', label: '📊 CPL', emoji: '📊', preview: 'R$ 41,22', businessModels: ['inside_sales'] },
-  // E-commerce specific
   { id: 'conversions', key: 'conversoes', label: '🛒 Conversões', emoji: '🛒', preview: '127', businessModels: ['ecommerce', 'pdv'] },
   { id: 'conversion_value', key: 'valor_conversao', label: '💎 Valor Conversão', emoji: '💎', preview: 'R$ 23.545,00', businessModels: ['ecommerce', 'pdv'] },
   { id: 'roas', key: 'roas', label: '🚀 ROAS', emoji: '🚀', preview: '4.5x', businessModels: ['ecommerce', 'pdv'] },
   { id: 'cpa', key: 'cpa', label: '💳 CPA', emoji: '💳', preview: 'R$ 41,22', businessModels: ['ecommerce', 'pdv'] },
 ];
 
-// Helper function to get metrics for a specific business model
 const getMetricsForBusinessModel = (businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | null): MetricConfig[] => {
   const model = businessModel || 'inside_sales';
   return ALL_METRICS_CONFIG.filter(m => m.businessModels.includes(model));
@@ -216,7 +220,6 @@ function formatPhoneNumber(value: string): string {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
 }
 
-// Helper to get date range for a period
 function getDateRangeForPeriod(period: string): { startDate: Date; endDate: Date } {
   const now = new Date();
   let startDate: Date;
@@ -257,7 +260,6 @@ function getDateRangeForPeriod(period: string): { startDate: Date; endDate: Date
   return { startDate, endDate };
 }
 
-// Format helpers for preview
 function formatCurrency(value: number): string {
   return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -308,7 +310,6 @@ function generatePreviewWithData(
     .replace('{periodo}', periodLabel)
     .replace('{projeto}', projectName);
   
-  // Format real data for each metric
   const formattedValues: Record<string, string> = metrics ? {
     investimento: formatCurrency(metrics.spend),
     alcance: formatNumber(metrics.reach),
@@ -326,7 +327,6 @@ function generatePreviewWithData(
     cpa: formatCurrency(metrics.cpa),
   } : {};
 
-  // Replace each metric variable with real value or remove the line
   ALL_METRICS_CONFIG.forEach(metric => {
     const varName = `{${metric.key}}`;
     const isAvailable = metricsConfig.some(m => m.id === metric.id);
@@ -336,12 +336,10 @@ function generatePreviewWithData(
       const value = formattedValues[metric.key] || '0';
       result = result.replace(varName, `${metric.emoji} ${metric.label.replace(/^[^\s]+ /, '')}: ${value}`);
     } else {
-      // Remove the line with this variable
       result = result.replace(new RegExp(`.*\\{${metric.key}\\}.*\\n?`, 'g'), '');
     }
   });
   
-  // Clean up multiple empty lines
   result = result.replace(/\n{3,}/g, '\n\n');
   
   return result;
@@ -355,9 +353,35 @@ export default function WhatsApp() {
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
   
-  // Get metrics based on current project's business model
   const businessModel = selectedProject?.business_model || 'inside_sales';
   const availableMetrics = getMetricsForBusinessModel(businessModel);
+
+  // WhatsApp Instances
+  const {
+    instances,
+    loading: instancesLoading,
+    creating: creatingInstance,
+    createInstance,
+    connectInstance,
+    checkStatus,
+    disconnectInstance,
+    deleteInstance,
+    listGroups,
+    updateDisplayName,
+  } = useWhatsAppInstances(selectedProject?.id || null);
+
+  // QR Modal state
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrModalData, setQrModalData] = useState<{ instanceId: string; qrCode: string | null; expiresAt: string | null }>({
+    instanceId: '',
+    qrCode: null,
+    expiresAt: null,
+  });
+  const [connectingInstanceId, setConnectingInstanceId] = useState<string | null>(null);
+
+  // Groups state
+  const [groups, setGroups] = useState<WhatsAppGroup[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
 
   // Subscription state
   const [subscription, setSubscription] = useState<WhatsAppSubscription | null>(null);
@@ -378,8 +402,13 @@ export default function WhatsApp() {
   const [reportPeriod, setReportPeriod] = useState('last_7_days');
   const [messageTemplate, setMessageTemplate] = useState(() => getDefaultTemplate(businessModel));
   const [hasChanges, setHasChanges] = useState(false);
-  
-  // Metrics selection - initialize based on available metrics
+
+  // New form fields for instances
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
+  const [targetType, setTargetType] = useState<'phone' | 'group'>('phone');
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedGroupName, setSelectedGroupName] = useState<string | null>(null);
+
   const [metricsEnabled, setMetricsEnabled] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     ALL_METRICS_CONFIG.forEach(m => {
@@ -391,6 +420,9 @@ export default function WhatsApp() {
   const toggleMetric = (id: string) => {
     setMetricsEnabled(prev => ({ ...prev, [id]: !prev[id] }));
   };
+
+  // Get connected instances for selection
+  const connectedInstances = instances.filter(i => i.instance_status === 'connected');
   
   // Fetch real metrics for preview
   const fetchRealMetrics = useCallback(async () => {
@@ -411,22 +443,9 @@ export default function WhatsApp() {
       
       if (error) throw error;
       
-      // Aggregate metrics
       const aggregated: AggregatedMetrics = {
-        spend: 0,
-        impressions: 0,
-        clicks: 0,
-        reach: 0,
-        conversions: 0,
-        conversion_value: 0,
-        ctr: 0,
-        cpm: 0,
-        cpc: 0,
-        frequency: 0,
-        leads: 0,
-        cpl: 0,
-        roas: 0,
-        cpa: 0,
+        spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0,
+        ctr: 0, cpm: 0, cpc: 0, frequency: 0, leads: 0, cpl: 0, roas: 0, cpa: 0,
       };
       
       if (data && data.length > 0) {
@@ -439,7 +458,6 @@ export default function WhatsApp() {
           aggregated.conversion_value += Number(row.conversion_value) || 0;
         });
         
-        // Calculate derived metrics
         if (aggregated.impressions > 0) {
           aggregated.ctr = (aggregated.clicks / aggregated.impressions) * 100;
           aggregated.cpm = (aggregated.spend / aggregated.impressions) * 1000;
@@ -451,14 +469,12 @@ export default function WhatsApp() {
           aggregated.frequency = aggregated.impressions / aggregated.reach;
         }
         
-        // For inside_sales: leads = conversions, cpl = cpa
         aggregated.leads = aggregated.conversions;
         if (aggregated.conversions > 0) {
           aggregated.cpl = aggregated.spend / aggregated.conversions;
           aggregated.cpa = aggregated.spend / aggregated.conversions;
         }
         
-        // ROAS
         if (aggregated.spend > 0) {
           aggregated.roas = aggregated.conversion_value / aggregated.spend;
         }
@@ -473,7 +489,6 @@ export default function WhatsApp() {
     }
   }, [selectedProject, reportPeriod]);
   
-  // Fetch metrics when project or period changes
   useEffect(() => {
     fetchRealMetrics();
   }, [fetchRealMetrics]);
@@ -494,7 +509,7 @@ export default function WhatsApp() {
         .maybeSingle();
 
       if (error) throw error;
-      setSubscription(data);
+      setSubscription(data as WhatsAppSubscription | null);
     } catch (error) {
       console.error('Error fetching WhatsApp subscription:', error);
     } finally {
@@ -540,6 +555,10 @@ export default function WhatsApp() {
       setReportTime(subscription.report_time?.slice(0, 5) || '08:00');
       setReportPeriod(subscription.report_period || 'last_7_days');
       setMessageTemplate(subscription.message_template || getDefaultTemplate(businessModel));
+      setSelectedInstanceId(subscription.instance_id || null);
+      setTargetType(subscription.target_type || 'phone');
+      setSelectedGroupId(subscription.group_id || null);
+      setSelectedGroupName(subscription.group_name || null);
       setMetricsEnabled({
         spend: subscription.include_spend ?? true,
         reach: subscription.include_reach ?? true,
@@ -553,16 +572,30 @@ export default function WhatsApp() {
         conversion_value: subscription.include_conversion_value ?? true,
         leads: subscription.include_leads ?? true,
         cpl: subscription.include_cpl ?? true,
-        cpa: subscription.include_cpc ?? true, // CPA uses same logic
+        cpa: subscription.include_cpc ?? true,
         roas: subscription.include_roas ?? true,
       });
     }
-  }, [subscription]);
+  }, [subscription, businessModel]);
+
+  // Load groups when instance is selected
+  useEffect(() => {
+    if (selectedInstanceId && targetType === 'group') {
+      loadGroups(selectedInstanceId);
+    }
+  }, [selectedInstanceId, targetType]);
+
+  const loadGroups = async (instanceId: string) => {
+    setLoadingGroups(true);
+    const fetchedGroups = await listGroups(instanceId);
+    setGroups(fetchedGroups);
+    setLoadingGroups(false);
+  };
 
   // Track changes
   useEffect(() => {
     if (!subscription) {
-      setHasChanges(phoneNumber.length > 0);
+      setHasChanges(phoneNumber.length > 0 || selectedInstanceId !== null);
       return;
     }
 
@@ -572,6 +605,9 @@ export default function WhatsApp() {
     const timeChanged = reportTime !== subscription.report_time?.slice(0, 5);
     const periodChanged = reportPeriod !== (subscription.report_period || 'last_7_days');
     const templateChanged = messageTemplate !== (subscription.message_template || getDefaultTemplate(businessModel));
+    const instanceChanged = selectedInstanceId !== (subscription.instance_id || null);
+    const targetTypeChanged = targetType !== (subscription.target_type || 'phone');
+    const groupChanged = selectedGroupId !== (subscription.group_id || null);
     
     const metricsChanged = 
       metricsEnabled.spend !== (subscription.include_spend ?? true) ||
@@ -587,15 +623,55 @@ export default function WhatsApp() {
       metricsEnabled.leads !== (subscription.include_leads ?? true) ||
       metricsEnabled.roas !== (subscription.include_roas ?? true);
 
-    setHasChanges(phoneChanged || enabledChanged || dayChanged || timeChanged || periodChanged || templateChanged || metricsChanged);
-  }, [subscription, phoneNumber, weeklyReportEnabled, reportDayOfWeek, reportTime, reportPeriod, messageTemplate, metricsEnabled]);
+    setHasChanges(phoneChanged || enabledChanged || dayChanged || timeChanged || periodChanged || templateChanged || metricsChanged || instanceChanged || targetTypeChanged || groupChanged);
+  }, [subscription, phoneNumber, weeklyReportEnabled, reportDayOfWeek, reportTime, reportPeriod, messageTemplate, metricsEnabled, selectedInstanceId, targetType, selectedGroupId, businessModel]);
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
     }
   }, [user, authLoading, navigate]);
+
+  // Instance handlers
+  const handleCreateInstance = async () => {
+    const instance = await createInstance('Nova Conexão');
+    if (instance) {
+      // Auto-connect after creation
+      handleConnectInstance(instance.id);
+    }
+  };
+
+  const handleConnectInstance = async (instanceId: string) => {
+    setConnectingInstanceId(instanceId);
+    const result = await connectInstance(instanceId);
+    setConnectingInstanceId(null);
+    
+    if (result) {
+      setQrModalData({
+        instanceId,
+        qrCode: result.qrCode,
+        expiresAt: result.expiresAt,
+      });
+      setQrModalOpen(true);
+    }
+  };
+
+  const handleRefreshQR = async () => {
+    if (!qrModalData.instanceId) return;
+    const result = await connectInstance(qrModalData.instanceId);
+    if (result) {
+      setQrModalData({
+        ...qrModalData,
+        qrCode: result.qrCode,
+        expiresAt: result.expiresAt,
+      });
+    }
+  };
+
+  const handleCheckStatus = async () => {
+    if (!qrModalData.instanceId) return null;
+    return await checkStatus(qrModalData.instanceId);
+  };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
@@ -605,21 +681,37 @@ export default function WhatsApp() {
   const handleSave = async () => {
     if (!user || !selectedProject) return;
 
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      toast.error('Número de telefone inválido');
-      return;
+    // Validate based on target type
+    if (targetType === 'phone') {
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
+      if (cleanPhone.length < 10) {
+        toast.error('Número de telefone inválido');
+        return;
+      }
+    } else if (targetType === 'group') {
+      if (!selectedInstanceId) {
+        toast.error('Selecione uma conexão WhatsApp');
+        return;
+      }
+      if (!selectedGroupId) {
+        toast.error('Selecione um grupo');
+        return;
+      }
     }
 
     setSaving(true);
     try {
       const updateData = {
-        phone_number: cleanPhone,
+        phone_number: phoneNumber.replace(/\D/g, '') || '0',
         weekly_report_enabled: weeklyReportEnabled,
         report_day_of_week: reportDayOfWeek,
         report_time: reportTime,
         report_period: reportPeriod,
         message_template: messageTemplate,
+        instance_id: selectedInstanceId,
+        target_type: targetType,
+        group_id: targetType === 'group' ? selectedGroupId : null,
+        group_name: targetType === 'group' ? selectedGroupName : null,
         include_spend: metricsEnabled.spend,
         include_reach: metricsEnabled.reach,
         include_impressions: metricsEnabled.impressions,
@@ -631,7 +723,7 @@ export default function WhatsApp() {
         include_conversions: metricsEnabled.conversions,
         include_conversion_value: metricsEnabled.conversion_value,
         include_leads: metricsEnabled.leads,
-        include_cpl: metricsEnabled.cpl ?? metricsEnabled.leads, // CPL for inside_sales
+        include_cpl: metricsEnabled.cpl ?? metricsEnabled.leads,
         include_roas: metricsEnabled.roas,
       };
 
@@ -655,7 +747,7 @@ export default function WhatsApp() {
           .single();
 
         if (error) throw error;
-        setSubscription(newSub);
+        setSubscription(newSub as WhatsAppSubscription);
         toast.success('Configurações salvas!');
       }
 
@@ -688,6 +780,10 @@ export default function WhatsApp() {
       setReportTime('08:00');
       setReportPeriod('last_7_days');
       setMessageTemplate(getDefaultTemplate(businessModel));
+      setSelectedInstanceId(null);
+      setTargetType('phone');
+      setSelectedGroupId(null);
+      setSelectedGroupName(null);
       const initialMetrics: Record<string, boolean> = {};
       ALL_METRICS_CONFIG.forEach(m => {
         initialMetrics[m.id] = true;
@@ -704,7 +800,7 @@ export default function WhatsApp() {
 
   const sendTestReport = async () => {
     if (!subscription) {
-      toast.error('Configure e salve seu número primeiro');
+      toast.error('Configure e salve suas configurações primeiro');
       return;
     }
 
@@ -808,32 +904,169 @@ export default function WhatsApp() {
           </div>
         </div>
 
+        {/* Connections Section */}
+        <Card className="glass-card border-border/50">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Smartphone className="w-5 h-5" />
+                  Suas Conexões
+                </CardTitle>
+                <CardDescription>
+                  Conecte até 3 WhatsApps para enviar relatórios
+                </CardDescription>
+              </div>
+              <Button
+                onClick={handleCreateInstance}
+                disabled={creatingInstance || instances.length >= 3}
+                size="sm"
+              >
+                {creatingInstance ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
+                Nova Conexão
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {instancesLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : instances.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Smartphone className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>Nenhuma conexão configurada</p>
+                <p className="text-sm">Crie uma conexão para começar a enviar relatórios</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {instances.map((instance) => (
+                  <WhatsAppInstanceCard
+                    key={instance.id}
+                    instance={instance}
+                    onConnect={handleConnectInstance}
+                    onDisconnect={disconnectInstance}
+                    onDelete={deleteInstance}
+                    onUpdateName={updateDisplayName}
+                    isConnecting={connectingInstanceId === instance.id}
+                  />
+                ))}
+              </div>
+            )}
+            {instances.length >= 3 && (
+              <p className="text-xs text-muted-foreground mt-4 text-center">
+                Limite de 3 conexões atingido
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Left Column - Configuration */}
           <div className="space-y-6">
             {/* Basic Settings Card */}
             <Card className="glass-card border-border/50">
               <CardHeader>
-                <CardTitle className="text-lg">Configurações</CardTitle>
+                <CardTitle className="text-lg">Configurar Envio</CardTitle>
                 <CardDescription>
-                  Configure quando e como receber o relatório
+                  Configure quando e para onde enviar o relatório
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                {/* Phone Number */}
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Número do WhatsApp</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="(11) 99999-9999"
-                    value={phoneNumber}
-                    onChange={handlePhoneChange}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Digite seu número com DDD
-                  </p>
-                </div>
+                {/* Instance & Target Selection */}
+                {connectedInstances.length > 0 && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Conexão WhatsApp</Label>
+                      <Select
+                        value={selectedInstanceId || ''}
+                        onValueChange={setSelectedInstanceId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione uma conexão">
+                            {selectedInstanceId && (
+                              <div className="flex items-center gap-2">
+                                <Smartphone className="h-4 w-4" />
+                                <span>
+                                  {instances.find(i => i.id === selectedInstanceId)?.display_name || 'Conexão'}
+                                </span>
+                              </div>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {connectedInstances.map((instance) => (
+                            <SelectItem key={instance.id} value={instance.id}>
+                              <div className="flex items-center gap-2">
+                                <Smartphone className="h-4 w-4" />
+                                <span>{instance.display_name}</span>
+                                {instance.phone_connected && (
+                                  <span className="text-muted-foreground text-xs">
+                                    ({instance.phone_connected})
+                                  </span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {selectedInstanceId && (
+                      <div className="space-y-2">
+                        <Label>Enviar para</Label>
+                        <Tabs value={targetType} onValueChange={(v) => setTargetType(v as 'phone' | 'group')}>
+                          <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="phone">
+                              <Smartphone className="w-4 h-4 mr-2" />
+                              Número
+                            </TabsTrigger>
+                            <TabsTrigger value="group">
+                              <Users className="w-4 h-4 mr-2" />
+                              Grupo
+                            </TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Phone Number or Group */}
+                {targetType === 'phone' ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Número do WhatsApp</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="(11) 99999-9999"
+                      value={phoneNumber}
+                      onChange={handlePhoneChange}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Digite o número com DDD
+                    </p>
+                  </div>
+                ) : selectedInstanceId ? (
+                  <div className="space-y-2">
+                    <Label>Grupo WhatsApp</Label>
+                    <WhatsAppGroupSelector
+                      groups={groups}
+                      selectedGroupId={selectedGroupId}
+                      onSelectGroup={(id, name) => {
+                        setSelectedGroupId(id);
+                        setSelectedGroupName(name);
+                      }}
+                      onRefresh={() => loadGroups(selectedInstanceId)}
+                      isLoading={loadingGroups}
+                      disabled={!selectedInstanceId}
+                    />
+                  </div>
+                ) : null}
 
                 {/* Enable/Disable */}
                 <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50">
@@ -946,7 +1179,7 @@ export default function WhatsApp() {
             <div className="flex flex-wrap gap-3">
               <Button
                 onClick={handleSave}
-                disabled={saving || !hasChanges || phoneNumber.replace(/\D/g, '').length < 10}
+                disabled={saving || !hasChanges}
                 className="flex-1 sm:flex-none"
               >
                 {saving ? (
@@ -1099,7 +1332,6 @@ export default function WhatsApp() {
                             : 'bg-gradient-to-r from-yellow-500/10 to-yellow-500/5 border border-yellow-500/20'
                         }`}
                       >
-                        {/* Status Icon */}
                         <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
                           log.status === 'sent' 
                             ? 'bg-green-500/20 text-green-500' 
@@ -1116,7 +1348,6 @@ export default function WhatsApp() {
                           )}
                         </div>
                         
-                        {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-semibold text-sm">
@@ -1135,7 +1366,6 @@ export default function WhatsApp() {
                           )}
                         </div>
 
-                        {/* Index Badge */}
                         <div className="absolute top-2 right-2 text-[10px] text-muted-foreground/50 font-mono">
                           #{messageLogs.length - index}
                         </div>
@@ -1148,6 +1378,16 @@ export default function WhatsApp() {
           </div>
         </div>
       </div>
+
+      {/* QR Code Modal */}
+      <WhatsAppQRModal
+        open={qrModalOpen}
+        onOpenChange={setQrModalOpen}
+        qrCode={qrModalData.qrCode}
+        expiresAt={qrModalData.expiresAt}
+        onRefreshQR={handleRefreshQR}
+        onCheckStatus={handleCheckStatus}
+      />
     </DashboardLayout>
   );
 }
