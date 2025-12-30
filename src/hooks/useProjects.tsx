@@ -142,19 +142,20 @@ export function useProjects() {
         console.error('Webhook error:', webhookError);
       }
 
-      // ALWAYS trigger historical import for new projects
+      // ALWAYS trigger historical import for new projects with safe_mode enabled
       try {
-        console.log('[PROJECT] Starting historical import for new project:', project.id);
+        console.log('[PROJECT] Starting historical import (safe_mode) for new project:', project.id);
         supabase.functions.invoke('import-historical-data', {
           body: {
             project_id: project.id,
             since: '2025-01-01',
+            safe_mode: true, // Use longer delays to prevent rate limits
           },
         }).then(result => {
           if (result.error) {
             console.error('[PROJECT] Historical import error:', result.error);
           } else {
-            console.log('[PROJECT] Historical import completed:', result.data);
+            console.log('[PROJECT] Historical import started in background:', result.data);
           }
         }).catch(err => {
           console.error('[PROJECT] Historical import invoke error:', err);

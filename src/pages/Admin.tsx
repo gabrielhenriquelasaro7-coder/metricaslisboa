@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useProjects, Project } from '@/hooks/useProjects';
+import { useImportProgress } from '@/hooks/useImportProgress';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { 
   Database, 
   Play, 
@@ -17,11 +25,12 @@ import {
   Loader2,
   AlertTriangle,
   RefreshCw,
-  Calendar,
+  Calendar as CalendarIcon,
   Timer,
   Activity,
   Search,
-  Zap
+  Zap,
+  Shield
 } from 'lucide-react';
 
 interface ImportProgress {
@@ -68,6 +77,14 @@ export default function Admin() {
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [isRunningGapDetection, setIsRunningGapDetection] = useState(false);
+
+  // Custom period import state
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>(new Date(2025, 0, 1));
+  const [customDateTo, setCustomDateTo] = useState<Date | undefined>(new Date());
+  const [safeMode, setSafeMode] = useState(true);
+  const [isCustomImporting, setIsCustomImporting] = useState(false);
+  const { monitor, isMonitoring, startMonitoring, stopMonitoring } = useImportProgress();
 
   const activeProjects = projects.filter(p => !p.archived);
 
@@ -148,6 +165,45 @@ export default function Admin() {
       toast.error(errorMessage);
     } finally {
       setIsRunningGapDetection(false);
+    }
+  };
+
+  // Start custom period import
+  const startCustomImport = async () => {
+    if (!selectedProjectId || !customDateFrom || !customDateTo) {
+      toast.error('Selecione um projeto e período');
+      return;
+    }
+
+    const project = activeProjects.find(p => p.id === selectedProjectId);
+    if (!project) return;
+
+    setIsCustomImporting(true);
+    startMonitoring(project.id, project.name);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('import-historical-data', {
+        body: {
+          project_id: project.id,
+          since: format(customDateFrom, 'yyyy-MM-dd'),
+          until: format(customDateTo, 'yyyy-MM-dd'),
+          safe_mode: safeMode,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(`Importação iniciada para ${project.name}! ${data.total_batches} lotes estimados em ~${data.estimated_minutes} min`);
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao iniciar importação';
+      toast.error(errorMessage);
+      stopMonitoring();
+    } finally {
+      setIsCustomImporting(false);
     }
   };
 
@@ -500,6 +556,153 @@ export default function Admin() {
 
           {/* IMPORT TAB */}
           <TabsContent value="import" className="space-y-6">
+
+            {/* Custom Period Import - NEW FEATURE */}
+            <Card className="glass-card border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarIcon className="w-5 h-5" />
+                  Importar Período Específico
+                </CardTitle>
+                <CardDescription>
+                  Importe dados de qualquer período para um projeto específico. 
+                  Use o Modo Ultra-Seguro para evitar rate limits em importações grandes.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Project Selection */}
+                <div className="space-y-2">
+                  <Label>Projeto</Label>
+                  <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione um projeto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeProjects.map(project => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Date Range */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Data Início</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !customDateFrom && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {customDateFrom ? format(customDateFrom, "dd/MM/yyyy") : "Selecione"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={customDateFrom}
+                          onSelect={setCustomDateFrom}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data Fim</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !customDateTo && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {customDateTo ? format(customDateTo, "dd/MM/yyyy") : "Selecione"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={customDateTo}
+                          onSelect={setCustomDateTo}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                {/* Safe Mode Toggle */}
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-5 h-5 text-metric-positive" />
+                    <div>
+                      <Label htmlFor="safe-mode" className="font-medium">Modo Ultra-Seguro</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Delays de 60s entre lotes (mais lento, mas evita 100% rate limits)
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="safe-mode"
+                    checked={safeMode}
+                    onCheckedChange={setSafeMode}
+                  />
+                </div>
+
+                {/* Progress Monitor */}
+                {isMonitoring && monitor && (
+                  <div className="p-4 bg-card/50 rounded-lg border border-border/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span className="font-medium">{monitor.projectName}</span>
+                      </div>
+                      <Badge variant={monitor.status === 'success' ? 'default' : monitor.status === 'error' ? 'destructive' : 'secondary'}>
+                        {monitor.status === 'importing' ? 'Importando' : 
+                         monitor.status === 'success' ? 'Concluído' : 
+                         monitor.status === 'error' ? 'Erro' : 
+                         monitor.status === 'partial' ? 'Parcial' : 'Aguardando'}
+                      </Badge>
+                    </div>
+                    <Progress value={monitor.progress} className="h-2" />
+                    <p className="text-sm text-muted-foreground">{monitor.message}</p>
+                  </div>
+                )}
+
+                {/* Start Button */}
+                <Button
+                  onClick={startCustomImport}
+                  disabled={!selectedProjectId || !customDateFrom || !customDateTo || isCustomImporting || isMonitoring}
+                  className="w-full gap-2"
+                  size="lg"
+                >
+                  {isCustomImporting || isMonitoring ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Importando...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      Iniciar Importação
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
 
         {/* Historical Import Section */}
         <Card className="glass-card">
