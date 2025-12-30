@@ -656,16 +656,16 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
         doc.text(`Top ${campaignCount} Campanhas por ${sortLabel}`, m, y);
         y += 8;
         
-        // Table header
+        // Table header with primary color
         const colWidths = [70, 30, 25, 35]; // Campaign, Spend, Conv, ROAS/CPA
         const tableWidth = colWidths.reduce((a, b) => a + b, 0);
         const startX = m;
         
-        doc.setFillColor(248, 249, 250);
+        doc.setFillColor(rgb.r, rgb.g, rgb.b);
         doc.rect(startX, y, tableWidth, 8, 'F');
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(55, 65, 81);
+        doc.setTextColor(255, 255, 255);
         
         let xPos = startX + 2;
         doc.text('Campanha', xPos, y + 5);
