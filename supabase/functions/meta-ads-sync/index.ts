@@ -275,6 +275,44 @@ const VALUE_ACTION_TYPES = [
   'offsite_conversion.fb_pixel_complete_registration',
 ];
 
+// Mapeamento de action_types para uma categoria base para evitar dupla contagem
+// Ex: 'lead', 'onsite_web_lead', 'offsite_conversion.fb_pixel_lead' -> todos viram 'lead'
+function normalizeActionTypeToBase(actionType: string): string {
+  // LEADS - todos os tipos de lead viram 'lead'
+  if (actionType === 'lead' || 
+      actionType === 'onsite_web_lead' ||
+      actionType === 'on_facebook_lead' ||
+      actionType === 'offsite_conversion.fb_pixel_lead' ||
+      actionType === 'leadgen.other' ||
+      actionType === 'leadgen_grouped' ||
+      actionType === 'onsite_conversion.lead_grouped') {
+    return 'lead';
+  }
+  
+  // REGISTROS - todos viram 'registration'
+  if (actionType === 'complete_registration' ||
+      actionType === 'offsite_conversion.fb_pixel_complete_registration') {
+    return 'registration';
+  }
+  
+  // COMPRAS - todos viram 'purchase'
+  if (actionType === 'purchase' ||
+      actionType === 'omni_purchase' ||
+      actionType === 'offsite_conversion.fb_pixel_purchase') {
+    return 'purchase';
+  }
+  
+  // CONTATO - todos viram 'contact'
+  if (actionType === 'offsite_conversion.fb_pixel_contact' ||
+      actionType === 'contact' ||
+      actionType === 'contact_website') {
+    return 'contact';
+  }
+  
+  // Default: retorna o próprio tipo
+  return actionType;
+}
+
 function extractConversions(insights: any, logAllActions: boolean = false): { conversions: number; conversionValue: number } {
   let conversions = 0;
   let conversionValue = 0;
@@ -284,9 +322,10 @@ function extractConversions(insights: any, logAllActions: boolean = false): { co
   const allActions: string[] = [];
   
   // Extrair conversões - SOMA todos os tipos encontrados
-  // Mas evita dupla contagem usando um Set para tipos "grouped"
+  // Mas evita dupla contagem usando normalização para categoria base
   if (insights?.actions && Array.isArray(insights.actions)) {
-    const processedTypes = new Set<string>();
+    // Map para guardar o maior valor de cada categoria base
+    const categoryValues = new Map<string, { value: number; actionType: string }>();
     
     for (const action of insights.actions) {
       const actionType = action.action_type;
@@ -298,15 +337,21 @@ function extractConversions(insights: any, logAllActions: boolean = false): { co
       }
       
       if (CONVERSION_ACTION_TYPES.includes(actionType) && actionValue > 0) {
-        // Evita dupla contagem: se já processamos o tipo "grouped", não processa o individual
-        const baseType = actionType.replace('_grouped', '').replace('onsite_conversion.', '').replace('offsite_conversion.fb_pixel_', '').replace('offsite_conversion.', '');
+        // Normaliza para categoria base para evitar dupla contagem
+        const baseCategory = normalizeActionTypeToBase(actionType);
         
-        if (!processedTypes.has(baseType)) {
-          conversions += actionValue;
-          processedTypes.add(baseType);
-          foundActions.push(`${actionType}:${actionValue}`);
+        // Guarda apenas o maior valor para cada categoria
+        const existing = categoryValues.get(baseCategory);
+        if (!existing || actionValue > existing.value) {
+          categoryValues.set(baseCategory, { value: actionValue, actionType });
         }
       }
+    }
+    
+    // Soma os valores de cada categoria (sem dupla contagem)
+    for (const [category, { value, actionType }] of categoryValues) {
+      conversions += value;
+      foundActions.push(`${actionType}:${value}`);
     }
     
     // Log ALL actions from first few insights for debugging
