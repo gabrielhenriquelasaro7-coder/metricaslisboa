@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { FileText, Download, Loader2, Calendar, Palette, Settings2, Eye, Upload, X } from 'lucide-react';
+import { FileText, Download, Loader2, Calendar, Settings2, Eye, Upload, X, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +19,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { usePDFMetrics } from '@/hooks/usePDFMetrics';
-import { format } from 'date-fns';
+import { format, differenceInDays, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import {
@@ -129,6 +129,63 @@ const CHART_METRICS: MetricDef[] = [
   { key: 'cpa', label: 'CPA', type: 'currency' },
 ];
 
+// Templates pré-configurados
+interface PDFTemplate {
+  id: string;
+  name: string;
+  description: string;
+  generalMetrics: string[];
+  resultMetrics: string[];
+  includeChart: boolean;
+  chartType: 'bar' | 'line';
+  chartPrimaryMetric: string;
+  chartSecondaryMetric: string;
+  showSecondaryMetric: boolean;
+  color: string;
+}
+
+const TEMPLATES: PDFTemplate[] = [
+  {
+    id: 'executive',
+    name: 'Resumo Executivo',
+    description: 'KPIs principais',
+    generalMetrics: ['spend', 'ctr', 'cpc'],
+    resultMetrics: ['roas', 'conversion_value'],
+    includeChart: false,
+    chartType: 'bar',
+    chartPrimaryMetric: 'spend',
+    chartSecondaryMetric: 'conversion_value',
+    showSecondaryMetric: false,
+    color: '#E11D48'
+  },
+  {
+    id: 'complete',
+    name: 'Relatório Completo',
+    description: 'Todas as métricas',
+    generalMetrics: GENERAL_METRICS.map(m => m.key),
+    resultMetrics: ['conversions', 'conversion_value', 'roas', 'cpa'],
+    includeChart: true,
+    chartType: 'bar',
+    chartPrimaryMetric: 'spend',
+    chartSecondaryMetric: 'conversion_value',
+    showSecondaryMetric: true,
+    color: '#E11D48'
+  },
+  {
+    id: 'performance',
+    name: 'Análise de Performance',
+    description: 'Foco em conversões',
+    generalMetrics: ['impressions', 'clicks', 'ctr'],
+    resultMetrics: ['conversions', 'cpa'],
+    includeChart: true,
+    chartType: 'line',
+    chartPrimaryMetric: 'conversions',
+    chartSecondaryMetric: 'cpa',
+    showSecondaryMetric: true,
+    color: '#3B82F6'
+  }
+];
+
 export function PDFBuilderDialog({ 
   projectId, 
   projectName, 
@@ -158,6 +215,8 @@ export function PDFBuilderDialog({
   const [showSecondaryMetric, setShowSecondaryMetric] = useState(true);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [multiPageMode, setMultiPageMode] = useState<'single' | 'weekly' | 'monthly'>('single');
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   
   const { dailyData, totals, loading, loadMetrics } = usePDFMetrics(projectId);
 
@@ -192,6 +251,29 @@ export function PDFBuilderDialog({
 
   const toggleGeneral = (k: string) => setSelGeneral(p => p.includes(k) ? p.filter(x => x !== k) : [...p, k]);
   const toggleResult = (k: string) => setSelResult(p => p.includes(k) ? p.filter(x => x !== k) : [...p, k]);
+
+  // Aplicar template
+  const applyTemplate = (templateId: string) => {
+    const template = TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+    
+    setSelectedTemplate(templateId);
+    setSelGeneral(template.generalMetrics);
+    setSelResult(template.resultMetrics.filter(k => resultDefs.some(r => r.key === k)));
+    setIncludeChart(template.includeChart);
+    setChartType(template.chartType);
+    setChartPrimaryMetric(template.chartPrimaryMetric);
+    setChartSecondaryMetric(template.chartSecondaryMetric);
+    setShowSecondaryMetric(template.showSecondaryMetric);
+    setPrimaryColor(template.color);
+  };
+
+  // Calcular número de dias do período
+  const periodDays = useMemo(() => {
+    const start = new Date(activePeriod.since + 'T00:00:00');
+    const end = new Date(activePeriod.until + 'T00:00:00');
+    return differenceInDays(end, start) + 1;
+  }, [activePeriod]);
 
   const resultDefs = businessModel ? RESULT_METRICS[businessModel] || [] : [];
 
@@ -423,8 +505,35 @@ export function PDFBuilderDialog({
               </DialogTitle>
             </DialogHeader>
             
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-6">
+            <ScrollArea className="flex-1 h-0">
+              <div className="p-4 space-y-6">
+                {/* Templates */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium uppercase text-muted-foreground flex items-center gap-1">
+                    <LayoutTemplate className="h-3 w-3" />
+                    Templates
+                  </Label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {TEMPLATES.map(t => (
+                      <Button
+                        key={t.id}
+                        variant={selectedTemplate === t.id ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => applyTemplate(t.id)}
+                        className="justify-start h-auto py-2 px-3"
+                        style={selectedTemplate === t.id ? { backgroundColor: t.color } : undefined}
+                      >
+                        <div className="text-left">
+                          <p className="font-medium text-sm">{t.name}</p>
+                          <p className="text-xs opacity-70">{t.description}</p>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                <Separator />
+                
                 {/* Title */}
                 <div className="space-y-2">
                   <Label className="text-xs font-medium uppercase text-muted-foreground">Título</Label>
@@ -616,6 +725,44 @@ export function PDFBuilderDialog({
                   )}
                 </div>
                 
+                {/* Multi-page option for large periods */}
+                {periodDays > 30 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <Label className="text-xs font-medium uppercase text-muted-foreground">
+                        Múltiplas Páginas ({periodDays} dias)
+                      </Label>
+                      <div className="grid grid-cols-1 gap-2">
+                        <Button
+                          variant={multiPageMode === 'single' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setMultiPageMode('single')}
+                          className="justify-start h-8"
+                        >
+                          Página única
+                        </Button>
+                        <Button
+                          variant={multiPageMode === 'weekly' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setMultiPageMode('weekly')}
+                          className="justify-start h-8"
+                        >
+                          Dividir por semana
+                        </Button>
+                        <Button
+                          variant={multiPageMode === 'monthly' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setMultiPageMode('monthly')}
+                          className="justify-start h-8"
+                        >
+                          Dividir por mês
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+                
                 <Separator />
                 
                 {/* Logo */}
@@ -688,16 +835,21 @@ export function PDFBuilderDialog({
           </div>
           
           {/* Right Panel - Preview */}
-          <div className="flex-1 flex flex-col bg-muted/30">
-            <div className="p-4 border-b bg-background flex items-center gap-2">
+          <div className="flex-1 flex flex-col bg-muted/30 overflow-hidden">
+            <div className="p-4 border-b bg-background flex items-center gap-2 shrink-0">
               <Eye className="h-5 w-5 text-muted-foreground" />
               <span className="font-medium">Preview</span>
+              {multiPageMode !== 'single' && periodDays > 30 && (
+                <span className="text-xs text-muted-foreground ml-auto">
+                  ({multiPageMode === 'weekly' ? 'Várias páginas por semana' : 'Várias páginas por mês'})
+                </span>
+              )}
               {loading && <Loader2 className="h-4 w-4 animate-spin ml-auto" />}
             </div>
             
-            <ScrollArea className="flex-1">
+            <ScrollArea className="flex-1 h-0">
               <div className="p-6">
-                <div className="bg-white rounded-lg shadow-lg overflow-hidden max-w-2xl mx-auto" style={{ minHeight: 700 }}>
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden max-w-2xl mx-auto">
                 {/* Header Bar - Full Red */}
                 <div className="px-6 py-4 flex items-center justify-between" style={{ backgroundColor: primaryColor }}>
                   <div>
