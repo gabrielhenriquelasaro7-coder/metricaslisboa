@@ -214,19 +214,6 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
         </span>
       </div>
       
-      {/* Sync Progress */}
-      {isSyncing && (
-        <div className="mb-4 space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground flex items-center gap-1.5">
-              <Loader2 className="w-3 h-3 animate-spin text-primary" />
-              {syncProgress?.message || 'Sincronizando...'}
-            </span>
-            <span className="text-primary font-medium">{Math.round(syncProgress?.progress || 0)}%</span>
-          </div>
-          <Progress value={syncProgress?.progress || 0} className="h-1.5" />
-        </div>
-      )}
       
       {/* Sync Times */}
       <div className="grid grid-cols-2 gap-3 mb-4">
