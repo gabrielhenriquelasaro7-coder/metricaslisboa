@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths, format as formatDate } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -215,12 +216,90 @@ function formatPhoneNumber(value: string): string {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
 }
 
-function generatePreview(
+// Helper to get date range for a period
+function getDateRangeForPeriod(period: string): { startDate: Date; endDate: Date } {
+  const now = new Date();
+  let startDate: Date;
+  let endDate: Date = now;
+
+  switch (period) {
+    case 'last_7_days':
+      startDate = subDays(now, 7);
+      break;
+    case 'last_14_days':
+      startDate = subDays(now, 14);
+      break;
+    case 'last_30_days':
+      startDate = subDays(now, 30);
+      break;
+    case 'this_week':
+      startDate = startOfWeek(now, { weekStartsOn: 1 });
+      endDate = endOfWeek(now, { weekStartsOn: 1 });
+      break;
+    case 'last_week':
+      const lastWeek = subWeeks(now, 1);
+      startDate = startOfWeek(lastWeek, { weekStartsOn: 1 });
+      endDate = endOfWeek(lastWeek, { weekStartsOn: 1 });
+      break;
+    case 'this_month':
+      startDate = startOfMonth(now);
+      endDate = endOfMonth(now);
+      break;
+    case 'last_month':
+      const lastMonth = subMonths(now, 1);
+      startDate = startOfMonth(lastMonth);
+      endDate = endOfMonth(lastMonth);
+      break;
+    default:
+      startDate = subDays(now, 7);
+  }
+
+  return { startDate, endDate };
+}
+
+// Format helpers for preview
+function formatCurrency(value: number): string {
+  return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatNumber(value: number): string {
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`;
+  }
+  return value.toLocaleString('pt-BR');
+}
+
+function formatPercent(value: number): string {
+  return `${value.toFixed(2)}%`;
+}
+
+interface AggregatedMetrics {
+  spend: number;
+  impressions: number;
+  clicks: number;
+  reach: number;
+  conversions: number;
+  conversion_value: number;
+  ctr: number;
+  cpm: number;
+  cpc: number;
+  frequency: number;
+  leads: number;
+  cpl: number;
+  roas: number;
+  cpa: number;
+}
+
+function generatePreviewWithData(
   template: string,
   projectName: string,
   period: string,
   enabledMetrics: Record<string, boolean>,
-  businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | null
+  businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | null,
+  metrics: AggregatedMetrics | null
 ): string {
   const periodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || 'Últimos 7 dias';
   const metricsConfig = getMetricsForBusinessModel(businessModel);
@@ -229,14 +308,33 @@ function generatePreview(
     .replace('{periodo}', periodLabel)
     .replace('{projeto}', projectName);
   
-  // Replace each metric variable with value or remove the line
+  // Format real data for each metric
+  const formattedValues: Record<string, string> = metrics ? {
+    investimento: formatCurrency(metrics.spend),
+    alcance: formatNumber(metrics.reach),
+    impressoes: formatNumber(metrics.impressions),
+    frequencia: metrics.frequency.toFixed(2),
+    cliques: formatNumber(metrics.clicks),
+    ctr: formatPercent(metrics.ctr),
+    cpm: formatCurrency(metrics.cpm),
+    cpc: formatCurrency(metrics.cpc),
+    leads: formatNumber(metrics.leads),
+    cpl: formatCurrency(metrics.cpl),
+    conversoes: formatNumber(metrics.conversions),
+    valor_conversao: formatCurrency(metrics.conversion_value),
+    roas: `${metrics.roas.toFixed(2)}x`,
+    cpa: formatCurrency(metrics.cpa),
+  } : {};
+
+  // Replace each metric variable with real value or remove the line
   ALL_METRICS_CONFIG.forEach(metric => {
     const varName = `{${metric.key}}`;
     const isAvailable = metricsConfig.some(m => m.id === metric.id);
     const isEnabled = isAvailable && (enabledMetrics[metric.id] ?? true);
     
-    if (isEnabled) {
-      result = result.replace(varName, `${metric.emoji} ${metric.label.replace(/^[^\s]+ /, '')}: ${metric.preview}`);
+    if (isEnabled && metrics) {
+      const value = formattedValues[metric.key] || '0';
+      result = result.replace(varName, `${metric.emoji} ${metric.label.replace(/^[^\s]+ /, '')}: ${value}`);
     } else {
       // Remove the line with this variable
       result = result.replace(new RegExp(`.*\\{${metric.key}\\}.*\\n?`, 'g'), '');
@@ -267,6 +365,10 @@ export default function WhatsApp() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
+  
+  // Real metrics data for preview
+  const [realMetrics, setRealMetrics] = useState<AggregatedMetrics | null>(null);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
 
   // Form state
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -289,6 +391,92 @@ export default function WhatsApp() {
   const toggleMetric = (id: string) => {
     setMetricsEnabled(prev => ({ ...prev, [id]: !prev[id] }));
   };
+  
+  // Fetch real metrics for preview
+  const fetchRealMetrics = useCallback(async () => {
+    if (!selectedProject) return;
+    
+    setLoadingMetrics(true);
+    try {
+      const { startDate, endDate } = getDateRangeForPeriod(reportPeriod);
+      const startStr = formatDate(startDate, 'yyyy-MM-dd');
+      const endStr = formatDate(endDate, 'yyyy-MM-dd');
+      
+      const { data, error } = await supabase
+        .from('ads_daily_metrics')
+        .select('spend, impressions, clicks, reach, conversions, conversion_value')
+        .eq('project_id', selectedProject.id)
+        .gte('date', startStr)
+        .lte('date', endStr);
+      
+      if (error) throw error;
+      
+      // Aggregate metrics
+      const aggregated: AggregatedMetrics = {
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        reach: 0,
+        conversions: 0,
+        conversion_value: 0,
+        ctr: 0,
+        cpm: 0,
+        cpc: 0,
+        frequency: 0,
+        leads: 0,
+        cpl: 0,
+        roas: 0,
+        cpa: 0,
+      };
+      
+      if (data && data.length > 0) {
+        data.forEach(row => {
+          aggregated.spend += Number(row.spend) || 0;
+          aggregated.impressions += Number(row.impressions) || 0;
+          aggregated.clicks += Number(row.clicks) || 0;
+          aggregated.reach += Number(row.reach) || 0;
+          aggregated.conversions += Number(row.conversions) || 0;
+          aggregated.conversion_value += Number(row.conversion_value) || 0;
+        });
+        
+        // Calculate derived metrics
+        if (aggregated.impressions > 0) {
+          aggregated.ctr = (aggregated.clicks / aggregated.impressions) * 100;
+          aggregated.cpm = (aggregated.spend / aggregated.impressions) * 1000;
+        }
+        if (aggregated.clicks > 0) {
+          aggregated.cpc = aggregated.spend / aggregated.clicks;
+        }
+        if (aggregated.reach > 0) {
+          aggregated.frequency = aggregated.impressions / aggregated.reach;
+        }
+        
+        // For inside_sales: leads = conversions, cpl = cpa
+        aggregated.leads = aggregated.conversions;
+        if (aggregated.conversions > 0) {
+          aggregated.cpl = aggregated.spend / aggregated.conversions;
+          aggregated.cpa = aggregated.spend / aggregated.conversions;
+        }
+        
+        // ROAS
+        if (aggregated.spend > 0) {
+          aggregated.roas = aggregated.conversion_value / aggregated.spend;
+        }
+      }
+      
+      setRealMetrics(aggregated);
+    } catch (error) {
+      console.error('Error fetching metrics for preview:', error);
+      setRealMetrics(null);
+    } finally {
+      setLoadingMetrics(false);
+    }
+  }, [selectedProject, reportPeriod]);
+  
+  // Fetch metrics when project or period changes
+  useEffect(() => {
+    fetchRealMetrics();
+  }, [fetchRealMetrics]);
 
   // Fetch subscription for current project
   const fetchSubscription = useCallback(async () => {
@@ -572,12 +760,13 @@ export default function WhatsApp() {
     );
   };
 
-  const previewMessage = generatePreview(
+  const previewMessage = generatePreviewWithData(
     messageTemplate,
     selectedProject?.name || 'Projeto',
     reportPeriod,
     metricsEnabled,
-    businessModel
+    businessModel,
+    realMetrics
   );
 
   if (authLoading || loading) {
