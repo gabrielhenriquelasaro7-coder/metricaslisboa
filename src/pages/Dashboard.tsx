@@ -357,6 +357,7 @@ export default function Dashboard() {
                 businessModel={businessModel || null}
                 currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? 'Últimos 7 dias' : selectedPreset === 'last_30d' ? 'Últimos 30 dias' : 'Período Atual'}
                 previousPeriodLabel={selectedPreset === 'this_month' ? 'Mês Anterior' : selectedPreset === 'last_7d' ? '7 dias antes' : selectedPreset === 'last_30d' ? '30 dias antes' : 'Período Anterior'}
+                currency={selectedProject?.currency || 'BRL'}
               />
             )}
 
