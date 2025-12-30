@@ -111,7 +111,28 @@ const PERIOD_OPTIONS = [
   { value: 'last_month', label: 'Mês passado' },
 ];
 
-const DEFAULT_MESSAGE_TEMPLATE = `📊 *Relatório de Tráfego - {projeto}*
+// Default templates for each business model
+const DEFAULT_INSIDE_SALES_TEMPLATE = `📊 *Relatório de Tráfego - {projeto}*
+📅 Período: {periodo}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+{investimento}
+{alcance}
+{impressoes}
+{frequencia}
+{cliques}
+{ctr}
+{cpm}
+{cpc}
+{leads}
+{cpl}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+_Relatório gerado automaticamente_`;
+
+const DEFAULT_ECOMMERCE_TEMPLATE = `📊 *Relatório de Tráfego - {projeto}*
 📅 Período: {periodo}
 
 ━━━━━━━━━━━━━━━━━━━━━
@@ -126,28 +147,57 @@ const DEFAULT_MESSAGE_TEMPLATE = `📊 *Relatório de Tráfego - {projeto}*
 {cpc}
 {conversoes}
 {valor_conversao}
-{cpl}
+{cpa}
 {roas}
 
 ━━━━━━━━━━━━━━━━━━━━━
 
 _Relatório gerado automaticamente_`;
 
-// All available metrics with their config
-const METRICS_CONFIG = [
-  { id: 'spend', key: 'investimento', label: '💰 Investimento', emoji: '💰', preview: 'R$ 5.234,50' },
-  { id: 'reach', key: 'alcance', label: '👁️ Alcance', emoji: '👁️', preview: '32.5K' },
-  { id: 'impressions', key: 'impressoes', label: '📺 Impressões', emoji: '📺', preview: '45.2K' },
-  { id: 'frequency', key: 'frequencia', label: '🔄 Frequência', emoji: '🔄', preview: '1.39' },
-  { id: 'clicks', key: 'cliques', label: '👆 Cliques', emoji: '👆', preview: '1.823' },
-  { id: 'ctr', key: 'ctr', label: '📈 CTR', emoji: '📈', preview: '3.98%' },
-  { id: 'cpm', key: 'cpm', label: '💵 CPM', emoji: '💵', preview: 'R$ 115,78' },
-  { id: 'cpc', key: 'cpc', label: '💳 CPC', emoji: '💳', preview: 'R$ 2,87' },
-  { id: 'conversions', key: 'conversoes', label: '🎯 Conversões', emoji: '🎯', preview: '127' },
-  { id: 'conversion_value', key: 'valor_conversao', label: '💎 Valor Conversão', emoji: '💎', preview: 'R$ 23.545,00' },
-  { id: 'leads', key: 'cpl', label: '📊 CPL / CPA', emoji: '📊', preview: 'R$ 41,22' },
-  { id: 'roas', key: 'roas', label: '🚀 ROAS', emoji: '🚀', preview: '4.5x' },
+const getDefaultTemplate = (businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | null): string => {
+  if (businessModel === 'ecommerce' || businessModel === 'pdv') {
+    return DEFAULT_ECOMMERCE_TEMPLATE;
+  }
+  return DEFAULT_INSIDE_SALES_TEMPLATE;
+};
+
+// Metrics configuration by business model
+// Inside Sales: Focus on leads, CPL, spend, reach, impressions, clicks, CTR, CPM, CPC, frequency
+// E-commerce: Focus on ROAS, conversion value, conversions, spend, reach, impressions, clicks, CTR, CPM, CPC, frequency
+
+interface MetricConfig {
+  id: string;
+  key: string;
+  label: string;
+  emoji: string;
+  preview: string;
+  businessModels: ('inside_sales' | 'ecommerce' | 'pdv')[];
+}
+
+const ALL_METRICS_CONFIG: MetricConfig[] = [
+  { id: 'spend', key: 'investimento', label: '💰 Investimento', emoji: '💰', preview: 'R$ 5.234,50', businessModels: ['inside_sales', 'ecommerce', 'pdv'] },
+  { id: 'reach', key: 'alcance', label: '👁️ Alcance', emoji: '👁️', preview: '32.5K', businessModels: ['inside_sales', 'ecommerce', 'pdv'] },
+  { id: 'impressions', key: 'impressoes', label: '📺 Impressões', emoji: '📺', preview: '45.2K', businessModels: ['inside_sales', 'ecommerce', 'pdv'] },
+  { id: 'frequency', key: 'frequencia', label: '🔄 Frequência', emoji: '🔄', preview: '1.39', businessModels: ['inside_sales', 'ecommerce', 'pdv'] },
+  { id: 'clicks', key: 'cliques', label: '👆 Cliques', emoji: '👆', preview: '1.823', businessModels: ['inside_sales', 'ecommerce', 'pdv'] },
+  { id: 'ctr', key: 'ctr', label: '📈 CTR', emoji: '📈', preview: '3.98%', businessModels: ['inside_sales', 'ecommerce', 'pdv'] },
+  { id: 'cpm', key: 'cpm', label: '💵 CPM', emoji: '💵', preview: 'R$ 115,78', businessModels: ['inside_sales', 'ecommerce', 'pdv'] },
+  { id: 'cpc', key: 'cpc', label: '💳 CPC', emoji: '💳', preview: 'R$ 2,87', businessModels: ['inside_sales', 'ecommerce', 'pdv'] },
+  // Inside Sales specific
+  { id: 'leads', key: 'leads', label: '🎯 Leads', emoji: '🎯', preview: '127', businessModels: ['inside_sales'] },
+  { id: 'cpl', key: 'cpl', label: '📊 CPL', emoji: '📊', preview: 'R$ 41,22', businessModels: ['inside_sales'] },
+  // E-commerce specific
+  { id: 'conversions', key: 'conversoes', label: '🛒 Conversões', emoji: '🛒', preview: '127', businessModels: ['ecommerce', 'pdv'] },
+  { id: 'conversion_value', key: 'valor_conversao', label: '💎 Valor Conversão', emoji: '💎', preview: 'R$ 23.545,00', businessModels: ['ecommerce', 'pdv'] },
+  { id: 'roas', key: 'roas', label: '🚀 ROAS', emoji: '🚀', preview: '4.5x', businessModels: ['ecommerce', 'pdv'] },
+  { id: 'cpa', key: 'cpa', label: '💳 CPA', emoji: '💳', preview: 'R$ 41,22', businessModels: ['ecommerce', 'pdv'] },
 ];
+
+// Helper function to get metrics for a specific business model
+const getMetricsForBusinessModel = (businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | null): MetricConfig[] => {
+  const model = businessModel || 'inside_sales';
+  return ALL_METRICS_CONFIG.filter(m => m.businessModels.includes(model));
+};
 
 function formatPhoneNumber(value: string): string {
   const digits = value.replace(/\D/g, '');
@@ -168,18 +218,21 @@ function generatePreview(
   template: string,
   projectName: string,
   period: string,
-  enabledMetrics: Record<string, boolean>
+  enabledMetrics: Record<string, boolean>,
+  businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | null
 ): string {
   const periodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || 'Últimos 7 dias';
+  const metricsConfig = getMetricsForBusinessModel(businessModel);
   
   let result = template
     .replace('{periodo}', periodLabel)
     .replace('{projeto}', projectName);
   
-  // Replace each metric variable
-  METRICS_CONFIG.forEach(metric => {
-    const isEnabled = enabledMetrics[metric.id] ?? true;
+  // Replace each metric variable with value or remove the line
+  ALL_METRICS_CONFIG.forEach(metric => {
     const varName = `{${metric.key}}`;
+    const isAvailable = metricsConfig.some(m => m.id === metric.id);
+    const isEnabled = isAvailable && (enabledMetrics[metric.id] ?? true);
     
     if (isEnabled) {
       result = result.replace(varName, `${metric.emoji} ${metric.label.replace(/^[^\s]+ /, '')}: ${metric.preview}`);
@@ -202,6 +255,10 @@ export default function WhatsApp() {
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
+  
+  // Get metrics based on current project's business model
+  const businessModel = selectedProject?.business_model || 'inside_sales';
+  const availableMetrics = getMetricsForBusinessModel(businessModel);
 
   // Subscription state
   const [subscription, setSubscription] = useState<WhatsAppSubscription | null>(null);
@@ -216,23 +273,16 @@ export default function WhatsApp() {
   const [reportDayOfWeek, setReportDayOfWeek] = useState(1);
   const [reportTime, setReportTime] = useState('08:00');
   const [reportPeriod, setReportPeriod] = useState('last_7_days');
-  const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
+  const [messageTemplate, setMessageTemplate] = useState(() => getDefaultTemplate(businessModel));
   const [hasChanges, setHasChanges] = useState(false);
   
-  // Metrics selection - all metrics
-  const [metricsEnabled, setMetricsEnabled] = useState<Record<string, boolean>>({
-    spend: true,
-    reach: true,
-    impressions: true,
-    frequency: true,
-    clicks: true,
-    ctr: true,
-    cpm: true,
-    cpc: true,
-    conversions: true,
-    conversion_value: true,
-    leads: true,
-    roas: true,
+  // Metrics selection - initialize based on available metrics
+  const [metricsEnabled, setMetricsEnabled] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    ALL_METRICS_CONFIG.forEach(m => {
+      initial[m.id] = true;
+    });
+    return initial;
   });
 
   const toggleMetric = (id: string) => {
@@ -300,7 +350,7 @@ export default function WhatsApp() {
       setReportDayOfWeek(subscription.report_day_of_week);
       setReportTime(subscription.report_time?.slice(0, 5) || '08:00');
       setReportPeriod(subscription.report_period || 'last_7_days');
-      setMessageTemplate(subscription.message_template || DEFAULT_MESSAGE_TEMPLATE);
+      setMessageTemplate(subscription.message_template || getDefaultTemplate(businessModel));
       setMetricsEnabled({
         spend: subscription.include_spend ?? true,
         reach: subscription.include_reach ?? true,
@@ -313,6 +363,8 @@ export default function WhatsApp() {
         conversions: subscription.include_conversions ?? true,
         conversion_value: subscription.include_conversion_value ?? true,
         leads: subscription.include_leads ?? true,
+        cpl: subscription.include_cpl ?? true,
+        cpa: subscription.include_cpc ?? true, // CPA uses same logic
         roas: subscription.include_roas ?? true,
       });
     }
@@ -330,7 +382,7 @@ export default function WhatsApp() {
     const dayChanged = reportDayOfWeek !== subscription.report_day_of_week;
     const timeChanged = reportTime !== subscription.report_time?.slice(0, 5);
     const periodChanged = reportPeriod !== (subscription.report_period || 'last_7_days');
-    const templateChanged = messageTemplate !== (subscription.message_template || DEFAULT_MESSAGE_TEMPLATE);
+    const templateChanged = messageTemplate !== (subscription.message_template || getDefaultTemplate(businessModel));
     
     const metricsChanged = 
       metricsEnabled.spend !== (subscription.include_spend ?? true) ||
@@ -390,7 +442,7 @@ export default function WhatsApp() {
         include_conversions: metricsEnabled.conversions,
         include_conversion_value: metricsEnabled.conversion_value,
         include_leads: metricsEnabled.leads,
-        include_cpl: metricsEnabled.leads, // Keep backward compat
+        include_cpl: metricsEnabled.cpl ?? metricsEnabled.leads, // CPL for inside_sales
         include_roas: metricsEnabled.roas,
       };
 
@@ -446,21 +498,12 @@ export default function WhatsApp() {
       setReportDayOfWeek(1);
       setReportTime('08:00');
       setReportPeriod('last_7_days');
-      setMessageTemplate(DEFAULT_MESSAGE_TEMPLATE);
-      setMetricsEnabled({
-        spend: true,
-        reach: true,
-        impressions: true,
-        frequency: true,
-        clicks: true,
-        ctr: true,
-        cpm: true,
-        cpc: true,
-        conversions: true,
-        conversion_value: true,
-        leads: true,
-        roas: true,
+      setMessageTemplate(getDefaultTemplate(businessModel));
+      const initialMetrics: Record<string, boolean> = {};
+      ALL_METRICS_CONFIG.forEach(m => {
+        initialMetrics[m.id] = true;
       });
+      setMetricsEnabled(initialMetrics);
       toast.success('Configurações removidas');
     } catch (error) {
       console.error('Error deleting subscription:', error);
@@ -499,7 +542,7 @@ export default function WhatsApp() {
   };
 
   const resetTemplate = () => {
-    setMessageTemplate(DEFAULT_MESSAGE_TEMPLATE);
+    setMessageTemplate(getDefaultTemplate(businessModel));
     toast.success('Template restaurado para o padrão');
   };
 
@@ -532,7 +575,8 @@ export default function WhatsApp() {
     messageTemplate,
     selectedProject?.name || 'Projeto',
     reportPeriod,
-    metricsEnabled
+    metricsEnabled,
+    businessModel
   );
 
   if (authLoading || loading) {
@@ -688,7 +732,7 @@ export default function WhatsApp() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {METRICS_CONFIG.map(metric => (
+                  {availableMetrics.map(metric => (
                     <div
                       key={metric.id}
                       className="flex items-center space-x-2 p-2.5 rounded-lg bg-muted/30 border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
