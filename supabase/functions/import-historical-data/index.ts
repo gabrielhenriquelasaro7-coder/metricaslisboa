@@ -5,10 +5,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configuration - More conservative to avoid rate limits
+// Configuration - Conservative defaults, can be overridden with safe_mode
 const BATCH_SIZE_DAYS = 30;
-const DELAY_BETWEEN_BATCHES = 20000; // 20 seconds between batches
-const RETRY_DELAY_ON_RATE_LIMIT = 90000; // 90 seconds on rate limit
+const DEFAULT_DELAY_BETWEEN_BATCHES = 20000; // 20 seconds between batches
+const SAFE_MODE_DELAY_BETWEEN_BATCHES = 60000; // 60 seconds in safe mode
+const DEFAULT_RETRY_DELAY_ON_RATE_LIMIT = 90000; // 90 seconds on rate limit
+const SAFE_MODE_RETRY_DELAY_ON_RATE_LIMIT = 180000; // 3 minutes in safe mode
 const MAX_RETRIES = 5;
 
 function delay(ms: number): Promise<void> {
@@ -25,15 +27,31 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
+function getMonthName(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+}
+
 interface ImportRequest {
   project_id: string;
   since?: string;
   until?: string;
+  safe_mode?: boolean; // Use longer delays to avoid rate limits
 }
 
 interface DateRange {
   since: string;
   until: string;
+}
+
+interface BatchResult {
+  batch: number;
+  since: string;
+  until: string;
+  month: string;
+  success: boolean;
+  records: number;
+  error?: string;
 }
 
 function generateDateBatches(since: string, until: string, batchDays: number): DateRange[] {
@@ -62,8 +80,11 @@ async function runImport(
   supabaseServiceKey: string,
   project: { id: string; ad_account_id: string; name: string },
   since: string,
-  finalUntil: string
+  finalUntil: string,
+  safeMode: boolean = false
 ) {
+  const DELAY_BETWEEN_BATCHES = safeMode ? SAFE_MODE_DELAY_BETWEEN_BATCHES : DEFAULT_DELAY_BETWEEN_BATCHES;
+  const RETRY_DELAY_ON_RATE_LIMIT = safeMode ? SAFE_MODE_RETRY_DELAY_ON_RATE_LIMIT : DEFAULT_RETRY_DELAY_ON_RATE_LIMIT;
   const startTime = Date.now();
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -259,7 +280,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: ImportRequest = await req.json();
-    const { project_id, since = '2025-01-01', until } = body;
+    const { project_id, since = '2025-01-01', until, safe_mode = false } = body;
     
     const finalUntil = until || formatDate(new Date());
 
@@ -285,8 +306,9 @@ Deno.serve(async (req) => {
     }
 
     // Calculate batches for response
+    const delayPerBatch = safe_mode ? SAFE_MODE_DELAY_BETWEEN_BATCHES : DEFAULT_DELAY_BETWEEN_BATCHES;
     const batches = generateDateBatches(since, finalUntil, BATCH_SIZE_DAYS);
-    const estimatedMinutes = Math.ceil(batches.length * (DELAY_BETWEEN_BATCHES / 1000 + 60) / 60);
+    const estimatedMinutes = Math.ceil(batches.length * (delayPerBatch / 1000 + 60) / 60);
 
     console.log(`[IMPORT] Starting background import for ${project.name}`);
     console.log(`[IMPORT] Range: ${since} to ${finalUntil}, ${batches.length} batches`);
@@ -304,7 +326,7 @@ Deno.serve(async (req) => {
 
     // Start background task - this continues even after response is sent
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
-    EdgeRuntime.waitUntil(runImport(supabaseUrl, supabaseServiceKey, project, since, finalUntil));
+    EdgeRuntime.waitUntil(runImport(supabaseUrl, supabaseServiceKey, project, since, finalUntil, safe_mode));
 
     // Return immediately
     return new Response(
