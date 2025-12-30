@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -39,7 +41,9 @@ import {
   XCircle,
   Clock,
   Calendar,
-  ArrowLeft
+  Eye,
+  Edit3,
+  RotateCcw
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -52,6 +56,14 @@ interface WhatsAppSubscription {
   weekly_report_enabled: boolean;
   report_day_of_week: number;
   report_time: string;
+  message_template?: string | null;
+  include_spend?: boolean | null;
+  include_leads?: boolean | null;
+  include_cpl?: boolean | null;
+  include_impressions?: boolean | null;
+  include_clicks?: boolean | null;
+  include_ctr?: boolean | null;
+  include_roas?: boolean | null;
   last_report_sent_at: string | null;
   created_at: string;
   updated_at: string;
@@ -82,6 +94,19 @@ const TIME_OPTIONS = [
   '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
 ];
 
+const DEFAULT_MESSAGE_TEMPLATE = `📊 *Relatório Semanal de Tráfego*
+📅 {periodo}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+🎯 *{projeto}*
+
+{metricas}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+_Relatório gerado automaticamente pela V4 Company_`;
+
 function formatPhoneNumber(value: string): string {
   const digits = value.replace(/\D/g, '');
   
@@ -95,6 +120,55 @@ function formatPhoneNumber(value: string): string {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   }
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+}
+
+function generatePreview(
+  template: string,
+  projectName: string,
+  metrics: {
+    includeSpend: boolean;
+    includeLeads: boolean;
+    includeCpl: boolean;
+    includeImpressions: boolean;
+    includeClicks: boolean;
+    includeCtr: boolean;
+    includeRoas: boolean;
+  }
+): string {
+  const today = new Date();
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  
+  const periodo = `${weekAgo.toLocaleDateString('pt-BR')} a ${today.toLocaleDateString('pt-BR')}`;
+  
+  const metricLines: string[] = [];
+  
+  if (metrics.includeSpend) {
+    metricLines.push('💰 Investido: R$ 5.234,50');
+  }
+  if (metrics.includeLeads) {
+    metricLines.push('👥 Leads: 127 📈 +15%');
+  }
+  if (metrics.includeCpl) {
+    metricLines.push('📊 CPL: R$ 41,22 📉 -8%');
+  }
+  if (metrics.includeImpressions) {
+    metricLines.push('👁️ Impressões: 45.2K');
+  }
+  if (metrics.includeClicks) {
+    metricLines.push('👆 Cliques: 1.8K');
+  }
+  if (metrics.includeCtr) {
+    metricLines.push('📈 CTR: 3.98%');
+  }
+  if (metrics.includeRoas) {
+    metricLines.push('💎 ROAS: 4.5x');
+  }
+  
+  return template
+    .replace('{periodo}', periodo)
+    .replace('{projeto}', projectName)
+    .replace('{metricas}', metricLines.join('\n'));
 }
 
 export default function WhatsApp() {
@@ -117,7 +191,17 @@ export default function WhatsApp() {
   const [weeklyReportEnabled, setWeeklyReportEnabled] = useState(true);
   const [reportDayOfWeek, setReportDayOfWeek] = useState(1);
   const [reportTime, setReportTime] = useState('08:00');
+  const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Metrics selection
+  const [includeSpend, setIncludeSpend] = useState(true);
+  const [includeLeads, setIncludeLeads] = useState(true);
+  const [includeCpl, setIncludeCpl] = useState(true);
+  const [includeImpressions, setIncludeImpressions] = useState(true);
+  const [includeClicks, setIncludeClicks] = useState(true);
+  const [includeCtr, setIncludeCtr] = useState(true);
+  const [includeRoas, setIncludeRoas] = useState(true);
 
   // Fetch subscription for current project
   const fetchSubscription = useCallback(async () => {
@@ -153,7 +237,7 @@ export default function WhatsApp() {
         .select('*')
         .eq('subscription_id', subscription.id)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(10);
 
       if (error) throw error;
       setMessageLogs(data || []);
@@ -179,6 +263,14 @@ export default function WhatsApp() {
       setWeeklyReportEnabled(subscription.weekly_report_enabled);
       setReportDayOfWeek(subscription.report_day_of_week);
       setReportTime(subscription.report_time?.slice(0, 5) || '08:00');
+      setMessageTemplate(subscription.message_template || DEFAULT_MESSAGE_TEMPLATE);
+      setIncludeSpend(subscription.include_spend ?? true);
+      setIncludeLeads(subscription.include_leads ?? true);
+      setIncludeCpl(subscription.include_cpl ?? true);
+      setIncludeImpressions(subscription.include_impressions ?? true);
+      setIncludeClicks(subscription.include_clicks ?? true);
+      setIncludeCtr(subscription.include_ctr ?? true);
+      setIncludeRoas(subscription.include_roas ?? true);
     }
   }, [subscription]);
 
@@ -193,9 +285,18 @@ export default function WhatsApp() {
     const enabledChanged = weeklyReportEnabled !== subscription.weekly_report_enabled;
     const dayChanged = reportDayOfWeek !== subscription.report_day_of_week;
     const timeChanged = reportTime !== subscription.report_time?.slice(0, 5);
+    const templateChanged = messageTemplate !== (subscription.message_template || DEFAULT_MESSAGE_TEMPLATE);
+    const metricsChanged = 
+      includeSpend !== (subscription.include_spend ?? true) ||
+      includeLeads !== (subscription.include_leads ?? true) ||
+      includeCpl !== (subscription.include_cpl ?? true) ||
+      includeImpressions !== (subscription.include_impressions ?? true) ||
+      includeClicks !== (subscription.include_clicks ?? true) ||
+      includeCtr !== (subscription.include_ctr ?? true) ||
+      includeRoas !== (subscription.include_roas ?? true);
 
-    setHasChanges(phoneChanged || enabledChanged || dayChanged || timeChanged);
-  }, [subscription, phoneNumber, weeklyReportEnabled, reportDayOfWeek, reportTime]);
+    setHasChanges(phoneChanged || enabledChanged || dayChanged || timeChanged || templateChanged || metricsChanged);
+  }, [subscription, phoneNumber, weeklyReportEnabled, reportDayOfWeek, reportTime, messageTemplate, includeSpend, includeLeads, includeCpl, includeImpressions, includeClicks, includeCtr, includeRoas]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -220,38 +321,43 @@ export default function WhatsApp() {
 
     setSaving(true);
     try {
+      const updateData = {
+        phone_number: cleanPhone,
+        weekly_report_enabled: weeklyReportEnabled,
+        report_day_of_week: reportDayOfWeek,
+        report_time: reportTime,
+        message_template: messageTemplate,
+        include_spend: includeSpend,
+        include_leads: includeLeads,
+        include_cpl: includeCpl,
+        include_impressions: includeImpressions,
+        include_clicks: includeClicks,
+        include_ctr: includeCtr,
+        include_roas: includeRoas,
+      };
+
       if (subscription) {
-        // Update existing
         const { error } = await supabase
           .from('whatsapp_subscriptions')
-          .update({
-            phone_number: cleanPhone,
-            weekly_report_enabled: weeklyReportEnabled,
-            report_day_of_week: reportDayOfWeek,
-            report_time: reportTime,
-          })
+          .update(updateData)
           .eq('id', subscription.id);
 
         if (error) throw error;
-        toast.success('Configurações salvas com sucesso!');
+        toast.success('Configurações salvas!');
       } else {
-        // Create new
         const { data: newSub, error } = await supabase
           .from('whatsapp_subscriptions')
           .insert({
             user_id: user.id,
             project_id: selectedProject.id,
-            phone_number: cleanPhone,
-            weekly_report_enabled: weeklyReportEnabled,
-            report_day_of_week: reportDayOfWeek,
-            report_time: reportTime,
+            ...updateData,
           })
           .select()
           .single();
 
         if (error) throw error;
         setSubscription(newSub);
-        toast.success('Configurações salvas com sucesso!');
+        toast.success('Configurações salvas!');
       }
 
       await fetchSubscription();
@@ -281,6 +387,7 @@ export default function WhatsApp() {
       setWeeklyReportEnabled(true);
       setReportDayOfWeek(1);
       setReportTime('08:00');
+      setMessageTemplate(DEFAULT_MESSAGE_TEMPLATE);
       toast.success('Configurações removidas');
     } catch (error) {
       console.error('Error deleting subscription:', error);
@@ -318,6 +425,11 @@ export default function WhatsApp() {
     }
   };
 
+  const resetTemplate = () => {
+    setMessageTemplate(DEFAULT_MESSAGE_TEMPLATE);
+    toast.success('Template restaurado para o padrão');
+  };
+
   const getStatusBadge = (status: string) => {
     if (status === 'sent') {
       return (
@@ -343,10 +455,16 @@ export default function WhatsApp() {
     );
   };
 
+  const previewMessage = generatePreview(
+    messageTemplate,
+    selectedProject?.name || 'Projeto',
+    { includeSpend, includeLeads, includeCpl, includeImpressions, includeClicks, includeCtr, includeRoas }
+  );
+
   if (authLoading || loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center py-12">
+        <div className="p-6 lg:p-8 flex items-center justify-center min-h-[60vh]">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       </DashboardLayout>
@@ -356,7 +474,7 @@ export default function WhatsApp() {
   if (!selectedProject) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <div className="p-6 lg:p-8 flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <p className="text-muted-foreground">Selecione um projeto primeiro</p>
           <Button onClick={() => navigate('/projects')}>
             Ir para Projetos
@@ -368,111 +486,151 @@ export default function WhatsApp() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="p-6 lg:p-8 space-y-6 max-w-6xl">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg">
+            <MessageSquare className="w-6 h-6 text-white" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold">WhatsApp</h1>
+            <h1 className="text-2xl lg:text-3xl font-bold">WhatsApp</h1>
             <p className="text-muted-foreground">
               Configurar relatório semanal para <span className="font-medium text-foreground">{selectedProject.name}</span>
             </p>
           </div>
         </div>
 
-        {/* Main Configuration Card */}
-        <Card className="glass-card border-border/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-green-500" />
-              Relatório Semanal via WhatsApp
-            </CardTitle>
-            <CardDescription>
-              Receba um resumo semanal do desempenho deste projeto diretamente no WhatsApp
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Phone Number */}
-            <div className="space-y-2">
-              <Label htmlFor="phone">Número do WhatsApp</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="(11) 99999-9999"
-                value={phoneNumber}
-                onChange={handlePhoneChange}
-                className="max-w-xs"
-              />
-              <p className="text-xs text-muted-foreground">
-                Digite seu número com DDD
-              </p>
-            </div>
-
-            {/* Enable/Disable */}
-            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50">
-              <div className="space-y-0.5">
-                <Label htmlFor="weekly-report">Relatório semanal ativado</Label>
-                <p className="text-sm text-muted-foreground">
-                  Receba um resumo toda semana no horário configurado
-                </p>
-              </div>
-              <Switch
-                id="weekly-report"
-                checked={weeklyReportEnabled}
-                onCheckedChange={setWeeklyReportEnabled}
-              />
-            </div>
-
-            {/* Schedule */}
-            {weeklyReportEnabled && (
-              <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Left Column - Configuration */}
+          <div className="space-y-6">
+            {/* Basic Settings Card */}
+            <Card className="glass-card border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg">Configurações</CardTitle>
+                <CardDescription>
+                  Configure quando e como receber o relatório
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {/* Phone Number */}
                 <div className="space-y-2">
-                  <Label>Dia da semana</Label>
-                  <Select
-                    value={reportDayOfWeek.toString()}
-                    onValueChange={(v) => setReportDayOfWeek(parseInt(v))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DAYS_OF_WEEK.map(day => (
-                        <SelectItem key={day.value} value={day.value.toString()}>
-                          {day.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="phone">Número do WhatsApp</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="(11) 99999-9999"
+                    value={phoneNumber}
+                    onChange={handlePhoneChange}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Digite seu número com DDD
+                  </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Horário</Label>
-                  <Select
-                    value={reportTime}
-                    onValueChange={setReportTime}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIME_OPTIONS.map(time => (
-                        <SelectItem key={time} value={time}>
-                          {time}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Enable/Disable */}
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="weekly-report">Relatório ativado</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Envio automático semanal
+                    </p>
+                  </div>
+                  <Switch
+                    id="weekly-report"
+                    checked={weeklyReportEnabled}
+                    onCheckedChange={setWeeklyReportEnabled}
+                  />
                 </div>
-              </div>
-            )}
+
+                {/* Schedule */}
+                {weeklyReportEnabled && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Dia da semana</Label>
+                      <Select
+                        value={reportDayOfWeek.toString()}
+                        onValueChange={(v) => setReportDayOfWeek(parseInt(v))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DAYS_OF_WEEK.map(day => (
+                            <SelectItem key={day.value} value={day.value.toString()}>
+                              {day.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Horário</Label>
+                      <Select
+                        value={reportTime}
+                        onValueChange={setReportTime}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIME_OPTIONS.map(time => (
+                            <SelectItem key={time} value={time}>
+                              {time}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Metrics Selection Card */}
+            <Card className="glass-card border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg">Métricas do Relatório</CardTitle>
+                <CardDescription>
+                  Escolha quais métricas incluir no relatório
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: 'spend', label: '💰 Investimento', checked: includeSpend, onChange: setIncludeSpend },
+                    { id: 'leads', label: '👥 Leads', checked: includeLeads, onChange: setIncludeLeads },
+                    { id: 'cpl', label: '📊 CPL', checked: includeCpl, onChange: setIncludeCpl },
+                    { id: 'impressions', label: '👁️ Impressões', checked: includeImpressions, onChange: setIncludeImpressions },
+                    { id: 'clicks', label: '👆 Cliques', checked: includeClicks, onChange: setIncludeClicks },
+                    { id: 'ctr', label: '📈 CTR', checked: includeCtr, onChange: setIncludeCtr },
+                    { id: 'roas', label: '💎 ROAS', checked: includeRoas, onChange: setIncludeRoas },
+                  ].map(metric => (
+                    <div
+                      key={metric.id}
+                      className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30 border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => metric.onChange(!metric.checked)}
+                    >
+                      <Checkbox
+                        id={metric.id}
+                        checked={metric.checked}
+                        onCheckedChange={(checked) => metric.onChange(checked as boolean)}
+                      />
+                      <Label htmlFor={metric.id} className="cursor-pointer text-sm">
+                        {metric.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-3 pt-4 border-t border-border/50">
+            <div className="flex flex-wrap gap-3">
               <Button
                 onClick={handleSave}
                 disabled={saving || !hasChanges || phoneNumber.replace(/\D/g, '').length < 10}
+                className="flex-1 sm:flex-none"
               >
                 {saving ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -486,6 +644,7 @@ export default function WhatsApp() {
                 variant="outline"
                 onClick={sendTestReport}
                 disabled={sendingTest || !subscription}
+                className="flex-1 sm:flex-none"
               >
                 {sendingTest ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -499,8 +658,7 @@ export default function WhatsApp() {
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Remover
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -523,64 +681,102 @@ export default function WhatsApp() {
                 </AlertDialog>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Message History */}
-        {subscription && messageLogs.length > 0 && (
-          <Card className="glass-card border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Calendar className="w-5 h-5 text-primary" />
-                Histórico de Mensagens
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {messageLogs.map(log => (
-                  <div
-                    key={log.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium capitalize">
-                          {log.message_type === 'weekly_report' ? 'Relatório Semanal' : 'Teste'}
-                        </span>
+          {/* Right Column - Message Preview & Template */}
+          <div className="space-y-6">
+            {/* Message Preview Card */}
+            <Card className="glass-card border-border/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      Preview da Mensagem
+                    </CardTitle>
+                    <CardDescription>
+                      Como sua mensagem será exibida
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-[#0b141a] rounded-lg p-4 font-mono text-sm text-[#e9edef] whitespace-pre-wrap border border-[#2a3942]">
+                  {previewMessage}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Message Template Editor */}
+            <Card className="glass-card border-border/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Edit3 className="w-4 h-4" />
+                      Editar Template
+                    </CardTitle>
+                    <CardDescription>
+                      Personalize o texto da mensagem
+                    </CardDescription>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={resetTemplate}>
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    Restaurar
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Textarea
+                  value={messageTemplate}
+                  onChange={(e) => setMessageTemplate(e.target.value)}
+                  rows={10}
+                  className="font-mono text-sm bg-muted/30"
+                />
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium">Variáveis disponíveis:</p>
+                  <ul className="list-disc list-inside space-y-0.5 ml-2">
+                    <li><code className="bg-muted px-1 rounded">{'{periodo}'}</code> - Período do relatório</li>
+                    <li><code className="bg-muted px-1 rounded">{'{projeto}'}</code> - Nome do projeto</li>
+                    <li><code className="bg-muted px-1 rounded">{'{metricas}'}</code> - Métricas selecionadas</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Message History */}
+            {subscription && messageLogs.length > 0 && (
+              <Card className="glass-card border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Histórico
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {messageLogs.map(log => (
+                      <div
+                        key={log.id}
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"
+                      >
+                        <div className="space-y-0.5">
+                          <span className="text-sm font-medium">
+                            {log.message_type === 'weekly_report' ? 'Relatório Semanal' : 'Teste'}
+                          </span>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(log.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </p>
+                        </div>
                         {getStatusBadge(log.status)}
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(log.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </p>
-                      {log.error_message && (
-                        <p className="text-sm text-destructive">{log.error_message}</p>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Info Card */}
-        <Card className="glass-card border-border/50 bg-muted/20">
-          <CardContent className="pt-6">
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>📊 <strong>O que o relatório inclui:</strong></p>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>Investimento total da semana</li>
-                <li>Número de leads gerados</li>
-                <li>CPL (Custo por Lead) com comparativo</li>
-                <li>Impressões e cliques</li>
-                <li>CTR e ROAS</li>
-              </ul>
-              <p className="pt-2">
-                💡 <strong>Dica:</strong> Configure para receber na segunda-feira para ter o resumo da semana anterior.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );
