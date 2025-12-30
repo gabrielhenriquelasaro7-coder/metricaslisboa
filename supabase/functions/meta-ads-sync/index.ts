@@ -217,81 +217,51 @@ async function fetchDailyInsights(
 }
 
 // ============ EXTRACT CONVERSIONS ============
-// Lista COMPLETA de action_types que representam conversões/leads no Meta Ads
-// Inclui TODOS os eventos de pixel, formulários, contatos e conversões customizadas
+// LISTA RESTRITIVA: Apenas LEADS REAIS conforme aparecem no Gerenciador de Anúncios do Meta
+// Dividido em categorias para clareza e manutenção
+
+// LEADS REAIS - Formulários (Lead Ads / Instant Forms)
+const LEAD_FORM_ACTIONS = [
+  'lead',                                    // Lead genérico
+  'leadgen.other',                           // Lead via formulário
+  'leadgen_grouped',                         // Leads agrupados de formulários
+  'onsite_conversion.lead_grouped',          // Leads on-Facebook agrupados
+  'on_facebook_lead',                        // Lead no Facebook
+];
+
+// LEADS VIA PIXEL - "Lead no site" / "Leads no site"
+const LEAD_PIXEL_ACTIONS = [
+  'offsite_conversion.fb_pixel_lead',        // Lead via pixel (Lead no site)
+  'onsite_web_lead',                         // Lead web onsite
+];
+
+// REGISTROS COMPLETOS - Contam como lead/conversão
+const REGISTRATION_ACTIONS = [
+  'complete_registration',                             // Cadastro completo
+  'offsite_conversion.fb_pixel_complete_registration', // Cadastro via pixel
+];
+
+// CONTATOS VIA PIXEL - "Contato no site" 
+// NOTA: Só conta se o objetivo da campanha for conversão de contato
+const CONTACT_PIXEL_ACTIONS = [
+  'offsite_conversion.fb_pixel_contact',     // Contato via pixel do site
+];
+
+// COMPRAS - Para campanhas de e-commerce
+const PURCHASE_ACTIONS = [
+  'purchase',                                // Compra genérica
+  'omni_purchase',                           // Compra omnichannel
+  'offsite_conversion.fb_pixel_purchase',    // Compra via pixel
+];
+
+// LISTA COMPLETA DE CONVERSÕES VÁLIDAS
+// Inclui apenas o que aparece como "Resultados" no Gerenciador de Anúncios
 const CONVERSION_ACTION_TYPES = [
-  // ========== LEADS - FORMULÁRIOS INSTANT (On-Facebook) ==========
-  'lead',
-  'leadgen.other',
-  'leadgen_grouped',
-  'onsite_conversion.lead_grouped',
-  'on_facebook_lead',
-  'onsite_web_lead',
-  
-  // ========== LEADS - PIXEL (Off-Facebook / Website) ==========
-  'offsite_conversion.fb_pixel_lead',
-  'offsite_conversion.fb_pixel_custom', // Eventos customizados do pixel
-  
-  // ========== CONTATOS - TODOS OS TIPOS ==========
-  'contact',
-  'contact_total',
-  'contact_website',        // Contato no site (pixel)
-  'contact_mobile_app',
-  'contact_offline',
-  'onsite_conversion.contact',
-  'offsite_conversion.fb_pixel_contact', // Contato via pixel
-  
-  // ========== CONVERSAS / MENSAGENS ==========
-  'onsite_conversion.messaging_conversation_started_7d',
-  'onsite_conversion.messaging_first_reply',
-  'messaging_conversation_started_7d',
-  'messaging_first_reply',
-  'onsite_conversion.messaging_blocked',
-  'onsite_conversion.post_engagement',
-  
-  // ========== FORMULÁRIOS E REGISTROS ==========
-  'onsite_conversion.flow_complete',
-  'complete_registration',
-  'offsite_conversion.fb_pixel_complete_registration',
-  'submit_application',
-  'offsite_conversion.fb_pixel_submit_application',
-  'subscribe',
-  'offsite_conversion.fb_pixel_subscribe',
-  
-  // ========== AGENDAMENTOS / SCHEDULES ==========
-  'schedule',
-  'offsite_conversion.fb_pixel_schedule',
-  'onsite_conversion.schedule',
-  
-  // ========== INICIAR CHECKOUT / TRIAL ==========
-  'start_trial',
-  'offsite_conversion.fb_pixel_start_trial',
-  'initiate_checkout',
-  'offsite_conversion.fb_pixel_initiate_checkout',
-  
-  // ========== COMPRAS (E-commerce) ==========
-  'purchase',
-  'omni_purchase',
-  'offsite_conversion.fb_pixel_purchase',
-  
-  // ========== APP INSTALLS ==========
-  'app_install',
-  'mobile_app_install',
-  
-  // ========== OUTROS EVENTOS DE CONVERSÃO ==========
-  'add_to_cart',
-  'offsite_conversion.fb_pixel_add_to_cart',
-  'add_to_wishlist',
-  'offsite_conversion.fb_pixel_add_to_wishlist',
-  'view_content',
-  'offsite_conversion.fb_pixel_view_content',
-  'search',
-  'offsite_conversion.fb_pixel_search',
-  
-  // ========== EVENTOS CUSTOMIZADOS (catch-all para pixel events) ==========
-  // Estes capturam eventos customizados que não estão na lista acima
-  'offsite_conversion.custom',
-  'onsite_conversion.custom',
+  ...LEAD_FORM_ACTIONS,
+  ...LEAD_PIXEL_ACTIONS,
+  ...REGISTRATION_ACTIONS,
+  ...CONTACT_PIXEL_ACTIONS,
+  ...PURCHASE_ACTIONS,
 ];
 
 // Lista de action_types para valores de conversão (receita)
@@ -301,9 +271,6 @@ const VALUE_ACTION_TYPES = [
   'offsite_conversion.fb_pixel_purchase',
   'lead',
   'offsite_conversion.fb_pixel_lead',
-  'contact',
-  'contact_website',
-  'offsite_conversion.fb_pixel_contact',
   'complete_registration',
   'offsite_conversion.fb_pixel_complete_registration',
 ];
@@ -490,261 +457,221 @@ Deno.serve(async (req) => {
       since = time_range.since;
       until = time_range.until;
     } else {
-      // Default: last 90 days
-      const now = new Date();
-      until = now.toISOString().split('T')[0];
-      const sinceDate = new Date();
-      sinceDate.setDate(sinceDate.getDate() - 90);
+      // Calculate date range from preset
+      const today = new Date();
+      until = today.toISOString().split('T')[0];
+      
+      const daysMap: { [key: string]: number } = {
+        'yesterday': 1,
+        'today': 0,
+        'last_7d': 7,
+        'last_14d': 14,
+        'last_30d': 30,
+        'last_90d': 90,
+        'this_month': new Date(today.getFullYear(), today.getMonth(), today.getDate()).getDate(),
+        'last_month': new Date(today.getFullYear(), today.getMonth(), 0).getDate() + today.getDate(),
+      };
+      
+      const days = daysMap[date_preset || 'last_90d'] || 90;
+      const sinceDate = new Date(today);
+      sinceDate.setDate(sinceDate.getDate() - days);
       since = sinceDate.toISOString().split('T')[0];
-    }
-    
-    const token = access_token || metaAccessToken;
-
-    if (!token || !project_id || !ad_account_id) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Missing required parameters' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
     console.log(`[SYNC] Project: ${project_id}`);
     console.log(`[SYNC] Range: ${since} to ${until} (time_increment=1)`);
     console.log(`[SYNC] Retry count: ${retry_count}`);
 
-    await supabase.from('projects').update({ webhook_status: 'syncing' }).eq('id', project_id);
+    const token = access_token || metaAccessToken;
+    if (!token) {
+      throw new Error('No Meta access token available');
+    }
 
-    // ============ INSIGHTS-FIRST APPROACH ============
-    // Busca insights diretamente - inclui dados de campanhas deletadas/arquivadas
-    // que não aparecem mais na listagem de entidades
+    // ========== STEP 1: Fetch entities (campaigns, adsets, ads) ==========
+    const { campaigns, adsets, ads, adImageMap } = await fetchEntities(ad_account_id, token);
     
-    // STEP 1: Fetch daily insights FIRST (time_increment=1)
-    // Isso captura TODOS os dados históricos, incluindo de entidades deletadas
+    // Build lookup maps
+    const campaignMap = new Map(campaigns.map(c => [extractId(c.id), c]));
+    const adsetMap = new Map(adsets.map(a => [extractId(a.id), a]));
+    const adMap = new Map(ads.map(a => [extractId(a.id), a]));
+    
+    console.log(`[ENTITIES] Loaded for enrichment: ${campaignMap.size} campaigns, ${adMap.size} ads`);
+
+    // ========== STEP 2: Fetch daily insights ==========
     const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
     
-    // Se não há insights, pode ser que realmente não houve atividade no período
-    if (dailyInsights.size === 0) {
-      console.log(`[SYNC] No insights found for period ${since} to ${until}`);
-      // Não retornar erro - pode ser que não houve gasto no período
-      await supabase.from('projects').update({ 
-        webhook_status: 'success',
-        last_sync_at: new Date().toISOString()
-      }).eq('id', project_id);
-      
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: 'No activity in period',
-        data: {
-          daily_records_count: 0,
-          period: { since, until }
-        }
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    // STEP 2: Fetch entities for enrichment (optional - for thumbnails and additional data)
-    // Isso é opcional - mesmo sem entidades, os insights já têm todos os dados necessários
-    let adImageMap = new Map<string, string>();
-    let campaignMap = new Map<string, any>();
-    let adsetMap = new Map<string, any>();
-    let adMap = new Map<string, any>();
-    
-    try {
-      const entities = await fetchEntities(ad_account_id, token);
-      campaignMap = new Map(entities.campaigns.map(c => [c.id, c]));
-      adsetMap = new Map(entities.adsets.map(a => [a.id, a]));
-      adMap = new Map(entities.ads.map(a => [a.id, a]));
-      adImageMap = entities.adImageMap;
-      console.log(`[ENTITIES] Loaded for enrichment: ${entities.campaigns.length} campaigns, ${entities.ads.length} ads`);
-    } catch (entityError) {
-      console.log(`[ENTITIES] Could not fetch for enrichment, using insights data only:`, entityError);
-      // Continue without entity enrichment - insights have all required data
-    }
-
-    // STEP 3: Build daily records - INSIGHTS-FIRST approach
-    // Usa dados dos insights como fonte primária, entidades apenas para enriquecimento
+    // ========== STEP 3: Build daily records from insights ==========
     const dailyRecords: any[] = [];
-    let logCounter = 0; // Log first 5 rows for debugging
+    let logCounter = 0;
     
     for (const [adId, dateMap] of dailyInsights) {
-      // Tentar enriquecer com dados de entidades (opcional)
-      const ad = adMap.get(adId);
-      const adset = ad ? adsetMap.get(ad.adset_id) : null;
-      const campaign = ad ? campaignMap.get(ad.campaign_id) : null;
-      
-      for (const [dateKey, insights] of dateMap) {
-        // Log ALL action types for first 5 rows to help debug
-        const shouldLog = logCounter < 5;
-        if (shouldLog) logCounter++;
+      for (const [date, insights] of dateMap) {
+        const ad = adMap.get(adId);
+        const adsetId = extractId(insights.adset_id);
+        const campaignId = extractId(insights.campaign_id);
+        const adset = adsetId ? adsetMap.get(adsetId) : null;
+        const campaign = campaignId ? campaignMap.get(campaignId) : null;
         
+        // Extract conversions with logging for first 10 rows
+        const shouldLog = logCounter < 10 && (insights.actions?.length > 0);
         const { conversions, conversionValue } = extractConversions(insights, shouldLog);
-        const spend = parseFloat(insights.spend || '0');
-        const impressions = parseInt(insights.impressions || '0');
-        const clicks = parseInt(insights.clicks || '0');
-        const reach = parseInt(insights.reach || '0');
+        if (shouldLog && insights.actions?.length > 0) logCounter++;
         
-        // INSIGHTS-FIRST: Usa dados dos insights como fonte primária
-        // Os insights sempre contêm: ad_id, ad_name, adset_id, adset_name, campaign_id, campaign_name
-        const adName = insights.ad_name || ad?.name || 'Unknown';
-        const adsetId = extractId(insights.adset_id) || ad?.adset_id || '';
-        const adsetName = insights.adset_name || adset?.name || 'Unknown';
-        const campaignId = extractId(insights.campaign_id) || ad?.campaign_id || '';
-        const campaignName = insights.campaign_name || campaign?.name || 'Unknown';
+        // Get HD image URL
+        const { imageUrl, videoUrl } = ad ? extractHdImageUrl(ad, adImageMap) : { imageUrl: null, videoUrl: null };
         
-        // Get creative thumbnail from entity map if available
-        let creativeThumbnail = null;
-        let creativeId = null;
-        if (ad) {
-          creativeId = ad.creative?.id || null;
-          const imageData = extractHdImageUrl(ad, adImageMap);
-          creativeThumbnail = imageData.imageUrl || ad.creative?.thumbnail_url || null;
-        }
+        const spend = parseFloat(insights.spend) || 0;
+        const impressions = parseInt(insights.impressions) || 0;
+        const clicks = parseInt(insights.clicks) || 0;
+        const reach = parseInt(insights.reach) || 0;
+        
+        // Calculate derived metrics
+        const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+        const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
+        const cpc = clicks > 0 ? spend / clicks : 0;
+        const frequency = reach > 0 ? impressions / reach : 0;
+        const cpa = conversions > 0 ? spend / conversions : 0;
+        const roas = spend > 0 && conversionValue > 0 ? conversionValue / spend : 0;
         
         dailyRecords.push({
           project_id,
           ad_account_id,
-          date: dateKey,
-          
-          campaign_id: campaignId,
-          campaign_name: campaignName,
-          campaign_status: campaign?.status || 'ARCHIVED', // Assume archived if not in entities
+          date,
+          campaign_id: campaignId || 'unknown',
+          campaign_name: insights.campaign_name || campaign?.name || 'Unknown Campaign',
+          campaign_status: campaign?.status || null,
           campaign_objective: campaign?.objective || null,
-          
-          adset_id: adsetId,
-          adset_name: adsetName,
-          adset_status: adset?.status || 'ARCHIVED',
-          
+          adset_id: adsetId || 'unknown',
+          adset_name: insights.adset_name || adset?.name || 'Unknown Adset',
+          adset_status: adset?.status || null,
           ad_id: adId,
-          ad_name: adName,
-          ad_status: ad?.status || 'ARCHIVED',
-          
-          creative_id: creativeId,
-          creative_thumbnail: creativeThumbnail,
-          
+          ad_name: insights.ad_name || ad?.name || 'Unknown Ad',
+          ad_status: ad?.status || null,
+          creative_id: ad?.creative?.id || null,
+          creative_thumbnail: imageUrl || ad?.creative?.thumbnail_url || null,
           spend,
           impressions,
           clicks,
           reach,
-          frequency: parseFloat(insights.frequency || '0'),
-          
-          ctr: parseFloat(insights.ctr || '0'),
-          cpm: parseFloat(insights.cpm || '0'),
-          cpc: parseFloat(insights.cpc || '0'),
-          
+          ctr,
+          cpm,
+          cpc,
+          frequency,
           conversions,
           conversion_value: conversionValue,
-          roas: spend > 0 ? conversionValue / spend : 0,
-          cpa: conversions > 0 ? spend / conversions : 0,
-          
+          cpa,
+          roas,
           synced_at: new Date().toISOString(),
         });
       }
     }
-
+    
     console.log(`[SYNC] Built ${dailyRecords.length} daily records`);
 
-    // STEP 4: Validate data (ANTI-ZERO)
+    // ========== STEP 4: Validate data (anti-zero) ==========
     const validation = validateSyncData(dailyRecords);
     
     if (!validation.isValid && retry_count < MAX_RETRIES) {
-      console.log(`[VALIDATION] Data appears invalid (all zeros), scheduling retry ${retry_count + 1}/${MAX_RETRIES}`);
+      console.log(`[VALIDATION] All data is zero, scheduling retry ${retry_count + 1}/${MAX_RETRIES}`);
       
-      await supabase.from('sync_logs').insert({
-        project_id,
-        status: 'retry_scheduled',
-        message: JSON.stringify({
-          reason: 'all_zeros',
+      // Schedule retry with delay
+      const retryDelayMs = VALIDATION_RETRY_DELAYS[retry_count] || 30000;
+      await delay(retryDelayMs);
+      
+      // Re-invoke self with incremented retry count
+      const retryResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          ...body,
           retry_count: retry_count + 1,
-          records: dailyRecords.length,
         }),
       });
       
-      await supabase.from('projects').update({ webhook_status: 'retry_pending' }).eq('id', project_id);
-      
-      // Em produção, agendaria o retry via cron ou queue
-      // Aqui retornamos status para o caller fazer retry
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          needs_retry: true, 
-          retry_count: retry_count + 1,
-          error: 'Data validation failed: all records have zero values' 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return retryResponse;
     }
 
-    // STEP 5: UPSERT to ads_daily_metrics
-    let upsertCount = 0;
-    for (const batch of chunk(dailyRecords, 200)) {
-      const { error } = await supabase
-        .from('ads_daily_metrics')
-        .upsert(batch, { 
-          onConflict: 'project_id,ad_id,date',
-          ignoreDuplicates: false 
-        });
-      
-      if (error) {
-        console.error('[UPSERT ERROR]', error);
-      } else {
-        upsertCount += batch.length;
+    // ========== STEP 5: Upsert daily records ==========
+    if (dailyRecords.length > 0) {
+      const batches = chunk(dailyRecords, BATCH_SIZE);
+      for (const batch of batches) {
+        // Use proper unique constraint for upsert
+        const { error } = await supabase
+          .from('ads_daily_metrics')
+          .upsert(batch, { 
+            onConflict: 'project_id,ad_id,date',
+            ignoreDuplicates: false 
+          });
+        
+        if (error) {
+          console.error('[UPSERT] Error:', error.message);
+          // Continue with next batch on error
+        }
       }
+      console.log(`[UPSERT] ${dailyRecords.length} daily records saved`);
     }
 
-    console.log(`[UPSERT] ${upsertCount} daily records saved`);
-
-    // STEP 6: Also update aggregated tables for backward compatibility
-    // Aggregate metrics across all dates for main tables
-    const campaignAggregates = new Map<string, any>();
-    const adsetAggregates = new Map<string, any>();
-    const adAggregates = new Map<string, any>();
+    // ========== STEP 6: Aggregate and update entity tables ==========
+    // Group by campaign, adset, ad and sum metrics
+    const campaignMetrics = new Map<string, any>();
+    const adsetMetrics = new Map<string, any>();
+    const adMetrics = new Map<string, any>();
     
     for (const record of dailyRecords) {
-      // Campaign aggregates
-      if (!campaignAggregates.has(record.campaign_id)) {
-        campaignAggregates.set(record.campaign_id, {
+      // Aggregate campaigns
+      if (!campaignMetrics.has(record.campaign_id)) {
+        campaignMetrics.set(record.campaign_id, {
           id: record.campaign_id,
           project_id,
           name: record.campaign_name,
           status: record.campaign_status,
           objective: record.campaign_objective,
-          spend: 0, impressions: 0, clicks: 0, reach: 0,
-          conversions: 0, conversion_value: 0,
+          spend: 0,
+          impressions: 0,
+          clicks: 0,
+          reach: 0,
+          conversions: 0,
+          conversion_value: 0,
         });
       }
-      const ca = campaignAggregates.get(record.campaign_id);
-      ca.spend += record.spend;
-      ca.impressions += record.impressions;
-      ca.clicks += record.clicks;
-      ca.reach += record.reach;
-      ca.conversions += record.conversions;
-      ca.conversion_value += record.conversion_value;
+      const cm = campaignMetrics.get(record.campaign_id);
+      cm.spend += record.spend;
+      cm.impressions += record.impressions;
+      cm.clicks += record.clicks;
+      cm.reach += record.reach;
+      cm.conversions += record.conversions;
+      cm.conversion_value += record.conversion_value;
       
-      // Adset aggregates
-      if (!adsetAggregates.has(record.adset_id)) {
-        adsetAggregates.set(record.adset_id, {
+      // Aggregate adsets
+      if (!adsetMetrics.has(record.adset_id)) {
+        adsetMetrics.set(record.adset_id, {
           id: record.adset_id,
           project_id,
           campaign_id: record.campaign_id,
           name: record.adset_name,
           status: record.adset_status,
-          spend: 0, impressions: 0, clicks: 0, reach: 0,
-          conversions: 0, conversion_value: 0,
+          spend: 0,
+          impressions: 0,
+          clicks: 0,
+          reach: 0,
+          conversions: 0,
+          conversion_value: 0,
         });
       }
-      const asa = adsetAggregates.get(record.adset_id);
-      asa.spend += record.spend;
-      asa.impressions += record.impressions;
-      asa.clicks += record.clicks;
-      asa.reach += record.reach;
-      asa.conversions += record.conversions;
-      asa.conversion_value += record.conversion_value;
+      const am = adsetMetrics.get(record.adset_id);
+      am.spend += record.spend;
+      am.impressions += record.impressions;
+      am.clicks += record.clicks;
+      am.reach += record.reach;
+      am.conversions += record.conversions;
+      am.conversion_value += record.conversion_value;
       
-      // Ad aggregates
-      if (!adAggregates.has(record.ad_id)) {
-        // Get HD image URL from the ad map using adImageMap for highest quality
-        const adEntity = adMap.get(record.ad_id);
-        const { imageUrl, videoUrl } = extractHdImageUrl(adEntity || {}, adImageMap);
-        
-        adAggregates.set(record.ad_id, {
+      // Aggregate ads
+      if (!adMetrics.has(record.ad_id)) {
+        adMetrics.set(record.ad_id, {
           id: record.ad_id,
           project_id,
           campaign_id: record.campaign_id,
@@ -753,135 +680,85 @@ Deno.serve(async (req) => {
           status: record.ad_status,
           creative_id: record.creative_id,
           creative_thumbnail: record.creative_thumbnail,
-          // Use HD image URL if available
-          creative_image_url: imageUrl,
-          creative_video_url: videoUrl,
-          spend: 0, impressions: 0, clicks: 0, reach: 0,
-          conversions: 0, conversion_value: 0,
+          spend: 0,
+          impressions: 0,
+          clicks: 0,
+          reach: 0,
+          conversions: 0,
+          conversion_value: 0,
         });
       }
-      const ada = adAggregates.get(record.ad_id);
-      ada.spend += record.spend;
-      ada.impressions += record.impressions;
-      ada.clicks += record.clicks;
-      ada.reach += record.reach;
-      ada.conversions += record.conversions;
-      ada.conversion_value += record.conversion_value;
+      const adm = adMetrics.get(record.ad_id);
+      adm.spend += record.spend;
+      adm.impressions += record.impressions;
+      adm.clicks += record.clicks;
+      adm.reach += record.reach;
+      adm.conversions += record.conversions;
+      adm.conversion_value += record.conversion_value;
     }
     
-    // Calculate derived metrics and upsert
-    const calculateMetrics = (agg: any) => ({
-      ...agg,
-      ctr: agg.impressions > 0 ? (agg.clicks / agg.impressions) * 100 : 0,
-      cpm: agg.impressions > 0 ? (agg.spend / agg.impressions) * 1000 : 0,
-      cpc: agg.clicks > 0 ? agg.spend / agg.clicks : 0,
-      roas: agg.spend > 0 ? agg.conversion_value / agg.spend : 0,
-      cpa: agg.conversions > 0 ? agg.spend / agg.conversions : 0,
-      frequency: agg.reach > 0 ? agg.impressions / agg.reach : 0,
-      synced_at: new Date().toISOString(),
-    });
+    // Calculate derived metrics for aggregated data
+    const calculateDerived = (m: any) => {
+      m.ctr = m.impressions > 0 ? (m.clicks / m.impressions) * 100 : 0;
+      m.cpm = m.impressions > 0 ? (m.spend / m.impressions) * 1000 : 0;
+      m.cpc = m.clicks > 0 ? m.spend / m.clicks : 0;
+      m.frequency = m.reach > 0 ? m.impressions / m.reach : 0;
+      m.cpa = m.conversions > 0 ? m.spend / m.conversions : 0;
+      m.roas = m.spend > 0 && m.conversion_value > 0 ? m.conversion_value / m.spend : 0;
+      m.synced_at = new Date().toISOString();
+      return m;
+    };
     
-    const campaignRecords = Array.from(campaignAggregates.values()).map(calculateMetrics);
-    const adsetRecords = Array.from(adsetAggregates.values()).map(calculateMetrics);
-    const adRecords = Array.from(adAggregates.values()).map(calculateMetrics);
+    const campaignRecords = Array.from(campaignMetrics.values()).map(calculateDerived);
+    const adsetRecords = Array.from(adsetMetrics.values()).map(calculateDerived);
+    const adRecords = Array.from(adMetrics.values()).map(calculateDerived);
     
-    // Upsert to main tables
-    await Promise.all([
-      supabase.from('campaigns').upsert(campaignRecords, { onConflict: 'id' }),
-      supabase.from('ad_sets').upsert(adsetRecords, { onConflict: 'id' }),
-      supabase.from('ads').upsert(adRecords, { onConflict: 'id' }),
-    ]);
+    // Upsert campaigns
+    if (campaignRecords.length > 0) {
+      await supabase.from('campaigns').upsert(campaignRecords, { onConflict: 'id' });
+    }
+    
+    // Upsert adsets
+    if (adsetRecords.length > 0) {
+      await supabase.from('ad_sets').upsert(adsetRecords, { onConflict: 'id' });
+    }
+    
+    // Upsert ads
+    if (adRecords.length > 0) {
+      await supabase.from('ads').upsert(adRecords, { onConflict: 'id' });
+    }
     
     console.log(`[AGGREGATE] Campaigns: ${campaignRecords.length}, Adsets: ${adsetRecords.length}, Ads: ${adRecords.length}`);
 
-    // STEP 7: Save to period_metrics for backward compatibility
-    if (period_key) {
-      const periodRecords = [
-        ...campaignRecords.map(r => ({ 
-          project_id, 
-          period_key, 
-          entity_type: 'campaign', 
-          entity_id: r.id, 
-          entity_name: r.name, 
-          status: r.status, 
-          metrics: r, 
-          synced_at: new Date().toISOString() 
-        })),
-        ...adsetRecords.map(r => ({ 
-          project_id, 
-          period_key, 
-          entity_type: 'ad_set', 
-          entity_id: r.id, 
-          entity_name: r.name, 
-          status: r.status, 
-          metrics: r, 
-          synced_at: new Date().toISOString() 
-        })),
-        ...adRecords.map(r => ({ 
-          project_id, 
-          period_key, 
-          entity_type: 'ad', 
-          entity_id: r.id, 
-          entity_name: r.name, 
-          status: r.status, 
-          metrics: r, 
-          synced_at: new Date().toISOString() 
-        })),
-      ];
+    // ========== STEP 7: Update project last_sync_at ==========
+    await supabase
+      .from('projects')
+      .update({ last_sync_at: new Date().toISOString() })
+      .eq('id', project_id);
 
-      for (const batch of chunk(periodRecords, 200)) {
-        await supabase.from('period_metrics').upsert(batch, { 
-          onConflict: 'project_id,period_key,entity_type,entity_id' 
-        });
-      }
-      console.log(`[PERIOD_METRICS] Saved ${periodRecords.length} records for period ${period_key}`);
-    }
-
-    // STEP 8: Update project status
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    
-    await supabase.from('projects').update({ 
-      webhook_status: 'success', 
-      last_sync_at: new Date().toISOString() 
-    }).eq('id', project_id);
-    
-    await supabase.from('sync_logs').insert({
-      project_id,
-      status: 'success',
-      message: JSON.stringify({ 
-        period: period_key || 'full_sync',
-        range: `${since} to ${until}`,
-        daily_records: dailyRecords.length,
-        campaigns: campaignRecords.length,
-        adsets: adsetRecords.length,
-        ads: adRecords.length,
-        total_spend: validation.totalSpend.toFixed(2),
-        elapsed: elapsed + 's' 
-      }),
-    });
-
     console.log(`[COMPLETE] ${dailyRecords.length} daily records in ${elapsed}s`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        data: { 
-          period: period_key || 'full_sync',
-          range: { since, until },
-          daily_records_count: dailyRecords.length,
-          campaigns_count: campaignRecords.length,
-          ad_sets_count: adsetRecords.length,
-          ads_count: adRecords.length,
-          total_spend: validation.totalSpend,
-          elapsed_seconds: parseFloat(elapsed)
-        } 
+      JSON.stringify({
+        success: true,
+        records: dailyRecords.length,
+        campaigns: campaignRecords.length,
+        adsets: adsetRecords.length,
+        ads: adRecords.length,
+        validation,
+        elapsed_seconds: elapsed,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (error) {
-    console.error('[SYNC ERROR]', error);
+    console.error('[ERROR]', error);
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
