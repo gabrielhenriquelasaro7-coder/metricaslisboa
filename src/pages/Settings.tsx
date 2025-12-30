@@ -84,14 +84,54 @@ interface SyncLog {
 
 type Theme = 'dark' | 'light' | 'system';
 
-type PrimaryColor = 'red' | 'blue' | 'green' | 'purple' | 'orange';
+type PrimaryColor = 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'custom';
 
-const COLOR_PRESETS: Record<PrimaryColor, { name: string; hue: number; saturation: number }> = {
+const COLOR_PRESETS: Record<Exclude<PrimaryColor, 'custom'>, { name: string; hue: number; saturation: number }> = {
   red: { name: 'Vermelho', hue: 0, saturation: 85 },
   blue: { name: 'Azul', hue: 220, saturation: 85 },
   green: { name: 'Verde', hue: 142, saturation: 71 },
   purple: { name: 'Roxo', hue: 270, saturation: 75 },
   orange: { name: 'Laranja', hue: 25, saturation: 90 },
+};
+
+// Convert hex to HSL
+const hexToHsl = (hex: string): { h: number; s: number; l: number } => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return { h: 0, s: 85, l: 50 };
+  
+  let r = parseInt(result[1], 16) / 255;
+  let g = parseInt(result[2], 16) / 255;
+  let b = parseInt(result[3], 16) / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+
+  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+};
+
+// Convert HSL to hex
+const hslToHex = (h: number, s: number, l: number): string => {
+  s /= 100;
+  l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
 };
 
 export default function Settings() {
@@ -120,6 +160,12 @@ export default function Settings() {
   const [primaryColor, setPrimaryColor] = useState<PrimaryColor>(() => {
     const stored = localStorage.getItem('primaryColor') as PrimaryColor;
     return stored || 'red';
+  });
+
+  // Custom color state (hex)
+  const [customColor, setCustomColor] = useState<string>(() => {
+    const stored = localStorage.getItem('customColor');
+    return stored || '#ef4444';
   });
 
   // Sync logs state
@@ -168,19 +214,31 @@ export default function Settings() {
   // Apply primary color
   useEffect(() => {
     const root = document.documentElement;
-    const colorPreset = COLOR_PRESETS[primaryColor];
+    let hue: number;
+    let saturation: number;
     
-    root.style.setProperty('--primary', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
-    root.style.setProperty('--ring', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
-    root.style.setProperty('--sidebar-primary', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
-    root.style.setProperty('--sidebar-ring', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
-    root.style.setProperty('--accent', `${colorPreset.hue} 70% 60%`);
-    root.style.setProperty('--chart-1', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
-    root.style.setProperty('--chart-2', `${colorPreset.hue} 70% 65%`);
-    root.style.setProperty('--metric-neutral', `${colorPreset.hue} ${colorPreset.saturation}% 50%`);
+    if (primaryColor === 'custom') {
+      const hsl = hexToHsl(customColor);
+      hue = hsl.h;
+      saturation = hsl.s;
+      localStorage.setItem('customColor', customColor);
+    } else {
+      const colorPreset = COLOR_PRESETS[primaryColor];
+      hue = colorPreset.hue;
+      saturation = colorPreset.saturation;
+    }
+    
+    root.style.setProperty('--primary', `${hue} ${saturation}% 50%`);
+    root.style.setProperty('--ring', `${hue} ${saturation}% 50%`);
+    root.style.setProperty('--sidebar-primary', `${hue} ${saturation}% 50%`);
+    root.style.setProperty('--sidebar-ring', `${hue} ${saturation}% 50%`);
+    root.style.setProperty('--accent', `${hue} 70% 60%`);
+    root.style.setProperty('--chart-1', `${hue} ${saturation}% 50%`);
+    root.style.setProperty('--chart-2', `${hue} 70% 65%`);
+    root.style.setProperty('--metric-neutral', `${hue} ${saturation}% 50%`);
     
     localStorage.setItem('primaryColor', primaryColor);
-  }, [primaryColor]);
+  }, [primaryColor, customColor]);
 
   // Fetch sync logs
   const fetchLogs = async () => {
@@ -251,7 +309,14 @@ export default function Settings() {
 
   const handleColorChange = (color: PrimaryColor) => {
     setPrimaryColor(color);
-    toast.success(`Cor ${COLOR_PRESETS[color].name} ativada`);
+    if (color !== 'custom') {
+      toast.success(`Cor ${COLOR_PRESETS[color].name} ativada`);
+    }
+  };
+
+  const handleCustomColorChange = (hex: string) => {
+    setCustomColor(hex);
+    setPrimaryColor('custom');
   };
 
   const getStatusIcon = (status: string) => {
@@ -612,8 +677,8 @@ export default function Settings() {
                 {/* Primary Color Selection */}
                 <div>
                   <Label className="mb-4 block">Cor Primária</Label>
-                  <div className="grid grid-cols-5 gap-3 max-w-md">
-                    {(Object.keys(COLOR_PRESETS) as PrimaryColor[]).map((color) => {
+                  <div className="grid grid-cols-6 gap-3 max-w-lg">
+                    {(Object.keys(COLOR_PRESETS) as Array<Exclude<PrimaryColor, 'custom'>>).map((color) => {
                       const preset = COLOR_PRESETS[color];
                       const bgColor = `hsl(${preset.hue}, ${preset.saturation}%, 50%)`;
                       return (
@@ -635,7 +700,64 @@ export default function Settings() {
                         </button>
                       );
                     })}
+                    
+                    {/* Custom Color Picker */}
+                    <button
+                      onClick={() => handleColorChange('custom')}
+                      className={cn(
+                        "p-3 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg relative",
+                        primaryColor === 'custom'
+                          ? "border-foreground shadow-lg"
+                          : "border-border hover:border-foreground/50"
+                      )}
+                    >
+                      <div 
+                        className="w-full h-10 rounded-lg mb-2 relative overflow-hidden"
+                        style={{ 
+                          background: primaryColor === 'custom' 
+                            ? customColor 
+                            : 'conic-gradient(from 0deg, red, yellow, lime, aqua, blue, magenta, red)' 
+                        }}
+                      >
+                        <input
+                          type="color"
+                          value={customColor}
+                          onChange={(e) => handleCustomColorChange(e.target.value)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          title="Escolher cor personalizada"
+                        />
+                      </div>
+                      <span className="text-xs font-medium">Custom</span>
+                    </button>
                   </div>
+                  
+                  {primaryColor === 'custom' && (
+                    <div className="mt-4 flex items-center gap-3 max-w-md">
+                      <Label className="text-sm">Cor selecionada:</Label>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-8 h-8 rounded-lg border border-border"
+                          style={{ backgroundColor: customColor }}
+                        />
+                        <Input
+                          type="text"
+                          value={customColor}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (/^#[0-9A-Fa-f]{0,6}$/.test(value)) {
+                              setCustomColor(value);
+                              if (value.length === 7) {
+                                setPrimaryColor('custom');
+                              }
+                            }
+                          }}
+                          className="w-28 font-mono text-sm bg-muted/30"
+                          placeholder="#ef4444"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
                   <p className="text-xs text-muted-foreground mt-3">
                     A cor primária será aplicada em todo o sistema
                   </p>
