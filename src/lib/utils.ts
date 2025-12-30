@@ -6,10 +6,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Formata número como moeda brasileira (R$ 1.234,56)
+ * Formata número como moeda (suporta BRL e USD)
+ * Para USD usa locale en-US ($1,234.56)
+ * Para BRL usa locale pt-BR (R$ 1.234,56)
  */
 export function formatCurrency(value: number, currency: string = 'BRL'): string {
-  return new Intl.NumberFormat('pt-BR', {
+  const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currency,
     minimumFractionDigits: 2,

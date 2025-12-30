@@ -257,7 +257,9 @@ export default function AdSets() {
   const avgCpl = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
 
   const formatNumber = (n: number) => n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString('pt-BR');
-  const formatCurrency = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  const currency = selectedProject?.currency || 'BRL';
+  const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
+  const formatCurrency = (n: number) => new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; className: string }> = {

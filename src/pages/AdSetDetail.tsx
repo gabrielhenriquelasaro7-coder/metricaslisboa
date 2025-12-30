@@ -144,8 +144,10 @@ export default function AdSetDetail() {
   const formatNumber = (n: number) => 
     n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString('pt-BR');
   
+  const currency = selectedProject?.currency || 'BRL';
+  const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
   const formatCurrency = (n: number) => 
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+    new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
   const sortedAds = [...ads].sort((a, b) => {
     if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1;
