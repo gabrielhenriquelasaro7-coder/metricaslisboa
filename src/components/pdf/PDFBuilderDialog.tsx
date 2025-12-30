@@ -233,26 +233,26 @@ function DemoPieChart({ data, type, title, icon: Icon, id }: DemoPieChartProps) 
   if (data.length === 0) return null;
 
   return (
-    <div id={id} className="bg-gray-50 rounded p-3 border border-gray-100" style={{ width: '100%', height: 120 }}>
-      <p className="text-[10px] text-gray-500 flex items-center gap-1 mb-2">
-        <Icon className="w-3 h-3" /> {title}
+    <div id={id} className="bg-gray-50 rounded p-4 border border-gray-100" style={{ width: '100%', minHeight: 150 }}>
+      <p className="text-[11px] text-gray-600 font-medium flex items-center gap-1 mb-3">
+        <Icon className="w-3.5 h-3.5" /> {title}
       </p>
-      <div className="flex items-center gap-3" style={{ height: 85 }}>
-        <div style={{ width: 75, height: 75, flexShrink: 0 }}>
-          <RechartsPieChart width={75} height={75}>
-            <Pie data={chartData} cx={37} cy={37} innerRadius={18} outerRadius={34} dataKey="value" strokeWidth={1} stroke="#fff">
+      <div className="flex items-start gap-4">
+        <div style={{ width: 90, height: 90, flexShrink: 0 }}>
+          <RechartsPieChart width={90} height={90}>
+            <Pie data={chartData} cx={45} cy={45} innerRadius={22} outerRadius={42} dataKey="value" strokeWidth={1} stroke="#fff">
               {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
             </Pie>
           </RechartsPieChart>
         </div>
-        <div className="flex-1 space-y-1">
-          {chartData.slice(0, 4).map((item, index) => (
-            <div key={index} className="flex items-center justify-between text-[9px]">
-              <div className="flex items-center gap-1 min-w-0 flex-1">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                <span className="truncate text-gray-700">{item.name}</span>
+        <div className="flex-1 space-y-2 pt-1">
+          {chartData.map((item, index) => (
+            <div key={index} className="flex items-center justify-between text-[10px]">
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                <span className="text-gray-700">{item.name}</span>
               </div>
-              <span className="text-gray-500 shrink-0 ml-1">{item.percent}%</span>
+              <span className="text-gray-600 font-medium shrink-0 ml-2">{item.percent}%</span>
             </div>
           ))}
         </div>
@@ -274,14 +274,14 @@ function AgeBarChartPreview({ data, id }: { data: DemographicData[]; id: string 
   if (data.length === 0) return null;
 
   return (
-    <div id={id} className="bg-gray-50 rounded p-3 border border-gray-100" style={{ width: '100%', height: 120 }}>
-      <p className="text-[10px] text-gray-500 flex items-center gap-1 mb-2">
-        <Users className="w-3 h-3" /> Faixa Etária
+    <div id={id} className="bg-gray-50 rounded p-4 border border-gray-100" style={{ width: '100%', minHeight: 150 }}>
+      <p className="text-[11px] text-gray-600 font-medium flex items-center gap-1 mb-3">
+        <Users className="w-3.5 h-3.5" /> Faixa Etária
       </p>
-      <div style={{ width: '100%', height: 85 }}>
-        <BarChart width={180} height={85} data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-          <XAxis dataKey="name" tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
-          <YAxis tick={{ fontSize: 8 }} tickLine={false} axisLine={false} tickFormatter={(v) => fmtNumber(v)} />
+      <div style={{ width: '100%', height: 100 }}>
+        <BarChart width={200} height={100} data={chartData} margin={{ top: 5, right: 5, left: -5, bottom: 5 }}>
+          <XAxis dataKey="name" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} tickFormatter={(v) => fmtNumber(v)} />
           <Bar dataKey="spend" fill="#3B82F6" radius={[2, 2, 0, 0]} />
         </BarChart>
       </div>
