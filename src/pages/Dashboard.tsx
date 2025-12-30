@@ -37,6 +37,7 @@ import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { cn } from '@/lib/utils';
+import v4LogoFull from '@/assets/v4-logo-full.png';
 
 export default function Dashboard() {
   const { projects, loading: projectsLoading } = useProjects();
@@ -264,9 +265,16 @@ export default function Dashboard() {
       <div className="p-8 space-y-8 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-            <p className="text-muted-foreground">Visão geral das suas campanhas</p>
+          <div className="flex items-center gap-4">
+            <img 
+              src={v4LogoFull} 
+              alt="V4 Company" 
+              className="h-12 w-auto"
+            />
+            <div>
+              <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
+              <p className="text-muted-foreground">Visão geral das suas campanhas</p>
+            </div>
           </div>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
