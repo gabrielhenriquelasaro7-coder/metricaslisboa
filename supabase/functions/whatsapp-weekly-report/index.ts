@@ -16,11 +16,33 @@ interface WeeklyMetrics {
   cpl: number;
   ctr: number;
   roas: number;
-  // Previous week for comparison
   prevSpend: number;
   prevConversions: number;
   prevCpl: number;
 }
+
+interface MetricConfig {
+  includeSpend: boolean;
+  includeLeads: boolean;
+  includeCpl: boolean;
+  includeImpressions: boolean;
+  includeClicks: boolean;
+  includeCtr: boolean;
+  includeRoas: boolean;
+}
+
+const DEFAULT_TEMPLATE = `📊 *Relatório Semanal de Tráfego*
+📅 {periodo}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+🎯 *{projeto}*
+
+{metricas}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+_Relatório gerado automaticamente pela V4 Company_`;
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -41,42 +63,53 @@ function formatNumber(value: number): string {
 }
 
 function formatPercentChange(current: number, previous: number): string {
-  if (previous === 0) return current > 0 ? '🆕' : '-';
+  if (previous === 0) return current > 0 ? '🆕' : '';
   const change = ((current - previous) / previous) * 100;
   const sign = change >= 0 ? '+' : '';
   const emoji = change > 0 ? '📈' : change < 0 ? '📉' : '➡️';
-  return `${emoji} ${sign}${change.toFixed(0)}%`;
+  return ` ${emoji} ${sign}${change.toFixed(0)}%`;
 }
 
-function buildWeeklyReportMessage(metrics: WeeklyMetrics, weekRange: string): string {
+function buildMetricsText(m: WeeklyMetrics, config: MetricConfig): string {
   const lines: string[] = [];
-  const m = metrics;
   
-  lines.push('📊 *Relatório Semanal de Tráfego*');
-  lines.push(`📅 ${weekRange}`);
-  lines.push('');
-  lines.push('━━━━━━━━━━━━━━━━━━━━━');
-  lines.push('');
-  lines.push(`🎯 *${m.projectName}*`);
-  lines.push('');
-  lines.push(`💰 Investido: ${formatCurrency(m.spend)}`);
-  lines.push(`👥 Leads: ${m.conversions} ${formatPercentChange(m.conversions, m.prevConversions)}`);
-  lines.push(`📊 CPL: ${formatCurrency(m.cpl)} ${formatPercentChange(m.cpl, m.prevCpl)}`);
-  lines.push(`👁️ Impressões: ${formatNumber(m.impressions)}`);
-  lines.push(`👆 Cliques: ${formatNumber(m.clicks)}`);
-  lines.push(`📈 CTR: ${m.ctr.toFixed(2)}%`);
-  
-  if (m.roas > 0) {
+  if (config.includeSpend) {
+    lines.push(`💰 Investido: ${formatCurrency(m.spend)}`);
+  }
+  if (config.includeLeads) {
+    lines.push(`👥 Leads: ${m.conversions}${formatPercentChange(m.conversions, m.prevConversions)}`);
+  }
+  if (config.includeCpl) {
+    lines.push(`📊 CPL: ${formatCurrency(m.cpl)}${formatPercentChange(m.cpl, m.prevCpl)}`);
+  }
+  if (config.includeImpressions) {
+    lines.push(`👁️ Impressões: ${formatNumber(m.impressions)}`);
+  }
+  if (config.includeClicks) {
+    lines.push(`👆 Cliques: ${formatNumber(m.clicks)}`);
+  }
+  if (config.includeCtr) {
+    lines.push(`📈 CTR: ${m.ctr.toFixed(2)}%`);
+  }
+  if (config.includeRoas && m.roas > 0) {
     lines.push(`💎 ROAS: ${m.roas.toFixed(2)}x`);
   }
   
-  lines.push('');
-  lines.push('━━━━━━━━━━━━━━━━━━━━━');
-  lines.push('');
-  lines.push('_Relatório gerado automaticamente pela V4 Company_');
-  lines.push('_Para configurar, acesse WhatsApp no dashboard_');
-
   return lines.join('\n');
+}
+
+function buildWeeklyReportMessage(
+  metrics: WeeklyMetrics, 
+  weekRange: string, 
+  template: string,
+  config: MetricConfig
+): string {
+  const metricsText = buildMetricsText(metrics, config);
+  
+  return template
+    .replace('{periodo}', weekRange)
+    .replace('{projeto}', metrics.projectName)
+    .replace('{metricas}', metricsText);
 }
 
 Deno.serve(async (req) => {
@@ -101,16 +134,14 @@ Deno.serve(async (req) => {
 
     // Get date ranges
     const now = new Date();
-    const currentDayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const currentDayOfWeek = now.getDay();
     
-    // Calculate this week's range (last 7 days)
     const endDate = new Date(now);
     endDate.setHours(23, 59, 59, 999);
     const startDate = new Date(endDate);
     startDate.setDate(startDate.getDate() - 7);
     startDate.setHours(0, 0, 0, 0);
 
-    // Previous week range
     const prevEndDate = new Date(startDate);
     prevEndDate.setDate(prevEndDate.getDate() - 1);
     const prevStartDate = new Date(prevEndDate);
@@ -124,9 +155,8 @@ Deno.serve(async (req) => {
     const weekRange = `${startDate.toLocaleDateString('pt-BR')} a ${endDate.toLocaleDateString('pt-BR')}`;
 
     console.log(`[WEEKLY-REPORT] Processing reports for week: ${weekRange}`);
-    console.log(`[WEEKLY-REPORT] Current day of week: ${currentDayOfWeek}`);
 
-    // Fetch active subscriptions
+    // Fetch subscriptions
     let subscriptionsQuery = supabase
       .from('whatsapp_subscriptions')
       .select('*')
@@ -134,13 +164,11 @@ Deno.serve(async (req) => {
       .not('project_id', 'is', null);
 
     if (targetSubscriptionId) {
-      // Manual trigger for specific subscription
       subscriptionsQuery = supabase
         .from('whatsapp_subscriptions')
         .select('*')
         .eq('id', targetSubscriptionId);
     } else {
-      // Scheduled: filter by day of week
       subscriptionsQuery = subscriptionsQuery.eq('report_day_of_week', currentDayOfWeek);
     }
 
@@ -164,14 +192,10 @@ Deno.serve(async (req) => {
 
     for (const subscription of subscriptions) {
       try {
-        console.log(`[WEEKLY-REPORT] Processing subscription ${subscription.id} for phone ${subscription.phone_number}`);
+        console.log(`[WEEKLY-REPORT] Processing subscription ${subscription.id}`);
 
         const projectId = subscription.project_id;
-        
-        if (!projectId) {
-          console.log(`[WEEKLY-REPORT] No project_id for subscription ${subscription.id}, skipping`);
-          continue;
-        }
+        if (!projectId) continue;
 
         // Get project name
         const { data: project } = await supabase
@@ -180,10 +204,7 @@ Deno.serve(async (req) => {
           .eq('id', projectId)
           .single();
 
-        if (!project) {
-          console.log(`[WEEKLY-REPORT] Project not found for subscription ${subscription.id}`);
-          continue;
-        }
+        if (!project) continue;
 
         // Get current week metrics
         const { data: currentData } = await supabase
@@ -249,8 +270,22 @@ Deno.serve(async (req) => {
           prevCpl,
         };
 
+        // Get metric config from subscription
+        const metricConfig: MetricConfig = {
+          includeSpend: subscription.include_spend ?? true,
+          includeLeads: subscription.include_leads ?? true,
+          includeCpl: subscription.include_cpl ?? true,
+          includeImpressions: subscription.include_impressions ?? true,
+          includeClicks: subscription.include_clicks ?? true,
+          includeCtr: subscription.include_ctr ?? true,
+          includeRoas: subscription.include_roas ?? true,
+        };
+
+        // Use custom template or default
+        const template = subscription.message_template || DEFAULT_TEMPLATE;
+
         // Build the message
-        const message = buildWeeklyReportMessage(metrics, weekRange);
+        const message = buildWeeklyReportMessage(metrics, weekRange, template, metricConfig);
 
         // Send via whatsapp-send function
         const sendResponse = await fetch(
@@ -273,31 +308,25 @@ Deno.serve(async (req) => {
         const sendResult = await sendResponse.json();
 
         if (sendResponse.ok && sendResult.success) {
-          // Update last_report_sent_at
           await supabase
             .from('whatsapp_subscriptions')
             .update({ last_report_sent_at: new Date().toISOString() })
             .eq('id', subscription.id);
 
           results.push({ subscriptionId: subscription.id, success: true });
-          console.log(`[WEEKLY-REPORT] Successfully sent report for subscription ${subscription.id}`);
+          console.log(`[WEEKLY-REPORT] Successfully sent report for ${subscription.id}`);
         } else {
           results.push({ 
             subscriptionId: subscription.id, 
             success: false, 
             error: sendResult.error || 'Unknown error' 
           });
-          console.error(`[WEEKLY-REPORT] Failed to send report for subscription ${subscription.id}:`, sendResult);
         }
 
       } catch (error) {
         console.error(`[WEEKLY-REPORT] Error processing subscription ${subscription.id}:`, error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        results.push({ 
-          subscriptionId: subscription.id, 
-          success: false, 
-          error: errorMessage 
-        });
+        results.push({ subscriptionId: subscription.id, success: false, error: errorMessage });
       }
     }
 

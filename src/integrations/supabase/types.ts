@@ -812,7 +812,15 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          include_clicks: boolean | null
+          include_cpl: boolean | null
+          include_ctr: boolean | null
+          include_impressions: boolean | null
+          include_leads: boolean | null
+          include_roas: boolean | null
+          include_spend: boolean | null
           last_report_sent_at: string | null
+          message_template: string | null
           phone_number: string
           project_id: string | null
           report_day_of_week: number | null
@@ -824,7 +832,15 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          include_clicks?: boolean | null
+          include_cpl?: boolean | null
+          include_ctr?: boolean | null
+          include_impressions?: boolean | null
+          include_leads?: boolean | null
+          include_roas?: boolean | null
+          include_spend?: boolean | null
           last_report_sent_at?: string | null
+          message_template?: string | null
           phone_number: string
           project_id?: string | null
           report_day_of_week?: number | null
@@ -836,7 +852,15 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          include_clicks?: boolean | null
+          include_cpl?: boolean | null
+          include_ctr?: boolean | null
+          include_impressions?: boolean | null
+          include_leads?: boolean | null
+          include_roas?: boolean | null
+          include_spend?: boolean | null
           last_report_sent_at?: string | null
+          message_template?: string | null
           phone_number?: string
           project_id?: string | null
           report_day_of_week?: number | null

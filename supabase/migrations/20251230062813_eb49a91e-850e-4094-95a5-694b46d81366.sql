@@ -1,0 +1,10 @@
+-- Add message template and metric selection columns to whatsapp_subscriptions
+ALTER TABLE public.whatsapp_subscriptions 
+ADD COLUMN IF NOT EXISTS message_template TEXT,
+ADD COLUMN IF NOT EXISTS include_spend BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS include_leads BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS include_cpl BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS include_impressions BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS include_clicks BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS include_ctr BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS include_roas BOOLEAN DEFAULT TRUE;
