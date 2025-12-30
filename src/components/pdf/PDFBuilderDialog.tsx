@@ -233,21 +233,19 @@ function DemoPieChart({ data, type, title, icon: Icon, id }: DemoPieChartProps) 
   if (data.length === 0) return null;
 
   return (
-    <div id={id} className="bg-gray-50 rounded p-2 border border-gray-100" style={{ minHeight: 100 }}>
-      <p className="text-[10px] text-gray-500 flex items-center gap-1 mb-1">
+    <div id={id} className="bg-gray-50 rounded p-3 border border-gray-100" style={{ width: '100%', height: 120 }}>
+      <p className="text-[10px] text-gray-500 flex items-center gap-1 mb-2">
         <Icon className="w-3 h-3" /> {title}
       </p>
-      <div className="flex items-center gap-2" style={{ height: 80 }}>
-        <div style={{ width: 70, height: 70 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <RechartsPieChart>
-              <Pie data={chartData} cx="50%" cy="50%" innerRadius={18} outerRadius={32} dataKey="value" strokeWidth={1} stroke="#fff">
-                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-              </Pie>
-            </RechartsPieChart>
-          </ResponsiveContainer>
+      <div className="flex items-center gap-3" style={{ height: 85 }}>
+        <div style={{ width: 75, height: 75, flexShrink: 0 }}>
+          <RechartsPieChart width={75} height={75}>
+            <Pie data={chartData} cx={37} cy={37} innerRadius={18} outerRadius={34} dataKey="value" strokeWidth={1} stroke="#fff">
+              {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+            </Pie>
+          </RechartsPieChart>
         </div>
-        <div className="flex-1 space-y-0.5">
+        <div className="flex-1 space-y-1">
           {chartData.slice(0, 4).map((item, index) => (
             <div key={index} className="flex items-center justify-between text-[9px]">
               <div className="flex items-center gap-1 min-w-0 flex-1">
@@ -276,18 +274,16 @@ function AgeBarChartPreview({ data, id }: { data: DemographicData[]; id: string 
   if (data.length === 0) return null;
 
   return (
-    <div id={id} className="bg-gray-50 rounded p-2 border border-gray-100" style={{ minHeight: 100 }}>
-      <p className="text-[10px] text-gray-500 flex items-center gap-1 mb-1">
+    <div id={id} className="bg-gray-50 rounded p-3 border border-gray-100" style={{ width: '100%', height: 120 }}>
+      <p className="text-[10px] text-gray-500 flex items-center gap-1 mb-2">
         <Users className="w-3 h-3" /> Faixa Etária
       </p>
-      <div style={{ height: 80 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
-            <XAxis dataKey="name" tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
-            <YAxis tick={{ fontSize: 8 }} tickLine={false} axisLine={false} tickFormatter={(v) => fmtNumber(v)} />
-            <Bar dataKey="spend" fill="#3B82F6" radius={[2, 2, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div style={{ width: '100%', height: 85 }}>
+        <BarChart width={180} height={85} data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+          <XAxis dataKey="name" tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fontSize: 8 }} tickLine={false} axisLine={false} tickFormatter={(v) => fmtNumber(v)} />
+          <Bar dataKey="spend" fill="#3B82F6" radius={[2, 2, 0, 0]} />
+        </BarChart>
       </div>
     </div>
   );
