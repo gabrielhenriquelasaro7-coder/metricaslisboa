@@ -445,6 +445,77 @@ function AdminContent() {
 
           {/* MONITORING TAB */}
           <TabsContent value="monitoring" className="space-y-6">
+            {/* Quick Sync Card */}
+            <Card className="glass-card border-primary/20">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <RefreshCw className="w-5 h-5 text-primary" />
+                      Sync Rápido (últimos 90 dias)
+                    </CardTitle>
+                    <CardDescription>
+                      Sincronize os dados mais recentes de um projeto específico com a Meta Ads API
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Select 
+                    value={selectedProjectId} 
+                    onValueChange={setSelectedProjectId}
+                  >
+                    <SelectTrigger className="w-full sm:w-[300px]">
+                      <SelectValue placeholder="Selecione um projeto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeProjects.map(project => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    onClick={async () => {
+                      if (!selectedProjectId) {
+                        toast.error('Selecione um projeto');
+                        return;
+                      }
+                      const project = activeProjects.find(p => p.id === selectedProjectId);
+                      if (!project) return;
+                      
+                      toast.info(`Iniciando sync para ${project.name}...`);
+                      try {
+                        const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
+                          body: {
+                            project_id: project.id,
+                            ad_account_id: project.ad_account_id,
+                            date_preset: 'last_90d',
+                          }
+                        });
+                        
+                        if (error) throw error;
+                        if (data.success) {
+                          toast.success(`${project.name}: Sync concluído! ${data.data?.daily_records_count || 0} registros importados`);
+                        } else {
+                          throw new Error(data.error || 'Erro desconhecido');
+                        }
+                      } catch (error) {
+                        toast.error(`Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+                      }
+                    }}
+                    disabled={!selectedProjectId}
+                    className="gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Sincronizar Agora
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Month Import Grid */}
             <MonthImportGrid projects={activeProjects} />
 
