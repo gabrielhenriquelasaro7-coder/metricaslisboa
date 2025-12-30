@@ -27,9 +27,9 @@ serve(async (req) => {
     
     console.log('AI Assistant request:', { projectId, startDate, endDate, analysisType, message, skipCache });
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY não configurada');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY não configurada');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -64,7 +64,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      console.log('Cache miss, fetching from Gemini API');
+      console.log('Cache miss, fetching from AI Gateway');
     }
 
     // Buscar dados do projeto
@@ -131,12 +131,12 @@ serve(async (req) => {
       analysisType
     });
 
-    console.log('Context built, calling Gemini API...');
+    console.log('Context built, calling AI Gateway...');
 
-    // Chamar API do Gemini
-    const geminiResponse = await callGeminiAPI(GEMINI_API_KEY, context, message);
+    // Chamar Lovable AI Gateway
+    const aiResponse = await callLovableAI(LOVABLE_API_KEY, context, message);
     
-    console.log('Gemini response received');
+    console.log('AI response received');
 
     // Prepare context summary for response and cache
     const contextSummary = {
@@ -154,7 +154,7 @@ serve(async (req) => {
         project_id: projectId,
         query_hash: cacheKey,
         user_message: message,
-        ai_response: geminiResponse,
+        ai_response: aiResponse,
         context_summary: contextSummary,
         expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
       })
@@ -171,7 +171,7 @@ serve(async (req) => {
       .from('ai_analysis_cache')
       .delete()
       .lt('expires_at', new Date().toISOString())
-      .then(({ error, count }) => {
+      .then(({ error }) => {
         if (error) {
           console.error('Error cleaning cache:', error);
         } else {
@@ -181,7 +181,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true, 
-      response: geminiResponse,
+      response: aiResponse,
       context: contextSummary,
       cached: false
     }), {
@@ -308,7 +308,7 @@ ${campaignsText || 'Nenhuma campanha encontrada'}
 `;
 }
 
-async function callGeminiAPI(apiKey: string, context: string, userMessage: string) {
+async function callLovableAI(apiKey: string, context: string, userMessage: string) {
   const systemPrompt = `<role>
 Você é um analista sênior de performance e inteligência de dados em mídia paga, especializado em Meta Ads para Inside Sales e E-commerce, com forte background em estatística, análise temporal, leitura de gráficos e diagnóstico de métricas de funil.
 
@@ -353,68 +353,41 @@ O foco é Inside Sales e E-commerce, respeitando as particularidades de cada mod
 - Priorize ações por impacto financeiro
 </output_rules>`;
 
-  const fullPrompt = `${systemPrompt}
-
-${context}
-
-=== PERGUNTA DO USUÁRIO ===
-${userMessage}
-
-Take a deep breath and work on this problem step-by-step.`;
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: fullPrompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
-        },
-        safetySettings: [
-          {
-            category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_HATE_SPEECH",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          }
-        ]
-      }),
-    }
-  );
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `${context}\n\n=== PERGUNTA DO USUÁRIO ===\n${userMessage}\n\nTake a deep breath and work on this problem step-by-step.` }
+      ],
+    }),
+  });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Gemini API error:', response.status, errorText);
-    throw new Error(`Erro na API do Gemini: ${response.status}`);
+    console.error('AI Gateway error:', response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error('Limite de requisições excedido. Tente novamente em alguns segundos.');
+    }
+    if (response.status === 402) {
+      throw new Error('Créditos de IA esgotados. Adicione mais créditos em Settings.');
+    }
+    
+    throw new Error(`Erro no AI Gateway: ${response.status}`);
   }
 
   const data = await response.json();
-  console.log('Gemini raw response:', JSON.stringify(data).substring(0, 500));
+  console.log('AI Gateway response received');
 
-  if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-    return data.candidates[0].content.parts[0].text;
+  if (data.choices && data.choices[0]?.message?.content) {
+    return data.choices[0].message.content;
   }
 
-  throw new Error('Resposta inválida do Gemini');
+  throw new Error('Resposta inválida do AI Gateway');
 }
