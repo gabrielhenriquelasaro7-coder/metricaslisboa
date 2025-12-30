@@ -124,7 +124,12 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Save instance to database
+        // Extract the token/hash from the response
+        // Evolution API returns token in different locations depending on version
+        const instanceToken = createData.hash || createData.token || createData.instance?.token || createData.instance?.hash || null;
+        console.log(`[INSTANCE-MANAGER] Instance token captured: ${instanceToken ? 'yes' : 'no'}`);
+
+        // Save instance to database with token
         const { data: instance, error: insertError } = await supabase
           .from('whatsapp_instances')
           .insert({
@@ -133,6 +138,7 @@ Deno.serve(async (req) => {
             instance_name: instanceName,
             display_name: displayName || 'Nova Conexão',
             instance_status: 'disconnected',
+            token: instanceToken,
           })
           .select()
           .single();
@@ -181,12 +187,16 @@ Deno.serve(async (req) => {
 
         console.log(`[INSTANCE-MANAGER] Connecting instance: ${instance.instance_name}`);
 
+        // Use instance token if available, otherwise fall back to global key
+        const authKey = instance.token || EVOLUTION_KEY;
+        console.log(`[INSTANCE-MANAGER] Using ${instance.token ? 'instance token' : 'global key'} for auth`);
+
         // Get QR code from Evolution API
         const connectResponse = await fetch(
           `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`,
           {
             method: 'GET',
-            headers: { 'apikey': EVOLUTION_KEY },
+            headers: { 'apikey': authKey },
           }
         );
 
@@ -246,12 +256,15 @@ Deno.serve(async (req) => {
           );
         }
 
+        // Use instance token if available
+        const authKey = instance.token || EVOLUTION_KEY;
+
         // Get status from Evolution API
         const statusResponse = await fetch(
           `${EVOLUTION_URL}/instance/connectionState/${instance.instance_name}`,
           {
             method: 'GET',
-            headers: { 'apikey': EVOLUTION_KEY },
+            headers: { 'apikey': authKey },
           }
         );
 
@@ -317,10 +330,13 @@ Deno.serve(async (req) => {
 
         console.log(`[INSTANCE-MANAGER] Disconnecting instance: ${instance.instance_name}`);
 
+        // Use instance token if available
+        const authKey = instance.token || EVOLUTION_KEY;
+
         // Logout from Evolution API
         await fetch(`${EVOLUTION_URL}/instance/logout/${instance.instance_name}`, {
           method: 'DELETE',
-          headers: { 'apikey': EVOLUTION_KEY },
+          headers: { 'apikey': authKey },
         });
 
         // Update database
@@ -365,10 +381,13 @@ Deno.serve(async (req) => {
 
         console.log(`[INSTANCE-MANAGER] Deleting instance: ${instance.instance_name}`);
 
+        // Use instance token if available
+        const authKey = instance.token || EVOLUTION_KEY;
+
         // Delete from Evolution API
         await fetch(`${EVOLUTION_URL}/instance/delete/${instance.instance_name}`, {
           method: 'DELETE',
-          headers: { 'apikey': EVOLUTION_KEY },
+          headers: { 'apikey': authKey },
         });
 
         // Delete from database
@@ -415,12 +434,15 @@ Deno.serve(async (req) => {
 
         console.log(`[INSTANCE-MANAGER] Listing groups for instance: ${instance.instance_name}`);
 
+        // Use instance token if available
+        const authKey = instance.token || EVOLUTION_KEY;
+
         // Get groups from Evolution API
         const groupsResponse = await fetch(
           `${EVOLUTION_URL}/group/fetchAllGroups/${instance.instance_name}?getParticipants=false`,
           {
             method: 'GET',
-            headers: { 'apikey': EVOLUTION_KEY },
+            headers: { 'apikey': authKey },
           }
         );
 

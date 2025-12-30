@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       
       const { data: instance, error: instanceError } = await supabase
         .from('whatsapp_instances')
-        .select('instance_name, instance_status')
+        .select('instance_name, instance_status, token')
         .eq('id', instanceId)
         .single();
 
@@ -81,6 +81,11 @@ Deno.serve(async (req) => {
       }
 
       instanceName = instance.instance_name;
+      // Use instance-specific token if available
+      if (instance.token) {
+        evolutionKey = instance.token;
+        console.log(`[WHATSAPP-SEND] Using instance token for authentication`);
+      }
     }
 
     if (!evolutionUrl || !evolutionKey || !instanceName) {

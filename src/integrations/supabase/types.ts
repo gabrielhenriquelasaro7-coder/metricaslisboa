@@ -781,6 +781,7 @@ export type Database = {
           project_id: string
           qr_code: string | null
           qr_code_expires_at: string | null
+          token: string | null
           updated_at: string
           user_id: string
         }
@@ -794,6 +795,7 @@ export type Database = {
           project_id: string
           qr_code?: string | null
           qr_code_expires_at?: string | null
+          token?: string | null
           updated_at?: string
           user_id: string
         }
@@ -807,6 +809,7 @@ export type Database = {
           project_id?: string
           qr_code?: string | null
           qr_code_expires_at?: string | null
+          token?: string | null
           updated_at?: string
           user_id?: string
         }
