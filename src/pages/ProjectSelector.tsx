@@ -382,7 +382,7 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
 }
 
 export default function ProjectSelector() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const { projects, loading: projectsLoading, createProject, updateProject, deleteProject, archiveProject, unarchiveProject, resyncProject, refetch } = useProjects();
   const { healthData, loading: healthLoading } = useProjectHealth(projects.filter(p => !p.archived));
   const { profile, updateProfile, updatePassword, uploadAvatar: uploadProfileAvatar } = useProfile();
@@ -674,8 +674,13 @@ export default function ProjectSelector() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/auth');
+    try {
+      await signOut();
+      navigate('/auth');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast.error('Erro ao sair');
+    }
   };
 
   if (authLoading || projectsLoading) {
