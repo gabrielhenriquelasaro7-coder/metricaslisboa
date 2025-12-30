@@ -142,24 +142,60 @@ export function useProjects() {
         console.error('Webhook error:', webhookError);
       }
 
-      // ALWAYS trigger historical import for new projects with safe_mode enabled
+      // Create month records and start chained import
       try {
-        console.log('[PROJECT] Starting historical import (safe_mode) for new project:', project.id);
-        supabase.functions.invoke('import-historical-data', {
-          body: {
-            project_id: project.id,
-            since: '2025-01-01',
-            safe_mode: true, // Use longer delays to prevent rate limits
-          },
-        }).then(result => {
-          if (result.error) {
-            console.error('[PROJECT] Historical import error:', result.error);
-          } else {
-            console.log('[PROJECT] Historical import started in background:', result.data);
+        console.log('[PROJECT] Setting up month-by-month import for new project:', project.id);
+        
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1;
+        const startYear = 2025; // Start from 2025
+        
+        // Create month records for all months from start to current
+        const monthRecords: Array<{ project_id: string; year: number; month: number; status: string }> = [];
+        
+        for (let year = startYear; year <= currentYear; year++) {
+          const endMonth = year === currentYear ? currentMonth : 12;
+          for (let month = 1; month <= endMonth; month++) {
+            monthRecords.push({
+              project_id: project.id,
+              year,
+              month,
+              status: 'pending',
+            });
           }
-        }).catch(err => {
-          console.error('[PROJECT] Historical import invoke error:', err);
-        });
+        }
+        
+        // Insert all month records
+        if (monthRecords.length > 0) {
+          const { error: monthsError } = await supabase
+            .from('project_import_months')
+            .insert(monthRecords);
+          
+          if (monthsError) {
+            console.error('[PROJECT] Error creating month records:', monthsError);
+          } else {
+            console.log(`[PROJECT] Created ${monthRecords.length} month records`);
+            
+            // Start chained import from January
+            supabase.functions.invoke('import-month-by-month', {
+              body: {
+                project_id: project.id,
+                year: startYear,
+                month: 1,
+                continue_chain: true,
+                safe_mode: true,
+              },
+            }).then(result => {
+              if (result.error) {
+                console.error('[PROJECT] Month import error:', result.error);
+              } else {
+                console.log('[PROJECT] Month-by-month import started:', result.data);
+              }
+            }).catch(err => {
+              console.error('[PROJECT] Month import invoke error:', err);
+            });
+          }
+        }
         
         // Also trigger demographic sync
         supabase.functions.invoke('sync-demographics', {
@@ -171,11 +207,11 @@ export function useProjects() {
           console.error('[PROJECT] Demographics sync error:', err);
         });
       } catch (importError) {
-        console.error('Historical import trigger error:', importError);
+        console.error('Month import setup error:', importError);
       }
 
       await fetchProjects();
-      toast.success('Projeto criado! Sincronização iniciada em background.');
+      toast.success('Projeto criado! Importação mês a mês iniciada.');
       return project as unknown as Project;
     } catch (error) {
       toast.error('Erro ao criar projeto');
@@ -203,6 +239,7 @@ export function useProjects() {
   const deleteProject = async (id: string) => {
     try {
       // Delete related data first
+      await supabase.from('project_import_months').delete().eq('project_id', id);
       await supabase.from('ads_daily_metrics').delete().eq('project_id', id);
       await supabase.from('demographic_insights').delete().eq('project_id', id);
       await supabase.from('period_metrics').delete().eq('project_id', id);
