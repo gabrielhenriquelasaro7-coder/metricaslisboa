@@ -50,14 +50,14 @@ export default function MetricCard({
       {/* Top red border accent */}
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex-1 min-w-0">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex-1 min-w-0 overflow-hidden">
           {titleElement}
-          <p className="text-2xl lg:text-3xl font-bold truncate" title={String(value)}>{value}</p>
+          <p className="text-lg sm:text-xl md:text-2xl font-bold break-all leading-tight">{value}</p>
         </div>
         {Icon && (
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
-            <Icon className="w-5 h-5 text-primary" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
           </div>
         )}
       </div>
