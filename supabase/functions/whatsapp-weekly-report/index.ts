@@ -240,14 +240,14 @@ Deno.serve(async (req) => {
     // Fetch subscriptions
     let subscriptionsQuery = supabase
       .from('whatsapp_subscriptions')
-      .select('*, whatsapp_instances(instance_name, instance_status)')
+      .select('*, whatsapp_instances(instance_name, instance_status, token)')
       .eq('weekly_report_enabled', true)
       .not('project_id', 'is', null);
 
     if (targetSubscriptionId) {
       subscriptionsQuery = supabase
         .from('whatsapp_subscriptions')
-        .select('*, whatsapp_instances(instance_name, instance_status)')
+        .select('*, whatsapp_instances(instance_name, instance_status, token)')
         .eq('id', targetSubscriptionId);
     } else {
       subscriptionsQuery = subscriptionsQuery.eq('report_day_of_week', currentDayOfWeek);
