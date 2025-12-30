@@ -72,12 +72,14 @@ function getStatusStyles(status: MonthStatus) {
 function MonthCell({ 
   month,
   monthIndex,
+  year,
   onRetry, 
   isRetrying,
   isFuture
 }: { 
   month: MonthImportRecord | null;
   monthIndex: number;
+  year: number;
   onRetry?: () => void;
   isRetrying?: boolean;
   isFuture?: boolean;
@@ -93,19 +95,44 @@ function MonthCell({
     );
   }
 
+  // Se não tem registro do mês, ainda pode importar
   if (!month) {
     return (
-      <div className="flex flex-col items-center">
-        <span className="text-[10px] text-muted-foreground/70 mb-1 font-medium">{MONTH_NAMES[monthIndex]}</span>
-        <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-xl border border-dashed border-border/50 bg-muted/10">
-          <Clock className="w-4 h-4 text-muted-foreground/40" />
-        </div>
-      </div>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] text-muted-foreground/70 mb-1 font-medium">{MONTH_NAMES[monthIndex]}</span>
+              <button
+                onClick={onRetry}
+                disabled={isRetrying}
+                className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-xl border border-dashed border-border/50 bg-muted/10 hover:bg-primary/10 hover:border-primary/50 transition-all cursor-pointer hover:scale-110"
+              >
+                {isRetrying ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                ) : (
+                  <Play className="w-4 h-4 text-muted-foreground hover:text-primary" />
+                )}
+              </button>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="bg-popover/95 backdrop-blur-sm">
+            <div className="space-y-1">
+              <p className="font-semibold text-sm">{MONTH_FULL_NAMES[monthIndex]} {year}</p>
+              <p className="text-xs text-muted-foreground">Nunca importado</p>
+              <p className="text-xs text-primary font-medium flex items-center gap-1">
+                <Play className="w-3 h-3" />
+                Clique para importar
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
   const styles = getStatusStyles(month.status);
-  const canRetry = month.status === 'error' || month.status === 'pending';
+  const isImporting = month.status === 'importing';
 
   return (
     <TooltipProvider>
@@ -118,12 +145,12 @@ function MonthCell({
                 'w-10 h-10 sm:w-12 sm:h-12 flex flex-col items-center justify-center rounded-xl border-2 transition-all duration-200',
                 styles.bg,
                 styles.border,
-                canRetry && 'cursor-pointer hover:scale-110 hover:shadow-lg',
-                !canRetry && 'cursor-default',
+                !isImporting && 'cursor-pointer hover:scale-110 hover:shadow-lg',
+                isImporting && 'cursor-not-allowed',
                 styles.glow && `hover:shadow-lg ${styles.glow}`
               )}
-              onClick={canRetry ? onRetry : undefined}
-              disabled={isRetrying}
+              onClick={!isImporting ? onRetry : undefined}
+              disabled={isRetrying || isImporting}
             >
               {isRetrying ? (
                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
@@ -169,7 +196,7 @@ function MonthCell({
             {month.retry_count > 0 && (
               <p className="text-xs text-muted-foreground">{month.retry_count} tentativa(s)</p>
             )}
-            {canRetry && (
+            {!isImporting && (
               <p className="text-xs text-primary font-medium pt-1 flex items-center gap-1">
                 <RotateCcw className="w-3 h-3" />
                 Clique para reimportar
@@ -328,6 +355,7 @@ function ProjectMonthGrid({ projectId, projectName }: { projectId: string; proje
                     key={monthNum}
                     month={monthRecord || null}
                     monthIndex={i}
+                    year={year}
                     onRetry={() => retryMonth(year, monthNum)}
                     isRetrying={isRetrying === retryKey}
                     isFuture={isFuture}
