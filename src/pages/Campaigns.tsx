@@ -277,64 +277,89 @@ export default function Campaigns() {
         ) : (
           <>
             {/* Summary Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-fade-in">
-              <MetricCard
-                title="Gasto Total"
-                value={formatCurrency(totals.spend)}
-                icon={DollarSign}
-              />
-              {isEcommerce && (
+            {isEcommerce ? (
+              // E-commerce: 8 cards - grid 4 colunas
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-fade-in">
+                <MetricCard
+                  title="Gasto Total"
+                  value={formatCurrency(totals.spend)}
+                  icon={DollarSign}
+                />
                 <MetricCard
                   title="Receita Total"
                   value={formatCurrency(totals.revenue)}
                   icon={TrendingUp}
                   className="border-l-4 border-l-metric-positive"
                 />
-              )}
-              <MetricCard
-                title="Impressões"
-                value={formatNumber(totals.impressions)}
-                icon={Eye}
-              />
-              <MetricCard
-                title="Cliques"
-                value={formatNumber(totals.clicks)}
-                icon={MousePointerClick}
-              />
-              <MetricCard
-                title="CTR Médio"
-                value={`${avgCtr.toFixed(2)}%`}
-                icon={TrendingUp}
-              />
-              <MetricCard
-                title={isEcommerce ? "Compras" : "Leads"}
-                value={formatNumber(totals.conversions)}
-                icon={isEcommerce ? ShoppingCart : Users}
-              />
-              {isEcommerce ? (
-                <>
-                  <MetricCard
-                    title="Ticket Médio"
-                    value={formatCurrency(avgTicket)}
-                    icon={ShoppingCart}
-                    className="border-l-4 border-l-chart-1"
-                  />
-                  <MetricCard
-                    title="ROAS Médio"
-                    value={`${avgRoas.toFixed(2)}x`}
-                    icon={TrendingUp}
-                    className="border-l-4 border-l-metric-positive"
-                  />
-                </>
-              ) : (
+                <MetricCard
+                  title="Impressões"
+                  value={formatNumber(totals.impressions)}
+                  icon={Eye}
+                />
+                <MetricCard
+                  title="Cliques"
+                  value={formatNumber(totals.clicks)}
+                  icon={MousePointerClick}
+                />
+                <MetricCard
+                  title="CTR Médio"
+                  value={`${avgCtr.toFixed(2)}%`}
+                  icon={TrendingUp}
+                />
+                <MetricCard
+                  title="Compras"
+                  value={formatNumber(totals.conversions)}
+                  icon={ShoppingCart}
+                />
+                <MetricCard
+                  title="Ticket Médio"
+                  value={formatCurrency(avgTicket)}
+                  icon={ShoppingCart}
+                  className="border-l-4 border-l-chart-1"
+                />
+                <MetricCard
+                  title="ROAS Médio"
+                  value={`${avgRoas.toFixed(2)}x`}
+                  icon={TrendingUp}
+                  className="border-l-4 border-l-metric-positive"
+                />
+              </div>
+            ) : (
+              // Inside Sales / PDV: 6 cards - grid 3 colunas para preencher sem buracos
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 stagger-fade-in">
+                <MetricCard
+                  title="Gasto Total"
+                  value={formatCurrency(totals.spend)}
+                  icon={DollarSign}
+                />
+                <MetricCard
+                  title="Impressões"
+                  value={formatNumber(totals.impressions)}
+                  icon={Eye}
+                />
+                <MetricCard
+                  title="Cliques"
+                  value={formatNumber(totals.clicks)}
+                  icon={MousePointerClick}
+                />
+                <MetricCard
+                  title="CTR Médio"
+                  value={`${avgCtr.toFixed(2)}%`}
+                  icon={TrendingUp}
+                />
+                <MetricCard
+                  title="Leads"
+                  value={formatNumber(totals.conversions)}
+                  icon={Users}
+                />
                 <MetricCard
                   title="CPL Médio"
                   value={formatCurrency(avgCpa)}
                   icon={DollarSign}
                   className="border-l-4 border-l-chart-1"
                 />
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Filters */}
             <AdvancedFilters
