@@ -217,70 +217,104 @@ async function fetchDailyInsights(
 }
 
 // ============ EXTRACT CONVERSIONS ============
-// Lista completa de action_types que representam conversões/leads no Meta Ads
-// Organizada por prioridade para campanhas de Lead Gen / Mensagens
+// Lista COMPLETA de action_types que representam conversões/leads no Meta Ads
+// Inclui TODOS os eventos de pixel, formulários, contatos e conversões customizadas
 const CONVERSION_ACTION_TYPES = [
-  // PRIORITY 1: Lead Generation Forms (Instant Forms)
+  // ========== LEADS - FORMULÁRIOS INSTANT (On-Facebook) ==========
   'lead',
   'leadgen.other',
   'leadgen_grouped',
   'onsite_conversion.lead_grouped',
-  'offsite_conversion.fb_pixel_lead',
-  'onsite_web_lead',
   'on_facebook_lead',
+  'onsite_web_lead',
   
-  // PRIORITY 2: Conversas/Mensagens (WhatsApp/Messenger campaigns)
+  // ========== LEADS - PIXEL (Off-Facebook / Website) ==========
+  'offsite_conversion.fb_pixel_lead',
+  'offsite_conversion.fb_pixel_custom', // Eventos customizados do pixel
+  
+  // ========== CONTATOS - TODOS OS TIPOS ==========
+  'contact',
+  'contact_total',
+  'contact_website',        // Contato no site (pixel)
+  'contact_mobile_app',
+  'contact_offline',
+  'onsite_conversion.contact',
+  'offsite_conversion.fb_pixel_contact', // Contato via pixel
+  
+  // ========== CONVERSAS / MENSAGENS ==========
   'onsite_conversion.messaging_conversation_started_7d',
   'onsite_conversion.messaging_first_reply',
   'messaging_conversation_started_7d',
   'messaging_first_reply',
   'onsite_conversion.messaging_blocked',
+  'onsite_conversion.post_engagement',
   
-  // PRIORITY 3: Contatos
-  'contact',
-  'contact_total',
-  'contact_website',
-  'contact_mobile_app',
-  'contact_offline',
-  'onsite_conversion.contact',
-  
-  // PRIORITY 4: Formulários e registros
+  // ========== FORMULÁRIOS E REGISTROS ==========
   'onsite_conversion.flow_complete',
   'complete_registration',
   'offsite_conversion.fb_pixel_complete_registration',
   'submit_application',
+  'offsite_conversion.fb_pixel_submit_application',
   'subscribe',
   'offsite_conversion.fb_pixel_subscribe',
   
-  // PRIORITY 5: Compras (para e-commerce)
+  // ========== AGENDAMENTOS / SCHEDULES ==========
+  'schedule',
+  'offsite_conversion.fb_pixel_schedule',
+  'onsite_conversion.schedule',
+  
+  // ========== INICIAR CHECKOUT / TRIAL ==========
+  'start_trial',
+  'offsite_conversion.fb_pixel_start_trial',
+  'initiate_checkout',
+  'offsite_conversion.fb_pixel_initiate_checkout',
+  
+  // ========== COMPRAS (E-commerce) ==========
   'purchase',
   'omni_purchase',
   'offsite_conversion.fb_pixel_purchase',
   
-  // PRIORITY 6: App installs
+  // ========== APP INSTALLS ==========
   'app_install',
   'mobile_app_install',
   
-  // PRIORITY 7: Outros eventos de conversão customizados
-  'offsite_conversion',
-  'onsite_conversion',
+  // ========== OUTROS EVENTOS DE CONVERSÃO ==========
+  'add_to_cart',
+  'offsite_conversion.fb_pixel_add_to_cart',
+  'add_to_wishlist',
+  'offsite_conversion.fb_pixel_add_to_wishlist',
+  'view_content',
+  'offsite_conversion.fb_pixel_view_content',
+  'search',
+  'offsite_conversion.fb_pixel_search',
+  
+  // ========== EVENTOS CUSTOMIZADOS (catch-all para pixel events) ==========
+  // Estes capturam eventos customizados que não estão na lista acima
+  'offsite_conversion.custom',
+  'onsite_conversion.custom',
 ];
 
-// Lista de action_types para valores de conversão
+// Lista de action_types para valores de conversão (receita)
 const VALUE_ACTION_TYPES = [
   'purchase',
   'omni_purchase',
   'offsite_conversion.fb_pixel_purchase',
-  'lead', // Lead value if available
+  'lead',
   'offsite_conversion.fb_pixel_lead',
+  'contact',
+  'contact_website',
+  'offsite_conversion.fb_pixel_contact',
+  'complete_registration',
+  'offsite_conversion.fb_pixel_complete_registration',
 ];
 
-function extractConversions(insights: any): { conversions: number; conversionValue: number } {
+function extractConversions(insights: any, logAllActions: boolean = false): { conversions: number; conversionValue: number } {
   let conversions = 0;
   let conversionValue = 0;
   
   // Track which action types we found for debugging
   const foundActions: string[] = [];
+  const allActions: string[] = [];
   
   // Extrair conversões - SOMA todos os tipos encontrados
   // Mas evita dupla contagem usando um Set para tipos "grouped"
@@ -291,9 +325,14 @@ function extractConversions(insights: any): { conversions: number; conversionVal
       const actionType = action.action_type;
       const actionValue = parseInt(action.value) || 0;
       
+      // Log ALL action types for debugging (only first few rows)
+      if (logAllActions && actionValue > 0) {
+        allActions.push(`${actionType}:${actionValue}`);
+      }
+      
       if (CONVERSION_ACTION_TYPES.includes(actionType) && actionValue > 0) {
         // Evita dupla contagem: se já processamos o tipo "grouped", não processa o individual
-        const baseType = actionType.replace('_grouped', '').replace('onsite_conversion.', '').replace('offsite_conversion.fb_pixel_', '');
+        const baseType = actionType.replace('_grouped', '').replace('onsite_conversion.', '').replace('offsite_conversion.fb_pixel_', '').replace('offsite_conversion.', '');
         
         if (!processedTypes.has(baseType)) {
           conversions += actionValue;
@@ -301,6 +340,11 @@ function extractConversions(insights: any): { conversions: number; conversionVal
           foundActions.push(`${actionType}:${actionValue}`);
         }
       }
+    }
+    
+    // Log ALL actions from first few insights for debugging
+    if (logAllActions && allActions.length > 0) {
+      console.log(`[ALL_ACTIONS] ${allActions.join(', ')}`);
     }
   }
   
@@ -518,6 +562,7 @@ Deno.serve(async (req) => {
     // STEP 3: Build daily records - INSIGHTS-FIRST approach
     // Usa dados dos insights como fonte primária, entidades apenas para enriquecimento
     const dailyRecords: any[] = [];
+    let logCounter = 0; // Log first 5 rows for debugging
     
     for (const [adId, dateMap] of dailyInsights) {
       // Tentar enriquecer com dados de entidades (opcional)
@@ -526,7 +571,11 @@ Deno.serve(async (req) => {
       const campaign = ad ? campaignMap.get(ad.campaign_id) : null;
       
       for (const [dateKey, insights] of dateMap) {
-        const { conversions, conversionValue } = extractConversions(insights);
+        // Log ALL action types for first 5 rows to help debug
+        const shouldLog = logCounter < 5;
+        if (shouldLog) logCounter++;
+        
+        const { conversions, conversionValue } = extractConversions(insights, shouldLog);
         const spend = parseFloat(insights.spend || '0');
         const impressions = parseInt(insights.impressions || '0');
         const clicks = parseInt(insights.clicks || '0');
