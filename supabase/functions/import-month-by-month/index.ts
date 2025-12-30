@@ -150,7 +150,7 @@ async function runMonthImport(
     const { since, until } = getMonthDateRange(year, month);
     console.log(`[MONTH-IMPORT] Date range: ${since} to ${until}`);
     
-    // Call meta-ads-sync for this month
+    // Call meta-ads-sync for this month with time_range object
     const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
       method: 'POST',
       headers: {
@@ -160,9 +160,7 @@ async function runMonthImport(
       body: JSON.stringify({
         project_id: projectId,
         ad_account_id: project.ad_account_id,
-        since,
-        until,
-        skip_enrichment: true, // Speed up by skipping thumbnail enrichment
+        time_range: { since, until }, // MUST use time_range object!
       }),
     });
     
@@ -172,7 +170,8 @@ async function runMonthImport(
       throw new Error(syncResult.error || `Sync failed with status ${syncResponse.status}`);
     }
     
-    const recordsCount = syncResult.count || 0;
+    // Get records count from the response
+    const recordsCount = syncResult.data?.daily_records_count || syncResult.count || 0;
     console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${recordsCount} records`);
     
     // Update status to success
