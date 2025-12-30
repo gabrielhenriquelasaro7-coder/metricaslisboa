@@ -290,9 +290,9 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
   const demoStartDate = useMemo(() => new Date(activePeriod.since + 'T00:00:00'), [activePeriod.since]);
   const demoEndDate = useMemo(() => new Date(activePeriod.until + 'T00:00:00'), [activePeriod.until]);
   
-  // Demographic data - only fetch when dialog is open AND includeDemographics is true
+  // Demographic data - fetch when dialog is open (preload for when user enables demographics)
   const { data: demographicData, isLoading: demoLoading } = useDemographicInsights({
-    projectId: open && includeDemographics ? projectId : null,
+    projectId: open ? projectId : null,
     startDate: demoStartDate,
     endDate: demoEndDate,
   });
