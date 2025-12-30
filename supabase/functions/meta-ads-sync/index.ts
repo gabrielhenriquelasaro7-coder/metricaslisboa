@@ -218,44 +218,52 @@ async function fetchDailyInsights(
 
 // ============ EXTRACT CONVERSIONS ============
 // Lista completa de action_types que representam conversões/leads no Meta Ads
+// Organizada por prioridade para campanhas de Lead Gen / Mensagens
 const CONVERSION_ACTION_TYPES = [
-  // Conversas/Mensagens (mais comum para campanhas de leads via WhatsApp/Messenger)
-  'onsite_conversion.messaging_conversation_started_7d',
-  'onsite_conversion.messaging_first_reply',
-  'onsite_conversion.messaging_blocked',
-  'messaging_conversation_started_7d',
-  'messaging_first_reply',
-  
-  // Leads diretos
+  // PRIORITY 1: Lead Generation Forms (Instant Forms)
   'lead',
   'leadgen.other',
   'leadgen_grouped',
   'onsite_conversion.lead_grouped',
   'offsite_conversion.fb_pixel_lead',
+  'onsite_web_lead',
+  'on_facebook_lead',
   
-  // Contatos
+  // PRIORITY 2: Conversas/Mensagens (WhatsApp/Messenger campaigns)
+  'onsite_conversion.messaging_conversation_started_7d',
+  'onsite_conversion.messaging_first_reply',
+  'messaging_conversation_started_7d',
+  'messaging_first_reply',
+  'onsite_conversion.messaging_blocked',
+  
+  // PRIORITY 3: Contatos
   'contact',
   'contact_total',
   'contact_website',
   'contact_mobile_app',
   'contact_offline',
+  'onsite_conversion.contact',
   
-  // Formulários de leads
+  // PRIORITY 4: Formulários e registros
   'onsite_conversion.flow_complete',
-  'onsite_conversion.messaging_block',
-  
-  // Compras (para e-commerce)
-  'purchase',
-  'omni_purchase',
-  'offsite_conversion.fb_pixel_purchase',
-  
-  // Outros tipos de conversão
-  'app_install',
   'complete_registration',
   'offsite_conversion.fb_pixel_complete_registration',
   'submit_application',
   'subscribe',
   'offsite_conversion.fb_pixel_subscribe',
+  
+  // PRIORITY 5: Compras (para e-commerce)
+  'purchase',
+  'omni_purchase',
+  'offsite_conversion.fb_pixel_purchase',
+  
+  // PRIORITY 6: App installs
+  'app_install',
+  'mobile_app_install',
+  
+  // PRIORITY 7: Outros eventos de conversão customizados
+  'offsite_conversion',
+  'onsite_conversion',
 ];
 
 // Lista de action_types para valores de conversão
@@ -263,34 +271,52 @@ const VALUE_ACTION_TYPES = [
   'purchase',
   'omni_purchase',
   'offsite_conversion.fb_pixel_purchase',
+  'lead', // Lead value if available
+  'offsite_conversion.fb_pixel_lead',
 ];
 
 function extractConversions(insights: any): { conversions: number; conversionValue: number } {
   let conversions = 0;
   let conversionValue = 0;
   
-  // Extrair conversões - busca todos os tipos e soma
+  // Track which action types we found for debugging
+  const foundActions: string[] = [];
+  
+  // Extrair conversões - SOMA todos os tipos encontrados
+  // Mas evita dupla contagem usando um Set para tipos "grouped"
   if (insights?.actions && Array.isArray(insights.actions)) {
+    const processedTypes = new Set<string>();
+    
     for (const action of insights.actions) {
       const actionType = action.action_type;
       const actionValue = parseInt(action.value) || 0;
       
       if (CONVERSION_ACTION_TYPES.includes(actionType) && actionValue > 0) {
-        // Pega o maior valor encontrado (para evitar dupla contagem)
-        if (actionValue > conversions) {
-          conversions = actionValue;
-          console.log(`[CONVERSIONS] Found ${actionType}: ${actionValue}`);
+        // Evita dupla contagem: se já processamos o tipo "grouped", não processa o individual
+        const baseType = actionType.replace('_grouped', '').replace('onsite_conversion.', '').replace('offsite_conversion.fb_pixel_', '');
+        
+        if (!processedTypes.has(baseType)) {
+          conversions += actionValue;
+          processedTypes.add(baseType);
+          foundActions.push(`${actionType}:${actionValue}`);
         }
       }
     }
+  }
+  
+  // Log all found actions for debugging
+  if (foundActions.length > 0) {
+    console.log(`[CONVERSIONS] Found: ${foundActions.join(', ')}, Total: ${conversions}`);
   }
   
   // Extrair valor de conversão
   if (insights?.action_values && Array.isArray(insights.action_values)) {
     for (const av of insights.action_values) {
       if (VALUE_ACTION_TYPES.includes(av.action_type)) {
-        conversionValue = parseFloat(av.value) || 0;
-        break;
+        const val = parseFloat(av.value) || 0;
+        if (val > conversionValue) {
+          conversionValue = val;
+        }
       }
     }
   }
