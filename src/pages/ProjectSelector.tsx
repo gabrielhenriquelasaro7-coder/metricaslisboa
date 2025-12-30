@@ -41,7 +41,8 @@ import {
   Lock,
   Mail,
   Briefcase,
-  Save
+  Save,
+  Sparkles
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -55,6 +56,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import v4LogoFull from '@/assets/v4-logo-full.png';
+import v4LogoIcon from '@/assets/v4-logo-icon.png';
 
 const cargoOptions: { value: UserCargo; label: string }[] = [
   { value: 'gestor_trafego', label: 'Gestor de Tráfego' },
@@ -585,22 +588,35 @@ export default function ProjectSelector() {
   }
 
   return (
-    <div className="min-h-screen bg-background red-texture-bg">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="fixed inset-0 red-texture-bg pointer-events-none" />
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] translate-x-1/3 -translate-y-1/3 animate-pulse-slow" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[100px] -translate-x-1/3 translate-y-1/3 animate-pulse-slow" style={{ animationDelay: '2s' }} />
+      </div>
+
       {/* Header */}
-      <header className="border-b border-border bg-card/80 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-red-700 flex items-center justify-center logo-glow red-glow-pulse">
-              <Zap className="w-5 h-5 text-white" />
+      <header className="border-b border-border/50 bg-card/60 backdrop-blur-xl sticky top-0 z-50 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5" />
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between relative">
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <img 
+                src={v4LogoIcon} 
+                alt="V4 Company" 
+                className="h-11 w-auto drop-shadow-lg rounded-xl transition-transform group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-primary/20 rounded-xl blur-lg -z-10 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-            <span className="text-xl font-bold gradient-text">MetaAds Manager</span>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold gradient-text">MetaAds Manager</span>
+              <span className="text-xs text-muted-foreground">by V4 Company</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => refetch()} title="Atualizar" className="hover:bg-primary/10">
-              <RefreshCw className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" onClick={handleLogout} className="text-muted-foreground hover:text-primary hover:bg-primary/10">
-              <LogOut className="w-4 h-4 mr-2" />
+            <Button variant="ghost" onClick={handleLogout} className="text-muted-foreground hover:text-primary hover:bg-primary/10 gap-2">
+              <LogOut className="w-4 h-4" />
               Sair
             </Button>
           </div>
@@ -608,29 +624,32 @@ export default function ProjectSelector() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-6 py-8">
+      <main className="container mx-auto px-6 py-8 relative">
         <div className="max-w-7xl mx-auto">
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-              <div>
-                <h1 className="text-3xl font-bold mb-1 gradient-text inline-block">
-                  {showArchived ? 'Arquivados' : 'Seus Projetos'}
-                </h1>
-                <p className="text-muted-foreground">
+              <div className="animate-fade-in">
+                <div className="flex items-center gap-3 mb-1">
+                  <Sparkles className="w-6 h-6 text-primary animate-pulse-slow" />
+                  <h1 className="text-3xl font-bold gradient-text inline-block">
+                    {showArchived ? 'Arquivados' : 'Seus Projetos'}
+                  </h1>
+                </div>
+                <p className="text-muted-foreground ml-9">
                   {showArchived 
                     ? `${archivedProjects.length} projeto(s) arquivado(s)`
                     : `${activeProjects.length} projeto(s) ativo(s)`}
                 </p>
               </div>
               
-              <div className="flex items-center gap-3">
-                <TabsList className="grid grid-cols-2 h-10">
-                  <TabsTrigger value="projects" className="gap-2 px-4">
+              <div className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                <TabsList className="grid grid-cols-2 h-10 bg-card/50 backdrop-blur-sm">
+                  <TabsTrigger value="projects" className="gap-2 px-4 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
                     <FolderKanban className="w-4 h-4" />
                     Projetos
                   </TabsTrigger>
-                  <TabsTrigger value="profile" className="gap-2 px-4">
+                  <TabsTrigger value="profile" className="gap-2 px-4 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
                     <User className="w-4 h-4" />
                     Perfil
                   </TabsTrigger>
@@ -642,7 +661,10 @@ export default function ProjectSelector() {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowArchived(!showArchived)}
-                      className={cn(showArchived && 'bg-secondary border-primary/50')}
+                      className={cn(
+                        "border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all",
+                        showArchived && 'bg-primary/10 border-primary/50'
+                      )}
                     >
                       <Archive className="w-4 h-4 mr-2" />
                       {showArchived ? 'Ativos' : 'Arquivados'}
@@ -650,14 +672,14 @@ export default function ProjectSelector() {
                     
                     <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button className="gap-2 bg-gradient-to-r from-primary to-red-700 hover:from-red-600 hover:to-red-800 shadow-lg shadow-primary/30">
+                        <Button className="gap-2 bg-gradient-to-r from-primary via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all duration-300 hover:scale-105">
                           <Plus className="w-4 h-4" />
                           Novo Projeto
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
-                          <DialogTitle className="text-xl">Criar novo projeto</DialogTitle>
+                          <DialogTitle className="text-xl gradient-text">Criar novo projeto</DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleCreateProject} className="space-y-5 mt-4">
                           {/* Avatar Upload */}
@@ -856,22 +878,25 @@ export default function ProjectSelector() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-16">
-                  <div className="w-20 h-20 rounded-2xl bg-secondary/50 flex items-center justify-center mx-auto mb-6">
-                    <FolderKanban className="w-10 h-10 text-muted-foreground" />
+                <div className="text-center py-20 animate-fade-in">
+                  <div className="relative inline-block">
+                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/20 to-red-700/20 flex items-center justify-center mx-auto mb-6 animate-float">
+                      <FolderKanban className="w-12 h-12 text-primary" />
+                    </div>
+                    <div className="absolute inset-0 bg-primary/10 rounded-3xl blur-xl -z-10" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">
+                  <h3 className="text-2xl font-bold mb-3 gradient-text">
                     {showArchived ? 'Nenhum projeto arquivado' : 'Nenhum projeto ainda'}
                   </h3>
-                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  <p className="text-muted-foreground mb-8 max-w-md mx-auto">
                     {showArchived 
                       ? 'Projetos arquivados aparecerão aqui.' 
                       : 'Crie seu primeiro projeto para começar a monitorar suas campanhas.'}
                   </p>
                   {!showArchived && (
-                    <Button onClick={() => setCreateDialogOpen(true)} className="bg-gradient-to-r from-primary to-red-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Criar Projeto
+                    <Button onClick={() => setCreateDialogOpen(true)} className="bg-gradient-to-r from-primary via-red-600 to-red-700 shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all duration-300 hover:scale-105 px-8 py-6 text-lg">
+                      <Plus className="w-5 h-5 mr-2" />
+                      Criar Primeiro Projeto
                     </Button>
                   )}
                 </div>
