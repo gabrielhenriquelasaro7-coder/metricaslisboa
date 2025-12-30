@@ -554,6 +554,7 @@ export default function Dashboard() {
                   defaultPrimaryMetric="spend"
                   defaultSecondaryMetric={isEcommerce ? 'conversions' : 'conversions'}
                   defaultChartType="composed"
+                  currency={selectedProject?.currency || 'BRL'}
                 />
               </div>
               <CustomizableChart
@@ -563,6 +564,7 @@ export default function Dashboard() {
                 defaultPrimaryMetric="impressions"
                 defaultSecondaryMetric="ctr"
                 defaultChartType="area"
+                currency={selectedProject?.currency || 'BRL'}
               />
               <CustomizableChart
                 chartKey="dashboard-chart-3"
@@ -571,6 +573,7 @@ export default function Dashboard() {
                 defaultPrimaryMetric="cpc"
                 defaultSecondaryMetric="clicks"
                 defaultChartType="bar"
+                currency={selectedProject?.currency || 'BRL'}
               />
             </div>
 
@@ -578,6 +581,7 @@ export default function Dashboard() {
             <DemographicCharts
               data={demographicData}
               isLoading={demographicLoading}
+              currency={selectedProject?.currency || 'BRL'}
             />
 
             {/* Top Campaigns */}
