@@ -42,34 +42,78 @@ function getDateRangeFromPeriod(preset: DatePresetKey) {
   
   switch (preset) {
     case 'yesterday':
-      return { since: yesterday, until: yesterday, days: 1 };
+      return { since: yesterday, until: yesterday, days: 1, previousType: 'same_length' as const };
     case 'last_7d':
-      return { since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 7 };
+      return { since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 7, previousType: 'same_length' as const };
     case 'last_14d':
-      return { since: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 14 };
+      return { since: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 14, previousType: 'same_length' as const };
     case 'last_30d':
-      return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 30 };
+      return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 30, previousType: 'same_length' as const };
     case 'last_60d':
-      return { since: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 60 };
+      return { since: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 60, previousType: 'same_length' as const };
     case 'last_90d':
-      return { since: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 90 };
+      return { since: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 90, previousType: 'same_length' as const };
     case 'this_month': {
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { since: firstDay.toISOString().split('T')[0], until: today, days: Math.ceil((now.getTime() - firstDay.getTime()) / (24 * 60 * 60 * 1000)) };
+      return { since: firstDay.toISOString().split('T')[0], until: today, days: Math.ceil((now.getTime() - firstDay.getTime()) / (24 * 60 * 60 * 1000)) + 1, previousType: 'previous_month' as const };
     }
     case 'this_year': {
       const firstDay = new Date(now.getFullYear(), 0, 1);
-      return { since: firstDay.toISOString().split('T')[0], until: today, days: Math.ceil((now.getTime() - firstDay.getTime()) / (24 * 60 * 60 * 1000)) };
+      return { since: firstDay.toISOString().split('T')[0], until: today, days: Math.ceil((now.getTime() - firstDay.getTime()) / (24 * 60 * 60 * 1000)) + 1, previousType: 'previous_year' as const };
     }
     default:
-      return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: today, days: 30 };
+      return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: today, days: 30, previousType: 'same_length' as const };
   }
 }
 
-// Get previous period dates - equivalent period before the current one
-function getPreviousPeriodDates(since: string, until: string, days: number) {
-  // The previous period should have the same number of days
-  // and end the day before the current period starts
+// Get previous period dates based on the type of comparison
+function getPreviousPeriodDates(since: string, until: string, days: number, previousType: 'same_length' | 'previous_month' | 'previous_year') {
+  const now = new Date();
+  
+  if (previousType === 'previous_month') {
+    // For "this month", compare with "last month" - same date range but previous month
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    // Previous month
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    
+    // First and last day of previous month
+    const prevMonthFirstDay = new Date(prevYear, prevMonth, 1);
+    const prevMonthLastDay = new Date(prevYear, prevMonth + 1, 0); // Last day of prev month
+    
+    // Calculate which day we are in current month
+    const currentDayOfMonth = now.getDate();
+    
+    // Previous month until = min(same day as today, last day of prev month)
+    const prevUntilDay = Math.min(currentDayOfMonth, prevMonthLastDay.getDate());
+    const prevUntil = new Date(prevYear, prevMonth, prevUntilDay);
+    
+    return {
+      since: prevMonthFirstDay.toISOString().split('T')[0],
+      until: prevUntil.toISOString().split('T')[0],
+    };
+  }
+  
+  if (previousType === 'previous_year') {
+    // For "this year", compare with same period last year
+    const currentSince = new Date(since);
+    const currentUntil = new Date(until);
+    
+    const prevYearSince = new Date(currentSince);
+    prevYearSince.setFullYear(prevYearSince.getFullYear() - 1);
+    
+    const prevYearUntil = new Date(currentUntil);
+    prevYearUntil.setFullYear(prevYearUntil.getFullYear() - 1);
+    
+    return {
+      since: prevYearSince.toISOString().split('T')[0],
+      until: prevYearUntil.toISOString().split('T')[0],
+    };
+  }
+  
+  // Default: same_length - Previous period of equal length before current starts
   const currentSince = new Date(since);
   const currentUntil = new Date(until);
   
@@ -181,8 +225,8 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
     
     setLoading(true);
     try {
-      const { since, until, days } = getDateRangeFromPeriod(preset);
-      const previousDates = getPreviousPeriodDates(since, until, days);
+      const { since, until, days, previousType } = getDateRangeFromPeriod(preset);
+      const previousDates = getPreviousPeriodDates(since, until, days, previousType);
       
       console.log(`[DailyMetrics] Loading: ${since} to ${until} (${days} days)`);
       console.log(`[DailyMetrics] Previous: ${previousDates.since} to ${previousDates.until}`);
