@@ -35,6 +35,7 @@ export interface PDFMetricsTotals {
 export interface CampaignData {
   campaign_id: string;
   campaign_name: string;
+  campaign_status: string;
   spend: number;
   impressions: number;
   clicks: number;
@@ -127,10 +128,14 @@ function aggregateCampaigns(rows: any[]): CampaignData[] {
   
   for (const row of rows) {
     const id = row.campaign_id;
+    // Get campaign status - prioritize ACTIVE if any row shows ACTIVE
+    const currentStatus = row.campaign_status?.toUpperCase() || 'UNKNOWN';
+    
     if (!campaignMap.has(id)) {
       campaignMap.set(id, {
         campaign_id: id,
         campaign_name: row.campaign_name || 'Sem nome',
+        campaign_status: currentStatus,
         spend: 0,
         impressions: 0,
         clicks: 0,
@@ -145,6 +150,10 @@ function aggregateCampaigns(rows: any[]): CampaignData[] {
     }
     
     const agg = campaignMap.get(id)!;
+    // If any row shows ACTIVE, mark campaign as ACTIVE
+    if (currentStatus === 'ACTIVE') {
+      agg.campaign_status = 'ACTIVE';
+    }
     agg.spend += Number(row.spend) || 0;
     agg.impressions += Number(row.impressions) || 0;
     agg.clicks += Number(row.clicks) || 0;
@@ -152,15 +161,17 @@ function aggregateCampaigns(rows: any[]): CampaignData[] {
     agg.conversion_value += Number(row.conversion_value) || 0;
   }
   
-  // Calculate derived metrics
-  return Array.from(campaignMap.values()).map(c => ({
-    ...c,
-    ctr: c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
-    cpm: c.impressions > 0 ? (c.spend / c.impressions) * 1000 : 0,
-    cpc: c.clicks > 0 ? c.spend / c.clicks : 0,
-    roas: c.spend > 0 ? c.conversion_value / c.spend : 0,
-    cpa: c.conversions > 0 ? c.spend / c.conversions : 0,
-  }));
+  // Calculate derived metrics and filter only ACTIVE campaigns
+  return Array.from(campaignMap.values())
+    .filter(c => c.campaign_status === 'ACTIVE')
+    .map(c => ({
+      ...c,
+      ctr: c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
+      cpm: c.impressions > 0 ? (c.spend / c.impressions) * 1000 : 0,
+      cpc: c.clicks > 0 ? c.spend / c.clicks : 0,
+      roas: c.spend > 0 ? c.conversion_value / c.spend : 0,
+      cpa: c.conversions > 0 ? c.spend / c.conversions : 0,
+    }));
 }
 
 export function usePDFMetrics(projectId: string | undefined) {
@@ -179,7 +190,7 @@ export function usePDFMetrics(projectId: string | undefined) {
       
       const { data, error } = await supabase
         .from('ads_daily_metrics')
-        .select('date, spend, impressions, clicks, reach, conversions, conversion_value, frequency, campaign_id, campaign_name')
+        .select('date, spend, impressions, clicks, reach, conversions, conversion_value, frequency, campaign_id, campaign_name, campaign_status')
         .eq('project_id', projectId)
         .gte('date', since)
         .lte('date', until)

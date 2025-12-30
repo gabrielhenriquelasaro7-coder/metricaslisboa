@@ -1285,23 +1285,32 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                       <h2 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
                         <Trophy className="w-3 h-3" /> Top {campaignCount} Campanhas por {campaignSortBy === 'spend' ? 'Gasto' : campaignSortBy === 'conversions' ? 'Conversões' : 'ROAS'}
                       </h2>
-                      <div id="pdf-campaigns-table" className="bg-white rounded border overflow-hidden">
+                      <div id="pdf-campaigns-table" className="bg-white rounded-lg border overflow-hidden shadow-sm">
                         <table className="w-full text-[9px]">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="text-left px-2 py-1.5 font-semibold text-gray-700">Campanha</th>
-                              <th className="text-right px-2 py-1.5 font-semibold text-gray-700">Gasto</th>
-                              <th className="text-right px-2 py-1.5 font-semibold text-gray-700">Conv.</th>
-                              <th className="text-right px-2 py-1.5 font-semibold text-gray-700">{businessModel === 'ecommerce' ? 'ROAS' : 'CPA'}</th>
+                          <thead>
+                            <tr style={{ backgroundColor: primaryColor }}>
+                              <th className="text-left px-2 py-2 font-bold text-white w-8">#</th>
+                              <th className="text-left px-2 py-2 font-bold text-white">Campanha</th>
+                              <th className="text-right px-2 py-2 font-bold text-white">Gasto</th>
+                              <th className="text-right px-2 py-2 font-bold text-white">Conv.</th>
+                              <th className="text-right px-2 py-2 font-bold text-white">{businessModel === 'ecommerce' ? 'ROAS' : 'CPA'}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {topCampaigns.map((c, idx) => (
-                              <tr key={c.campaign_id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
-                                <td className="px-2 py-1.5 text-gray-800 truncate max-w-[120px]" title={c.campaign_name}>{c.campaign_name}</td>
-                                <td className="text-right px-2 py-1.5 text-gray-800 font-medium">{fmtCurrency(c.spend, currency)}</td>
-                                <td className="text-right px-2 py-1.5 text-gray-800">{fmtNumber(c.conversions)}</td>
-                                <td className="text-right px-2 py-1.5 font-medium" style={{ color: primaryColor }}>
+                              <tr key={c.campaign_id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'}>
+                                <td className="px-2 py-2">
+                                  <span 
+                                    className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[8px] font-bold text-white"
+                                    style={{ backgroundColor: idx === 0 ? primaryColor : idx === 1 ? '#6B7280' : '#9CA3AF' }}
+                                  >
+                                    {idx + 1}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-2 text-gray-800 truncate max-w-[120px] font-medium" title={c.campaign_name}>{c.campaign_name}</td>
+                                <td className="text-right px-2 py-2 text-gray-800 font-semibold">{fmtCurrency(c.spend, currency)}</td>
+                                <td className="text-right px-2 py-2 text-gray-800">{fmtNumber(c.conversions)}</td>
+                                <td className="text-right px-2 py-2 font-bold" style={{ color: primaryColor }}>
                                   {businessModel === 'ecommerce' ? `${c.roas.toFixed(2)}x` : fmtCurrency(c.cpa, currency)}
                                 </td>
                               </tr>

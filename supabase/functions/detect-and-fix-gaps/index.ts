@@ -257,15 +257,39 @@ Deno.serve(async (req) => {
     if (auto_fix && allGaps.length > 0) {
       console.log(`\n========== FIXING ${allGaps.length} GAPS ==========`);
       
-      for (const gap of allGaps) {
+      const DELAY_BETWEEN_FIXES = 10000; // 10 seconds between fixes
+      const RETRY_DELAY = 60000; // 60 seconds on rate limit
+      const MAX_FIX_RETRIES = 3;
+      
+      for (let gapIdx = 0; gapIdx < allGaps.length; gapIdx++) {
+        const gap = allGaps[gapIdx];
         const project = projects.find(p => p.id === gap.project_id);
         if (!project) continue;
         
-        const result = await fixGap(supabaseUrl, supabaseServiceKey, gap, project.ad_account_id);
-        fixResults.push(result);
+        let retryCount = 0;
+        let fixSuccess = false;
         
-        // Small delay between fixes to avoid rate limits
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        while (retryCount < MAX_FIX_RETRIES && !fixSuccess) {
+          const result = await fixGap(supabaseUrl, supabaseServiceKey, gap, project.ad_account_id);
+          
+          // Check if rate limit error
+          const isRateLimit = result.error?.includes('rate') || result.error?.includes('limit') || result.error?.includes('429');
+          
+          if (!result.fixed && isRateLimit && retryCount < MAX_FIX_RETRIES - 1) {
+            retryCount++;
+            console.log(`[FIX] ⏳ Rate limit on gap ${gapIdx + 1}, waiting ${RETRY_DELAY / 1000}s before retry ${retryCount}/${MAX_FIX_RETRIES}...`);
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          } else {
+            fixResults.push(result);
+            fixSuccess = true;
+          }
+        }
+        
+        // Delay between fixes (except last)
+        if (gapIdx < allGaps.length - 1) {
+          console.log(`[FIX] Waiting ${DELAY_BETWEEN_FIXES / 1000}s before next gap...`);
+          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_FIXES));
+        }
       }
     }
 

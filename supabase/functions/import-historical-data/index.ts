@@ -7,7 +7,9 @@ const corsHeaders = {
 
 // Configuration
 const BATCH_SIZE_DAYS = 30; // Process 30 days at a time to avoid timeouts
-const DELAY_BETWEEN_BATCHES = 5000; // 5 seconds between date batches
+const DELAY_BETWEEN_BATCHES = 15000; // 15 seconds between date batches to avoid rate limit
+const RETRY_DELAY_ON_RATE_LIMIT = 60000; // 60 seconds on rate limit
+const MAX_RETRIES = 3;
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -136,42 +138,69 @@ Deno.serve(async (req) => {
       console.log(`\n[IMPORT] Batch ${i + 1}/${batches.length}: ${batch.since} to ${batch.until}`);
       await updateProgress(progress, `Importando período ${batch.since} a ${batch.until}...`);
 
-      try {
-        // Call meta-ads-sync for this date range
-        const response = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            project_id: project.id,
-            ad_account_id: project.ad_account_id,
-            time_range: batch,
-            period_key: `history_${batch.since}_${batch.until}`,
-          }),
-        });
+      let retryCount = 0;
+      let batchSuccess = false;
+      
+      while (retryCount < MAX_RETRIES && !batchSuccess) {
+        try {
+          // Call meta-ads-sync for this date range
+          const response = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              project_id: project.id,
+              ad_account_id: project.ad_account_id,
+              time_range: batch,
+              period_key: `history_${batch.since}_${batch.until}`,
+            }),
+          });
 
-        const data = await response.json().catch(() => ({ success: false }));
+          const data = await response.json().catch(() => ({ success: false }));
 
-        if (data.success) {
-          const records = data.data?.daily_records_count || 0;
-          totalRecords += records;
-          successBatches++;
-          results.push({ batch: i + 1, ...batch, success: true, records });
-          console.log(`[IMPORT] ✓ Batch ${i + 1}: ${records} records`);
-        } else {
-          results.push({ batch: i + 1, ...batch, success: false, error: data.error });
-          console.log(`[IMPORT] ✗ Batch ${i + 1}: ${data.error}`);
+          if (data.success) {
+            const records = data.data?.daily_records_count || 0;
+            totalRecords += records;
+            successBatches++;
+            results.push({ batch: i + 1, ...batch, success: true, records });
+            console.log(`[IMPORT] ✓ Batch ${i + 1}: ${records} records`);
+            batchSuccess = true;
+          } else {
+            // Check if rate limit error
+            const isRateLimit = data.error?.includes('rate') || data.error?.includes('limit') || data.error?.includes('too many');
+            
+            if (isRateLimit && retryCount < MAX_RETRIES - 1) {
+              retryCount++;
+              console.log(`[IMPORT] ⏳ Rate limit detected on batch ${i + 1}, waiting ${RETRY_DELAY_ON_RATE_LIMIT / 1000}s before retry ${retryCount}/${MAX_RETRIES}...`);
+              await updateProgress(progress, `Rate limit - aguardando ${RETRY_DELAY_ON_RATE_LIMIT / 1000}s (tentativa ${retryCount + 1}/${MAX_RETRIES})...`);
+              await delay(RETRY_DELAY_ON_RATE_LIMIT);
+            } else {
+              results.push({ batch: i + 1, ...batch, success: false, error: data.error });
+              console.log(`[IMPORT] ✗ Batch ${i + 1}: ${data.error}`);
+              batchSuccess = true; // Exit retry loop
+            }
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          const isRateLimit = errorMsg.includes('rate') || errorMsg.includes('limit') || errorMsg.includes('429');
+          
+          if (isRateLimit && retryCount < MAX_RETRIES - 1) {
+            retryCount++;
+            console.log(`[IMPORT] ⏳ Rate limit error on batch ${i + 1}, waiting ${RETRY_DELAY_ON_RATE_LIMIT / 1000}s before retry ${retryCount}/${MAX_RETRIES}...`);
+            await delay(RETRY_DELAY_ON_RATE_LIMIT);
+          } else {
+            results.push({ batch: i + 1, ...batch, success: false, error: errorMsg });
+            console.log(`[IMPORT] ✗ Batch ${i + 1}: ${errorMsg}`);
+            batchSuccess = true; // Exit retry loop
+          }
         }
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        results.push({ batch: i + 1, ...batch, success: false, error: errorMsg });
-        console.log(`[IMPORT] ✗ Batch ${i + 1}: ${errorMsg}`);
       }
 
       // Delay between batches (except last)
       if (i < batches.length - 1) {
+        console.log(`[IMPORT] Waiting ${DELAY_BETWEEN_BATCHES / 1000}s before next batch...`);
         await delay(DELAY_BETWEEN_BATCHES);
       }
     }
