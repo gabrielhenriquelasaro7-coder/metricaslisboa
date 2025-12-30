@@ -119,14 +119,14 @@ export default function MetricCard({
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex-1 min-w-0">
+        <div className="flex-1">
           {titleElement}
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold whitespace-nowrap overflow-hidden text-ellipsis" title={String(value)}>
+          <p className="text-xl font-bold whitespace-nowrap">
             {animatedValue}
           </p>
         </div>
         {Icon && (
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
             <Icon className="w-4 h-4 text-primary" />
           </div>
         )}
