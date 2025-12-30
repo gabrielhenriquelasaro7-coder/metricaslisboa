@@ -399,6 +399,14 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                   <Switch checked={useDashboardPeriod} onCheckedChange={setUseDashboardPeriod} id="use-dashboard" />
                   <Label htmlFor="use-dashboard" className="text-sm font-normal">Usar período do dashboard</Label>
                 </div>
+                
+                {/* Show current period */}
+                <div className="bg-muted/50 rounded-md p-2 border">
+                  <p className="text-xs text-muted-foreground mb-1">Período selecionado:</p>
+                  <p className="text-sm font-medium">{fmtDateRange(activePeriod.since, activePeriod.until)}</p>
+                  <p className="text-xs text-muted-foreground">({periodDays} dias)</p>
+                </div>
+                
                 {!useDashboardPeriod && (
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <Popover>
@@ -612,22 +620,50 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                   {/* Chart */}
                   {includeChart && chartData.length > 0 && (
                     <div>
-                      <h2 className="text-xs font-semibold text-gray-900 mb-2">Evolução Diária</h2>
+                      <h2 className="text-xs font-semibold text-gray-900 mb-2">
+                        Evolução Diária - {primaryMetricDef?.label}{showSecondaryMetric ? ` vs ${secondaryMetricDef?.label}` : ''}
+                      </h2>
                       <div id="pdf-chart-preview" className="bg-white rounded border p-2" style={{ height: 180 }}>
                         <ResponsiveContainer width="100%" height="100%">
                           {chartType === 'bar' ? (
                             <ComposedChart data={chartData}>
                               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                               <XAxis dataKey="date" tick={{ fontSize: 9 }} />
-                              <YAxis yAxisId="left" tick={{ fontSize: 9 }} tickFormatter={(v) => fmtNumber(v)} />
-                              {showSecondaryMetric && <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 9 }} tickFormatter={(v) => fmtNumber(v)} />}
-                              <Tooltip formatter={(value: number, name: string) => {
-                                const met = CHART_METRICS.find(m => m.label === name);
-                                if (met?.type === 'currency') return [fmtCurrency(value, currency), name];
-                                if (met?.type === 'percent') return [`${value.toFixed(2)}%`, name];
-                                if (met?.type === 'decimal') return [`${value.toFixed(2)}x`, name];
-                                return [fmtNumber(value), name];
-                              }} />
+                              <YAxis 
+                                yAxisId="left" 
+                                tick={{ fontSize: 9 }} 
+                                tickFormatter={(v) => {
+                                  if (primaryMetricDef?.type === 'currency') return fmtCurrency(v, currency);
+                                  if (primaryMetricDef?.type === 'percent') return `${v.toFixed(1)}%`;
+                                  if (primaryMetricDef?.type === 'decimal') return `${v.toFixed(1)}x`;
+                                  return fmtNumber(v);
+                                }}
+                                label={{ value: primaryMetricDef?.label, angle: -90, position: 'insideLeft', fontSize: 9, fill: primaryColor }}
+                              />
+                              {showSecondaryMetric && (
+                                <YAxis 
+                                  yAxisId="right" 
+                                  orientation="right" 
+                                  tick={{ fontSize: 9 }} 
+                                  tickFormatter={(v) => {
+                                    if (secondaryMetricDef?.type === 'currency') return fmtCurrency(v, currency);
+                                    if (secondaryMetricDef?.type === 'percent') return `${v.toFixed(1)}%`;
+                                    if (secondaryMetricDef?.type === 'decimal') return `${v.toFixed(1)}x`;
+                                    return fmtNumber(v);
+                                  }}
+                                  label={{ value: secondaryMetricDef?.label, angle: 90, position: 'insideRight', fontSize: 9, fill: '#22c55e' }}
+                                />
+                              )}
+                              <Tooltip 
+                                contentStyle={{ fontSize: 11, backgroundColor: 'white', border: '1px solid #e5e7eb' }}
+                                formatter={(value: number, name: string) => {
+                                  const met = CHART_METRICS.find(m => m.label === name);
+                                  if (met?.type === 'currency') return [fmtCurrency(value, currency), name];
+                                  if (met?.type === 'percent') return [`${value.toFixed(2)}%`, name];
+                                  if (met?.type === 'decimal') return [`${value.toFixed(2)}x`, name];
+                                  return [fmtNumber(value), name];
+                                }} 
+                              />
                               <Legend wrapperStyle={{ fontSize: 10 }} />
                               <Bar yAxisId="left" dataKey={chartPrimaryMetric} name={primaryMetricDef?.label || 'Primária'} fill={primaryColor} radius={[2, 2, 0, 0]} />
                               {showSecondaryMetric && <Line yAxisId="right" type="monotone" dataKey={chartSecondaryMetric} name={secondaryMetricDef?.label || 'Secundária'} stroke="#22c55e" strokeWidth={2} dot={false} />}
@@ -636,15 +672,41 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                             <LineChart data={chartData}>
                               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                               <XAxis dataKey="date" tick={{ fontSize: 9 }} />
-                              <YAxis yAxisId="left" tick={{ fontSize: 9 }} tickFormatter={(v) => fmtNumber(v)} />
-                              {showSecondaryMetric && <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 9 }} tickFormatter={(v) => fmtNumber(v)} />}
-                              <Tooltip formatter={(value: number, name: string) => {
-                                const met = CHART_METRICS.find(m => m.label === name);
-                                if (met?.type === 'currency') return [fmtCurrency(value, currency), name];
-                                if (met?.type === 'percent') return [`${value.toFixed(2)}%`, name];
-                                if (met?.type === 'decimal') return [`${value.toFixed(2)}x`, name];
-                                return [fmtNumber(value), name];
-                              }} />
+                              <YAxis 
+                                yAxisId="left" 
+                                tick={{ fontSize: 9 }} 
+                                tickFormatter={(v) => {
+                                  if (primaryMetricDef?.type === 'currency') return fmtCurrency(v, currency);
+                                  if (primaryMetricDef?.type === 'percent') return `${v.toFixed(1)}%`;
+                                  if (primaryMetricDef?.type === 'decimal') return `${v.toFixed(1)}x`;
+                                  return fmtNumber(v);
+                                }}
+                                label={{ value: primaryMetricDef?.label, angle: -90, position: 'insideLeft', fontSize: 9, fill: primaryColor }}
+                              />
+                              {showSecondaryMetric && (
+                                <YAxis 
+                                  yAxisId="right" 
+                                  orientation="right" 
+                                  tick={{ fontSize: 9 }} 
+                                  tickFormatter={(v) => {
+                                    if (secondaryMetricDef?.type === 'currency') return fmtCurrency(v, currency);
+                                    if (secondaryMetricDef?.type === 'percent') return `${v.toFixed(1)}%`;
+                                    if (secondaryMetricDef?.type === 'decimal') return `${v.toFixed(1)}x`;
+                                    return fmtNumber(v);
+                                  }}
+                                  label={{ value: secondaryMetricDef?.label, angle: 90, position: 'insideRight', fontSize: 9, fill: '#22c55e' }}
+                                />
+                              )}
+                              <Tooltip 
+                                contentStyle={{ fontSize: 11, backgroundColor: 'white', border: '1px solid #e5e7eb' }}
+                                formatter={(value: number, name: string) => {
+                                  const met = CHART_METRICS.find(m => m.label === name);
+                                  if (met?.type === 'currency') return [fmtCurrency(value, currency), name];
+                                  if (met?.type === 'percent') return [`${value.toFixed(2)}%`, name];
+                                  if (met?.type === 'decimal') return [`${value.toFixed(2)}x`, name];
+                                  return [fmtNumber(value), name];
+                                }} 
+                              />
                               <Legend wrapperStyle={{ fontSize: 10 }} />
                               <Line yAxisId="left" type="monotone" dataKey={chartPrimaryMetric} name={primaryMetricDef?.label || 'Primária'} stroke={primaryColor} strokeWidth={2} dot={false} />
                               {showSecondaryMetric && <Line yAxisId="right" type="monotone" dataKey={chartSecondaryMetric} name={secondaryMetricDef?.label || 'Secundária'} stroke="#22c55e" strokeWidth={2} dot={false} />}
