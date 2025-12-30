@@ -1274,6 +1274,9 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                         )}
                         {demoPlatform && demographicData?.publisher_platform && demographicData.publisher_platform.length > 0 && (
                           <DemoPieChart data={demographicData.publisher_platform} type="publisher_platform" title="Plataformas" icon={Globe} id="pdf-demo-platform" />
+                        )}
+                      </div>
+                    </div>
                   )}
                   
                   {/* Top Campaigns Preview */}
@@ -1306,9 +1309,6 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                           </tbody>
                         </table>
                       </div>
-                    </div>
-                  )}
-                </div>
                     </div>
                   )}
                 </div>
