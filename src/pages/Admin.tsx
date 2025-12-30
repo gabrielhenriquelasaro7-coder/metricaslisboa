@@ -661,23 +661,74 @@ export default function Admin() {
                   />
                 </div>
 
-                {/* Progress Monitor */}
+                {/* Progress Monitor - Enhanced */}
                 {isMonitoring && monitor && (
-                  <div className="p-4 bg-card/50 rounded-lg border border-border/50 space-y-3">
+                  <div className="p-5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/20 space-y-4">
+                    {/* Header */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                        <span className="font-medium">{monitor.projectName}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-background rounded-full flex items-center justify-center border-2 border-primary">
+                            <span className="text-[8px] font-bold text-primary">{monitor.progress}%</span>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-lg">{monitor.projectName}</span>
+                          <p className="text-xs text-muted-foreground">Importação em andamento</p>
+                        </div>
                       </div>
-                      <Badge variant={monitor.status === 'success' ? 'default' : monitor.status === 'error' ? 'destructive' : 'secondary'}>
-                        {monitor.status === 'importing' ? 'Importando' : 
-                         monitor.status === 'success' ? 'Concluído' : 
-                         monitor.status === 'error' ? 'Erro' : 
-                         monitor.status === 'partial' ? 'Parcial' : 'Aguardando'}
+                      <Badge 
+                        variant={monitor.status === 'success' ? 'default' : monitor.status === 'error' ? 'destructive' : 'secondary'}
+                        className="text-sm px-3 py-1"
+                      >
+                        {monitor.status === 'importing' ? '⏳ Importando' : 
+                         monitor.status === 'success' ? '✅ Concluído' : 
+                         monitor.status === 'error' ? '❌ Erro' : 
+                         monitor.status === 'partial' ? '⚠️ Parcial' : '⏸️ Aguardando'}
                       </Badge>
                     </div>
-                    <Progress value={monitor.progress} className="h-2" />
-                    <p className="text-sm text-muted-foreground">{monitor.message}</p>
+
+                    {/* Progress Bar Enhanced */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Progresso</span>
+                        <span className="font-mono">{monitor.progress}%</span>
+                      </div>
+                      <div className="relative h-3 bg-muted/50 rounded-full overflow-hidden">
+                        <div 
+                          className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all duration-500 ease-out"
+                          style={{ width: `${monitor.progress}%` }}
+                        />
+                        <div 
+                          className="absolute inset-y-0 left-0 bg-white/30 rounded-full animate-pulse"
+                          style={{ width: `${monitor.progress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Status Message */}
+                    <div className="flex items-start gap-2 p-3 bg-background/50 rounded-lg">
+                      <Activity className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">{monitor.message}</p>
+                        {monitor.startedAt && (
+                          <p className="text-xs text-muted-foreground">
+                            Iniciado: {new Date(monitor.startedAt).toLocaleTimeString('pt-BR')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Safe Mode Indicator */}
+                    {safeMode && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Shield className="w-3 h-3 text-metric-positive" />
+                        <span>Modo Ultra-Seguro ativo (delays de 60s entre lotes)</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
