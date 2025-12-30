@@ -207,7 +207,7 @@
   }
 
   .metric-card {
-    @apply glass-card-hover p-6 relative overflow-hidden;
+    @apply glass-card-hover p-4 lg:p-5 relative overflow-hidden;
   }
 
   .metric-card::before {
