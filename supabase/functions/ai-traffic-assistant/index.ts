@@ -6,15 +6,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple hash function for cache key
+function hashString(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { projectId, startDate, endDate, message, analysisType } = await req.json();
+    const { projectId, startDate, endDate, message, analysisType, skipCache = false } = await req.json();
     
-    console.log('AI Assistant request:', { projectId, startDate, endDate, analysisType, message });
+    console.log('AI Assistant request:', { projectId, startDate, endDate, analysisType, message, skipCache });
 
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
@@ -24,6 +35,37 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Generate cache key based on project, period and message
+    const cacheKey = hashString(`${projectId}-${startDate}-${endDate}-${message}`);
+    console.log('Cache key:', cacheKey);
+
+    // Check cache first (unless skipCache is true)
+    if (!skipCache) {
+      const { data: cachedResponse, error: cacheError } = await supabase
+        .from('ai_analysis_cache')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('query_hash', cacheKey)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!cacheError && cachedResponse) {
+        console.log('Cache hit! Returning cached response');
+        return new Response(JSON.stringify({ 
+          success: true, 
+          response: cachedResponse.ai_response,
+          context: cachedResponse.context_summary,
+          cached: true,
+          cachedAt: cachedResponse.created_at
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      console.log('Cache miss, fetching from Gemini API');
+    }
 
     // Buscar dados do projeto
     const { data: project, error: projectError } = await supabase
@@ -96,16 +138,52 @@ serve(async (req) => {
     
     console.log('Gemini response received');
 
+    // Prepare context summary for response and cache
+    const contextSummary = {
+      projectName: project.name,
+      businessModel: project.business_model,
+      period: `${startDate} a ${endDate}`,
+      totalSpend: aggregatedMetrics.spend,
+      totalConversions: aggregatedMetrics.conversions
+    };
+
+    // Save to cache (async, don't wait)
+    supabase
+      .from('ai_analysis_cache')
+      .insert({
+        project_id: projectId,
+        query_hash: cacheKey,
+        user_message: message,
+        ai_response: geminiResponse,
+        context_summary: contextSummary,
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error saving to cache:', error);
+        } else {
+          console.log('Response cached successfully');
+        }
+      });
+
+    // Clean up expired cache entries (async, don't wait)
+    supabase
+      .from('ai_analysis_cache')
+      .delete()
+      .lt('expires_at', new Date().toISOString())
+      .then(({ error, count }) => {
+        if (error) {
+          console.error('Error cleaning cache:', error);
+        } else {
+          console.log('Cleaned expired cache entries');
+        }
+      });
+
     return new Response(JSON.stringify({ 
       success: true, 
       response: geminiResponse,
-      context: {
-        projectName: project.name,
-        businessModel: project.business_model,
-        period: `${startDate} a ${endDate}`,
-        totalSpend: aggregatedMetrics.spend,
-        totalConversions: aggregatedMetrics.conversions
-      }
+      context: contextSummary,
+      cached: false
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
