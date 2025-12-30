@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import AdminPasswordGate from '@/components/admin/AdminPasswordGate';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useProjects, Project } from '@/hooks/useProjects';
 import { useImportProgress } from '@/hooks/useImportProgress';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,7 +33,8 @@ import {
   Activity,
   Search,
   Zap,
-  Shield
+  Shield,
+  LogOut
 } from 'lucide-react';
 
 interface ImportProgress {
@@ -71,7 +74,8 @@ interface SyncLog {
   type?: string;
 }
 
-export default function Admin() {
+function AdminContent() {
+  const { logout } = useAdminAuth();
   const { projects, loading: projectsLoading } = useProjects();
   const [importProgress, setImportProgress] = useState<Record<string, ImportProgress>>({});
   const [isImportingAll, setIsImportingAll] = useState(false);
@@ -413,6 +417,14 @@ export default function Admin() {
               Gerenciamento de dados, sincronizações e monitoramento
             </p>
           </div>
+          <Button
+            variant="outline"
+            onClick={logout}
+            className="gap-2 text-muted-foreground hover:text-destructive hover:border-destructive"
+          >
+            <LogOut className="w-4 h-4" />
+            Sair do Admin
+          </Button>
         </div>
 
         <Tabs defaultValue="monitoring" className="space-y-6">
@@ -997,5 +1009,13 @@ export default function Admin() {
         </Tabs>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function Admin() {
+  return (
+    <AdminPasswordGate>
+      <AdminContent />
+    </AdminPasswordGate>
   );
 }
