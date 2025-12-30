@@ -78,61 +78,66 @@ export default function Onboarding() {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
-      {/* Background effects */}
+      {/* Background effects - subtle glow, not pulsing */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-primary/10 rounded-full blur-[200px] animate-pulse-slow" />
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[150px]" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-red-500/8 rounded-full blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[150px]" />
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-red-600/5 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-red-500/5 rounded-full blur-[80px]" />
       </div>
 
-      {/* Floating particles */}
-      {Array.from({ length: 15 }).map((_, i) => (
+      {/* Floating particles - softer */}
+      {Array.from({ length: 12 }).map((_, i) => (
         <div
           key={i}
-          className="absolute rounded-full bg-primary/20 animate-float pointer-events-none"
+          className="absolute rounded-full bg-primary/10 pointer-events-none"
           style={{
-            width: 4 + Math.random() * 6,
-            height: 4 + Math.random() * 6,
+            width: 3 + Math.random() * 5,
+            height: 3 + Math.random() * 5,
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`,
+            animation: `float ${6 + Math.random() * 4}s ease-in-out infinite`,
             animationDelay: `${Math.random() * 5}s`,
-            animationDuration: `${4 + Math.random() * 4}s`,
             filter: 'blur(1px)',
           }}
         />
       ))}
 
       {/* Grid pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(239,68,68,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,0.02)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(239,68,68,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,0.015)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-4xl px-6 py-12">
         {/* Step 0: Welcome */}
         {currentStep === 0 && (
-          <div className="text-center animate-fade-in">
-            {/* Logo with glow */}
-            <div className="relative inline-block mb-8">
+          <div className="text-center animate-fade-in flex flex-col items-center">
+            {/* Logo centered above */}
+            <div className="relative mb-8">
               <img 
                 src={v4LogoIcon} 
                 alt="V4 Company" 
-                className="h-24 w-auto drop-shadow-2xl rounded-3xl animate-float mx-auto"
+                className="h-20 w-auto drop-shadow-xl rounded-2xl"
               />
-              <div className="absolute inset-0 bg-primary/30 rounded-3xl blur-2xl -z-10 animate-pulse-slow" />
+              {/* Soft glow behind logo - no animation */}
+              <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl -z-10 scale-150" />
             </div>
 
+            {/* Welcome badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium">Bem-vindo ao MetaAds Manager</span>
             </div>
 
+            {/* Title */}
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Olá! <span className="gradient-text">Vamos começar</span>
             </h1>
             
+            {/* Description */}
             <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-10">
               Sua plataforma completa para gestão e análise de campanhas Meta Ads. 
               Veja um resumo do que você pode fazer.
             </p>
 
+            {/* Button */}
             <Button 
               onClick={handleNext}
               size="lg"
