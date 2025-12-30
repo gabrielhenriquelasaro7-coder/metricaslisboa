@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
+import { useProfile } from '@/hooks/useProfile';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { 
   BarChart3, 
@@ -42,6 +43,7 @@ export default function Sidebar() {
   const { signOut, user } = useAuth();
   const { projects } = useProjects();
   const { campaigns, adSets } = useMetaAdsData();
+  const { profile } = useProfile();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
@@ -322,12 +324,14 @@ export default function Sidebar() {
           <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/30 ring-2 ring-primary/20">
               <span className="text-sm font-bold text-primary-foreground">
-                {user?.email?.[0].toUpperCase()}
+                {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase()}
               </span>
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.email}</p>
+                <p className="text-sm font-medium truncate">
+                  {profile?.full_name || 'Investidor'}
+                </p>
               </div>
             )}
           </div>
