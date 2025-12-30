@@ -657,6 +657,7 @@ export type Database = {
       projects: {
         Row: {
           ad_account_id: string
+          ai_briefing: string | null
           archived: boolean
           archived_at: string | null
           avatar_url: string | null
@@ -675,6 +676,7 @@ export type Database = {
         }
         Insert: {
           ad_account_id: string
+          ai_briefing?: string | null
           archived?: boolean
           archived_at?: string | null
           avatar_url?: string | null
@@ -693,6 +695,7 @@ export type Database = {
         }
         Update: {
           ad_account_id?: string
+          ai_briefing?: string | null
           archived?: boolean
           archived_at?: string | null
           avatar_url?: string | null

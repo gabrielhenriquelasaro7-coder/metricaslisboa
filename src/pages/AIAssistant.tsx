@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Trash2, Bot, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Send, Trash2, Bot, ArrowLeft, RefreshCw, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { ProjectBriefingDialog } from '@/components/ai/ProjectBriefingDialog';
+import { Badge } from '@/components/ui/badge';
 
 interface Message {
   id: string;
@@ -43,6 +45,7 @@ export default function AIAssistant() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
+  const [briefingDialogOpen, setBriefingDialogOpen] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -369,6 +372,19 @@ export default function AIAssistant() {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => setBriefingDialogOpen(true)}
+              title="Configurar briefing do projeto"
+              className="relative"
+            >
+              <Settings2 className="h-4 w-4" />
+              {selectedProject && !(selectedProject as any).ai_briefing && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-metric-warning rounded-full" />
+              )}
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={clearMessages}
               title="Limpar conversa"
             >
@@ -388,10 +404,30 @@ export default function AIAssistant() {
                   <Bot className="h-8 w-8 text-primary" />
                 </div>
                 <h2 className="text-2xl font-semibold mb-2">Agente Lisboa</h2>
-                <p className="text-muted-foreground max-w-md mx-auto mb-8">
+                <p className="text-muted-foreground max-w-md mx-auto mb-4">
                   Analista de performance especializado em Meta Ads. 
                   Faça perguntas sobre suas campanhas e receba diagnósticos baseados em dados.
                 </p>
+                
+                {/* Briefing status */}
+                {selectedProject && (
+                  <div className="mb-8">
+                    {(selectedProject as any).ai_briefing ? (
+                      <Badge variant="outline" className="bg-metric-positive/10 text-metric-positive border-metric-positive/30">
+                        ✓ Briefing configurado
+                      </Badge>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setBriefingDialogOpen(true)}
+                        className="text-metric-warning border-metric-warning/30 hover:bg-metric-warning/10"
+                      >
+                        ⚠️ Configure o briefing para análises mais precisas
+                      </Button>
+                    )}
+                  </div>
+                )}
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg mx-auto">
                   <Button
@@ -539,6 +575,21 @@ export default function AIAssistant() {
           </p>
         </form>
       </div>
+
+      {/* Briefing Dialog */}
+      {selectedProject && (
+        <ProjectBriefingDialog
+          open={briefingDialogOpen}
+          onOpenChange={setBriefingDialogOpen}
+          projectId={selectedProject.id}
+          projectName={selectedProject.name}
+          initialBriefing={(selectedProject as any).ai_briefing}
+          onSaved={() => {
+            // Refresh projects to get updated briefing
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }
