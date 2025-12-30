@@ -443,33 +443,61 @@ Deno.serve(async (req) => {
 
     await supabase.from('projects').update({ webhook_status: 'syncing' }).eq('id', project_id);
 
-    // STEP 1: Fetch all entities
-    const entities = await fetchEntities(ad_account_id, token);
+    // ============ INSIGHTS-FIRST APPROACH ============
+    // Busca insights diretamente - inclui dados de campanhas deletadas/arquivadas
+    // que não aparecem mais na listagem de entidades
     
-    if (entities.campaigns.length === 0) {
-      await supabase.from('projects').update({ webhook_status: 'error' }).eq('id', project_id);
-      return new Response(JSON.stringify({ success: false, error: 'No campaigns found' }), 
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // STEP 1: Fetch daily insights FIRST (time_increment=1)
+    // Isso captura TODOS os dados históricos, incluindo de entidades deletadas
+    const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
+    
+    // Se não há insights, pode ser que realmente não houve atividade no período
+    if (dailyInsights.size === 0) {
+      console.log(`[SYNC] No insights found for period ${since} to ${until}`);
+      // Não retornar erro - pode ser que não houve gasto no período
+      await supabase.from('projects').update({ 
+        webhook_status: 'success',
+        last_sync_at: new Date().toISOString()
+      }).eq('id', project_id);
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'No activity in period',
+        data: {
+          daily_records_count: 0,
+          period: { since, until }
+        }
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Build entity maps for quick lookup
-    const campaignMap = new Map(entities.campaigns.map(c => [c.id, c]));
-    const adsetMap = new Map(entities.adsets.map(a => [a.id, a]));
-    const adMap = new Map(entities.ads.map(a => [a.id, a]));
-    const adImageMap = entities.adImageMap;
+    // STEP 2: Fetch entities for enrichment (optional - for thumbnails and additional data)
+    // Isso é opcional - mesmo sem entidades, os insights já têm todos os dados necessários
+    let adImageMap = new Map<string, string>();
+    let campaignMap = new Map<string, any>();
+    let adsetMap = new Map<string, any>();
+    let adMap = new Map<string, any>();
+    
+    try {
+      const entities = await fetchEntities(ad_account_id, token);
+      campaignMap = new Map(entities.campaigns.map(c => [c.id, c]));
+      adsetMap = new Map(entities.adsets.map(a => [a.id, a]));
+      adMap = new Map(entities.ads.map(a => [a.id, a]));
+      adImageMap = entities.adImageMap;
+      console.log(`[ENTITIES] Loaded for enrichment: ${entities.campaigns.length} campaigns, ${entities.ads.length} ads`);
+    } catch (entityError) {
+      console.log(`[ENTITIES] Could not fetch for enrichment, using insights data only:`, entityError);
+      // Continue without entity enrichment - insights have all required data
+    }
 
-    // STEP 2: Fetch daily insights (time_increment=1)
-    const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
-
-    // STEP 3: Build daily records for ads_daily_metrics
+    // STEP 3: Build daily records - INSIGHTS-FIRST approach
+    // Usa dados dos insights como fonte primária, entidades apenas para enriquecimento
     const dailyRecords: any[] = [];
     
     for (const [adId, dateMap] of dailyInsights) {
+      // Tentar enriquecer com dados de entidades (opcional)
       const ad = adMap.get(adId);
-      if (!ad) continue;
-      
-      const adset = adsetMap.get(ad.adset_id);
-      const campaign = campaignMap.get(ad.campaign_id);
+      const adset = ad ? adsetMap.get(ad.adset_id) : null;
+      const campaign = ad ? campaignMap.get(ad.campaign_id) : null;
       
       for (const [dateKey, insights] of dateMap) {
         const { conversions, conversionValue } = extractConversions(insights);
@@ -478,32 +506,43 @@ Deno.serve(async (req) => {
         const clicks = parseInt(insights.clicks || '0');
         const reach = parseInt(insights.reach || '0');
         
-        // Priority: insights names > entity map names > 'Unknown'
-        // This ensures we get the correct names even for deleted/archived entities
+        // INSIGHTS-FIRST: Usa dados dos insights como fonte primária
+        // Os insights sempre contêm: ad_id, ad_name, adset_id, adset_name, campaign_id, campaign_name
+        const adName = insights.ad_name || ad?.name || 'Unknown';
+        const adsetId = extractId(insights.adset_id) || ad?.adset_id || '';
         const adsetName = insights.adset_name || adset?.name || 'Unknown';
+        const campaignId = extractId(insights.campaign_id) || ad?.campaign_id || '';
         const campaignName = insights.campaign_name || campaign?.name || 'Unknown';
-        const adName = insights.ad_name || ad.name || 'Unknown';
+        
+        // Get creative thumbnail from entity map if available
+        let creativeThumbnail = null;
+        let creativeId = null;
+        if (ad) {
+          creativeId = ad.creative?.id || null;
+          const imageData = extractHdImageUrl(ad, adImageMap);
+          creativeThumbnail = imageData.imageUrl || ad.creative?.thumbnail_url || null;
+        }
         
         dailyRecords.push({
           project_id,
           ad_account_id,
           date: dateKey,
           
-          campaign_id: ad.campaign_id,
+          campaign_id: campaignId,
           campaign_name: campaignName,
-          campaign_status: campaign?.status || 'UNKNOWN',
+          campaign_status: campaign?.status || 'ARCHIVED', // Assume archived if not in entities
           campaign_objective: campaign?.objective || null,
           
-          adset_id: ad.adset_id,
+          adset_id: adsetId,
           adset_name: adsetName,
-          adset_status: adset?.status || 'UNKNOWN',
+          adset_status: adset?.status || 'ARCHIVED',
           
           ad_id: adId,
           ad_name: adName,
-          ad_status: ad.status || 'UNKNOWN',
+          ad_status: ad?.status || 'ARCHIVED',
           
-          creative_id: ad.creative?.id || null,
-          creative_thumbnail: ad.creative?.thumbnail_url || null,
+          creative_id: creativeId,
+          creative_thumbnail: creativeThumbnail,
           
           spend,
           impressions,
