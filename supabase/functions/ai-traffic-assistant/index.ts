@@ -131,14 +131,9 @@ serve(async (req) => {
       analysisType
     });
 
-    console.log('Context built, calling AI Gateway...');
+    console.log('Context built, calling AI Gateway with streaming...');
 
-    // Chamar Lovable AI Gateway
-    const aiResponse = await callLovableAI(LOVABLE_API_KEY, context, message);
-    
-    console.log('AI response received');
-
-    // Prepare context summary for response and cache
+    // Prepare context summary
     const contextSummary = {
       projectName: project.name,
       businessModel: project.business_model,
@@ -147,45 +142,45 @@ serve(async (req) => {
       totalConversions: aggregatedMetrics.conversions
     };
 
-    // Save to cache (async, don't wait)
-    supabase
-      .from('ai_analysis_cache')
-      .insert({
-        project_id: projectId,
-        query_hash: cacheKey,
-        user_message: message,
-        ai_response: aiResponse,
-        context_summary: contextSummary,
-        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
-      })
-      .then(({ error }) => {
-        if (error) {
-          console.error('Error saving to cache:', error);
-        } else {
-          console.log('Response cached successfully');
-        }
-      });
+    // Call Lovable AI Gateway with streaming
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: buildSystemPrompt() },
+          { role: 'user', content: `${context}\n\n=== PERGUNTA DO USUÁRIO ===\n${message}\n\nTake a deep breath and work on this problem step-by-step.` }
+        ],
+        stream: true,
+      }),
+    });
 
-    // Clean up expired cache entries (async, don't wait)
-    supabase
-      .from('ai_analysis_cache')
-      .delete()
-      .lt('expires_at', new Date().toISOString())
-      .then(({ error }) => {
-        if (error) {
-          console.error('Error cleaning cache:', error);
-        } else {
-          console.log('Cleaned expired cache entries');
-        }
-      });
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('AI Gateway error:', aiResponse.status, errorText);
+      
+      if (aiResponse.status === 429) {
+        throw new Error('Limite de requisições excedido. Tente novamente em alguns segundos.');
+      }
+      if (aiResponse.status === 402) {
+        throw new Error('Créditos de IA esgotados. Adicione mais créditos em Settings.');
+      }
+      
+      throw new Error(`Erro no AI Gateway: ${aiResponse.status}`);
+    }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      response: aiResponse,
-      context: contextSummary,
-      cached: false
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Stream the response directly to the client
+    return new Response(aiResponse.body, {
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      },
     });
 
   } catch (error) {
@@ -308,8 +303,8 @@ ${campaignsText || 'Nenhuma campanha encontrada'}
 `;
 }
 
-async function callLovableAI(apiKey: string, context: string, userMessage: string) {
-  const systemPrompt = `<role>
+function buildSystemPrompt() {
+  return `<role>
 Você é um analista sênior de performance e inteligência de dados em mídia paga, especializado em Meta Ads para Inside Sales e E-commerce, com forte background em estatística, análise temporal, leitura de gráficos e diagnóstico de métricas de funil.
 
 Você atua como um motor analítico, responsável por interpretar grandes volumes de métricas, identificar padrões, variações, tendências e anomalias de performance ao longo do tempo, sempre com foco em resultado financeiro e eficiência de aquisição.
@@ -352,42 +347,4 @@ O foco é Inside Sales e E-commerce, respeitando as particularidades de cada mod
 - Seja direto, objetivo e executivo
 - Priorize ações por impacto financeiro
 </output_rules>`;
-
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `${context}\n\n=== PERGUNTA DO USUÁRIO ===\n${userMessage}\n\nTake a deep breath and work on this problem step-by-step.` }
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('AI Gateway error:', response.status, errorText);
-    
-    if (response.status === 429) {
-      throw new Error('Limite de requisições excedido. Tente novamente em alguns segundos.');
-    }
-    if (response.status === 402) {
-      throw new Error('Créditos de IA esgotados. Adicione mais créditos em Settings.');
-    }
-    
-    throw new Error(`Erro no AI Gateway: ${response.status}`);
-  }
-
-  const data = await response.json();
-  console.log('AI Gateway response received');
-
-  if (data.choices && data.choices[0]?.message?.content) {
-    return data.choices[0].message.content;
-  }
-
-  throw new Error('Resposta inválida do AI Gateway');
 }
