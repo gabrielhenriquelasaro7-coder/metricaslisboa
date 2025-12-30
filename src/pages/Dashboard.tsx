@@ -285,7 +285,6 @@ export default function Dashboard() {
                 businessModel={businessModel || null}
                 currency={selectedProject.currency || 'BRL'}
                 currentPeriod={getDateRangeFromPreset(selectedPreset, projectTimezone) || { since: format(new Date(), 'yyyy-MM-dd'), until: format(new Date(), 'yyyy-MM-dd') }}
-                chartRef={chartRef}
               />
             )}
             
