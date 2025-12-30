@@ -73,10 +73,10 @@ Deno.serve(async (req) => {
     
     console.log(`[MONTH-IMPORT] Starting ${monthName} ${year} for project ${project_id}`);
     
-    // Check if already importing or completed recently
+    // Check if already importing
     const { data: existingMonth } = await supabase
       .from('project_import_months')
-      .select('status, completed_at')
+      .select('id, status, completed_at')
       .eq('project_id', project_id)
       .eq('year', year)
       .eq('month', month)
@@ -90,17 +90,32 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Update status to importing
-    await supabase
-      .from('project_import_months')
-      .update({
-        status: 'importing',
-        started_at: new Date().toISOString(),
-        error_message: null,
-      })
-      .eq('project_id', project_id)
-      .eq('year', year)
-      .eq('month', month);
+    // Create or update the month record - UPSERT pattern
+    if (existingMonth) {
+      // Update existing record
+      await supabase
+        .from('project_import_months')
+        .update({
+          status: 'importing',
+          started_at: new Date().toISOString(),
+          error_message: null,
+        })
+        .eq('id', existingMonth.id);
+    } else {
+      // Create new record
+      console.log(`[MONTH-IMPORT] Creating new record for ${monthName} ${year}`);
+      await supabase
+        .from('project_import_months')
+        .insert({
+          project_id,
+          year,
+          month,
+          status: 'importing',
+          started_at: new Date().toISOString(),
+          records_count: 0,
+          retry_count: 0,
+        });
+    }
     
     // Get project details
     const { data: project, error: projectError } = await supabase
