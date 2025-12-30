@@ -48,58 +48,33 @@ function formatPercentChange(current: number, previous: number): string {
   return `${emoji} ${sign}${change.toFixed(0)}%`;
 }
 
-function buildWeeklyReportMessage(metrics: WeeklyMetrics[], weekRange: string): string {
+function buildWeeklyReportMessage(metrics: WeeklyMetrics, weekRange: string): string {
   const lines: string[] = [];
+  const m = metrics;
   
   lines.push('📊 *Relatório Semanal de Tráfego*');
   lines.push(`📅 ${weekRange}`);
   lines.push('');
   lines.push('━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+  lines.push(`🎯 *${m.projectName}*`);
+  lines.push('');
+  lines.push(`💰 Investido: ${formatCurrency(m.spend)}`);
+  lines.push(`👥 Leads: ${m.conversions} ${formatPercentChange(m.conversions, m.prevConversions)}`);
+  lines.push(`📊 CPL: ${formatCurrency(m.cpl)} ${formatPercentChange(m.cpl, m.prevCpl)}`);
+  lines.push(`👁️ Impressões: ${formatNumber(m.impressions)}`);
+  lines.push(`👆 Cliques: ${formatNumber(m.clicks)}`);
+  lines.push(`📈 CTR: ${m.ctr.toFixed(2)}%`);
   
-  let totalSpend = 0;
-  let totalConversions = 0;
-  let totalConversionValue = 0;
-
-  for (const m of metrics) {
-    totalSpend += m.spend;
-    totalConversions += m.conversions;
-    totalConversionValue += m.conversionValue;
-
-    lines.push('');
-    lines.push(`🎯 *${m.projectName}*`);
-    lines.push('');
-    lines.push(`💰 Investido: ${formatCurrency(m.spend)}`);
-    lines.push(`👥 Leads: ${m.conversions} ${formatPercentChange(m.conversions, m.prevConversions)}`);
-    lines.push(`📊 CPL: ${formatCurrency(m.cpl)} ${formatPercentChange(m.cpl, m.prevCpl)}`);
-    lines.push(`👁️ Impressões: ${formatNumber(m.impressions)}`);
-    lines.push(`👆 Cliques: ${formatNumber(m.clicks)}`);
-    lines.push(`📈 CTR: ${m.ctr.toFixed(2)}%`);
-    
-    if (m.roas > 0) {
-      lines.push(`💎 ROAS: ${m.roas.toFixed(2)}x`);
-    }
-    
-    lines.push('');
-    lines.push('━━━━━━━━━━━━━━━━━━━━━');
+  if (m.roas > 0) {
+    lines.push(`💎 ROAS: ${m.roas.toFixed(2)}x`);
   }
-
-  if (metrics.length > 1) {
-    lines.push('');
-    lines.push('📋 *RESUMO GERAL*');
-    lines.push('');
-    lines.push(`💰 Total investido: ${formatCurrency(totalSpend)}`);
-    lines.push(`👥 Total leads: ${totalConversions}`);
-    if (totalConversions > 0) {
-      lines.push(`📊 CPL médio: ${formatCurrency(totalSpend / totalConversions)}`);
-    }
-    if (totalConversionValue > 0) {
-      lines.push(`💎 Valor gerado: ${formatCurrency(totalConversionValue)}`);
-    }
-  }
-
+  
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
   lines.push('_Relatório gerado automaticamente pela V4 Company_');
-  lines.push('_Para configurar, acesse as configurações do dashboard_');
+  lines.push('_Para configurar, acesse WhatsApp no dashboard_');
 
   return lines.join('\n');
 }
@@ -155,7 +130,8 @@ Deno.serve(async (req) => {
     let subscriptionsQuery = supabase
       .from('whatsapp_subscriptions')
       .select('*')
-      .eq('weekly_report_enabled', true);
+      .eq('weekly_report_enabled', true)
+      .not('project_id', 'is', null);
 
     if (targetSubscriptionId) {
       // Manual trigger for specific subscription
@@ -190,101 +166,88 @@ Deno.serve(async (req) => {
       try {
         console.log(`[WEEKLY-REPORT] Processing subscription ${subscription.id} for phone ${subscription.phone_number}`);
 
-        // Get project IDs to report on
-        let projectIds = subscription.projects_to_report || [];
+        const projectId = subscription.project_id;
         
-        // If no specific projects, get all user's projects
-        if (projectIds.length === 0) {
-          const { data: userProjects } = await supabase
-            .from('projects')
-            .select('id')
-            .eq('user_id', subscription.user_id)
-            .eq('archived', false);
-          
-          projectIds = userProjects?.map(p => p.id) || [];
-        }
-
-        if (projectIds.length === 0) {
-          console.log(`[WEEKLY-REPORT] No projects found for subscription ${subscription.id}`);
+        if (!projectId) {
+          console.log(`[WEEKLY-REPORT] No project_id for subscription ${subscription.id}, skipping`);
           continue;
         }
 
-        const metrics: WeeklyMetrics[] = [];
+        // Get project name
+        const { data: project } = await supabase
+          .from('projects')
+          .select('name')
+          .eq('id', projectId)
+          .single();
 
-        for (const projectId of projectIds) {
-          // Get project name
-          const { data: project } = await supabase
-            .from('projects')
-            .select('name')
-            .eq('id', projectId)
-            .single();
-
-          if (!project) continue;
-
-          // Get current week metrics
-          const { data: currentData } = await supabase
-            .from('ads_daily_metrics')
-            .select('spend, impressions, clicks, reach, conversions, conversion_value')
-            .eq('project_id', projectId)
-            .gte('date', startDateStr)
-            .lte('date', endDateStr);
-
-          // Get previous week metrics
-          const { data: prevData } = await supabase
-            .from('ads_daily_metrics')
-            .select('spend, conversions')
-            .eq('project_id', projectId)
-            .gte('date', prevStartDateStr)
-            .lte('date', prevEndDateStr);
-
-          // Aggregate current week
-          const current = (currentData || []).reduce(
-            (acc, row) => ({
-              spend: acc.spend + (Number(row.spend) || 0),
-              impressions: acc.impressions + (Number(row.impressions) || 0),
-              clicks: acc.clicks + (Number(row.clicks) || 0),
-              reach: acc.reach + (Number(row.reach) || 0),
-              conversions: acc.conversions + (Number(row.conversions) || 0),
-              conversionValue: acc.conversionValue + (Number(row.conversion_value) || 0),
-            }),
-            { spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversionValue: 0 }
-          );
-
-          // Aggregate previous week
-          const prev = (prevData || []).reduce(
-            (acc, row) => ({
-              spend: acc.spend + (Number(row.spend) || 0),
-              conversions: acc.conversions + (Number(row.conversions) || 0),
-            }),
-            { spend: 0, conversions: 0 }
-          );
-
-          const cpl = current.conversions > 0 ? current.spend / current.conversions : 0;
-          const prevCpl = prev.conversions > 0 ? prev.spend / prev.conversions : 0;
-          const ctr = current.impressions > 0 ? (current.clicks / current.impressions) * 100 : 0;
-          const roas = current.spend > 0 ? current.conversionValue / current.spend : 0;
-
-          metrics.push({
-            projectName: project.name,
-            spend: current.spend,
-            impressions: current.impressions,
-            clicks: current.clicks,
-            reach: current.reach,
-            conversions: current.conversions,
-            conversionValue: current.conversionValue,
-            cpl,
-            ctr,
-            roas,
-            prevSpend: prev.spend,
-            prevConversions: prev.conversions,
-            prevCpl,
-          });
+        if (!project) {
+          console.log(`[WEEKLY-REPORT] Project not found for subscription ${subscription.id}`);
+          continue;
         }
 
-        if (metrics.length === 0 || metrics.every(m => m.spend === 0 && m.conversions === 0)) {
+        // Get current week metrics
+        const { data: currentData } = await supabase
+          .from('ads_daily_metrics')
+          .select('spend, impressions, clicks, reach, conversions, conversion_value')
+          .eq('project_id', projectId)
+          .gte('date', startDateStr)
+          .lte('date', endDateStr);
+
+        // Get previous week metrics
+        const { data: prevData } = await supabase
+          .from('ads_daily_metrics')
+          .select('spend, conversions')
+          .eq('project_id', projectId)
+          .gte('date', prevStartDateStr)
+          .lte('date', prevEndDateStr);
+
+        // Aggregate current week
+        const current = (currentData || []).reduce(
+          (acc, row) => ({
+            spend: acc.spend + (Number(row.spend) || 0),
+            impressions: acc.impressions + (Number(row.impressions) || 0),
+            clicks: acc.clicks + (Number(row.clicks) || 0),
+            reach: acc.reach + (Number(row.reach) || 0),
+            conversions: acc.conversions + (Number(row.conversions) || 0),
+            conversionValue: acc.conversionValue + (Number(row.conversion_value) || 0),
+          }),
+          { spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversionValue: 0 }
+        );
+
+        // Aggregate previous week
+        const prev = (prevData || []).reduce(
+          (acc, row) => ({
+            spend: acc.spend + (Number(row.spend) || 0),
+            conversions: acc.conversions + (Number(row.conversions) || 0),
+          }),
+          { spend: 0, conversions: 0 }
+        );
+
+        if (current.spend === 0 && current.conversions === 0) {
           console.log(`[WEEKLY-REPORT] No data for subscription ${subscription.id}, skipping`);
           continue;
         }
+
+        const cpl = current.conversions > 0 ? current.spend / current.conversions : 0;
+        const prevCpl = prev.conversions > 0 ? prev.spend / prev.conversions : 0;
+        const ctr = current.impressions > 0 ? (current.clicks / current.impressions) * 100 : 0;
+        const roas = current.spend > 0 ? current.conversionValue / current.spend : 0;
+
+        const metrics: WeeklyMetrics = {
+          projectName: project.name,
+          spend: current.spend,
+          impressions: current.impressions,
+          clicks: current.clicks,
+          reach: current.reach,
+          conversions: current.conversions,
+          conversionValue: current.conversionValue,
+          cpl,
+          ctr,
+          roas,
+          prevSpend: prev.spend,
+          prevConversions: prev.conversions,
+          prevCpl,
+        };
 
         // Build the message
         const message = buildWeeklyReportMessage(metrics, weekRange);

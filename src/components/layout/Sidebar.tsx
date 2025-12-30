@@ -19,7 +19,8 @@ import {
   ChevronUp,
   Image as ImageIcon,
   Database,
-  Bot
+  Bot,
+  MessageSquare
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -315,6 +316,18 @@ export default function Sidebar() {
 
           {/* Admin & Settings at bottom */}
           <div className="space-y-1 mt-4">
+            {/* WhatsApp */}
+            <Link
+              to="/whatsapp"
+              className={cn(
+                'sidebar-item',
+                location.pathname === '/whatsapp' && 'active'
+              )}
+            >
+              <MessageSquare className="w-5 h-5 flex-shrink-0" />
+              {!collapsed && <span>WhatsApp</span>}
+            </Link>
+
             {/* Admin */}
             <Link
               to="/admin"

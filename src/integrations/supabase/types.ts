@@ -814,7 +814,7 @@ export type Database = {
           id: string
           last_report_sent_at: string | null
           phone_number: string
-          projects_to_report: string[] | null
+          project_id: string | null
           report_day_of_week: number | null
           report_time: string | null
           updated_at: string | null
@@ -826,7 +826,7 @@ export type Database = {
           id?: string
           last_report_sent_at?: string | null
           phone_number: string
-          projects_to_report?: string[] | null
+          project_id?: string | null
           report_day_of_week?: number | null
           report_time?: string | null
           updated_at?: string | null
@@ -838,14 +838,22 @@ export type Database = {
           id?: string
           last_report_sent_at?: string | null
           phone_number?: string
-          projects_to_report?: string[] | null
+          project_id?: string | null
           report_day_of_week?: number | null
           report_time?: string | null
           updated_at?: string | null
           user_id?: string
           weekly_report_enabled?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_subscriptions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

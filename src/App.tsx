@@ -22,6 +22,7 @@ import Settings from "./pages/Settings";
 import SyncHistory from "./pages/SyncHistory";
 import Admin from "./pages/Admin";
 import AIAssistant from "./pages/AIAssistant";
+import WhatsApp from "./pages/WhatsApp";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
                 <Route path="/sync-history" element={<SyncHistory />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/ai-assistant" element={<AIAssistant />} />
+                <Route path="/whatsapp" element={<WhatsApp />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
