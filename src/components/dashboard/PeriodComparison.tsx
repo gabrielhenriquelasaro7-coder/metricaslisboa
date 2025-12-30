@@ -74,12 +74,14 @@ export default function PeriodComparison({
   previousMetrics, 
   businessModel,
   currentPeriodLabel = 'Período Atual',
-  previousPeriodLabel = 'Período Anterior'
+  previousPeriodLabel = 'Período Anterior',
+  currency = 'BRL'
 }: PeriodComparisonProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
+  const formatCurrencyValue = (value: number) => {
+    const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'BRL',
+      currency: currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
@@ -102,8 +104,8 @@ export default function PeriodComparison({
     const items = [
       {
         label: 'Gasto',
-        current: formatCurrency(currentMetrics.totalSpend),
-        previous: formatCurrency(previousMetrics.totalSpend),
+        current: formatCurrencyValue(currentMetrics.totalSpend),
+        previous: formatCurrencyValue(previousMetrics.totalSpend),
         change: calculateChange(currentMetrics.totalSpend, previousMetrics.totalSpend),
         isInverse: false,
       },
@@ -149,15 +151,15 @@ export default function PeriodComparison({
         },
         {
           label: 'Receita',
-          current: formatCurrency(currentMetrics.totalConversionValue),
-          previous: formatCurrency(previousMetrics.totalConversionValue),
+          current: formatCurrencyValue(currentMetrics.totalConversionValue),
+          previous: formatCurrencyValue(previousMetrics.totalConversionValue),
           change: calculateChange(currentMetrics.totalConversionValue, previousMetrics.totalConversionValue),
           isInverse: false,
         },
         {
           label: 'CPA',
-          current: formatCurrency(currentMetrics.cpa),
-          previous: formatCurrency(previousMetrics.cpa),
+          current: formatCurrencyValue(currentMetrics.cpa),
+          previous: formatCurrencyValue(previousMetrics.cpa),
           change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
           isInverse: true,
         }
@@ -173,8 +175,8 @@ export default function PeriodComparison({
         },
         {
           label: 'CPL',
-          current: formatCurrency(currentMetrics.cpa),
-          previous: formatCurrency(previousMetrics.cpa),
+          current: formatCurrencyValue(currentMetrics.cpa),
+          previous: formatCurrencyValue(previousMetrics.cpa),
           change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
           isInverse: true,
         }
@@ -190,8 +192,8 @@ export default function PeriodComparison({
         },
         {
           label: 'Custo/Visita',
-          current: formatCurrency(currentMetrics.cpa),
-          previous: formatCurrency(previousMetrics.cpa),
+          current: formatCurrencyValue(currentMetrics.cpa),
+          previous: formatCurrencyValue(previousMetrics.cpa),
           change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
           isInverse: true,
         }
