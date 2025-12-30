@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useProfile } from '@/hooks/useProfile';
+import v4LogoFull from '@/assets/v4-logo-full.png';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { 
   BarChart3, 
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -108,15 +110,14 @@ export default function Sidebar() {
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
           <Link to="/projects" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 logo-glow red-glow-pulse">
-              <span className="text-lg font-black text-primary-foreground">V4</span>
-            </div>
-            {!collapsed && (
-              <div className="flex flex-col">
-                <span className="text-sm font-bold leading-tight">V4 Company</span>
-                <span className="text-xs text-muted-foreground leading-tight">Lisboa & Co</span>
-              </div>
-            )}
+            <img 
+              src={v4LogoFull} 
+              alt="V4 Company" 
+              className={cn(
+                "transition-all",
+                collapsed ? "h-8 w-auto" : "h-10 w-auto"
+              )}
+            />
           </Link>
           <Button
             variant="ghost"
@@ -322,11 +323,12 @@ export default function Sidebar() {
         {/* User section */}
         <div className="p-4 border-t border-sidebar-border">
           <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/30 ring-2 ring-primary/20">
-              <span className="text-sm font-bold text-primary-foreground">
+            <Avatar className="w-10 h-10 ring-2 ring-primary/20 shadow-lg shadow-primary/30">
+              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground font-bold">
                 {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase()}
-              </span>
-            </div>
+              </AvatarFallback>
+            </Avatar>
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
