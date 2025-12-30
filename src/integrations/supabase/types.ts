@@ -770,6 +770,56 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_instances: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          instance_name: string
+          instance_status: string
+          phone_connected: string | null
+          project_id: string
+          qr_code: string | null
+          qr_code_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          instance_name: string
+          instance_status?: string
+          phone_connected?: string | null
+          project_id: string
+          qr_code?: string | null
+          qr_code_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          instance_name?: string
+          instance_status?: string
+          phone_connected?: string | null
+          project_id?: string
+          qr_code?: string | null
+          qr_code_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_instances_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_messages_log: {
         Row: {
           content: string | null
@@ -811,6 +861,8 @@ export type Database = {
       whatsapp_subscriptions: {
         Row: {
           created_at: string | null
+          group_id: string | null
+          group_name: string | null
           id: string
           include_clicks: boolean | null
           include_conversion_value: boolean | null
@@ -825,6 +877,7 @@ export type Database = {
           include_reach: boolean | null
           include_roas: boolean | null
           include_spend: boolean | null
+          instance_id: string | null
           last_report_sent_at: string | null
           message_template: string | null
           phone_number: string
@@ -832,12 +885,15 @@ export type Database = {
           report_day_of_week: number | null
           report_period: string | null
           report_time: string | null
+          target_type: string
           updated_at: string | null
           user_id: string
           weekly_report_enabled: boolean | null
         }
         Insert: {
           created_at?: string | null
+          group_id?: string | null
+          group_name?: string | null
           id?: string
           include_clicks?: boolean | null
           include_conversion_value?: boolean | null
@@ -852,6 +908,7 @@ export type Database = {
           include_reach?: boolean | null
           include_roas?: boolean | null
           include_spend?: boolean | null
+          instance_id?: string | null
           last_report_sent_at?: string | null
           message_template?: string | null
           phone_number: string
@@ -859,12 +916,15 @@ export type Database = {
           report_day_of_week?: number | null
           report_period?: string | null
           report_time?: string | null
+          target_type?: string
           updated_at?: string | null
           user_id: string
           weekly_report_enabled?: boolean | null
         }
         Update: {
           created_at?: string | null
+          group_id?: string | null
+          group_name?: string | null
           id?: string
           include_clicks?: boolean | null
           include_conversion_value?: boolean | null
@@ -879,6 +939,7 @@ export type Database = {
           include_reach?: boolean | null
           include_roas?: boolean | null
           include_spend?: boolean | null
+          instance_id?: string | null
           last_report_sent_at?: string | null
           message_template?: string | null
           phone_number?: string
@@ -886,11 +947,19 @@ export type Database = {
           report_day_of_week?: number | null
           report_period?: string | null
           report_time?: string | null
+          target_type?: string
           updated_at?: string | null
           user_id?: string
           weekly_report_enabled?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "whatsapp_subscriptions_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "whatsapp_subscriptions_project_id_fkey"
             columns: ["project_id"]
