@@ -11,6 +11,9 @@ import { PDFBuilderDialog } from '@/components/pdf/PDFBuilderDialog';
 import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { useDailyMetrics } from '@/hooks/useDailyMetrics';
+import { useAIAssistant } from '@/hooks/useAIAssistant';
+import { AIAssistantButton } from '@/components/ai/AIAssistantButton';
+import { AIAssistantChat } from '@/components/ai/AIAssistantChat';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { 
@@ -38,6 +41,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { cn } from '@/lib/utils';
 import v4LogoFull from '@/assets/v4-logo-full.png';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 export default function Dashboard() {
   const { projects, loading: projectsLoading } = useProjects();
@@ -52,6 +56,23 @@ export default function Dashboard() {
   // Get campaigns and selected project from hook (uses localStorage)
   const { campaigns, loading: dataLoading, syncing, syncData, syncDemographics, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
   
+  // Calculate date strings for AI Assistant
+  const aiDateRange = useMemo(() => {
+    const period = getDateRangeFromPreset(selectedPreset, selectedProject?.timezone || 'America/Sao_Paulo');
+    if (period) {
+      return { startDate: period.since, endDate: period.until };
+    }
+    return { startDate: format(new Date(), 'yyyy-MM-dd'), endDate: format(new Date(), 'yyyy-MM-dd') };
+  }, [selectedPreset, selectedProject?.timezone]);
+
+  // AI Assistant hook
+  const aiAssistant = useAIAssistant({
+    projectId: selectedProject?.id || null,
+    startDate: aiDateRange.startDate,
+    endDate: aiDateRange.endDate,
+  });
+
+  // Get daily metrics for charts
   // Get daily metrics for charts
   const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset);
   
@@ -673,6 +694,26 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      {/* AI Assistant */}
+      {hasSelectedProject && (
+        <>
+          <AIAssistantButton onClick={aiAssistant.toggleOpen} isOpen={aiAssistant.isOpen} />
+          <Sheet open={aiAssistant.isOpen} onOpenChange={aiAssistant.setIsOpen}>
+            <SheetContent side="right" className="w-[400px] sm:w-[450px] p-0">
+              <AIAssistantChat
+                messages={aiAssistant.messages}
+                isLoading={aiAssistant.isLoading}
+                onSendMessage={aiAssistant.sendMessage}
+                onClearMessages={aiAssistant.clearMessages}
+                onClose={aiAssistant.toggleOpen}
+                projectName={selectedProject?.name}
+                periodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? 'Últimos 7 dias' : selectedPreset === 'last_30d' ? 'Últimos 30 dias' : 'Período'}
+              />
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
     </DashboardLayout>
   );
 }
