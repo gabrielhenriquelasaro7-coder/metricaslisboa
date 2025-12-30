@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { FileText, Download, Loader2, Calendar, Upload, X, LayoutTemplate, PieChart, Users, Smartphone, Globe, TrendingUp } from 'lucide-react';
+import { FileText, Download, Loader2, Calendar, Upload, X, LayoutTemplate, PieChart, Users, Smartphone, Globe, TrendingUp, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { usePDFMetrics } from '@/hooks/usePDFMetrics';
+import { usePDFMetrics, CampaignData } from '@/hooks/usePDFMetrics';
 import { useDemographicInsights, DemographicData } from '@/hooks/useDemographicInsights';
 import { format, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -39,6 +39,7 @@ import {
 } from 'recharts';
 
 type BusinessModel = 'ecommerce' | 'inside_sales' | 'pdv' | null;
+type CampaignSortBy = 'spend' | 'conversions' | 'roas';
 
 interface MetricDef {
   key: string;
@@ -269,8 +270,23 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
   // Multi-page
   const [multiPageMode, setMultiPageMode] = useState<'single' | 'weekly' | 'monthly'>('single');
   
-  const { dailyData, totals, loading, loadMetrics } = usePDFMetrics(projectId);
+  // Top Campaigns
+  const [includeCampaigns, setIncludeCampaigns] = useState(false);
+  const [campaignCount, setCampaignCount] = useState<'5' | '10'>('5');
+  const [campaignSortBy, setCampaignSortBy] = useState<CampaignSortBy>('spend');
+  
+  const { dailyData, totals, loading, campaigns, loadMetrics } = usePDFMetrics(projectId);
   const resultDefs = businessModel ? RESULT_METRICS[businessModel] || [] : [];
+  
+  // Sort and filter campaigns
+  const topCampaigns = useMemo(() => {
+    const sorted = [...campaigns].sort((a, b) => {
+      if (campaignSortBy === 'spend') return b.spend - a.spend;
+      if (campaignSortBy === 'conversions') return b.conversions - a.conversions;
+      return b.roas - a.roas;
+    });
+    return sorted.slice(0, parseInt(campaignCount));
+  }, [campaigns, campaignSortBy, campaignCount]);
 
   const activePeriod = useMemo(() => {
     if (useDashboardPeriod) return currentPeriod;
@@ -559,6 +575,78 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
         }
       }
       
+      // Top Campaigns
+      if (includeCampaigns && topCampaigns.length > 0) {
+        // Check if we need a new page
+        if (y > ph - 80) {
+          doc.addPage();
+          y = 20;
+        }
+        
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(33, 33, 33);
+        const sortLabel = campaignSortBy === 'spend' ? 'Gasto' : campaignSortBy === 'conversions' ? 'Conversões' : 'ROAS';
+        doc.text(`Top ${campaignCount} Campanhas por ${sortLabel}`, m, y);
+        y += 8;
+        
+        // Table header
+        const colWidths = [70, 30, 25, 35]; // Campaign, Spend, Conv, ROAS/CPA
+        const tableWidth = colWidths.reduce((a, b) => a + b, 0);
+        const startX = m;
+        
+        doc.setFillColor(248, 249, 250);
+        doc.rect(startX, y, tableWidth, 8, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(55, 65, 81);
+        
+        let xPos = startX + 2;
+        doc.text('Campanha', xPos, y + 5);
+        xPos += colWidths[0];
+        doc.text('Gasto', xPos + colWidths[1] - 2, y + 5, { align: 'right' });
+        xPos += colWidths[1];
+        doc.text('Conv.', xPos + colWidths[2] - 2, y + 5, { align: 'right' });
+        xPos += colWidths[2];
+        doc.text(businessModel === 'ecommerce' ? 'ROAS' : 'CPA', xPos + colWidths[3] - 2, y + 5, { align: 'right' });
+        
+        y += 8;
+        
+        // Table rows
+        doc.setFont('helvetica', 'normal');
+        topCampaigns.forEach((c, idx) => {
+          if (idx % 2 === 0) {
+            doc.setFillColor(255, 255, 255);
+          } else {
+            doc.setFillColor(249, 250, 251);
+          }
+          doc.rect(startX, y, tableWidth, 7, 'F');
+          
+          doc.setFontSize(7);
+          doc.setTextColor(31, 41, 55);
+          
+          let xPos = startX + 2;
+          const campaignName = c.campaign_name.length > 30 ? c.campaign_name.substring(0, 28) + '...' : c.campaign_name;
+          doc.text(campaignName, xPos, y + 5);
+          
+          xPos += colWidths[0];
+          doc.text(fmtCurrency(c.spend, currency), xPos + colWidths[1] - 2, y + 5, { align: 'right' });
+          
+          xPos += colWidths[1];
+          doc.text(fmtNumber(c.conversions), xPos + colWidths[2] - 2, y + 5, { align: 'right' });
+          
+          xPos += colWidths[2];
+          doc.setTextColor(rgb.r, rgb.g, rgb.b);
+          const roasValue = businessModel === 'ecommerce' ? `${c.roas.toFixed(2)}x` : fmtCurrency(c.cpa, currency);
+          doc.text(roasValue, xPos + colWidths[3] - 2, y + 5, { align: 'right' });
+          doc.setTextColor(31, 41, 55);
+          
+          y += 7;
+        });
+        
+        y += 10;
+      }
+      
       // Footer
       doc.setFillColor(rgb.r, rgb.g, rgb.b);
       doc.rect(0, ph - 15, pw, 15, 'F');
@@ -834,7 +922,38 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                 )}
               </div>
               
-              {/* Logo */}
+              {/* Top Campaigns */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium uppercase text-muted-foreground flex items-center gap-1">
+                  <Trophy className="h-3 w-3" /> Top Campanhas
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Switch checked={includeCampaigns} onCheckedChange={setIncludeCampaigns} id="include-campaigns" />
+                  <Label htmlFor="include-campaigns" className="text-sm font-normal">Incluir top campanhas</Label>
+                </div>
+                {includeCampaigns && (
+                  <div className="space-y-2 mt-2 pl-2 border-l-2 border-amber-500/50">
+                    <div className="flex gap-2">
+                      <Button variant={campaignCount === '5' ? 'default' : 'outline'} size="sm" onClick={() => setCampaignCount('5')} className="flex-1 h-7 text-xs">Top 5</Button>
+                      <Button variant={campaignCount === '10' ? 'default' : 'outline'} size="sm" onClick={() => setCampaignCount('10')} className="flex-1 h-7 text-xs">Top 10</Button>
+                    </div>
+                    <Select value={campaignSortBy} onValueChange={(v) => setCampaignSortBy(v as CampaignSortBy)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Ordenar por" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50">
+                        <SelectItem value="spend">Por Gasto</SelectItem>
+                        <SelectItem value="conversions">Por Conversões</SelectItem>
+                        <SelectItem value="roas">Por ROAS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {campaigns.length === 0 && !loading && (
+                      <p className="text-[10px] text-amber-600">Sem dados de campanhas para o período</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              
               <div className="space-y-2">
                 <Label className="text-xs font-medium uppercase text-muted-foreground">Logo</Label>
                 <input type="file" accept="image/*" onChange={handleLogoUpload} ref={logoInputRef} className="hidden" />
@@ -1155,8 +1274,41 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                         )}
                         {demoPlatform && demographicData?.publisher_platform && demographicData.publisher_platform.length > 0 && (
                           <DemoPieChart data={demographicData.publisher_platform} type="publisher_platform" title="Plataformas" icon={Globe} id="pdf-demo-platform" />
-                        )}
+                  )}
+                  
+                  {/* Top Campaigns Preview */}
+                  {includeCampaigns && topCampaigns.length > 0 && (
+                    <div>
+                      <h2 className="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
+                        <Trophy className="w-3 h-3" /> Top {campaignCount} Campanhas por {campaignSortBy === 'spend' ? 'Gasto' : campaignSortBy === 'conversions' ? 'Conversões' : 'ROAS'}
+                      </h2>
+                      <div id="pdf-campaigns-table" className="bg-white rounded border overflow-hidden">
+                        <table className="w-full text-[9px]">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="text-left px-2 py-1.5 font-semibold text-gray-700">Campanha</th>
+                              <th className="text-right px-2 py-1.5 font-semibold text-gray-700">Gasto</th>
+                              <th className="text-right px-2 py-1.5 font-semibold text-gray-700">Conv.</th>
+                              <th className="text-right px-2 py-1.5 font-semibold text-gray-700">{businessModel === 'ecommerce' ? 'ROAS' : 'CPA'}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {topCampaigns.map((c, idx) => (
+                              <tr key={c.campaign_id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                                <td className="px-2 py-1.5 text-gray-800 truncate max-w-[120px]" title={c.campaign_name}>{c.campaign_name}</td>
+                                <td className="text-right px-2 py-1.5 text-gray-800 font-medium">{fmtCurrency(c.spend, currency)}</td>
+                                <td className="text-right px-2 py-1.5 text-gray-800">{fmtNumber(c.conversions)}</td>
+                                <td className="text-right px-2 py-1.5 font-medium" style={{ color: primaryColor }}>
+                                  {businessModel === 'ecommerce' ? `${c.roas.toFixed(2)}x` : fmtCurrency(c.cpa, currency)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
+                    </div>
+                  )}
+                </div>
                     </div>
                   )}
                 </div>
