@@ -140,6 +140,7 @@ export default function Settings() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState('');
   const [notifications, setNotifications] = useState<NotificationSettings>({
     emailReports: true,
@@ -298,6 +299,59 @@ export default function Settings() {
     }
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por favor, selecione uma imagem válida');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('A imagem deve ter no máximo 5MB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `user-avatars/${fileName}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('project-avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('project-avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
+      toast.success('Foto atualizada com sucesso!');
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast.error('Erro ao fazer upload da foto');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     toast.error('Funcionalidade em desenvolvimento');
   };
@@ -429,13 +483,25 @@ export default function Settings() {
                         {fullName?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <button className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg">
-                      <Camera className="w-4 h-4" />
-                    </button>
+                    <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg cursor-pointer">
+                      {uploadingAvatar ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Camera className="w-4 h-4" />
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                        disabled={uploadingAvatar}
+                      />
+                    </label>
                   </div>
                   <div>
                     <p className="font-semibold text-lg">{fullName || 'Sem nome'}</p>
                     <p className="text-sm text-muted-foreground">{user?.email}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Clique no ícone para alterar a foto</p>
                   </div>
                 </div>
 
