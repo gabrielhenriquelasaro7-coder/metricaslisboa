@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Trash2, Sparkles, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Send, Trash2, Bot, ArrowLeft, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,7 +8,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +17,11 @@ interface Message {
   content: string;
   timestamp: Date;
   cached?: boolean;
+  isStreaming?: boolean;
 }
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 const datePresets: { value: DatePresetKey; label: string }[] = [
   { value: 'yesterday', label: 'Ontem' },
@@ -43,6 +46,7 @@ export default function AIAssistant() {
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Get active projects
   const activeProjects = useMemo(() => 
@@ -92,6 +96,11 @@ export default function AIAssistant() {
   const sendMessage = async (content: string, skipCache = false) => {
     if (!selectedProjectId || !content.trim()) return;
 
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -99,55 +108,147 @@ export default function AIAssistant() {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    // Create placeholder for assistant message with streaming flag
+    const assistantMessageId = `assistant-${Date.now()}`;
+    
+    setMessages(prev => [...prev, userMessage, {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      isStreaming: true,
+    }]);
     setInput('');
     setIsLoading(true);
 
+    abortControllerRef.current = new AbortController();
+
     try {
-      const { data, error } = await supabase.functions.invoke('ai-traffic-assistant', {
-        body: {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-traffic-assistant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+        },
+        body: JSON.stringify({
           projectId: selectedProjectId,
           startDate: dateRange.startDate,
           endDate: dateRange.endDate,
           message: content,
           skipCache,
-        },
+        }),
+        signal: abortControllerRef.current.signal,
       });
 
-      if (error) throw error;
-
-      if (!data.success) {
-        throw new Error(data.error || 'Erro desconhecido');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Erro ${response.status}`);
       }
 
-      const assistantMessage: Message = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: data.response,
-        timestamp: new Date(),
-        cached: data.cached,
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-      
-      if (data.cached) {
-        toast.info('Resposta recuperada do cache', {
-          description: 'Para uma nova análise, clique em "Nova Análise"'
-        });
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Streaming não suportado');
       }
+
+      const decoder = new TextDecoder();
+      let textBuffer = '';
+      let fullContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        textBuffer += decoder.decode(value, { stream: true });
+
+        // Process line by line
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const deltaContent = parsed.choices?.[0]?.delta?.content;
+            
+            if (deltaContent) {
+              fullContent += deltaContent;
+              setMessages(prev => prev.map(msg => 
+                msg.id === assistantMessageId 
+                  ? { ...msg, content: fullContent }
+                  : msg
+              ));
+            }
+          } catch {
+            textBuffer = line + '\n' + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Final flush
+      if (textBuffer.trim()) {
+        for (let raw of textBuffer.split('\n')) {
+          if (!raw) continue;
+          if (raw.endsWith('\r')) raw = raw.slice(0, -1);
+          if (raw.startsWith(':') || raw.trim() === '') continue;
+          if (!raw.startsWith('data: ')) continue;
+          const jsonStr = raw.slice(6).trim();
+          if (jsonStr === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const deltaContent = parsed.choices?.[0]?.delta?.content;
+            if (deltaContent) {
+              fullContent += deltaContent;
+              setMessages(prev => prev.map(msg => 
+                msg.id === assistantMessageId 
+                  ? { ...msg, content: fullContent }
+                  : msg
+              ));
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
+      // Mark streaming as complete
+      setMessages(prev => prev.map(msg => 
+        msg.id === assistantMessageId 
+          ? { ...msg, isStreaming: false }
+          : msg
+      ));
+
+      if (!fullContent) {
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: '❌ Não foi possível gerar uma resposta. Tente novamente.', isStreaming: false }
+            : msg
+        ));
+      }
+
     } catch (error) {
       console.error('AI Assistant error:', error);
+      
+      if ((error as Error).name === 'AbortError') {
+        setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId));
+        return;
+      }
+
       toast.error('Erro ao processar sua solicitação');
       
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: 'assistant',
-        content: '❌ Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => prev.map(msg => 
+        msg.id === assistantMessageId 
+          ? { ...msg, content: '❌ Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.', isStreaming: false }
+          : msg
+      ));
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -229,10 +330,10 @@ export default function AIAssistant() {
             </Button>
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/10">
-                <Sparkles className="h-5 w-5 text-primary" />
+                <Bot className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="font-semibold text-lg">AI Traffic Manager</h1>
+                <h1 className="font-semibold text-lg">Agente Lisboa</h1>
                 <p className="text-xs text-muted-foreground">Análise de Performance</p>
               </div>
             </div>
@@ -284,9 +385,9 @@ export default function AIAssistant() {
             {messages.length === 0 ? (
               <div className="text-center py-16">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-6">
-                  <Sparkles className="h-8 w-8 text-primary" />
+                  <Bot className="h-8 w-8 text-primary" />
                 </div>
-                <h2 className="text-2xl font-semibold mb-2">AI Traffic Manager</h2>
+                <h2 className="text-2xl font-semibold mb-2">Agente Lisboa</h2>
                 <p className="text-muted-foreground max-w-md mx-auto mb-8">
                   Analista de performance especializado em Meta Ads. 
                   Faça perguntas sobre suas campanhas e receba diagnósticos baseados em dados.
@@ -362,7 +463,10 @@ export default function AIAssistant() {
                     >
                       {message.role === 'assistant' ? (
                         <div className="prose prose-sm dark:prose-invert max-w-none">
-                          {formatContent(message.content)}
+                          {message.content ? formatContent(message.content) : null}
+                          {message.isStreaming && message.content && (
+                            <span className="inline-block w-2 h-4 bg-primary/60 animate-pulse rounded-sm ml-1 align-middle" />
+                          )}
                           {message.cached && (
                             <div className="mt-3 pt-3 border-t border-border/50 flex items-center gap-2 text-xs text-muted-foreground">
                               <RefreshCw className="h-3 w-3" />
@@ -390,16 +494,13 @@ export default function AIAssistant() {
                   </div>
                 ))}
 
-                {isLoading && (
+                {messages.some(m => m.isStreaming && m.content === '') && (
                   <div className="flex justify-start">
                     <div className="bg-muted/50 border rounded-2xl px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex gap-1">
-                          <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                          <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                          <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                        </div>
-                        <span className="text-sm text-muted-foreground">Analisando dados...</span>
+                        <Bot className="h-5 w-5 text-primary animate-pulse" />
+                        <span className="text-sm text-muted-foreground">Agente Lisboa está digitando</span>
+                        <span className="inline-block w-2 h-5 bg-primary/60 animate-pulse rounded-sm" />
                       </div>
                     </div>
                   </div>

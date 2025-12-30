@@ -19,7 +19,7 @@ import {
   ChevronUp,
   Image as ImageIcon,
   Database,
-  Sparkles
+  Bot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -296,7 +296,7 @@ export default function Sidebar() {
             {!collapsed && <span>Criativos</span>}
           </Link>
 
-          {/* AI Assistant */}
+          {/* Agente Lisboa */}
           <Link
             to="/ai-assistant"
             className={cn(
@@ -304,8 +304,8 @@ export default function Sidebar() {
               location.pathname === '/ai-assistant' && 'active'
             )}
           >
-            <Sparkles className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>AI Assistant</span>}
+            <Bot className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>Agente Lisboa</span>}
           </Link>
 
           {/* Admin */}
