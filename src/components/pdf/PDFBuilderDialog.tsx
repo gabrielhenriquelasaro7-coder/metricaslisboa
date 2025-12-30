@@ -143,6 +143,8 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
   const [chartPrimaryMetric, setChartPrimaryMetric] = useState('spend');
   const [chartSecondaryMetric, setChartSecondaryMetric] = useState('conversion_value');
   const [showSecondaryMetric, setShowSecondaryMetric] = useState(true);
+  const [chartPrimaryColor, setChartPrimaryColor] = useState('#E11D48');
+  const [chartSecondaryColor, setChartSecondaryColor] = useState('#22c55e');
   
   // Appearance
   const [primaryColor, setPrimaryColor] = useState('#E11D48');
@@ -489,15 +491,31 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                       <Label htmlFor="show-secondary" className="text-xs font-normal">Métrica Secundária</Label>
                     </div>
                     {showSecondaryMetric && (
-                      <Select value={chartSecondaryMetric} onValueChange={setChartSecondaryMetric}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Métrica Secundária" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background z-50">
-                          {CHART_METRICS.filter(m => m.key !== chartPrimaryMetric).map(m => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <>
+                        <Select value={chartSecondaryMetric} onValueChange={setChartSecondaryMetric}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Métrica Secundária" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            {CHART_METRICS.filter(m => m.key !== chartPrimaryMetric).map(m => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </>
                     )}
+                    
+                    {/* Chart Colors */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Cor Primária</Label>
+                        <input type="color" value={chartPrimaryColor} onChange={e => setChartPrimaryColor(e.target.value)} className="w-full h-7 p-0 border rounded cursor-pointer" />
+                      </div>
+                      {showSecondaryMetric && (
+                        <div className="space-y-1">
+                          <Label className="text-[10px] text-muted-foreground">Cor Secundária</Label>
+                          <input type="color" value={chartSecondaryColor} onChange={e => setChartSecondaryColor(e.target.value)} className="w-full h-7 p-0 border rounded cursor-pointer" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -620,9 +638,7 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                   {/* Chart */}
                   {includeChart && chartData.length > 0 && (
                     <div>
-                      <h2 className="text-xs font-semibold text-gray-900 mb-2">
-                        Evolução Diária - {primaryMetricDef?.label}{showSecondaryMetric ? ` vs ${secondaryMetricDef?.label}` : ''}
-                      </h2>
+                      <h2 className="text-xs font-semibold text-gray-900 mb-2">Evolução Diária</h2>
                       <div id="pdf-chart-preview" className="bg-white rounded border p-2" style={{ height: 180 }}>
                         <ResponsiveContainer width="100%" height="100%">
                           {chartType === 'bar' ? (
@@ -631,27 +647,25 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                               <XAxis dataKey="date" tick={{ fontSize: 9 }} />
                               <YAxis 
                                 yAxisId="left" 
-                                tick={{ fontSize: 9 }} 
+                                tick={{ fontSize: 9, fill: chartPrimaryColor }} 
                                 tickFormatter={(v) => {
                                   if (primaryMetricDef?.type === 'currency') return fmtCurrency(v, currency);
                                   if (primaryMetricDef?.type === 'percent') return `${v.toFixed(1)}%`;
                                   if (primaryMetricDef?.type === 'decimal') return `${v.toFixed(1)}x`;
                                   return fmtNumber(v);
                                 }}
-                                label={{ value: primaryMetricDef?.label, angle: -90, position: 'insideLeft', fontSize: 9, fill: primaryColor }}
                               />
                               {showSecondaryMetric && (
                                 <YAxis 
                                   yAxisId="right" 
                                   orientation="right" 
-                                  tick={{ fontSize: 9 }} 
+                                  tick={{ fontSize: 9, fill: chartSecondaryColor }} 
                                   tickFormatter={(v) => {
                                     if (secondaryMetricDef?.type === 'currency') return fmtCurrency(v, currency);
                                     if (secondaryMetricDef?.type === 'percent') return `${v.toFixed(1)}%`;
                                     if (secondaryMetricDef?.type === 'decimal') return `${v.toFixed(1)}x`;
                                     return fmtNumber(v);
                                   }}
-                                  label={{ value: secondaryMetricDef?.label, angle: 90, position: 'insideRight', fontSize: 9, fill: '#22c55e' }}
                                 />
                               )}
                               <Tooltip 
@@ -665,8 +679,8 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                                 }} 
                               />
                               <Legend wrapperStyle={{ fontSize: 10 }} />
-                              <Bar yAxisId="left" dataKey={chartPrimaryMetric} name={primaryMetricDef?.label || 'Primária'} fill={primaryColor} radius={[2, 2, 0, 0]} />
-                              {showSecondaryMetric && <Line yAxisId="right" type="monotone" dataKey={chartSecondaryMetric} name={secondaryMetricDef?.label || 'Secundária'} stroke="#22c55e" strokeWidth={2} dot={false} />}
+                              <Bar yAxisId="left" dataKey={chartPrimaryMetric} name={primaryMetricDef?.label || 'Primária'} fill={chartPrimaryColor} radius={[2, 2, 0, 0]} />
+                              {showSecondaryMetric && <Line yAxisId="right" type="monotone" dataKey={chartSecondaryMetric} name={secondaryMetricDef?.label || 'Secundária'} stroke={chartSecondaryColor} strokeWidth={2} dot={false} />}
                             </ComposedChart>
                           ) : (
                             <LineChart data={chartData}>
@@ -674,27 +688,25 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                               <XAxis dataKey="date" tick={{ fontSize: 9 }} />
                               <YAxis 
                                 yAxisId="left" 
-                                tick={{ fontSize: 9 }} 
+                                tick={{ fontSize: 9, fill: chartPrimaryColor }} 
                                 tickFormatter={(v) => {
                                   if (primaryMetricDef?.type === 'currency') return fmtCurrency(v, currency);
                                   if (primaryMetricDef?.type === 'percent') return `${v.toFixed(1)}%`;
                                   if (primaryMetricDef?.type === 'decimal') return `${v.toFixed(1)}x`;
                                   return fmtNumber(v);
                                 }}
-                                label={{ value: primaryMetricDef?.label, angle: -90, position: 'insideLeft', fontSize: 9, fill: primaryColor }}
                               />
                               {showSecondaryMetric && (
                                 <YAxis 
                                   yAxisId="right" 
                                   orientation="right" 
-                                  tick={{ fontSize: 9 }} 
+                                  tick={{ fontSize: 9, fill: chartSecondaryColor }} 
                                   tickFormatter={(v) => {
                                     if (secondaryMetricDef?.type === 'currency') return fmtCurrency(v, currency);
                                     if (secondaryMetricDef?.type === 'percent') return `${v.toFixed(1)}%`;
                                     if (secondaryMetricDef?.type === 'decimal') return `${v.toFixed(1)}x`;
                                     return fmtNumber(v);
                                   }}
-                                  label={{ value: secondaryMetricDef?.label, angle: 90, position: 'insideRight', fontSize: 9, fill: '#22c55e' }}
                                 />
                               )}
                               <Tooltip 
@@ -708,8 +720,8 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                                 }} 
                               />
                               <Legend wrapperStyle={{ fontSize: 10 }} />
-                              <Line yAxisId="left" type="monotone" dataKey={chartPrimaryMetric} name={primaryMetricDef?.label || 'Primária'} stroke={primaryColor} strokeWidth={2} dot={false} />
-                              {showSecondaryMetric && <Line yAxisId="right" type="monotone" dataKey={chartSecondaryMetric} name={secondaryMetricDef?.label || 'Secundária'} stroke="#22c55e" strokeWidth={2} dot={false} />}
+                              <Line yAxisId="left" type="monotone" dataKey={chartPrimaryMetric} name={primaryMetricDef?.label || 'Primária'} stroke={chartPrimaryColor} strokeWidth={2} dot={false} />
+                              {showSecondaryMetric && <Line yAxisId="right" type="monotone" dataKey={chartSecondaryMetric} name={secondaryMetricDef?.label || 'Secundária'} stroke={chartSecondaryColor} strokeWidth={2} dot={false} />}
                             </LineChart>
                           )}
                         </ResponsiveContainer>
@@ -718,9 +730,10 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                   )}
                 </div>
                 
-                {/* Footer */}
+                {/* Footer with Period */}
                 <div className="px-4 py-2 text-center" style={{ backgroundColor: primaryColor }}>
-                  <p className="text-[10px] text-white/80">{projectName} • Relatório gerado automaticamente</p>
+                  <p className="text-[10px] text-white font-medium">{fmtDateRange(activePeriod.since, activePeriod.until)}</p>
+                  <p className="text-[9px] text-white/70">{projectName} • Relatório gerado automaticamente</p>
                 </div>
               </div>
             </div>
