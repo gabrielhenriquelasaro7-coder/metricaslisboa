@@ -36,7 +36,8 @@ import {
   Clock,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  MessageSquare
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -57,6 +58,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import WhatsAppSettings from '@/components/settings/WhatsAppSettings';
 
 interface Profile {
   id: string;
@@ -458,6 +460,10 @@ export default function Settings() {
             <TabsTrigger value="sync-history" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <History className="w-4 h-4" />
               Histórico Sync
+            </TabsTrigger>
+            <TabsTrigger value="whatsapp" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <MessageSquare className="w-4 h-4" />
+              WhatsApp
             </TabsTrigger>
           </TabsList>
 
@@ -927,6 +933,11 @@ export default function Settings() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* WhatsApp Tab */}
+          <TabsContent value="whatsapp" className="space-y-6">
+            <WhatsAppSettings />
           </TabsContent>
         </Tabs>
       </div>
