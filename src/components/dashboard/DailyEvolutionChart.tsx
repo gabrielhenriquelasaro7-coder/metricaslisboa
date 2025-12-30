@@ -21,12 +21,14 @@ interface DailyEvolutionChartProps {
   data: DailyMetric[];
   businessModel: 'ecommerce' | 'inside_sales' | 'pdv' | null;
   className?: string;
+  currency?: string;
 }
 
 export default function DailyEvolutionChart({ 
   data, 
   businessModel,
-  className 
+  className,
+  currency = 'BRL'
 }: DailyEvolutionChartProps) {
   const isEcommerce = businessModel === 'ecommerce';
   
@@ -44,9 +46,10 @@ export default function DailyEvolutionChart({
   }, [data]);
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
+    const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'BRL',
+      currency: currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);

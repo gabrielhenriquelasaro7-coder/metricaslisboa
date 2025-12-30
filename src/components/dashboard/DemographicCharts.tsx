@@ -94,13 +94,16 @@ function DemographicPieChart({
   data, 
   type, 
   title, 
-  icon: Icon 
+  icon: Icon,
+  currency = 'BRL'
 }: { 
   data: DemographicData[]; 
   type: string;
   title: string; 
   icon: React.ElementType;
+  currency?: string;
 }) {
+  const formatCurrencyValue = createFormatCurrency(currency);
   const totalSpend = data.reduce((sum, d) => sum + d.spend, 0);
   
   const chartData = data.map((d, i) => ({
@@ -121,7 +124,7 @@ function DemographicPieChart({
         <div className="space-y-1 text-sm">
           <div className="flex justify-between gap-4">
             <span className="text-muted-foreground">Gasto:</span>
-            <span className="font-medium">{formatCurrency(item.value)}</span>
+            <span className="font-medium">{formatCurrencyValue(item.value)}</span>
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-muted-foreground">Porcentagem:</span>
@@ -204,7 +207,8 @@ function DemographicPieChart({
   );
 }
 
-function AgeBarChart({ data }: { data: DemographicData[] }) {
+function AgeBarChart({ data, currency = 'BRL' }: { data: DemographicData[]; currency?: string }) {
+  const formatCurrencyValue = createFormatCurrency(currency);
   const chartData = data.map((d) => ({
     name: d.breakdown_value,
     spend: d.spend,
@@ -256,12 +260,12 @@ function AgeBarChart({ data }: { data: DemographicData[] }) {
                 fontSize={11} 
                 tickLine={false} 
                 axisLine={false}
-                tickFormatter={formatCurrency}
+                tickFormatter={formatCurrencyValue}
                 stroke="hsl(var(--muted-foreground))"
               />
               <Tooltip
                 formatter={(value: number, name: string) => [
-                  name === 'spend' ? formatCurrency(value) : formatNumber(value),
+                  name === 'spend' ? formatCurrencyValue(value) : formatNumber(value),
                   name === 'spend' ? 'Gasto' : 'Conversões'
                 ]}
                 contentStyle={{
@@ -285,7 +289,7 @@ function AgeBarChart({ data }: { data: DemographicData[] }) {
   );
 }
 
-export function DemographicCharts({ data, isLoading, className }: DemographicChartsProps) {
+export function DemographicCharts({ data, isLoading, className, currency = 'BRL' }: DemographicChartsProps) {
   if (isLoading) {
     return (
       <div className={cn('glass-card p-6', className)}>
@@ -346,19 +350,22 @@ export function DemographicCharts({ data, isLoading, className }: DemographicCha
           type="gender"
           title="Gênero"
           icon={UserCircle2}
+          currency={currency}
         />
-        <AgeBarChart data={data.age} />
+        <AgeBarChart data={data.age} currency={currency} />
         <DemographicPieChart
           data={data.device_platform}
           type="device_platform"
           title="Dispositivos"
           icon={Smartphone}
+          currency={currency}
         />
         <DemographicPieChart
           data={data.publisher_platform}
           type="publisher_platform"
           title="Plataformas"
           icon={Globe}
+          currency={currency}
         />
       </div>
     </div>
