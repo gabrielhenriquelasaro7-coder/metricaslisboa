@@ -396,6 +396,7 @@ export default function ProjectSelector() {
   const [activeTab, setActiveTab] = useState('projects');
   const [showArchived, setShowArchived] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [healthFilter, setHealthFilter] = useState<ExtendedHealthScore | 'all'>('all');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -455,6 +456,14 @@ export default function ProjectSelector() {
 
   const activeProjects = projects.filter(p => !p.archived);
   const archivedProjects = projects.filter(p => p.archived);
+  
+  // Filtered projects based on health score filter
+  const filteredActiveProjects = healthFilter === 'all' 
+    ? activeProjects 
+    : activeProjects.filter(p => (p.health_score || 'undefined') === healthFilter);
+  const filteredArchivedProjects = healthFilter === 'all'
+    ? archivedProjects
+    : archivedProjects.filter(p => (p.health_score || 'undefined') === healthFilter);
 
   const handleSelectProject = (project: Project) => {
     localStorage.setItem('selectedProjectId', project.id);
@@ -781,6 +790,49 @@ export default function ProjectSelector() {
 
                 {activeTab === 'projects' && (
                   <>
+                    {/* Health Score Filter */}
+                    <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50 backdrop-blur-sm">
+                      <button
+                        onClick={() => setHealthFilter('all')}
+                        className={cn(
+                          "px-2 py-1 rounded-md text-xs font-medium transition-all",
+                          healthFilter === 'all' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        Todos
+                      </button>
+                      <button
+                        onClick={() => setHealthFilter('safe')}
+                        className={cn(
+                          "px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1",
+                          healthFilter === 'safe' ? 'bg-emerald-500/20 text-emerald-400' : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <ShieldCheck className="w-3 h-3" />
+                        Safe
+                      </button>
+                      <button
+                        onClick={() => setHealthFilter('care')}
+                        className={cn(
+                          "px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1",
+                          healthFilter === 'care' ? 'bg-amber-500/20 text-amber-400' : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <AlertTriangle className="w-3 h-3" />
+                        Care
+                      </button>
+                      <button
+                        onClick={() => setHealthFilter('danger')}
+                        className={cn(
+                          "px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1",
+                          healthFilter === 'danger' ? 'bg-red-500/20 text-red-400' : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <AlertCircle className="w-3 h-3" />
+                        Danger
+                      </button>
+                    </div>
+
                     {/* View Mode Toggle */}
                     <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50 backdrop-blur-sm">
                       <button
@@ -1008,10 +1060,10 @@ export default function ProjectSelector() {
             </div>
 
             <TabsContent value="projects" className="mt-0">
-              {(showArchived ? archivedProjects : activeProjects).length > 0 ? (
+              {(showArchived ? filteredArchivedProjects : filteredActiveProjects).length > 0 ? (
                 viewMode === 'grid' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-fade-in">
-                    {(showArchived ? archivedProjects : activeProjects).map((project) => (
+                    {(showArchived ? filteredArchivedProjects : filteredActiveProjects).map((project) => (
                       <ProjectCard
                         key={project.id}
                         project={project}
@@ -1026,7 +1078,7 @@ export default function ProjectSelector() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3 stagger-fade-in">
-                    {(showArchived ? archivedProjects : activeProjects).map((project) => (
+                    {(showArchived ? filteredArchivedProjects : filteredActiveProjects).map((project) => (
                       <ProjectListItem
                         key={project.id}
                         project={project}
@@ -1049,12 +1101,18 @@ export default function ProjectSelector() {
                     <div className="absolute inset-0 bg-primary/10 rounded-3xl blur-xl -z-10" />
                   </div>
                   <h3 className="text-2xl font-bold mb-3 gradient-text">
-                    {showArchived ? 'Nenhum projeto arquivado' : 'Nenhum projeto ainda'}
+                    {healthFilter !== 'all' 
+                      ? `Nenhum projeto ${healthFilter === 'safe' ? 'Safe' : healthFilter === 'care' ? 'Care' : 'Danger'}` 
+                      : showArchived 
+                        ? 'Nenhum projeto arquivado' 
+                        : 'Nenhum projeto ainda'}
                   </h3>
                   <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                    {showArchived 
-                      ? 'Projetos arquivados aparecerão aqui.' 
-                      : 'Crie seu primeiro projeto para começar a monitorar suas campanhas.'}
+                    {healthFilter !== 'all'
+                      ? 'Tente remover o filtro para ver todos os projetos.'
+                      : showArchived 
+                        ? 'Projetos arquivados aparecerão aqui.' 
+                        : 'Crie seu primeiro projeto para começar a monitorar suas campanhas.'}
                   </p>
                   {!showArchived && (
                     <Button onClick={() => setCreateDialogOpen(true)} className="bg-gradient-to-r from-primary via-red-600 to-red-700 shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all duration-300 hover:scale-105 px-8 py-6 text-lg">
