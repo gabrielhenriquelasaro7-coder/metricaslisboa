@@ -5,44 +5,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface WeeklyMetrics {
-  projectName: string;
+interface AggregatedMetrics {
   spend: number;
   impressions: number;
   clicks: number;
   reach: number;
   conversions: number;
   conversionValue: number;
-  cpl: number;
-  ctr: number;
-  roas: number;
-  prevSpend: number;
-  prevConversions: number;
-  prevCpl: number;
+  frequency: number;
 }
 
-interface MetricConfig {
+interface SubscriptionConfig {
   includeSpend: boolean;
-  includeLeads: boolean;
-  includeCpl: boolean;
+  includeReach: boolean;
   includeImpressions: boolean;
+  includeFrequency: boolean;
   includeClicks: boolean;
   includeCtr: boolean;
+  includeCpm: boolean;
+  includeCpc: boolean;
+  includeConversions: boolean;
+  includeConversionValue: boolean;
+  includeLeads: boolean;
+  includeCpl: boolean;
   includeRoas: boolean;
 }
-
-const DEFAULT_TEMPLATE = `📊 *Relatório Semanal de Tráfego*
-📅 {periodo}
-
-━━━━━━━━━━━━━━━━━━━━━
-
-🎯 *{projeto}*
-
-{metricas}
-
-━━━━━━━━━━━━━━━━━━━━━
-
-_Relatório gerado automaticamente pela V4 Company_`;
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -62,54 +49,136 @@ function formatNumber(value: number): string {
   return value.toLocaleString('pt-BR');
 }
 
-function formatPercentChange(current: number, previous: number): string {
-  if (previous === 0) return current > 0 ? '🆕' : '';
-  const change = ((current - previous) / previous) * 100;
-  const sign = change >= 0 ? '+' : '';
-  const emoji = change > 0 ? '📈' : change < 0 ? '📉' : '➡️';
-  return ` ${emoji} ${sign}${change.toFixed(0)}%`;
+function formatPercentage(value: number): string {
+  return value.toFixed(2) + '%';
 }
 
-function buildMetricsText(m: WeeklyMetrics, config: MetricConfig): string {
-  const lines: string[] = [];
+function getDateRangeForPeriod(period: string): { startDate: Date; endDate: Date } {
+  const now = new Date();
+  const endDate = new Date(now);
+  endDate.setHours(23, 59, 59, 999);
   
-  if (config.includeSpend) {
-    lines.push(`💰 Investido: ${formatCurrency(m.spend)}`);
-  }
-  if (config.includeLeads) {
-    lines.push(`👥 Leads: ${m.conversions}${formatPercentChange(m.conversions, m.prevConversions)}`);
-  }
-  if (config.includeCpl) {
-    lines.push(`📊 CPL: ${formatCurrency(m.cpl)}${formatPercentChange(m.cpl, m.prevCpl)}`);
-  }
-  if (config.includeImpressions) {
-    lines.push(`👁️ Impressões: ${formatNumber(m.impressions)}`);
-  }
-  if (config.includeClicks) {
-    lines.push(`👆 Cliques: ${formatNumber(m.clicks)}`);
-  }
-  if (config.includeCtr) {
-    lines.push(`📈 CTR: ${m.ctr.toFixed(2)}%`);
-  }
-  if (config.includeRoas && m.roas > 0) {
-    lines.push(`💎 ROAS: ${m.roas.toFixed(2)}x`);
+  let startDate = new Date(now);
+  
+  switch (period) {
+    case 'last_7_days':
+      startDate.setDate(startDate.getDate() - 7);
+      break;
+    case 'last_14_days':
+      startDate.setDate(startDate.getDate() - 14);
+      break;
+    case 'last_30_days':
+      startDate.setDate(startDate.getDate() - 30);
+      break;
+    case 'this_week':
+      // Start from Sunday of current week
+      const dayOfWeek = now.getDay();
+      startDate.setDate(startDate.getDate() - dayOfWeek);
+      break;
+    case 'last_week':
+      // Last week Sunday to Saturday
+      const currentDay = now.getDay();
+      startDate.setDate(startDate.getDate() - currentDay - 7);
+      endDate.setDate(endDate.getDate() - currentDay - 1);
+      break;
+    case 'this_month':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+    case 'last_month':
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      endDate.setDate(0); // Last day of previous month
+      break;
+    default:
+      startDate.setDate(startDate.getDate() - 7);
   }
   
-  return lines.join('\n');
+  startDate.setHours(0, 0, 0, 0);
+  
+  return { startDate, endDate };
 }
 
-function buildWeeklyReportMessage(
-  metrics: WeeklyMetrics, 
-  weekRange: string, 
+function getPeriodLabel(period: string): string {
+  switch (period) {
+    case 'last_7_days': return 'Últimos 7 dias';
+    case 'last_14_days': return 'Últimos 14 dias';
+    case 'last_30_days': return 'Últimos 30 dias';
+    case 'this_week': return 'Esta semana';
+    case 'last_week': return 'Semana passada';
+    case 'this_month': return 'Este mês';
+    case 'last_month': return 'Mês passado';
+    default: return 'Últimos 7 dias';
+  }
+}
+
+function buildMessageFromTemplate(
   template: string,
-  config: MetricConfig
+  projectName: string,
+  periodLabel: string,
+  metrics: AggregatedMetrics,
+  config: SubscriptionConfig
 ): string {
-  const metricsText = buildMetricsText(metrics, config);
-  
-  return template
-    .replace('{periodo}', weekRange)
-    .replace('{projeto}', metrics.projectName)
-    .replace('{metricas}', metricsText);
+  // Calculate derived metrics
+  const ctr = metrics.impressions > 0 ? (metrics.clicks / metrics.impressions) * 100 : 0;
+  const cpm = metrics.impressions > 0 ? (metrics.spend / metrics.impressions) * 1000 : 0;
+  const cpc = metrics.clicks > 0 ? metrics.spend / metrics.clicks : 0;
+  const cpl = metrics.conversions > 0 ? metrics.spend / metrics.conversions : 0;
+  const cpa = metrics.conversions > 0 ? metrics.spend / metrics.conversions : 0;
+  const roas = metrics.spend > 0 ? metrics.conversionValue / metrics.spend : 0;
+
+  let result = template
+    .replace('{projeto}', projectName)
+    .replace('{periodo}', periodLabel);
+
+  // Replace each metric variable - either with value or remove the line
+  const replacements: { key: string; value: string; enabled: boolean }[] = [
+    { key: 'investimento', value: `💰 Investimento: ${formatCurrency(metrics.spend)}`, enabled: config.includeSpend },
+    { key: 'alcance', value: `👁️ Alcance: ${formatNumber(metrics.reach)}`, enabled: config.includeReach },
+    { key: 'impressoes', value: `📺 Impressões: ${formatNumber(metrics.impressions)}`, enabled: config.includeImpressions },
+    { key: 'frequencia', value: `🔄 Frequência: ${metrics.frequency.toFixed(2)}`, enabled: config.includeFrequency },
+    { key: 'cliques', value: `👆 Cliques: ${formatNumber(metrics.clicks)}`, enabled: config.includeClicks },
+    { key: 'ctr', value: `📈 CTR: ${formatPercentage(ctr)}`, enabled: config.includeCtr },
+    { key: 'cpm', value: `💵 CPM: ${formatCurrency(cpm)}`, enabled: config.includeCpm },
+    { key: 'cpc', value: `💳 CPC: ${formatCurrency(cpc)}`, enabled: config.includeCpc },
+    // Inside Sales specific
+    { key: 'leads', value: `🎯 Leads: ${metrics.conversions}`, enabled: config.includeLeads },
+    { key: 'cpl', value: `📊 CPL: ${formatCurrency(cpl)}`, enabled: config.includeCpl },
+    // E-commerce specific
+    { key: 'conversoes', value: `🛒 Conversões: ${metrics.conversions}`, enabled: config.includeConversions },
+    { key: 'valor_conversao', value: `💎 Valor: ${formatCurrency(metrics.conversionValue)}`, enabled: config.includeConversionValue },
+    { key: 'cpa', value: `💳 CPA: ${formatCurrency(cpa)}`, enabled: config.includeConversions }, // CPA tied to conversions
+    { key: 'roas', value: `🚀 ROAS: ${roas.toFixed(2)}x`, enabled: config.includeRoas && roas > 0 },
+  ];
+
+  replacements.forEach(({ key, value, enabled }) => {
+    const pattern = new RegExp(`.*\\{${key}\\}.*\\n?`, 'g');
+    if (enabled) {
+      result = result.replace(`{${key}}`, value);
+    } else {
+      result = result.replace(pattern, '');
+    }
+  });
+
+  // Also handle legacy {metricas} placeholder if present
+  if (result.includes('{metricas}')) {
+    const metricLines: string[] = [];
+    if (config.includeSpend) metricLines.push(`💰 Investimento: ${formatCurrency(metrics.spend)}`);
+    if (config.includeReach) metricLines.push(`👁️ Alcance: ${formatNumber(metrics.reach)}`);
+    if (config.includeImpressions) metricLines.push(`📺 Impressões: ${formatNumber(metrics.impressions)}`);
+    if (config.includeClicks) metricLines.push(`👆 Cliques: ${formatNumber(metrics.clicks)}`);
+    if (config.includeCtr) metricLines.push(`📈 CTR: ${formatPercentage(ctr)}`);
+    if (config.includeLeads) metricLines.push(`🎯 Leads: ${metrics.conversions}`);
+    if (config.includeCpl) metricLines.push(`📊 CPL: ${formatCurrency(cpl)}`);
+    if (config.includeConversions) metricLines.push(`🛒 Conversões: ${metrics.conversions}`);
+    if (config.includeConversionValue) metricLines.push(`💎 Valor: ${formatCurrency(metrics.conversionValue)}`);
+    if (config.includeRoas && roas > 0) metricLines.push(`🚀 ROAS: ${roas.toFixed(2)}x`);
+    
+    result = result.replace('{metricas}', metricLines.join('\n'));
+  }
+
+  // Clean up multiple empty lines
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  return result;
 }
 
 Deno.serve(async (req) => {
@@ -132,29 +201,10 @@ Deno.serve(async (req) => {
       // No body, will process all active subscriptions
     }
 
-    // Get date ranges
     const now = new Date();
     const currentDayOfWeek = now.getDay();
-    
-    const endDate = new Date(now);
-    endDate.setHours(23, 59, 59, 999);
-    const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - 7);
-    startDate.setHours(0, 0, 0, 0);
 
-    const prevEndDate = new Date(startDate);
-    prevEndDate.setDate(prevEndDate.getDate() - 1);
-    const prevStartDate = new Date(prevEndDate);
-    prevStartDate.setDate(prevStartDate.getDate() - 7);
-
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = endDate.toISOString().split('T')[0];
-    const prevStartDateStr = prevStartDate.toISOString().split('T')[0];
-    const prevEndDateStr = prevEndDate.toISOString().split('T')[0];
-
-    const weekRange = `${startDate.toLocaleDateString('pt-BR')} a ${endDate.toLocaleDateString('pt-BR')}`;
-
-    console.log(`[WEEKLY-REPORT] Processing reports for week: ${weekRange}`);
+    console.log(`[WEEKLY-REPORT] Starting report generation`);
 
     // Fetch subscriptions
     let subscriptionsQuery = supabase
@@ -197,33 +247,43 @@ Deno.serve(async (req) => {
         const projectId = subscription.project_id;
         if (!projectId) continue;
 
-        // Get project name
+        // Get project info
         const { data: project } = await supabase
           .from('projects')
-          .select('name')
+          .select('name, business_model')
           .eq('id', projectId)
           .single();
 
-        if (!project) continue;
+        if (!project) {
+          console.log(`[WEEKLY-REPORT] Project not found for ${subscription.id}`);
+          continue;
+        }
 
-        // Get current week metrics
-        const { data: currentData } = await supabase
+        // Get period configuration
+        const period = subscription.report_period || 'last_7_days';
+        const { startDate, endDate } = getDateRangeForPeriod(period);
+        const startDateStr = startDate.toISOString().split('T')[0];
+        const endDateStr = endDate.toISOString().split('T')[0];
+
+        console.log(`[WEEKLY-REPORT] Fetching metrics for period ${startDateStr} to ${endDateStr}`);
+
+        // Get metrics for the period
+        const { data: metricsData, error: metricsError } = await supabase
           .from('ads_daily_metrics')
-          .select('spend, impressions, clicks, reach, conversions, conversion_value')
+          .select('spend, impressions, clicks, reach, conversions, conversion_value, frequency')
           .eq('project_id', projectId)
           .gte('date', startDateStr)
           .lte('date', endDateStr);
 
-        // Get previous week metrics
-        const { data: prevData } = await supabase
-          .from('ads_daily_metrics')
-          .select('spend, conversions')
-          .eq('project_id', projectId)
-          .gte('date', prevStartDateStr)
-          .lte('date', prevEndDateStr);
+        if (metricsError) {
+          console.error(`[WEEKLY-REPORT] Error fetching metrics:`, metricsError);
+          continue;
+        }
 
-        // Aggregate current week
-        const current = (currentData || []).reduce(
+        console.log(`[WEEKLY-REPORT] Found ${metricsData?.length || 0} metric records`);
+
+        // Aggregate metrics
+        const aggregated: AggregatedMetrics = (metricsData || []).reduce(
           (acc, row) => ({
             spend: acc.spend + (Number(row.spend) || 0),
             impressions: acc.impressions + (Number(row.impressions) || 0),
@@ -231,61 +291,56 @@ Deno.serve(async (req) => {
             reach: acc.reach + (Number(row.reach) || 0),
             conversions: acc.conversions + (Number(row.conversions) || 0),
             conversionValue: acc.conversionValue + (Number(row.conversion_value) || 0),
+            frequency: acc.frequency + (Number(row.frequency) || 0),
           }),
-          { spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversionValue: 0 }
+          { spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversionValue: 0, frequency: 0 }
         );
 
-        // Aggregate previous week
-        const prev = (prevData || []).reduce(
-          (acc, row) => ({
-            spend: acc.spend + (Number(row.spend) || 0),
-            conversions: acc.conversions + (Number(row.conversions) || 0),
-          }),
-          { spend: 0, conversions: 0 }
-        );
+        // Calculate average frequency
+        if (metricsData && metricsData.length > 0) {
+          aggregated.frequency = aggregated.frequency / metricsData.length;
+        }
 
-        if (current.spend === 0 && current.conversions === 0) {
+        console.log(`[WEEKLY-REPORT] Aggregated metrics:`, JSON.stringify(aggregated));
+
+        if (aggregated.spend === 0 && aggregated.impressions === 0) {
           console.log(`[WEEKLY-REPORT] No data for subscription ${subscription.id}, skipping`);
           continue;
         }
 
-        const cpl = current.conversions > 0 ? current.spend / current.conversions : 0;
-        const prevCpl = prev.conversions > 0 ? prev.spend / prev.conversions : 0;
-        const ctr = current.impressions > 0 ? (current.clicks / current.impressions) * 100 : 0;
-        const roas = current.spend > 0 ? current.conversionValue / current.spend : 0;
-
-        const metrics: WeeklyMetrics = {
-          projectName: project.name,
-          spend: current.spend,
-          impressions: current.impressions,
-          clicks: current.clicks,
-          reach: current.reach,
-          conversions: current.conversions,
-          conversionValue: current.conversionValue,
-          cpl,
-          ctr,
-          roas,
-          prevSpend: prev.spend,
-          prevConversions: prev.conversions,
-          prevCpl,
-        };
-
         // Get metric config from subscription
-        const metricConfig: MetricConfig = {
+        const config: SubscriptionConfig = {
           includeSpend: subscription.include_spend ?? true,
-          includeLeads: subscription.include_leads ?? true,
-          includeCpl: subscription.include_cpl ?? true,
+          includeReach: subscription.include_reach ?? true,
           includeImpressions: subscription.include_impressions ?? true,
+          includeFrequency: subscription.include_frequency ?? true,
           includeClicks: subscription.include_clicks ?? true,
           includeCtr: subscription.include_ctr ?? true,
+          includeCpm: subscription.include_cpm ?? true,
+          includeCpc: subscription.include_cpc ?? true,
+          includeConversions: subscription.include_conversions ?? true,
+          includeConversionValue: subscription.include_conversion_value ?? true,
+          includeLeads: subscription.include_leads ?? true,
+          includeCpl: subscription.include_cpl ?? true,
           includeRoas: subscription.include_roas ?? true,
         };
 
-        // Use custom template or default
-        const template = subscription.message_template || DEFAULT_TEMPLATE;
+        // Get period label
+        const periodLabel = getPeriodLabel(period);
+
+        // Use custom template or build default based on business model
+        const template = subscription.message_template || getDefaultTemplate(project.business_model);
 
         // Build the message
-        const message = buildWeeklyReportMessage(metrics, weekRange, template, metricConfig);
+        const message = buildMessageFromTemplate(
+          template,
+          project.name,
+          periodLabel,
+          aggregated,
+          config
+        );
+
+        console.log(`[WEEKLY-REPORT] Message built, sending to ${subscription.phone_number}`);
 
         // Send via whatsapp-send function
         const sendResponse = await fetch(
@@ -316,11 +371,12 @@ Deno.serve(async (req) => {
           results.push({ subscriptionId: subscription.id, success: true });
           console.log(`[WEEKLY-REPORT] Successfully sent report for ${subscription.id}`);
         } else {
-          results.push({ 
-            subscriptionId: subscription.id, 
-            success: false, 
-            error: sendResult.error || 'Unknown error' 
+          results.push({
+            subscriptionId: subscription.id,
+            success: false,
+            error: sendResult.error || 'Unknown error',
           });
+          console.error(`[WEEKLY-REPORT] Failed to send:`, sendResult.error);
         }
 
       } catch (error) {
@@ -346,3 +402,50 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+// Default templates
+function getDefaultTemplate(businessModel: string | null): string {
+  if (businessModel === 'ecommerce' || businessModel === 'pdv') {
+    return `📊 *Relatório de Tráfego - {projeto}*
+📅 Período: {periodo}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+{investimento}
+{alcance}
+{impressoes}
+{frequencia}
+{cliques}
+{ctr}
+{cpm}
+{cpc}
+{conversoes}
+{valor_conversao}
+{cpa}
+{roas}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+_Relatório gerado automaticamente_`;
+  }
+
+  return `📊 *Relatório de Tráfego - {projeto}*
+📅 Período: {periodo}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+{investimento}
+{alcance}
+{impressoes}
+{frequencia}
+{cliques}
+{ctr}
+{cpm}
+{cpc}
+{leads}
+{cpl}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+_Relatório gerado automaticamente_`;
+}
