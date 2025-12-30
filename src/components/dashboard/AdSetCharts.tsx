@@ -87,17 +87,17 @@ export default function AdSetCharts({
     return data.map(d => ({
       date: format(parseISO(d.date), 'dd/MM', { locale: ptBR }),
       fullDate: d.date,
-      spend: d.spend,
-      conversions: d.conversions,
-      revenue: d.conversion_value,
-      roas: d.roas,
-      cpa: d.cpa,
-      ctr: d.ctr,
-      cpm: d.cpm,
-      cpc: d.cpc,
-      impressions: d.impressions,
-      clicks: d.clicks,
-      reach: d.reach,
+      spend: d.spend ?? 0,
+      conversions: d.conversions ?? 0,
+      revenue: d.conversion_value ?? 0,
+      roas: d.roas ?? 0,
+      cpa: d.cpa ?? 0,
+      ctr: d.ctr ?? 0,
+      cpm: d.cpm ?? 0,
+      cpc: d.cpc ?? 0,
+      impressions: d.impressions ?? 0,
+      clicks: d.clicks ?? 0,
+      reach: d.reach ?? 0,
     }));
   }, [data]);
 
