@@ -44,7 +44,8 @@ import {
   Save,
   Sparkles,
   LayoutGrid,
-  List
+  List,
+  Search
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -397,6 +398,7 @@ export default function ProjectSelector() {
   const [showArchived, setShowArchived] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [healthFilter, setHealthFilter] = useState<ExtendedHealthScore | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -457,13 +459,13 @@ export default function ProjectSelector() {
   const activeProjects = projects.filter(p => !p.archived);
   const archivedProjects = projects.filter(p => p.archived);
   
-  // Filtered projects based on health score filter
-  const filteredActiveProjects = healthFilter === 'all' 
-    ? activeProjects 
-    : activeProjects.filter(p => (p.health_score || 'undefined') === healthFilter);
-  const filteredArchivedProjects = healthFilter === 'all'
-    ? archivedProjects
-    : archivedProjects.filter(p => (p.health_score || 'undefined') === healthFilter);
+  // Filtered projects based on health score filter and search query
+  const filteredActiveProjects = activeProjects
+    .filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter)
+    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredArchivedProjects = archivedProjects
+    .filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter)
+    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleSelectProject = (project: Project) => {
     localStorage.setItem('selectedProjectId', project.id);
@@ -790,6 +792,17 @@ export default function ProjectSelector() {
 
                 {activeTab === 'projects' && (
                   <>
+                    {/* Search Input */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar projeto..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9 w-48 h-9 bg-card/50 backdrop-blur-sm border-border/50 focus:border-primary/50"
+                      />
+                    </div>
+
                     {/* Health Score Filter */}
                     <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50 backdrop-blur-sm">
                       <button

@@ -228,7 +228,10 @@ export function useProjects() {
 
       if (error) throw error;
 
-      await fetchProjects();
+      // Atualização otimista - atualiza estado local sem refetch
+      setProjects(prev => prev.map(p => 
+        p.id === id ? { ...p, ...data } as Project : p
+      ));
       toast.success('Projeto atualizado!');
     } catch (error) {
       toast.error('Erro ao atualizar projeto');
