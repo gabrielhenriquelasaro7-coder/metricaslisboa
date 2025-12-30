@@ -302,6 +302,47 @@ export type Database = {
           },
         ]
       }
+      ai_analysis_cache: {
+        Row: {
+          ai_response: string
+          context_summary: Json | null
+          created_at: string
+          expires_at: string
+          id: string
+          project_id: string
+          query_hash: string
+          user_message: string
+        }
+        Insert: {
+          ai_response: string
+          context_summary?: Json | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          project_id: string
+          query_hash: string
+          user_message: string
+        }
+        Update: {
+          ai_response?: string
+          context_summary?: Json | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          project_id?: string
+          query_hash?: string
+          user_message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_analysis_cache_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           clicks: number | null
