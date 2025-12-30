@@ -278,8 +278,10 @@ export default function Campaigns() {
           <>
             {/* Summary Metrics */}
             <div className={cn(
-              "grid gap-4 stagger-fade-in",
-              isEcommerce ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-8" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
+              "grid gap-3 stagger-fade-in",
+              isEcommerce 
+                ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-8" 
+                : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"
             )}>
               <MetricCard
                 title="Gasto Total"
