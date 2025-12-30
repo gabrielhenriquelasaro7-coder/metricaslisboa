@@ -6,11 +6,11 @@ import { toast } from 'sonner';
 export interface WhatsAppSubscription {
   id: string;
   user_id: string;
+  project_id: string | null;
   phone_number: string;
   weekly_report_enabled: boolean;
   report_day_of_week: number;
   report_time: string;
-  projects_to_report: string[];
   last_report_sent_at: string | null;
   created_at: string;
   updated_at: string;
@@ -26,7 +26,7 @@ export interface WhatsAppMessageLog {
   created_at: string;
 }
 
-export function useWhatsAppSubscription() {
+export function useWhatsAppSubscription(projectId?: string) {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<WhatsAppSubscription | null>(null);
   const [messageLogs, setMessageLogs] = useState<WhatsAppMessageLog[]>([]);
@@ -35,7 +35,7 @@ export function useWhatsAppSubscription() {
   const [sendingTest, setSendingTest] = useState(false);
 
   const fetchSubscription = useCallback(async () => {
-    if (!user) {
+    if (!user || !projectId) {
       setLoading(false);
       return;
     }
@@ -45,25 +45,17 @@ export function useWhatsAppSubscription() {
         .from('whatsapp_subscriptions')
         .select('*')
         .eq('user_id', user.id)
+        .eq('project_id', projectId)
         .maybeSingle();
 
       if (error) throw error;
-      
-      // Cast the data to handle the projects_to_report type
-      if (data) {
-        setSubscription({
-          ...data,
-          projects_to_report: (data.projects_to_report as string[]) || [],
-        });
-      } else {
-        setSubscription(null);
-      }
+      setSubscription(data);
     } catch (error) {
       console.error('Error fetching WhatsApp subscription:', error);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, projectId]);
 
   const fetchMessageLogs = useCallback(async () => {
     if (!subscription) return;
@@ -94,7 +86,7 @@ export function useWhatsAppSubscription() {
   }, [subscription, fetchMessageLogs]);
 
   const saveSubscription = async (data: Partial<WhatsAppSubscription>) => {
-    if (!user) return;
+    if (!user || !projectId) return;
 
     setSaving(true);
     try {
@@ -107,7 +99,6 @@ export function useWhatsAppSubscription() {
             weekly_report_enabled: data.weekly_report_enabled,
             report_day_of_week: data.report_day_of_week,
             report_time: data.report_time,
-            projects_to_report: data.projects_to_report,
           })
           .eq('id', subscription.id);
 
@@ -119,21 +110,17 @@ export function useWhatsAppSubscription() {
           .from('whatsapp_subscriptions')
           .insert({
             user_id: user.id,
+            project_id: projectId,
             phone_number: data.phone_number || '',
             weekly_report_enabled: data.weekly_report_enabled ?? true,
             report_day_of_week: data.report_day_of_week ?? 1,
             report_time: data.report_time ?? '08:00',
-            projects_to_report: data.projects_to_report || [],
           })
           .select()
           .single();
 
         if (error) throw error;
-        
-        setSubscription({
-          ...newSub,
-          projects_to_report: (newSub.projects_to_report as string[]) || [],
-        });
+        setSubscription(newSub);
         toast.success('Configurações salvas com sucesso!');
       }
 
