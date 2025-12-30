@@ -813,10 +813,16 @@ export type Database = {
           created_at: string | null
           id: string
           include_clicks: boolean | null
+          include_conversion_value: boolean | null
+          include_conversions: boolean | null
+          include_cpc: boolean | null
           include_cpl: boolean | null
+          include_cpm: boolean | null
           include_ctr: boolean | null
+          include_frequency: boolean | null
           include_impressions: boolean | null
           include_leads: boolean | null
+          include_reach: boolean | null
           include_roas: boolean | null
           include_spend: boolean | null
           last_report_sent_at: string | null
@@ -824,6 +830,7 @@ export type Database = {
           phone_number: string
           project_id: string | null
           report_day_of_week: number | null
+          report_period: string | null
           report_time: string | null
           updated_at: string | null
           user_id: string
@@ -833,10 +840,16 @@ export type Database = {
           created_at?: string | null
           id?: string
           include_clicks?: boolean | null
+          include_conversion_value?: boolean | null
+          include_conversions?: boolean | null
+          include_cpc?: boolean | null
           include_cpl?: boolean | null
+          include_cpm?: boolean | null
           include_ctr?: boolean | null
+          include_frequency?: boolean | null
           include_impressions?: boolean | null
           include_leads?: boolean | null
+          include_reach?: boolean | null
           include_roas?: boolean | null
           include_spend?: boolean | null
           last_report_sent_at?: string | null
@@ -844,6 +857,7 @@ export type Database = {
           phone_number: string
           project_id?: string | null
           report_day_of_week?: number | null
+          report_period?: string | null
           report_time?: string | null
           updated_at?: string | null
           user_id: string
@@ -853,10 +867,16 @@ export type Database = {
           created_at?: string | null
           id?: string
           include_clicks?: boolean | null
+          include_conversion_value?: boolean | null
+          include_conversions?: boolean | null
+          include_cpc?: boolean | null
           include_cpl?: boolean | null
+          include_cpm?: boolean | null
           include_ctr?: boolean | null
+          include_frequency?: boolean | null
           include_impressions?: boolean | null
           include_leads?: boolean | null
+          include_reach?: boolean | null
           include_roas?: boolean | null
           include_spend?: boolean | null
           last_report_sent_at?: string | null
@@ -864,6 +884,7 @@ export type Database = {
           phone_number?: string
           project_id?: string | null
           report_day_of_week?: number | null
+          report_period?: string | null
           report_time?: string | null
           updated_at?: string | null
           user_id?: string
