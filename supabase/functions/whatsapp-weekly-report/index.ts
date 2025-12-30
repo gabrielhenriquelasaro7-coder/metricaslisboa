@@ -181,6 +181,34 @@ function buildMessageFromTemplate(
   return result;
 }
 
+// Check if current time matches the scheduled time (with 5 minute tolerance)
+function isScheduledTime(reportTime: string): boolean {
+  const now = new Date();
+  const [scheduledHour, scheduledMinute] = reportTime.split(':').map(Number);
+  
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  
+  // Check if within 5 minutes of scheduled time
+  const scheduledTotalMinutes = scheduledHour * 60 + scheduledMinute;
+  const currentTotalMinutes = currentHour * 60 + currentMinute;
+  
+  const diff = Math.abs(currentTotalMinutes - scheduledTotalMinutes);
+  
+  return diff <= 5;
+}
+
+// Check if already sent today
+function alreadySentToday(lastSentAt: string | null): boolean {
+  if (!lastSentAt) return false;
+  
+  const lastSent = new Date(lastSentAt);
+  const now = new Date();
+  
+  // Check if same day
+  return lastSent.toDateString() === now.toDateString();
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -194,9 +222,11 @@ Deno.serve(async (req) => {
 
     // Check if this is a manual trigger for a specific subscription
     let targetSubscriptionId: string | null = null;
+    let forceResend = false;
     try {
       const body = await req.json();
       targetSubscriptionId = body.subscriptionId || null;
+      forceResend = body.forceResend || false;
     } catch {
       // No body, will process all active subscriptions
     }
@@ -204,19 +234,20 @@ Deno.serve(async (req) => {
     const now = new Date();
     const currentDayOfWeek = now.getDay();
 
-    console.log(`[WEEKLY-REPORT] Starting report generation`);
+    console.log(`[WEEKLY-REPORT] Starting report generation at ${now.toISOString()}`);
+    console.log(`[WEEKLY-REPORT] Current day of week: ${currentDayOfWeek}`);
 
     // Fetch subscriptions
     let subscriptionsQuery = supabase
       .from('whatsapp_subscriptions')
-      .select('*')
+      .select('*, whatsapp_instances(instance_name, instance_status)')
       .eq('weekly_report_enabled', true)
       .not('project_id', 'is', null);
 
     if (targetSubscriptionId) {
       subscriptionsQuery = supabase
         .from('whatsapp_subscriptions')
-        .select('*')
+        .select('*, whatsapp_instances(instance_name, instance_status)')
         .eq('id', targetSubscriptionId);
     } else {
       subscriptionsQuery = subscriptionsQuery.eq('report_day_of_week', currentDayOfWeek);
@@ -229,7 +260,7 @@ Deno.serve(async (req) => {
       throw subError;
     }
 
-    console.log(`[WEEKLY-REPORT] Found ${subscriptions?.length || 0} subscriptions to process`);
+    console.log(`[WEEKLY-REPORT] Found ${subscriptions?.length || 0} subscriptions for today`);
 
     if (!subscriptions || subscriptions.length === 0) {
       return new Response(
@@ -238,14 +269,46 @@ Deno.serve(async (req) => {
       );
     }
 
-    const results: Array<{ subscriptionId: string; success: boolean; error?: string }> = [];
+    const results: Array<{ subscriptionId: string; success: boolean; error?: string; skipped?: boolean; reason?: string }> = [];
 
     for (const subscription of subscriptions) {
       try {
         console.log(`[WEEKLY-REPORT] Processing subscription ${subscription.id}`);
 
         const projectId = subscription.project_id;
-        if (!projectId) continue;
+        if (!projectId) {
+          console.log(`[WEEKLY-REPORT] No project_id for subscription ${subscription.id}`);
+          continue;
+        }
+
+        // Check if this is a manual trigger or if it's the scheduled time
+        if (!targetSubscriptionId) {
+          const reportTime = subscription.report_time || '08:00:00';
+          
+          // Check if already sent today
+          if (alreadySentToday(subscription.last_report_sent_at) && !forceResend) {
+            console.log(`[WEEKLY-REPORT] Already sent today for ${subscription.id}, skipping`);
+            results.push({ 
+              subscriptionId: subscription.id, 
+              success: true, 
+              skipped: true, 
+              reason: 'already_sent_today' 
+            });
+            continue;
+          }
+
+          // Check if it's the right time
+          if (!isScheduledTime(reportTime)) {
+            console.log(`[WEEKLY-REPORT] Not scheduled time for ${subscription.id} (scheduled: ${reportTime})`);
+            results.push({ 
+              subscriptionId: subscription.id, 
+              success: true, 
+              skipped: true, 
+              reason: 'not_scheduled_time' 
+            });
+            continue;
+          }
+        }
 
         // Get project info
         const { data: project } = await supabase
@@ -257,6 +320,20 @@ Deno.serve(async (req) => {
         if (!project) {
           console.log(`[WEEKLY-REPORT] Project not found for ${subscription.id}`);
           continue;
+        }
+
+        // Check instance status if using a specific instance
+        const instanceData = subscription.whatsapp_instances;
+        if (subscription.instance_id && instanceData) {
+          if (instanceData.instance_status !== 'connected') {
+            console.log(`[WEEKLY-REPORT] Instance not connected for ${subscription.id}`);
+            results.push({
+              subscriptionId: subscription.id,
+              success: false,
+              error: 'WhatsApp instance is not connected',
+            });
+            continue;
+          }
         }
 
         // Get period configuration
@@ -305,6 +382,12 @@ Deno.serve(async (req) => {
 
         if (aggregated.spend === 0 && aggregated.impressions === 0) {
           console.log(`[WEEKLY-REPORT] No data for subscription ${subscription.id}, skipping`);
+          results.push({ 
+            subscriptionId: subscription.id, 
+            success: true, 
+            skipped: true, 
+            reason: 'no_data' 
+          });
           continue;
         }
 
@@ -340,7 +423,32 @@ Deno.serve(async (req) => {
           config
         );
 
-        console.log(`[WEEKLY-REPORT] Message built, sending to ${subscription.phone_number}`);
+        // Determine target type and destination
+        const targetType = subscription.target_type || 'phone';
+        const groupId = subscription.group_id;
+        const phoneNumber = subscription.phone_number;
+
+        console.log(`[WEEKLY-REPORT] Sending to ${targetType}: ${targetType === 'group' ? groupId : phoneNumber}`);
+
+        // Build request payload for whatsapp-send
+        const sendPayload: Record<string, unknown> = {
+          message,
+          subscriptionId: subscription.id,
+          messageType: 'weekly_report',
+          targetType,
+        };
+
+        // Add instance if configured
+        if (subscription.instance_id) {
+          sendPayload.instanceId = subscription.instance_id;
+        }
+
+        // Add destination based on target type
+        if (targetType === 'group' && groupId) {
+          sendPayload.groupId = groupId;
+        } else {
+          sendPayload.phone = phoneNumber;
+        }
 
         // Send via whatsapp-send function
         const sendResponse = await fetch(
@@ -351,12 +459,7 @@ Deno.serve(async (req) => {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
             },
-            body: JSON.stringify({
-              phone: subscription.phone_number,
-              message,
-              subscriptionId: subscription.id,
-              messageType: 'weekly_report',
-            }),
+            body: JSON.stringify(sendPayload),
           }
         );
 
