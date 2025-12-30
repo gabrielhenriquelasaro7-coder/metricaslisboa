@@ -656,10 +656,15 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
         doc.text(`Top ${campaignCount} Campanhas por ${sortLabel}`, m, y);
         y += 8;
         
-        // Table header with primary color
-        const colWidths = [70, 30, 25, 35]; // Campaign, Spend, Conv, ROAS/CPA
-        const tableWidth = colWidths.reduce((a, b) => a + b, 0);
+        // Table header with primary color - full width
+        const tableWidth = pw - 2 * m;
         const startX = m;
+        
+        // Proportional column widths based on table width
+        const col1 = tableWidth * 0.50; // Campaign name
+        const col2 = tableWidth * 0.18; // Gasto
+        const col3 = tableWidth * 0.14; // Conv
+        const col4 = tableWidth * 0.18; // ROAS/CPA
         
         doc.setFillColor(rgb.r, rgb.g, rgb.b);
         doc.rect(startX, y, tableWidth, 8, 'F');
@@ -667,14 +672,10 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(255, 255, 255);
         
-        let xPos = startX + 2;
-        doc.text('Campanha', xPos, y + 5);
-        xPos += colWidths[0];
-        doc.text('Gasto', xPos + colWidths[1] - 2, y + 5, { align: 'right' });
-        xPos += colWidths[1];
-        doc.text('Conv.', xPos + colWidths[2] - 2, y + 5, { align: 'right' });
-        xPos += colWidths[2];
-        doc.text(businessModel === 'ecommerce' ? 'ROAS' : 'CPA', xPos + colWidths[3] - 2, y + 5, { align: 'right' });
+        doc.text('Campanha', startX + 3, y + 5);
+        doc.text('Gasto', startX + col1 + col2 - 3, y + 5, { align: 'right' });
+        doc.text('Conv.', startX + col1 + col2 + col3 - 3, y + 5, { align: 'right' });
+        doc.text(businessModel === 'ecommerce' ? 'ROAS' : 'CPA', startX + tableWidth - 3, y + 5, { align: 'right' });
         
         y += 8;
         
@@ -691,21 +692,17 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
           doc.setFontSize(7);
           doc.setTextColor(31, 41, 55);
           
-          let xPos = startX + 2;
           const sanitizedName = sanitizeForPDF(c.campaign_name);
-          const campaignName = sanitizedName.length > 30 ? sanitizedName.substring(0, 28) + '...' : sanitizedName;
-          doc.text(campaignName, xPos, y + 5);
+          const maxChars = 45;
+          const campaignName = sanitizedName.length > maxChars ? sanitizedName.substring(0, maxChars - 2) + '...' : sanitizedName;
+          doc.text(campaignName, startX + 3, y + 5);
           
-          xPos += colWidths[0];
-          doc.text(fmtCurrency(c.spend, currency), xPos + colWidths[1] - 2, y + 5, { align: 'right' });
+          doc.text(fmtCurrency(c.spend, currency), startX + col1 + col2 - 3, y + 5, { align: 'right' });
+          doc.text(fmtNumber(c.conversions), startX + col1 + col2 + col3 - 3, y + 5, { align: 'right' });
           
-          xPos += colWidths[1];
-          doc.text(fmtNumber(c.conversions), xPos + colWidths[2] - 2, y + 5, { align: 'right' });
-          
-          xPos += colWidths[2];
           doc.setTextColor(rgb.r, rgb.g, rgb.b);
           const roasValue = businessModel === 'ecommerce' ? `${c.roas.toFixed(2)}x` : fmtCurrency(c.cpa, currency);
-          doc.text(roasValue, xPos + colWidths[3] - 2, y + 5, { align: 'right' });
+          doc.text(roasValue, startX + tableWidth - 3, y + 5, { align: 'right' });
           doc.setTextColor(31, 41, 55);
           
           y += 7;
