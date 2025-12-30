@@ -563,6 +563,56 @@ export type Database = {
         }
         Relationships: []
       }
+      project_import_months: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          month: number
+          project_id: string
+          records_count: number | null
+          retry_count: number | null
+          started_at: string | null
+          status: string
+          year: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          month: number
+          project_id: string
+          records_count?: number | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: string
+          year: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          month?: number
+          project_id?: string
+          records_count?: number | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_import_months_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           ad_account_id: string

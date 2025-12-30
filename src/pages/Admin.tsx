@@ -16,6 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import MonthImportGrid from '@/components/admin/MonthImportGrid';
 import { 
   Database, 
   Play, 
@@ -432,6 +433,9 @@ export default function Admin() {
 
           {/* MONITORING TAB */}
           <TabsContent value="monitoring" className="space-y-6">
+            {/* Month Import Grid */}
+            <MonthImportGrid projects={activeProjects} />
+
             {/* Cron Jobs Status */}
             <Card className="glass-card">
               <CardHeader>

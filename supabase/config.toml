@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.sync-demographics]
 verify_jwt = false
+
+[functions.import-month-by-month]
+verify_jwt = false
