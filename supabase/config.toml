@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.import-month-by-month]
 verify_jwt = false
+
+[functions.ai-traffic-assistant]
+verify_jwt = false
