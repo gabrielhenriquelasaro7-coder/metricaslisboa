@@ -236,7 +236,7 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
   const [selGeneral, setSelGeneral] = useState<string[]>(GENERAL_METRICS.map(m => m.key));
   const [selResult, setSelResult] = useState<string[]>(businessModel ? RESULT_METRICS[businessModel]?.map(m => m.key) || [] : []);
   
-  // Chart
+  // Chart 1
   const [includeChart, setIncludeChart] = useState(true);
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
   const [chartPrimaryMetric, setChartPrimaryMetric] = useState('spend');
@@ -244,6 +244,15 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
   const [showSecondaryMetric, setShowSecondaryMetric] = useState(true);
   const [chartPrimaryColor, setChartPrimaryColor] = useState('#E11D48');
   const [chartSecondaryColor, setChartSecondaryColor] = useState('#22c55e');
+  
+  // Chart 2 (additional)
+  const [includeChart2, setIncludeChart2] = useState(false);
+  const [chart2Type, setChart2Type] = useState<'bar' | 'line'>('line');
+  const [chart2PrimaryMetric, setChart2PrimaryMetric] = useState('clicks');
+  const [chart2SecondaryMetric, setChart2SecondaryMetric] = useState('ctr');
+  const [showChart2Secondary, setShowChart2Secondary] = useState(true);
+  const [chart2PrimaryColor, setChart2PrimaryColor] = useState('#3B82F6');
+  const [chart2SecondaryColor, setChart2SecondaryColor] = useState('#A855F7');
   
   // Demographics
   const [includeDemographics, setIncludeDemographics] = useState(false);
@@ -277,11 +286,15 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
     return differenceInDays(end, start) + 1;
   }, [activePeriod]);
 
-  // Demographic data
+  // Memoize dates for demographic hook to prevent infinite re-renders
+  const demoStartDate = useMemo(() => new Date(activePeriod.since + 'T00:00:00'), [activePeriod.since]);
+  const demoEndDate = useMemo(() => new Date(activePeriod.until + 'T00:00:00'), [activePeriod.until]);
+  
+  // Demographic data - only fetch when dialog is open AND includeDemographics is true
   const { data: demographicData, isLoading: demoLoading } = useDemographicInsights({
-    projectId: open ? projectId : null,
-    startDate: new Date(activePeriod.since + 'T00:00:00'),
-    endDate: new Date(activePeriod.until + 'T00:00:00'),
+    projectId: open && includeDemographics ? projectId : null,
+    startDate: demoStartDate,
+    endDate: demoEndDate,
   });
 
   useEffect(() => {
@@ -316,8 +329,18 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
     }));
   }, [dailyData, chartPrimaryMetric, chartSecondaryMetric, showSecondaryMetric]);
 
+  const chart2Data = useMemo(() => {
+    return dailyData.map(d => ({
+      date: format(new Date(d.date + 'T00:00:00'), 'dd/MM'),
+      [chart2PrimaryMetric]: (d as Record<string, any>)[chart2PrimaryMetric] || 0,
+      ...(showChart2Secondary ? { [chart2SecondaryMetric]: (d as Record<string, any>)[chart2SecondaryMetric] || 0 } : {}),
+    }));
+  }, [dailyData, chart2PrimaryMetric, chart2SecondaryMetric, showChart2Secondary]);
+
   const primaryMetricDef = CHART_METRICS.find(m => m.key === chartPrimaryMetric);
   const secondaryMetricDef = CHART_METRICS.find(m => m.key === chartSecondaryMetric);
+  const chart2PrimaryDef = CHART_METRICS.find(m => m.key === chart2PrimaryMetric);
+  const chart2SecondaryDef = CHART_METRICS.find(m => m.key === chart2SecondaryMetric);
 
   const summaryText = useMemo(() => {
     if (!totals) return '';
@@ -459,6 +482,32 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
             doc.addImage(imgData, 'PNG', m, y, imgW, Math.min(imgH, 70));
             y += Math.min(imgH, 70) + 10;
           } catch (e) { console.error('Chart capture error:', e); }
+        }
+      }
+      
+      // Chart 2 (additional)
+      if (includeChart2 && chart2Data.length > 0) {
+        // Check if we need a new page
+        if (y > ph - 90) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(33, 33, 33);
+        const chart2Title = `${chart2PrimaryDef?.label || 'Métrica'} ${showChart2Secondary ? `vs ${chart2SecondaryDef?.label || ''}` : ''}`.trim();
+        doc.text(chart2Title, m, y);
+        y += 5;
+        const chart2Preview = document.getElementById('pdf-chart2-preview');
+        if (chart2Preview) {
+          try {
+            const canvas = await html2canvas(chart2Preview, { scale: 2, backgroundColor: '#fff', logging: false });
+            const imgData = canvas.toDataURL('image/png');
+            const imgW = pw - 2 * m;
+            const imgH = (canvas.height / canvas.width) * imgW;
+            doc.addImage(imgData, 'PNG', m, y, imgW, Math.min(imgH, 70));
+            y += Math.min(imgH, 70) + 10;
+          } catch (e) { console.error('Chart 2 capture error:', e); }
         }
       }
       
@@ -681,6 +730,60 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                         <div className="space-y-1">
                           <Label className="text-[10px] text-muted-foreground">Cor Secundária</Label>
                           <input type="color" value={chartSecondaryColor} onChange={e => setChartSecondaryColor(e.target.value)} className="w-full h-7 p-0 border rounded cursor-pointer" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Chart 2 Options */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium uppercase text-muted-foreground flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" /> Gráfico Adicional
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Switch checked={includeChart2} onCheckedChange={setIncludeChart2} id="include-chart2" />
+                  <Label htmlFor="include-chart2" className="text-sm font-normal">Adicionar 2º gráfico</Label>
+                </div>
+                {includeChart2 && (
+                  <div className="space-y-2 mt-2 pl-2 border-l-2 border-blue-500/50">
+                    <div className="flex gap-2">
+                      <Button variant={chart2Type === 'bar' ? 'default' : 'outline'} size="sm" onClick={() => setChart2Type('bar')} className="flex-1 h-7 text-xs">Barras</Button>
+                      <Button variant={chart2Type === 'line' ? 'default' : 'outline'} size="sm" onClick={() => setChart2Type('line')} className="flex-1 h-7 text-xs">Linha</Button>
+                    </div>
+                    <Select value={chart2PrimaryMetric} onValueChange={setChart2PrimaryMetric}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Métrica Principal" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50">
+                        {CHART_METRICS.map(m => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={showChart2Secondary} onCheckedChange={setShowChart2Secondary} id="show-chart2-secondary" />
+                      <Label htmlFor="show-chart2-secondary" className="text-xs font-normal">Métrica Secundária</Label>
+                    </div>
+                    {showChart2Secondary && (
+                      <Select value={chart2SecondaryMetric} onValueChange={setChart2SecondaryMetric}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Métrica Secundária" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background z-50">
+                          {CHART_METRICS.filter(m => m.key !== chart2PrimaryMetric).map(m => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Cor Primária</Label>
+                        <input type="color" value={chart2PrimaryColor} onChange={e => setChart2PrimaryColor(e.target.value)} className="w-full h-7 p-0 border rounded cursor-pointer" />
+                      </div>
+                      {showChart2Secondary && (
+                        <div className="space-y-1">
+                          <Label className="text-[10px] text-muted-foreground">Cor Secundária</Label>
+                          <input type="color" value={chart2SecondaryColor} onChange={e => setChart2SecondaryColor(e.target.value)} className="w-full h-7 p-0 border rounded cursor-pointer" />
                         </div>
                       )}
                     </div>
@@ -933,6 +1036,102 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                               <Legend wrapperStyle={{ fontSize: 10 }} />
                               <Line yAxisId="left" type="monotone" dataKey={chartPrimaryMetric} name={primaryMetricDef?.label || 'Primária'} stroke={chartPrimaryColor} strokeWidth={2} dot={false} />
                               {showSecondaryMetric && <Line yAxisId="right" type="monotone" dataKey={chartSecondaryMetric} name={secondaryMetricDef?.label || 'Secundária'} stroke={chartSecondaryColor} strokeWidth={2} dot={false} />}
+                            </LineChart>
+                          )}
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Chart 2 Preview */}
+                  {includeChart2 && chart2Data.length > 0 && (
+                    <div>
+                      <h2 className="text-xs font-semibold text-gray-900 mb-2">
+                        {chart2PrimaryDef?.label || 'Métrica'} {showChart2Secondary ? `vs ${chart2SecondaryDef?.label || ''}` : ''}
+                      </h2>
+                      <div id="pdf-chart2-preview" className="bg-white rounded border p-2" style={{ height: 180 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          {chart2Type === 'bar' ? (
+                            <ComposedChart data={chart2Data}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                              <XAxis dataKey="date" tick={{ fontSize: 9 }} />
+                              <YAxis 
+                                yAxisId="left" 
+                                tick={{ fontSize: 9, fill: chart2PrimaryColor }} 
+                                tickFormatter={(v) => {
+                                  if (chart2PrimaryDef?.type === 'currency') return fmtCurrency(v, currency);
+                                  if (chart2PrimaryDef?.type === 'percent') return `${v.toFixed(1)}%`;
+                                  if (chart2PrimaryDef?.type === 'decimal') return `${v.toFixed(1)}x`;
+                                  return fmtNumber(v);
+                                }}
+                              />
+                              {showChart2Secondary && (
+                                <YAxis 
+                                  yAxisId="right" 
+                                  orientation="right" 
+                                  tick={{ fontSize: 9, fill: chart2SecondaryColor }} 
+                                  tickFormatter={(v) => {
+                                    if (chart2SecondaryDef?.type === 'currency') return fmtCurrency(v, currency);
+                                    if (chart2SecondaryDef?.type === 'percent') return `${v.toFixed(1)}%`;
+                                    if (chart2SecondaryDef?.type === 'decimal') return `${v.toFixed(1)}x`;
+                                    return fmtNumber(v);
+                                  }}
+                                />
+                              )}
+                              <Tooltip 
+                                contentStyle={{ fontSize: 11, backgroundColor: 'white', border: '1px solid #e5e7eb' }}
+                                formatter={(value: number, name: string) => {
+                                  const met = CHART_METRICS.find(m => m.label === name);
+                                  if (met?.type === 'currency') return [fmtCurrency(value, currency), name];
+                                  if (met?.type === 'percent') return [`${value.toFixed(2)}%`, name];
+                                  if (met?.type === 'decimal') return [`${value.toFixed(2)}x`, name];
+                                  return [fmtNumber(value), name];
+                                }} 
+                              />
+                              <Legend wrapperStyle={{ fontSize: 10 }} />
+                              <Bar yAxisId="left" dataKey={chart2PrimaryMetric} name={chart2PrimaryDef?.label || 'Primária'} fill={chart2PrimaryColor} radius={[2, 2, 0, 0]} />
+                              {showChart2Secondary && <Line yAxisId="right" type="monotone" dataKey={chart2SecondaryMetric} name={chart2SecondaryDef?.label || 'Secundária'} stroke={chart2SecondaryColor} strokeWidth={2} dot={false} />}
+                            </ComposedChart>
+                          ) : (
+                            <LineChart data={chart2Data}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                              <XAxis dataKey="date" tick={{ fontSize: 9 }} />
+                              <YAxis 
+                                yAxisId="left" 
+                                tick={{ fontSize: 9, fill: chart2PrimaryColor }} 
+                                tickFormatter={(v) => {
+                                  if (chart2PrimaryDef?.type === 'currency') return fmtCurrency(v, currency);
+                                  if (chart2PrimaryDef?.type === 'percent') return `${v.toFixed(1)}%`;
+                                  if (chart2PrimaryDef?.type === 'decimal') return `${v.toFixed(1)}x`;
+                                  return fmtNumber(v);
+                                }}
+                              />
+                              {showChart2Secondary && (
+                                <YAxis 
+                                  yAxisId="right" 
+                                  orientation="right" 
+                                  tick={{ fontSize: 9, fill: chart2SecondaryColor }} 
+                                  tickFormatter={(v) => {
+                                    if (chart2SecondaryDef?.type === 'currency') return fmtCurrency(v, currency);
+                                    if (chart2SecondaryDef?.type === 'percent') return `${v.toFixed(1)}%`;
+                                    if (chart2SecondaryDef?.type === 'decimal') return `${v.toFixed(1)}x`;
+                                    return fmtNumber(v);
+                                  }}
+                                />
+                              )}
+                              <Tooltip 
+                                contentStyle={{ fontSize: 11, backgroundColor: 'white', border: '1px solid #e5e7eb' }}
+                                formatter={(value: number, name: string) => {
+                                  const met = CHART_METRICS.find(m => m.label === name);
+                                  if (met?.type === 'currency') return [fmtCurrency(value, currency), name];
+                                  if (met?.type === 'percent') return [`${value.toFixed(2)}%`, name];
+                                  if (met?.type === 'decimal') return [`${value.toFixed(2)}x`, name];
+                                  return [fmtNumber(value), name];
+                                }} 
+                              />
+                              <Legend wrapperStyle={{ fontSize: 10 }} />
+                              <Line yAxisId="left" type="monotone" dataKey={chart2PrimaryMetric} name={chart2PrimaryDef?.label || 'Primária'} stroke={chart2PrimaryColor} strokeWidth={2} dot={false} />
+                              {showChart2Secondary && <Line yAxisId="right" type="monotone" dataKey={chart2SecondaryMetric} name={chart2SecondaryDef?.label || 'Secundária'} stroke={chart2SecondaryColor} strokeWidth={2} dot={false} />}
                             </LineChart>
                           )}
                         </ResponsiveContainer>
