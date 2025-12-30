@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.ai-traffic-assistant]
 verify_jwt = false
+
+[functions.whatsapp-send]
+verify_jwt = false
+
+[functions.whatsapp-weekly-report]
+verify_jwt = false

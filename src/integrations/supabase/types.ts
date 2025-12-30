@@ -770,6 +770,83 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_messages_log: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          message_type: string
+          status: string | null
+          subscription_id: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          message_type: string
+          status?: string | null
+          subscription_id?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          message_type?: string
+          status?: string | null
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_log_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_subscriptions: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_report_sent_at: string | null
+          phone_number: string
+          projects_to_report: string[] | null
+          report_day_of_week: number | null
+          report_time: string | null
+          updated_at: string | null
+          user_id: string
+          weekly_report_enabled: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_report_sent_at?: string | null
+          phone_number: string
+          projects_to_report?: string[] | null
+          report_day_of_week?: number | null
+          report_time?: string | null
+          updated_at?: string | null
+          user_id: string
+          weekly_report_enabled?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_report_sent_at?: string | null
+          phone_number?: string
+          projects_to_report?: string[] | null
+          report_day_of_week?: number | null
+          report_time?: string | null
+          updated_at?: string | null
+          user_id?: string
+          weekly_report_enabled?: boolean | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
