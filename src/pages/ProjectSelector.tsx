@@ -42,7 +42,9 @@ import {
   Mail,
   Briefcase,
   Save,
-  Sparkles
+  Sparkles,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -257,6 +259,127 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   );
 }
 
+function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: Omit<ProjectCardProps, 'health'>) {
+  const model = businessModels.find(m => m.value === project.business_model);
+  const Icon = model?.icon || Users;
+  
+  const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
+  const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore);
+  const HealthIcon = healthOption?.icon || AlertCircle;
+  
+  const syncProgress = project.sync_progress;
+  const isSyncing = project.webhook_status === 'syncing' || 
+                    project.webhook_status === 'importing_history' || 
+                    syncProgress?.status === 'syncing' || 
+                    syncProgress?.status === 'importing';
+  
+  const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
+  
+  const getStatusIndicator = () => {
+    if (isSyncing) {
+      return <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />;
+    }
+    if (project.webhook_status === 'error') {
+      return <div className="w-2 h-2 rounded-full bg-red-500" />;
+    }
+    return <div className="w-2 h-2 rounded-full bg-emerald-500" />;
+  };
+
+  return (
+    <div 
+      className={cn(
+        "group relative flex items-center gap-4 rounded-xl border p-4 transition-all duration-300 cursor-pointer",
+        "bg-gradient-to-r from-card via-card to-card/50 hover:from-card hover:via-primary/5 hover:to-card",
+        "hover:border-primary/50 hover:shadow-md hover:shadow-primary/10",
+        healthOption?.borderColor || 'border-border',
+        project.archived && 'opacity-60'
+      )}
+      onClick={() => onSelect(project)}
+    >
+      {/* Avatar */}
+      <div className={cn(
+        "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden",
+        !project.avatar_url && healthOption?.bgColor,
+        "ring-2 ring-offset-2 ring-offset-card",
+        healthOption?.borderColor?.replace('border-', 'ring-')
+      )}>
+        {project.avatar_url ? (
+          <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
+        ) : (
+          <Icon className={cn("w-6 h-6", healthOption?.textColor)} />
+        )}
+      </div>
+      
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          {getStatusIndicator()}
+          <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate">
+            {project.name}
+          </h3>
+          <span className={cn(
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0",
+            healthOption?.bgColor, healthOption?.textColor
+          )}>
+            <HealthIcon className="w-3 h-3" />
+            {healthOption?.label}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span>{model?.label}</span>
+          <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
+          <span className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {lastSyncDate 
+              ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR })
+              : 'Nunca sincronizado'}
+          </span>
+        </div>
+      </div>
+      
+      {/* Actions */}
+      <div className="flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={() => onEdit(project)}>
+              <Pencil className="w-4 h-4 mr-2" />
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onResync(project)}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Re-sincronizar
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {project.archived ? (
+              <DropdownMenuItem onClick={() => onUnarchive(project)}>
+                <ArchiveRestore className="w-4 h-4 mr-2" />
+                Restaurar
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={() => onArchive(project)}>
+                <Archive className="w-4 h-4 mr-2" />
+                Arquivar
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onDelete(project)} className="text-red-400 focus:text-red-400">
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        
+        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectSelector() {
   const { user, loading: authLoading } = useAuth();
   const { projects, loading: projectsLoading, createProject, updateProject, deleteProject, archiveProject, unarchiveProject, resyncProject, refetch } = useProjects();
@@ -272,6 +395,7 @@ export default function ProjectSelector() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [activeTab, setActiveTab] = useState('projects');
   const [showArchived, setShowArchived] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -657,6 +781,28 @@ export default function ProjectSelector() {
 
                 {activeTab === 'projects' && (
                   <>
+                    {/* View Mode Toggle */}
+                    <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50 backdrop-blur-sm">
+                      <button
+                        onClick={() => setViewMode('grid')}
+                        className={cn(
+                          "p-1.5 rounded-md transition-all",
+                          viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <LayoutGrid className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setViewMode('list')}
+                        className={cn(
+                          "p-1.5 rounded-md transition-all",
+                          viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <List className="w-4 h-4" />
+                      </button>
+                    </div>
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -863,20 +1009,37 @@ export default function ProjectSelector() {
 
             <TabsContent value="projects" className="mt-0">
               {(showArchived ? archivedProjects : activeProjects).length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-fade-in">
-                  {(showArchived ? archivedProjects : activeProjects).map((project) => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      onSelect={handleSelectProject}
-                      onEdit={handleEditClick}
-                      onDelete={handleDeleteClick}
-                      onArchive={(p) => archiveProject(p.id)}
-                      onUnarchive={(p) => unarchiveProject(p.id)}
-                      onResync={handleResync}
-                    />
-                  ))}
-                </div>
+                viewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-fade-in">
+                    {(showArchived ? archivedProjects : activeProjects).map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        onSelect={handleSelectProject}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteClick}
+                        onArchive={(p) => archiveProject(p.id)}
+                        onUnarchive={(p) => unarchiveProject(p.id)}
+                        onResync={handleResync}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 stagger-fade-in">
+                    {(showArchived ? archivedProjects : activeProjects).map((project) => (
+                      <ProjectListItem
+                        key={project.id}
+                        project={project}
+                        onSelect={handleSelectProject}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteClick}
+                        onArchive={(p) => archiveProject(p.id)}
+                        onUnarchive={(p) => unarchiveProject(p.id)}
+                        onResync={handleResync}
+                      />
+                    ))}
+                  </div>
+                )
               ) : (
                 <div className="text-center py-20 animate-fade-in">
                   <div className="relative inline-block">
