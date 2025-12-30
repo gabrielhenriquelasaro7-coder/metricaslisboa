@@ -179,11 +179,11 @@ function DemoPieChart({ data, type, title, icon: Icon, id }: DemoPieChartProps) 
         <div className="flex-1 space-y-0.5">
           {chartData.slice(0, 4).map((item, index) => (
             <div key={index} className="flex items-center justify-between text-[9px]">
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="truncate max-w-[60px]">{item.name}</span>
+              <div className="flex items-center gap-1 min-w-0 flex-1">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                <span className="truncate text-gray-700">{item.name}</span>
               </div>
-              <span className="text-gray-500">{item.percent}%</span>
+              <span className="text-gray-500 shrink-0 ml-1">{item.percent}%</span>
             </div>
           ))}
         </div>
