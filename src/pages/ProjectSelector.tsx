@@ -15,8 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { SkeletonCard, SkeletonProfileCard } from '@/components/ui/skeleton-card';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MetricConfigPanel, type MetricConfigData } from '@/components/projects/MetricConfigPanel';
-import { DashboardPreview } from '@/components/projects/DashboardPreview';
+import { CustomProjectWizard, type CustomMetricConfigData } from '@/components/projects/CustomProjectWizard';
 import { METRIC_TEMPLATES } from '@/hooks/useProjectMetricConfig';
 import { 
   Plus, 
@@ -153,32 +152,32 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
       )} />
       
       {/* Content */}
-      <div className="flex items-center gap-3 pl-2">
+      <div className="flex items-center gap-4 pl-3">
         {/* Avatar */}
         <div className={cn(
-          "w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-transform duration-300",
+          "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-transform duration-300",
           !project.avatar_url && healthOption?.bgColor,
           "group-hover:scale-105"
         )}>
           {project.avatar_url ? (
             <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
           ) : (
-            <Icon className={cn("w-5 h-5", healthOption?.textColor)} />
+            <Icon className={cn("w-6 h-6", healthOption?.textColor)} />
           )}
         </div>
         
         {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 mr-2">
+          <div className="flex items-center gap-2 mb-1">
             {getStatusIndicator()}
-            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1" title={project.name}>
               {project.name}
             </h3>
           </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-xs text-muted-foreground">{model?.label}</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">{model?.label}</span>
             <span className="text-muted-foreground/40">•</span>
-            <span className={cn("text-xs font-medium flex items-center gap-1", healthOption?.textColor)}>
+            <span className={cn("text-xs font-medium flex items-center gap-1 whitespace-nowrap", healthOption?.textColor)}>
               <HealthIcon className="w-3 h-3" />
               {healthOption?.label}
             </span>
@@ -186,10 +185,10 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
         </div>
         
         {/* Right side - sync info + actions */}
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
-            <Clock className="w-3 h-3" />
-            <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: false, locale: ptBR }) : '—'}</span>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock className="w-3.5 h-3.5" />
+            <span className="whitespace-nowrap">{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: false, locale: ptBR }) : '—'}</span>
           </div>
           
           {/* Actions Menu */}
@@ -394,12 +393,15 @@ export default function ProjectSelector() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   
   // Custom metric config state
-  const [customConfigOpen, setCustomConfigOpen] = useState(false);
-  const [metricConfig, setMetricConfig] = useState<MetricConfigData>({
+  const [showCustomWizard, setShowCustomWizard] = useState(false);
+  const [customMetricConfig, setCustomMetricConfig] = useState<CustomMetricConfigData>({
     result_metric: 'leads',
     result_metric_label: 'Leads',
     cost_metrics: ['cpl', 'cpa'],
     efficiency_metrics: ['ctr', 'roas'],
+    base_metrics: ['spend', 'impressions', 'clicks', 'cpm', 'cpc', 'frequency'],
+    chart_primary_metric: 'spend',
+    chart_secondary_metric: 'leads',
   });
 
   // Initialize profile form data
@@ -481,21 +483,21 @@ export default function ProjectSelector() {
       if (project) {
         // Save custom metric config if business model is custom
         if (formData.business_model === 'custom') {
-          const template = METRIC_TEMPLATES.custom;
           await supabase.from('project_metric_config').insert({
             project_id: project.id,
-            primary_metrics: template.primary_metrics,
-            result_metric: metricConfig.result_metric,
-            result_metric_label: metricConfig.result_metric_label,
-            cost_metrics: metricConfig.cost_metrics,
-            efficiency_metrics: metricConfig.efficiency_metrics,
+            primary_metrics: customMetricConfig.base_metrics,
+            result_metric: customMetricConfig.result_metric,
+            result_metric_label: customMetricConfig.result_metric_label,
+            cost_metrics: customMetricConfig.cost_metrics,
+            efficiency_metrics: customMetricConfig.efficiency_metrics,
             show_comparison: true,
-            chart_primary_metric: template.chart_primary_metric,
-            chart_secondary_metric: metricConfig.result_metric,
+            chart_primary_metric: customMetricConfig.chart_primary_metric,
+            chart_secondary_metric: customMetricConfig.chart_secondary_metric,
           });
         }
         
         setCreateDialogOpen(false);
+        setShowCustomWizard(false);
         setFormData({
           name: '',
           ad_account_id: '',
@@ -506,12 +508,14 @@ export default function ProjectSelector() {
           avatar_url: null,
         });
         setAvatarPreview(null);
-        setCustomConfigOpen(false);
-        setMetricConfig({
+        setCustomMetricConfig({
           result_metric: 'leads',
           result_metric_label: 'Leads',
           cost_metrics: ['cpl', 'cpa'],
           efficiency_metrics: ['ctr', 'roas'],
+          base_metrics: ['spend', 'impressions', 'clicks', 'cpm', 'cpc', 'frequency'],
+          chart_primary_metric: 'spend',
+          chart_secondary_metric: 'leads',
         });
       }
     } catch (error) {
@@ -739,57 +743,43 @@ export default function ProjectSelector() {
   }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Animated Background - Enhanced */}
+    <div className="min-h-screen bg-background">
+      {/* Subtle Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/8 rounded-full blur-[150px] translate-x-1/2 -translate-y-1/2 animate-pulse-slow" />
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary/6 rounded-full blur-[120px] -translate-x-1/3 translate-y-1/2 animate-pulse-slow" style={{ animationDelay: '1.5s' }} />
-        <div className="absolute top-1/2 left-1/2 w-[400px] h-[400px] bg-primary/4 rounded-full blur-[100px] -translate-x-1/2 -translate-y-1/2 animate-pulse-slow" style={{ animationDelay: '3s' }} />
-        {/* Subtle grid pattern */}
-        <div className="absolute inset-0 opacity-[0.015]" style={{
-          backgroundImage: `linear-gradient(hsl(var(--primary)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)`,
-          backgroundSize: '50px 50px'
-        }} />
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/3" />
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[150px] translate-x-1/3 -translate-y-1/3" />
       </div>
 
-      {/* Header - Redesigned */}
-      <header className="border-b border-border/30 bg-card/40 backdrop-blur-2xl sticky top-0 z-50 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/3 via-transparent to-primary/3" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-        <div className="container mx-auto px-8 py-5 flex items-center justify-between relative">
-          <div className="flex items-center gap-5">
-            <div className="relative group cursor-pointer">
-              <div className="absolute inset-0 bg-primary/30 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
-              <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/20 overflow-hidden transition-transform duration-300 group-hover:scale-105">
-                <img 
-                  src={v4LogoIcon} 
-                  alt="V4 Company" 
-                  className="h-10 w-auto drop-shadow-lg"
-                />
-              </div>
+      {/* Header - Clean and Simple */}
+      <header className="border-b border-border/40 bg-card/60 backdrop-blur-xl sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 overflow-hidden">
+              <img 
+                src={v4LogoIcon} 
+                alt="V4 Company" 
+                className="h-8 w-auto"
+              />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-bold">
+              <span className="text-lg font-bold">
                 <span className="gradient-text">Meta</span>
                 <span className="text-foreground">Ads Manager</span>
               </span>
-              <span className="text-xs text-muted-foreground/80 flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 by V4 Company
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              onClick={handleLogout} 
-              className="text-muted-foreground hover:text-foreground hover:bg-secondary/80 gap-2 rounded-xl transition-all duration-300"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sair</span>
-            </Button>
-          </div>
+          <Button 
+            variant="ghost" 
+            onClick={handleLogout} 
+            className="text-muted-foreground hover:text-foreground hover:bg-secondary/80 gap-2 rounded-xl transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Sair</span>
+          </Button>
         </div>
       </header>
 
@@ -1020,7 +1010,12 @@ export default function ProjectSelector() {
                                   <button
                                     key={model.value}
                                     type="button"
-                                    onClick={() => setFormData({ ...formData, business_model: model.value })}
+                                    onClick={() => {
+                                      setFormData({ ...formData, business_model: model.value });
+                                      if (model.value === 'custom') {
+                                        setShowCustomWizard(true);
+                                      }
+                                    }}
                                     className={cn(
                                       "p-3 rounded-xl border-2 text-left transition-all",
                                       formData.business_model === model.value
@@ -1039,44 +1034,27 @@ export default function ProjectSelector() {
                             </div>
                           </div>
 
-                          {/* Custom Metric Config Panel - shows when Personalizado is selected */}
-                          <div 
-                            className={cn(
-                              "overflow-hidden transition-all duration-500 ease-out",
-                              formData.business_model === 'custom' 
-                                ? "max-h-[3000px] opacity-100" 
-                                : "max-h-0 opacity-0"
-                            )}
-                          >
-                            <div 
-                              className={cn(
-                                "space-y-5 pt-4 transition-all duration-500 delay-100",
-                                formData.business_model === 'custom' 
-                                  ? "translate-y-0" 
-                                  : "-translate-y-4"
-                              )}
-                            >
-                              {/* Separator */}
-                              <div className="flex items-center gap-3">
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-                                <span className="text-xs font-medium text-primary flex items-center gap-1.5">
-                                  <Settings2 className="w-3.5 h-3.5" />
-                                  Configuração Personalizada
-                                </span>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-                              </div>
-                              
-                              <MetricConfigPanel value={metricConfig} onChange={setMetricConfig} />
-                              
-                              <DashboardPreview config={{
-                                resultMetric: metricConfig.result_metric,
-                                resultMetricLabel: metricConfig.result_metric_label,
-                                costMetrics: metricConfig.cost_metrics,
-                                efficiencyMetrics: metricConfig.efficiency_metrics,
-                              }} />
+                          {/* Show wizard when Personalizado is selected */}
+                          {formData.business_model === 'custom' && showCustomWizard && (
+                            <div className="py-4">
+                              <CustomProjectWizard
+                                value={customMetricConfig}
+                                onChange={setCustomMetricConfig}
+                                onBack={() => {
+                                  setShowCustomWizard(false);
+                                  setFormData(prev => ({ ...prev, business_model: 'ecommerce' }));
+                                }}
+                                onComplete={() => {
+                                  // Stay on same modal, wizard is complete
+                                  setShowCustomWizard(false);
+                                }}
+                              />
                             </div>
-                          </div>
+                          )}
 
+                          {/* Show rest of form when not in custom wizard */}
+                          {!(formData.business_model === 'custom' && showCustomWizard) && (
+                            <>
                           <div className="space-y-2">
                             <Label>Health Score do Cliente</Label>
                             <div className="grid grid-cols-3 gap-3">
@@ -1101,6 +1079,8 @@ export default function ProjectSelector() {
                               })}
                             </div>
                           </div>
+                          </>
+                          )}
 
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
