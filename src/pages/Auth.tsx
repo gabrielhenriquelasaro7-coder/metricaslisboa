@@ -12,11 +12,11 @@ import v4LogoIcon from '@/assets/v4-logo-icon.png';
 const emailSchema = z.string().email('E-mail inválido');
 const passwordSchema = z.string().min(6, 'Mínimo de 6 caracteres');
 
-// Floating Particle Component
+// Floating Particle Component - subtle
 function Particle({ delay, duration, size, x, y }: { delay: number; duration: number; size: number; x: number; y: number }) {
   return (
     <div
-      className="absolute rounded-full bg-primary/30 animate-float"
+      className="absolute rounded-full bg-white/8 animate-float"
       style={{
         width: size,
         height: size,
@@ -24,25 +24,7 @@ function Particle({ delay, duration, size, x, y }: { delay: number; duration: nu
         top: `${y}%`,
         animationDelay: `${delay}s`,
         animationDuration: `${duration}s`,
-        filter: 'blur(1px)',
-      }}
-    />
-  );
-}
-
-// Pulsing Glow Ring
-function GlowRing({ size, delay, opacity }: { size: number; delay: number; opacity: number }) {
-  return (
-    <div
-      className="absolute rounded-full border border-primary/20 animate-pulse-slow"
-      style={{
-        width: size,
-        height: size,
-        left: '50%',
-        top: '50%',
-        transform: 'translate(-50%, -50%)',
-        animationDelay: `${delay}s`,
-        opacity,
+        filter: 'blur(0.5px)',
       }}
     />
   );
@@ -158,67 +140,40 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-background">
-      {/* Animated Background Layers */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      {/* Gradient Background - inspired by reference */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#1a0808] to-[#3d0d0d]" />
       
-      {/* Radial glow effects */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/15 rounded-full blur-[150px] animate-pulse-slow" />
-        <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-red-600/10 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-red-500/10 rounded-full blur-[80px] animate-pulse-slow" style={{ animationDelay: '2s' }} />
-      </div>
+      {/* Secondary gradient overlay for depth */}
+      <div className="absolute inset-0 bg-gradient-to-tl from-red-900/30 via-transparent to-transparent" />
 
-      {/* Floating Particles */}
+      {/* Floating Particles - subtle */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {particles.map((p) => (
           <Particle key={p.id} {...p} />
         ))}
       </div>
 
-      {/* Grid pattern overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(239,68,68,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,0.02)_1px,transparent_1px)] bg-[size:80px_80px] pointer-events-none" />
+      {/* Subtle vignette effect */}
+      <div className="absolute inset-0 bg-radial-gradient pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.4) 100%)' }} />
 
       {/* Main Content */}
       <div className="relative z-10 w-full max-w-md px-6">
-        {/* Logo Section with Glow Effects */}
-        <div className="flex flex-col items-center mb-12 animate-fade-in">
-          <div className="relative">
-            {/* Pulsing glow rings */}
-            <GlowRing size={200} delay={0} opacity={0.3} />
-            <GlowRing size={280} delay={0.5} opacity={0.2} />
-            <GlowRing size={360} delay={1} opacity={0.1} />
-            
-            {/* Logo with glow */}
-            <div className="relative z-10">
-              <img 
-                src={v4LogoIcon} 
-                alt="V4 Company" 
-                className="h-28 w-auto drop-shadow-2xl rounded-3xl animate-float"
-              />
-              <div className="absolute inset-0 bg-primary/40 rounded-3xl blur-2xl -z-10 animate-pulse-slow" />
-            </div>
-          </div>
-          
-          <h1 className="text-2xl font-bold mt-8 gradient-text">MetaAds Manager</h1>
-          <p className="text-muted-foreground text-sm mt-1">by V4 Company</p>
+        {/* Logo Section - Clean */}
+        <div className="flex flex-col items-center mb-10 animate-fade-in">
+          <img 
+            src={v4LogoIcon} 
+            alt="V4 Company" 
+            className="h-16 w-auto drop-shadow-lg rounded-xl"
+          />
+          <h1 className="text-2xl font-bold mt-6 text-foreground">
+            {isResetPassword ? 'Recuperar Senha' : isLogin ? 'Login' : 'Criar Conta'}
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">Entre com suas credenciais V4 Company</p>
         </div>
 
-        {/* Form Card */}
-        <div className="glass-card p-8 space-y-6 animate-scale-in backdrop-blur-xl border-primary/10" style={{ animationDelay: '0.2s' }}>
-          {/* Header */}
-          <div className="text-center">
-            <h2 className="text-xl font-semibold mb-1">
-              {isResetPassword ? 'Recuperar senha' : isLogin ? 'Bem-vindo de volta' : 'Crie sua conta'}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {isResetPassword 
-                ? 'Digite seu e-mail para receber as instruções' 
-                : isLogin 
-                  ? 'Entre para acessar sua dashboard' 
-                  : 'Comece a analisar seus anúncios'}
-            </p>
-          </div>
+        {/* Form Card - Clean dark style */}
+        <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/30 p-8 space-y-6 animate-scale-in" style={{ animationDelay: '0.1s' }}>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
