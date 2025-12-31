@@ -40,14 +40,26 @@ export default function ChangePassword() {
 
       // Mark password as changed
       if (user) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('guest_invitations')
           .update({ password_changed: true, status: 'accepted', accepted_at: new Date().toISOString() })
           .eq('guest_user_id', user.id);
+        
+        if (updateError) {
+          console.error('Error updating invitation:', updateError);
+        }
       }
 
       toast.success('Senha alterada com sucesso!');
-      navigate('/dashboard');
+      
+      // Check if guest has completed onboarding
+      const onboardingComplete = localStorage.getItem('guestOnboardingComplete');
+      if (!onboardingComplete) {
+        // Redirect to onboarding for first-time guests
+        navigate('/guest-onboarding', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     } catch (error: unknown) {
       console.error('Error changing password:', error);
       const message = error instanceof Error ? error.message : 'Erro ao alterar senha';
