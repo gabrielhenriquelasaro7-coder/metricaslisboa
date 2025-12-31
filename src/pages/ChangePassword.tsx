@@ -47,7 +47,7 @@ export default function ChangePassword() {
       }
 
       toast.success('Senha alterada com sucesso!');
-      navigate('/guest-onboarding');
+      navigate('/dashboard');
     } catch (error: unknown) {
       console.error('Error changing password:', error);
       const message = error instanceof Error ? error.message : 'Erro ao alterar senha';

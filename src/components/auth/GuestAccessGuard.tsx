@@ -31,7 +31,6 @@ const REQUIRES_PASSWORD_CHANGE = [
   '/ad/',
   '/creatives',
   '/creative/',
-  '/projects',
 ];
 
 export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
@@ -61,14 +60,11 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
       }
     }
 
-    // Check if guest finished password change but hasn't seen onboarding
-    if (isGuest && !needsPasswordChange) {
-      const hasSeenOnboarding = localStorage.getItem('guestOnboardingComplete');
-      
-      if (!hasSeenOnboarding && currentPath !== '/guest-onboarding' && currentPath !== '/change-password') {
-        navigate('/guest-onboarding', { replace: true });
-        return;
-      }
+    // If guest tries to access /projects, redirect to dashboard
+    // (they only have access to specific projects, so go directly to dashboard)
+    if (isGuest && currentPath === '/projects') {
+      navigate('/dashboard', { replace: true });
+      return;
     }
 
     // If guest tries to access restricted page, redirect to dashboard
