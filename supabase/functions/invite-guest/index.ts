@@ -24,6 +24,8 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
+    console.log('Creating supabase client...');
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     });
@@ -31,6 +33,7 @@ serve(async (req) => {
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('No authorization header');
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -42,13 +45,17 @@ serve(async (req) => {
     const { data: { user: requestingUser }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !requestingUser) {
+      console.error('Auth error:', authError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    console.log('Requesting user:', requestingUser.id);
+
     const { guest_email, guest_name, project_id } = await req.json();
+    console.log('Request body:', { guest_email, guest_name, project_id });
 
     if (!guest_email || !guest_name || !project_id) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -63,7 +70,9 @@ serve(async (req) => {
       .select('id, name')
       .eq('id', project_id)
       .eq('user_id', requestingUser.id)
-      .single();
+      .maybeSingle();
+
+    console.log('Project lookup:', { project, projectError });
 
     if (projectError || !project) {
       return new Response(JSON.stringify({ error: 'Project not found or not authorized' }), {
@@ -72,28 +81,44 @@ serve(async (req) => {
       });
     }
 
-    // Check if user already exists
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(u => u.email === guest_email);
-
-    let guestUserId: string;
     const tempPassword = generateTempPassword();
+    let guestUserId: string;
+    let isNewUser = false;
+
+    // Check if user already exists by email
+    const { data: existingUsersData, error: listError } = await supabase.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error('Error listing users:', listError);
+      return new Response(JSON.stringify({ error: 'Failed to check existing users' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const existingUser = existingUsersData?.users?.find(u => u.email?.toLowerCase() === guest_email.toLowerCase());
 
     if (existingUser) {
+      console.log('User already exists:', existingUser.id);
       guestUserId = existingUser.id;
       
-      // Update role to convidado if not already
+      // Delete existing gestor role and insert convidado role
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', guestUserId);
+      
       const { error: roleError } = await supabase
         .from('user_roles')
-        .upsert({ 
-          user_id: guestUserId, 
-          role: 'convidado' 
-        }, { onConflict: 'user_id,role' });
+        .insert({ user_id: guestUserId, role: 'convidado' });
 
       if (roleError) {
         console.error('Error updating role:', roleError);
       }
     } else {
+      console.log('Creating new user...');
+      isNewUser = true;
+      
       // Create new user
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
         email: guest_email,
@@ -103,27 +128,40 @@ serve(async (req) => {
       });
 
       if (createError || !newUser.user) {
-        return new Response(JSON.stringify({ error: 'Failed to create user: ' + createError?.message }), {
+        console.error('Error creating user:', createError);
+        return new Response(JSON.stringify({ error: 'Failed to create user: ' + (createError?.message || 'Unknown error') }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
       guestUserId = newUser.user.id;
+      console.log('New user created:', guestUserId);
 
-      // Set role to convidado
-      const { error: roleError } = await supabase
+      // Wait a bit for the trigger to create the default role, then update it
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Update role from gestor (default) to convidado
+      const { error: roleUpdateError } = await supabase
         .from('user_roles')
-        .insert({ user_id: guestUserId, role: 'convidado' });
+        .update({ role: 'convidado' })
+        .eq('user_id', guestUserId);
 
-      if (roleError) {
-        console.error('Error inserting role:', roleError);
+      if (roleUpdateError) {
+        console.error('Error updating role:', roleUpdateError);
+        // Try inserting instead
+        await supabase
+          .from('user_roles')
+          .insert({ user_id: guestUserId, role: 'convidado' });
       }
 
-      // Create profile
+      // Create profile if it doesn't exist
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({ user_id: guestUserId, full_name: guest_name });
+        .upsert({ 
+          user_id: guestUserId, 
+          full_name: guest_name 
+        }, { onConflict: 'user_id' });
 
       if (profileError) {
         console.error('Error creating profile:', profileError);
@@ -131,6 +169,7 @@ serve(async (req) => {
     }
 
     // Create invitation record
+    console.log('Creating invitation record...');
     const { data: invitation, error: invitationError } = await supabase
       .from('guest_invitations')
       .insert({
@@ -139,13 +178,14 @@ serve(async (req) => {
         guest_email: guest_email,
         guest_name: guest_name,
         guest_user_id: guestUserId,
-        temp_password: tempPassword,
+        temp_password: isNewUser ? tempPassword : '(usuário já existente)',
         status: 'pending'
       })
       .select()
       .single();
 
     if (invitationError) {
+      console.error('Error creating invitation:', invitationError);
       return new Response(JSON.stringify({ error: 'Failed to create invitation: ' + invitationError.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -153,6 +193,7 @@ serve(async (req) => {
     }
 
     // Grant project access
+    console.log('Granting project access...');
     const { error: accessError } = await supabase
       .from('guest_project_access')
       .upsert({
@@ -165,10 +206,12 @@ serve(async (req) => {
       console.error('Error granting access:', accessError);
     }
 
+    console.log('Invitation created successfully');
     return new Response(JSON.stringify({
       success: true,
       invitation_id: invitation.id,
-      temp_password: tempPassword,
+      temp_password: isNewUser ? tempPassword : null,
+      is_new_user: isNewUser,
       guest_email: guest_email,
       project_name: project.name
     }), {

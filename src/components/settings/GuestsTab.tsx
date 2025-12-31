@@ -71,7 +71,8 @@ export function GuestsTab() {
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+  const [isNewUser, setIsNewUser] = useState(false);
   const [invitedEmail, setInvitedEmail] = useState('');
   const [invitedProjectName, setInvitedProjectName] = useState('');
   
@@ -135,9 +136,10 @@ export function GuestsTab() {
         throw new Error(response.error.message);
       }
 
-      const { temp_password, project_name } = response.data;
+      const { temp_password, project_name, is_new_user } = response.data;
       
       setGeneratedPassword(temp_password);
+      setIsNewUser(is_new_user);
       setInvitedEmail(guestEmail);
       setInvitedProjectName(project_name);
       setShowPasswordDialog(true);
@@ -161,6 +163,7 @@ export function GuestsTab() {
   };
 
   const handleCopyPassword = async () => {
+    if (!generatedPassword) return;
     try {
       await navigator.clipboard.writeText(generatedPassword);
       toast.success('Senha copiada!');
@@ -170,7 +173,7 @@ export function GuestsTab() {
   };
 
   const handleCopyCredentials = async () => {
-    const credentials = `E-mail: ${invitedEmail}\nSenha: ${generatedPassword}\nProjeto: ${invitedProjectName}`;
+    const credentials = `E-mail: ${invitedEmail}\n${generatedPassword ? `Senha: ${generatedPassword}\n` : ''}Projeto: ${invitedProjectName}`;
     try {
       await navigator.clipboard.writeText(credentials);
       toast.success('Credenciais copiadas!');
@@ -371,10 +374,12 @@ export function GuestsTab() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-metric-positive" />
-              Convite Criado!
+              {isNewUser ? 'Usuário Criado!' : 'Acesso Concedido!'}
             </DialogTitle>
             <DialogDescription>
-              Envie as credenciais abaixo para o cliente. Ele precisará alterar a senha no primeiro acesso.
+              {isNewUser 
+                ? 'Envie as credenciais abaixo para o cliente. Ele precisará alterar a senha no primeiro acesso.'
+                : 'O usuário já existia e agora tem acesso ao projeto. Ele pode usar a senha atual para fazer login.'}
             </DialogDescription>
           </DialogHeader>
           
@@ -384,30 +389,43 @@ export function GuestsTab() {
                 <span className="text-sm text-muted-foreground">E-mail:</span>
                 <span className="font-mono">{invitedEmail}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Senha:</span>
-                <span className="font-mono font-bold text-primary">{generatedPassword}</span>
-              </div>
+              {isNewUser && generatedPassword && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Senha:</span>
+                  <span className="font-mono font-bold text-primary">{generatedPassword}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Projeto:</span>
                 <span className="font-medium">{invitedProjectName}</span>
               </div>
             </div>
             
-            <div className="text-sm text-muted-foreground">
-              <p>⚠️ Esta é a única vez que você verá a senha. Copie e envie para o cliente.</p>
-            </div>
+            {isNewUser && (
+              <div className="text-sm text-muted-foreground">
+                <p>⚠️ Esta é a única vez que você verá a senha. Copie e envie para o cliente.</p>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={handleCopyPassword} className="gap-2">
-              <Copy className="w-4 h-4" />
-              Copiar Senha
-            </Button>
-            <Button onClick={handleCopyCredentials} className="gap-2">
-              <Copy className="w-4 h-4" />
-              Copiar Tudo
-            </Button>
+            {isNewUser && generatedPassword ? (
+              <>
+                <Button variant="outline" onClick={handleCopyPassword} className="gap-2">
+                  <Copy className="w-4 h-4" />
+                  Copiar Senha
+                </Button>
+                <Button onClick={handleCopyCredentials} className="gap-2">
+                  <Copy className="w-4 h-4" />
+                  Copiar Tudo
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setShowPasswordDialog(false)} className="gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                Entendido
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

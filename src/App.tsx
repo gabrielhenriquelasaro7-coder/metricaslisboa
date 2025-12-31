@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PeriodProvider } from "@/hooks/usePeriodContext";
 import { AdminAuthProvider } from "@/hooks/useAdminAuth";
+import { GuestAccessGuard } from "@/components/auth/GuestAccessGuard";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -39,29 +40,31 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/onboarding" element={<Onboarding />} />
-                <Route path="/projects" element={<ProjectSelector />} />
-                <Route path="/project-setup/:projectId" element={<ProjectSetup />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/campaigns" element={<Campaigns />} />
-                <Route path="/campaign/:campaignId/adsets" element={<AdSets />} />
-                <Route path="/adset/:adSetId" element={<AdSetDetail />} />
-                <Route path="/ad/:adId" element={<AdDetail />} />
-                <Route path="/adset/:adSetId/ads" element={<Ads />} />
-                <Route path="/creatives" element={<Creatives />} />
-                <Route path="/creative/:id" element={<CreativeDetail />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/sync-history" element={<SyncHistory />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/ai-assistant" element={<AIAssistant />} />
-                <Route path="/whatsapp" element={<WhatsApp />} />
-                <Route path="/change-password" element={<ChangePassword />} />
-                <Route path="/guest-onboarding" element={<GuestOnboarding />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <GuestAccessGuard>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/onboarding" element={<Onboarding />} />
+                  <Route path="/projects" element={<ProjectSelector />} />
+                  <Route path="/project-setup/:projectId" element={<ProjectSetup />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/campaigns" element={<Campaigns />} />
+                  <Route path="/campaign/:campaignId/adsets" element={<AdSets />} />
+                  <Route path="/adset/:adSetId" element={<AdSetDetail />} />
+                  <Route path="/ad/:adId" element={<AdDetail />} />
+                  <Route path="/adset/:adSetId/ads" element={<Ads />} />
+                  <Route path="/creatives" element={<Creatives />} />
+                  <Route path="/creative/:id" element={<CreativeDetail />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/sync-history" element={<SyncHistory />} />
+                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/ai-assistant" element={<AIAssistant />} />
+                  <Route path="/whatsapp" element={<WhatsApp />} />
+                  <Route path="/change-password" element={<ChangePassword />} />
+                  <Route path="/guest-onboarding" element={<GuestOnboarding />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </GuestAccessGuard>
             </BrowserRouter>
           </TooltipProvider>
         </PeriodProvider>
