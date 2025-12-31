@@ -343,7 +343,7 @@ export default function ProjectSelector() {
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [activeTab, setActiveTab] = useState('projects');
+  const [activeTab, setActiveTab] = useState('meta-ads');
   const [showArchived, setShowArchived] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [healthFilter, setHealthFilter] = useState<ExtendedHealthScore | 'all'>('all');
@@ -385,6 +385,7 @@ export default function ProjectSelector() {
     currency: 'BRL',
     health_score: null,
     avatar_url: null,
+    google_customer_id: '',
   });
   const [editFormData, setEditFormData] = useState<{
     name: string;
@@ -413,13 +414,23 @@ export default function ProjectSelector() {
   const activeProjects = projects.filter(p => !p.archived);
   const archivedProjects = projects.filter(p => p.archived);
   
+  // Filter projects by platform: Meta Ads (has ad_account_id), Google Ads (has google_customer_id)
+  const metaAdsProjects = activeProjects.filter(p => p.ad_account_id && !p.google_customer_id);
+  const googleAdsProjects = activeProjects.filter(p => p.google_customer_id);
+  const archivedMetaProjects = archivedProjects.filter(p => p.ad_account_id && !p.google_customer_id);
+  const archivedGoogleProjects = archivedProjects.filter(p => p.google_customer_id);
+  
   // Filtered projects based on health score filter and search query
+  const filteredMetaProjects = (showArchived ? archivedMetaProjects : metaAdsProjects)
+    .filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter)
+    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredGoogleProjects = (showArchived ? archivedGoogleProjects : googleAdsProjects)
+    .filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter)
+    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredActiveProjects = activeProjects
     .filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter)
     .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredArchivedProjects = archivedProjects
-    .filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter)
-    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleSelectProject = (project: Project) => {
     localStorage.setItem('selectedProjectId', project.id);
@@ -846,11 +857,22 @@ export default function ProjectSelector() {
                 <div className="flex items-center gap-3">
                   <TabsList className="rounded-xl h-10 bg-secondary/50 p-1">
                     <TabsTrigger 
-                      value="projects" 
+                      value="meta-ads" 
                       className="gap-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
                     >
-                      <FolderKanban className="w-4 h-4" />
-                      Projetos
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+                      </svg>
+                      Meta Ads
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="google-ads" 
+                      className="gap-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
+                      </svg>
+                      Google Ads
                     </TabsTrigger>
                     <TabsTrigger 
                       value="profile" 
@@ -864,15 +886,18 @@ export default function ProjectSelector() {
               </div>
             </div>
 
-            {/* Projects Section Header */}
-            {activeTab === 'projects' && (
+            {/* Meta Ads Section Header */}
+            {activeTab === 'meta-ads' && (
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-foreground">
-                    {showArchived ? 'Projetos Arquivados' : 'Meus Clientes'}
+                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+                    </svg>
+                    {showArchived ? 'Meta Ads - Arquivados' : 'Meta Ads - Clientes'}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Total de {showArchived ? archivedProjects.length : activeProjects.length} clientes cadastrados
+                    Total de {showArchived ? archivedMetaProjects.length : metaAdsProjects.length} clientes Meta Ads
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -929,14 +954,19 @@ export default function ProjectSelector() {
                   
                   <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button className="gap-2 bg-gradient-to-r from-primary to-red-700 hover:from-red-600 hover:to-red-800 shadow-lg shadow-primary/30">
+                      <Button className="gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 shadow-lg shadow-blue-600/30">
                         <Plus className="w-4 h-4" />
-                        Novo Cliente
+                        Novo Cliente Meta
                       </Button>
                     </DialogTrigger>
                       <DialogContent className="sm:max-w-2xl max-h-[90vh]">
                         <DialogHeader>
-                          <DialogTitle className="text-xl gradient-text">Criar novo projeto</DialogTitle>
+                          <DialogTitle className="text-xl gradient-text flex items-center gap-2">
+                            <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+                            </svg>
+                            Criar projeto Meta Ads
+                          </DialogTitle>
                         </DialogHeader>
                         <ScrollArea className="max-h-[70vh] pr-4">
                         <form onSubmit={handleCreateProject} className="space-y-5 mt-4">
@@ -1110,7 +1140,7 @@ export default function ProjectSelector() {
                             <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
                               Cancelar
                             </Button>
-                            <Button type="submit" disabled={isCreating} className="bg-gradient-to-r from-primary to-red-700">
+                            <Button type="submit" disabled={isCreating} className="bg-gradient-to-r from-blue-600 to-blue-700">
                               {isCreating ? (
                                 <>
                                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1119,7 +1149,7 @@ export default function ProjectSelector() {
                               ) : (
                                 <>
                                   <Plus className="w-4 h-4 mr-2" />
-                                  Criar Projeto
+                                  Criar Projeto Meta
                                 </>
                               )}
                             </Button>
@@ -1132,11 +1162,298 @@ export default function ProjectSelector() {
               </div>
             )}
 
-            <TabsContent value="projects" className="mt-0">
-              {(showArchived ? filteredArchivedProjects : filteredActiveProjects).length > 0 ? (
+            {/* Google Ads Section Header */}
+            {activeTab === 'google-ads' && (
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <svg className="w-5 h-5 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
+                    </svg>
+                    {showArchived ? 'Google Ads - Arquivados' : 'Google Ads - Clientes'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Total de {showArchived ? archivedGoogleProjects.length : googleAdsProjects.length} clientes Google Ads
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* View Mode Toggle */}
+                  <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={cn(
+                        "p-1.5 rounded-md transition-all",
+                        viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={cn(
+                        "p-1.5 rounded-md transition-all",
+                        viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowArchived(!showArchived)}
+                    className={cn(
+                      "border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all",
+                      showArchived && 'bg-primary/10 border-primary/50'
+                    )}
+                  >
+                    <Archive className="w-4 h-4 mr-2" />
+                    {showArchived ? 'Ativos' : 'Arquivados'}
+                  </Button>
+                  
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="gap-2 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 shadow-lg shadow-yellow-600/30 text-black">
+                        <Plus className="w-4 h-4" />
+                        Novo Cliente Google
+                      </Button>
+                    </DialogTrigger>
+                      <DialogContent className="sm:max-w-2xl max-h-[90vh]">
+                        <DialogHeader>
+                          <DialogTitle className="text-xl gradient-text flex items-center gap-2">
+                            <svg className="w-5 h-5 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
+                            </svg>
+                            Criar projeto Google Ads
+                          </DialogTitle>
+                        </DialogHeader>
+                        <ScrollArea className="max-h-[70vh] pr-4">
+                        <form onSubmit={async (e) => {
+                          e.preventDefault();
+                          if (!formData.name || !formData.google_customer_id) {
+                            toast.error('Preencha todos os campos obrigatórios');
+                            return;
+                          }
+                          setIsCreating(true);
+                          try {
+                            const project = await createProject({
+                              ...formData,
+                              ad_account_id: `google_${formData.google_customer_id}`, // Use google prefix for Google Ads projects
+                            });
+                            if (project) {
+                              setFormData({
+                                name: '',
+                                ad_account_id: '',
+                                business_model: 'ecommerce',
+                                timezone: 'America/Sao_Paulo',
+                                currency: 'BRL',
+                                health_score: null,
+                                avatar_url: null,
+                                google_customer_id: '',
+                              });
+                              setAvatarPreview(null);
+                              if (formData.business_model === 'custom') {
+                                navigate(`/project-setup/${project.id}`);
+                              }
+                            }
+                          } catch (error) {
+                            console.error('Error creating project:', error);
+                          } finally {
+                            setIsCreating(false);
+                          }
+                        }} className="space-y-5 mt-4">
+                          {/* Avatar Upload */}
+                          <div className="flex justify-center">
+                            <div className="relative">
+                              <div 
+                                onClick={() => avatarInputRef.current?.click()}
+                                className={cn(
+                                  "w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer transition-all",
+                                  "hover:border-yellow-500 hover:bg-yellow-500/5",
+                                  avatarPreview && "border-solid border-yellow-500"
+                                )}
+                              >
+                                {avatarPreview ? (
+                                  <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
+                                ) : isUploadingAvatar ? (
+                                  <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+                                ) : (
+                                  <div className="text-center">
+                                    <ImagePlus className="w-8 h-8 text-muted-foreground mx-auto" />
+                                    <span className="text-xs text-muted-foreground mt-1">Avatar</span>
+                                  </div>
+                                )}
+                              </div>
+                              <input
+                                ref={avatarInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleAvatarChange(e, false)}
+                              />
+                              {avatarPreview && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAvatarPreview(null);
+                                    setFormData(prev => ({ ...prev, avatar_url: null }));
+                                  }}
+                                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="google_name">Nome do projeto *</Label>
+                              <Input
+                                id="google_name"
+                                placeholder="Ex: Minha Loja"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="google_customer_id">Customer ID do Google Ads *</Label>
+                              <Input
+                                id="google_customer_id"
+                                placeholder="123-456-7890"
+                                value={formData.google_customer_id || ''}
+                                onChange={(e) => setFormData({ ...formData, google_customer_id: e.target.value.replace(/-/g, '') })}
+                                required
+                              />
+                              <p className="text-xs text-muted-foreground">ID do cliente na sua MCC Google Ads</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Modelo de negócio</Label>
+                            <div className="grid grid-cols-2 gap-3">
+                              {businessModels.map((model) => {
+                                const ModelIcon = model.icon;
+                                return (
+                                  <button
+                                    key={model.value}
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData({ ...formData, business_model: model.value });
+                                    }}
+                                    className={cn(
+                                      "p-3 rounded-xl border-2 text-left transition-all",
+                                      formData.business_model === model.value
+                                        ? 'border-yellow-500 bg-yellow-500/10 ring-2 ring-yellow-500/20'
+                                        : 'border-border hover:border-yellow-500/50'
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <ModelIcon className="w-5 h-5 text-yellow-500" />
+                                      <p className="font-medium text-sm">{model.label}</p>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">{model.description}</p>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Health Score do Cliente</Label>
+                            <div className="grid grid-cols-3 gap-3">
+                              {healthScoreOptions.filter(opt => opt.value !== 'undefined').map((option) => {
+                                const OptionIcon = option.icon;
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, health_score: formData.health_score === option.value ? null : option.value as HealthScore })}
+                                    className={cn(
+                                      "p-3 rounded-xl border-2 text-center transition-all",
+                                      formData.health_score === option.value
+                                        ? `${option.borderColor} ${option.bgColor}`
+                                        : 'border-border hover:border-primary/50'
+                                    )}
+                                  >
+                                    <OptionIcon className={cn("w-5 h-5 mx-auto mb-1", option.textColor)} />
+                                    <p className={cn("font-medium text-sm", formData.health_score === option.value ? option.textColor : '')}>{option.label}</p>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Moeda</Label>
+                              <Select
+                                value={formData.currency}
+                                onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="BRL">Real (R$)</SelectItem>
+                                  <SelectItem value="USD">Dólar (US$)</SelectItem>
+                                  <SelectItem value="EUR">Euro (€)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Fuso horário</Label>
+                              <Select
+                                value={formData.timezone}
+                                onValueChange={(value) => setFormData({ ...formData, timezone: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="America/Sao_Paulo">São Paulo</SelectItem>
+                                  <SelectItem value="America/New_York">New York</SelectItem>
+                                  <SelectItem value="Europe/London">Londres</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                            <Button type="button" variant="outline" onClick={() => {}}>
+                              Cancelar
+                            </Button>
+                            <Button type="submit" disabled={isCreating} className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-black">
+                              {isCreating ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Criando...
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Criar Projeto Google
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </form>
+                        </ScrollArea>
+                      </DialogContent>
+                    </Dialog>
+                </div>
+              </div>
+            )}
+
+            {/* Meta Ads Tab Content */}
+            <TabsContent value="meta-ads" className="mt-0">
+              {filteredMetaProjects.length > 0 ? (
                 viewMode === 'grid' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-fade-in">
-                    {(showArchived ? filteredArchivedProjects : filteredActiveProjects).map((project) => (
+                    {filteredMetaProjects.map((project) => (
                       <ProjectCard
                         key={project.id}
                         project={project}
@@ -1151,7 +1468,7 @@ export default function ProjectSelector() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4 stagger-fade-in">
-                    {(showArchived ? filteredArchivedProjects : filteredActiveProjects).map((project) => (
+                    {filteredMetaProjects.map((project) => (
                       <ProjectListItem
                         key={project.id}
                         project={project}
@@ -1168,29 +1485,105 @@ export default function ProjectSelector() {
               ) : (
                 <div className="text-center py-20 animate-fade-in">
                   <div className="relative inline-block">
-                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/20 to-red-700/20 flex items-center justify-center mx-auto mb-6 animate-float">
-                      <FolderKanban className="w-12 h-12 text-primary" />
+                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-500/20 to-blue-700/20 flex items-center justify-center mx-auto mb-6 animate-float">
+                      <svg className="w-12 h-12 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+                      </svg>
                     </div>
-                    <div className="absolute inset-0 bg-primary/10 rounded-3xl blur-xl -z-10" />
+                    <div className="absolute inset-0 bg-blue-500/10 rounded-3xl blur-xl -z-10" />
                   </div>
-                  <h3 className="text-2xl font-bold mb-3 gradient-text">
+                  <h3 className="text-2xl font-bold mb-3 text-blue-400">
                     {healthFilter !== 'all' 
                       ? `Nenhum projeto ${healthFilter === 'safe' ? 'Safe' : healthFilter === 'care' ? 'Care' : 'Danger'}` 
                       : showArchived 
-                        ? 'Nenhum projeto arquivado' 
-                        : 'Nenhum projeto ainda'}
+                        ? 'Nenhum projeto Meta Ads arquivado' 
+                        : 'Nenhum cliente Meta Ads ainda'}
                   </h3>
                   <p className="text-muted-foreground mb-8 max-w-md mx-auto">
                     {healthFilter !== 'all'
                       ? 'Tente remover o filtro para ver todos os projetos.'
                       : showArchived 
-                        ? 'Projetos arquivados aparecerão aqui.' 
-                        : 'Crie seu primeiro projeto para começar a monitorar suas campanhas.'}
+                        ? 'Projetos Meta Ads arquivados aparecerão aqui.' 
+                        : 'Adicione seu primeiro cliente Meta Ads para começar.'}
                   </p>
                   {!showArchived && (
-                    <Button onClick={() => setCreateDialogOpen(true)} className="bg-gradient-to-r from-primary via-red-600 to-red-700 shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all duration-300 hover:scale-105 px-8 py-6 text-lg">
+                    <Button onClick={() => setCreateDialogOpen(true)} className="bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 transition-all duration-300 hover:scale-105 px-8 py-6 text-lg">
                       <Plus className="w-5 h-5 mr-2" />
-                      Criar Primeiro Projeto
+                      Criar Cliente Meta Ads
+                    </Button>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Google Ads Tab Content */}
+            <TabsContent value="google-ads" className="mt-0">
+              {filteredGoogleProjects.length > 0 ? (
+                viewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-fade-in">
+                    {filteredGoogleProjects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        onSelect={(p) => {
+                          localStorage.setItem('selectedProjectId', p.id);
+                          navigate('/google-campaigns');
+                        }}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteClick}
+                        onArchive={(p) => archiveProject(p.id)}
+                        onUnarchive={(p) => unarchiveProject(p.id)}
+                        onResync={handleResync}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-4 stagger-fade-in">
+                    {filteredGoogleProjects.map((project) => (
+                      <ProjectListItem
+                        key={project.id}
+                        project={project}
+                        onSelect={(p) => {
+                          localStorage.setItem('selectedProjectId', p.id);
+                          navigate('/google-campaigns');
+                        }}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteClick}
+                        onArchive={(p) => archiveProject(p.id)}
+                        onUnarchive={(p) => unarchiveProject(p.id)}
+                        onResync={handleResync}
+                      />
+                    ))}
+                  </div>
+                )
+              ) : (
+                <div className="text-center py-20 animate-fade-in">
+                  <div className="relative inline-block">
+                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-yellow-500/20 to-yellow-700/20 flex items-center justify-center mx-auto mb-6 animate-float">
+                      <svg className="w-12 h-12 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
+                      </svg>
+                    </div>
+                    <div className="absolute inset-0 bg-yellow-500/10 rounded-3xl blur-xl -z-10" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-3 text-yellow-500">
+                    {healthFilter !== 'all' 
+                      ? `Nenhum projeto ${healthFilter === 'safe' ? 'Safe' : healthFilter === 'care' ? 'Care' : 'Danger'}` 
+                      : showArchived 
+                        ? 'Nenhum projeto Google Ads arquivado' 
+                        : 'Nenhum cliente Google Ads ainda'}
+                  </h3>
+                  <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                    {healthFilter !== 'all'
+                      ? 'Tente remover o filtro para ver todos os projetos.'
+                      : showArchived 
+                        ? 'Projetos Google Ads arquivados aparecerão aqui.' 
+                        : 'Adicione seu primeiro cliente Google Ads para começar.'}
+                  </p>
+                  {!showArchived && (
+                    <Button className="bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-lg shadow-yellow-600/30 hover:shadow-yellow-600/50 transition-all duration-300 hover:scale-105 px-8 py-6 text-lg text-black">
+                      <Plus className="w-5 h-5 mr-2" />
+                      Criar Cliente Google Ads
                     </Button>
                   )}
                 </div>
