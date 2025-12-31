@@ -5,7 +5,9 @@ import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
+import { DynamicResultMetrics } from '@/components/dashboard/DynamicResultMetrics';
 import { useDemographicInsights } from '@/hooks/useDemographicInsights';
+import { useProjectMetricConfig } from '@/hooks/useProjectMetricConfig';
 import PeriodComparison from '@/components/dashboard/PeriodComparison';
 import { PDFBuilderDialog } from '@/components/pdf/PDFBuilderDialog';
 import { useProjects } from '@/hooks/useProjects';
@@ -94,6 +96,10 @@ export default function Dashboard() {
   const isEcommerce = hasSelectedProject && businessModel === 'ecommerce';
   const isInsideSales = hasSelectedProject && businessModel === 'inside_sales';
   const isPdv = hasSelectedProject && businessModel === 'pdv';
+  const isCustom = hasSelectedProject && businessModel === 'custom';
+
+  // Get custom metric config for custom business model
+  const { config: metricConfig, loading: metricConfigLoading } = useProjectMetricConfig(isCustom ? selectedProject?.id : null);
 
   // Load metrics when preset changes - INSTANT from local database
   useEffect(() => {
@@ -543,6 +549,23 @@ export default function Dashboard() {
                     trend="neutral"
                   />
                 </div>
+              )}
+
+              {/* Custom Business Model Metrics */}
+              {isCustom && metricConfig && (
+                <DynamicResultMetrics
+                  config={metricConfig}
+                  metrics={{
+                    totalConversions: metrics.totalConversions,
+                    totalConversionValue: metrics.totalConversionValue,
+                    totalSpend: metrics.totalSpend,
+                    totalClicks: metrics.totalClicks,
+                    totalImpressions: metrics.totalImpressions,
+                  }}
+                  changes={changes}
+                  sparklineData={sparklineData}
+                  currency={selectedProject?.currency || 'BRL'}
+                />
               )}
             </div>
             )}
