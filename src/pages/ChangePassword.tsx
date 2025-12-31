@@ -73,18 +73,11 @@ export default function ChangePassword() {
       setRedirecting(true);
       setLoading(false);
       
-      // Redirect after a brief moment
+      // ALWAYS redirect to guest-onboarding after first password change
+      // The onboarding page will handle showing welcome and then redirecting to dashboard
       setTimeout(() => {
-        const onboardingComplete = localStorage.getItem('guestOnboardingComplete');
-        console.log('[ChangePassword] Onboarding complete:', onboardingComplete);
-        
-        if (!onboardingComplete) {
-          console.log('[ChangePassword] Redirecting to guest-onboarding');
-          window.location.href = '/guest-onboarding';
-        } else {
-          console.log('[ChangePassword] Redirecting to dashboard');
-          window.location.href = '/dashboard';
-        }
+        console.log('[ChangePassword] Redirecting to guest-onboarding (first login flow)');
+        window.location.href = '/guest-onboarding';
       }, 800);
       
     } catch (error: unknown) {
