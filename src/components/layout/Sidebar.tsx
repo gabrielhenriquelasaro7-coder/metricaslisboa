@@ -212,7 +212,7 @@ export default function Sidebar() {
 
             {/* Campaigns with hierarchy */}
             {!collapsed ? (
-              <Collapsible open={campaignsOpen} onOpenChange={setCampaignsOpen}>
+              <Collapsible open={campaignsOpen} onOpenChange={setCampaignsOpen} data-tour="campaigns">
                 <CollapsibleTrigger asChild>
                   <button
                     className={cn(
@@ -319,6 +319,7 @@ export default function Sidebar() {
             {/* Creatives */}
             <Link
               to="/creatives"
+              data-tour="creatives"
               className={cn(
                 'sidebar-item',
                 location.pathname === '/creatives' && 'active'
