@@ -1,4 +1,5 @@
 import SparklineCard from "./SparklineCard";
+import MetricCard from "./MetricCard";
 import { 
   Target, 
   ShoppingCart, 
@@ -9,7 +10,8 @@ import {
   TrendingUp,
   Percent,
   BadgeDollarSign,
-  LucideIcon
+  LucideIcon,
+  Eye
 } from "lucide-react";
 
 interface MetricConfig {
@@ -27,6 +29,7 @@ interface DynamicResultMetricsProps {
     totalSpend: number;
     totalClicks: number;
     totalImpressions: number;
+    totalReach?: number;
   };
   changes: Record<string, number> | null;
   sparklineData: Record<string, number[]>;
@@ -40,6 +43,7 @@ const RESULT_ICONS: Record<string, LucideIcon> = {
   store_visits: Store,
   appointments: Calendar,
   conversions: Target,
+  messages: Users,
 };
 
 const COST_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
@@ -107,150 +111,90 @@ export function DynamicResultMetrics({
     }
   };
 
-  // Determinar cor do ROAS/ROI
-  const getEfficiencyColor = (metric: string, value: number): "default" | "success" | "warning" | "danger" => {
-    if (metric === 'roas') {
-      if (value >= 3) return "success";
-      if (value >= 1) return "warning";
-      return "danger";
-    }
-    if (metric === 'roi') {
-      if (value >= 100) return "success";
-      if (value >= 0) return "warning";
-      return "danger";
-    }
-    if (metric === 'ctr') {
-      if (value >= 2) return "success";
-      if (value >= 1) return "warning";
-      return "default";
-    }
-    if (metric === 'conversion_rate') {
-      if (value >= 5) return "success";
-      if (value >= 2) return "warning";
-      return "default";
-    }
-    return "default";
-  };
+  // Build all metrics for a unified grid (same as predefined models)
+  const allCards: JSX.Element[] = [];
+
+  // 1. Main result metric
+  allCards.push(
+    <SparklineCard
+      key="result-main"
+      title={config.result_metric_label}
+      value={metrics.totalConversions.toLocaleString('pt-BR')}
+      change={changes?.conversions}
+      changeLabel="vs anterior"
+      icon={ResultIcon}
+      sparklineData={sparklineData.conversions || []}
+      sparklineColor="hsl(var(--chart-1))"
+      className="border-l-4 border-l-chart-1"
+    />
+  );
+
+  // 2. Cost metrics
+  if (config.cost_metrics && config.cost_metrics.length > 0) {
+    config.cost_metrics.forEach(metric => {
+      const costConfig = COST_CONFIG[metric];
+      if (!costConfig) return;
+      
+      const value = getCostValue(metric);
+      const formattedValue = new Intl.NumberFormat('pt-BR', { 
+        style: 'currency', 
+        currency 
+      }).format(value);
+
+      allCards.push(
+        <SparklineCard
+          key={`cost-${metric}`}
+          title={costConfig.label}
+          value={formattedValue}
+          change={changes?.cpa}
+          changeLabel="vs anterior"
+          icon={costConfig.icon}
+          sparklineData={sparklineData.cpa || []}
+          sparklineColor="hsl(var(--chart-2))"
+          invertTrend
+        />
+      );
+    });
+  }
+
+  // 3. Efficiency metrics
+  if (config.efficiency_metrics && config.efficiency_metrics.length > 0) {
+    config.efficiency_metrics.forEach(metric => {
+      const effConfig = EFFICIENCY_CONFIG[metric];
+      if (!effConfig) return;
+      
+      const value = getEfficiencyValue(metric);
+      const formattedValue = formatEfficiency(value, effConfig.format);
+
+      allCards.push(
+        <SparklineCard
+          key={`eff-${metric}`}
+          title={effConfig.label}
+          value={formattedValue}
+          change={metric === 'roas' ? changes?.roas : metric === 'ctr' ? changes?.ctr : undefined}
+          changeLabel="vs anterior"
+          icon={effConfig.icon}
+          sparklineData={metric === 'roas' ? (sparklineData.roas || []) : (sparklineData.ctr || [])}
+          sparklineColor="hsl(142, 76%, 36%)"
+        />
+      );
+    });
+  }
+
+  // 4. Add reach metric (similar to predefined models)
+  allCards.push(
+    <MetricCard
+      key="reach"
+      title="Alcance"
+      value={(metrics.totalReach || 0).toLocaleString('pt-BR')}
+      icon={Eye}
+      trend="neutral"
+    />
+  );
 
   return (
-    <div className="space-y-8">
-      {/* Métrica de Resultado Principal */}
-      <div className="relative">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/30 to-red-600/20 flex items-center justify-center shadow-lg shadow-primary/10">
-            <ResultIcon className="w-5 h-5 text-primary" />
-          </div>
-          <h3 className="text-base font-semibold">{config.result_metric_label}</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <SparklineCard
-            title={config.result_metric_label}
-            value={metrics.totalConversions.toLocaleString('pt-BR')}
-            change={changes?.conversions}
-            icon={ResultIcon}
-            sparklineData={sparklineData.conversions || []}
-            sparklineColor="hsl(var(--primary))"
-            className="border-l-4 border-l-primary"
-          />
-          
-          {/* Mostrar valor de conversão apenas para purchases */}
-          {config.result_metric === 'purchases' && (
-            <SparklineCard
-              title="Faturamento"
-              value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(metrics.totalConversionValue)}
-              change={changes?.conversionValue}
-              icon={TrendingUp}
-              sparklineData={sparklineData.conversionValue || []}
-              sparklineColor="hsl(var(--chart-2))"
-              className="border-l-4 border-l-chart-2"
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Métricas de Custo */}
-      {config.cost_metrics && config.cost_metrics.length > 0 && (
-        <div className="relative">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 flex items-center justify-center shadow-lg shadow-amber-500/10">
-              <DollarSign className="w-5 h-5 text-amber-500" />
-            </div>
-            <h3 className="text-base font-semibold">Métricas de Custo</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {config.cost_metrics.map(metric => {
-              const costConfig = COST_CONFIG[metric];
-              if (!costConfig) return null;
-              
-              const value = getCostValue(metric);
-              const formattedValue = new Intl.NumberFormat('pt-BR', { 
-                style: 'currency', 
-                currency 
-              }).format(value);
-
-              return (
-                <SparklineCard
-                  key={metric}
-                  title={costConfig.label}
-                  value={formattedValue}
-                  change={changes?.cpa}
-                  icon={costConfig.icon}
-                  sparklineData={sparklineData.cpa || []}
-                  sparklineColor="hsl(var(--chart-4))"
-                  invertTrend
-                  className="border-l-4 border-l-amber-500"
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Métricas de Eficiência */}
-      {config.efficiency_metrics && config.efficiency_metrics.length > 0 && (
-        <div className="relative">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/30 to-teal-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/10">
-              <TrendingUp className="w-5 h-5 text-emerald-500" />
-            </div>
-            <h3 className="text-base font-semibold">Métricas de Eficiência</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {config.efficiency_metrics.map(metric => {
-              const effConfig = EFFICIENCY_CONFIG[metric];
-              if (!effConfig) return null;
-              
-              const value = getEfficiencyValue(metric);
-              const formattedValue = formatEfficiency(value, effConfig.format);
-              const color = getEfficiencyColor(metric, value);
-              
-              const borderColor = 
-                color === "success" ? "border-l-emerald-500" :
-                color === "warning" ? "border-l-amber-500" :
-                color === "danger" ? "border-l-destructive" :
-                "border-l-emerald-500";
-
-              return (
-                <SparklineCard
-                  key={metric}
-                  title={effConfig.label}
-                  value={formattedValue}
-                  change={metric === 'roas' ? changes?.roas : metric === 'ctr' ? changes?.ctr : undefined}
-                  icon={effConfig.icon}
-                  sparklineData={metric === 'roas' ? (sparklineData.roas || []) : (sparklineData.ctr || [])}
-                  sparklineColor={
-                    color === "success" ? "hsl(var(--chart-2))" :
-                    color === "warning" ? "hsl(var(--chart-4))" :
-                    color === "danger" ? "hsl(var(--destructive))" :
-                    "hsl(var(--chart-2))"
-                  }
-                  className={`border-l-4 ${borderColor}`}
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {allCards}
     </div>
   );
 }
