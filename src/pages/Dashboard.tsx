@@ -267,7 +267,8 @@ export default function Dashboard() {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toLocaleString('pt-BR');
   };
-  const loading = projectsLoading || dataLoading || dailyLoading;
+  // Only show loading if projects are still loading, or if we have a selected project and data is loading
+  const loading = projectsLoading || (selectedProject && (dataLoading || dailyLoading));
 
   return (
     <DashboardLayout>
