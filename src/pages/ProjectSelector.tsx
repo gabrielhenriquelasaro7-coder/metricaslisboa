@@ -730,8 +730,8 @@ export default function ProjectSelector() {
               <img 
                 src={v4LogoIcon} 
                 alt="V4 Company" 
-                className="h-12 w-auto drop-shadow-2xl rounded-xl brightness-110 saturate-150 animate-float"
-                style={{ filter: 'drop-shadow(0 0 15px rgba(239, 68, 68, 0.4))' }}
+                className="h-12 w-auto rounded-xl animate-float"
+                style={{ filter: 'drop-shadow(0 0 20px rgba(255, 0, 0, 0.6)) saturate(2.5) brightness(1.3) contrast(1.1)' }}
               />
               <div className="flex flex-col">
                 <h1 className="text-xl font-bold text-foreground">MetaAds Manager</h1>

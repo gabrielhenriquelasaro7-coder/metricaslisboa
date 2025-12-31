@@ -224,7 +224,8 @@ export default function ProjectSetup() {
               <img 
                 src={v4LogoIcon} 
                 alt="V4 Company" 
-                className="h-20 w-auto drop-shadow-xl rounded-2xl"
+                className="h-20 w-auto rounded-2xl animate-float"
+                style={{ filter: 'drop-shadow(0 0 20px rgba(255, 0, 0, 0.6)) saturate(2.5) brightness(1.3) contrast(1.1)' }}
               />
               <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl -z-10 scale-150" />
             </div>
