@@ -107,7 +107,6 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   const model = businessModels.find(m => m.value === project.business_model);
   const Icon = model?.icon || Users;
   
-  // CORREÇÃO: Usar APENAS o health_score definido manualmente, sem fallback automático
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
   const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore);
   const HealthIcon = healthOption?.icon || AlertCircle;
@@ -123,7 +122,12 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   
   const getStatusIndicator = () => {
     if (isSyncing) {
-      return <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />;
+      return (
+        <div className="relative">
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+          <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+        </div>
+      );
     }
     if (project.webhook_status === 'error') {
       return <div className="w-2.5 h-2.5 rounded-full bg-red-500" />;
@@ -134,29 +138,34 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   return (
     <div 
       className={cn(
-        "group relative rounded-2xl border-2 p-5 transition-all duration-300 cursor-pointer overflow-hidden hover-lift",
-        "bg-gradient-to-br from-card via-card to-card/50",
-        "hover:border-primary/50",
-        healthOption?.borderColor || 'border-border',
+        "group relative rounded-3xl border p-6 transition-all duration-500 cursor-pointer overflow-hidden",
+        "bg-gradient-to-br from-card/90 via-card/70 to-card/50 backdrop-blur-sm",
+        "hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1",
+        "border-border/50 hover:border-primary/40",
         project.archived && 'opacity-60'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Red texture background */}
-      <div className="absolute inset-0 red-texture-bg opacity-50" />
+      {/* Animated gradient border on hover */}
+      <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+        <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-primary/20 via-transparent to-primary/20" />
+      </div>
       
-      {/* Glow effect on hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      {/* Health indicator strip */}
+      <div className={cn(
+        "absolute top-0 left-6 right-6 h-1 rounded-b-full transition-all duration-300",
+        healthOption?.bgColor?.replace('/20', '/60') || 'bg-muted'
+      )} />
       
-      {/* Header with Avatar and Health */}
-      <div className="relative flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
+      {/* Header with Avatar and Actions */}
+      <div className="relative flex items-start justify-between mb-5">
+        <div className="flex items-center gap-4">
           {/* Project Avatar */}
           <div className={cn(
-            "w-14 h-14 rounded-xl flex items-center justify-center transition-all overflow-hidden",
+            "relative w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 overflow-hidden",
+            "bg-gradient-to-br",
             !project.avatar_url && healthOption?.bgColor,
-            "ring-2 ring-offset-2 ring-offset-card",
-            healthOption?.borderColor?.replace('border-', 'ring-')
+            "group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-primary/20"
           )}>
             {project.avatar_url ? (
               <img 
@@ -165,51 +174,64 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
                 className="w-full h-full object-cover"
               />
             ) : (
-              <Icon className={cn("w-7 h-7", healthOption?.textColor)} />
+              <Icon className={cn("w-8 h-8", healthOption?.textColor)} />
             )}
+            {/* Glow ring */}
+            <div className={cn(
+              "absolute inset-0 rounded-2xl ring-2 ring-inset transition-all duration-300",
+              healthOption?.borderColor?.replace('border-', 'ring-') || 'ring-border',
+              "group-hover:ring-primary/50"
+            )} />
           </div>
           
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2 mb-1">
               {getStatusIndicator()}
-              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1">
+              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1 pr-2">
                 {project.name}
               </h3>
             </div>
-            <span className="text-sm text-muted-foreground">{model?.label}</span>
+            <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+              <Icon className="w-3.5 h-3.5" />
+              {model?.label}
+            </span>
           </div>
         </div>
         
         {/* Actions Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-9 w-9 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-secondary"
+            >
               <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={() => onEdit(project)}>
+          <DropdownMenuContent align="end" className="rounded-xl" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={() => onEdit(project)} className="rounded-lg">
               <Pencil className="w-4 h-4 mr-2" />
               Editar
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onResync(project)}>
+            <DropdownMenuItem onClick={() => onResync(project)} className="rounded-lg">
               <RefreshCw className="w-4 h-4 mr-2" />
               Re-sincronizar
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {project.archived ? (
-              <DropdownMenuItem onClick={() => onUnarchive(project)}>
+              <DropdownMenuItem onClick={() => onUnarchive(project)} className="rounded-lg">
                 <ArchiveRestore className="w-4 h-4 mr-2" />
                 Restaurar
               </DropdownMenuItem>
             ) : (
-              <DropdownMenuItem onClick={() => onArchive(project)}>
+              <DropdownMenuItem onClick={() => onArchive(project)} className="rounded-lg">
                 <Archive className="w-4 h-4 mr-2" />
                 Arquivar
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onDelete(project)} className="text-red-400 focus:text-red-400">
+            <DropdownMenuItem onClick={() => onDelete(project)} className="text-red-400 focus:text-red-400 rounded-lg">
               <Trash2 className="w-4 h-4 mr-2" />
               Excluir
             </DropdownMenuItem>
@@ -219,8 +241,9 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
       
       {/* Health Status Badge */}
       <div className={cn(
-        "inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4",
-        healthOption?.bgColor
+        "inline-flex items-center gap-2 px-4 py-2 rounded-full mb-5 transition-all duration-300",
+        healthOption?.bgColor,
+        "group-hover:scale-105"
       )}>
         <HealthIcon className={cn("w-4 h-4", healthOption?.textColor)} />
         <span className={cn("text-sm font-semibold", healthOption?.textColor)}>
@@ -228,40 +251,48 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
         </span>
       </div>
       
-      
-      {/* Sync Times */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-secondary/30">
-          <Clock className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+      {/* Sync Times - Redesigned */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/40 backdrop-blur-sm transition-colors duration-300 group-hover:bg-secondary/60">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <Clock className="w-4 h-4 text-primary" />
+          </div>
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Última Sync</p>
-            <p className="text-sm font-medium text-foreground truncate">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Última</p>
+            <p className="text-sm font-semibold text-foreground truncate">
               {lastSyncDate 
-                ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR })
-                : 'Nunca'}
+                ? formatDistanceToNow(lastSyncDate, { addSuffix: false, locale: ptBR })
+                : '—'}
             </p>
           </div>
         </div>
-        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-secondary/30">
-          <Timer className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/40 backdrop-blur-sm transition-colors duration-300 group-hover:bg-secondary/60">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <Timer className="w-4 h-4 text-primary" />
+          </div>
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Próxima Sync</p>
-            <p className="text-sm font-medium text-foreground truncate">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Próxima</p>
+            <p className="text-sm font-semibold text-foreground truncate">
               {nextSyncDate 
                 ? (nextSyncDate > new Date() 
-                    ? formatDistanceToNow(nextSyncDate, { addSuffix: true, locale: ptBR })
-                    : 'Em breve')
+                    ? formatDistanceToNow(nextSyncDate, { addSuffix: false, locale: ptBR })
+                    : 'Breve')
                 : '—'}
             </p>
           </div>
         </div>
       </div>
       
-      {/* Footer Arrow */}
-      <div className="flex items-center justify-end pt-2 border-t border-border/50">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-primary transition-colors">
-          <span>Ver campanhas</span>
-          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+      {/* Footer Arrow - Redesigned */}
+      <div className="flex items-center justify-between pt-4 border-t border-border/30">
+        <span className="text-xs text-muted-foreground">
+          {project.currency === 'BRL' ? '🇧🇷' : project.currency === 'USD' ? '🇺🇸' : '🇪🇺'} {project.currency}
+        </span>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-primary transition-all duration-300">
+          <span className="font-medium">Acessar</span>
+          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+          </div>
         </div>
       </div>
     </div>
@@ -769,71 +800,105 @@ export default function ProjectSelector() {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 red-texture-bg pointer-events-none" />
+      {/* Animated Background - Enhanced */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] translate-x-1/3 -translate-y-1/3 animate-pulse-slow" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[100px] -translate-x-1/3 translate-y-1/3 animate-pulse-slow" style={{ animationDelay: '2s' }} />
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/8 rounded-full blur-[150px] translate-x-1/2 -translate-y-1/2 animate-pulse-slow" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary/6 rounded-full blur-[120px] -translate-x-1/3 translate-y-1/2 animate-pulse-slow" style={{ animationDelay: '1.5s' }} />
+        <div className="absolute top-1/2 left-1/2 w-[400px] h-[400px] bg-primary/4 rounded-full blur-[100px] -translate-x-1/2 -translate-y-1/2 animate-pulse-slow" style={{ animationDelay: '3s' }} />
+        {/* Subtle grid pattern */}
+        <div className="absolute inset-0 opacity-[0.015]" style={{
+          backgroundImage: `linear-gradient(hsl(var(--primary)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)`,
+          backgroundSize: '50px 50px'
+        }} />
       </div>
 
-      {/* Header */}
-      <header className="border-b border-border/50 bg-card/60 backdrop-blur-xl sticky top-0 z-50 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5" />
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between relative">
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <img 
-                src={v4LogoIcon} 
-                alt="V4 Company" 
-                className="h-11 w-auto drop-shadow-lg rounded-xl transition-transform group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-primary/20 rounded-xl blur-lg -z-10 opacity-0 group-hover:opacity-100 transition-opacity" />
+      {/* Header - Redesigned */}
+      <header className="border-b border-border/30 bg-card/40 backdrop-blur-2xl sticky top-0 z-50 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/3 via-transparent to-primary/3" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+        <div className="container mx-auto px-8 py-5 flex items-center justify-between relative">
+          <div className="flex items-center gap-5">
+            <div className="relative group cursor-pointer">
+              <div className="absolute inset-0 bg-primary/30 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+              <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/20 overflow-hidden transition-transform duration-300 group-hover:scale-105">
+                <img 
+                  src={v4LogoIcon} 
+                  alt="V4 Company" 
+                  className="h-10 w-auto drop-shadow-lg"
+                />
+              </div>
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold gradient-text">MetaAds Manager</span>
-              <span className="text-xs text-muted-foreground">by V4 Company</span>
+              <span className="text-xl font-bold">
+                <span className="gradient-text">Meta</span>
+                <span className="text-foreground">Ads Manager</span>
+              </span>
+              <span className="text-xs text-muted-foreground/80 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                by V4 Company
+              </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={handleLogout} className="text-muted-foreground hover:text-primary hover:bg-primary/10 gap-2">
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="ghost" 
+              onClick={handleLogout} 
+              className="text-muted-foreground hover:text-foreground hover:bg-secondary/80 gap-2 rounded-xl transition-all duration-300"
+            >
               <LogOut className="w-4 h-4" />
-              Sair
+              <span className="hidden sm:inline">Sair</span>
             </Button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-6 py-8 relative">
+      <main className="container mx-auto px-8 py-10 relative">
         <div className="max-w-7xl mx-auto">
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-              <div className="animate-fade-in">
-                <h1 className="text-2xl font-bold text-foreground">
-                  {showArchived ? 'Arquivados' : 'Seus Projetos'}
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  {showArchived 
-                    ? `${archivedProjects.length} projeto(s) arquivado(s)`
-                    : `${activeProjects.length} projeto(s) ativo(s)`}
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-                <TabsList className="grid grid-cols-2 h-10 bg-card/50 backdrop-blur-sm">
-                  <TabsTrigger value="projects" className="gap-2 px-4 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+            {/* Page Header - Redesigned */}
+            <div className="flex flex-col gap-6 mb-10">
+              {/* Title Row */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+                <div className="animate-fade-in">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                      <FolderKanban className="w-5 h-5 text-primary" />
+                    </div>
+                    <h1 className="text-3xl font-bold text-foreground">
+                      {showArchived ? 'Arquivados' : 'Seus Projetos'}
+                    </h1>
+                  </div>
+                  <p className="text-muted-foreground ml-[52px]">
+                    {showArchived 
+                      ? `${archivedProjects.length} projeto(s) arquivado(s)`
+                      : `${activeProjects.length} projeto(s) ativo(s) • Gerencie suas campanhas`}
+                  </p>
+                </div>
+                
+                <TabsList className="rounded-2xl h-12 bg-card/60 backdrop-blur-xl border border-border/30 p-1.5 animate-fade-in" style={{ animationDelay: '0.05s' }}>
+                  <TabsTrigger 
+                    value="projects" 
+                    className="gap-2 px-5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all duration-300"
+                  >
                     <FolderKanban className="w-4 h-4" />
                     Projetos
                   </TabsTrigger>
-                  <TabsTrigger value="profile" className="gap-2 px-4 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+                  <TabsTrigger 
+                    value="profile" 
+                    className="gap-2 px-5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all duration-300"
+                  >
                     <User className="w-4 h-4" />
                     Perfil
                   </TabsTrigger>
                 </TabsList>
-
-                {activeTab === 'projects' && (
-                  <>
+              </div>
+              
+              {/* Controls Row */}
+              {activeTab === 'projects' && (
+                <div className="flex flex-wrap items-center gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
                     {/* Search Input */}
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -1033,12 +1098,34 @@ export default function ProjectSelector() {
                           </div>
 
                           {/* Custom Metric Config Panel - shows when Personalizado is selected */}
-                          {formData.business_model === 'custom' && (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                              <div className="p-4 border border-primary/30 rounded-lg bg-primary/5">
-                                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                                  <Settings2 className="w-4 h-4 text-primary" />
-                                  Configure suas Métricas Personalizadas
+                          <div 
+                            className={cn(
+                              "overflow-hidden transition-all duration-500 ease-out",
+                              formData.business_model === 'custom' 
+                                ? "max-h-[2000px] opacity-100 mt-4" 
+                                : "max-h-0 opacity-0 mt-0"
+                            )}
+                          >
+                            <div 
+                              className={cn(
+                                "space-y-4 transition-all duration-500 delay-100",
+                                formData.business_model === 'custom' 
+                                  ? "translate-y-0" 
+                                  : "-translate-y-4"
+                              )}
+                            >
+                              <div className="relative p-5 border border-primary/40 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent overflow-hidden">
+                                {/* Glow effect */}
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                                
+                                <h4 className="font-bold text-base mb-4 flex items-center gap-3 relative">
+                                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                                    <Settings2 className="w-5 h-5 text-primary" />
+                                  </div>
+                                  <div>
+                                    <span className="text-foreground">Configure suas Métricas</span>
+                                    <p className="text-xs font-normal text-muted-foreground">Personalize o dashboard conforme seu modelo de negócio</p>
+                                  </div>
                                 </h4>
                                 <MetricConfigPanel value={metricConfig} onChange={setMetricConfig} />
                               </div>
@@ -1049,7 +1136,7 @@ export default function ProjectSelector() {
                                 efficiencyMetrics: metricConfig.efficiency_metrics,
                               }} />
                             </div>
-                          )}
+                          </div>
 
                           <div className="space-y-2">
                             <Label>Health Score do Cliente</Label>
@@ -1133,9 +1220,8 @@ export default function ProjectSelector() {
                         </ScrollArea>
                       </DialogContent>
                     </Dialog>
-                  </>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             <TabsContent value="projects" className="mt-0">
