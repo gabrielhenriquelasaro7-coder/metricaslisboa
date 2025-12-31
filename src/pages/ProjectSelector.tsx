@@ -1013,10 +1013,7 @@ export default function ProjectSelector() {
                                   <button
                                     key={model.value}
                                     type="button"
-                                    onClick={() => {
-                                      setFormData({ ...formData, business_model: model.value });
-                                      setCustomConfigOpen(model.value === 'custom');
-                                    }}
+                                    onClick={() => setFormData({ ...formData, business_model: model.value })}
                                     className={cn(
                                       "p-3 rounded-xl border-2 text-left transition-all",
                                       formData.business_model === model.value
@@ -1035,18 +1032,24 @@ export default function ProjectSelector() {
                             </div>
                           </div>
 
-                          {/* Custom Metric Config Panel */}
-                          <Collapsible open={customConfigOpen} onOpenChange={setCustomConfigOpen}>
-                            <CollapsibleContent className="animate-accordion-down space-y-4">
-                              <MetricConfigPanel value={metricConfig} onChange={setMetricConfig} />
+                          {/* Custom Metric Config Panel - shows when Personalizado is selected */}
+                          {formData.business_model === 'custom' && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                              <div className="p-4 border border-primary/30 rounded-lg bg-primary/5">
+                                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                                  <Settings2 className="w-4 h-4 text-primary" />
+                                  Configure suas Métricas Personalizadas
+                                </h4>
+                                <MetricConfigPanel value={metricConfig} onChange={setMetricConfig} />
+                              </div>
                               <DashboardPreview config={{
                                 resultMetric: metricConfig.result_metric,
                                 resultMetricLabel: metricConfig.result_metric_label,
                                 costMetrics: metricConfig.cost_metrics,
                                 efficiencyMetrics: metricConfig.efficiency_metrics,
                               }} />
-                            </CollapsibleContent>
-                          </Collapsible>
+                            </div>
+                          )}
 
                           <div className="space-y-2">
                             <Label>Health Score do Cliente</Label>
