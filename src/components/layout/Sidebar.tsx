@@ -1,13 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useProfile } from '@/hooks/useProfile';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useSidebarCampaigns } from '@/hooks/useSidebarCampaigns';
 import v4LogoFull from '@/assets/v4-logo-full.png';
-import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { 
-  BarChart3, 
   LayoutDashboard, 
   FolderKanban, 
   Settings, 
@@ -50,23 +49,18 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { projects } = useProjects();
-  const { campaigns, adSets } = useMetaAdsData();
   const { profile } = useProfile();
   const { isGuest, loading: roleLoading } = useUserRole();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
-  const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
+  const selectedProject = useMemo(() => 
+    projects.find(p => p.id === selectedProjectId) || projects[0],
+    [projects, selectedProjectId]
+  );
 
-  // Sort campaigns: active first, then by spend
-  const sortedCampaigns = useMemo(() => {
-    return [...campaigns].sort((a, b) => {
-      const statusOrder: Record<string, number> = { 'ACTIVE': 0, 'PAUSED': 1 };
-      const orderA = statusOrder[a.status] ?? 2;
-      const orderB = statusOrder[b.status] ?? 2;
-      if (orderA !== orderB) return orderA - orderB;
-      return (b.spend || 0) - (a.spend || 0);
-    });
-  }, [campaigns]);
+  // Use lightweight hook for sidebar campaigns instead of full useMetaAdsData
+  const { campaigns: sortedCampaigns, getCampaignAdSets } = useSidebarCampaigns(selectedProject?.id || null);
+
 
   const handleSignOut = async () => {
     await signOut();
@@ -85,17 +79,7 @@ export default function Sidebar() {
     }));
   };
 
-  const getCampaignAdSets = (campaignId: string) => {
-    return adSets
-      .filter(a => a.campaign_id === campaignId)
-      .sort((a, b) => {
-        const statusOrder: Record<string, number> = { 'ACTIVE': 0, 'PAUSED': 1 };
-        const orderA = statusOrder[a.status] ?? 2;
-        const orderB = statusOrder[b.status] ?? 2;
-        if (orderA !== orderB) return orderA - orderB;
-        return (b.spend || 0) - (a.spend || 0);
-      });
-  };
+  // getCampaignAdSets is now provided by useSidebarCampaigns hook
 
   const getStatusColor = (status: string) => {
     if (status === 'ACTIVE') return 'bg-metric-positive';
@@ -116,16 +100,29 @@ export default function Sidebar() {
       <div className="relative flex flex-col h-full">
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
-          <Link to="/projects" className="flex items-center gap-3">
-            <img 
-              src={v4LogoFull} 
-              alt="V4 Company" 
-              className={cn(
-                "transition-all",
-                collapsed ? "h-8 w-auto" : "h-10 w-auto"
-              )}
-            />
-          </Link>
+          {!isGuest ? (
+            <Link to="/projects" className="flex items-center gap-3">
+              <img 
+                src={v4LogoFull} 
+                alt="V4 Company" 
+                className={cn(
+                  "transition-all",
+                  collapsed ? "h-8 w-auto" : "h-10 w-auto"
+                )}
+              />
+            </Link>
+          ) : (
+            <div className="flex items-center gap-3">
+              <img 
+                src={v4LogoFull} 
+                alt="V4 Company" 
+                className={cn(
+                  "transition-all",
+                  collapsed ? "h-8 w-auto" : "h-10 w-auto"
+                )}
+              />
+            </div>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -158,16 +155,21 @@ export default function Sidebar() {
                   >
                     <div>
                       <p className="font-medium">{project.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        ID: {project.ad_account_id.replace('act_', '')}
-                      </p>
+                      {!isGuest && (
+                        <p className="text-xs text-muted-foreground">
+                          ID: {project.ad_account_id.replace('act_', '')}
+                        </p>
+                      )}
                     </div>
                   </DropdownMenuItem>
                 ))}
-                <DropdownMenuItem onClick={() => navigate('/projects')} className="border-t mt-1 pt-2">
-                  <FolderKanban className="w-4 h-4 mr-2" />
-                  Gerenciar Projetos
-                </DropdownMenuItem>
+                {/* Hide "Gerenciar Projetos" for guests */}
+                {!isGuest && (
+                  <DropdownMenuItem onClick={() => navigate('/projects')} className="border-t mt-1 pt-2">
+                    <FolderKanban className="w-4 h-4 mr-2" />
+                    Gerenciar Projetos
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
             

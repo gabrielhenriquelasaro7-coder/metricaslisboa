@@ -53,6 +53,16 @@ const steps = [
   },
 ];
 
+// Info sobre sincronização de dados
+const DATA_INFO = {
+  title: '📊 Sobre os Dados',
+  items: [
+    'Os dados estão disponíveis desde o início de 2025',
+    'A sincronização automática ocorre todo dia às 02h da manhã',
+    'Você pode visualizar métricas em tempo real durante o dia',
+  ],
+};
+
 export default function GuestOnboarding() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
@@ -141,15 +151,30 @@ export default function GuestOnboarding() {
 
                 {/* Features List (on last step) */}
                 {currentStep === steps.length - 1 && (
-                  <div className="mt-8 p-4 rounded-lg bg-muted/30 border border-border/50">
-                    <p className="text-sm font-medium mb-3 text-center">O que você pode fazer:</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {['Ver Dashboard', 'Ver Campanhas', 'Ver Criativos', 'Baixar PDFs'].map((item) => (
-                        <div key={item} className="flex items-center gap-2 text-sm">
-                          <CheckCircle2 className="w-4 h-4 text-metric-positive" />
-                          <span>{item}</span>
-                        </div>
-                      ))}
+                  <div className="mt-8 space-y-4">
+                    <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
+                      <p className="text-sm font-medium mb-3 text-center">O que você pode fazer:</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['Ver Dashboard', 'Ver Campanhas', 'Ver Criativos', 'Baixar PDFs'].map((item) => (
+                          <div key={item} className="flex items-center gap-2 text-sm">
+                            <CheckCircle2 className="w-4 h-4 text-metric-positive" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Data Sync Info */}
+                    <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                      <p className="text-sm font-medium mb-2">{DATA_INFO.title}</p>
+                      <ul className="space-y-1">
+                        {DATA_INFO.items.map((item, idx) => (
+                          <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
+                            <span className="text-primary">•</span>
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 )}
