@@ -31,7 +31,7 @@ interface MetricOption {
 
 interface AdSetChartsProps {
   data: AdSetDailyMetric[];
-  businessModel: 'ecommerce' | 'inside_sales' | 'pdv' | null;
+  businessModel: 'ecommerce' | 'inside_sales' | 'pdv' | 'custom' | null;
   className?: string;
   currency?: string;
 }

@@ -5,22 +5,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, BusinessModel, CreateProjectData } from '@/hooks/useProjects';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Settings2 } from 'lucide-react';
 import { z } from 'zod';
 import { ImportProgressDialog } from './ImportProgressDialog';
+import { MetricConfigPanel, type MetricConfigData } from './MetricConfigPanel';
+import { supabase } from '@/integrations/supabase/client';
+import { METRIC_TEMPLATES } from '@/hooks/useProjectMetricConfig';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(100),
   ad_account_id: z.string().min(1, 'ID da conta é obrigatório'),
-  business_model: z.enum(['inside_sales', 'ecommerce', 'pdv']),
+  business_model: z.enum(['inside_sales', 'ecommerce', 'pdv', 'custom']),
   timezone: z.string().min(1),
   currency: z.string().min(1),
 });
 
-const businessModels: { value: BusinessModel; label: string; description: string }[] = [
+const businessModels: { value: BusinessModel; label: string; description: string; icon?: React.ReactNode }[] = [
   { value: 'inside_sales', label: 'Inside Sales', description: 'Geração de leads e vendas internas' },
   { value: 'ecommerce', label: 'E-commerce', description: 'Vendas online com foco em ROAS' },
   { value: 'pdv', label: 'PDV', description: 'Tráfego para loja física' },
+  { value: 'custom', label: 'Personalizado', description: 'Configure suas próprias métricas', icon: <Settings2 className="w-4 h-4" /> },
 ];
 
 const timezones = [
@@ -45,8 +51,8 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { createProject } = useProjects();
+  const [customConfigOpen, setCustomConfigOpen] = useState(false);
 
-  // Import progress state
   const [showImportProgress, setShowImportProgress] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   const [createdProjectName, setCreatedProjectName] = useState('');
@@ -58,6 +64,18 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     timezone: 'America/Sao_Paulo',
     currency: 'BRL',
   });
+
+  const [metricConfig, setMetricConfig] = useState<MetricConfigData>({
+    result_metric: 'leads',
+    result_metric_label: 'Leads',
+    cost_metrics: ['cpl', 'cpa'],
+    efficiency_metrics: ['ctr', 'roas'],
+  });
+
+  const handleBusinessModelChange = (value: BusinessModel) => {
+    setFormData({ ...formData, business_model: value });
+    setCustomConfigOpen(value === 'custom');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,13 +100,26 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     try {
       const project = await createProject(formData);
       
-      // Close form dialog and show import progress
+      if (formData.business_model === 'custom') {
+        const template = METRIC_TEMPLATES.custom;
+        await supabase.from('project_metric_config').insert({
+          project_id: project.id,
+          primary_metrics: template.primary_metrics,
+          result_metric: metricConfig.result_metric,
+          result_metric_label: metricConfig.result_metric_label,
+          cost_metrics: metricConfig.cost_metrics,
+          efficiency_metrics: metricConfig.efficiency_metrics,
+          show_comparison: true,
+          chart_primary_metric: template.chart_primary_metric,
+          chart_secondary_metric: metricConfig.result_metric,
+        });
+      }
+      
       setOpen(false);
       setCreatedProjectId(project.id);
       setCreatedProjectName(formData.name);
       setShowImportProgress(true);
       
-      // Reset form
       setFormData({
         name: '',
         ad_account_id: '',
@@ -96,14 +127,15 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
         timezone: 'America/Sao_Paulo',
         currency: 'BRL',
       });
+      setCustomConfigOpen(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleImportProgressClose = (open: boolean) => {
-    setShowImportProgress(open);
-    if (!open) {
+  const handleImportProgressClose = (openState: boolean) => {
+    setShowImportProgress(openState);
+    if (!openState) {
       setCreatedProjectId(null);
       setCreatedProjectName('');
       onSuccess?.();
@@ -119,110 +151,122 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
             Novo Projeto
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xl">Criar novo projeto</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-5 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome do projeto</Label>
-              <Input
-                id="name"
-                placeholder="Minha loja virtual"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-            </div>
+          <ScrollArea className="max-h-[70vh] pr-4">
+            <form onSubmit={handleSubmit} className="space-y-5 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome do projeto</Label>
+                <Input
+                  id="name"
+                  placeholder="Minha loja virtual"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+                {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="ad_account_id">ID da conta de anúncios</Label>
-              <Input
-                id="ad_account_id"
-                placeholder="act_123456789"
-                value={formData.ad_account_id}
-                onChange={(e) => setFormData({ ...formData, ad_account_id: e.target.value })}
-              />
-              {errors.ad_account_id && <p className="text-sm text-destructive">{errors.ad_account_id}</p>}
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="ad_account_id">ID da conta de anúncios</Label>
+                <Input
+                  id="ad_account_id"
+                  placeholder="act_123456789"
+                  value={formData.ad_account_id}
+                  onChange={(e) => setFormData({ ...formData, ad_account_id: e.target.value })}
+                />
+                {errors.ad_account_id && <p className="text-sm text-destructive">{errors.ad_account_id}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <Label>Modelo de negócio</Label>
-              <div className="grid grid-cols-1 gap-3">
-                {businessModels.map((model) => (
-                  <button
-                    key={model.value}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, business_model: model.value })}
-                    className={`p-4 rounded-lg border text-left transition-all ${
-                      formData.business_model === model.value
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/50'
-                    }`}
+              <div className="space-y-2">
+                <Label>Modelo de negócio</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {businessModels.map((model) => (
+                    <button
+                      key={model.value}
+                      type="button"
+                      onClick={() => handleBusinessModelChange(model.value)}
+                      className={`p-3 rounded-lg border text-left transition-all ${
+                        formData.business_model === model.value
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {model.icon}
+                        <p className="font-medium text-sm">{model.label}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{model.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Metric Config Panel */}
+              <Collapsible open={customConfigOpen} onOpenChange={setCustomConfigOpen}>
+                <CollapsibleContent className="animate-accordion-down">
+                  <MetricConfigPanel value={metricConfig} onChange={setMetricConfig} />
+                </CollapsibleContent>
+              </Collapsible>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Fuso horário</Label>
+                  <Select
+                    value={formData.timezone}
+                    onValueChange={(value) => setFormData({ ...formData, timezone: value })}
                   >
-                    <p className="font-medium">{model.label}</p>
-                    <p className="text-sm text-muted-foreground">{model.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {timezones.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Fuso horário</Label>
-                <Select
-                  value={formData.timezone}
-                  onValueChange={(value) => setFormData({ ...formData, timezone: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timezones.map((tz) => (
-                      <SelectItem key={tz.value} value={tz.value}>
-                        {tz.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Label>Moeda</Label>
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((curr) => (
+                        <SelectItem key={curr.value} value={curr.value}>
+                          {curr.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Moeda</Label>
-                <Select
-                  value={formData.currency}
-                  onValueChange={(value) => setFormData({ ...formData, currency: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencies.map((curr) => (
-                      <SelectItem key={curr.value} value={curr.value}>
-                        {curr.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" variant="gradient" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Criando...
+                    </>
+                  ) : (
+                    'Criar projeto'
+                  )}
+                </Button>
               </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" variant="gradient" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Criando...
-                  </>
-                ) : (
-                  'Criar projeto'
-                )}
-              </Button>
-            </div>
-          </form>
+            </form>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 

@@ -39,6 +39,7 @@ const businessModelConfig: Record<BusinessModel, { icon: typeof TrendingUp; labe
   inside_sales: { icon: Users, label: 'Inside Sales', color: 'text-chart-1' },
   ecommerce: { icon: TrendingUp, label: 'E-commerce', color: 'text-chart-3' },
   pdv: { icon: Store, label: 'PDV', color: 'text-chart-4' },
+  custom: { icon: Target, label: 'Personalizado', color: 'text-primary' },
 };
 
 const healthConfig: Record<HealthStatus, { icon: typeof ShieldCheck; label: string; color: string; bgColor: string; borderColor: string }> = {

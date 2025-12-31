@@ -654,6 +654,59 @@ export type Database = {
           },
         ]
       }
+      project_metric_config: {
+        Row: {
+          chart_primary_metric: string | null
+          chart_secondary_metric: string | null
+          cost_metrics: Json | null
+          created_at: string | null
+          efficiency_metrics: Json | null
+          id: string
+          primary_metrics: Json | null
+          project_id: string
+          result_metric: string | null
+          result_metric_label: string | null
+          show_comparison: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          chart_primary_metric?: string | null
+          chart_secondary_metric?: string | null
+          cost_metrics?: Json | null
+          created_at?: string | null
+          efficiency_metrics?: Json | null
+          id?: string
+          primary_metrics?: Json | null
+          project_id: string
+          result_metric?: string | null
+          result_metric_label?: string | null
+          show_comparison?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          chart_primary_metric?: string | null
+          chart_secondary_metric?: string | null
+          cost_metrics?: Json | null
+          created_at?: string | null
+          efficiency_metrics?: Json | null
+          id?: string
+          primary_metrics?: Json | null
+          project_id?: string
+          result_metric?: string | null
+          result_metric_label?: string | null
+          show_comparison?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_metric_config_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           ad_account_id: string
@@ -980,7 +1033,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      business_model: "inside_sales" | "ecommerce" | "pdv"
+      business_model: "inside_sales" | "ecommerce" | "pdv" | "custom"
       user_cargo:
         | "gestor_trafego"
         | "account_manager"
@@ -1113,7 +1166,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      business_model: ["inside_sales", "ecommerce", "pdv"],
+      business_model: ["inside_sales", "ecommerce", "pdv", "custom"],
       user_cargo: [
         "gestor_trafego",
         "account_manager",
