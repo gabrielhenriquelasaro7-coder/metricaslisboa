@@ -89,6 +89,27 @@ export function useTour() {
     setTourCompleted(false);
   }, []);
 
+  // Function to trigger tour from anywhere (e.g., sidebar button)
+  const triggerTour = useCallback(() => {
+    console.log('[useTour] Triggering tour via event');
+    localStorage.removeItem(TOUR_STORAGE_KEY);
+    localStorage.removeItem(TOUR_PENDING_KEY);
+    setTourCompleted(false);
+    // Dispatch custom event for cross-component communication
+    window.dispatchEvent(new CustomEvent('lovable-start-tour'));
+  }, []);
+
+  // Listen for tour trigger event from other components
+  useEffect(() => {
+    const handleTourTrigger = () => {
+      console.log('[useTour] Received tour trigger event');
+      setShowTour(true);
+    };
+
+    window.addEventListener('lovable-start-tour', handleTourTrigger);
+    return () => window.removeEventListener('lovable-start-tour', handleTourTrigger);
+  }, []);
+
   return {
     showTour,
     tourCompleted,
@@ -96,5 +117,6 @@ export function useTour() {
     completeTour,
     skipTour,
     resetTour,
+    triggerTour,
   };
 }
