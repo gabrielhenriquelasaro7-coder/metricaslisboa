@@ -57,7 +57,11 @@ function CampaignSkeleton() {
   );
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export default function Sidebar({ onNavigate }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [campaignsOpen, setCampaignsOpen] = useState(true);
   const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
@@ -105,11 +109,17 @@ export default function Sidebar() {
     return 'bg-muted';
   };
 
+  const handleNavClick = (to: string) => {
+    navigate(to);
+    onNavigate?.();
+  };
+
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300',
-        collapsed ? 'w-20' : 'w-72'
+        'h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300',
+        onNavigate ? 'relative w-full' : 'fixed left-0 top-0 z-40',
+        !onNavigate && (collapsed ? 'w-20' : 'w-72')
       )}
     >
       {/* Subtle red texture overlay */}

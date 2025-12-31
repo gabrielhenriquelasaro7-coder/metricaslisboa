@@ -118,30 +118,30 @@ export default function MetricCard({
       {/* Top red border accent */}
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex-1">
+      <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1 sm:mb-2">
+        <div className="flex-1 min-w-0">
           {titleElement}
-          <p className="text-xl font-bold whitespace-nowrap">
+          <p className="text-base sm:text-lg md:text-xl font-bold truncate">
             {animatedValue}
           </p>
         </div>
         {Icon && (
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
-            <Icon className="w-4 h-4 text-primary" />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
+            <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
           </div>
         )}
       </div>
       
       {(change !== undefined || changeLabel) && (
-        <div className="flex items-center gap-2">
-          <div className={cn('flex items-center gap-1 text-sm font-medium', trendColor)}>
-            <TrendIcon className="w-4 h-4" />
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+          <div className={cn('flex items-center gap-1 text-xs sm:text-sm font-medium', trendColor)}>
+            <TrendIcon className="w-3 h-3 sm:w-4 sm:h-4" />
             {change !== undefined && (
               <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
             )}
           </div>
           {changeLabel && (
-            <span className="text-sm text-muted-foreground">{changeLabel}</span>
+            <span className="text-xs sm:text-sm text-muted-foreground truncate">{changeLabel}</span>
           )}
         </div>
       )}

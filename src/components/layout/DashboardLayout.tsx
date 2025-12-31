@@ -7,6 +7,10 @@ import Sidebar from './Sidebar';
 import { ImportLoadingScreen } from './ImportLoadingScreen';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Menu } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -19,6 +23,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [hasProject, setHasProject] = useState<boolean | null>(null);
   const [isImporting, setIsImporting] = useState<boolean | null>(null);
   const [projectInfo, setProjectInfo] = useState<{ id: string; name: string } | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const checkImportStatus = useCallback(async (projectId: string) => {
     const { data: months } = await supabase
@@ -27,11 +33,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       .eq('project_id', projectId);
 
     if (!months || months.length === 0) {
-      // No import records - project is ready
       return false;
     }
 
-    // Check if any months are still importing or pending
     const hasActiveImport = months.some(
       (m: any) => m.status === 'importing' || m.status === 'pending'
     );
@@ -48,10 +52,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         return;
       }
 
-      // Check if a project is selected
       let selectedProjectId = localStorage.getItem('selectedProjectId');
       
-      // If no project selected, try to get first available project
       if (!selectedProjectId) {
         const { data: projects } = await supabase
           .from('projects')
@@ -62,11 +64,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           selectedProjectId = projects[0].id;
           localStorage.setItem('selectedProjectId', selectedProjectId);
         } else if (!isGuest) {
-          // Only redirect non-guests to /projects if no projects available
           navigate('/projects');
           return;
         } else {
-          // Guest with no projects - show empty state
           setHasProject(false);
           setIsImporting(false);
           return;
@@ -74,7 +74,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       }
       
       if (selectedProjectId) {
-        // Get project info
         const { data: project } = await supabase
           .from('projects')
           .select('id, name')
@@ -84,12 +83,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         if (project) {
           setProjectInfo({ id: project.id, name: project.name });
           
-          // Check if import is in progress
           const importing = await checkImportStatus(selectedProjectId);
           setIsImporting(importing);
           setHasProject(true);
         } else {
-          // Project not found (maybe deleted or no access) - clear localStorage and retry
           localStorage.removeItem('selectedProjectId');
           setHasProject(false);
           setIsImporting(false);
@@ -110,7 +107,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   if (!user || !hasProject) return null;
 
-  // Show import loading screen if importing
   if (isImporting && projectInfo) {
     return (
       <ImportLoadingScreen
@@ -121,10 +117,36 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
+  // Mobile layout with Sheet
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-background red-texture-bg">
+        {/* Mobile Header */}
+        <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-sidebar border-b border-sidebar-border flex items-center px-4">
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="mr-3">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-72 bg-sidebar border-sidebar-border">
+              <Sidebar onNavigate={() => setSidebarOpen(false)} />
+            </SheetContent>
+          </Sheet>
+          <span className="font-semibold text-foreground">MetaAds Manager</span>
+        </header>
+        <main className="pt-14 min-h-screen">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
+  // Desktop layout
   return (
     <div className="min-h-screen bg-background red-texture-bg">
       <Sidebar />
-      <main className={cn('ml-64 min-h-screen transition-all duration-300 pl-4')}>
+      <main className={cn('ml-72 min-h-screen transition-all duration-300')}>
         {children}
       </main>
     </div>
