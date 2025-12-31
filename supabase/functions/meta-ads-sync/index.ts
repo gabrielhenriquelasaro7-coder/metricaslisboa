@@ -130,8 +130,9 @@ async function fetchEntities(adAccountId: string, token: string): Promise<{
     url = data.paging?.next || null;
   }
 
-  // Fetch ads with creative fields for HD images - simplified to avoid data limit errors
-  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
+  // Fetch ads with creative fields for HD images AND ad copy (primary_text, headline, cta)
+  // object_story_spec contains the ad copy data: body (primary_text), title (headline), call_to_action
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action},video_data{message,title,call_to_action}}}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADS');
     if (data.data) ads.push(...data.data);
@@ -441,6 +442,59 @@ function extractHdImageUrl(ad: any, adImageMap: Map<string, string>): { imageUrl
   return { imageUrl, videoUrl };
 }
 
+// ============ EXTRACT AD COPY (PRIMARY TEXT, HEADLINE, CTA) ============
+function extractAdCopy(ad: any): { primaryText: string | null; headline: string | null; cta: string | null } {
+  let primaryText: string | null = null;
+  let headline: string | null = null;
+  let cta: string | null = null;
+  
+  const creative = ad?.creative;
+  if (!creative) return { primaryText, headline, cta };
+  
+  // Direct fields from creative
+  if (creative.body) {
+    primaryText = creative.body;
+  }
+  if (creative.title) {
+    headline = creative.title;
+  }
+  if (creative.call_to_action_type) {
+    cta = creative.call_to_action_type;
+  }
+  
+  // Extract from object_story_spec (more detailed)
+  const storySpec = creative.object_story_spec;
+  if (storySpec) {
+    // Link data (single image/carousel ads)
+    if (storySpec.link_data) {
+      if (!primaryText && storySpec.link_data.message) {
+        primaryText = storySpec.link_data.message;
+      }
+      if (!headline && storySpec.link_data.name) {
+        headline = storySpec.link_data.name;
+      }
+      if (!cta && storySpec.link_data.call_to_action?.type) {
+        cta = storySpec.link_data.call_to_action.type;
+      }
+    }
+    
+    // Video data (video ads)
+    if (storySpec.video_data) {
+      if (!primaryText && storySpec.video_data.message) {
+        primaryText = storySpec.video_data.message;
+      }
+      if (!headline && storySpec.video_data.title) {
+        headline = storySpec.video_data.title;
+      }
+      if (!cta && storySpec.video_data.call_to_action?.type) {
+        cta = storySpec.video_data.call_to_action.type;
+      }
+    }
+  }
+  
+  return { primaryText, headline, cta };
+}
+
 // ============ VALIDATE DATA (ANTI-ZERO) ============
 function validateSyncData(records: any[]): { isValid: boolean; totalSpend: number; totalImpressions: number } {
   const totalSpend = records.reduce((sum, r) => sum + (r.spend || 0), 0);
@@ -700,6 +754,10 @@ Deno.serve(async (req) => {
       
       // Aggregate ads
       if (!adMetrics.has(record.ad_id)) {
+        // Find the original ad to extract ad copy
+        const originalAd = ads.find(a => a.id === record.ad_id);
+        const { primaryText, headline, cta } = originalAd ? extractAdCopy(originalAd) : { primaryText: null, headline: null, cta: null };
+        
         adMetrics.set(record.ad_id, {
           id: record.ad_id,
           project_id,
@@ -709,6 +767,9 @@ Deno.serve(async (req) => {
           status: record.ad_status,
           creative_id: record.creative_id,
           creative_thumbnail: record.creative_thumbnail,
+          primary_text: primaryText,
+          headline: headline,
+          cta: cta,
           spend: 0,
           impressions: 0,
           clicks: 0,
