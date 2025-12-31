@@ -60,12 +60,9 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
       }
     }
 
-    // If guest tries to access /projects, redirect to dashboard
-    // (they only have access to specific projects, so go directly to dashboard)
-    if (isGuest && currentPath === '/projects') {
-      navigate('/dashboard', { replace: true });
-      return;
-    }
+    // Don't redirect from /projects to /dashboard for guests - causes infinite loop
+    // because DashboardLayout redirects back to /projects if no project selected
+    // Just let guests stay on /projects page - they'll see only their accessible projects
 
     // If guest tries to access restricted page, redirect to dashboard
     if (isGuest) {
