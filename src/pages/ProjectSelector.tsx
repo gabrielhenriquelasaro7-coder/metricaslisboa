@@ -48,8 +48,11 @@ import {
   List,
   Search,
   Settings2,
-  Target
+  Target,
+  UserPlus
 } from 'lucide-react';
+import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
+import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDistanceToNow, addHours } from 'date-fns';
@@ -331,6 +334,7 @@ export default function ProjectSelector() {
   const { projects, loading: projectsLoading, createProject, updateProject, deleteProject, archiveProject, unarchiveProject, resyncProject, refetch } = useProjects();
   const { healthData, loading: healthLoading } = useProjectHealth(projects.filter(p => !p.archived));
   const { profile, updateProfile, updatePassword, uploadAvatar: uploadProfileAvatar } = useProfile();
+  const { isGuest } = useUserRole();
   const navigate = useNavigate();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -349,6 +353,11 @@ export default function ProjectSelector() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const editAvatarInputRef = useRef<HTMLInputElement>(null);
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
+  
+  // Guest invite dialog state
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteProjectId, setInviteProjectId] = useState<string | undefined>();
+  const [inviteProjectName, setInviteProjectName] = useState<string | undefined>();
   
   // Profile editing state
   const [profileName, setProfileName] = useState('');
@@ -871,6 +880,22 @@ export default function ProjectSelector() {
                       <List className="w-4 h-4" />
                     </button>
                   </div>
+
+                  {!isGuest && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setInviteProjectId(undefined);
+                        setInviteProjectName(undefined);
+                        setInviteDialogOpen(true);
+                      }}
+                      className="border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all gap-2"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Convidar Cliente
+                    </Button>
+                  )}
 
                   <Button
                     variant="outline"
@@ -1545,6 +1570,14 @@ export default function ProjectSelector() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Invite Guest Dialog */}
+      <InviteGuestDialog
+        open={inviteDialogOpen}
+        onOpenChange={setInviteDialogOpen}
+        preselectedProjectId={inviteProjectId}
+        preselectedProjectName={inviteProjectName}
+      />
     </div>
   );
 }
