@@ -13,6 +13,8 @@ import { PDFBuilderDialog } from '@/components/pdf/PDFBuilderDialog';
 import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { useDailyMetrics } from '@/hooks/useDailyMetrics';
+import { useTour } from '@/hooks/useTour';
+import { GuidedTour } from '@/components/tour/GuidedTour';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { 
@@ -51,6 +53,9 @@ export default function Dashboard() {
   });
   const [showComparison, setShowComparison] = useState(true);
   const chartRef = useRef<HTMLDivElement>(null);
+  
+  // Tour hook
+  const { showTour, completeTour, skipTour } = useTour();
 
   // Get campaigns and selected project from hook (uses localStorage)
   const { campaigns, loading: dataLoading, syncing, syncData, syncDemographics, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
@@ -272,6 +277,11 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
+      {/* Guided Tour */}
+      {showTour && (
+        <GuidedTour onComplete={completeTour} onSkip={skipTour} />
+      )}
+      
       <div className="p-8 space-y-8 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

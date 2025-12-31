@@ -100,6 +100,7 @@ export default function GuestOnboarding() {
 
   const handleStart = () => {
     localStorage.setItem('guestOnboardingComplete', 'true');
+    localStorage.setItem('tour_pending', 'true'); // Flag to trigger tour on dashboard
     navigate('/dashboard');
   };
 
