@@ -426,9 +426,11 @@ export default function Dashboard() {
             <div>
               <h2 className="text-lg font-semibold mb-4 text-muted-foreground">
                 Métricas de Resultado 
-                <span className="text-sm font-normal ml-2">
-                  ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'})
-                </span>
+                {!isCustom && (
+                  <span className="text-sm font-normal ml-2">
+                    ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : isPdv ? 'PDV' : ''})
+                  </span>
+                )}
               </h2>
               
               {/* E-commerce Metrics */}

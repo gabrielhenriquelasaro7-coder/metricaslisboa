@@ -133,13 +133,16 @@ export function DynamicResultMetrics({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Métrica de Resultado Principal */}
-      <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">
-          {config.result_metric_label}
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="relative">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/30 to-red-600/20 flex items-center justify-center shadow-lg shadow-primary/10">
+            <ResultIcon className="w-5 h-5 text-primary" />
+          </div>
+          <h3 className="text-base font-semibold">{config.result_metric_label}</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <SparklineCard
             title={config.result_metric_label}
             value={metrics.totalConversions.toLocaleString('pt-BR')}
@@ -147,6 +150,7 @@ export function DynamicResultMetrics({
             icon={ResultIcon}
             sparklineData={sparklineData.conversions || []}
             sparklineColor="hsl(var(--primary))"
+            className="border-l-4 border-l-primary"
           />
           
           {/* Mostrar valor de conversão apenas para purchases */}
@@ -158,6 +162,7 @@ export function DynamicResultMetrics({
               icon={TrendingUp}
               sparklineData={sparklineData.conversionValue || []}
               sparklineColor="hsl(var(--chart-2))"
+              className="border-l-4 border-l-chart-2"
             />
           )}
         </div>
@@ -165,10 +170,13 @@ export function DynamicResultMetrics({
 
       {/* Métricas de Custo */}
       {config.cost_metrics && config.cost_metrics.length > 0 && (
-        <div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-3">
-            Custos
-          </h3>
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 flex items-center justify-center shadow-lg shadow-amber-500/10">
+              <DollarSign className="w-5 h-5 text-amber-500" />
+            </div>
+            <h3 className="text-base font-semibold">Métricas de Custo</h3>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {config.cost_metrics.map(metric => {
               const costConfig = COST_CONFIG[metric];
@@ -188,7 +196,9 @@ export function DynamicResultMetrics({
                   change={changes?.cpa}
                   icon={costConfig.icon}
                   sparklineData={sparklineData.cpa || []}
-                  sparklineColor="hsl(var(--chart-3))"
+                  sparklineColor="hsl(var(--chart-4))"
+                  invertTrend
+                  className="border-l-4 border-l-amber-500"
                 />
               );
             })}
@@ -198,10 +208,13 @@ export function DynamicResultMetrics({
 
       {/* Métricas de Eficiência */}
       {config.efficiency_metrics && config.efficiency_metrics.length > 0 && (
-        <div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-3">
-            Eficiência
-          </h3>
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/30 to-teal-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+              <TrendingUp className="w-5 h-5 text-emerald-500" />
+            </div>
+            <h3 className="text-base font-semibold">Métricas de Eficiência</h3>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {config.efficiency_metrics.map(metric => {
               const effConfig = EFFICIENCY_CONFIG[metric];
@@ -210,6 +223,12 @@ export function DynamicResultMetrics({
               const value = getEfficiencyValue(metric);
               const formattedValue = formatEfficiency(value, effConfig.format);
               const color = getEfficiencyColor(metric, value);
+              
+              const borderColor = 
+                color === "success" ? "border-l-emerald-500" :
+                color === "warning" ? "border-l-amber-500" :
+                color === "danger" ? "border-l-destructive" :
+                "border-l-emerald-500";
 
               return (
                 <SparklineCard
@@ -223,8 +242,9 @@ export function DynamicResultMetrics({
                     color === "success" ? "hsl(var(--chart-2))" :
                     color === "warning" ? "hsl(var(--chart-4))" :
                     color === "danger" ? "hsl(var(--destructive))" :
-                    "hsl(var(--primary))"
+                    "hsl(var(--chart-2))"
                   }
+                  className={`border-l-4 ${borderColor}`}
                 />
               );
             })}
