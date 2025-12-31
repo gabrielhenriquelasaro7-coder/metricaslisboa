@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+[functions.invite-guest]
+verify_jwt = false
