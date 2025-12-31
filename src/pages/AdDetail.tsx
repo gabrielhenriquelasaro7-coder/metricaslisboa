@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { LoadingCard } from '@/components/ui/loading-screen';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdSetCharts from '@/components/dashboard/AdSetCharts';
@@ -198,7 +199,7 @@ export default function AdDetail() {
     return (
       <DashboardLayout>
         <div className="flex justify-center items-center h-96">
-          <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+          <LoadingCard message="Carregando anúncio..." />
         </div>
       </DashboardLayout>
     );
