@@ -7,11 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { DateRange } from 'react-day-picker';
-import { format, differenceInDays } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   Search, 
-  RefreshCw,
   Loader2,
   ImageOff,
   Play,
@@ -21,12 +19,11 @@ import {
   TrendingUp,
   DollarSign,
   Target,
-  MoreVertical,
-  Calendar
+  Calendar,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useMetaAdsData, clearAllCache } from '@/hooks/useMetaAdsData';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 
 const ITEMS_PER_PAGE = 25;
 
@@ -91,15 +88,6 @@ export default function Creatives() {
     setSelectedPreset(preset);
   }, []);
 
-  const handleManualSync = useCallback(() => {
-    if (dateRange?.from && dateRange?.to) {
-      clearAllCache();
-      syncData({
-        since: format(dateRange.from, 'yyyy-MM-dd'),
-        until: format(dateRange.to, 'yyyy-MM-dd')
-      }, 'this_month');
-    }
-  }, [dateRange, syncData]);
 
   // Redirect if no project selected
   if (!selectedProject && !projectsLoading && !loading) {
@@ -258,27 +246,12 @@ export default function Creatives() {
               )}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <DateRangePicker
-              dateRange={dateRange}
-              onDateRangeChange={handleDateRangeChange}
-              timezone={projectTimezone}
-              onPresetChange={handlePresetChange}
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleManualSync} disabled={syncing || !selectedProject}>
-                  <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-                  {syncing ? 'Sincronizando...' : 'Forçar Sincronização'}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={handleDateRangeChange}
+            timezone={projectTimezone}
+            onPresetChange={handlePresetChange}
+          />
         </div>
 
         {/* Filters */}
