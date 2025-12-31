@@ -22,27 +22,35 @@ interface TokenResponse {
 
 async function getAccessToken(credentials: GoogleAdsCredentials): Promise<string> {
   console.log('Getting access token from Google...');
+  console.log('Client ID prefix:', credentials.clientId?.substring(0, 20) + '...');
+  console.log('Refresh token prefix:', credentials.refreshToken?.substring(0, 15) + '...');
+  
+  const body = new URLSearchParams({
+    client_id: credentials.clientId,
+    client_secret: credentials.clientSecret,
+    refresh_token: credentials.refreshToken,
+    grant_type: 'refresh_token',
+  });
+  
+  console.log('Request body keys:', [...body.keys()].join(', '));
   
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: new URLSearchParams({
-      client_id: credentials.clientId,
-      client_secret: credentials.clientSecret,
-      refresh_token: credentials.refreshToken,
-      grant_type: 'refresh_token',
-    }),
+    body,
   });
 
+  const responseText = await response.text();
+  
   if (!response.ok) {
-    const error = await response.text();
-    console.error('Failed to get access token:', error);
-    throw new Error(`Failed to get access token: ${error}`);
+    console.error('Failed to get access token. Status:', response.status);
+    console.error('Response:', responseText);
+    throw new Error(`Failed to get access token: ${responseText}`);
   }
 
-  const data: TokenResponse = await response.json();
+  const data: TokenResponse = JSON.parse(responseText);
   console.log('Access token obtained successfully');
   return data.access_token;
 }
