@@ -642,46 +642,70 @@ export default function ProjectSelector() {
     }
   };
 
+  // Floating Particle Component
+  const Particle = ({ delay, duration, size, x, y }: { delay: number; duration: number; size: number; x: number; y: number }) => (
+    <div
+      className="absolute rounded-full bg-primary/30 animate-float"
+      style={{
+        width: size,
+        height: size,
+        left: `${x}%`,
+        top: `${y}%`,
+        animationDelay: `${delay}s`,
+        animationDuration: `${duration}s`,
+        filter: 'blur(1px)',
+      }}
+    />
+  );
+
+  // Pulsing Glow Ring
+  const GlowRing = ({ size, delay, opacity }: { size: number; delay: number; opacity: number }) => (
+    <div
+      className="absolute rounded-full border border-primary/20 animate-pulse-slow"
+      style={{
+        width: size,
+        height: size,
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
+        animationDelay: `${delay}s`,
+        opacity,
+      }}
+    />
+  );
+
+  // Generate particles
+  const particles = Array.from({ length: 15 }, (_, i) => ({
+    id: i,
+    delay: Math.random() * 5,
+    duration: 4 + Math.random() * 4,
+    size: 4 + Math.random() * 6,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+  }));
+
   if (authLoading || projectsLoading) {
     return (
-      <div className="min-h-screen bg-background red-texture-bg">
-        {/* Header skeleton */}
-        <header className="border-b border-border bg-card/80 backdrop-blur-xl sticky top-0 z-50">
-          <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-muted animate-pulse" />
-              <div className="h-6 w-40 bg-muted rounded animate-pulse" />
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-md bg-muted/40 animate-pulse" />
-              <div className="w-20 h-9 rounded-md bg-muted/40 animate-pulse" />
-            </div>
-          </div>
-        </header>
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        {/* Background effects */}
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] animate-pulse-slow" />
+        </div>
         
-        {/* Main content skeleton */}
-        <main className="container mx-auto px-6 py-8">
-          <div className="max-w-7xl mx-auto">
-            {/* Header skeleton */}
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <div className="h-8 w-48 bg-muted rounded mb-2 animate-pulse" />
-                <div className="h-4 w-32 bg-muted/60 rounded animate-pulse" />
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-24 bg-muted/40 rounded-lg animate-pulse" />
-                <div className="h-10 w-32 bg-primary/30 rounded-lg animate-pulse" />
-              </div>
-            </div>
-            
-            {/* Grid skeleton */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <SkeletonCard key={i} />
-              ))}
-            </div>
+        {/* Loading skeleton */}
+        <div className="relative z-10 container mx-auto px-6 pt-12">
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-20 h-20 rounded-2xl bg-muted/20 animate-pulse mb-4" />
+            <div className="h-6 w-48 bg-muted/20 rounded animate-pulse mb-2" />
+            <div className="h-4 w-32 bg-muted/10 rounded animate-pulse" />
           </div>
-        </main>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 max-w-6xl mx-auto">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -695,108 +719,127 @@ export default function ProjectSelector() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Header with Gradient */}
-      <div className="relative overflow-hidden">
-        {/* Background gradient - matching reference style */}
-        <div className="absolute inset-0 bg-gradient-to-br from-red-600 via-red-700 to-red-900" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/30 via-transparent to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
-        
-        {/* Header Content */}
-        <header className="relative z-10 container mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 overflow-hidden">
-              <img 
-                src={v4LogoIcon} 
-                alt="V4 Company" 
-                className="h-8 w-auto brightness-0 invert"
-              />
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Animated Background - Same as Auth */}
+      <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 pointer-events-none" />
+      
+      {/* Radial glow effects */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[150px] animate-pulse-slow" />
+        <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-red-600/8 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-red-500/8 rounded-full blur-[80px] animate-pulse-slow" style={{ animationDelay: '2s' }} />
+      </div>
+
+      {/* Floating Particles */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        {particles.map((p) => (
+          <Particle key={p.id} {...p} />
+        ))}
+      </div>
+
+      {/* Grid pattern overlay */}
+      <div className="fixed inset-0 bg-[linear-gradient(rgba(239,68,68,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,0.02)_1px,transparent_1px)] bg-[size:80px_80px] pointer-events-none" />
+
+      {/* Main Content */}
+      <div className="relative z-10">
+        {/* Header Section */}
+        <header className="container mx-auto px-6 pt-8 pb-4">
+          <div className="flex items-center justify-between">
+            {/* Logo with Glow */}
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <GlowRing size={80} delay={0} opacity={0.3} />
+                <GlowRing size={100} delay={0.5} opacity={0.2} />
+                <div className="relative z-10 w-14 h-14 rounded-2xl overflow-hidden">
+                  <img 
+                    src={v4LogoIcon} 
+                    alt="V4 Company" 
+                    className="w-full h-full object-cover drop-shadow-2xl"
+                  />
+                  <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl -z-10 animate-pulse-slow" />
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <h1 className="text-xl font-bold gradient-text">MetaAds Manager</h1>
+                <span className="text-xs text-muted-foreground">by V4 Company</span>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-bold text-white">
-                Meta Ads Manager
-              </span>
-              <span className="text-xs text-white/70 flex items-center gap-1.5">
-                Sistema de Gerenciamento de Contas - V4 Company
-              </span>
-            </div>
+            
+            <Button 
+              variant="ghost" 
+              onClick={handleLogout} 
+              className="text-muted-foreground hover:text-foreground hover:bg-card/50 gap-2 rounded-xl transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sair</span>
+            </Button>
           </div>
-          <Button 
-            variant="ghost" 
-            onClick={handleLogout} 
-            className="text-white/80 hover:text-white hover:bg-white/10 gap-2 rounded-xl transition-all"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Sair</span>
-          </Button>
         </header>
 
-        {/* Summary Cards */}
-        <div className="relative z-10 container mx-auto px-6 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl">
+        {/* Summary Cards - Glass Effect */}
+        <div className="container mx-auto px-6 py-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
             {/* Total */}
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+            <div className="glass-card p-4 hover:border-primary/30 transition-all group">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-white/70">Total de Clientes</p>
-                  <p className="text-3xl font-bold text-white mt-1">{healthCounts.total}</p>
+                  <p className="text-xs text-muted-foreground">Total de Clientes</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">{healthCounts.total}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-                  <FolderKanban className="w-5 h-5 text-white/80" />
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <FolderKanban className="w-5 h-5 text-primary" />
                 </div>
               </div>
             </div>
             
             {/* Safe */}
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+            <div className="glass-card p-4 hover:border-emerald-500/30 transition-all group">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-white/70">Safe</p>
-                  <p className="text-3xl font-bold text-white mt-1">{healthCounts.safe}</p>
+                  <p className="text-xs text-muted-foreground">Safe</p>
+                  <p className="text-2xl font-bold text-emerald-400 mt-1">{healthCounts.safe}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/30 flex items-center justify-center">
-                  <ShieldCheck className="w-5 h-5 text-emerald-300" />
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
                 </div>
               </div>
             </div>
             
             {/* Care */}
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+            <div className="glass-card p-4 hover:border-amber-500/30 transition-all group">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-white/70">Care</p>
-                  <p className="text-3xl font-bold text-white mt-1">{healthCounts.care}</p>
+                  <p className="text-xs text-muted-foreground">Care</p>
+                  <p className="text-2xl font-bold text-amber-400 mt-1">{healthCounts.care}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-amber-500/30 flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-amber-300" />
+                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
                 </div>
               </div>
             </div>
             
             {/* Danger */}
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+            <div className="glass-card p-4 hover:border-red-500/30 transition-all group">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-white/70">Danger</p>
-                  <p className="text-3xl font-bold text-white mt-1">{healthCounts.danger}</p>
+                  <p className="text-xs text-muted-foreground">Danger</p>
+                  <p className="text-2xl font-bold text-red-400 mt-1">{healthCounts.danger}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-red-400/30 flex items-center justify-center">
-                  <AlertCircle className="w-5 h-5 text-red-300" />
+                <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-6 py-8 relative -mt-4">
-        <div className="max-w-7xl mx-auto">
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            {/* Controls Bar - Clean white card */}
-            <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-4 mb-6">
+        {/* Main Content */}
+        <main className="container mx-auto px-6 pb-8">
+          <div className="max-w-7xl mx-auto">
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              {/* Controls Bar - Glass effect */}
+              <div className="glass-card p-4 mb-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 {/* Left side - Search and filters */}
                 <div className="flex flex-wrap items-center gap-3">
@@ -1371,6 +1414,7 @@ export default function ProjectSelector() {
           </Tabs>
         </div>
       </main>
+      </div>{/* Close div.relative.z-10 */}
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
