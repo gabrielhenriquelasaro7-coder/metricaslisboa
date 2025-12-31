@@ -81,12 +81,19 @@ const businessModels: { value: BusinessModel; label: string; description: string
 
 type ExtendedHealthScore = HealthScore | 'undefined';
 
-const healthScoreOptions: { value: ExtendedHealthScore; label: string; bgColor: string; textColor: string; borderColor: string; icon: typeof ShieldCheck }[] = [
-  { value: 'safe', label: 'Safe', bgColor: 'bg-emerald-500/20', textColor: 'text-emerald-400', borderColor: 'border-emerald-500', icon: ShieldCheck },
-  { value: 'care', label: 'Care', bgColor: 'bg-amber-500/20', textColor: 'text-amber-400', borderColor: 'border-amber-500', icon: AlertTriangle },
-  { value: 'danger', label: 'Danger', bgColor: 'bg-red-500/20', textColor: 'text-red-400', borderColor: 'border-red-500', icon: AlertCircle },
-  { value: 'undefined', label: 'Indefinido', bgColor: 'bg-muted/50', textColor: 'text-muted-foreground', borderColor: 'border-muted', icon: AlertCircle },
+const healthScoreOptions: { value: ExtendedHealthScore; label: string; bgColor: string; textColor: string; borderColor: string; gradientFrom: string; gradientTo: string; glowColor: string; icon: typeof ShieldCheck }[] = [
+  { value: 'safe', label: 'Safe', bgColor: 'bg-emerald-500/20', textColor: 'text-emerald-400', borderColor: 'border-emerald-500/60', gradientFrom: 'from-emerald-500/10', gradientTo: 'to-teal-500/5', glowColor: 'shadow-emerald-500/20', icon: ShieldCheck },
+  { value: 'care', label: 'Care', bgColor: 'bg-amber-500/20', textColor: 'text-amber-400', borderColor: 'border-amber-500/60', gradientFrom: 'from-amber-500/10', gradientTo: 'to-orange-500/5', glowColor: 'shadow-amber-500/20', icon: AlertTriangle },
+  { value: 'danger', label: 'Danger', bgColor: 'bg-red-500/20', textColor: 'text-red-400', borderColor: 'border-red-500/60', gradientFrom: 'from-red-500/10', gradientTo: 'to-rose-500/5', glowColor: 'shadow-red-500/20', icon: AlertCircle },
+  { value: 'undefined', label: 'Indefinido', bgColor: 'bg-slate-500/20', textColor: 'text-slate-400', borderColor: 'border-slate-500/40', gradientFrom: 'from-slate-500/5', gradientTo: 'to-gray-500/5', glowColor: 'shadow-slate-500/10', icon: AlertCircle },
 ];
+
+const businessModelColors: Record<BusinessModel, { bgColor: string; textColor: string; iconColor: string }> = {
+  inside_sales: { bgColor: 'bg-blue-500/15', textColor: 'text-blue-400', iconColor: 'text-blue-400' },
+  ecommerce: { bgColor: 'bg-emerald-500/15', textColor: 'text-emerald-400', iconColor: 'text-emerald-400' },
+  pdv: { bgColor: 'bg-purple-500/15', textColor: 'text-purple-400', iconColor: 'text-purple-400' },
+  custom: { bgColor: 'bg-primary/15', textColor: 'text-primary', iconColor: 'text-primary' },
+};
 
 interface ProjectCardProps {
   project: Project;
@@ -102,9 +109,10 @@ interface ProjectCardProps {
 function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: Omit<ProjectCardProps, 'health'>) {
   const model = businessModels.find(m => m.value === project.business_model);
   const Icon = model?.icon || Users;
+  const modelColors = businessModelColors[project.business_model] || businessModelColors.custom;
   
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
-  const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore);
+  const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore) || healthScoreOptions[3];
   const HealthIcon = healthOption?.icon || AlertCircle;
   
   const syncProgress = project.sync_progress;
@@ -114,78 +122,80 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
                     syncProgress?.status === 'importing';
   
   const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
-  const nextSyncDate = lastSyncDate ? addHours(lastSyncDate, 6) : null;
   
   const getStatusIndicator = () => {
     if (isSyncing) {
       return (
-        <div className="relative">
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-          <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+        <div className="relative flex items-center justify-center">
+          <div className="w-3 h-3 rounded-full bg-amber-500" />
+          <div className="absolute inset-0 w-3 h-3 rounded-full bg-amber-400 animate-ping" />
         </div>
       );
     }
     if (project.webhook_status === 'error') {
-      return <div className="w-2.5 h-2.5 rounded-full bg-red-500" />;
+      return <div className="w-3 h-3 rounded-full bg-red-500 ring-2 ring-red-500/30" />;
     }
-    return <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />;
+    return <div className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />;
   };
 
   return (
     <div 
       className={cn(
-        "group relative rounded-xl border p-4 transition-all duration-300 cursor-pointer",
-        "bg-card/80 backdrop-blur-sm",
-        "hover:bg-card hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30",
-        "border-border/40",
-        project.archived && 'opacity-60'
+        "group relative rounded-2xl border-2 p-5 transition-all duration-300 cursor-pointer overflow-hidden",
+        "bg-gradient-to-br backdrop-blur-sm",
+        healthOption.gradientFrom,
+        healthOption.gradientTo,
+        healthOption.borderColor,
+        "hover:shadow-xl hover:-translate-y-1",
+        healthOption.glowColor,
+        project.archived && 'opacity-50 grayscale-[30%]'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Health indicator line */}
+      {/* Decorative gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-card/90 via-card/70 to-transparent pointer-events-none" />
+      
+      {/* Health indicator bar - left side */}
       <div className={cn(
-        "absolute left-0 top-3 bottom-3 w-1 rounded-r-full",
-        healthOption?.bgColor?.replace('/20', '/80') || 'bg-muted'
+        "absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full",
+        healthOption.bgColor.replace('/20', '/80')
       )} />
       
       {/* Content */}
-      <div className="flex items-center gap-4 pl-3">
-        {/* Avatar */}
-        <div className={cn(
-          "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-transform duration-300",
-          !project.avatar_url && healthOption?.bgColor,
-          "group-hover:scale-105"
-        )}>
-          {project.avatar_url ? (
-            <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
-          ) : (
-            <Icon className={cn("w-6 h-6", healthOption?.textColor)} />
-          )}
-        </div>
-        
-        {/* Info */}
-        <div className="flex-1 min-w-0 mr-2">
-          <div className="flex items-center gap-2 mb-1">
-            {getStatusIndicator()}
-            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1" title={project.name}>
-              {project.name}
-            </h3>
+      <div className="relative flex flex-col gap-4">
+        {/* Header Row */}
+        <div className="flex items-start gap-4">
+          {/* Avatar */}
+          <div className={cn(
+            "w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 ring-2 ring-offset-2 ring-offset-card",
+            !project.avatar_url && modelColors.bgColor,
+            healthOption.borderColor.replace('border-', 'ring-'),
+            "group-hover:scale-110 group-hover:ring-offset-4"
+          )}>
+            {project.avatar_url ? (
+              <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
+            ) : (
+              <Icon className={cn("w-7 h-7", modelColors.iconColor)} />
+            )}
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">{model?.label}</span>
-            <span className="text-muted-foreground/40">•</span>
-            <span className={cn("text-xs font-medium flex items-center gap-1 whitespace-nowrap", healthOption?.textColor)}>
-              <HealthIcon className="w-3 h-3" />
-              {healthOption?.label}
-            </span>
-          </div>
-        </div>
-        
-        {/* Right side - sync info + actions */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="w-3.5 h-3.5" />
-            <span className="whitespace-nowrap">{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: false, locale: ptBR }) : '—'}</span>
+          
+          {/* Title & Model */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5 mb-1.5">
+              {getStatusIndicator()}
+              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight" title={project.name}>
+                {project.name}
+              </h3>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={cn(
+                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium",
+                modelColors.bgColor, modelColors.textColor
+              )}>
+                <Icon className="w-3.5 h-3.5" />
+                {model?.label}
+              </span>
+            </div>
           </div>
           
           {/* Actions Menu */}
@@ -194,12 +204,16 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                className={cn(
+                  "h-9 w-9 rounded-xl transition-all",
+                  "opacity-0 group-hover:opacity-100",
+                  "hover:bg-foreground/10"
+                )}
               >
-                <MoreVertical className="w-4 h-4" />
+                <MoreVertical className="w-5 h-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
               <DropdownMenuItem onClick={() => onEdit(project)}>
                 <Pencil className="w-4 h-4 mr-2" />
                 Editar
@@ -227,8 +241,32 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
+        
+        {/* Footer Row */}
+        <div className="flex items-center justify-between pt-3 border-t border-border/30">
+          {/* Health Badge */}
+          <div className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold",
+            healthOption.bgColor, healthOption.textColor
+          )}>
+            <HealthIcon className="w-4 h-4" />
+            {healthOption.label}
+          </div>
           
-          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+          {/* Sync Info + Arrow */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: false, locale: ptBR }) : 'Nunca'}</span>
+            </div>
+            <div className={cn(
+              "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
+              "bg-foreground/5 group-hover:bg-primary group-hover:text-primary-foreground"
+            )}>
+              <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -238,9 +276,10 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
 function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: Omit<ProjectCardProps, 'health'>) {
   const model = businessModels.find(m => m.value === project.business_model);
   const Icon = model?.icon || Users;
+  const modelColors = businessModelColors[project.business_model] || businessModelColors.custom;
   
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
-  const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore);
+  const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore) || healthScoreOptions[3];
   const HealthIcon = healthOption?.icon || AlertCircle;
   
   const syncProgress = project.sync_progress;
@@ -253,59 +292,82 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
   
   const getStatusIndicator = () => {
     if (isSyncing) {
-      return <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />;
+      return (
+        <div className="relative flex items-center justify-center">
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+          <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+        </div>
+      );
     }
     if (project.webhook_status === 'error') {
-      return <div className="w-2 h-2 rounded-full bg-red-500" />;
+      return <div className="w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-red-500/30" />;
     }
-    return <div className="w-2 h-2 rounded-full bg-emerald-500" />;
+    return <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />;
   };
 
   return (
     <div 
       className={cn(
-        "group relative flex items-center gap-4 rounded-xl border p-4 transition-all duration-300 cursor-pointer",
-        "bg-gradient-to-r from-card via-card to-card/50 hover:from-card hover:via-primary/5 hover:to-card",
-        "hover:border-primary/50 hover:shadow-md hover:shadow-primary/10",
-        healthOption?.borderColor || 'border-border',
-        project.archived && 'opacity-60'
+        "group relative flex items-center gap-5 rounded-2xl border-2 p-5 transition-all duration-300 cursor-pointer overflow-hidden",
+        "bg-gradient-to-r backdrop-blur-sm",
+        healthOption.gradientFrom,
+        healthOption.gradientTo,
+        healthOption.borderColor,
+        "hover:shadow-xl hover:-translate-y-0.5",
+        healthOption.glowColor,
+        project.archived && 'opacity-50 grayscale-[30%]'
       )}
       onClick={() => onSelect(project)}
     >
+      {/* Decorative overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-card/90 via-card/80 to-card/60 pointer-events-none" />
+      
+      {/* Health indicator bar - left side */}
+      <div className={cn(
+        "absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full",
+        healthOption.bgColor.replace('/20', '/80')
+      )} />
+      
       {/* Avatar */}
       <div className={cn(
-        "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden",
-        !project.avatar_url && healthOption?.bgColor,
-        "ring-2 ring-offset-2 ring-offset-card",
-        healthOption?.borderColor?.replace('border-', 'ring-')
+        "relative w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 ring-2 ring-offset-2 ring-offset-card",
+        !project.avatar_url && modelColors.bgColor,
+        healthOption.borderColor.replace('border-', 'ring-'),
+        "group-hover:scale-105 group-hover:ring-offset-4"
       )}>
         {project.avatar_url ? (
           <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
         ) : (
-          <Icon className={cn("w-6 h-6", healthOption?.textColor)} />
+          <Icon className={cn("w-7 h-7", modelColors.iconColor)} />
         )}
       </div>
       
       {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
+      <div className="relative flex-1 min-w-0">
+        <div className="flex items-center gap-2.5 mb-1">
           {getStatusIndicator()}
-          <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate">
+          <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors truncate">
             {project.name}
           </h3>
           <span className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0",
-            healthOption?.bgColor, healthOption?.textColor
+            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold flex-shrink-0",
+            healthOption.bgColor, healthOption.textColor
           )}>
-            <HealthIcon className="w-3 h-3" />
-            {healthOption?.label}
+            <HealthIcon className="w-3.5 h-3.5" />
+            {healthOption.label}
           </span>
         </div>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span>{model?.label}</span>
+          <span className={cn(
+            "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md",
+            modelColors.bgColor, modelColors.textColor
+          )}>
+            <Icon className="w-3.5 h-3.5" />
+            {model?.label}
+          </span>
           <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
-          <span className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
+          <span className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5" />
             {lastSyncDate 
               ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR })
               : 'Nunca sincronizado'}
@@ -314,14 +376,22 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
       </div>
       
       {/* Actions */}
-      <div className="flex items-center gap-2">
+      <div className="relative flex items-center gap-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-              <MoreVertical className="w-4 h-4" />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={cn(
+                "h-9 w-9 rounded-xl transition-all",
+                "opacity-0 group-hover:opacity-100",
+                "hover:bg-foreground/10"
+              )}
+            >
+              <MoreVertical className="w-5 h-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
             <DropdownMenuItem onClick={() => onEdit(project)}>
               <Pencil className="w-4 h-4 mr-2" />
               Editar
@@ -350,7 +420,12 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
           </DropdownMenuContent>
         </DropdownMenu>
         
-        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+        <div className={cn(
+          "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300",
+          "bg-foreground/5 group-hover:bg-primary group-hover:text-primary-foreground"
+        )}>
+          <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+        </div>
       </div>
     </div>
   );
@@ -1093,7 +1168,7 @@ export default function ProjectSelector() {
             <TabsContent value="projects" className="mt-0">
               {(showArchived ? filteredArchivedProjects : filteredActiveProjects).length > 0 ? (
                 viewMode === 'grid' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 stagger-fade-in">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-fade-in">
                     {(showArchived ? filteredArchivedProjects : filteredActiveProjects).map((project) => (
                       <ProjectCard
                         key={project.id}
@@ -1108,7 +1183,7 @@ export default function ProjectSelector() {
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-3 stagger-fade-in">
+                  <div className="flex flex-col gap-4 stagger-fade-in">
                     {(showArchived ? filteredArchivedProjects : filteredActiveProjects).map((project) => (
                       <ProjectListItem
                         key={project.id}
