@@ -21,7 +21,8 @@ import {
   Image as ImageIcon,
   Database,
   Bot,
-  MessageSquare
+  MessageSquare,
+  UserPlus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -38,11 +39,13 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
+import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [campaignsOpen, setCampaignsOpen] = useState(true);
   const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
@@ -321,6 +324,15 @@ export default function Sidebar() {
           {/* Admin & Settings at bottom - Hidden for guests */}
           {!isGuest && (
             <div className="space-y-1 mt-4">
+              {/* Invite Guest Button */}
+              <button
+                onClick={() => setInviteDialogOpen(true)}
+                className="sidebar-item w-full"
+              >
+                <UserPlus className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>Convidar Cliente</span>}
+              </button>
+
               {/* WhatsApp */}
               <Link
                 to="/whatsapp"
@@ -387,6 +399,16 @@ export default function Sidebar() {
           </Button>
         </div>
       </div>
+
+      {/* Invite Guest Dialog */}
+      {selectedProject && (
+        <InviteGuestDialog
+          open={inviteDialogOpen}
+          onOpenChange={setInviteDialogOpen}
+          preselectedProjectId={selectedProject.id}
+          preselectedProjectName={selectedProject.name}
+        />
+      )}
     </aside>
   );
 }
