@@ -17,6 +17,7 @@ export default function ChangePassword() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   const handleChangePassword = async () => {
     if (newPassword.length < 6) {
@@ -52,22 +53,43 @@ export default function ChangePassword() {
 
       toast.success('Senha alterada com sucesso!');
       
-      // Use window.location to force a full page reload, ensuring all state is refreshed
-      // This is necessary because the useUserRole hook caches the needsPasswordChange value
-      const onboardingComplete = localStorage.getItem('guestOnboardingComplete');
-      if (!onboardingComplete) {
-        window.location.href = '/guest-onboarding';
-      } else {
-        window.location.href = '/dashboard';
-      }
+      // Show redirecting state
+      setRedirecting(true);
+      
+      // Small delay for better UX feedback
+      setTimeout(() => {
+        // Use window.location to force a full page reload, ensuring all state is refreshed
+        const onboardingComplete = localStorage.getItem('guestOnboardingComplete');
+        if (!onboardingComplete) {
+          window.location.href = '/guest-onboarding';
+        } else {
+          window.location.href = '/dashboard';
+        }
+      }, 500);
     } catch (error: unknown) {
       console.error('Error changing password:', error);
       const message = error instanceof Error ? error.message : 'Erro ao alterar senha';
       toast.error(message);
     } finally {
-      setLoading(false);
+      if (!redirecting) {
+        setLoading(false);
+      }
     }
   };
+
+  // Show full-screen loading when redirecting
+  if (redirecting) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="absolute inset-0 red-texture-bg opacity-20 pointer-events-none" />
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          <img src={v4LogoFull} alt="V4 Company" className="h-12 mb-4" />
+          <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          <p className="text-lg text-muted-foreground">Preparando sua experiência...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
