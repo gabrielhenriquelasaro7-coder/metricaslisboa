@@ -106,14 +106,6 @@ export default function GuestOnboarding() {
   // Get first name
   const firstName = guestName.split(' ')[0] || 'Cliente';
 
-  // Get greeting based on time
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Bom dia';
-    if (hour < 18) return 'Boa tarde';
-    return 'Boa noite';
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -181,18 +173,27 @@ export default function GuestOnboarding() {
                   transition={{ delay: 0.3, duration: 0.5 }}
                   className="text-4xl md:text-5xl font-bold mb-4"
                 >
-                  {getGreeting()}, <span className="gradient-text">{firstName}</span>! 👋
+                  Olá, <span className="gradient-text">{firstName}</span>!
                 </motion.h1>
                 
                 <motion.p 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4, duration: 0.5 }}
-                  className="text-xl text-muted-foreground max-w-lg mx-auto leading-relaxed"
+                  className="text-xl text-muted-foreground max-w-xl mx-auto leading-relaxed"
                 >
-                  Seja muito bem-vindo ao seu painel exclusivo de acompanhamento de métricas
+                  Seja muito bem-vindo(a) ao seu painel exclusivo!
+                </motion.p>
+                
+                <motion.p 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.45, duration: 0.5 }}
+                  className="text-base text-muted-foreground max-w-xl mx-auto mt-3"
+                >
+                  Preparamos um dashboard completo para você acompanhar todas as métricas das suas campanhas de tráfego pago de forma simples e intuitiva.
                   {projectName && (
-                    <span className="block mt-2 text-foreground font-medium">
+                    <span className="block mt-3 text-foreground font-medium">
                       Projeto: {projectName}
                     </span>
                   )}

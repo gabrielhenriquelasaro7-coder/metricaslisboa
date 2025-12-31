@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { LoadingScreen } from '@/components/ui/loading-screen';
 import v4LogoFull from '@/assets/v4-logo-full.png';
 
 export default function ChangePassword() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -74,11 +76,11 @@ export default function ChangePassword() {
       setLoading(false);
       
       // ALWAYS redirect to guest-onboarding after first password change
-      // The onboarding page will handle showing welcome and then redirecting to dashboard
+      // Using React Router for smooth transition without page reload
       setTimeout(() => {
-        console.log('[ChangePassword] Redirecting to guest-onboarding (first login flow)');
-        window.location.href = '/guest-onboarding';
-      }, 800);
+        console.log('[ChangePassword] Navigating to guest-onboarding (first login flow)');
+        navigate('/guest-onboarding');
+      }, 500);
       
     } catch (error: unknown) {
       console.error('[ChangePassword] Error:', error);
