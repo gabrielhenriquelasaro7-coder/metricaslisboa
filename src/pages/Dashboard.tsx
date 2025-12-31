@@ -298,12 +298,14 @@ export default function Dashboard() {
           </div>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <DateRangePicker
-              dateRange={dateRange} 
-              onDateRangeChange={handleDateRangeChange}
-              timezone={projectTimezone}
-              onPresetChange={handlePresetChange}
-            />
+            <div data-tour="date-picker">
+              <DateRangePicker
+                dateRange={dateRange} 
+                onDateRangeChange={handleDateRangeChange}
+                timezone={projectTimezone}
+                onPresetChange={handlePresetChange}
+              />
+            </div>
             
             {/* PDF Builder Button */}
             {hasSelectedProject && selectedProject && (
@@ -382,7 +384,7 @@ export default function Dashboard() {
             )}
 
             {/* Metrics Grid - General Base Metrics with Sparklines */}
-            <div>
+            <div data-tour="metrics">
               <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Métricas Gerais</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 <SparklineCard
@@ -585,7 +587,7 @@ export default function Dashboard() {
             )}
 
             {/* Customizable Charts - Real daily data */}
-            <div className="space-y-6">
+            <div className="space-y-6" data-tour="charts">
               <div ref={chartRef}>
                 <CustomizableChart
                   chartKey="dashboard-chart-1"

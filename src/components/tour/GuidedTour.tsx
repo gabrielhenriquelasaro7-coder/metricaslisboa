@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, ChevronLeft, Sparkles, LayoutDashboard, Megaphone, Image, Calendar, BarChart3, Target } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -8,68 +9,59 @@ interface TourStep {
   id: string;
   title: string;
   description: string;
-  icon: React.ElementType;
-  targetSelector?: string;
-  position?: 'top' | 'bottom' | 'left' | 'right' | 'center';
+  targetSelector: string;
+  position: 'top' | 'bottom' | 'left' | 'right';
 }
 
 const tourSteps: TourStep[] = [
   {
-    id: 'welcome',
-    title: 'Bem-vindo ao seu Dashboard!',
-    description: 'Este é o seu painel de controle onde você acompanha todas as métricas das suas campanhas. Vamos fazer um tour rápido para você conhecer as principais funcionalidades.',
-    icon: Sparkles,
-    position: 'center',
-  },
-  {
     id: 'sidebar',
     title: 'Menu de Navegação',
-    description: 'Aqui você encontra o menu principal. Navegue entre Dashboard, Campanhas, Conjuntos de Anúncios e Criativos para ver detalhes específicos de cada área.',
-    icon: LayoutDashboard,
+    description: 'Aqui você navega entre Dashboard, Campanhas, Criativos e mais. Clique para explorar cada seção.',
+    targetSelector: '[data-tour="sidebar-nav"]',
     position: 'right',
-    targetSelector: '[data-tour="sidebar"]',
+  },
+  {
+    id: 'project-selector',
+    title: 'Seletor de Projeto',
+    description: 'Visualize e troque entre os projetos que você tem acesso. As métricas mudam de acordo com o projeto selecionado.',
+    targetSelector: '[data-tour="project-selector"]',
+    position: 'right',
   },
   {
     id: 'date-picker',
-    title: 'Seletor de Período',
-    description: 'Escolha o período que deseja analisar. Você pode ver os dados de hoje, últimos 7 dias, este mês ou selecionar datas personalizadas.',
-    icon: Calendar,
-    position: 'bottom',
+    title: 'Período de Análise',
+    description: 'Selecione o período que deseja analisar: hoje, últimos 7 dias, este mês ou datas personalizadas.',
     targetSelector: '[data-tour="date-picker"]',
+    position: 'bottom',
   },
   {
     id: 'metrics',
     title: 'Métricas Principais',
-    description: 'Estes cards mostram as métricas mais importantes: Gasto Total, Impressões, Cliques, CTR, CPM e CPC. Cada card inclui um mini gráfico de evolução.',
-    icon: Target,
-    position: 'top',
+    description: 'Cards com as métricas mais importantes: Gasto, Impressões, Cliques, CTR, CPM e CPC. Cada um mostra a evolução no período.',
     targetSelector: '[data-tour="metrics"]',
+    position: 'bottom',
   },
   {
     id: 'charts',
     title: 'Gráficos de Performance',
-    description: 'Visualize a evolução das suas métricas ao longo do tempo. Você pode personalizar quais métricas deseja ver em cada gráfico.',
-    icon: BarChart3,
-    position: 'top',
+    description: 'Acompanhe a evolução das métricas ao longo do tempo através de gráficos interativos.',
     targetSelector: '[data-tour="charts"]',
-  },
-  {
-    id: 'campaigns',
-    title: 'Suas Campanhas',
-    description: 'No menu lateral você pode ver a lista de todas as suas campanhas. Clique em qualquer uma para ver os detalhes e conjuntos de anúncios.',
-    icon: Megaphone,
-    position: 'right',
-    targetSelector: '[data-tour="campaigns"]',
-  },
-  {
-    id: 'creatives',
-    title: 'Galeria de Criativos',
-    description: 'Acesse a galeria de criativos para ver todas as imagens e vídeos das suas campanhas com suas respectivas métricas de performance.',
-    icon: Image,
-    position: 'right',
-    targetSelector: '[data-tour="creatives"]',
+    position: 'top',
   },
 ];
+
+interface SpotlightPosition {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+interface TooltipPosition {
+  top: number;
+  left: number;
+}
 
 interface GuidedTourProps {
   onComplete: () => void;
@@ -79,11 +71,95 @@ interface GuidedTourProps {
 export function GuidedTour({ onComplete, onSkip }: GuidedTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
+  const [spotlight, setSpotlight] = useState<SpotlightPosition | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<TooltipPosition>({ top: 0, left: 0 });
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   const step = tourSteps[currentStep];
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === tourSteps.length - 1;
-  const progress = ((currentStep + 1) / tourSteps.length) * 100;
+
+  // Calculate element position and update spotlight
+  const updatePositions = useCallback(() => {
+    const element = document.querySelector(step.targetSelector);
+    if (!element) {
+      // If element not found, use center fallback
+      setSpotlight(null);
+      setTooltipPos({
+        top: window.innerHeight / 2 - 100,
+        left: window.innerWidth / 2 - 175,
+      });
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const padding = 8;
+
+    // Set spotlight position
+    setSpotlight({
+      top: rect.top - padding,
+      left: rect.left - padding,
+      width: rect.width + padding * 2,
+      height: rect.height + padding * 2,
+    });
+
+    // Calculate tooltip position based on step.position
+    const tooltipWidth = 350;
+    const tooltipHeight = 180;
+    const gap = 16;
+
+    let top = 0;
+    let left = 0;
+
+    switch (step.position) {
+      case 'right':
+        top = rect.top + rect.height / 2 - tooltipHeight / 2;
+        left = rect.right + gap;
+        break;
+      case 'left':
+        top = rect.top + rect.height / 2 - tooltipHeight / 2;
+        left = rect.left - tooltipWidth - gap;
+        break;
+      case 'bottom':
+        top = rect.bottom + gap;
+        left = rect.left + rect.width / 2 - tooltipWidth / 2;
+        break;
+      case 'top':
+        top = rect.top - tooltipHeight - gap;
+        left = rect.left + rect.width / 2 - tooltipWidth / 2;
+        break;
+    }
+
+    // Keep tooltip in viewport
+    top = Math.max(16, Math.min(top, window.innerHeight - tooltipHeight - 16));
+    left = Math.max(16, Math.min(left, window.innerWidth - tooltipWidth - 16));
+
+    setTooltipPos({ top, left });
+  }, [step]);
+
+  // Update positions when step changes or window resizes
+  useEffect(() => {
+    updatePositions();
+
+    const handleResize = () => updatePositions();
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleResize);
+    };
+  }, [updatePositions]);
+
+  // Scroll element into view
+  useEffect(() => {
+    const element = document.querySelector(step.targetSelector);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Update positions after scroll
+      setTimeout(updatePositions, 300);
+    }
+  }, [step.targetSelector, updatePositions]);
 
   const handleNext = useCallback(() => {
     if (isLastStep) {
@@ -105,148 +181,125 @@ export function GuidedTour({ onComplete, onSkip }: GuidedTourProps) {
     setTimeout(onSkip, 300);
   }, [onSkip]);
 
-  // Handle keyboard navigation
+  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'Enter') {
-        handleNext();
-      } else if (e.key === 'ArrowLeft') {
-        handlePrev();
-      } else if (e.key === 'Escape') {
-        handleSkip();
-      }
+      if (e.key === 'ArrowRight' || e.key === 'Enter') handleNext();
+      else if (e.key === 'ArrowLeft') handlePrev();
+      else if (e.key === 'Escape') handleSkip();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleNext, handlePrev, handleSkip]);
 
-  return (
+  if (!isVisible) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isVisible && (
         <>
-          {/* Backdrop */}
+          {/* Dark overlay with spotlight cutout */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm"
+            className="fixed inset-0 z-[9998]"
+            style={{
+              background: spotlight
+                ? `radial-gradient(ellipse ${spotlight.width + 40}px ${spotlight.height + 40}px at ${spotlight.left + spotlight.width / 2}px ${spotlight.top + spotlight.height / 2}px, transparent 0%, rgba(0,0,0,0.85) 100%)`
+                : 'rgba(0,0,0,0.85)',
+            }}
             onClick={handleSkip}
           />
 
-          {/* Tour Card */}
+          {/* Spotlight border */}
+          {spotlight && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              className="fixed z-[9999] pointer-events-none rounded-xl"
+              style={{
+                top: spotlight.top,
+                left: spotlight.left,
+                width: spotlight.width,
+                height: spotlight.height,
+                boxShadow: '0 0 0 4px hsl(var(--primary)), 0 0 20px 4px hsl(var(--primary) / 0.4)',
+              }}
+            />
+          )}
+
+          {/* Tooltip */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed z-[101] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg mx-4"
+            ref={tooltipRef}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="fixed z-[10000] w-[350px]"
+            style={{ top: tooltipPos.top, left: tooltipPos.left }}
           >
-            <div className="glass-card border-border/50 overflow-hidden shadow-2xl">
-              {/* Progress Bar */}
+            <div className="bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
+              {/* Progress */}
               <div className="h-1 bg-muted">
                 <motion.div
-                  className="h-full bg-gradient-to-r from-primary to-primary/70"
+                  className="h-full bg-primary"
                   initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.3 }}
+                  animate={{ width: `${((currentStep + 1) / tourSteps.length) * 100}%` }}
                 />
               </div>
 
               {/* Header */}
-              <div className="p-6 pb-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                      <step.icon className="w-6 h-6 text-primary" />
+              <div className="p-4 pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-primary" />
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Passo {currentStep + 1} de {tourSteps.length}
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        Passo {currentStep + 1}/{tourSteps.length}
                       </p>
-                      <h3 className="text-lg font-semibold">{step.title}</h3>
+                      <h3 className="font-semibold text-sm">{step.title}</h3>
                     </div>
                   </div>
                   <button
                     onClick={handleSkip}
-                    className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
               {/* Content */}
-              <div className="px-6 pb-6">
-                <AnimatePresence mode="wait">
-                  <motion.p
-                    key={step.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.2 }}
-                    className="text-muted-foreground leading-relaxed"
-                  >
-                    {step.description}
-                  </motion.p>
-                </AnimatePresence>
-              </div>
-
-              {/* Step Indicators */}
-              <div className="px-6 pb-4">
-                <div className="flex items-center justify-center gap-2">
-                  {tourSteps.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentStep(index)}
-                      className={cn(
-                        'w-2 h-2 rounded-full transition-all',
-                        index === currentStep
-                          ? 'bg-primary w-6'
-                          : index < currentStep
-                          ? 'bg-primary/50'
-                          : 'bg-muted-foreground/30'
-                      )}
-                    />
-                  ))}
-                </div>
+              <div className="px-4 pb-3">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {step.description}
+                </p>
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 bg-muted/30 border-t border-border/50 flex items-center justify-between">
+              <div className="px-4 py-3 bg-muted/30 border-t border-border flex items-center justify-between">
                 <button
                   onClick={handleSkip}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Pular tour
+                  Pular
                 </button>
 
                 <div className="flex items-center gap-2">
                   {!isFirstStep && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handlePrev}
-                      className="gap-1"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
+                    <Button variant="ghost" size="sm" onClick={handlePrev} className="h-8 px-3 text-xs">
+                      <ChevronLeft className="w-3 h-3 mr-1" />
                       Anterior
                     </Button>
                   )}
-                  <Button
-                    size="sm"
-                    onClick={handleNext}
-                    className="gap-1 min-w-[100px]"
-                  >
-                    {isLastStep ? (
-                      'Começar!'
-                    ) : (
-                      <>
-                        Próximo
-                        <ChevronRight className="w-4 h-4" />
-                      </>
-                    )}
+                  <Button size="sm" onClick={handleNext} className="h-8 px-4 text-xs">
+                    {isLastStep ? 'Concluir' : 'Próximo'}
+                    {!isLastStep && <ChevronRight className="w-3 h-3 ml-1" />}
                   </Button>
                 </div>
               </div>
@@ -254,6 +307,7 @@ export function GuidedTour({ onComplete, onSkip }: GuidedTourProps) {
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
