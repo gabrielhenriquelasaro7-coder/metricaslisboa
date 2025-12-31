@@ -52,7 +52,7 @@ export default function Sidebar() {
   const { projects } = useProjects();
   const { campaigns, adSets } = useMetaAdsData();
   const { profile } = useProfile();
-  const { isGuest } = useUserRole();
+  const { isGuest, loading: roleLoading } = useUserRole();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
@@ -303,8 +303,8 @@ export default function Sidebar() {
               {!collapsed && <span>Criativos</span>}
             </Link>
 
-            {/* Agente Lisboa - Hidden for guests */}
-            {!isGuest && (
+            {/* Agente Lisboa - Hidden for guests, hidden while loading */}
+            {!roleLoading && !isGuest && (
               <Link
                 to="/ai-assistant"
                 className={cn(
@@ -321,8 +321,8 @@ export default function Sidebar() {
           {/* Spacer to push admin/settings to bottom */}
           <div className="flex-1" />
 
-          {/* Admin & Settings at bottom - Hidden for guests */}
-          {!isGuest && (
+          {/* Admin & Settings at bottom - Hidden for guests, hidden while loading role */}
+          {!roleLoading && !isGuest && (
             <div className="space-y-1 mt-4">
               {/* Invite Guest Button */}
               <button
