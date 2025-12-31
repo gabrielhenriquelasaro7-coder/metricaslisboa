@@ -48,6 +48,27 @@ const tourSteps: TourStep[] = [
     targetSelector: '[data-tour="charts"]',
     position: 'top',
   },
+  {
+    id: 'pdf-export',
+    title: 'Exportar Relatório PDF',
+    description: 'Gere relatórios profissionais em PDF com todas as métricas e gráficos para compartilhar com sua equipe ou clientes.',
+    targetSelector: '[data-tour="pdf-export"]',
+    position: 'bottom',
+  },
+  {
+    id: 'campaigns',
+    title: 'Campanhas e Conjuntos',
+    description: 'Clique em qualquer campanha para expandir e ver todos os conjuntos de anúncios. Navegue para ver métricas detalhadas de cada nível.',
+    targetSelector: '[data-tour="campaigns"]',
+    position: 'right',
+  },
+  {
+    id: 'creatives',
+    title: 'Galeria de Criativos',
+    description: 'Veja todos os seus criativos (imagens e vídeos) com as métricas de performance de cada um. Ideal para identificar o que funciona melhor!',
+    targetSelector: '[data-tour="creatives"]',
+    position: 'right',
+  },
 ];
 
 interface SpotlightPosition {

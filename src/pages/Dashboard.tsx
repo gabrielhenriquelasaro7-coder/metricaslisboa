@@ -309,13 +309,15 @@ export default function Dashboard() {
             
             {/* PDF Builder Button */}
             {hasSelectedProject && selectedProject && (
-              <PDFBuilderDialog
-                projectId={selectedProject.id}
-                projectName={selectedProject.name}
-                businessModel={businessModel || null}
-                currency={selectedProject.currency || 'BRL'}
-                currentPeriod={getDateRangeFromPreset(selectedPreset, projectTimezone) || { since: format(new Date(), 'yyyy-MM-dd'), until: format(new Date(), 'yyyy-MM-dd') }}
-              />
+              <div data-tour="pdf-export">
+                <PDFBuilderDialog
+                  projectId={selectedProject.id}
+                  projectName={selectedProject.name}
+                  businessModel={businessModel || null}
+                  currency={selectedProject.currency || 'BRL'}
+                  currentPeriod={getDateRangeFromPreset(selectedPreset, projectTimezone) || { since: format(new Date(), 'yyyy-MM-dd'), until: format(new Date(), 'yyyy-MM-dd') }}
+                />
+              </div>
             )}
             
             <DropdownMenu>
