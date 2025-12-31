@@ -3,6 +3,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
+import { translateCTA } from '@/utils/ctaTranslations';
 import { 
   ArrowLeft,
   Loader2,
@@ -208,7 +209,7 @@ export default function CreativeDetail() {
                 {creative.cta && (
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Call to Action</p>
-                    <Badge variant="outline">{creative.cta.replace(/_/g, ' ')}</Badge>
+                    <Badge variant="outline">{translateCTA(creative.cta)}</Badge>
                   </div>
                 )}
               </div>
