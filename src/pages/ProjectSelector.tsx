@@ -840,13 +840,15 @@ export default function ProjectSelector() {
               {activeTab === 'projects' && (
                 <div className="flex flex-wrap items-center gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
                     {/* Search Input */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <div className="relative group">
+                      <div className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center group-focus-within:bg-primary/20 transition-colors">
+                        <Search className="w-3.5 h-3.5 text-primary" />
+                      </div>
                       <Input
                         placeholder="Buscar projeto..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 w-48 h-9 bg-card/50 backdrop-blur-sm border-border/50 focus:border-primary/50"
+                        className="pl-11 w-52 h-10 bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 rounded-xl"
                       />
                     </div>
 
