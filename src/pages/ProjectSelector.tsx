@@ -1044,33 +1044,30 @@ export default function ProjectSelector() {
                             className={cn(
                               "overflow-hidden transition-all duration-500 ease-out",
                               formData.business_model === 'custom' 
-                                ? "max-h-[2000px] opacity-100 mt-4" 
-                                : "max-h-0 opacity-0 mt-0"
+                                ? "max-h-[3000px] opacity-100" 
+                                : "max-h-0 opacity-0"
                             )}
                           >
                             <div 
                               className={cn(
-                                "space-y-4 transition-all duration-500 delay-100",
+                                "space-y-5 pt-4 transition-all duration-500 delay-100",
                                 formData.business_model === 'custom' 
                                   ? "translate-y-0" 
                                   : "-translate-y-4"
                               )}
                             >
-                              <div className="relative p-5 border border-primary/40 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent overflow-hidden">
-                                {/* Glow effect */}
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                                
-                                <h4 className="font-bold text-base mb-4 flex items-center gap-3 relative">
-                                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-                                    <Settings2 className="w-5 h-5 text-primary" />
-                                  </div>
-                                  <div>
-                                    <span className="text-foreground">Configure suas Métricas</span>
-                                    <p className="text-xs font-normal text-muted-foreground">Personalize o dashboard conforme seu modelo de negócio</p>
-                                  </div>
-                                </h4>
-                                <MetricConfigPanel value={metricConfig} onChange={setMetricConfig} />
+                              {/* Separator */}
+                              <div className="flex items-center gap-3">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+                                <span className="text-xs font-medium text-primary flex items-center gap-1.5">
+                                  <Settings2 className="w-3.5 h-3.5" />
+                                  Configuração Personalizada
+                                </span>
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
                               </div>
+                              
+                              <MetricConfigPanel value={metricConfig} onChange={setMetricConfig} />
+                              
                               <DashboardPreview config={{
                                 resultMetric: metricConfig.result_metric,
                                 resultMetricLabel: metricConfig.result_metric_label,
