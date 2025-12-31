@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { useUserRole } from './useUserRole';
 import { toast } from 'sonner';
 
 export type BusinessModel = 'inside_sales' | 'ecommerce' | 'pdv' | 'custom';
@@ -46,7 +45,6 @@ export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-  const { isGuest, guestProjectIds, loading: roleLoading } = useUserRole();
 
   const fetchProjects = useCallback(async () => {
     if (!user) {
@@ -54,26 +52,12 @@ export function useProjects() {
       return;
     }
     
-    // Wait for role to load before fetching projects
-    if (roleLoading) return;
-    
     try {
-      let query = supabase
+      // RLS policies handle filtering - guests see only their accessible projects
+      const { data, error } = await supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
-
-      // If guest, filter by accessible project IDs
-      if (isGuest && guestProjectIds.length > 0) {
-        query = query.in('id', guestProjectIds);
-      } else if (isGuest && guestProjectIds.length === 0) {
-        // Guest with no projects - set empty and finish
-        setProjects([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
       
@@ -90,7 +74,7 @@ export function useProjects() {
     } finally {
       setLoading(false);
     }
-  }, [user, isGuest, guestProjectIds, roleLoading]);
+  }, [user]);
 
   useEffect(() => {
     fetchProjects();
@@ -135,7 +119,6 @@ export function useProjects() {
 
   const createProject = async (data: CreateProjectData) => {
     if (!user) throw new Error('Usuário não autenticado');
-    if (isGuest) throw new Error('Convidados não podem criar projetos');
 
     try {
       const { data: project, error } = await supabase
@@ -242,11 +225,6 @@ export function useProjects() {
   };
 
   const updateProject = async (id: string, data: Partial<CreateProjectData>) => {
-    if (isGuest) {
-      toast.error('Convidados não podem editar projetos');
-      return;
-    }
-    
     try {
       const { error } = await supabase
         .from('projects')
@@ -267,11 +245,6 @@ export function useProjects() {
   };
 
   const deleteProject = async (id: string) => {
-    if (isGuest) {
-      toast.error('Convidados não podem excluir projetos');
-      return;
-    }
-    
     try {
       // Delete related data first
       await supabase.from('project_import_months').delete().eq('project_id', id);
@@ -300,11 +273,6 @@ export function useProjects() {
   };
 
   const archiveProject = async (id: string) => {
-    if (isGuest) {
-      toast.error('Convidados não podem arquivar projetos');
-      return;
-    }
-    
     try {
       const { error } = await supabase
         .from('projects')
@@ -325,11 +293,6 @@ export function useProjects() {
   };
 
   const unarchiveProject = async (id: string) => {
-    if (isGuest) {
-      toast.error('Convidados não podem restaurar projetos');
-      return;
-    }
-    
     try {
       const { error } = await supabase
         .from('projects')
@@ -385,7 +348,7 @@ export function useProjects() {
 
   return {
     projects,
-    loading: loading || roleLoading,
+    loading,
     createProject,
     updateProject,
     deleteProject,
@@ -393,6 +356,5 @@ export function useProjects() {
     unarchiveProject,
     resyncProject,
     refetch: fetchProjects,
-    isGuest,
   };
 }
