@@ -150,7 +150,7 @@ export default function Sidebar() {
 
         {/* Project Selector */}
         {selectedProject && !collapsed && (
-          <div className="px-3 py-3 border-b border-sidebar-border">
+          <div className="px-3 py-3 border-b border-sidebar-border" data-tour="project-selector">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="w-full flex items-center justify-between p-3 rounded-lg bg-sidebar-accent hover:bg-sidebar-accent/80 transition-colors">
@@ -197,7 +197,7 @@ export default function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 overflow-y-auto flex flex-col">
-          <div className="space-y-1">
+          <div className="space-y-1" data-tour="sidebar-nav">
             {/* Dashboard */}
             <Link
               to="/dashboard"

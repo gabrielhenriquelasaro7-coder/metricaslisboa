@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useUserRole } from './useUserRole';
 
 const TOUR_STORAGE_KEY = 'dashboard_tour_completed';
 const GUEST_ONBOARDING_KEY = 'guestOnboardingComplete';
@@ -6,11 +7,20 @@ const GUEST_ONBOARDING_KEY = 'guestOnboardingComplete';
 export function useTour() {
   const [showTour, setShowTour] = useState(false);
   const [tourCompleted, setTourCompleted] = useState(false);
+  const { isGuest, loading: roleLoading } = useUserRole();
 
   useEffect(() => {
+    // Wait for role to load
+    if (roleLoading) return;
+
     // Check if tour has been completed before
     const completed = localStorage.getItem(TOUR_STORAGE_KEY) === 'true';
     setTourCompleted(completed);
+
+    // Only show tour for guests
+    if (!isGuest) {
+      return;
+    }
 
     // Check if user just came from guest onboarding
     const justOnboarded = localStorage.getItem(GUEST_ONBOARDING_KEY) === 'true';
@@ -23,11 +33,11 @@ export function useTour() {
         setShowTour(true);
         // Clear the pending flag
         localStorage.removeItem('tour_pending');
-      }, 800);
+      }, 1000);
       
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [isGuest, roleLoading]);
 
   const startTour = useCallback(() => {
     setShowTour(true);
