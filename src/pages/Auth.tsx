@@ -160,15 +160,13 @@ export default function Auth() {
       {/* Main Content */}
       <div className="relative z-10 w-full max-w-md px-6">
         {/* Logo Section - Clean with animation */}
-        <div className="flex flex-col items-center mb-10 animate-fade-in">
-          <div className="relative">
-            <img 
-              src={v4LogoIcon} 
-              alt="V4 Company" 
-              className="h-20 w-auto drop-shadow-2xl rounded-xl animate-float brightness-110 saturate-125"
-              style={{ filter: 'drop-shadow(0 0 20px rgba(239, 68, 68, 0.4))' }}
-            />
-          </div>
+        <div className="flex flex-col items-center mb-8 animate-fade-in">
+          <img 
+            src={v4LogoIcon} 
+            alt="V4 Company" 
+            className="h-14 w-auto rounded-xl animate-float saturate-150 brightness-125"
+            style={{ filter: 'drop-shadow(0 0 15px rgba(239, 68, 68, 0.5)) saturate(1.5) brightness(1.2)' }}
+          />
           <h1 className="text-2xl font-bold mt-6 text-foreground">
             {isResetPassword ? 'Recuperar Senha' : isLogin ? 'Login' : 'Criar Conta'}
           </h1>
