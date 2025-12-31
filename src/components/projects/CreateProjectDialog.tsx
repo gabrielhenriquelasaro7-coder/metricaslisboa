@@ -9,9 +9,10 @@ import { Plus, Loader2, Settings2 } from 'lucide-react';
 import { z } from 'zod';
 import { ImportProgressDialog } from './ImportProgressDialog';
 import { MetricConfigPanel, type MetricConfigData } from './MetricConfigPanel';
+import { DashboardPreview } from './DashboardPreview';
 import { supabase } from '@/integrations/supabase/client';
 import { METRIC_TEMPLATES } from '@/hooks/useProjectMetricConfig';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const projectSchema = z.object({
@@ -205,8 +206,14 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
 
               {/* Custom Metric Config Panel */}
               <Collapsible open={customConfigOpen} onOpenChange={setCustomConfigOpen}>
-                <CollapsibleContent className="animate-accordion-down">
+                <CollapsibleContent className="animate-accordion-down space-y-4">
                   <MetricConfigPanel value={metricConfig} onChange={setMetricConfig} />
+                  <DashboardPreview config={{
+                    resultMetric: metricConfig.result_metric,
+                    resultMetricLabel: metricConfig.result_metric_label,
+                    costMetrics: metricConfig.cost_metrics,
+                    efficiencyMetrics: metricConfig.efficiency_metrics,
+                  }} />
                 </CollapsibleContent>
               </Collapsible>
 
