@@ -52,13 +52,13 @@ export default function ChangePassword() {
 
       toast.success('Senha alterada com sucesso!');
       
-      // Check if guest has completed onboarding
+      // Use window.location to force a full page reload, ensuring all state is refreshed
+      // This is necessary because the useUserRole hook caches the needsPasswordChange value
       const onboardingComplete = localStorage.getItem('guestOnboardingComplete');
       if (!onboardingComplete) {
-        // Redirect to onboarding for first-time guests
-        navigate('/guest-onboarding', { replace: true });
+        window.location.href = '/guest-onboarding';
       } else {
-        navigate('/dashboard', { replace: true });
+        window.location.href = '/dashboard';
       }
     } catch (error: unknown) {
       console.error('Error changing password:', error);
