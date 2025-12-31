@@ -23,7 +23,7 @@ import {
   Bot,
   MessageSquare,
   UserPlus,
-  Sparkles
+  Compass
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -68,7 +68,7 @@ export default function Sidebar() {
   const { projects } = useProjects();
   const { profile } = useProfile();
   const { isGuest, loading: roleLoading } = useUserRole();
-  const { resetTour } = useTour();
+  const { triggerTour } = useTour();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = useMemo(() => 
@@ -350,16 +350,15 @@ export default function Sidebar() {
             {!roleLoading && isGuest && (
               <button
                 onClick={() => {
-                  resetTour();
                   navigate('/dashboard');
-                  // Small delay to let navigation complete
+                  // Small delay to let navigation complete, then trigger tour
                   setTimeout(() => {
-                    window.location.reload();
-                  }, 100);
+                    triggerTour();
+                  }, 300);
                 }}
-                className="sidebar-item w-full"
+                className="sidebar-item w-full group"
               >
-                <Sparkles className="w-5 h-5 flex-shrink-0" />
+                <Compass className="w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:rotate-45" />
                 {!collapsed && <span>Ver Tour</span>}
               </button>
             )}
