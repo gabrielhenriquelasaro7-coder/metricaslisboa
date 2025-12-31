@@ -7,7 +7,7 @@ interface GuestAccessGuardProps {
   children: React.ReactNode;
 }
 
-// Pages that guests CAN access
+// Pages that guests CAN access (projects is NOT included - guests go straight to dashboard)
 const GUEST_ALLOWED_ROUTES = [
   '/dashboard',
   '/campaigns',
@@ -19,7 +19,6 @@ const GUEST_ALLOWED_ROUTES = [
   '/change-password',
   '/guest-onboarding',
   '/auth',
-  '/projects',
 ];
 
 // Pages that require password change for guests
@@ -60,11 +59,13 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
       }
     }
 
-    // Don't redirect from /projects to /dashboard for guests - causes infinite loop
-    // because DashboardLayout redirects back to /projects if no project selected
-    // Just let guests stay on /projects page - they'll see only their accessible projects
+    // If guest tries to access /projects, redirect to dashboard immediately
+    if (isGuest && currentPath === '/projects') {
+      navigate('/dashboard', { replace: true });
+      return;
+    }
 
-    // If guest tries to access restricted page, redirect to dashboard
+    // If guest tries to access any other restricted page, redirect to dashboard
     if (isGuest) {
       const isAllowed = GUEST_ALLOWED_ROUTES.some(route => 
         currentPath === route || currentPath.startsWith(route)

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import Sidebar from './Sidebar';
 import { ImportLoadingScreen } from './ImportLoadingScreen';
@@ -12,6 +13,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, loading } = useAuth();
+  const { isGuest, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const [hasProject, setHasProject] = useState<boolean | null>(null);
   const [isImporting, setIsImporting] = useState<boolean | null>(null);
@@ -38,16 +40,36 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   useEffect(() => {
     const init = async () => {
-      if (!loading && !user) {
+      if (loading || roleLoading) return;
+      
+      if (!user) {
         navigate('/auth');
         return;
       }
 
       // Check if a project is selected
-      const selectedProjectId = localStorage.getItem('selectedProjectId');
-      if (!selectedProjectId && !loading && user) {
-        navigate('/projects');
-        return;
+      let selectedProjectId = localStorage.getItem('selectedProjectId');
+      
+      // If no project selected, try to get first available project
+      if (!selectedProjectId) {
+        const { data: projects } = await supabase
+          .from('projects')
+          .select('id, name')
+          .limit(1);
+        
+        if (projects && projects.length > 0) {
+          selectedProjectId = projects[0].id;
+          localStorage.setItem('selectedProjectId', selectedProjectId);
+        } else if (!isGuest) {
+          // Only redirect non-guests to /projects if no projects available
+          navigate('/projects');
+          return;
+        } else {
+          // Guest with no projects - show empty state
+          setHasProject(false);
+          setIsImporting(false);
+          return;
+        }
       }
       
       if (selectedProjectId) {
@@ -64,14 +86,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           // Check if import is in progress
           const importing = await checkImportStatus(selectedProjectId);
           setIsImporting(importing);
+          setHasProject(true);
+        } else {
+          // Project not found (maybe deleted or no access) - clear localStorage and retry
+          localStorage.removeItem('selectedProjectId');
+          setHasProject(false);
+          setIsImporting(false);
         }
       }
-      
-      setHasProject(!!selectedProjectId);
     };
 
     init();
-  }, [user, loading, navigate, checkImportStatus]);
+  }, [user, loading, roleLoading, isGuest, navigate, checkImportStatus]);
 
   const handleImportComplete = useCallback(() => {
     setIsImporting(false);
