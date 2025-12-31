@@ -64,12 +64,16 @@ const CHART_METRICS = [
   { key: 'impressions', label: 'Impressões' },
   { key: 'clicks', label: 'Cliques' },
   { key: 'conversions', label: 'Conversões' },
+  { key: 'reach', label: 'Alcance' },
   { key: 'leads', label: 'Leads' },
   { key: 'purchases', label: 'Vendas' },
   { key: 'cpa', label: 'CPA' },
   { key: 'cpl', label: 'CPL' },
+  { key: 'cpc', label: 'CPC' },
+  { key: 'cpm', label: 'CPM' },
   { key: 'roas', label: 'ROAS' },
   { key: 'ctr', label: 'CTR' },
+  { key: 'frequency', label: 'Frequência' },
 ];
 
 interface MetricConfig {
@@ -191,33 +195,26 @@ export default function ProjectSetup() {
   ];
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
-      {/* Background effects */}
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background relative overflow-hidden flex items-center justify-center">
+      {/* Enhanced Background effects */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[150px]" />
-        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-red-600/5 rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-red-500/5 rounded-full blur-[80px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-gradient-to-br from-primary/8 via-red-600/5 to-transparent rounded-full blur-[180px]" />
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-red-500/10 via-orange-500/5 to-transparent rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-red-600/8 via-rose-500/5 to-transparent rounded-full blur-[100px]" />
+        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-gradient-to-br from-amber-500/5 to-transparent rounded-full blur-[80px]" />
       </div>
 
-      {/* Floating particles */}
-      {Array.from({ length: 12 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full bg-primary/10 pointer-events-none"
-          style={{
-            width: 3 + Math.random() * 5,
-            height: 3 + Math.random() * 5,
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animation: `float ${6 + Math.random() * 4}s ease-in-out infinite`,
-            animationDelay: `${Math.random() * 5}s`,
-            filter: 'blur(1px)',
-          }}
-        />
-      ))}
+      {/* Animated glow orbs */}
+      <div className="absolute top-20 left-1/4 w-32 h-32 bg-primary/10 rounded-full blur-[60px] animate-pulse" />
+      <div className="absolute bottom-32 right-1/3 w-40 h-40 bg-red-500/10 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/2 right-20 w-24 h-24 bg-orange-500/8 rounded-full blur-[50px] animate-pulse" style={{ animationDelay: '2s' }} />
 
-      {/* Grid pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(239,68,68,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,0.015)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none" />
+      {/* Subtle grid pattern */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(239,68,68,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,0.02)_1px,transparent_1px)] bg-[size:80px_80px] pointer-events-none" />
+      
+      {/* Corner accents */}
+      <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-primary/10 via-transparent to-transparent" />
+      <div className="absolute bottom-0 right-0 w-64 h-64 bg-gradient-to-tl from-red-600/10 via-transparent to-transparent" />
 
       <div className="relative z-10 w-full max-w-4xl px-6 py-12">
         {/* Step 0: Welcome */}
@@ -554,68 +551,74 @@ export default function ProjectSetup() {
         {currentStep === 5 && (
           <div className="animate-fade-in">
             <div className="text-center mb-10">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 mb-4">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/20 to-violet-500/20 border border-purple-500/30 mb-4 shadow-lg shadow-purple-500/10">
                 <LineChart className="w-4 h-4 text-purple-400" />
-                <span className="text-sm font-medium">Passo 5 de 5</span>
+                <span className="text-sm font-medium text-purple-300">Passo 5 de 5</span>
               </div>
               <h2 className="text-3xl font-bold mb-3">
-                <span className="gradient-text">Configuração de Gráficos</span>
+                <span className="bg-gradient-to-r from-purple-400 via-violet-400 to-fuchsia-400 bg-clip-text text-transparent">Configuração de Gráficos</span>
               </h2>
               <p className="text-muted-foreground max-w-lg mx-auto">
                 Escolha as métricas padrão para os gráficos do dashboard
               </p>
             </div>
 
-            <div className="max-w-xl mx-auto space-y-8 mb-10">
+            <div className="max-w-2xl mx-auto space-y-8 mb-10">
               {/* Primary Metric */}
-              <div className="glass-card p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                    <BarChart3 className="w-4 h-4 text-primary" />
+              <div className="relative bg-gradient-to-br from-card/90 via-card to-card/90 rounded-2xl p-6 border border-border/50 shadow-xl overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-red-500/5 pointer-events-none" />
+                <div className="relative">
+                  <h3 className="font-semibold mb-5 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/30 to-red-600/30 flex items-center justify-center shadow-lg shadow-primary/20">
+                      <BarChart3 className="w-5 h-5 text-primary" />
+                    </div>
+                    <span>Métrica Primária (Barras)</span>
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {CHART_METRICS.map((metric) => (
+                      <button
+                        key={metric.key}
+                        onClick={() => setConfig({ ...config, chart_primary_metric: metric.key })}
+                        className={cn(
+                          "px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 border",
+                          config.chart_primary_metric === metric.key
+                            ? 'bg-gradient-to-r from-primary to-red-600 text-primary-foreground border-primary/50 shadow-lg shadow-primary/30 scale-105'
+                            : 'bg-secondary/50 hover:bg-secondary border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30'
+                        )}
+                      >
+                        {metric.label}
+                      </button>
+                    ))}
                   </div>
-                  Métrica Primária (Barras)
-                </h3>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {CHART_METRICS.map((metric) => (
-                    <button
-                      key={metric.key}
-                      onClick={() => setConfig({ ...config, chart_primary_metric: metric.key })}
-                      className={cn(
-                        "px-3 py-2 rounded-lg text-sm font-medium transition-all",
-                        config.chart_primary_metric === metric.key
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted/50 hover:bg-muted text-muted-foreground'
-                      )}
-                    >
-                      {metric.label}
-                    </button>
-                  ))}
                 </div>
               </div>
 
               {/* Secondary Metric */}
-              <div className="glass-card p-6">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                    <LineChart className="w-4 h-4 text-emerald-400" />
+              <div className="relative bg-gradient-to-br from-card/90 via-card to-card/90 rounded-2xl p-6 border border-border/50 shadow-xl overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5 pointer-events-none" />
+                <div className="relative">
+                  <h3 className="font-semibold mb-5 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/30 to-teal-500/30 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                      <LineChart className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <span>Métrica Secundária (Linha)</span>
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {CHART_METRICS.map((metric) => (
+                      <button
+                        key={metric.key}
+                        onClick={() => setConfig({ ...config, chart_secondary_metric: metric.key })}
+                        className={cn(
+                          "px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 border",
+                          config.chart_secondary_metric === metric.key
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-emerald-500/50 shadow-lg shadow-emerald-500/30 scale-105'
+                            : 'bg-secondary/50 hover:bg-secondary border-border/50 text-muted-foreground hover:text-foreground hover:border-emerald-500/30'
+                        )}
+                      >
+                        {metric.label}
+                      </button>
+                    ))}
                   </div>
-                  Métrica Secundária (Linha)
-                </h3>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {CHART_METRICS.map((metric) => (
-                    <button
-                      key={metric.key}
-                      onClick={() => setConfig({ ...config, chart_secondary_metric: metric.key })}
-                      className={cn(
-                        "px-3 py-2 rounded-lg text-sm font-medium transition-all",
-                        config.chart_secondary_metric === metric.key
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-muted/50 hover:bg-muted text-muted-foreground'
-                      )}
-                    >
-                      {metric.label}
-                    </button>
-                  ))}
                 </div>
               </div>
             </div>
