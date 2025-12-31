@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useProjects } from './useProjects';
+import { useProjects, Project } from './useProjects';
 import { toast } from 'sonner';
 
 export interface GoogleCampaign {

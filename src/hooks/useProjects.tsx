@@ -29,6 +29,7 @@ export interface Project {
   health_score: HealthScore;
   sync_progress: SyncProgress | null;
   avatar_url: string | null;
+  google_customer_id: string | null;
 }
 
 export interface CreateProjectData {
@@ -39,6 +40,7 @@ export interface CreateProjectData {
   currency: string;
   health_score?: HealthScore;
   avatar_url?: string | null;
+  google_customer_id?: string | null;
 }
 
 export function useProjects() {

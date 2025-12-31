@@ -445,19 +445,36 @@ serve(async (req) => {
 
     console.log(`Starting Google Ads sync for project ${projectId}, type: ${syncType}`);
 
-    // Get credentials from environment
+    // Get project to fetch google_customer_id
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('google_customer_id')
+      .eq('id', projectId)
+      .single();
+
+    if (projectError) {
+      console.error('Error fetching project:', projectError);
+      throw new Error('Project not found');
+    }
+
+    const googleCustomerId = project?.google_customer_id;
+    if (!googleCustomerId) {
+      throw new Error('Google Customer ID not configured for this project. Please add it in project settings.');
+    }
+
+    // Get credentials from environment (MCC credentials are global)
     const credentials: GoogleAdsCredentials = {
       clientId: Deno.env.get('GOOGLE_ADS_CLIENT_ID')!,
       clientSecret: Deno.env.get('GOOGLE_ADS_CLIENT_SECRET')!,
       developerToken: Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN')!,
       refreshToken: Deno.env.get('GOOGLE_ADS_REFRESH_TOKEN')!,
-      customerId: Deno.env.get('GOOGLE_ADS_CUSTOMER_ID')!,
+      customerId: googleCustomerId, // Use project's customer ID
     };
 
     // Validate credentials
     if (!credentials.clientId || !credentials.clientSecret || !credentials.developerToken || 
-        !credentials.refreshToken || !credentials.customerId) {
-      throw new Error('Missing Google Ads credentials. Please configure all required secrets.');
+        !credentials.refreshToken) {
+      throw new Error('Missing Google Ads MCC credentials. Please configure all required secrets.');
     }
 
     // Get access token
