@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from './useProjects';
 import { toast } from 'sonner';
@@ -98,11 +98,24 @@ export function useMetaAdsData() {
   // Use ref to track loaded period without causing re-renders/recreations
   const lastLoadedPeriodRef = useRef<string | null>(null);
 
-  // Get selected project from localStorage
+  // Get selected project from localStorage - with validation for guests
   const selectedProjectId = localStorage.getItem('selectedProjectId');
-  const selectedProject = selectedProjectId 
-    ? projects.find(p => p.id === selectedProjectId) 
-    : projects[0];
+  const selectedProject = useMemo(() => {
+    if (projectsLoading) return undefined;
+    
+    // Try to find the stored project
+    if (selectedProjectId) {
+      const found = projects.find(p => p.id === selectedProjectId);
+      if (found) return found;
+      
+      // Project not found (guest without access) - clear and use first available
+      console.log('[META] Stored project not accessible, clearing localStorage');
+      localStorage.removeItem('selectedProjectId');
+    }
+    
+    // Default to first available project
+    return projects[0] || null;
+  }, [projects, projectsLoading, selectedProjectId]);
 
   const fetchCampaigns = useCallback(async () => {
     if (!selectedProject) return;
