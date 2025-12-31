@@ -13,6 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { SkeletonCard, SkeletonProfileCard } from '@/components/ui/skeleton-card';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { MetricConfigPanel, type MetricConfigData } from '@/components/projects/MetricConfigPanel';
+import { DashboardPreview } from '@/components/projects/DashboardPreview';
+import { METRIC_TEMPLATES } from '@/hooks/useProjectMetricConfig';
 import { 
   Plus, 
   FolderKanban, 
@@ -45,7 +50,9 @@ import {
   Sparkles,
   LayoutGrid,
   List,
-  Search
+  Search,
+  Settings2,
+  Target
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -73,6 +80,7 @@ const businessModels: { value: BusinessModel; label: string; description: string
   { value: 'inside_sales', label: 'Inside Sales', description: 'Leads e vendas internas', icon: Users },
   { value: 'ecommerce', label: 'E-commerce', description: 'Vendas online', icon: TrendingUp },
   { value: 'pdv', label: 'PDV', description: 'Loja física', icon: Store },
+  { value: 'custom', label: 'Personalizado', description: 'Configure suas métricas', icon: Target },
 ];
 
 type ExtendedHealthScore = HealthScore | 'undefined';
@@ -413,6 +421,15 @@ export default function ProjectSelector() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
+  // Custom metric config state
+  const [customConfigOpen, setCustomConfigOpen] = useState(false);
+  const [metricConfig, setMetricConfig] = useState<MetricConfigData>({
+    result_metric: 'leads',
+    result_metric_label: 'Leads',
+    cost_metrics: ['cpl', 'cpa'],
+    efficiency_metrics: ['ctr', 'roas'],
+  });
 
   // Initialize profile form data
   useEffect(() => {
@@ -491,6 +508,22 @@ export default function ProjectSelector() {
       });
       
       if (project) {
+        // Save custom metric config if business model is custom
+        if (formData.business_model === 'custom') {
+          const template = METRIC_TEMPLATES.custom;
+          await supabase.from('project_metric_config').insert({
+            project_id: project.id,
+            primary_metrics: template.primary_metrics,
+            result_metric: metricConfig.result_metric,
+            result_metric_label: metricConfig.result_metric_label,
+            cost_metrics: metricConfig.cost_metrics,
+            efficiency_metrics: metricConfig.efficiency_metrics,
+            show_comparison: true,
+            chart_primary_metric: template.chart_primary_metric,
+            chart_secondary_metric: metricConfig.result_metric,
+          });
+        }
+        
         setCreateDialogOpen(false);
         setFormData({
           name: '',
@@ -502,6 +535,13 @@ export default function ProjectSelector() {
           avatar_url: null,
         });
         setAvatarPreview(null);
+        setCustomConfigOpen(false);
+        setMetricConfig({
+          result_metric: 'leads',
+          result_metric_label: 'Leads',
+          cost_metrics: ['cpl', 'cpa'],
+          efficiency_metrics: ['ctr', 'roas'],
+        });
       }
     } catch (error) {
       console.error('Error creating project:', error);
@@ -890,10 +930,11 @@ export default function ProjectSelector() {
                           Novo Projeto
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-xl">
+                      <DialogContent className="sm:max-w-2xl max-h-[90vh]">
                         <DialogHeader>
                           <DialogTitle className="text-xl gradient-text">Criar novo projeto</DialogTitle>
                         </DialogHeader>
+                        <ScrollArea className="max-h-[70vh] pr-4">
                         <form onSubmit={handleCreateProject} className="space-y-5 mt-4">
                           {/* Avatar Upload */}
                           <div className="flex justify-center">
@@ -965,28 +1006,47 @@ export default function ProjectSelector() {
 
                           <div className="space-y-2">
                             <Label>Modelo de negócio</Label>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 gap-3">
                               {businessModels.map((model) => {
                                 const ModelIcon = model.icon;
                                 return (
                                   <button
                                     key={model.value}
                                     type="button"
-                                    onClick={() => setFormData({ ...formData, business_model: model.value })}
+                                    onClick={() => {
+                                      setFormData({ ...formData, business_model: model.value });
+                                      setCustomConfigOpen(model.value === 'custom');
+                                    }}
                                     className={cn(
-                                      "p-3 rounded-xl border-2 text-center transition-all",
+                                      "p-3 rounded-xl border-2 text-left transition-all",
                                       formData.business_model === model.value
                                         ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
                                         : 'border-border hover:border-primary/50'
                                     )}
                                   >
-                                    <ModelIcon className="w-5 h-5 mx-auto mb-1 text-primary" />
-                                    <p className="font-medium text-sm">{model.label}</p>
+                                    <div className="flex items-center gap-2">
+                                      <ModelIcon className="w-5 h-5 text-primary" />
+                                      <p className="font-medium text-sm">{model.label}</p>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">{model.description}</p>
                                   </button>
                                 );
                               })}
                             </div>
                           </div>
+
+                          {/* Custom Metric Config Panel */}
+                          <Collapsible open={customConfigOpen} onOpenChange={setCustomConfigOpen}>
+                            <CollapsibleContent className="animate-accordion-down space-y-4">
+                              <MetricConfigPanel value={metricConfig} onChange={setMetricConfig} />
+                              <DashboardPreview config={{
+                                resultMetric: metricConfig.result_metric,
+                                resultMetricLabel: metricConfig.result_metric_label,
+                                costMetrics: metricConfig.cost_metrics,
+                                efficiencyMetrics: metricConfig.efficiency_metrics,
+                              }} />
+                            </CollapsibleContent>
+                          </Collapsible>
 
                           <div className="space-y-2">
                             <Label>Health Score do Cliente</Label>
@@ -1067,6 +1127,7 @@ export default function ProjectSelector() {
                             </Button>
                           </div>
                         </form>
+                        </ScrollArea>
                       </DialogContent>
                     </Dialog>
                   </>
