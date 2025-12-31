@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import ProjectSelector from "./pages/ProjectSelector";
+import ProjectSetup from "./pages/ProjectSetup";
 import Dashboard from "./pages/Dashboard";
 import Campaigns from "./pages/Campaigns";
 import AdSets from "./pages/AdSets";
@@ -41,6 +42,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/projects" element={<ProjectSelector />} />
+                <Route path="/project-setup/:projectId" element={<ProjectSetup />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/campaigns" element={<Campaigns />} />
                 <Route path="/campaign/:campaignId/adsets" element={<AdSets />} />

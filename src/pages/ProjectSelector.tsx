@@ -13,10 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { SkeletonCard, SkeletonProfileCard } from '@/components/ui/skeleton-card';
-import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CustomProjectWizard, type CustomMetricConfigData } from '@/components/projects/CustomProjectWizard';
-import { METRIC_TEMPLATES } from '@/hooks/useProjectMetricConfig';
 import { 
   Plus, 
   FolderKanban, 
@@ -391,18 +388,6 @@ export default function ProjectSelector() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  
-  // Custom metric config state
-  const [showCustomWizard, setShowCustomWizard] = useState(false);
-  const [customMetricConfig, setCustomMetricConfig] = useState<CustomMetricConfigData>({
-    result_metric: 'leads',
-    result_metric_label: 'Leads',
-    cost_metrics: ['cpl', 'cpa'],
-    efficiency_metrics: ['ctr', 'roas'],
-    base_metrics: ['spend', 'impressions', 'clicks', 'cpm', 'cpc', 'frequency'],
-    chart_primary_metric: 'spend',
-    chart_secondary_metric: 'leads',
-  });
 
   // Initialize profile form data
   useEffect(() => {
@@ -481,23 +466,7 @@ export default function ProjectSelector() {
       });
       
       if (project) {
-        // Save custom metric config if business model is custom
-        if (formData.business_model === 'custom') {
-          await supabase.from('project_metric_config').insert({
-            project_id: project.id,
-            primary_metrics: customMetricConfig.base_metrics,
-            result_metric: customMetricConfig.result_metric,
-            result_metric_label: customMetricConfig.result_metric_label,
-            cost_metrics: customMetricConfig.cost_metrics,
-            efficiency_metrics: customMetricConfig.efficiency_metrics,
-            show_comparison: true,
-            chart_primary_metric: customMetricConfig.chart_primary_metric,
-            chart_secondary_metric: customMetricConfig.chart_secondary_metric,
-          });
-        }
-        
         setCreateDialogOpen(false);
-        setShowCustomWizard(false);
         setFormData({
           name: '',
           ad_account_id: '',
@@ -508,15 +477,11 @@ export default function ProjectSelector() {
           avatar_url: null,
         });
         setAvatarPreview(null);
-        setCustomMetricConfig({
-          result_metric: 'leads',
-          result_metric_label: 'Leads',
-          cost_metrics: ['cpl', 'cpa'],
-          efficiency_metrics: ['ctr', 'roas'],
-          base_metrics: ['spend', 'impressions', 'clicks', 'cpm', 'cpc', 'frequency'],
-          chart_primary_metric: 'spend',
-          chart_secondary_metric: 'leads',
-        });
+        
+        // If custom project, redirect to setup page
+        if (formData.business_model === 'custom') {
+          navigate(`/project-setup/${project.id}`);
+        }
       }
     } catch (error) {
       console.error('Error creating project:', error);
@@ -1012,9 +977,6 @@ export default function ProjectSelector() {
                                     type="button"
                                     onClick={() => {
                                       setFormData({ ...formData, business_model: model.value });
-                                      if (model.value === 'custom') {
-                                        setShowCustomWizard(true);
-                                      }
                                     }}
                                     className={cn(
                                       "p-3 rounded-xl border-2 text-left transition-all",
@@ -1032,29 +994,16 @@ export default function ProjectSelector() {
                                 );
                               })}
                             </div>
+                            {formData.business_model === 'custom' && (
+                              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                  <Sparkles className="w-4 h-4 text-primary" />
+                                  Após criar o projeto, você será redirecionado para configurar suas métricas personalizadas.
+                                </p>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Show wizard when Personalizado is selected */}
-                          {formData.business_model === 'custom' && showCustomWizard && (
-                            <div className="py-4">
-                              <CustomProjectWizard
-                                value={customMetricConfig}
-                                onChange={setCustomMetricConfig}
-                                onBack={() => {
-                                  setShowCustomWizard(false);
-                                  setFormData(prev => ({ ...prev, business_model: 'ecommerce' }));
-                                }}
-                                onComplete={() => {
-                                  // Stay on same modal, wizard is complete
-                                  setShowCustomWizard(false);
-                                }}
-                              />
-                            </div>
-                          )}
-
-                          {/* Show rest of form when not in custom wizard */}
-                          {!(formData.business_model === 'custom' && showCustomWizard) && (
-                            <>
                           <div className="space-y-2">
                             <Label>Health Score do Cliente</Label>
                             <div className="grid grid-cols-3 gap-3">
@@ -1079,8 +1028,6 @@ export default function ProjectSelector() {
                               })}
                             </div>
                           </div>
-                          </>
-                          )}
 
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
