@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BarChart3, 
   Eye, 
@@ -10,198 +13,278 @@ import {
   Image, 
   ArrowRight, 
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  TrendingUp,
+  Zap,
+  Target,
+  PieChart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import v4LogoFull from '@/assets/v4-logo-full.png';
 
-const steps = [
+const features = [
   {
     icon: Eye,
-    title: 'Visualização de Métricas',
-    description: 'Acompanhe em tempo real os resultados das suas campanhas de marketing digital.',
-    color: 'text-blue-400',
-    bgColor: 'bg-blue-500/10',
+    title: 'Métricas em Tempo Real',
+    description: 'Acompanhe os resultados das suas campanhas sempre atualizados.',
   },
   {
     icon: BarChart3,
     title: 'Dashboard Completo',
-    description: 'Veja gráficos de performance, comparativos de períodos e tendências.',
-    color: 'text-emerald-400',
-    bgColor: 'bg-emerald-500/10',
+    description: 'Gráficos de performance e comparativos de períodos.',
   },
   {
     icon: Megaphone,
-    title: 'Campanhas e Conjuntos',
-    description: 'Explore detalhes de cada campanha, conjunto de anúncios e anúncio individual.',
-    color: 'text-amber-400',
-    bgColor: 'bg-amber-500/10',
+    title: 'Análise de Campanhas',
+    description: 'Detalhes de cada campanha e conjunto de anúncios.',
   },
   {
     icon: Image,
     title: 'Galeria de Criativos',
-    description: 'Visualize todos os criativos utilizados nas campanhas com suas métricas.',
-    color: 'text-purple-400',
-    bgColor: 'bg-purple-500/10',
-  },
-  {
-    icon: Download,
-    title: 'Relatórios em PDF',
-    description: 'Exporte relatórios personalizados com as métricas mais importantes.',
-    color: 'text-primary',
-    bgColor: 'bg-primary/10',
+    description: 'Visualize todos os criativos com suas métricas.',
   },
 ];
 
-// Info sobre sincronização de dados
-const DATA_INFO = {
-  title: '📊 Sobre os Dados',
-  items: [
-    'Os dados estão disponíveis desde o início de 2025',
-    'A sincronização automática ocorre todo dia às 02h da manhã',
-    'Você pode visualizar métricas em tempo real durante o dia',
-  ],
-};
-
 export default function GuestOnboarding() {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(0);
+  const { user } = useAuth();
+  const [guestName, setGuestName] = useState<string>('');
+  const [projectName, setProjectName] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [showContent, setShowContent] = useState(false);
 
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      // Finish onboarding
-      localStorage.setItem('guestOnboardingComplete', 'true');
-      navigate('/dashboard');
-    }
-  };
+  // Fetch guest info
+  useEffect(() => {
+    const fetchGuestInfo = async () => {
+      if (!user) {
+        setLoading(false);
+        setShowContent(true);
+        return;
+      }
 
-  const handleSkip = () => {
+      try {
+        // Get guest invitation info
+        const { data: invitation } = await supabase
+          .from('guest_invitations')
+          .select('guest_name, project_id')
+          .eq('guest_user_id', user.id)
+          .single();
+
+        if (invitation) {
+          setGuestName(invitation.guest_name);
+          
+          // Get project name
+          if (invitation.project_id) {
+            const { data: project } = await supabase
+              .from('projects')
+              .select('name')
+              .eq('id', invitation.project_id)
+              .single();
+            
+            if (project) {
+              setProjectName(project.name);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching guest info:', error);
+      } finally {
+        setLoading(false);
+        // Small delay for smooth transition
+        setTimeout(() => setShowContent(true), 100);
+      }
+    };
+
+    fetchGuestInfo();
+  }, [user]);
+
+  const handleStart = () => {
     localStorage.setItem('guestOnboardingComplete', 'true');
     navigate('/dashboard');
   };
 
+  // Get first name
+  const firstName = guestName.split(' ')[0] || 'Cliente';
+
+  // Get greeting based on time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Bom dia';
+    if (hour < 18) return 'Boa tarde';
+    return 'Boa noite';
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="absolute inset-0 red-texture-bg opacity-20 pointer-events-none" />
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center gap-4"
+        >
+          <img src={v4LogoFull} alt="V4 Company" className="h-12" />
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Background Pattern */}
+    <div className="min-h-screen bg-background flex flex-col overflow-hidden">
+      {/* Animated Background */}
       <div className="absolute inset-0 red-texture-bg opacity-20 pointer-events-none" />
+      
+      {/* Decorative elements */}
+      <div className="absolute top-20 right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <header className="relative z-10 p-6 flex items-center justify-between">
+      <motion.header 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative z-10 p-6 flex items-center justify-center"
+      >
         <img src={v4LogoFull} alt="V4 Company" className="h-10" />
-        <Button variant="ghost" onClick={handleSkip} className="text-muted-foreground">
-          Pular
-        </Button>
-      </header>
+      </motion.header>
 
       {/* Main Content */}
       <main className="relative z-10 flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-2xl">
-          {/* Welcome Message (First View) */}
-          {currentStep === 0 && (
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm mb-6">
-                <Sparkles className="w-4 h-4" />
-                Bem-vindo ao V4 Dashboard
+        <AnimatePresence>
+          {showContent && (
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="w-full max-w-3xl"
+            >
+              {/* Welcome Message */}
+              <div className="text-center mb-10">
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.2, duration: 0.5 }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-primary/20 to-primary/10 text-primary text-sm font-medium mb-6 border border-primary/20"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Seu dashboard está pronto
+                </motion.div>
+                
+                <motion.h1 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                  className="text-4xl md:text-5xl font-bold mb-4"
+                >
+                  {getGreeting()}, <span className="gradient-text">{firstName}</span>! 👋
+                </motion.h1>
+                
+                <motion.p 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                  className="text-xl text-muted-foreground max-w-lg mx-auto leading-relaxed"
+                >
+                  Seja muito bem-vindo ao seu painel exclusivo de acompanhamento de métricas
+                  {projectName && (
+                    <span className="block mt-2 text-foreground font-medium">
+                      Projeto: {projectName}
+                    </span>
+                  )}
+                </motion.p>
               </div>
-              <h1 className="text-4xl font-bold mb-4">
-                Olá! 👋
-              </h1>
-              <p className="text-xl text-muted-foreground max-w-md mx-auto">
-                Vamos fazer um tour rápido pelo sistema para você aproveitar ao máximo.
-              </p>
-            </div>
-          )}
 
-          {/* Step Card */}
-          <Card className="glass-card border-border/50 overflow-hidden">
-            <CardContent className="p-0">
-              <div className="p-8">
-                {/* Progress */}
-                <div className="flex items-center gap-2 mb-8">
-                  {steps.map((_, index) => (
-                    <div
-                      key={index}
-                      className={cn(
-                        'h-1.5 flex-1 rounded-full transition-colors',
-                        index <= currentStep ? 'bg-primary' : 'bg-muted'
-                      )}
-                    />
-                  ))}
-                </div>
-
-                {/* Current Step */}
-                <div className="text-center">
-                  <div className={cn(
-                    'w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6',
-                    steps[currentStep].bgColor
-                  )}>
-                    {(() => {
-                      const StepIcon = steps[currentStep].icon;
-                      return <StepIcon className={cn('w-10 h-10', steps[currentStep].color)} />;
-                    })()}
-                  </div>
-
-                  <h2 className="text-2xl font-bold mb-3">{steps[currentStep].title}</h2>
-                  <p className="text-muted-foreground text-lg max-w-md mx-auto">
-                    {steps[currentStep].description}
-                  </p>
-                </div>
-
-                {/* Features List (on last step) */}
-                {currentStep === steps.length - 1 && (
-                  <div className="mt-8 space-y-4">
-                    <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                      <p className="text-sm font-medium mb-3 text-center">O que você pode fazer:</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {['Ver Dashboard', 'Ver Campanhas', 'Ver Criativos', 'Baixar PDFs'].map((item) => (
-                          <div key={item} className="flex items-center gap-2 text-sm">
-                            <CheckCircle2 className="w-4 h-4 text-metric-positive" />
-                            <span>{item}</span>
-                          </div>
+              {/* Features Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.5 }}
+              >
+                <Card className="glass-card border-border/50 overflow-hidden backdrop-blur-xl">
+                  <CardContent className="p-0">
+                    {/* Features Grid */}
+                    <div className="p-8">
+                      <div className="flex items-center gap-2 mb-6">
+                        <Zap className="w-5 h-5 text-primary" />
+                        <h2 className="text-lg font-semibold">O que você pode fazer aqui</h2>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {features.map((feature, index) => (
+                          <motion.div
+                            key={feature.title}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.6 + index * 0.1, duration: 0.4 }}
+                            className="flex items-start gap-4 p-4 rounded-xl bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <feature.icon className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium mb-1">{feature.title}</h3>
+                              <p className="text-sm text-muted-foreground">{feature.description}</p>
+                            </div>
+                          </motion.div>
                         ))}
                       </div>
                     </div>
-                    
-                    {/* Data Sync Info */}
-                    <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-                      <p className="text-sm font-medium mb-2">{DATA_INFO.title}</p>
-                      <ul className="space-y-1">
-                        {DATA_INFO.items.map((item, idx) => (
-                          <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
-                            <span className="text-primary">•</span>
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Actions */}
-              <div className="p-6 bg-muted/30 border-t border-border/50 flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Passo {currentStep + 1} de {steps.length}
-                </p>
-                <Button onClick={handleNext} className="gap-2">
-                  {currentStep === steps.length - 1 ? (
-                    <>
-                      Começar
-                      <CheckCircle2 className="w-4 h-4" />
-                    </>
-                  ) : (
-                    <>
-                      Próximo
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                    {/* Info Banner */}
+                    <div className="px-8 pb-6">
+                      <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
+                            <TrendingUp className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm mb-1">Dados sempre atualizados</p>
+                            <p className="text-xs text-muted-foreground">
+                              A sincronização automática ocorre diariamente às 02h da manhã, mantendo suas métricas sempre atualizadas.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CTA Section */}
+                    <div className="p-6 bg-gradient-to-r from-muted/50 to-muted/30 border-t border-border/50">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          <Target className="w-4 h-4 text-primary" />
+                          <span>Preparado para explorar seus resultados?</span>
+                        </div>
+                        <Button 
+                          onClick={handleStart} 
+                          size="lg"
+                          className="gap-2 px-8 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                        >
+                          Acessar Dashboard
+                          <ArrowRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Footer note */}
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1, duration: 0.5 }}
+                className="text-center text-xs text-muted-foreground mt-6"
+              >
+                Caso tenha dúvidas, entre em contato com seu gestor de tráfego
+              </motion.p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

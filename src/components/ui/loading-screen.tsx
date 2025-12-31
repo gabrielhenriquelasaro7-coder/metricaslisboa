@@ -1,4 +1,3 @@
-import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import v4LogoFull from '@/assets/v4-logo-full.png';
 
@@ -9,38 +8,42 @@ interface LoadingScreenProps {
   className?: string;
 }
 
-export function LoadingScreen({ 
-  message = 'Carregando...', 
+export function LoadingScreen({
+  message = 'Carregando...',
   showLogo = true,
   fullScreen = true,
-  className 
+  className
 }: LoadingScreenProps) {
   return (
     <div className={cn(
-      'flex flex-col items-center justify-center',
-      fullScreen && 'min-h-screen bg-background',
+      'flex flex-col items-center justify-center bg-background',
+      fullScreen && 'min-h-screen fixed inset-0 z-50',
       className
     )}>
-      {fullScreen && (
-        <div className="absolute inset-0 red-texture-bg opacity-20 pointer-events-none" />
-      )}
-      <div className="relative z-10 flex flex-col items-center gap-6">
+      {/* Background Pattern - matches rest of app */}
+      <div className="absolute inset-0 red-texture-bg opacity-20 pointer-events-none" />
+      
+      {/* Decorative blurs */}
+      <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/4 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      
+      <div className="relative z-10 flex flex-col items-center gap-8">
         {showLogo && (
-          <img 
-            src={v4LogoFull} 
-            alt="V4 Company" 
-            className="h-12 animate-pulse" 
+          <img
+            src={v4LogoFull}
+            alt="V4 Company"
+            className="h-12"
           />
         )}
-        <div className="relative">
-          {/* Outer ring */}
-          <div className="w-16 h-16 rounded-full border-4 border-primary/20" />
-          {/* Spinning inner ring */}
-          <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-t-primary animate-spin" />
-          {/* Center icon */}
-          <Loader2 className="absolute inset-0 m-auto w-6 h-6 text-primary animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
+        
+        {/* Animated dots loader */}
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+          <div className="w-3 h-3 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+          <div className="w-3 h-3 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
         </div>
-        <p className="text-lg text-muted-foreground animate-pulse">{message}</p>
+        
+        <p className="text-lg text-muted-foreground">{message}</p>
       </div>
     </div>
   );
@@ -52,18 +55,23 @@ export function LoadingSpinner({ className, size = 'md' }: { className?: string;
     md: 'w-6 h-6',
     lg: 'w-10 h-10'
   };
-  
+
   return (
-    <Loader2 className={cn('animate-spin text-primary', sizeClasses[size], className)} />
+    <div className={cn('flex items-center gap-1.5', className)}>
+      <div className={cn('rounded-full bg-primary animate-bounce', sizeClasses[size])} style={{ animationDelay: '0ms' }} />
+      <div className={cn('rounded-full bg-primary animate-bounce', sizeClasses[size])} style={{ animationDelay: '150ms' }} />
+      <div className={cn('rounded-full bg-primary animate-bounce', sizeClasses[size])} style={{ animationDelay: '300ms' }} />
+    </div>
   );
 }
 
 export function LoadingCard({ message = 'Carregando...' }: { message?: string }) {
   return (
     <div className="glass-card p-8 flex flex-col items-center justify-center gap-4">
-      <div className="relative">
-        <div className="w-12 h-12 rounded-full border-4 border-primary/20" />
-        <div className="absolute inset-0 w-12 h-12 rounded-full border-4 border-transparent border-t-primary animate-spin" />
+      <div className="flex items-center gap-1.5">
+        <div className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+        <div className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+        <div className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
       </div>
       <p className="text-sm text-muted-foreground">{message}</p>
     </div>
