@@ -553,13 +553,13 @@ export default function ProjectSetup() {
             <div className="text-center mb-10">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/20 to-violet-500/20 border border-purple-500/30 mb-4 shadow-lg shadow-purple-500/10">
                 <LineChart className="w-4 h-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-300">Passo 5 de 5</span>
+                <span className="text-sm font-medium text-purple-300">Passo 5 de 5 (Opcional)</span>
               </div>
               <h2 className="text-3xl font-bold mb-3">
                 <span className="bg-gradient-to-r from-purple-400 via-violet-400 to-fuchsia-400 bg-clip-text text-transparent">Configuração de Gráficos</span>
               </h2>
               <p className="text-muted-foreground max-w-lg mx-auto">
-                Escolha as métricas padrão para os gráficos do dashboard
+                Escolha as métricas padrão para os gráficos do dashboard, ou pule para configurar depois
               </p>
             </div>
 
@@ -629,6 +629,14 @@ export default function ProjectSetup() {
                 Voltar
               </Button>
               <Button 
+                variant="ghost"
+                onClick={handleComplete}
+                disabled={isSaving}
+                className="text-muted-foreground hover:text-foreground px-6"
+              >
+                Pular e Finalizar
+              </Button>
+              <Button 
                 onClick={handleComplete}
                 disabled={isSaving}
                 size="lg"
@@ -641,7 +649,7 @@ export default function ProjectSetup() {
                   </>
                 ) : (
                   <>
-                    Finalizar e Iniciar
+                    Salvar e Finalizar
                     <CheckCircle2 className="w-5 h-5 ml-2" />
                   </>
                 )}
