@@ -5,6 +5,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useProfile } from '@/hooks/useProfile';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useSidebarCampaigns } from '@/hooks/useSidebarCampaigns';
+import { useTour } from '@/hooks/useTour';
 import v4LogoFull from '@/assets/v4-logo-full.png';
 import { 
   LayoutDashboard, 
@@ -21,7 +22,8 @@ import {
   Database,
   Bot,
   MessageSquare,
-  UserPlus
+  UserPlus,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -66,6 +68,7 @@ export default function Sidebar() {
   const { projects } = useProjects();
   const { profile } = useProfile();
   const { isGuest, loading: roleLoading } = useUserRole();
+  const { resetTour } = useTour();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = useMemo(() => 
@@ -341,6 +344,24 @@ export default function Sidebar() {
                 <Bot className="w-5 h-5 flex-shrink-0" />
                 {!collapsed && <span>Agente Lisboa</span>}
               </Link>
+            )}
+
+            {/* Tour Button - Only for guests */}
+            {!roleLoading && isGuest && (
+              <button
+                onClick={() => {
+                  resetTour();
+                  navigate('/dashboard');
+                  // Small delay to let navigation complete
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 100);
+                }}
+                className="sidebar-item w-full"
+              >
+                <Sparkles className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>Ver Tour</span>}
+              </button>
             )}
           </div>
 
