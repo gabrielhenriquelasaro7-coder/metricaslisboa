@@ -146,7 +146,7 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
             </h3>
             <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
               <Users className="w-3.5 h-3.5" />
-              <span className="line-clamp-1">act_{project.ad_account_id}</span>
+              <span className="line-clamp-1">{project.ad_account_id.replace('act_', '')}</span>
             </div>
           </div>
         </div>
@@ -267,7 +267,7 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Users className="w-3 h-3" />
-          <span>act_{project.ad_account_id}</span>
+          <span>{project.ad_account_id.replace('act_', '')}</span>
           <span className="text-muted-foreground/50">•</span>
           <Clock className="w-3 h-3" />
           <span>{lastSyncDate ? lastSyncDate.toLocaleDateString('pt-BR') : 'Nunca'}</span>
@@ -713,25 +713,14 @@ export default function ProjectSelector() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setActiveTab('profile')}
-              className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all cursor-pointer"
-            >
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-semibold text-sm">
-                {profile?.full_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase() || 'U'}
-              </div>
-              <span className="text-sm text-white/90">{profile?.full_name || user?.email}</span>
-            </button>
-            <Button 
-              variant="ghost" 
-              onClick={handleLogout} 
-              className="text-white/80 hover:text-white hover:bg-white/10 gap-2 rounded-xl transition-all"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sair</span>
-            </Button>
-          </div>
+          <Button 
+            variant="ghost" 
+            onClick={handleLogout} 
+            className="text-white/80 hover:text-white hover:bg-white/10 gap-2 rounded-xl transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Sair</span>
+          </Button>
         </header>
 
         {/* Summary Cards */}
