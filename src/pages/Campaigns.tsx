@@ -177,17 +177,17 @@ export default function Campaigns() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 space-y-8 animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in">
         {/* Info Banner - Sync automático */}
         {usingFallbackData && !loading && (
-          <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 flex items-center gap-3 red-gradient-card">
-            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-primary" />
+          <div className="bg-primary/10 border border-primary/30 rounded-xl p-3 sm:p-4 flex items-start sm:items-center gap-3 red-gradient-card">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
-            <div>
-              <p className="font-medium text-foreground">Dados sincronizados automaticamente às 2h</p>
-              <p className="text-sm text-muted-foreground">
-                O sync automático roda diariamente às 2AM (horário de Brasília) atualizando todos os períodos.
+            <div className="min-w-0">
+              <p className="font-medium text-foreground text-sm sm:text-base">Dados sincronizados automaticamente às 2h</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                O sync automático roda diariamente às 2AM (horário de Brasília).
                 Último sync: {lastSyncDisplay}
               </p>
             </div>
@@ -195,10 +195,10 @@ export default function Campaigns() {
         )}
 
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2 gradient-text inline-block">Campanhas</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2 gradient-text inline-block">Campanhas</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               {selectedProject ? `Projeto: ${selectedProject.name}` : 'Selecione um projeto'}
               {selectedProject && (
                 <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
@@ -207,12 +207,12 @@ export default function Campaigns() {
               )}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             {selectedProject?.last_sync_at && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 px-3 py-2 rounded-lg border border-border/50">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-border/50">
                 <div className="w-2 h-2 rounded-full bg-metric-positive animate-pulse" />
-                <Clock className="w-3.5 h-3.5" />
-                <span>Sync: {lastSyncDisplay}</span>
+                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="truncate">Sync: {lastSyncDisplay}</span>
               </div>
             )}
             <DateRangePicker 
@@ -228,8 +228,8 @@ export default function Campaigns() {
           <>
             {/* Skeleton Metrics */}
             <div className={cn(
-              "grid gap-4 stagger-fade-in",
-              "grid-cols-2 md:grid-cols-4 lg:grid-cols-8"
+              "grid gap-3 sm:gap-4 stagger-fade-in",
+              "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
             )}>
               {Array.from({ length: 8 }).map((_, i) => (
                 <SkeletonMetricCard key={i} />
@@ -262,15 +262,15 @@ export default function Campaigns() {
             </div>
           </>
         ) : campaigns.length === 0 ? (
-          <div className="glass-card p-12 text-center">
-            <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Nenhuma campanha encontrada</h3>
-            <p className="text-muted-foreground mb-6">
+          <div className="glass-card p-6 sm:p-8 lg:p-12 text-center">
+            <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">Nenhuma campanha encontrada</h3>
+            <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
               {selectedProject 
                 ? 'As campanhas serão sincronizadas automaticamente às 2AM (horário de Brasília).'
                 : 'Crie um projeto primeiro para sincronizar suas campanhas.'}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Último sync: {lastSyncDisplay}
             </p>
           </div>
@@ -278,8 +278,8 @@ export default function Campaigns() {
           <>
             {/* Summary Metrics */}
             {isEcommerce ? (
-              // E-commerce: 8 cards - grid 4 colunas
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-fade-in">
+              // E-commerce: 8 cards - responsive grid
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 stagger-fade-in">
                 <MetricCard
                   title="Gasto Total"
                   value={formatCurrency(totals.spend)}
@@ -325,8 +325,8 @@ export default function Campaigns() {
                 />
               </div>
             ) : (
-              // Inside Sales / PDV: 6 cards - grid 3 colunas para preencher sem buracos
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 stagger-fade-in">
+              // Inside Sales / PDV: 6 cards - responsive grid
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 stagger-fade-in">
                 <MetricCard
                   title="Gasto Total"
                   value={formatCurrency(totals.spend)}
@@ -370,9 +370,80 @@ export default function Campaigns() {
               sortOptions={sortOptions}
             />
 
-            {/* Campaigns Table */}
+            {/* Campaigns Table - Mobile Cards + Desktop Table */}
             <div className="glass-card overflow-hidden border-t-2 border-t-primary/50">
-              <div className="overflow-x-auto">
+              {/* Mobile: Card View */}
+              <div className="block lg:hidden divide-y divide-border/50">
+                {filteredCampaigns.map((campaign, index) => {
+                  const budget = campaign.daily_budget || campaign.lifetime_budget || 0;
+                  const budgetType = campaign.daily_budget ? '/dia' : campaign.lifetime_budget ? 'vitalício' : '';
+                  
+                  return (
+                    <div 
+                      key={campaign.id}
+                      className="p-4 hover:bg-secondary/30 transition-colors cursor-pointer"
+                      onClick={() => navigate(`/campaign/${campaign.id}/adsets`)}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0">
+                            <Megaphone className="w-5 h-5 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">{campaign.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {campaign.objective?.replace(/_/g, ' ') || 'Sem objetivo'}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge 
+                          variant={campaign.status === 'ACTIVE' ? 'default' : 'secondary'}
+                          className={cn(
+                            "text-xs flex-shrink-0",
+                            campaign.status === 'ACTIVE' && "bg-metric-positive text-white",
+                            campaign.status === 'PAUSED' && "bg-metric-warning text-white"
+                          )}
+                        >
+                          {campaign.status === 'ACTIVE' ? 'Ativo' : campaign.status === 'PAUSED' ? 'Pausado' : campaign.status}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground text-xs">Gasto</span>
+                          <p className="font-medium">{formatCurrency(campaign.spend)}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">{isEcommerce ? 'ROAS' : 'CPL'}</span>
+                          <p className={cn(
+                            "font-medium",
+                            isEcommerce && campaign.roas >= 3 && "text-metric-positive",
+                            isEcommerce && campaign.roas < 1 && "text-metric-negative"
+                          )}>
+                            {isEcommerce ? `${campaign.roas.toFixed(2)}x` : formatCurrency(campaign.cpa)}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">{isEcommerce ? 'Compras' : 'Leads'}</span>
+                          <p className="font-medium">{campaign.conversions}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-xs">CTR</span>
+                          <p className={cn(
+                            "font-medium",
+                            campaign.ctr >= 2 && "text-metric-positive",
+                            campaign.ctr < 1 && "text-metric-negative"
+                          )}>
+                            {campaign.ctr.toFixed(2)}%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: Table View */}
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-secondary/50">
@@ -543,7 +614,7 @@ export default function Campaigns() {
             </div>
 
             {/* Summary Footer */}
-            <div className="flex justify-between items-center text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs sm:text-sm text-muted-foreground">
               <span>{filteredCampaigns.length} campanhas encontradas</span>
               <span>Total investido: {formatCurrency(totals.spend)}</span>
             </div>
