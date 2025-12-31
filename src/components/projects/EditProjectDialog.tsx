@@ -15,10 +15,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(100),
-  ad_account_id: z.string().min(1, 'ID da conta é obrigatório'),
+  ad_account_id: z.string().min(1, 'ID da conta Meta Ads é obrigatório'),
   business_model: z.enum(['inside_sales', 'ecommerce', 'pdv', 'custom']),
   timezone: z.string().min(1),
   currency: z.string().min(1),
+  google_customer_id: z.string().optional(),
 });
 
 const businessModels: { value: BusinessModel; label: string; description: string; icon?: React.ReactNode }[] = [
@@ -61,6 +62,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
     business_model: 'ecommerce' as BusinessModel,
     timezone: 'America/Sao_Paulo',
     currency: 'BRL',
+    google_customer_id: '',
   });
 
   const [metricConfig, setMetricConfig] = useState<MetricConfigData>({
@@ -78,6 +80,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
         business_model: project.business_model,
         timezone: project.timezone,
         currency: project.currency,
+        google_customer_id: (project as any).google_customer_id || '',
       });
       setCustomConfigOpen(project.business_model === 'custom');
     }
@@ -170,14 +173,26 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-ad_account_id">ID da conta de anúncios</Label>
+              <Label htmlFor="edit-ad_account_id">ID da conta Meta Ads</Label>
               <Input
                 id="edit-ad_account_id"
                 placeholder="act_123456789"
                 value={formData.ad_account_id}
                 onChange={(e) => setFormData({ ...formData, ad_account_id: e.target.value })}
               />
+              <p className="text-xs text-muted-foreground">Encontre no Gerenciador de Anúncios do Facebook</p>
               {errors.ad_account_id && <p className="text-sm text-destructive">{errors.ad_account_id}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-google_customer_id">ID do cliente Google Ads (opcional)</Label>
+              <Input
+                id="edit-google_customer_id"
+                placeholder="123-456-7890"
+                value={formData.google_customer_id || ''}
+                onChange={(e) => setFormData({ ...formData, google_customer_id: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">Encontre no canto superior direito do Google Ads</p>
             </div>
 
             <div className="space-y-2">
