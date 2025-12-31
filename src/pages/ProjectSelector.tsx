@@ -138,161 +138,101 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   return (
     <div 
       className={cn(
-        "group relative rounded-3xl border p-6 transition-all duration-500 cursor-pointer overflow-hidden",
-        "bg-gradient-to-br from-card/90 via-card/70 to-card/50 backdrop-blur-sm",
-        "hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1",
-        "border-border/50 hover:border-primary/40",
+        "group relative rounded-xl border p-4 transition-all duration-300 cursor-pointer",
+        "bg-card/80 backdrop-blur-sm",
+        "hover:bg-card hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30",
+        "border-border/40",
         project.archived && 'opacity-60'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Animated gradient border on hover */}
-      <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-        <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-primary/20 via-transparent to-primary/20" />
-      </div>
-      
-      {/* Health indicator strip */}
+      {/* Health indicator line */}
       <div className={cn(
-        "absolute top-0 left-6 right-6 h-1 rounded-b-full transition-all duration-300",
-        healthOption?.bgColor?.replace('/20', '/60') || 'bg-muted'
+        "absolute left-0 top-3 bottom-3 w-1 rounded-r-full",
+        healthOption?.bgColor?.replace('/20', '/80') || 'bg-muted'
       )} />
       
-      {/* Header with Avatar and Actions */}
-      <div className="relative flex items-start justify-between mb-5">
-        <div className="flex items-center gap-4">
-          {/* Project Avatar */}
-          <div className={cn(
-            "relative w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 overflow-hidden",
-            "bg-gradient-to-br",
-            !project.avatar_url && healthOption?.bgColor,
-            "group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-primary/20"
-          )}>
-            {project.avatar_url ? (
-              <img 
-                src={project.avatar_url} 
-                alt={project.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Icon className={cn("w-8 h-8", healthOption?.textColor)} />
-            )}
-            {/* Glow ring */}
-            <div className={cn(
-              "absolute inset-0 rounded-2xl ring-2 ring-inset transition-all duration-300",
-              healthOption?.borderColor?.replace('border-', 'ring-') || 'ring-border',
-              "group-hover:ring-primary/50"
-            )} />
+      {/* Content */}
+      <div className="flex items-center gap-3 pl-2">
+        {/* Avatar */}
+        <div className={cn(
+          "w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-transform duration-300",
+          !project.avatar_url && healthOption?.bgColor,
+          "group-hover:scale-105"
+        )}>
+          {project.avatar_url ? (
+            <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
+          ) : (
+            <Icon className={cn("w-5 h-5", healthOption?.textColor)} />
+          )}
+        </div>
+        
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            {getStatusIndicator()}
+            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+              {project.name}
+            </h3>
           </div>
-          
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {getStatusIndicator()}
-              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1 pr-2">
-                {project.name}
-              </h3>
-            </div>
-            <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-              <Icon className="w-3.5 h-3.5" />
-              {model?.label}
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-xs text-muted-foreground">{model?.label}</span>
+            <span className="text-muted-foreground/40">•</span>
+            <span className={cn("text-xs font-medium flex items-center gap-1", healthOption?.textColor)}>
+              <HealthIcon className="w-3 h-3" />
+              {healthOption?.label}
             </span>
           </div>
         </div>
         
-        {/* Actions Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-9 w-9 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-secondary"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="rounded-xl" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={() => onEdit(project)} className="rounded-lg">
-              <Pencil className="w-4 h-4 mr-2" />
-              Editar
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onResync(project)} className="rounded-lg">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Re-sincronizar
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {project.archived ? (
-              <DropdownMenuItem onClick={() => onUnarchive(project)} className="rounded-lg">
-                <ArchiveRestore className="w-4 h-4 mr-2" />
-                Restaurar
+        {/* Right side - sync info + actions */}
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="w-3 h-3" />
+            <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: false, locale: ptBR }) : '—'}</span>
+          </div>
+          
+          {/* Actions Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem onClick={() => onEdit(project)}>
+                <Pencil className="w-4 h-4 mr-2" />
+                Editar
               </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onClick={() => onArchive(project)} className="rounded-lg">
-                <Archive className="w-4 h-4 mr-2" />
-                Arquivar
+              <DropdownMenuItem onClick={() => onResync(project)}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Re-sincronizar
               </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onDelete(project)} className="text-red-400 focus:text-red-400 rounded-lg">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Excluir
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      
-      {/* Health Status Badge */}
-      <div className={cn(
-        "inline-flex items-center gap-2 px-4 py-2 rounded-full mb-5 transition-all duration-300",
-        healthOption?.bgColor,
-        "group-hover:scale-105"
-      )}>
-        <HealthIcon className={cn("w-4 h-4", healthOption?.textColor)} />
-        <span className={cn("text-sm font-semibold", healthOption?.textColor)}>
-          {healthOption?.label}
-        </span>
-      </div>
-      
-      {/* Sync Times - Redesigned */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/40 backdrop-blur-sm transition-colors duration-300 group-hover:bg-secondary/60">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <Clock className="w-4 h-4 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Última</p>
-            <p className="text-sm font-semibold text-foreground truncate">
-              {lastSyncDate 
-                ? formatDistanceToNow(lastSyncDate, { addSuffix: false, locale: ptBR })
-                : '—'}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/40 backdrop-blur-sm transition-colors duration-300 group-hover:bg-secondary/60">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <Timer className="w-4 h-4 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Próxima</p>
-            <p className="text-sm font-semibold text-foreground truncate">
-              {nextSyncDate 
-                ? (nextSyncDate > new Date() 
-                    ? formatDistanceToNow(nextSyncDate, { addSuffix: false, locale: ptBR })
-                    : 'Breve')
-                : '—'}
-            </p>
-          </div>
-        </div>
-      </div>
-      
-      {/* Footer Arrow - Redesigned */}
-      <div className="flex items-center justify-between pt-4 border-t border-border/30">
-        <span className="text-xs text-muted-foreground">
-          {project.currency === 'BRL' ? '🇧🇷' : project.currency === 'USD' ? '🇺🇸' : '🇪🇺'} {project.currency}
-        </span>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-primary transition-all duration-300">
-          <span className="font-medium">Acessar</span>
-          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-          </div>
+              <DropdownMenuSeparator />
+              {project.archived ? (
+                <DropdownMenuItem onClick={() => onUnarchive(project)}>
+                  <ArchiveRestore className="w-4 h-4 mr-2" />
+                  Restaurar
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => onArchive(project)}>
+                  <Archive className="w-4 h-4 mr-2" />
+                  Arquivar
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onDelete(project)} className="text-red-400 focus:text-red-400">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
         </div>
       </div>
     </div>
@@ -1227,7 +1167,7 @@ export default function ProjectSelector() {
             <TabsContent value="projects" className="mt-0">
               {(showArchived ? filteredArchivedProjects : filteredActiveProjects).length > 0 ? (
                 viewMode === 'grid' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-fade-in">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 stagger-fade-in">
                     {(showArchived ? filteredArchivedProjects : filteredActiveProjects).map((project) => (
                       <ProjectCard
                         key={project.id}
