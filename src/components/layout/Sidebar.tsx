@@ -26,6 +26,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +40,20 @@ import {
 } from '@/components/ui/collapsible';
 import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
+
+// Skeleton component for campaign list items
+function CampaignSkeleton() {
+  return (
+    <div className="space-y-2 px-3 py-2">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="flex items-center gap-2 pl-5">
+          <Skeleton className="w-2 h-2 rounded-full" />
+          <Skeleton className="h-4 flex-1" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -59,7 +74,7 @@ export default function Sidebar() {
   );
 
   // Use lightweight hook for sidebar campaigns instead of full useMetaAdsData
-  const { campaigns: sortedCampaigns, getCampaignAdSets } = useSidebarCampaigns(selectedProject?.id || null);
+  const { campaigns: sortedCampaigns, getCampaignAdSets, loading: campaignsLoading } = useSidebarCampaigns(selectedProject?.id || null);
 
 
   const handleSignOut = async () => {
@@ -227,48 +242,56 @@ export default function Sidebar() {
                     Ver Todas
                   </Link>
                   
-                  {/* Campaign list */}
+                  {/* Campaign list with skeleton loader */}
                   <div className="max-h-[300px] overflow-y-auto">
-                    {sortedCampaigns.slice(0, 10).map((campaign) => {
-                      const campaignAdSets = getCampaignAdSets(campaign.id);
-                      const isExpanded = expandedCampaigns[campaign.id];
-                      
-                      return (
-                        <div key={campaign.id}>
-                          <button
-                            onClick={() => toggleCampaignExpand(campaign.id)}
-                            className="w-full flex items-center gap-2 px-3 py-2 pl-8 text-sm hover:bg-sidebar-accent rounded-lg transition-colors"
-                          >
-                            <span className={cn('w-2 h-2 rounded-full flex-shrink-0', getStatusColor(campaign.status))} />
-                            <span className="truncate flex-1 text-left">{campaign.name}</span>
-                            {campaignAdSets.length > 0 && (
-                              isExpanded ? (
-                                <ChevronUp className="w-3 h-3 flex-shrink-0" />
-                              ) : (
-                                <ChevronDown className="w-3 h-3 flex-shrink-0" />
-                              )
+                    {campaignsLoading ? (
+                      <CampaignSkeleton />
+                    ) : sortedCampaigns.length === 0 ? (
+                      <p className="text-xs text-muted-foreground px-3 py-2 pl-10">
+                        Nenhuma campanha encontrada
+                      </p>
+                    ) : (
+                      sortedCampaigns.slice(0, 10).map((campaign) => {
+                        const campaignAdSets = getCampaignAdSets(campaign.id);
+                        const isExpanded = expandedCampaigns[campaign.id];
+                        
+                        return (
+                          <div key={campaign.id}>
+                            <button
+                              onClick={() => toggleCampaignExpand(campaign.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 pl-8 text-sm hover:bg-sidebar-accent rounded-lg transition-colors"
+                            >
+                              <span className={cn('w-2 h-2 rounded-full flex-shrink-0', getStatusColor(campaign.status))} />
+                              <span className="truncate flex-1 text-left">{campaign.name}</span>
+                              {campaignAdSets.length > 0 && (
+                                isExpanded ? (
+                                  <ChevronUp className="w-3 h-3 flex-shrink-0" />
+                                ) : (
+                                  <ChevronDown className="w-3 h-3 flex-shrink-0" />
+                                )
+                              )}
+                            </button>
+                            
+                            {/* Ad Sets */}
+                            {isExpanded && campaignAdSets.length > 0 && (
+                              <div className="ml-6 border-l border-sidebar-border">
+                                {campaignAdSets.map((adSet) => (
+                                  <Link
+                                    key={adSet.id}
+                                    to={`/adset/${adSet.id}`}
+                                    className="flex items-center gap-2 px-3 py-1.5 pl-4 text-xs hover:bg-sidebar-accent rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                                  >
+                                    <Layers className="w-3 h-3 flex-shrink-0" />
+                                    <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', getStatusColor(adSet.status))} />
+                                    <span className="truncate">{adSet.name}</span>
+                                  </Link>
+                                ))}
+                              </div>
                             )}
-                          </button>
-                          
-                          {/* Ad Sets */}
-                          {isExpanded && campaignAdSets.length > 0 && (
-                            <div className="ml-6 border-l border-sidebar-border">
-                              {campaignAdSets.map((adSet) => (
-                                <Link
-                                  key={adSet.id}
-                                  to={`/adset/${adSet.id}`}
-                                  className="flex items-center gap-2 px-3 py-1.5 pl-4 text-xs hover:bg-sidebar-accent rounded-lg transition-colors text-muted-foreground hover:text-foreground"
-                                >
-                                  <Layers className="w-3 h-3 flex-shrink-0" />
-                                  <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', getStatusColor(adSet.status))} />
-                                  <span className="truncate">{adSet.name}</span>
-                                </Link>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                   
                   {sortedCampaigns.length > 10 && (
