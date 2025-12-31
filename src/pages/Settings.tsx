@@ -36,8 +36,11 @@ import {
   Clock,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  UserPlus
 } from 'lucide-react';
+import { GuestsTab } from '@/components/settings/GuestsTab';
+import { useUserRole } from '@/hooks/useUserRole';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -137,6 +140,7 @@ const hslToHex = (h: number, s: number, l: number): string => {
 export default function Settings() {
   const { user, signOut } = useAuth();
   const { projects } = useProjects();
+  const { isGuest } = useUserRole();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -459,6 +463,12 @@ export default function Settings() {
               <History className="w-4 h-4" />
               Histórico Sync
             </TabsTrigger>
+            {!isGuest && (
+              <TabsTrigger value="guests" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <UserPlus className="w-4 h-4" />
+                Convidados
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Profile Tab */}
@@ -928,6 +938,13 @@ export default function Settings() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Guests Tab */}
+          {!isGuest && (
+            <TabsContent value="guests">
+              <GuestsTab />
+            </TabsContent>
+          )}
 
         </Tabs>
       </div>
