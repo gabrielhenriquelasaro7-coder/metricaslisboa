@@ -11,6 +11,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
+import { translateCTA } from '@/utils/ctaTranslations';
 import { 
   ChevronLeft,
   Image as ImageIcon,
@@ -357,7 +358,7 @@ export default function AdDetail() {
                   {ad.cta && (
                     <div>
                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CTA</p>
-                      <Badge variant="secondary">{ad.cta}</Badge>
+                      <Badge variant="secondary">{translateCTA(ad.cta)}</Badge>
                     </div>
                   )}
                 </div>
