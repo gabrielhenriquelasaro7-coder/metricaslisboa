@@ -527,6 +527,91 @@ export type Database = {
           },
         ]
       }
+      guest_invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string | null
+          expires_at: string | null
+          guest_email: string
+          guest_name: string
+          guest_user_id: string | null
+          id: string
+          invited_by: string
+          password_changed: boolean | null
+          project_id: string
+          status: string | null
+          temp_password: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          guest_email: string
+          guest_name: string
+          guest_user_id?: string | null
+          id?: string
+          invited_by: string
+          password_changed?: boolean | null
+          project_id: string
+          status?: string | null
+          temp_password: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          guest_email?: string
+          guest_name?: string
+          guest_user_id?: string | null
+          id?: string
+          invited_by?: string
+          password_changed?: boolean | null
+          project_id?: string
+          status?: string | null
+          temp_password?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_invitations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_project_access: {
+        Row: {
+          created_at: string | null
+          granted_by: string
+          id: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          granted_by: string
+          id?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          granted_by?: string
+          id?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_project_access_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       period_metrics: {
         Row: {
           created_at: string | null
@@ -823,6 +908,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_instances: {
         Row: {
           created_at: string
@@ -1030,9 +1136,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "gestor" | "convidado"
       business_model: "inside_sales" | "ecommerce" | "pdv" | "custom"
       user_cargo:
         | "gestor_trafego"
@@ -1166,6 +1279,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "gestor", "convidado"],
       business_model: ["inside_sales", "ecommerce", "pdv", "custom"],
       user_cargo: [
         "gestor_trafego",

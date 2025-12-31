@@ -24,6 +24,8 @@ import SyncHistory from "./pages/SyncHistory";
 import Admin from "./pages/Admin";
 import AIAssistant from "./pages/AIAssistant";
 import WhatsApp from "./pages/WhatsApp";
+import ChangePassword from "./pages/ChangePassword";
+import GuestOnboarding from "./pages/GuestOnboarding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +58,8 @@ const App = () => (
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/ai-assistant" element={<AIAssistant />} />
                 <Route path="/whatsapp" element={<WhatsApp />} />
+                <Route path="/change-password" element={<ChangePassword />} />
+                <Route path="/guest-onboarding" element={<GuestOnboarding />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

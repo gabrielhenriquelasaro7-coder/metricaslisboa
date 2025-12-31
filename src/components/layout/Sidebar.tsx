@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useProfile } from '@/hooks/useProfile';
+import { useUserRole } from '@/hooks/useUserRole';
 import v4LogoFull from '@/assets/v4-logo-full.png';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { 
@@ -48,6 +49,7 @@ export default function Sidebar() {
   const { projects } = useProjects();
   const { campaigns, adSets } = useMetaAdsData();
   const { profile } = useProfile();
+  const { isGuest } = useUserRole();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
@@ -298,60 +300,64 @@ export default function Sidebar() {
               {!collapsed && <span>Criativos</span>}
             </Link>
 
-            {/* Agente Lisboa */}
-            <Link
-              to="/ai-assistant"
-              className={cn(
-                'sidebar-item',
-                location.pathname === '/ai-assistant' && 'active'
-              )}
-            >
-              <Bot className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>Agente Lisboa</span>}
-            </Link>
+            {/* Agente Lisboa - Hidden for guests */}
+            {!isGuest && (
+              <Link
+                to="/ai-assistant"
+                className={cn(
+                  'sidebar-item',
+                  location.pathname === '/ai-assistant' && 'active'
+                )}
+              >
+                <Bot className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>Agente Lisboa</span>}
+              </Link>
+            )}
           </div>
 
           {/* Spacer to push admin/settings to bottom */}
           <div className="flex-1" />
 
-          {/* Admin & Settings at bottom */}
-          <div className="space-y-1 mt-4">
-            {/* WhatsApp */}
-            <Link
-              to="/whatsapp"
-              className={cn(
-                'sidebar-item',
-                location.pathname === '/whatsapp' && 'active'
-              )}
-            >
-              <MessageSquare className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>WhatsApp</span>}
-            </Link>
+          {/* Admin & Settings at bottom - Hidden for guests */}
+          {!isGuest && (
+            <div className="space-y-1 mt-4">
+              {/* WhatsApp */}
+              <Link
+                to="/whatsapp"
+                className={cn(
+                  'sidebar-item',
+                  location.pathname === '/whatsapp' && 'active'
+                )}
+              >
+                <MessageSquare className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>WhatsApp</span>}
+              </Link>
 
-            {/* Admin */}
-            <Link
-              to="/admin"
-              className={cn(
-                'sidebar-item',
-                location.pathname === '/admin' && 'active'
-              )}
-            >
-              <Database className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>Administração</span>}
-            </Link>
+              {/* Admin */}
+              <Link
+                to="/admin"
+                className={cn(
+                  'sidebar-item',
+                  location.pathname === '/admin' && 'active'
+                )}
+              >
+                <Database className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>Administração</span>}
+              </Link>
 
-            {/* Settings */}
-            <Link
-              to="/settings"
-              className={cn(
-                'sidebar-item',
-                location.pathname === '/settings' && 'active'
-              )}
-            >
-              <Settings className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>Configurações</span>}
-            </Link>
-          </div>
+              {/* Settings */}
+              <Link
+                to="/settings"
+                className={cn(
+                  'sidebar-item',
+                  location.pathname === '/settings' && 'active'
+                )}
+              >
+                <Settings className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>Configurações</span>}
+              </Link>
+            </div>
+          )}
         </nav>
 
         {/* User section */}
