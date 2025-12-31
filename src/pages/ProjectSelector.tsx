@@ -642,10 +642,10 @@ export default function ProjectSelector() {
     }
   };
 
-  // Floating Particle Component
+  // Floating Particle Component - subtle, same as Auth
   const Particle = ({ delay, duration, size, x, y }: { delay: number; duration: number; size: number; x: number; y: number }) => (
     <div
-      className="absolute rounded-full bg-primary/30 animate-float"
+      className="absolute rounded-full bg-white/8 animate-float"
       style={{
         width: size,
         height: size,
@@ -653,23 +653,7 @@ export default function ProjectSelector() {
         top: `${y}%`,
         animationDelay: `${delay}s`,
         animationDuration: `${duration}s`,
-        filter: 'blur(1px)',
-      }}
-    />
-  );
-
-  // Pulsing Glow Ring
-  const GlowRing = ({ size, delay, opacity }: { size: number; delay: number; opacity: number }) => (
-    <div
-      className="absolute rounded-full border border-primary/20 animate-pulse-slow"
-      style={{
-        width: size,
-        height: size,
-        left: '50%',
-        top: '50%',
-        transform: 'translate(-50%, -50%)',
-        animationDelay: `${delay}s`,
-        opacity,
+        filter: 'blur(0.5px)',
       }}
     />
   );
@@ -719,26 +703,22 @@ export default function ProjectSelector() {
   };
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Animated Background - Same as Auth */}
-      <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 pointer-events-none" />
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Gradient Background - same as Auth, stronger red */}
+      <div className="fixed inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#2a0a0a] to-[#5c1010] pointer-events-none" />
       
-      {/* Radial glow effects */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[150px] animate-pulse-slow" />
-        <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-red-600/8 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-red-500/8 rounded-full blur-[80px] animate-pulse-slow" style={{ animationDelay: '2s' }} />
-      </div>
+      {/* Secondary gradient overlay for depth */}
+      <div className="fixed inset-0 bg-gradient-to-tl from-red-800/40 via-transparent to-transparent pointer-events-none" />
 
-      {/* Floating Particles */}
+      {/* Floating Particles - same as Auth */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         {particles.map((p) => (
           <Particle key={p.id} {...p} />
         ))}
       </div>
 
-      {/* Grid pattern overlay */}
-      <div className="fixed inset-0 bg-[linear-gradient(rgba(239,68,68,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,0.02)_1px,transparent_1px)] bg-[size:80px_80px] pointer-events-none" />
+      {/* Subtle vignette effect */}
+      <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.3) 100%)' }} />
 
       {/* Main Content */}
       <div className="relative z-10">
@@ -747,20 +727,14 @@ export default function ProjectSelector() {
           <div className="flex items-center justify-between">
             {/* Logo with Glow */}
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <GlowRing size={80} delay={0} opacity={0.3} />
-                <GlowRing size={100} delay={0.5} opacity={0.2} />
-                <div className="relative z-10 w-14 h-14 rounded-2xl overflow-hidden">
-                  <img 
-                    src={v4LogoIcon} 
-                    alt="V4 Company" 
-                    className="w-full h-full object-cover drop-shadow-2xl"
-                  />
-                  <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl -z-10 animate-pulse-slow" />
-                </div>
-              </div>
+              <img 
+                src={v4LogoIcon} 
+                alt="V4 Company" 
+                className="h-12 w-auto drop-shadow-2xl rounded-xl brightness-110 saturate-150 animate-float"
+                style={{ filter: 'drop-shadow(0 0 15px rgba(239, 68, 68, 0.4))' }}
+              />
               <div className="flex flex-col">
-                <h1 className="text-xl font-bold gradient-text">MetaAds Manager</h1>
+                <h1 className="text-xl font-bold text-foreground">MetaAds Manager</h1>
                 <span className="text-xs text-muted-foreground">by V4 Company</span>
               </div>
             </div>

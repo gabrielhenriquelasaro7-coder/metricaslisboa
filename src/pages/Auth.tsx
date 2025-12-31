@@ -141,11 +141,11 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-      {/* Gradient Background - inspired by reference */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#1a0808] to-[#3d0d0d]" />
+      {/* Gradient Background - stronger red */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#2a0a0a] to-[#5c1010]" />
       
-      {/* Secondary gradient overlay for depth */}
-      <div className="absolute inset-0 bg-gradient-to-tl from-red-900/30 via-transparent to-transparent" />
+      {/* Secondary gradient overlay for depth - stronger */}
+      <div className="absolute inset-0 bg-gradient-to-tl from-red-800/40 via-transparent to-transparent" />
 
       {/* Floating Particles - subtle */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -159,13 +159,16 @@ export default function Auth() {
 
       {/* Main Content */}
       <div className="relative z-10 w-full max-w-md px-6">
-        {/* Logo Section - Clean */}
+        {/* Logo Section - Clean with animation */}
         <div className="flex flex-col items-center mb-10 animate-fade-in">
-          <img 
-            src={v4LogoIcon} 
-            alt="V4 Company" 
-            className="h-16 w-auto drop-shadow-lg rounded-xl"
-          />
+          <div className="relative">
+            <img 
+              src={v4LogoIcon} 
+              alt="V4 Company" 
+              className="h-20 w-auto drop-shadow-2xl rounded-xl animate-float brightness-110 saturate-125"
+              style={{ filter: 'drop-shadow(0 0 20px rgba(239, 68, 68, 0.4))' }}
+            />
+          </div>
           <h1 className="text-2xl font-bold mt-6 text-foreground">
             {isResetPassword ? 'Recuperar Senha' : isLogin ? 'Login' : 'Criar Conta'}
           </h1>
