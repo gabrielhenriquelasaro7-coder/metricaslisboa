@@ -53,10 +53,10 @@ const COST_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
   cpp: { label: "CPP", icon: DollarSign },
 };
 
+// CTR is already shown in general metrics, so exclude from efficiency metrics to avoid duplication
 const EFFICIENCY_CONFIG: Record<string, { label: string; icon: LucideIcon; format: 'currency' | 'percentage' | 'multiplier' }> = {
   roas: { label: "ROAS", icon: TrendingUp, format: 'multiplier' },
   roi: { label: "ROI", icon: TrendingUp, format: 'percentage' },
-  ctr: { label: "CTR", icon: Percent, format: 'percentage' },
   conversion_rate: { label: "Taxa de Conversão", icon: Percent, format: 'percentage' },
 };
 

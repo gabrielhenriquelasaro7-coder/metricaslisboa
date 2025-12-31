@@ -109,108 +109,82 @@ interface ProjectCardProps {
 function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: Omit<ProjectCardProps, 'health'>) {
   const model = businessModels.find(m => m.value === project.business_model);
   const Icon = model?.icon || Users;
-  const modelColors = businessModelColors[project.business_model] || businessModelColors.custom;
   
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
   const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore) || healthScoreOptions[3];
-  const HealthIcon = healthOption?.icon || AlertCircle;
-  
-  const syncProgress = project.sync_progress;
-  const isSyncing = project.webhook_status === 'syncing' || 
-                    project.webhook_status === 'importing_history' || 
-                    syncProgress?.status === 'syncing' || 
-                    syncProgress?.status === 'importing';
   
   const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
-  
-  const getStatusIndicator = () => {
-    if (isSyncing) {
-      return (
-        <div className="relative flex items-center justify-center">
-          <div className="w-3 h-3 rounded-full bg-amber-500" />
-          <div className="absolute inset-0 w-3 h-3 rounded-full bg-amber-400 animate-ping" />
-        </div>
-      );
-    }
-    if (project.webhook_status === 'error') {
-      return <div className="w-3 h-3 rounded-full bg-red-500 ring-2 ring-red-500/30" />;
-    }
-    return <div className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />;
-  };
 
   return (
     <div 
       className={cn(
-        "group relative rounded-2xl border-2 p-5 transition-all duration-300 cursor-pointer overflow-hidden",
-        "bg-gradient-to-br backdrop-blur-sm",
-        healthOption.gradientFrom,
-        healthOption.gradientTo,
-        healthOption.borderColor,
-        "hover:shadow-xl hover:-translate-y-1",
-        healthOption.glowColor,
+        "group relative bg-card rounded-xl border border-border/50 p-5 transition-all duration-300 cursor-pointer",
+        "hover:shadow-lg hover:border-border",
         project.archived && 'opacity-50 grayscale-[30%]'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Decorative gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-card/90 via-card/70 to-transparent pointer-events-none" />
-      
-      {/* Health indicator bar - left side */}
-      <div className={cn(
-        "absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full",
-        healthOption.bgColor.replace('/20', '/80')
-      )} />
-      
-      {/* Content */}
-      <div className="relative flex flex-col gap-4">
-        {/* Header Row */}
-        <div className="flex items-start gap-4">
+      {/* Header Row */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start gap-3">
           {/* Avatar */}
           <div className={cn(
-            "w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 ring-2 ring-offset-2 ring-offset-card",
-            !project.avatar_url && modelColors.bgColor,
-            healthOption.borderColor.replace('border-', 'ring-'),
-            "group-hover:scale-110 group-hover:ring-offset-4"
+            "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden",
+            !project.avatar_url && "bg-primary/10"
           )}>
             {project.avatar_url ? (
               <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
             ) : (
-              <Icon className={cn("w-7 h-7", modelColors.iconColor)} />
+              <Icon className="w-5 h-5 text-primary" />
             )}
           </div>
           
-          {/* Title & Model */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2.5 mb-1.5">
-              {getStatusIndicator()}
-              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight" title={project.name}>
-                {project.name}
-              </h3>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={cn(
-                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium",
-                modelColors.bgColor, modelColors.textColor
-              )}>
-                <Icon className="w-3.5 h-3.5" />
-                {model?.label}
-              </span>
+          {/* Title & Assignee */}
+          <div className="min-w-0">
+            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1" title={project.name}>
+              {project.name}
+            </h3>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
+              <Users className="w-3.5 h-3.5" />
+              <span className="line-clamp-1">act_{project.ad_account_id}</span>
             </div>
           </div>
+        </div>
+
+        {/* Health Badge */}
+        <div className={cn(
+          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
+          healthOption.bgColor, healthOption.textColor, healthOption.borderColor
+        )}>
+          <healthOption.icon className="w-3.5 h-3.5" />
+          {healthOption.label}
+        </div>
+      </div>
+
+      {/* Sync Info */}
+      <div className="flex items-center justify-between pt-3 border-t border-border/50">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Clock className="w-3.5 h-3.5" />
+          <span>Atualizado em {lastSyncDate ? lastSyncDate.toLocaleDateString('pt-BR') : 'Nunca'}</span>
+        </div>
+        
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(project);
+            }}
+            className="text-sm text-primary hover:underline flex items-center gap-1"
+          >
+            Ver Detalhes
+            <ChevronRight className="w-4 h-4" />
+          </button>
           
-          {/* Actions Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className={cn(
-                  "h-9 w-9 rounded-xl transition-all",
-                  "opacity-0 group-hover:opacity-100",
-                  "hover:bg-foreground/10"
-                )}
-              >
-                <MoreVertical className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
@@ -241,32 +215,6 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-        
-        {/* Footer Row */}
-        <div className="flex items-center justify-between pt-3 border-t border-border/30">
-          {/* Health Badge */}
-          <div className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold",
-            healthOption.bgColor, healthOption.textColor
-          )}>
-            <HealthIcon className="w-4 h-4" />
-            {healthOption.label}
-          </div>
-          
-          {/* Sync Info + Arrow */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: false, locale: ptBR }) : 'Nunca'}</span>
-            </div>
-            <div className={cn(
-              "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
-              "bg-foreground/5 group-hover:bg-primary group-hover:text-primary-foreground"
-            )}>
-              <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -782,191 +730,229 @@ export default function ProjectSelector() {
     );
   }
 
+  // Count projects by health score
+  const healthCounts = {
+    total: activeProjects.length,
+    safe: activeProjects.filter(p => p.health_score === 'safe').length,
+    care: activeProjects.filter(p => p.health_score === 'care').length,
+    danger: activeProjects.filter(p => p.health_score === 'danger').length,
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Subtle Background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/3" />
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[150px] translate-x-1/3 -translate-y-1/3" />
-      </div>
-
-      {/* Header - Clean and Simple */}
-      <header className="border-b border-border/40 bg-card/60 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+      {/* Hero Header with Gradient */}
+      <div className="relative overflow-hidden">
+        {/* Background gradient - matching reference style */}
+        <div className="absolute inset-0 bg-gradient-to-br from-red-600 via-red-700 to-red-900" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/30 via-transparent to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
+        
+        {/* Header Content */}
+        <header className="relative z-10 container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 overflow-hidden">
+            <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 overflow-hidden">
               <img 
                 src={v4LogoIcon} 
                 alt="V4 Company" 
-                className="h-8 w-auto"
+                className="h-8 w-auto brightness-0 invert"
               />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold">
-                <span className="gradient-text">Meta</span>
-                <span className="text-foreground">Ads Manager</span>
+              <span className="text-lg font-bold text-white">
+                Meta Ads Manager
               </span>
-              <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                by V4 Company
+              <span className="text-xs text-white/70 flex items-center gap-1.5">
+                Sistema de Gerenciamento de Contas - V4 Company
               </span>
             </div>
           </div>
-          <Button 
-            variant="ghost" 
-            onClick={handleLogout} 
-            className="text-muted-foreground hover:text-foreground hover:bg-secondary/80 gap-2 rounded-xl transition-all"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Sair</span>
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-sm">
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-semibold text-sm">
+                {profile?.full_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase() || 'U'}
+              </div>
+              <span className="text-sm text-white/90">{profile?.full_name || user?.email}</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              onClick={handleLogout} 
+              className="text-white/80 hover:text-white hover:bg-white/10 gap-2 rounded-xl transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sair</span>
+            </Button>
+          </div>
+        </header>
+
+        {/* Summary Cards */}
+        <div className="relative z-10 container mx-auto px-6 py-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl">
+            {/* Total */}
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-white/70">Total de Clientes</p>
+                  <p className="text-3xl font-bold text-white mt-1">{healthCounts.total}</p>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                  <FolderKanban className="w-5 h-5 text-white/80" />
+                </div>
+              </div>
+            </div>
+            
+            {/* Safe */}
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-white/70">Safe</p>
+                  <p className="text-3xl font-bold text-white mt-1">{healthCounts.safe}</p>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/30 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-emerald-300" />
+                </div>
+              </div>
+            </div>
+            
+            {/* Care */}
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-white/70">Care</p>
+                  <p className="text-3xl font-bold text-white mt-1">{healthCounts.care}</p>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-amber-500/30 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-amber-300" />
+                </div>
+              </div>
+            </div>
+            
+            {/* Danger */}
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-white/70">Danger</p>
+                  <p className="text-3xl font-bold text-white mt-1">{healthCounts.danger}</p>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-red-400/30 flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-red-300" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </header>
+      </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-8 py-10 relative">
+      <main className="container mx-auto px-6 py-8 relative -mt-4">
         <div className="max-w-7xl mx-auto">
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            {/* Page Header - Redesigned */}
-            <div className="flex flex-col gap-6 mb-10">
-              {/* Title Row */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
-                <div className="animate-fade-in">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                      <FolderKanban className="w-5 h-5 text-primary" />
-                    </div>
-                    <h1 className="text-3xl font-bold text-foreground">
-                      {showArchived ? 'Arquivados' : 'Seus Projetos'}
-                    </h1>
+            {/* Controls Bar - Clean white card */}
+            <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-4 mb-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                {/* Left side - Search and filters */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome ou account..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 w-64 h-10 bg-background border-border/50 rounded-lg"
+                    />
                   </div>
-                  <p className="text-muted-foreground ml-[52px]">
-                    {showArchived 
-                      ? `${archivedProjects.length} projeto(s) arquivado(s)`
-                      : `${activeProjects.length} projeto(s) ativo(s) • Gerencie suas campanhas`}
+                  
+                  {/* Status Filter */}
+                  <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
+                    <SelectTrigger className="w-40 h-10 bg-background border-border/50">
+                      <SelectValue placeholder="Todos os Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os Status</SelectItem>
+                      <SelectItem value="safe">Safe</SelectItem>
+                      <SelectItem value="care">Care</SelectItem>
+                      <SelectItem value="danger">Danger</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Right side - Tabs and actions */}
+                <div className="flex items-center gap-3">
+                  <TabsList className="rounded-xl h-10 bg-secondary/50 p-1">
+                    <TabsTrigger 
+                      value="projects" 
+                      className="gap-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+                    >
+                      <FolderKanban className="w-4 h-4" />
+                      Projetos
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="profile" 
+                      className="gap-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+                    >
+                      <User className="w-4 h-4" />
+                      Perfil
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+              </div>
+            </div>
+
+            {/* Projects Section Header */}
+            {activeTab === 'projects' && (
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">
+                    {showArchived ? 'Projetos Arquivados' : 'Meus Clientes'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Total de {showArchived ? archivedProjects.length : activeProjects.length} clientes cadastrados
                   </p>
                 </div>
-                
-                <TabsList className="rounded-2xl h-12 bg-card/60 backdrop-blur-xl border border-border/30 p-1.5 animate-fade-in" style={{ animationDelay: '0.05s' }}>
-                  <TabsTrigger 
-                    value="projects" 
-                    className="gap-2 px-5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all duration-300"
-                  >
-                    <FolderKanban className="w-4 h-4" />
-                    Projetos
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="profile" 
-                    className="gap-2 px-5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all duration-300"
-                  >
-                    <User className="w-4 h-4" />
-                    Perfil
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-              
-              {/* Controls Row */}
-              {activeTab === 'projects' && (
-                <div className="flex flex-wrap items-center gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-                    {/* Search Input */}
-                    <div className="relative group">
-                      <div className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center group-focus-within:bg-primary/20 transition-colors">
-                        <Search className="w-3.5 h-3.5 text-primary" />
-                      </div>
-                      <Input
-                        placeholder="Buscar projeto..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-11 w-52 h-10 bg-card/60 backdrop-blur-sm border-border/50 focus:border-primary/50 rounded-xl"
-                      />
-                    </div>
-
-                    {/* Health Score Filter */}
-                    <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50 backdrop-blur-sm">
-                      <button
-                        onClick={() => setHealthFilter('all')}
-                        className={cn(
-                          "px-2 py-1 rounded-md text-xs font-medium transition-all",
-                          healthFilter === 'all' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        Todos
-                      </button>
-                      <button
-                        onClick={() => setHealthFilter('safe')}
-                        className={cn(
-                          "px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1",
-                          healthFilter === 'safe' ? 'bg-emerald-500/20 text-emerald-400' : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        <ShieldCheck className="w-3 h-3" />
-                        Safe
-                      </button>
-                      <button
-                        onClick={() => setHealthFilter('care')}
-                        className={cn(
-                          "px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1",
-                          healthFilter === 'care' ? 'bg-amber-500/20 text-amber-400' : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        <AlertTriangle className="w-3 h-3" />
-                        Care
-                      </button>
-                      <button
-                        onClick={() => setHealthFilter('danger')}
-                        className={cn(
-                          "px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1",
-                          healthFilter === 'danger' ? 'bg-red-500/20 text-red-400' : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        <AlertCircle className="w-3 h-3" />
-                        Danger
-                      </button>
-                    </div>
-
-                    {/* View Mode Toggle */}
-                    <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50 backdrop-blur-sm">
-                      <button
-                        onClick={() => setViewMode('grid')}
-                        className={cn(
-                          "p-1.5 rounded-md transition-all",
-                          viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        <LayoutGrid className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setViewMode('list')}
-                        className={cn(
-                          "p-1.5 rounded-md transition-all",
-                          viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        <List className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowArchived(!showArchived)}
+                <div className="flex items-center gap-2">
+                  {/* View Mode Toggle */}
+                  <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50">
+                    <button
+                      onClick={() => setViewMode('grid')}
                       className={cn(
-                        "border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all",
-                        showArchived && 'bg-primary/10 border-primary/50'
+                        "p-1.5 rounded-md transition-all",
+                        viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
                       )}
                     >
-                      <Archive className="w-4 h-4 mr-2" />
-                      {showArchived ? 'Ativos' : 'Arquivados'}
-                    </Button>
-                    
-                    <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button className="gap-2 bg-gradient-to-r from-primary via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all duration-300 hover:scale-105">
-                          <Plus className="w-4 h-4" />
-                          Novo Projeto
-                        </Button>
-                      </DialogTrigger>
+                      <LayoutGrid className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={cn(
+                        "p-1.5 rounded-md transition-all",
+                        viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowArchived(!showArchived)}
+                    className={cn(
+                      "border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all",
+                      showArchived && 'bg-primary/10 border-primary/50'
+                    )}
+                  >
+                    <Archive className="w-4 h-4 mr-2" />
+                    {showArchived ? 'Ativos' : 'Arquivados'}
+                  </Button>
+                  
+                  <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="gap-2 bg-gradient-to-r from-primary to-red-700 hover:from-red-600 hover:to-red-800 shadow-lg shadow-primary/30">
+                        <Plus className="w-4 h-4" />
+                        Novo Cliente
+                      </Button>
+                    </DialogTrigger>
                       <DialogContent className="sm:max-w-2xl max-h-[90vh]">
                         <DialogHeader>
                           <DialogTitle className="text-xl gradient-text">Criar novo projeto</DialogTitle>
@@ -1162,8 +1148,8 @@ export default function ProjectSelector() {
                       </DialogContent>
                     </Dialog>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <TabsContent value="projects" className="mt-0">
               {(showArchived ? filteredArchivedProjects : filteredActiveProjects).length > 0 ? (
