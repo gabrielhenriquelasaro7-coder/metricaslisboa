@@ -527,6 +527,341 @@ export type Database = {
           },
         ]
       }
+      google_ad_groups: {
+        Row: {
+          campaign_id: string
+          clicks: number | null
+          conversion_value: number | null
+          conversions: number | null
+          cost_per_conversion: number | null
+          cpc: number | null
+          cpc_bid: number | null
+          cpm: number | null
+          created_at: string | null
+          ctr: number | null
+          id: string
+          impressions: number | null
+          name: string
+          project_id: string
+          roas: number | null
+          spend: number | null
+          status: string | null
+          synced_at: string | null
+        }
+        Insert: {
+          campaign_id: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_per_conversion?: number | null
+          cpc?: number | null
+          cpc_bid?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          id: string
+          impressions?: number | null
+          name: string
+          project_id: string
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_per_conversion?: number | null
+          cpc?: number | null
+          cpc_bid?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          id?: string
+          impressions?: number | null
+          name?: string
+          project_id?: string
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_ad_groups_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_ads: {
+        Row: {
+          ad_group_id: string
+          ad_type: string | null
+          campaign_id: string
+          clicks: number | null
+          conversion_value: number | null
+          conversions: number | null
+          cost_per_conversion: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string | null
+          ctr: number | null
+          descriptions: string[] | null
+          final_urls: string[] | null
+          headlines: string[] | null
+          id: string
+          impressions: number | null
+          name: string
+          project_id: string
+          roas: number | null
+          spend: number | null
+          status: string | null
+          synced_at: string | null
+        }
+        Insert: {
+          ad_group_id: string
+          ad_type?: string | null
+          campaign_id: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_per_conversion?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          descriptions?: string[] | null
+          final_urls?: string[] | null
+          headlines?: string[] | null
+          id: string
+          impressions?: number | null
+          name: string
+          project_id: string
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Update: {
+          ad_group_id?: string
+          ad_type?: string | null
+          campaign_id?: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_per_conversion?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          descriptions?: string[] | null
+          final_urls?: string[] | null
+          headlines?: string[] | null
+          id?: string
+          impressions?: number | null
+          name?: string
+          project_id?: string
+          roas?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_ads_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_ads_daily_metrics: {
+        Row: {
+          ad_group_id: string
+          ad_group_name: string
+          ad_group_status: string | null
+          ad_id: string
+          ad_name: string
+          ad_status: string | null
+          campaign_id: string
+          campaign_name: string
+          campaign_status: string | null
+          campaign_type: string | null
+          clicks: number
+          conversion_value: number | null
+          conversions: number | null
+          cost_per_conversion: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
+          customer_id: string
+          date: string
+          id: string
+          impressions: number
+          project_id: string
+          roas: number | null
+          search_impression_share: number | null
+          spend: number
+          synced_at: string
+        }
+        Insert: {
+          ad_group_id: string
+          ad_group_name: string
+          ad_group_status?: string | null
+          ad_id: string
+          ad_name: string
+          ad_status?: string | null
+          campaign_id: string
+          campaign_name: string
+          campaign_status?: string | null
+          campaign_type?: string | null
+          clicks?: number
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_per_conversion?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          customer_id: string
+          date: string
+          id?: string
+          impressions?: number
+          project_id: string
+          roas?: number | null
+          search_impression_share?: number | null
+          spend?: number
+          synced_at?: string
+        }
+        Update: {
+          ad_group_id?: string
+          ad_group_name?: string
+          ad_group_status?: string | null
+          ad_id?: string
+          ad_name?: string
+          ad_status?: string | null
+          campaign_id?: string
+          campaign_name?: string
+          campaign_status?: string | null
+          campaign_type?: string | null
+          clicks?: number
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_per_conversion?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          customer_id?: string
+          date?: string
+          id?: string
+          impressions?: number
+          project_id?: string
+          roas?: number | null
+          search_impression_share?: number | null
+          spend?: number
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_ads_daily_metrics_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_campaigns: {
+        Row: {
+          bidding_strategy: string | null
+          budget_amount: number | null
+          budget_type: string | null
+          campaign_type: string | null
+          clicks: number | null
+          conversion_value: number | null
+          conversions: number | null
+          cost_per_conversion: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string | null
+          ctr: number | null
+          end_date: string | null
+          id: string
+          impressions: number | null
+          name: string
+          project_id: string
+          roas: number | null
+          spend: number | null
+          start_date: string | null
+          status: string | null
+          synced_at: string | null
+        }
+        Insert: {
+          bidding_strategy?: string | null
+          budget_amount?: number | null
+          budget_type?: string | null
+          campaign_type?: string | null
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_per_conversion?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          end_date?: string | null
+          id: string
+          impressions?: number | null
+          name: string
+          project_id: string
+          roas?: number | null
+          spend?: number | null
+          start_date?: string | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Update: {
+          bidding_strategy?: string | null
+          budget_amount?: number | null
+          budget_type?: string | null
+          campaign_type?: string | null
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_per_conversion?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          end_date?: string | null
+          id?: string
+          impressions?: number | null
+          name?: string
+          project_id?: string
+          roas?: number | null
+          spend?: number | null
+          start_date?: string | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_campaigns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_invitations: {
         Row: {
           accepted_at: string | null
@@ -802,6 +1137,7 @@ export type Database = {
           business_model: Database["public"]["Enums"]["business_model"]
           created_at: string
           currency: string
+          google_customer_id: string | null
           health_score: string | null
           id: string
           last_sync_at: string | null
@@ -821,6 +1157,7 @@ export type Database = {
           business_model: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
+          google_customer_id?: string | null
           health_score?: string | null
           id?: string
           last_sync_at?: string | null
@@ -840,6 +1177,7 @@ export type Database = {
           business_model?: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
+          google_customer_id?: string | null
           health_score?: string | null
           id?: string
           last_sync_at?: string | null
