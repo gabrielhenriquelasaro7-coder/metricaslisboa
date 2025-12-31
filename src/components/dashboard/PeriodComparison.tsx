@@ -198,6 +198,24 @@ export default function PeriodComparison({
           isInverse: true,
         }
       );
+    } else if (businessModel === 'custom') {
+      // For custom, show generic conversions and cost metrics
+      items.push(
+        {
+          label: 'Conversões',
+          current: formatNumber(currentMetrics.totalConversions),
+          previous: formatNumber(previousMetrics.totalConversions),
+          change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
+          isInverse: false,
+        },
+        {
+          label: 'CPA',
+          current: formatCurrencyValue(currentMetrics.cpa),
+          previous: formatCurrencyValue(previousMetrics.cpa),
+          change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
+          isInverse: true,
+        }
+      );
     }
 
     return items;

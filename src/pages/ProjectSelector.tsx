@@ -224,119 +224,73 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
 function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: Omit<ProjectCardProps, 'health'>) {
   const model = businessModels.find(m => m.value === project.business_model);
   const Icon = model?.icon || Users;
-  const modelColors = businessModelColors[project.business_model] || businessModelColors.custom;
   
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
   const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore) || healthScoreOptions[3];
-  const HealthIcon = healthOption?.icon || AlertCircle;
-  
-  const syncProgress = project.sync_progress;
-  const isSyncing = project.webhook_status === 'syncing' || 
-                    project.webhook_status === 'importing_history' || 
-                    syncProgress?.status === 'syncing' || 
-                    syncProgress?.status === 'importing';
   
   const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
-  
-  const getStatusIndicator = () => {
-    if (isSyncing) {
-      return (
-        <div className="relative flex items-center justify-center">
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-          <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-        </div>
-      );
-    }
-    if (project.webhook_status === 'error') {
-      return <div className="w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-red-500/30" />;
-    }
-    return <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />;
-  };
 
   return (
     <div 
       className={cn(
-        "group relative flex items-center gap-5 rounded-2xl border-2 p-5 transition-all duration-300 cursor-pointer overflow-hidden",
-        "bg-gradient-to-r backdrop-blur-sm",
-        healthOption.gradientFrom,
-        healthOption.gradientTo,
-        healthOption.borderColor,
-        "hover:shadow-xl hover:-translate-y-0.5",
-        healthOption.glowColor,
-        project.archived && 'opacity-50 grayscale-[30%]'
+        "group flex items-center gap-4 bg-card rounded-xl border border-border/50 p-4 transition-all duration-200 cursor-pointer",
+        "hover:shadow-md hover:border-border",
+        project.archived && 'opacity-50'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Decorative overlay */}
-      <div className="absolute inset-0 bg-gradient-to-r from-card/90 via-card/80 to-card/60 pointer-events-none" />
-      
-      {/* Health indicator bar - left side */}
-      <div className={cn(
-        "absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full",
-        healthOption.bgColor.replace('/20', '/80')
-      )} />
-      
       {/* Avatar */}
       <div className={cn(
-        "relative w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 ring-2 ring-offset-2 ring-offset-card",
-        !project.avatar_url && modelColors.bgColor,
-        healthOption.borderColor.replace('border-', 'ring-'),
-        "group-hover:scale-105 group-hover:ring-offset-4"
+        "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden",
+        !project.avatar_url && "bg-primary/10"
       )}>
         {project.avatar_url ? (
           <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
         ) : (
-          <Icon className={cn("w-7 h-7", modelColors.iconColor)} />
+          <Icon className="w-5 h-5 text-primary" />
         )}
       </div>
       
       {/* Info */}
-      <div className="relative flex-1 min-w-0">
-        <div className="flex items-center gap-2.5 mb-1">
-          {getStatusIndicator()}
-          <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors truncate">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
             {project.name}
           </h3>
-          <span className={cn(
-            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold flex-shrink-0",
-            healthOption.bgColor, healthOption.textColor
+          <div className={cn(
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border",
+            healthOption.bgColor, healthOption.textColor, healthOption.borderColor
           )}>
-            <HealthIcon className="w-3.5 h-3.5" />
+            <healthOption.icon className="w-3 h-3" />
             {healthOption.label}
-          </span>
+          </div>
         </div>
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span className={cn(
-            "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md",
-            modelColors.bgColor, modelColors.textColor
-          )}>
-            <Icon className="w-3.5 h-3.5" />
-            {model?.label}
-          </span>
-          <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
-          <span className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
-            {lastSyncDate 
-              ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR })
-              : 'Nunca sincronizado'}
-          </span>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Users className="w-3 h-3" />
+          <span>act_{project.ad_account_id}</span>
+          <span className="text-muted-foreground/50">•</span>
+          <Clock className="w-3 h-3" />
+          <span>{lastSyncDate ? lastSyncDate.toLocaleDateString('pt-BR') : 'Nunca'}</span>
         </div>
       </div>
       
       {/* Actions */}
-      <div className="relative flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(project);
+          }}
+          className="text-sm text-primary hover:underline flex items-center gap-1"
+        >
+          Ver Detalhes
+          <ChevronRight className="w-4 h-4" />
+        </button>
+        
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className={cn(
-                "h-9 w-9 rounded-xl transition-all",
-                "opacity-0 group-hover:opacity-100",
-                "hover:bg-foreground/10"
-              )}
-            >
-              <MoreVertical className="w-5 h-5" />
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
@@ -367,13 +321,6 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        
-        <div className={cn(
-          "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300",
-          "bg-foreground/5 group-hover:bg-primary group-hover:text-primary-foreground"
-        )}>
-          <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
-        </div>
       </div>
     </div>
   );
@@ -767,12 +714,15 @@ export default function ProjectSelector() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-sm">
+            <button 
+              onClick={() => setActiveTab('profile')}
+              className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all cursor-pointer"
+            >
               <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-semibold text-sm">
                 {profile?.full_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase() || 'U'}
               </div>
               <span className="text-sm text-white/90">{profile?.full_name || user?.email}</span>
-            </div>
+            </button>
             <Button 
               variant="ghost" 
               onClick={handleLogout} 
