@@ -563,6 +563,7 @@ export default function Dashboard() {
                     totalSpend: metrics.totalSpend,
                     totalClicks: metrics.totalClicks,
                     totalImpressions: metrics.totalImpressions,
+                    totalReach: metrics.totalReach,
                   }}
                   changes={changes}
                   sparklineData={sparklineData}
