@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,11 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Key, Loader2, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 import v4LogoFull from '@/assets/v4-logo-full.png';
 
 export default function ChangePassword() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,63 +31,73 @@ export default function ChangePassword() {
 
     setLoading(true);
     try {
-      // Update password
+      console.log('[ChangePassword] Starting password change for user:', user?.id);
+      
+      // Update password in Supabase Auth
       const { error: passwordError } = await supabase.auth.updateUser({
         password: newPassword,
       });
 
-      if (passwordError) throw passwordError;
+      if (passwordError) {
+        console.error('[ChangePassword] Password update error:', passwordError);
+        throw passwordError;
+      }
+      
+      console.log('[ChangePassword] Password updated successfully');
 
-      // Mark password as changed
+      // Mark password as changed in guest_invitations
       if (user) {
-        const { error: updateError } = await supabase
+        console.log('[ChangePassword] Updating guest_invitations for user:', user.id);
+        
+        const { data, error: updateError } = await supabase
           .from('guest_invitations')
-          .update({ password_changed: true, status: 'accepted', accepted_at: new Date().toISOString() })
-          .eq('guest_user_id', user.id);
+          .update({ 
+            password_changed: true, 
+            status: 'accepted', 
+            accepted_at: new Date().toISOString() 
+          })
+          .eq('guest_user_id', user.id)
+          .select();
         
         if (updateError) {
-          console.error('Error updating invitation:', updateError);
+          console.error('[ChangePassword] Error updating invitation:', updateError);
+          // Don't throw - we'll still redirect, but log the error
+        } else {
+          console.log('[ChangePassword] Guest invitation updated:', data);
         }
       }
 
       toast.success('Senha alterada com sucesso!');
       
-      // Show redirecting state
+      // Show redirecting state immediately
       setRedirecting(true);
+      setLoading(false);
       
-      // Small delay for better UX feedback
+      // Redirect after a brief moment
       setTimeout(() => {
-        // Use window.location to force a full page reload, ensuring all state is refreshed
         const onboardingComplete = localStorage.getItem('guestOnboardingComplete');
+        console.log('[ChangePassword] Onboarding complete:', onboardingComplete);
+        
         if (!onboardingComplete) {
+          console.log('[ChangePassword] Redirecting to guest-onboarding');
           window.location.href = '/guest-onboarding';
         } else {
+          console.log('[ChangePassword] Redirecting to dashboard');
           window.location.href = '/dashboard';
         }
-      }, 500);
+      }, 800);
+      
     } catch (error: unknown) {
-      console.error('Error changing password:', error);
+      console.error('[ChangePassword] Error:', error);
       const message = error instanceof Error ? error.message : 'Erro ao alterar senha';
       toast.error(message);
-    } finally {
-      if (!redirecting) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
   // Show full-screen loading when redirecting
   if (redirecting) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <div className="absolute inset-0 red-texture-bg opacity-20 pointer-events-none" />
-        <div className="relative z-10 flex flex-col items-center gap-4">
-          <img src={v4LogoFull} alt="V4 Company" className="h-12 mb-4" />
-          <Loader2 className="w-10 h-10 text-primary animate-spin" />
-          <p className="text-lg text-muted-foreground">Preparando sua experiência...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="Preparando sua experiência..." />;
   }
 
   return (

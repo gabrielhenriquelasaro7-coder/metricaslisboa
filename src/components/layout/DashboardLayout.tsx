@@ -5,6 +5,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import Sidebar from './Sidebar';
 import { ImportLoadingScreen } from './ImportLoadingScreen';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
@@ -104,11 +105,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, []);
 
   if (loading || hasProject === null || isImporting === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
+    return <LoadingScreen message="Carregando dashboard..." />;
   }
 
   if (!user || !hasProject) return null;
