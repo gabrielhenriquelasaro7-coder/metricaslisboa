@@ -38,7 +38,7 @@ import {
   BarChart,
 } from 'recharts';
 
-type BusinessModel = 'ecommerce' | 'inside_sales' | 'pdv' | null;
+type BusinessModel = 'ecommerce' | 'inside_sales' | 'pdv' | 'custom' | null;
 type CampaignSortBy = 'spend' | 'conversions' | 'roas' | 'cpl';
 
 interface MetricDef {
