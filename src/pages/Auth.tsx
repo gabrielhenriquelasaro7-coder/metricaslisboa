@@ -164,8 +164,8 @@ export default function Auth() {
           <img 
             src={v4LogoIcon} 
             alt="V4 Company" 
-            className="h-14 w-auto rounded-xl animate-float saturate-150 brightness-125"
-            style={{ filter: 'drop-shadow(0 0 15px rgba(239, 68, 68, 0.5)) saturate(1.5) brightness(1.2)' }}
+            className="h-14 w-auto rounded-xl animate-float"
+            style={{ filter: 'drop-shadow(0 0 20px rgba(255, 0, 0, 0.6)) saturate(2.5) brightness(1.3) contrast(1.1)' }}
           />
           <h1 className="text-2xl font-bold mt-6 text-foreground">
             {isResetPassword ? 'Recuperar Senha' : isLogin ? 'Login' : 'Criar Conta'}
