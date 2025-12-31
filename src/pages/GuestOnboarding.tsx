@@ -99,6 +99,8 @@ export default function GuestOnboarding() {
   }, [user]);
 
   const handleStart = () => {
+    // Clear any previous tour completion state so the tour shows for this session
+    localStorage.removeItem('dashboard_tour_completed');
     localStorage.setItem('guestOnboardingComplete', 'true');
     localStorage.setItem('tour_pending', 'true'); // Flag to trigger tour on dashboard
     navigate('/dashboard');
