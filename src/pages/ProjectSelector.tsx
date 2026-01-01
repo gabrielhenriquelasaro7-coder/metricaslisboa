@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { SkeletonCard, SkeletonProfileCard } from '@/components/ui/skeleton-card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Plus, 
   FolderKanban, 
@@ -865,15 +866,19 @@ export default function ProjectSelector() {
                       </svg>
                       Meta Ads
                     </TabsTrigger>
-                    <TabsTrigger 
-                      value="google-ads" 
-                      className="gap-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
-                    >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
-                      </svg>
-                      Google Ads
-                    </TabsTrigger>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="gap-2 px-4 py-2 rounded-lg flex items-center text-muted-foreground opacity-50 cursor-not-allowed">
+                            <Lock className="w-4 h-4" />
+                            Google Ads
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Em breve</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <TabsTrigger 
                       value="profile" 
                       className="gap-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
@@ -1162,291 +1167,6 @@ export default function ProjectSelector() {
               </div>
             )}
 
-            {/* Google Ads Section Header */}
-            {activeTab === 'google-ads' && (
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                    <svg className="w-5 h-5 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
-                    </svg>
-                    {showArchived ? 'Google Ads - Arquivados' : 'Google Ads - Clientes'}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Total de {showArchived ? archivedGoogleProjects.length : googleAdsProjects.length} clientes Google Ads
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* View Mode Toggle */}
-                  <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50">
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={cn(
-                        "p-1.5 rounded-md transition-all",
-                        viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={cn(
-                        "p-1.5 rounded-md transition-all",
-                        viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      <List className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowArchived(!showArchived)}
-                    className={cn(
-                      "border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all",
-                      showArchived && 'bg-primary/10 border-primary/50'
-                    )}
-                  >
-                    <Archive className="w-4 h-4 mr-2" />
-                    {showArchived ? 'Ativos' : 'Arquivados'}
-                  </Button>
-                  
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button className="gap-2 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 shadow-lg shadow-yellow-600/30 text-black">
-                        <Plus className="w-4 h-4" />
-                        Novo Cliente Google
-                      </Button>
-                    </DialogTrigger>
-                      <DialogContent className="sm:max-w-2xl max-h-[90vh]">
-                        <DialogHeader>
-                          <DialogTitle className="text-xl gradient-text flex items-center gap-2">
-                            <svg className="w-5 h-5 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
-                            </svg>
-                            Criar projeto Google Ads
-                          </DialogTitle>
-                        </DialogHeader>
-                        <ScrollArea className="max-h-[70vh] pr-4">
-                        <form onSubmit={async (e) => {
-                          e.preventDefault();
-                          if (!formData.name || !formData.google_customer_id) {
-                            toast.error('Preencha todos os campos obrigatórios');
-                            return;
-                          }
-                          setIsCreating(true);
-                          try {
-                            const project = await createProject({
-                              ...formData,
-                              ad_account_id: `google_${formData.google_customer_id}`, // Use google prefix for Google Ads projects
-                            });
-                            if (project) {
-                              setFormData({
-                                name: '',
-                                ad_account_id: '',
-                                business_model: 'ecommerce',
-                                timezone: 'America/Sao_Paulo',
-                                currency: 'BRL',
-                                health_score: null,
-                                avatar_url: null,
-                                google_customer_id: '',
-                              });
-                              setAvatarPreview(null);
-                              if (formData.business_model === 'custom') {
-                                navigate(`/project-setup/${project.id}`);
-                              }
-                            }
-                          } catch (error) {
-                            console.error('Error creating project:', error);
-                          } finally {
-                            setIsCreating(false);
-                          }
-                        }} className="space-y-5 mt-4">
-                          {/* Avatar Upload */}
-                          <div className="flex justify-center">
-                            <div className="relative">
-                              <div 
-                                onClick={() => avatarInputRef.current?.click()}
-                                className={cn(
-                                  "w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer transition-all",
-                                  "hover:border-yellow-500 hover:bg-yellow-500/5",
-                                  avatarPreview && "border-solid border-yellow-500"
-                                )}
-                              >
-                                {avatarPreview ? (
-                                  <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
-                                ) : isUploadingAvatar ? (
-                                  <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
-                                ) : (
-                                  <div className="text-center">
-                                    <ImagePlus className="w-8 h-8 text-muted-foreground mx-auto" />
-                                    <span className="text-xs text-muted-foreground mt-1">Avatar</span>
-                                  </div>
-                                )}
-                              </div>
-                              <input
-                                ref={avatarInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handleAvatarChange(e, false)}
-                              />
-                              {avatarPreview && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setAvatarPreview(null);
-                                    setFormData(prev => ({ ...prev, avatar_url: null }));
-                                  }}
-                                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
-                                >
-                                  ×
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="google_name">Nome do projeto *</Label>
-                              <Input
-                                id="google_name"
-                                placeholder="Ex: Minha Loja"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                required
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="google_customer_id">Customer ID do Google Ads *</Label>
-                              <Input
-                                id="google_customer_id"
-                                placeholder="123-456-7890"
-                                value={formData.google_customer_id || ''}
-                                onChange={(e) => setFormData({ ...formData, google_customer_id: e.target.value.replace(/-/g, '') })}
-                                required
-                              />
-                              <p className="text-xs text-muted-foreground">ID do cliente na sua MCC Google Ads</p>
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Modelo de negócio</Label>
-                            <div className="grid grid-cols-2 gap-3">
-                              {businessModels.map((model) => {
-                                const ModelIcon = model.icon;
-                                return (
-                                  <button
-                                    key={model.value}
-                                    type="button"
-                                    onClick={() => {
-                                      setFormData({ ...formData, business_model: model.value });
-                                    }}
-                                    className={cn(
-                                      "p-3 rounded-xl border-2 text-left transition-all",
-                                      formData.business_model === model.value
-                                        ? 'border-yellow-500 bg-yellow-500/10 ring-2 ring-yellow-500/20'
-                                        : 'border-border hover:border-yellow-500/50'
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <ModelIcon className="w-5 h-5 text-yellow-500" />
-                                      <p className="font-medium text-sm">{model.label}</p>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1">{model.description}</p>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Health Score do Cliente</Label>
-                            <div className="grid grid-cols-3 gap-3">
-                              {healthScoreOptions.filter(opt => opt.value !== 'undefined').map((option) => {
-                                const OptionIcon = option.icon;
-                                return (
-                                  <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, health_score: formData.health_score === option.value ? null : option.value as HealthScore })}
-                                    className={cn(
-                                      "p-3 rounded-xl border-2 text-center transition-all",
-                                      formData.health_score === option.value
-                                        ? `${option.borderColor} ${option.bgColor}`
-                                        : 'border-border hover:border-primary/50'
-                                    )}
-                                  >
-                                    <OptionIcon className={cn("w-5 h-5 mx-auto mb-1", option.textColor)} />
-                                    <p className={cn("font-medium text-sm", formData.health_score === option.value ? option.textColor : '')}>{option.label}</p>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Moeda</Label>
-                              <Select
-                                value={formData.currency}
-                                onValueChange={(value) => setFormData({ ...formData, currency: value })}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="BRL">Real (R$)</SelectItem>
-                                  <SelectItem value="USD">Dólar (US$)</SelectItem>
-                                  <SelectItem value="EUR">Euro (€)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Fuso horário</Label>
-                              <Select
-                                value={formData.timezone}
-                                onValueChange={(value) => setFormData({ ...formData, timezone: value })}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="America/Sao_Paulo">São Paulo</SelectItem>
-                                  <SelectItem value="America/New_York">New York</SelectItem>
-                                  <SelectItem value="Europe/London">Londres</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                            <Button type="button" variant="outline" onClick={() => {}}>
-                              Cancelar
-                            </Button>
-                            <Button type="submit" disabled={isCreating} className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-black">
-                              {isCreating ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Criando...
-                                </>
-                              ) : (
-                                <>
-                                  <Plus className="w-4 h-4 mr-2" />
-                                  Criar Projeto Google
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </form>
-                        </ScrollArea>
-                      </DialogContent>
-                    </Dialog>
-                </div>
-              </div>
-            )}
 
             {/* Meta Ads Tab Content */}
             <TabsContent value="meta-ads" className="mt-0">
@@ -1516,79 +1236,6 @@ export default function ProjectSelector() {
               )}
             </TabsContent>
 
-            {/* Google Ads Tab Content */}
-            <TabsContent value="google-ads" className="mt-0">
-              {filteredGoogleProjects.length > 0 ? (
-                viewMode === 'grid' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-fade-in">
-                    {filteredGoogleProjects.map((project) => (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        onSelect={(p) => {
-                          localStorage.setItem('selectedProjectId', p.id);
-                          navigate('/google-campaigns');
-                        }}
-                        onEdit={handleEditClick}
-                        onDelete={handleDeleteClick}
-                        onArchive={(p) => archiveProject(p.id)}
-                        onUnarchive={(p) => unarchiveProject(p.id)}
-                        onResync={handleResync}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-4 stagger-fade-in">
-                    {filteredGoogleProjects.map((project) => (
-                      <ProjectListItem
-                        key={project.id}
-                        project={project}
-                        onSelect={(p) => {
-                          localStorage.setItem('selectedProjectId', p.id);
-                          navigate('/google-campaigns');
-                        }}
-                        onEdit={handleEditClick}
-                        onDelete={handleDeleteClick}
-                        onArchive={(p) => archiveProject(p.id)}
-                        onUnarchive={(p) => unarchiveProject(p.id)}
-                        onResync={handleResync}
-                      />
-                    ))}
-                  </div>
-                )
-              ) : (
-                <div className="text-center py-20 animate-fade-in">
-                  <div className="relative inline-block">
-                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-yellow-500/20 to-yellow-700/20 flex items-center justify-center mx-auto mb-6 animate-float">
-                      <svg className="w-12 h-12 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
-                      </svg>
-                    </div>
-                    <div className="absolute inset-0 bg-yellow-500/10 rounded-3xl blur-xl -z-10" />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-3 text-yellow-500">
-                    {healthFilter !== 'all' 
-                      ? `Nenhum projeto ${healthFilter === 'safe' ? 'Safe' : healthFilter === 'care' ? 'Care' : 'Danger'}` 
-                      : showArchived 
-                        ? 'Nenhum projeto Google Ads arquivado' 
-                        : 'Nenhum cliente Google Ads ainda'}
-                  </h3>
-                  <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                    {healthFilter !== 'all'
-                      ? 'Tente remover o filtro para ver todos os projetos.'
-                      : showArchived 
-                        ? 'Projetos Google Ads arquivados aparecerão aqui.' 
-                        : 'Adicione seu primeiro cliente Google Ads para começar.'}
-                  </p>
-                  {!showArchived && (
-                    <Button className="bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-lg shadow-yellow-600/30 hover:shadow-yellow-600/50 transition-all duration-300 hover:scale-105 px-8 py-6 text-lg text-black">
-                      <Plus className="w-5 h-5 mr-2" />
-                      Criar Cliente Google Ads
-                    </Button>
-                  )}
-                </div>
-              )}
-            </TabsContent>
 
             {/* Profile Tab */}
             <TabsContent value="profile" className="mt-0">
