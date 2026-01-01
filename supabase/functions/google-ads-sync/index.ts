@@ -61,7 +61,7 @@ async function executeGoogleAdsQuery(
   query: string
 ): Promise<any[]> {
   const customerId = credentials.customerId.replace(/-/g, '');
-  const url = `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:searchStream`;
+  const url = `https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:searchStream`;
   
   console.log('Executing Google Ads query:', query.substring(0, 100) + '...');
   
