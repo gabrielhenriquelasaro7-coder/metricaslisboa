@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, BusinessModel, Project } from '@/hooks/useProjects';
-import { Loader2, Settings2 } from 'lucide-react';
+import { Loader2, Settings2, Lock } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { z } from 'zod';
 import { MetricConfigPanel, type MetricConfigData } from './MetricConfigPanel';
 import { DashboardPreview } from './DashboardPreview';
@@ -185,14 +186,29 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-google_customer_id">ID do cliente Google Ads (opcional)</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="edit-google_customer_id" className="text-muted-foreground">
+                  ID do cliente Google Ads
+                </Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Lock className="w-4 h-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Em breve</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Input
                 id="edit-google_customer_id"
                 placeholder="123-456-7890"
                 value={formData.google_customer_id || ''}
-                onChange={(e) => setFormData({ ...formData, google_customer_id: e.target.value })}
+                disabled
+                className="opacity-50 cursor-not-allowed"
               />
-              <p className="text-xs text-muted-foreground">Encontre no canto superior direito do Google Ads</p>
+              <p className="text-xs text-muted-foreground">Integração com Google Ads em breve</p>
             </div>
 
             <div className="space-y-2">
