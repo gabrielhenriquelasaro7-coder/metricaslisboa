@@ -336,25 +336,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </Link>
             )}
 
-            {/* Google Ads Campaigns - Em breve */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className={cn(
-                      'sidebar-item opacity-50 cursor-not-allowed',
-                      location.pathname === '/google-campaigns' && 'active'
-                    )}
-                  >
-                    <Lock className="w-5 h-5 flex-shrink-0" />
-                    {!collapsed && <span>Google Ads</span>}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p>Em breve</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
 
             {/* Creatives */}
             <Link
