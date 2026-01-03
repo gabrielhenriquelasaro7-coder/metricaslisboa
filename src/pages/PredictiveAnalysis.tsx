@@ -585,7 +585,7 @@ export default function PredictiveAnalysis() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[450px]">
+                  <ChartContainer config={chartConfig} className="h-[350px] w-full !aspect-auto">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -683,7 +683,7 @@ export default function PredictiveAnalysis() {
                     };
                     
                     return (
-                      <ChartContainer config={projectionConfig} className="h-[400px]">
+                      <ChartContainer config={projectionConfig} className="h-[300px] w-full !aspect-auto">
                         <ResponsiveContainer width="100%" height="100%">
                           <ComposedChart data={projectionData}>
                             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
