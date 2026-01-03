@@ -115,8 +115,11 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
     yPos += 8;
   };
 
+  // Footer space: line at 15, text at 8 from bottom = reserve 25 minimum
+  const footerSpace = 25;
+  
   const checkNewPage = (neededSpace: number = 30) => {
-    if (yPos > pageHeight - neededSpace) {
+    if (yPos > pageHeight - footerSpace - neededSpace) {
       doc.addPage();
       yPos = 25;
     }
