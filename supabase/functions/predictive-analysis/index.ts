@@ -7,13 +7,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface CampaignGoal {
+  campaignId: string;
+  targetRoas?: number;
+  targetCpl?: number;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { projectId, startDate, endDate } = await req.json();
+    const { projectId, campaignGoals } = await req.json();
     
     if (!projectId) {
       throw new Error('projectId é obrigatório');
@@ -22,6 +28,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const metaAccessToken = Deno.env.get('META_ACCESS_TOKEN');
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -34,13 +41,60 @@ serve(async (req) => {
 
     if (projectError) throw projectError;
 
+    // Fetch account balance from Meta API if token available
+    let accountBalance = {
+      balance: project.account_balance || 0,
+      currency: project.currency || 'BRL',
+      lastUpdated: project.account_balance_updated_at,
+      daysOfSpendRemaining: null as number | null,
+      status: 'unknown' as 'healthy' | 'warning' | 'critical' | 'unknown',
+    };
+
+    if (metaAccessToken && project.ad_account_id) {
+      try {
+        const adAccountId = project.ad_account_id.startsWith('act_') 
+          ? project.ad_account_id 
+          : `act_${project.ad_account_id}`;
+        
+        const metaResponse = await fetch(
+          `https://graph.facebook.com/v21.0/${adAccountId}?fields=balance,amount_spent,currency,funding_source_details&access_token=${metaAccessToken}`
+        );
+        
+        if (metaResponse.ok) {
+          const metaData = await metaResponse.json();
+          
+          // Balance is returned in cents, convert to currency
+          const balanceValue = parseFloat(metaData.balance || '0') / 100;
+          
+          accountBalance = {
+            balance: balanceValue,
+            currency: metaData.currency || project.currency,
+            lastUpdated: new Date().toISOString(),
+            daysOfSpendRemaining: null,
+            status: 'unknown',
+          };
+
+          // Update project with new balance
+          await supabase
+            .from('projects')
+            .update({ 
+              account_balance: balanceValue,
+              account_balance_updated_at: new Date().toISOString()
+            })
+            .eq('id', projectId);
+        }
+      } catch (metaError) {
+        console.log('Could not fetch Meta account balance:', metaError);
+      }
+    }
+
     // Fetch last 30 days of metrics for trend analysis
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     const { data: dailyMetrics, error: metricsError } = await supabase
       .from('ads_daily_metrics')
-      .select('date, spend, impressions, clicks, conversions, conversion_value, reach')
+      .select('date, spend, impressions, clicks, conversions, conversion_value, reach, campaign_id, campaign_name')
       .eq('project_id', projectId)
       .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
       .order('date', { ascending: true });
@@ -50,7 +104,7 @@ serve(async (req) => {
     // Fetch campaign budgets
     const { data: campaigns, error: campaignsError } = await supabase
       .from('campaigns')
-      .select('id, name, daily_budget, lifetime_budget, spend, status')
+      .select('id, name, daily_budget, lifetime_budget, spend, status, conversions, conversion_value')
       .eq('project_id', projectId)
       .eq('status', 'ACTIVE');
 
@@ -70,6 +124,27 @@ serve(async (req) => {
       return acc;
     }, {}) || {};
 
+    // Aggregate metrics by campaign
+    const campaignMetrics = dailyMetrics?.reduce((acc: Record<string, any>, metric) => {
+      if (!acc[metric.campaign_id]) {
+        acc[metric.campaign_id] = { 
+          campaignId: metric.campaign_id,
+          campaignName: metric.campaign_name,
+          spend: 0, 
+          conversions: 0, 
+          conversion_value: 0,
+          clicks: 0,
+          impressions: 0
+        };
+      }
+      acc[metric.campaign_id].spend += metric.spend || 0;
+      acc[metric.campaign_id].conversions += metric.conversions || 0;
+      acc[metric.campaign_id].conversion_value += metric.conversion_value || 0;
+      acc[metric.campaign_id].clicks += metric.clicks || 0;
+      acc[metric.campaign_id].impressions += metric.impressions || 0;
+      return acc;
+    }, {}) || {};
+
     const sortedDates = Object.values(aggregatedByDate).sort((a: any, b: any) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
@@ -82,6 +157,46 @@ serve(async (req) => {
     const avgDailySpendPrev7 = previous7Days.reduce((sum: number, d: any) => sum + d.spend, 0) / Math.max(previous7Days.length, 1);
     const avgDailyConversions7 = last7Days.reduce((sum: number, d: any) => sum + d.conversions, 0) / Math.max(last7Days.length, 1);
     const avgDailyRevenue7 = last7Days.reduce((sum: number, d: any) => sum + d.conversion_value, 0) / Math.max(last7Days.length, 1);
+    const avgDailyClicks7 = last7Days.reduce((sum: number, d: any) => sum + d.clicks, 0) / Math.max(last7Days.length, 1);
+    const avgDailyImpressions7 = last7Days.reduce((sum: number, d: any) => sum + d.impressions, 0) / Math.max(last7Days.length, 1);
+
+    // Calculate account balance days remaining
+    if (accountBalance.balance > 0 && avgDailySpend7 > 0) {
+      accountBalance.daysOfSpendRemaining = Math.floor(accountBalance.balance / avgDailySpend7);
+      if (accountBalance.daysOfSpendRemaining <= 3) accountBalance.status = 'critical';
+      else if (accountBalance.daysOfSpendRemaining <= 7) accountBalance.status = 'warning';
+      else accountBalance.status = 'healthy';
+    }
+
+    // Calculate campaign goals progress
+    const campaignGoalsProgress = Object.values(campaignMetrics).map((metrics: any) => {
+      const cpl = metrics.conversions > 0 ? metrics.spend / metrics.conversions : null;
+      const roas = metrics.spend > 0 ? metrics.conversion_value / metrics.spend : null;
+      const ctr = metrics.impressions > 0 ? (metrics.clicks / metrics.impressions) * 100 : null;
+      
+      // Find if there's a custom goal for this campaign
+      const customGoal = campaignGoals?.find((g: CampaignGoal) => g.campaignId === metrics.campaignId);
+      
+      // Default goals based on business model
+      const defaultRoasTarget = project.business_model === 'ecommerce' ? 3 : 2;
+      const defaultCplTarget = project.business_model === 'inside_sales' ? 30 : 50;
+      
+      const targetRoas = customGoal?.targetRoas || defaultRoasTarget;
+      const targetCpl = customGoal?.targetCpl || defaultCplTarget;
+      
+      return {
+        ...metrics,
+        cpl,
+        roas,
+        ctr,
+        targetRoas,
+        targetCpl,
+        roasProgress: roas !== null ? Math.min((roas / targetRoas) * 100, 150) : null,
+        cplProgress: cpl !== null ? Math.min((targetCpl / cpl) * 100, 150) : null,
+        roasStatus: roas !== null ? (roas >= targetRoas ? 'success' : roas >= targetRoas * 0.7 ? 'warning' : 'critical') : 'unknown',
+        cplStatus: cpl !== null ? (cpl <= targetCpl ? 'success' : cpl <= targetCpl * 1.3 ? 'warning' : 'critical') : 'unknown',
+      };
+    });
 
     // Calculate budget alerts
     const budgetAlerts = campaigns?.map(campaign => {
@@ -89,7 +204,6 @@ serve(async (req) => {
       const lifetimeBudget = campaign.lifetime_budget || 0;
       const currentSpend = campaign.spend || 0;
       
-      // Estimate days until budget runs out
       let daysRemaining = null;
       let budgetStatus = 'healthy';
       
@@ -130,36 +244,68 @@ serve(async (req) => {
         avgDailySpend: avgDailySpend7,
         avgDailyConversions: avgDailyConversions7,
         avgDailyRevenue: avgDailyRevenue7,
+        avgDailyCpl: avgDailyConversions7 > 0 ? avgDailySpend7 / avgDailyConversions7 : null,
+        avgDailyRoas: avgDailySpend7 > 0 ? avgDailyRevenue7 / avgDailySpend7 : null,
+        avgCtr: avgDailyImpressions7 > 0 ? (avgDailyClicks7 / avgDailyImpressions7) * 100 : null,
       }
     };
 
-    // Generate AI optimization suggestions
-    let aiSuggestions: string[] = [];
+    // Calculate totals for context
+    const totals = {
+      spend30Days: sortedDates.reduce((sum: number, d: any) => sum + d.spend, 0),
+      conversions30Days: sortedDates.reduce((sum: number, d: any) => sum + d.conversions, 0),
+      revenue30Days: sortedDates.reduce((sum: number, d: any) => sum + d.conversion_value, 0),
+      clicks30Days: sortedDates.reduce((sum: number, d: any) => sum + d.clicks, 0),
+      impressions30Days: sortedDates.reduce((sum: number, d: any) => sum + d.impressions, 0),
+    };
+
+    // Generate detailed AI optimization suggestions
+    let aiSuggestions: { title: string; description: string; reason: string; priority: 'high' | 'medium' | 'low' }[] = [];
     
     if (lovableApiKey) {
       const contextData = {
         projectName: project.name,
         businessModel: project.business_model,
         currency: project.currency,
-        last7DaysMetrics: last7Days,
-        predictions,
+        accountBalance: accountBalance,
+        last7DaysMetrics: {
+          avgDailySpend: avgDailySpend7,
+          avgDailyConversions: avgDailyConversions7,
+          avgDailyRevenue: avgDailyRevenue7,
+          avgCpl: avgDailyConversions7 > 0 ? avgDailySpend7 / avgDailyConversions7 : null,
+          avgRoas: avgDailySpend7 > 0 ? avgDailyRevenue7 / avgDailySpend7 : null,
+          spendTrend: predictions.trends.spendTrend,
+        },
+        totals,
+        campaignPerformance: campaignGoalsProgress.slice(0, 10),
         budgetAlerts: budgetAlerts.filter(b => b.budgetStatus !== 'healthy'),
-        totalSpend30Days: sortedDates.reduce((sum: number, d: any) => sum + d.spend, 0),
-        totalConversions30Days: sortedDates.reduce((sum: number, d: any) => sum + d.conversions, 0),
-        totalRevenue30Days: sortedDates.reduce((sum: number, d: any) => sum + d.conversion_value, 0),
+        activeCampaignsCount: campaigns?.length || 0,
       };
 
       const systemPrompt = `Você é um especialista em tráfego pago e análise de dados de marketing digital.
-Analise os dados fornecidos e gere exatamente 5 sugestões de otimização práticas e acionáveis.
+Analise os dados fornecidos e gere exatamente 5 sugestões de otimização ESPECÍFICAS e ACIONÁVEIS.
 
-Considere:
-- Tendências de gasto e performance
-- Alertas de orçamento
-- Oportunidades de melhoria de ROAS/CPL
-- Recomendações para escalar ou pausar campanhas
+IMPORTANTE:
+- Cada sugestão DEVE ser baseada em dados concretos fornecidos
+- Explique o MOTIVO da sugestão com números específicos
+- Indique prioridade (high, medium, low) baseada no impacto potencial
 
-Responda APENAS com um array JSON de 5 strings, cada uma sendo uma sugestão concisa (máximo 100 caracteres).
-Exemplo: ["Sugestão 1", "Sugestão 2", "Sugestão 3", "Sugestão 4", "Sugestão 5"]`;
+Formato de resposta (JSON array estrito):
+[
+  {
+    "title": "Título curto da ação (máx 50 chars)",
+    "description": "Descrição detalhada da ação a tomar (máx 150 chars)",
+    "reason": "Por que esta sugestão? Cite dados específicos (máx 100 chars)",
+    "priority": "high|medium|low"
+  }
+]
+
+Exemplos de boas sugestões:
+- "CPL de R$45 está 50% acima da meta de R$30 - otimize públicos"
+- "ROAS de 4.2x está excelente - aumente budget em 20%"
+- "Saldo de conta para apenas 3 dias - recarregue urgente"
+
+Responda APENAS com o JSON array, sem texto adicional.`;
 
       try {
         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -181,7 +327,6 @@ Exemplo: ["Sugestão 1", "Sugestão 2", "Sugestão 3", "Sugestão 4", "Sugestão
           const aiData = await aiResponse.json();
           const content = aiData.choices?.[0]?.message?.content || '[]';
           try {
-            // Try to parse as JSON, handling potential markdown formatting
             const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
             aiSuggestions = JSON.parse(cleanContent);
           } catch {
@@ -193,9 +338,9 @@ Exemplo: ["Sugestão 1", "Sugestão 2", "Sugestão 3", "Sugestão 4", "Sugestão
       }
     }
 
-    // Fallback suggestions if AI fails
+    // Fallback suggestions with reasons if AI fails
     if (aiSuggestions.length === 0) {
-      aiSuggestions = generateFallbackSuggestions(predictions, budgetAlerts, project.business_model);
+      aiSuggestions = generateDetailedFallbackSuggestions(predictions, budgetAlerts, accountBalance, campaignGoalsProgress, project.business_model, project.currency);
     }
 
     const result = {
@@ -205,8 +350,11 @@ Exemplo: ["Sugestão 1", "Sugestão 2", "Sugestão 3", "Sugestão 4", "Sugestão
         businessModel: project.business_model,
         currency: project.currency,
       },
+      accountBalance,
       predictions,
+      totals,
       budgetAlerts,
+      campaignGoalsProgress,
       dailyTrend: sortedDates,
       suggestions: aiSuggestions,
       generatedAt: new Date().toISOString(),
@@ -225,51 +373,140 @@ Exemplo: ["Sugestão 1", "Sugestão 2", "Sugestão 3", "Sugestão 4", "Sugestão
   }
 });
 
-function generateFallbackSuggestions(predictions: any, budgetAlerts: any[], businessModel: string): string[] {
-  const suggestions: string[] = [];
+function generateDetailedFallbackSuggestions(
+  predictions: any, 
+  budgetAlerts: any[], 
+  accountBalance: any,
+  campaignGoals: any[],
+  businessModel: string,
+  currency: string
+): { title: string; description: string; reason: string; priority: 'high' | 'medium' | 'low' }[] {
+  const suggestions: { title: string; description: string; reason: string; priority: 'high' | 'medium' | 'low' }[] = [];
+  const formatCurrency = (v: number) => `R$ ${v.toFixed(2)}`;
   
+  // Account balance critical
+  if (accountBalance.status === 'critical') {
+    suggestions.push({
+      title: '🚨 Recarregar saldo da conta URGENTE',
+      description: `Saldo atual: ${formatCurrency(accountBalance.balance)}. Adicione créditos para não pausar campanhas.`,
+      reason: `Apenas ${accountBalance.daysOfSpendRemaining} dias de saldo restante com gasto médio atual`,
+      priority: 'high'
+    });
+  } else if (accountBalance.status === 'warning') {
+    suggestions.push({
+      title: '⚠️ Saldo da conta baixo',
+      description: `Saldo: ${formatCurrency(accountBalance.balance)}. Programe uma recarga para os próximos dias.`,
+      reason: `${accountBalance.daysOfSpendRemaining} dias de saldo restante`,
+      priority: 'medium'
+    });
+  }
+
   // Budget alerts
   const criticalAlerts = budgetAlerts.filter(b => b.budgetStatus === 'critical');
   if (criticalAlerts.length > 0) {
-    suggestions.push(`⚠️ ${criticalAlerts.length} campanha(s) com orçamento crítico - ação urgente necessária`);
+    suggestions.push({
+      title: '⚠️ Campanhas com orçamento crítico',
+      description: `${criticalAlerts.length} campanha(s) vão ficar sem budget em breve. Revise ou aumente orçamentos.`,
+      reason: `${criticalAlerts.map(a => a.campaignName.slice(0, 20)).join(', ')} com <3 dias`,
+      priority: 'high'
+    });
+  }
+
+  // Performance based on business model
+  if (businessModel === 'ecommerce') {
+    const roas = predictions.trends.avgDailyRoas;
+    if (roas !== null) {
+      if (roas < 2) {
+        suggestions.push({
+          title: '📉 ROAS abaixo do ideal',
+          description: 'Revise públicos, criativos ou landing pages para melhorar retorno.',
+          reason: `ROAS atual: ${roas.toFixed(2)}x - Meta recomendada: 3x ou superior`,
+          priority: 'high'
+        });
+      } else if (roas > 4) {
+        suggestions.push({
+          title: '🚀 Oportunidade de escalar',
+          description: `ROAS excelente! Considere aumentar budget em 20-30% gradualmente.`,
+          reason: `ROAS de ${roas.toFixed(2)}x está muito acima da meta de 3x`,
+          priority: 'medium'
+        });
+      }
+    }
+  } else {
+    const cpl = predictions.trends.avgDailyCpl;
+    if (cpl !== null) {
+      if (cpl > 50) {
+        suggestions.push({
+          title: '💰 CPL acima do ideal',
+          description: 'Teste novos públicos ou otimize suas landing pages para conversão.',
+          reason: `CPL atual: ${formatCurrency(cpl)} - Meta recomendada: R$ 30`,
+          priority: 'high'
+        });
+      } else if (cpl < 20) {
+        suggestions.push({
+          title: '🚀 CPL excelente - escale!',
+          description: 'Oportunidade de aumentar investimento mantendo qualidade.',
+          reason: `CPL de ${formatCurrency(cpl)} está bem abaixo da meta de R$ 30`,
+          priority: 'medium'
+        });
+      }
+    }
   }
 
   // Spend trend
-  if (predictions.trends.spendTrend > 20) {
-    suggestions.push('📈 Gasto aumentando +20% - monitore o ROI de perto');
-  } else if (predictions.trends.spendTrend < -20) {
-    suggestions.push('📉 Gasto caindo -20% - verifique se campanhas estão pausadas');
+  if (predictions.trends.spendTrend > 30) {
+    suggestions.push({
+      title: '📈 Aumento significativo no gasto',
+      description: 'Monitore de perto o retorno para garantir que o investimento extra vale a pena.',
+      reason: `Gasto aumentou ${predictions.trends.spendTrend.toFixed(0)}% vs semana anterior`,
+      priority: 'medium'
+    });
+  } else if (predictions.trends.spendTrend < -30) {
+    suggestions.push({
+      title: '📉 Queda significativa no gasto',
+      description: 'Verifique se há campanhas pausadas ou problemas de entrega.',
+      reason: `Gasto caiu ${Math.abs(predictions.trends.spendTrend).toFixed(0)}% vs semana anterior`,
+      priority: 'medium'
+    });
   }
 
-  // ROAS/CPL based on business model
-  if (businessModel === 'ecommerce') {
-    const roas = predictions.trends.avgDailyRevenue / predictions.trends.avgDailySpend;
-    if (roas < 2) {
-      suggestions.push('🎯 ROAS abaixo de 2x - considere otimizar públicos ou criativos');
-    } else if (roas > 4) {
-      suggestions.push('🚀 ROAS excelente (>4x) - oportunidade de escalar investimento');
-    }
-  } else {
-    const cpl = predictions.trends.avgDailySpend / Math.max(predictions.trends.avgDailyConversions, 1);
-    if (cpl > 50) {
-      suggestions.push('💰 CPL alto - teste novos públicos ou otimize landing pages');
-    }
-  }
-
-  // Conversion prediction
+  // Low conversions
   if (predictions.next7Days.estimatedConversions < 10) {
-    suggestions.push('⚡ Poucas conversões previstas - revise estratégia de anúncios');
+    suggestions.push({
+      title: '⚡ Volume de conversões baixo',
+      description: 'Considere ampliar públicos ou testar novos canais de aquisição.',
+      reason: `Previsão: apenas ${predictions.next7Days.estimatedConversions} conversões nos próximos 7 dias`,
+      priority: 'medium'
+    });
   }
 
-  // Add generic if needed
+  // CTR analysis
+  if (predictions.trends.avgCtr !== null && predictions.trends.avgCtr < 1) {
+    suggestions.push({
+      title: '🎨 CTR abaixo da média',
+      description: 'Renove criativos e teste novos formatos para aumentar engajamento.',
+      reason: `CTR atual: ${predictions.trends.avgCtr.toFixed(2)}% - Média do mercado: 1-2%`,
+      priority: 'low'
+    });
+  }
+
+  // Generic if needed
   while (suggestions.length < 3) {
-    const genericSuggestions = [
-      '🔄 Teste A/B de criativos pode melhorar performance em até 30%',
-      '📊 Revise segmentação demográfica para otimizar entrega',
-      '🎨 Renove criativos a cada 2-3 semanas para evitar fadiga',
-      '⏰ Analise horários de pico para melhor distribuição de budget',
+    const generics = [
+      {
+        title: '🔄 Teste A/B de criativos',
+        description: 'Testes regulares podem melhorar performance em até 30%.',
+        reason: 'Prática recomendada: renove criativos a cada 2-3 semanas',
+        priority: 'low' as const
+      },
+      {
+        title: '⏰ Otimize horários de veiculação',
+        description: 'Analise quando seu público converte mais e concentre budget.',
+        reason: 'Distribuição inteligente pode reduzir CPL em até 20%',
+        priority: 'low' as const
+      },
     ];
-    suggestions.push(genericSuggestions[suggestions.length]);
+    suggestions.push(generics[suggestions.length % generics.length]);
   }
 
   return suggestions.slice(0, 5);

@@ -2,6 +2,14 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+export interface AccountBalance {
+  balance: number;
+  currency: string;
+  lastUpdated: string | null;
+  daysOfSpendRemaining: number | null;
+  status: 'healthy' | 'warning' | 'critical' | 'unknown';
+}
+
 export interface BudgetAlert {
   campaignId: string;
   campaignName: string;
@@ -11,6 +19,25 @@ export interface BudgetAlert {
   daysRemaining: number | null;
   budgetStatus: 'healthy' | 'warning' | 'critical';
   percentUsed: number | null;
+}
+
+export interface CampaignGoalProgress {
+  campaignId: string;
+  campaignName: string;
+  spend: number;
+  conversions: number;
+  conversion_value: number;
+  clicks: number;
+  impressions: number;
+  cpl: number | null;
+  roas: number | null;
+  ctr: number | null;
+  targetRoas: number;
+  targetCpl: number;
+  roasProgress: number | null;
+  cplProgress: number | null;
+  roasStatus: 'success' | 'warning' | 'critical' | 'unknown';
+  cplStatus: 'success' | 'warning' | 'critical' | 'unknown';
 }
 
 export interface Predictions {
@@ -29,7 +56,18 @@ export interface Predictions {
     avgDailySpend: number;
     avgDailyConversions: number;
     avgDailyRevenue: number;
+    avgDailyCpl: number | null;
+    avgDailyRoas: number | null;
+    avgCtr: number | null;
   };
+}
+
+export interface Totals {
+  spend30Days: number;
+  conversions30Days: number;
+  revenue30Days: number;
+  clicks30Days: number;
+  impressions30Days: number;
 }
 
 export interface DailyTrendPoint {
@@ -42,6 +80,13 @@ export interface DailyTrendPoint {
   reach: number;
 }
 
+export interface OptimizationSuggestion {
+  title: string;
+  description: string;
+  reason: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
 export interface PredictiveAnalysisData {
   project: {
     id: string;
@@ -49,11 +94,20 @@ export interface PredictiveAnalysisData {
     businessModel: string;
     currency: string;
   };
+  accountBalance: AccountBalance;
   predictions: Predictions;
+  totals: Totals;
   budgetAlerts: BudgetAlert[];
+  campaignGoalsProgress: CampaignGoalProgress[];
   dailyTrend: DailyTrendPoint[];
-  suggestions: string[];
+  suggestions: OptimizationSuggestion[];
   generatedAt: string;
+}
+
+export interface CampaignGoal {
+  campaignId: string;
+  targetRoas?: number;
+  targetCpl?: number;
 }
 
 export function usePredictiveAnalysis(projectId: string | null) {
@@ -61,7 +115,7 @@ export function usePredictiveAnalysis(projectId: string | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAnalysis = useCallback(async () => {
+  const fetchAnalysis = useCallback(async (campaignGoals?: CampaignGoal[]) => {
     if (!projectId) {
       setError('Projeto não selecionado');
       return;
@@ -72,7 +126,7 @@ export function usePredictiveAnalysis(projectId: string | null) {
 
     try {
       const { data: result, error: fnError } = await supabase.functions.invoke('predictive-analysis', {
-        body: { projectId },
+        body: { projectId, campaignGoals },
       });
 
       if (fnError) throw fnError;

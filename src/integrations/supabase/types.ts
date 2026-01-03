@@ -1129,6 +1129,8 @@ export type Database = {
       }
       projects: {
         Row: {
+          account_balance: number | null
+          account_balance_updated_at: string | null
           ad_account_id: string
           ai_briefing: string | null
           archived: boolean
@@ -1149,6 +1151,8 @@ export type Database = {
           webhook_status: string | null
         }
         Insert: {
+          account_balance?: number | null
+          account_balance_updated_at?: string | null
           ad_account_id: string
           ai_briefing?: string | null
           archived?: boolean
@@ -1169,6 +1173,8 @@ export type Database = {
           webhook_status?: string | null
         }
         Update: {
+          account_balance?: number | null
+          account_balance_updated_at?: string | null
           ad_account_id?: string
           ai_briefing?: string | null
           archived?: boolean
