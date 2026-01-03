@@ -997,6 +997,59 @@ export type Database = {
           },
         ]
       }
+      optimization_history: {
+        Row: {
+          change_percentage: number | null
+          change_type: string
+          created_at: string
+          detected_at: string
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          field_changed: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          project_id: string
+        }
+        Insert: {
+          change_percentage?: number | null
+          change_type: string
+          created_at?: string
+          detected_at?: string
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          field_changed: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          project_id: string
+        }
+        Update: {
+          change_percentage?: number | null
+          change_type?: string
+          created_at?: string
+          detected_at?: string
+          entity_id?: string
+          entity_name?: string
+          entity_type?: string
+          field_changed?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optimization_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       period_metrics: {
         Row: {
           created_at: string | null
