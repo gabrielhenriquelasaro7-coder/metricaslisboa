@@ -13,8 +13,10 @@ import {
   TrendingUp,
   PauseCircle,
   DollarSign,
-  RefreshCw
+  RefreshCw,
+  Settings
 } from 'lucide-react';
+import { AnomalyAlertConfigDialog } from './AnomalyAlertConfigDialog';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -121,6 +123,7 @@ export function AnomalyAlertsCard({ projectId }: AnomalyAlertsCardProps) {
   const [alerts, setAlerts] = useState<AnomalyAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingRead, setMarkingRead] = useState<string | null>(null);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
 
   const fetchAlerts = async () => {
     try {
@@ -226,8 +229,17 @@ export function AnomalyAlertsCard({ projectId }: AnomalyAlertsCardProps) {
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => setConfigDialogOpen(true)}
+              title="Configurar alertas"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={fetchAlerts}
               disabled={loading}
+              title="Atualizar"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
@@ -328,6 +340,12 @@ export function AnomalyAlertsCard({ projectId }: AnomalyAlertsCardProps) {
           </div>
         )}
       </CardContent>
+
+      <AnomalyAlertConfigDialog
+        open={configDialogOpen}
+        onOpenChange={setConfigDialogOpen}
+        projectId={projectId}
+      />
     </Card>
   );
 }
