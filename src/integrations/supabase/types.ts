@@ -349,8 +349,11 @@ export type Database = {
           campaign_name: string
           created_at: string
           id: string
+          max_cpc: number | null
           project_id: string
           target_cpl: number | null
+          target_ctr: number | null
+          target_leads: number | null
           target_roas: number | null
           updated_at: string
         }
@@ -359,8 +362,11 @@ export type Database = {
           campaign_name: string
           created_at?: string
           id?: string
+          max_cpc?: number | null
           project_id: string
           target_cpl?: number | null
+          target_ctr?: number | null
+          target_leads?: number | null
           target_roas?: number | null
           updated_at?: string
         }
@@ -369,8 +375,11 @@ export type Database = {
           campaign_name?: string
           created_at?: string
           id?: string
+          max_cpc?: number | null
           project_id?: string
           target_cpl?: number | null
+          target_ctr?: number | null
+          target_leads?: number | null
           target_roas?: number | null
           updated_at?: string
         }
