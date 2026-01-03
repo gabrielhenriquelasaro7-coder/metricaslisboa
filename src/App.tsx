@@ -29,6 +29,7 @@ import WhatsApp from "./pages/WhatsApp";
 import ChangePassword from "./pages/ChangePassword";
 import GuestOnboarding from "./pages/GuestOnboarding";
 import GoogleCampaigns from "./pages/GoogleCampaigns";
+import PredictiveAnalysis from "./pages/PredictiveAnalysis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +69,7 @@ function AnimatedRoutes() {
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/guest-onboarding" element={<GuestOnboarding />} />
           <Route path="/google-campaigns" element={<GoogleCampaigns />} />
+          <Route path="/predictive-analysis" element={<PredictiveAnalysis />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </motion.div>
