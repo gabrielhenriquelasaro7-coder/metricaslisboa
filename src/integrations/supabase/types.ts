@@ -343,6 +343,47 @@ export type Database = {
           },
         ]
       }
+      campaign_goals: {
+        Row: {
+          campaign_id: string
+          campaign_name: string
+          created_at: string
+          id: string
+          project_id: string
+          target_cpl: number | null
+          target_roas: number | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          campaign_name: string
+          created_at?: string
+          id?: string
+          project_id: string
+          target_cpl?: number | null
+          target_roas?: number | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          campaign_name?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+          target_cpl?: number | null
+          target_roas?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_goals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           clicks: number | null

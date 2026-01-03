@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { usePredictiveAnalysis, CampaignGoal, OptimizationSuggestion } from '@/hooks/usePredictiveAnalysis';
+import { useCampaignGoals } from '@/hooks/useCampaignGoals';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { generatePredictiveReportPDF } from '@/components/pdf/PredictiveReportPDF';
+import { CampaignGoalsConfig } from '@/components/predictive/CampaignGoalsConfig';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -28,7 +30,8 @@ import {
   FileText,
   CheckCircle2,
   AlertCircle,
-  XCircle
+  XCircle,
+  HelpCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -51,13 +54,27 @@ import {
 export default function PredictiveAnalysis() {
   const projectId = localStorage.getItem('selectedProjectId');
   const { data, loading, error, fetchAnalysis } = usePredictiveAnalysis(projectId);
-  const [campaignGoals, setCampaignGoals] = useState<CampaignGoal[]>([]);
+  const { goals } = useCampaignGoals(projectId);
+
+  // Build campaign goals from saved data
+  const campaignGoals: CampaignGoal[] = useMemo(() => {
+    return goals.map(g => ({
+      campaignId: g.campaign_id,
+      targetCpl: g.target_cpl || undefined,
+      targetRoas: g.target_roas || undefined,
+    }));
+  }, [goals]);
 
   useEffect(() => {
     if (projectId) {
       fetchAnalysis(campaignGoals);
     }
-  }, [projectId]);
+  }, [projectId, goals.length]);
+
+  const handleGoalsSaved = () => {
+    // Refetch analysis with updated goals
+    fetchAnalysis(campaignGoals);
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -90,6 +107,16 @@ export default function PredictiveAnalysis() {
       case 'high': return <Badge variant="destructive" className="text-xs">Alta</Badge>;
       case 'medium': return <Badge variant="secondary" className="text-xs">Média</Badge>;
       case 'low': return <Badge variant="outline" className="text-xs">Baixa</Badge>;
+    }
+  };
+
+  const getBusinessModelLabel = (model: string) => {
+    switch (model) {
+      case 'inside_sales': return 'Inside Sales';
+      case 'ecommerce': return 'E-commerce';
+      case 'pdv': return 'PDV';
+      case 'custom': return 'Personalizado';
+      default: return model;
     }
   };
 
@@ -134,7 +161,7 @@ export default function PredictiveAnalysis() {
   return (
     <DashboardLayout>
       <TooltipProvider>
-        <div className="space-y-8 px-1">
+        <div className="space-y-8 p-2">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -143,10 +170,22 @@ export default function PredictiveAnalysis() {
                 Análise Preditiva
               </h1>
               <p className="text-muted-foreground mt-1">
-                Previsões de gasto, conversões, metas e alertas de orçamento
+                Previsões baseadas nos dados dos últimos 30 dias
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {data && (
+                <CampaignGoalsConfig
+                  projectId={projectId}
+                  campaigns={data.campaignGoalsProgress.map(c => ({
+                    campaignId: c.campaignId,
+                    campaignName: c.campaignName,
+                    spend: c.spend,
+                  }))}
+                  businessModel={data.project.businessModel}
+                  onGoalsSaved={handleGoalsSaved}
+                />
+              )}
               <Button 
                 variant="outline"
                 onClick={() => {
@@ -171,6 +210,32 @@ export default function PredictiveAnalysis() {
               </Button>
             </div>
           </div>
+
+          {/* Explanation Card */}
+          <Card className="bg-gradient-to-r from-primary/5 to-transparent border-primary/20">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <HelpCircle className="w-5 h-5 text-primary" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-semibold">O que é a Análise Preditiva?</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Esta ferramenta analisa os dados de performance dos últimos 30 dias para projetar 
+                    resultados futuros. As previsões de gasto, {isInsideSales ? 'leads' : 'conversões'}{' '}
+                    {isEcommerce ? 'e receita' : ''} são calculadas com base na média diária recente. 
+                    Use as metas personalizadas para acompanhar o progresso de cada campanha em relação 
+                    aos seus objetivos de {isInsideSales ? 'CPL' : isEcommerce ? 'ROAS' : 'CPL e ROAS'}.
+                  </p>
+                  {data && (
+                    <Badge variant="outline" className="mt-2">
+                      Modelo: {getBusinessModelLabel(data.project.businessModel)}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {loading && !data && (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -260,13 +325,13 @@ export default function PredictiveAnalysis() {
                       {data.accountBalance.status === 'critical' && !data.accountBalance.autoReloadEnabled && (
                         <p className="text-sm text-destructive font-medium flex items-center gap-1">
                           <AlertTriangle className="w-4 h-4" />
-                          Recarregue sua conta urgentemente!
+                          Recarregue urgentemente!
                         </p>
                       )}
                       {data.accountBalance.status === 'critical' && data.accountBalance.autoReloadEnabled && (
                         <p className="text-sm text-metric-warning font-medium flex items-center gap-1">
                           <Info className="w-4 h-4" />
-                          Recarga automática será acionada em breve
+                          Aguardando recarga automática
                         </p>
                       )}
                     </div>
@@ -274,8 +339,8 @@ export default function PredictiveAnalysis() {
                 </CardContent>
               </Card>
 
-              {/* Prediction Cards - With proper spacing and margins */}
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 p-1">
+              {/* Prediction Cards */}
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 {/* 7-Day Spend Prediction */}
                 <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2">
@@ -309,18 +374,18 @@ export default function PredictiveAnalysis() {
                   </CardContent>
                 </Card>
 
-                {/* 7-Day Conversions Prediction */}
+                {/* 7-Day Conversions/Leads Prediction */}
                 <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2">
                     <CardDescription className="flex items-center gap-2">
                       <Target className="w-4 h-4" />
-                      Conversões Estimadas (7d)
+                      {isInsideSales ? 'Leads Estimados (7d)' : 'Conversões Estimadas (7d)'}
                       <Tooltip>
                         <TooltipTrigger>
                           <Info className="w-3 h-3 text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Projeção de conversões para os próximos 7 dias</p>
+                          <p>Projeção para os próximos 7 dias</p>
                         </TooltipContent>
                       </Tooltip>
                     </CardDescription>
@@ -330,7 +395,7 @@ export default function PredictiveAnalysis() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-sm text-muted-foreground">
-                      ~{formatNumber(data.predictions.trends.avgDailyConversions)} conversões/dia
+                      ~{formatNumber(data.predictions.trends.avgDailyConversions)} {isInsideSales ? 'leads' : 'conversões'}/dia
                     </div>
                   </CardContent>
                 </Card>
@@ -457,25 +522,25 @@ export default function PredictiveAnalysis() {
                     "grid gap-6",
                     isInsideSales ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-5"
                   )}>
-                    <div>
+                    <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Gasto Total</p>
                       <p className="text-xl font-semibold">{formatCurrency(data.totals.spend30Days)}</p>
                     </div>
-                    <div>
+                    <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">{isInsideSales ? 'Leads' : 'Conversões'}</p>
                       <p className="text-xl font-semibold">{formatNumber(data.totals.conversions30Days)}</p>
                     </div>
                     {(isEcommerce || isCustom) && (
-                      <div>
+                      <div className="space-y-1">
                         <p className="text-sm text-muted-foreground">Receita</p>
                         <p className="text-xl font-semibold">{formatCurrency(data.totals.revenue30Days)}</p>
                       </div>
                     )}
-                    <div>
+                    <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Cliques</p>
                       <p className="text-xl font-semibold">{formatNumber(data.totals.clicks30Days)}</p>
                     </div>
-                    <div>
+                    <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Impressões</p>
                       <p className="text-xl font-semibold">{formatNumber(data.totals.impressions30Days)}</p>
                     </div>
@@ -493,7 +558,7 @@ export default function PredictiveAnalysis() {
                       Tendência dos Últimos 30 Dias
                     </CardTitle>
                     <CardDescription>
-                      Gasto diário e conversões ao longo do tempo
+                      Gasto diário e {isInsideSales ? 'leads' : 'conversões'} ao longo do tempo
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -534,7 +599,7 @@ export default function PredictiveAnalysis() {
                           <Bar
                             yAxisId="right"
                             dataKey="conversions"
-                            name="Conversões"
+                            name={isInsideSales ? "Leads" : "Conversões"}
                             fill="hsl(var(--metric-positive))"
                             radius={[4, 4, 0, 0]}
                           />
@@ -771,7 +836,7 @@ export default function PredictiveAnalysis() {
               </Card>
 
               {/* Last Updated */}
-              <div className="text-center text-sm text-muted-foreground">
+              <div className="text-center text-sm text-muted-foreground pb-4">
                 Última atualização: {new Date(data.generatedAt).toLocaleString('pt-BR')}
               </div>
             </>
