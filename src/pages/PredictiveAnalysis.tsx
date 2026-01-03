@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { generatePredictiveReportPDF } from '@/components/pdf/PredictiveReportPDF';
 import { CampaignGoalsConfig } from '@/components/predictive/CampaignGoalsConfig';
+import { ChartCustomizationDialog } from '@/components/dashboard/ChartCustomizationDialog';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -31,7 +32,8 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
-  HelpCircle
+  HelpCircle,
+  Settings2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -49,12 +51,35 @@ import {
   Line,
   ComposedChart,
   Bar,
+  Legend,
 } from 'recharts';
+
+// Default chart colors
+const DEFAULT_COLORS = {
+  spend: 'hsl(220, 70%, 50%)',
+  conversions: 'hsl(142, 76%, 36%)',
+  projectedSpend: 'hsl(280, 70%, 50%)',
+  projectedConversions: 'hsl(30, 70%, 50%)',
+};
 
 export default function PredictiveAnalysis() {
   const projectId = localStorage.getItem('selectedProjectId');
   const { data, loading, error, fetchAnalysis } = usePredictiveAnalysis(projectId);
   const { goals } = useCampaignGoals(projectId);
+
+  // Chart customization state
+  const [trendChartCustomization, setTrendChartCustomization] = useState({
+    name: 'Tendência dos Últimos 30 Dias',
+    primaryColor: DEFAULT_COLORS.spend,
+    secondaryColor: DEFAULT_COLORS.conversions,
+  });
+  const [projectionChartCustomization, setProjectionChartCustomization] = useState({
+    name: 'Projeção Futura',
+    primaryColor: DEFAULT_COLORS.projectedSpend,
+    secondaryColor: DEFAULT_COLORS.projectedConversions,
+  });
+  const [trendChartDialogOpen, setTrendChartDialogOpen] = useState(false);
+  const [projectionChartDialogOpen, setProjectionChartDialogOpen] = useState(false);
 
   // Build campaign goals from saved data
   const campaignGoals: CampaignGoal[] = useMemo(() => {
@@ -575,16 +600,44 @@ export default function PredictiveAnalysis() {
 
               {/* Charts Row - Trend Chart Full Width */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5" />
-                    Tendência dos Últimos 30 Dias
-                  </CardTitle>
-                  <CardDescription>
-                    Gasto diário e {showCPL ? 'leads' : 'conversões'} ao longo do tempo
-                  </CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5" />
+                      {trendChartCustomization.name}
+                    </CardTitle>
+                    <CardDescription>
+                      Gasto diário e {showCPL ? 'leads' : 'conversões'} ao longo do tempo
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setTrendChartDialogOpen(true)}
+                    className="shrink-0"
+                    title="Personalizar gráfico"
+                  >
+                    <Settings2 className="w-4 h-4" />
+                  </Button>
                 </CardHeader>
                 <CardContent>
+                  {/* Custom Legend */}
+                  <div className="flex items-center justify-center gap-6 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-4 h-4 rounded" 
+                        style={{ backgroundColor: trendChartCustomization.primaryColor }} 
+                      />
+                      <span className="text-sm font-medium">Gasto (R$)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-4 h-4 rounded" 
+                        style={{ backgroundColor: trendChartCustomization.secondaryColor }} 
+                      />
+                      <span className="text-sm font-medium">{showCPL ? 'Leads' : 'Conversões'}</span>
+                    </div>
+                  </div>
                   <ChartContainer config={chartConfig} className="h-[350px] w-full !aspect-auto">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={chartData}>
@@ -627,16 +680,16 @@ export default function PredictiveAnalysis() {
                           yAxisId="left"
                           type="monotone"
                           dataKey="spend"
-                          name="Gasto"
-                          stroke="hsl(var(--primary))"
-                          fill="hsl(var(--primary))"
+                          name="Gasto (R$)"
+                          stroke={trendChartCustomization.primaryColor}
+                          fill={trendChartCustomization.primaryColor}
                           fillOpacity={0.2}
                         />
                         <Bar
                           yAxisId="right"
                           dataKey="conversions"
                           name={showCPL ? "Leads" : "Conversões"}
-                          fill="hsl(var(--metric-positive))"
+                          fill={trendChartCustomization.secondaryColor}
                           radius={[4, 4, 0, 0]}
                         />
                       </ComposedChart>
@@ -647,14 +700,25 @@ export default function PredictiveAnalysis() {
 
               {/* Future Projection Chart */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-primary" />
-                    Projeção Futura (7 e 30 dias)
-                  </CardTitle>
-                  <CardDescription>
-                    Estimativa de gasto e {showCPL ? 'leads' : 'conversões'} com base nos dados históricos
-                  </CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-primary" />
+                      {projectionChartCustomization.name}
+                    </CardTitle>
+                    <CardDescription>
+                      Estimativa de gasto e {showCPL ? 'leads' : 'conversões'} com base nos dados históricos
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setProjectionChartDialogOpen(true)}
+                    className="shrink-0"
+                    title="Personalizar gráfico"
+                  >
+                    <Settings2 className="w-4 h-4" />
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   {(() => {
@@ -688,117 +752,136 @@ export default function PredictiveAnalysis() {
                       });
                     }
                     
-                    // Calculate max values for proper domain
-                    const maxSpend = Math.max(
-                      ...projectionData.map(d => d.spend || 0),
-                      ...projectionData.map(d => d.projectedSpend || 0)
-                    );
-                    const maxConversions = Math.max(
-                      ...projectionData.map(d => d.conversions || 0),
-                      ...projectionData.map(d => d.projectedConversions || 0)
-                    );
-                    
                     const projectionConfig = {
-                      spend: { label: 'Gasto Real', color: 'hsl(var(--primary))' },
-                      projectedSpend: { label: 'Gasto Projetado', color: 'hsl(var(--primary))' },
-                      conversions: { label: showCPL ? 'Leads Reais' : 'Conversões Reais', color: 'hsl(var(--metric-positive))' },
-                      projectedConversions: { label: showCPL ? 'Leads Projetados' : 'Conversões Projetadas', color: 'hsl(var(--metric-positive))' },
+                      spend: { label: 'Gasto Real', color: projectionChartCustomization.primaryColor },
+                      projectedSpend: { label: 'Gasto Projetado', color: projectionChartCustomization.primaryColor },
+                      conversions: { label: showCPL ? 'Leads Reais' : 'Conversões Reais', color: projectionChartCustomization.secondaryColor },
+                      projectedConversions: { label: showCPL ? 'Leads Projetados' : 'Conversões Projetadas', color: projectionChartCustomization.secondaryColor },
                     };
                     
                     return (
-                      <ChartContainer config={projectionConfig} className="h-[300px] w-full !aspect-auto">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={projectionData}>
-                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                            <XAxis 
-                              dataKey="date" 
-                              tick={{ fontSize: 11 }} 
-                              tickLine={false}
-                              axisLine={false}
+                      <>
+                        {/* Custom Legend for Projection Chart */}
+                        <div className="flex flex-wrap items-center justify-center gap-4 mb-4">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-4 h-4 rounded" 
+                              style={{ backgroundColor: projectionChartCustomization.primaryColor }} 
                             />
-                            <YAxis 
-                              yAxisId="left"
-                              tick={{ fontSize: 11 }} 
-                              tickLine={false}
-                              axisLine={false}
-                              width={70}
-                              domain={[0, 'auto']}
-                              tickCount={6}
-                              tickFormatter={(v) => {
-                                if (v >= 1000) return `R$${(v/1000).toFixed(1)}k`;
-                                return `R$${Math.round(v)}`;
-                              }}
-                              label={{ value: 'Gasto (R$)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
+                            <span className="text-sm font-medium">Gasto Real</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-4 h-1 rounded" 
+                              style={{ 
+                                backgroundColor: projectionChartCustomization.primaryColor,
+                                backgroundImage: `repeating-linear-gradient(90deg, ${projectionChartCustomization.primaryColor}, ${projectionChartCustomization.primaryColor} 4px, transparent 4px, transparent 8px)`
+                              }} 
                             />
-                            <YAxis 
-                              yAxisId="right"
-                              orientation="right"
-                              tick={{ fontSize: 11 }} 
-                              tickLine={false}
-                              axisLine={false}
-                              width={50}
-                              allowDecimals={false}
-                              domain={[0, 'auto']}
-                              tickCount={6}
-                              label={{ value: showCPL ? 'Leads' : 'Conversões', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
+                            <span className="text-sm font-medium">Gasto Projetado</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-4 h-4 rounded" 
+                              style={{ backgroundColor: projectionChartCustomization.secondaryColor }} 
                             />
-                            <ChartTooltip content={<ChartTooltipContent />} />
-                            {/* Historical Data - Solid Lines */}
-                            <Area
-                              yAxisId="left"
-                              type="monotone"
-                              dataKey="spend"
-                              name="Gasto Real"
-                              stroke="hsl(var(--primary))"
-                              fill="hsl(var(--primary))"
-                              fillOpacity={0.2}
-                              connectNulls={false}
+                            <span className="text-sm font-medium">{showCPL ? 'Leads Reais' : 'Conversões Reais'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-4 h-1 rounded" 
+                              style={{ 
+                                backgroundColor: projectionChartCustomization.secondaryColor,
+                                backgroundImage: `repeating-linear-gradient(90deg, ${projectionChartCustomization.secondaryColor}, ${projectionChartCustomization.secondaryColor} 4px, transparent 4px, transparent 8px)`
+                              }} 
                             />
-                            <Bar
-                              yAxisId="right"
-                              dataKey="conversions"
-                              name={showCPL ? "Leads Reais" : "Conversões Reais"}
-                              fill="hsl(var(--metric-positive))"
-                              radius={[4, 4, 0, 0]}
-                            />
-                            {/* Projected Data - Dashed Lines */}
-                            <Line
-                              yAxisId="left"
-                              type="monotone"
-                              dataKey="projectedSpend"
-                              name="Gasto Projetado"
-                              stroke="hsl(var(--primary))"
-                              strokeDasharray="8 4"
-                              strokeWidth={3}
-                              dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
-                              connectNulls={false}
-                            />
-                            <Line
-                              yAxisId="right"
-                              type="monotone"
-                              dataKey="projectedConversions"
-                              name={showCPL ? "Leads Projetados" : "Conversões Projetadas"}
-                              stroke="hsl(var(--metric-positive))"
-                              strokeDasharray="8 4"
-                              strokeWidth={3}
-                              dot={{ fill: 'hsl(var(--metric-positive))', strokeWidth: 2, r: 4 }}
-                              connectNulls={false}
-                            />
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      </ChartContainer>
+                            <span className="text-sm font-medium">{showCPL ? 'Leads Projetados' : 'Conversões Projetadas'}</span>
+                          </div>
+                        </div>
+                        <ChartContainer config={projectionConfig} className="h-[300px] w-full !aspect-auto">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={projectionData}>
+                              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                              <XAxis 
+                                dataKey="date" 
+                                tick={{ fontSize: 11 }} 
+                                tickLine={false}
+                                axisLine={false}
+                              />
+                              <YAxis 
+                                yAxisId="left"
+                                tick={{ fontSize: 11 }} 
+                                tickLine={false}
+                                axisLine={false}
+                                width={70}
+                                domain={[0, 'auto']}
+                                tickCount={6}
+                                tickFormatter={(v) => {
+                                  if (v >= 1000) return `R$${(v/1000).toFixed(1)}k`;
+                                  return `R$${Math.round(v)}`;
+                                }}
+                                label={{ value: 'Gasto (R$)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
+                              />
+                              <YAxis 
+                                yAxisId="right"
+                                orientation="right"
+                                tick={{ fontSize: 11 }} 
+                                tickLine={false}
+                                axisLine={false}
+                                width={50}
+                                allowDecimals={false}
+                                domain={[0, 'auto']}
+                                tickCount={6}
+                                label={{ value: showCPL ? 'Leads' : 'Conversões', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
+                              />
+                              <ChartTooltip content={<ChartTooltipContent />} />
+                              {/* Historical Data - Solid Lines */}
+                              <Area
+                                yAxisId="left"
+                                type="monotone"
+                                dataKey="spend"
+                                name="Gasto Real"
+                                stroke={projectionChartCustomization.primaryColor}
+                                fill={projectionChartCustomization.primaryColor}
+                                fillOpacity={0.2}
+                                connectNulls={false}
+                              />
+                              <Bar
+                                yAxisId="right"
+                                dataKey="conversions"
+                                name={showCPL ? "Leads Reais" : "Conversões Reais"}
+                                fill={projectionChartCustomization.secondaryColor}
+                                radius={[4, 4, 0, 0]}
+                              />
+                              {/* Projected Data - Dashed Lines */}
+                              <Line
+                                yAxisId="left"
+                                type="monotone"
+                                dataKey="projectedSpend"
+                                name="Gasto Projetado"
+                                stroke={projectionChartCustomization.primaryColor}
+                                strokeDasharray="8 4"
+                                strokeWidth={3}
+                                dot={{ fill: projectionChartCustomization.primaryColor, strokeWidth: 2, r: 4 }}
+                                connectNulls={false}
+                              />
+                              <Line
+                                yAxisId="right"
+                                type="monotone"
+                                dataKey="projectedConversions"
+                                name={showCPL ? "Leads Projetados" : "Conversões Projetadas"}
+                                stroke={projectionChartCustomization.secondaryColor}
+                                strokeDasharray="8 4"
+                                strokeWidth={3}
+                                dot={{ fill: projectionChartCustomization.secondaryColor, strokeWidth: 2, r: 4 }}
+                                connectNulls={false}
+                              />
+                            </ComposedChart>
+                          </ResponsiveContainer>
+                        </ChartContainer>
+                      </>
                     );
                   })()}
-                  <div className="flex items-center justify-center gap-6 mt-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-0.5 bg-primary" />
-                      <span>Dados históricos</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-0.5 bg-primary border-dashed" style={{ borderTop: '3px dashed hsl(var(--primary))' }} />
-                      <span>Projeção futura</span>
-                    </div>
-                  </div>
                   <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-border">
                     <div className="text-center p-4 rounded-lg bg-muted/30">
                       <p className="text-sm text-muted-foreground">Projeção 7 Dias</p>
@@ -813,6 +896,30 @@ export default function PredictiveAnalysis() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Chart Customization Dialogs */}
+              <ChartCustomizationDialog
+                open={trendChartDialogOpen}
+                onOpenChange={setTrendChartDialogOpen}
+                chartName={trendChartCustomization.name}
+                primaryColor={trendChartCustomization.primaryColor}
+                secondaryColor={trendChartCustomization.secondaryColor}
+                onSave={(name, primaryColor, secondaryColor) => {
+                  setTrendChartCustomization({ name, primaryColor, secondaryColor });
+                  toast.success('Gráfico personalizado com sucesso!');
+                }}
+              />
+              <ChartCustomizationDialog
+                open={projectionChartDialogOpen}
+                onOpenChange={setProjectionChartDialogOpen}
+                chartName={projectionChartCustomization.name}
+                primaryColor={projectionChartCustomization.primaryColor}
+                secondaryColor={projectionChartCustomization.secondaryColor}
+                onSave={(name, primaryColor, secondaryColor) => {
+                  setProjectionChartCustomization({ name, primaryColor, secondaryColor });
+                  toast.success('Gráfico personalizado com sucesso!');
+                }}
+              />
 
               {/* Campaign Goals Progress - Adapted by business model */}
               {data.campaignGoalsProgress.length > 0 && (
