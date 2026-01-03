@@ -48,6 +48,9 @@ serve(async (req) => {
       lastUpdated: project.account_balance_updated_at,
       daysOfSpendRemaining: null as number | null,
       status: 'unknown' as 'healthy' | 'warning' | 'critical' | 'unknown',
+      fundingType: null as string | null,
+      autoReloadEnabled: false,
+      autoReloadThreshold: null as number | null,
     };
 
     if (metaAccessToken && project.ad_account_id) {
@@ -56,15 +59,43 @@ serve(async (req) => {
           ? project.ad_account_id 
           : `act_${project.ad_account_id}`;
         
+        // Fetch account info including funding source details
         const metaResponse = await fetch(
-          `https://graph.facebook.com/v21.0/${adAccountId}?fields=balance,amount_spent,currency,funding_source_details&access_token=${metaAccessToken}`
+          `https://graph.facebook.com/v21.0/${adAccountId}?fields=balance,amount_spent,currency,funding_source_details,account_status,spend_cap&access_token=${metaAccessToken}`
         );
         
         if (metaResponse.ok) {
           const metaData = await metaResponse.json();
+          console.log('[PREDICTIVE] Meta account data:', JSON.stringify(metaData));
           
-          // Balance is returned in cents, convert to currency
-          const balanceValue = parseFloat(metaData.balance || '0') / 100;
+          // Balance is returned in cents for most currencies, convert to currency
+          // Some accounts return as string, some as number
+          let balanceValue = 0;
+          if (metaData.balance !== undefined && metaData.balance !== null) {
+            const rawBalance = typeof metaData.balance === 'string' 
+              ? parseFloat(metaData.balance) 
+              : metaData.balance;
+            // Meta returns balance in cents (divide by 100)
+            balanceValue = rawBalance / 100;
+          }
+          
+          // Check for funding source details (for prepaid/PIX accounts)
+          let fundingType = null;
+          let autoReloadEnabled = false;
+          let autoReloadThreshold = null;
+          
+          if (metaData.funding_source_details) {
+            const fsd = metaData.funding_source_details;
+            fundingType = fsd.type || null;
+            
+            // Check if auto-reload is configured
+            if (fsd.coupon && fsd.coupon.auto_reload_enabled) {
+              autoReloadEnabled = true;
+              autoReloadThreshold = fsd.coupon.auto_reload_threshold_amount 
+                ? parseFloat(fsd.coupon.auto_reload_threshold_amount) / 100 
+                : null;
+            }
+          }
           
           accountBalance = {
             balance: balanceValue,
@@ -72,6 +103,9 @@ serve(async (req) => {
             lastUpdated: new Date().toISOString(),
             daysOfSpendRemaining: null,
             status: 'unknown',
+            fundingType,
+            autoReloadEnabled,
+            autoReloadThreshold,
           };
 
           // Update project with new balance
@@ -82,9 +116,12 @@ serve(async (req) => {
               account_balance_updated_at: new Date().toISOString()
             })
             .eq('id', projectId);
+        } else {
+          const errorText = await metaResponse.text();
+          console.log('[PREDICTIVE] Meta API error:', metaResponse.status, errorText);
         }
       } catch (metaError) {
-        console.log('Could not fetch Meta account balance:', metaError);
+        console.log('[PREDICTIVE] Could not fetch Meta account balance:', metaError);
       }
     }
 

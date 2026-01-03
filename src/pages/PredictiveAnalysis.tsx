@@ -221,12 +221,25 @@ export default function PredictiveAnalysis() {
                         )}>
                           {formatCurrency(data.accountBalance.balance)}
                         </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {data.accountBalance.lastUpdated 
-                            ? `Atualizado: ${new Date(data.accountBalance.lastUpdated).toLocaleString('pt-BR')}`
-                            : 'Saldo não disponível via API'
-                          }
-                        </p>
+                        <div className="flex flex-col gap-0.5 mt-1">
+                          <p className="text-sm text-muted-foreground">
+                            {data.accountBalance.lastUpdated 
+                              ? `Atualizado: ${new Date(data.accountBalance.lastUpdated).toLocaleString('pt-BR')}`
+                              : 'Saldo não disponível via API'
+                            }
+                          </p>
+                          {data.accountBalance.autoReloadEnabled && (
+                            <p className="text-xs text-metric-positive flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Recarga automática ativa
+                              {data.accountBalance.autoReloadThreshold && (
+                                <span className="text-muted-foreground">
+                                  (quando atingir {formatCurrency(data.accountBalance.autoReloadThreshold)})
+                                </span>
+                              )}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
@@ -244,10 +257,16 @@ export default function PredictiveAnalysis() {
                           </p>
                         </>
                       )}
-                      {data.accountBalance.status === 'critical' && (
+                      {data.accountBalance.status === 'critical' && !data.accountBalance.autoReloadEnabled && (
                         <p className="text-sm text-destructive font-medium flex items-center gap-1">
                           <AlertTriangle className="w-4 h-4" />
                           Recarregue sua conta urgentemente!
+                        </p>
+                      )}
+                      {data.accountBalance.status === 'critical' && data.accountBalance.autoReloadEnabled && (
+                        <p className="text-sm text-metric-warning font-medium flex items-center gap-1">
+                          <Info className="w-4 h-4" />
+                          Recarga automática será acionada em breve
                         </p>
                       )}
                     </div>
@@ -371,52 +390,87 @@ export default function PredictiveAnalysis() {
                   </Card>
                 )}
 
-                {/* 30-Day Revenue Prediction */}
-                <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4" />
-                      Receita Estimada (30d)
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="w-3 h-3 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Projeção de receita para os próximos 30 dias</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </CardDescription>
-                    <CardTitle className="text-2xl">
-                      {formatCurrency(data.predictions.next30Days.estimatedRevenue)}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm text-muted-foreground">
-                      Gasto previsto: {formatCurrency(data.predictions.next30Days.estimatedSpend)}
-                    </div>
-                  </CardContent>
-                </Card>
+                {/* 30-Day Revenue Prediction - Only for Ecommerce/Custom */}
+                {(isEcommerce || isCustom) && (
+                  <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4" />
+                        Receita Estimada (30d)
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Info className="w-3 h-3 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Projeção de receita para os próximos 30 dias</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </CardDescription>
+                      <CardTitle className="text-2xl">
+                        {formatCurrency(data.predictions.next30Days.estimatedRevenue)}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-sm text-muted-foreground">
+                        Gasto previsto: {formatCurrency(data.predictions.next30Days.estimatedSpend)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* 30-Day Leads Prediction - Only for Inside Sales */}
+                {isInsideSales && (
+                  <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4" />
+                        Leads Estimados (30d)
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Info className="w-3 h-3 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Projeção de leads para os próximos 30 dias</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </CardDescription>
+                      <CardTitle className="text-2xl">
+                        {formatNumber(data.predictions.next30Days.estimatedConversions)}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-sm text-muted-foreground">
+                        Gasto previsto: {formatCurrency(data.predictions.next30Days.estimatedSpend)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
-              {/* Totals Summary */}
+              {/* Totals Summary - Adapted by business model */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Resumo dos Últimos 30 Dias</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+                  <div className={cn(
+                    "grid gap-6",
+                    isInsideSales ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-5"
+                  )}>
                     <div>
                       <p className="text-sm text-muted-foreground">Gasto Total</p>
                       <p className="text-xl font-semibold">{formatCurrency(data.totals.spend30Days)}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Conversões</p>
+                      <p className="text-sm text-muted-foreground">{isInsideSales ? 'Leads' : 'Conversões'}</p>
                       <p className="text-xl font-semibold">{formatNumber(data.totals.conversions30Days)}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Receita</p>
-                      <p className="text-xl font-semibold">{formatCurrency(data.totals.revenue30Days)}</p>
-                    </div>
+                    {(isEcommerce || isCustom) && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Receita</p>
+                        <p className="text-xl font-semibold">{formatCurrency(data.totals.revenue30Days)}</p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm text-muted-foreground">Cliques</p>
                       <p className="text-xl font-semibold">{formatNumber(data.totals.clicks30Days)}</p>

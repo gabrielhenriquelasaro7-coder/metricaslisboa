@@ -8,6 +8,9 @@ export interface AccountBalance {
   lastUpdated: string | null;
   daysOfSpendRemaining: number | null;
   status: 'healthy' | 'warning' | 'critical' | 'unknown';
+  fundingType?: string | null;
+  autoReloadEnabled?: boolean;
+  autoReloadThreshold?: number | null;
 }
 
 export interface BudgetAlert {

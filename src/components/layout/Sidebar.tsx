@@ -83,10 +83,11 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const { triggerTour } = useTour();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
-  const selectedProject = useMemo(() => 
-    projects.find(p => p.id === selectedProjectId) || projects[0],
-    [projects, selectedProjectId]
-  );
+  // Only return a project if explicitly selected - never auto-select
+  const selectedProject = useMemo(() => {
+    if (!selectedProjectId) return null;
+    return projects.find(p => p.id === selectedProjectId) || null;
+  }, [projects, selectedProjectId]);
 
   // Use lightweight hook for sidebar campaigns instead of full useMetaAdsData
   const { campaigns: sortedCampaigns, getCampaignAdSets, loading: campaignsLoading } = useSidebarCampaigns(selectedProject?.id || null);
