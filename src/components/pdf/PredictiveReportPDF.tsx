@@ -143,7 +143,7 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
   addSubtitle('Proximos 7 Dias');
   addKeyValue('Gasto Estimado', formatCurrency(data.predictions.next7Days.estimatedSpend));
   addKeyValue(showCPL ? 'Leads Estimados' : 'Conversoes Estimadas', formatNumber(data.predictions.next7Days.estimatedConversions));
-  if (showROAS) {
+  if (showROAS && !showCPL) {
     addKeyValue('Receita Estimada', formatCurrency(data.predictions.next7Days.estimatedRevenue));
   }
 
@@ -151,7 +151,7 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
   addSubtitle('Proximos 30 Dias');
   addKeyValue('Gasto Estimado', formatCurrency(data.predictions.next30Days.estimatedSpend));
   addKeyValue(showCPL ? 'Leads Estimados' : 'Conversoes Estimadas', formatNumber(data.predictions.next30Days.estimatedConversions));
-  if (showROAS) {
+  if (showROAS && !showCPL) {
     addKeyValue('Receita Estimada', formatCurrency(data.predictions.next30Days.estimatedRevenue));
   }
 
@@ -163,7 +163,7 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
   if (showCPL && data.predictions.trends.avgDailyCpl !== null) {
     addKeyValue('CPL Medio', formatCurrency(data.predictions.trends.avgDailyCpl));
   }
-  if (showROAS && data.predictions.trends.avgDailyRoas !== null) {
+  if (showROAS && !showCPL && data.predictions.trends.avgDailyRoas !== null) {
     addKeyValue('ROAS Medio', `${data.predictions.trends.avgDailyRoas.toFixed(2)}x`);
   }
   if (data.predictions.trends.avgCtr !== null) {
@@ -177,7 +177,7 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
   addSectionTitle('Resumo dos Ultimos 30 Dias');
   addKeyValue('Total Gasto', formatCurrency(data.totals.spend30Days));
   addKeyValue(showCPL ? 'Total Leads' : 'Total Conversoes', formatNumber(data.totals.conversions30Days));
-  if (showROAS) {
+  if (showROAS && !showCPL) {
     addKeyValue('Total Receita', formatCurrency(data.totals.revenue30Days));
   }
   addKeyValue('Total Cliques', formatNumber(data.totals.clicks30Days));
@@ -206,7 +206,7 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
       addKeyValue('   Investido', formatCurrency(campaign.spend));
       addKeyValue(showCPL ? '   Leads' : '   Conversoes', formatNumber(campaign.conversions));
       
-      if (showROAS && campaign.roas !== null) {
+      if (showROAS && !showCPL && campaign.roas !== null) {
         const roasStatus = campaign.roasStatus === 'success' ? ' (OK)' : 
                           campaign.roasStatus === 'warning' ? ' (!)' : ' (X)';
         addKeyValue('   ROAS', `${campaign.roas.toFixed(2)}x (meta: ${campaign.targetRoas}x)${roasStatus}`);
