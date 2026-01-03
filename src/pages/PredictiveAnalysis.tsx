@@ -52,6 +52,7 @@ import {
   ComposedChart,
   Bar,
   Legend,
+  ReferenceDot,
 } from 'recharts';
 
 // Default chart colors
@@ -152,6 +153,33 @@ export default function PredictiveAnalysis() {
       date: new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
     }));
   }, [data]);
+
+  // Calculate best and worst performance days based on CPL (lower is better) or ROAS (higher is better)
+  const performanceMarkers = useMemo(() => {
+    if (!chartData || chartData.length === 0) return { best: null, worst: null };
+    
+    // Filter days with conversions > 0 to calculate valid CPL
+    const validDays = chartData.filter(d => d.conversions > 0 && d.spend > 0);
+    if (validDays.length === 0) return { best: null, worst: null };
+
+    // Calculate CPL for each day (lower is better)
+    const daysWithCPL = validDays.map(d => ({
+      ...d,
+      cpl: d.spend / d.conversions
+    }));
+
+    // Best day = lowest CPL (most efficient)
+    const bestDay = daysWithCPL.reduce((min, d) => d.cpl < min.cpl ? d : min, daysWithCPL[0]);
+    // Worst day = highest CPL (least efficient)
+    const worstDay = daysWithCPL.reduce((max, d) => d.cpl > max.cpl ? d : max, daysWithCPL[0]);
+
+    return { 
+      best: bestDay, 
+      worst: worstDay,
+      bestCPL: bestDay.cpl,
+      worstCPL: worstDay.cpl
+    };
+  }, [chartData]);
 
   const chartConfig = {
     spend: { label: 'Gasto', color: 'hsl(var(--primary))' },
@@ -621,8 +649,22 @@ export default function PredictiveAnalysis() {
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  {/* Custom Legend */}
-                  <div className="flex items-center justify-center gap-6 mb-4">
+                  {/* Explanatory Text */}
+                  <div className="bg-muted/50 rounded-lg p-3 mb-4 text-sm text-muted-foreground">
+                    <p className="flex items-start gap-2">
+                      <Info className="w-4 h-4 mt-0.5 shrink-0" />
+                      <span>
+                        Este gráfico mostra a relação entre <strong className="text-foreground">gasto diário</strong> (área azul) e <strong className="text-foreground">{showCPL ? 'leads' : 'conversões'}</strong> (barras verdes). 
+                        Dias com barras altas e área baixa indicam melhor eficiência. 
+                        {performanceMarkers.best && (
+                          <span> O <strong className="text-metric-positive">melhor dia</strong> teve CPL de R${performanceMarkers.bestCPL?.toFixed(2)} e o <strong className="text-destructive">pior</strong> R${performanceMarkers.worstCPL?.toFixed(2)}.</span>
+                        )}
+                      </span>
+                    </p>
+                  </div>
+                  
+                  {/* Custom Legend with Performance Markers */}
+                  <div className="flex items-center justify-center gap-6 mb-4 flex-wrap">
                     <div className="flex items-center gap-2">
                       <div 
                         className="w-4 h-4 rounded" 
@@ -637,6 +679,18 @@ export default function PredictiveAnalysis() {
                       />
                       <span className="text-sm font-medium">{showCPL ? 'Leads' : 'Conversões'}</span>
                     </div>
+                    {performanceMarkers.best && (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full bg-metric-positive border-2 border-white shadow" />
+                          <span className="text-sm font-medium text-metric-positive">Melhor dia</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full bg-destructive border-2 border-white shadow" />
+                          <span className="text-sm font-medium text-destructive">Pior dia</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <ChartContainer config={chartConfig} className="h-[350px] w-full !aspect-auto">
                     <ResponsiveContainer width="100%" height="100%">
@@ -692,6 +746,30 @@ export default function PredictiveAnalysis() {
                           fill={trendChartCustomization.secondaryColor}
                           radius={[4, 4, 0, 0]}
                         />
+                        {/* Best Performance Day Marker */}
+                        {performanceMarkers.best && (
+                          <ReferenceDot
+                            x={performanceMarkers.best.date}
+                            y={performanceMarkers.best.conversions}
+                            yAxisId="right"
+                            r={8}
+                            fill="hsl(var(--metric-positive))"
+                            stroke="white"
+                            strokeWidth={2}
+                          />
+                        )}
+                        {/* Worst Performance Day Marker */}
+                        {performanceMarkers.worst && performanceMarkers.worst.date !== performanceMarkers.best?.date && (
+                          <ReferenceDot
+                            x={performanceMarkers.worst.date}
+                            y={performanceMarkers.worst.conversions}
+                            yAxisId="right"
+                            r={8}
+                            fill="hsl(var(--destructive))"
+                            stroke="white"
+                            strokeWidth={2}
+                          />
+                        )}
                       </ComposedChart>
                     </ResponsiveContainer>
                   </ChartContainer>
