@@ -644,11 +644,10 @@ export default function PredictiveAnalysis() {
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis 
                           dataKey="date" 
-                          tick={{ fontSize: 11 }} 
+                          tick={{ fontSize: 10 }} 
                           tickLine={false}
                           axisLine={false}
-                          interval={Math.floor(chartData.length / 10)}
-                          tickFormatter={(value, index) => value}
+                          interval={0}
                         />
                         <YAxis 
                           yAxisId="left"
