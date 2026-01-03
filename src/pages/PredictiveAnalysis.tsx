@@ -604,9 +604,10 @@ export default function PredictiveAnalysis() {
                           width={70}
                           tickFormatter={(v) => {
                             if (v >= 1000) return `R$${(v/1000).toFixed(1)}k`;
-                            return `R$${v.toFixed(0)}`;
+                            return `R$${Math.round(v)}`;
                           }}
-                          domain={['dataMin', 'dataMax']}
+                          domain={[0, 'auto']}
+                          tickCount={6}
                           label={{ value: 'Gasto (R$)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
                         />
                         <YAxis 
@@ -617,7 +618,8 @@ export default function PredictiveAnalysis() {
                           axisLine={false}
                           width={50}
                           allowDecimals={false}
-                          domain={[0, 'dataMax']}
+                          domain={[0, 'auto']}
+                          tickCount={6}
                           label={{ value: showCPL ? 'Leads' : 'Conversões', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
                         />
                         <ChartTooltip content={<ChartTooltipContent />} />
@@ -720,10 +722,11 @@ export default function PredictiveAnalysis() {
                               tickLine={false}
                               axisLine={false}
                               width={70}
-                              domain={[0, Math.ceil(maxSpend * 1.1)]}
+                              domain={[0, 'auto']}
+                              tickCount={6}
                               tickFormatter={(v) => {
                                 if (v >= 1000) return `R$${(v/1000).toFixed(1)}k`;
-                                return `R$${v.toFixed(0)}`;
+                                return `R$${Math.round(v)}`;
                               }}
                               label={{ value: 'Gasto (R$)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
                             />
@@ -735,7 +738,8 @@ export default function PredictiveAnalysis() {
                               axisLine={false}
                               width={50}
                               allowDecimals={false}
-                              domain={[0, Math.ceil(maxConversions * 1.2)]}
+                              domain={[0, 'auto']}
+                              tickCount={6}
                               label={{ value: showCPL ? 'Leads' : 'Conversões', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
                             />
                             <ChartTooltip content={<ChartTooltipContent />} />
