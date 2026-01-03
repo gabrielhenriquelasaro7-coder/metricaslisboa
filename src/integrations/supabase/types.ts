@@ -1366,6 +1366,8 @@ export type Database = {
       }
       whatsapp_subscriptions: {
         Row: {
+          balance_alert_enabled: boolean | null
+          balance_alert_threshold: number | null
           created_at: string | null
           group_id: string | null
           group_name: string | null
@@ -1384,6 +1386,7 @@ export type Database = {
           include_roas: boolean | null
           include_spend: boolean | null
           instance_id: string | null
+          last_balance_alert_at: string | null
           last_report_sent_at: string | null
           message_template: string | null
           phone_number: string
@@ -1397,6 +1400,8 @@ export type Database = {
           weekly_report_enabled: boolean | null
         }
         Insert: {
+          balance_alert_enabled?: boolean | null
+          balance_alert_threshold?: number | null
           created_at?: string | null
           group_id?: string | null
           group_name?: string | null
@@ -1415,6 +1420,7 @@ export type Database = {
           include_roas?: boolean | null
           include_spend?: boolean | null
           instance_id?: string | null
+          last_balance_alert_at?: string | null
           last_report_sent_at?: string | null
           message_template?: string | null
           phone_number: string
@@ -1428,6 +1434,8 @@ export type Database = {
           weekly_report_enabled?: boolean | null
         }
         Update: {
+          balance_alert_enabled?: boolean | null
+          balance_alert_threshold?: number | null
           created_at?: string | null
           group_id?: string | null
           group_name?: string | null
@@ -1446,6 +1454,7 @@ export type Database = {
           include_roas?: boolean | null
           include_spend?: boolean | null
           instance_id?: string | null
+          last_balance_alert_at?: string | null
           last_report_sent_at?: string | null
           message_template?: string | null
           phone_number?: string

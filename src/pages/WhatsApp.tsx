@@ -50,7 +50,9 @@ import {
   History,
   Plus,
   Smartphone,
-  Users
+  Users,
+  Wallet,
+  AlertTriangle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -88,6 +90,9 @@ interface WhatsAppSubscription {
   target_type?: 'phone' | 'group';
   group_id?: string | null;
   group_name?: string | null;
+  balance_alert_enabled?: boolean | null;
+  balance_alert_threshold?: number | null;
+  last_balance_alert_at?: string | null;
 }
 
 interface WhatsAppMessageLog {
@@ -408,6 +413,10 @@ export default function WhatsApp() {
   const [targetType, setTargetType] = useState<'phone' | 'group'>('phone');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedGroupName, setSelectedGroupName] = useState<string | null>(null);
+  
+  // Balance alert state
+  const [balanceAlertEnabled, setBalanceAlertEnabled] = useState(false);
+  const [balanceAlertThreshold, setBalanceAlertThreshold] = useState(3);
 
   const [metricsEnabled, setMetricsEnabled] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -559,6 +568,8 @@ export default function WhatsApp() {
       setTargetType(subscription.target_type || 'phone');
       setSelectedGroupId(subscription.group_id || null);
       setSelectedGroupName(subscription.group_name || null);
+      setBalanceAlertEnabled(subscription.balance_alert_enabled ?? false);
+      setBalanceAlertThreshold(subscription.balance_alert_threshold ?? 3);
       setMetricsEnabled({
         spend: subscription.include_spend ?? true,
         reach: subscription.include_reach ?? true,
@@ -712,6 +723,8 @@ export default function WhatsApp() {
         target_type: targetType,
         group_id: targetType === 'group' ? selectedGroupId : null,
         group_name: targetType === 'group' ? selectedGroupName : null,
+        balance_alert_enabled: balanceAlertEnabled,
+        balance_alert_threshold: balanceAlertThreshold,
         include_spend: metricsEnabled.spend,
         include_reach: metricsEnabled.reach,
         include_impressions: metricsEnabled.impressions,
@@ -1140,6 +1153,60 @@ export default function WhatsApp() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Balance Alert Card */}
+            <Card className="glass-card border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Wallet className="w-5 h-5" />
+                  Alerta de Saldo Crítico
+                </CardTitle>
+                <CardDescription>
+                  Receba alertas quando o saldo da conta Meta Ads estiver baixo
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="balance-alert">Alertas de saldo ativados</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Notificar quando o saldo estiver acabando
+                    </p>
+                  </div>
+                  <Switch
+                    id="balance-alert"
+                    checked={balanceAlertEnabled}
+                    onCheckedChange={setBalanceAlertEnabled}
+                  />
+                </div>
+
+                {balanceAlertEnabled && (
+                  <div className="space-y-2">
+                    <Label>Alertar quando restar menos de</Label>
+                    <Select
+                      value={balanceAlertThreshold.toString()}
+                      onValueChange={(v) => setBalanceAlertThreshold(parseInt(v))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 dia de saldo</SelectItem>
+                        <SelectItem value="2">2 dias de saldo</SelectItem>
+                        <SelectItem value="3">3 dias de saldo</SelectItem>
+                        <SelectItem value="5">5 dias de saldo</SelectItem>
+                        <SelectItem value="7">7 dias de saldo</SelectItem>
+                        <SelectItem value="10">10 dias de saldo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      Baseado no gasto médio diário do projeto
+                    </p>
                   </div>
                 )}
               </CardContent>

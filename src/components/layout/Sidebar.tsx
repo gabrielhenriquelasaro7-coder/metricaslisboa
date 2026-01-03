@@ -403,15 +403,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           {/* Admin & Settings at bottom - Hidden for guests, hidden while loading role */}
           {!roleLoading && !isGuest && (
             <div className="space-y-1 mt-4">
-              {/* Invite Guest Button */}
-              <button
-                onClick={() => setInviteDialogOpen(true)}
-                className="sidebar-item w-full"
-              >
-                <UserPlus className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>Convidar Cliente</span>}
-              </button>
-
               {/* WhatsApp */}
               <Link
                 to="/whatsapp"
