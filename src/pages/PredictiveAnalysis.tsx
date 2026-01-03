@@ -148,11 +148,28 @@ export default function PredictiveAnalysis() {
 
   const chartData = useMemo(() => {
     if (!data?.dailyTrend) return [];
-    return data.dailyTrend.map((d) => ({
+    const processed = data.dailyTrend.map((d) => ({
       ...d,
       date: new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
     }));
+    // Debug: log conversions range
+    const conversions = processed.map(d => d.conversions);
+    console.log('[CHART DEBUG] Conversions values:', conversions, 'Min:', Math.min(...conversions), 'Max:', Math.max(...conversions));
+    return processed;
   }, [data]);
+  
+  // Calculate Y-axis domain for conversions to ensure proper scaling
+  const conversionsYDomain = useMemo(() => {
+    if (!chartData || chartData.length === 0) return [0, 10];
+    const values = chartData.map(d => d.conversions || 0);
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    // Ensure we have a visible range
+    if (maxVal === minVal) {
+      return [0, Math.max(maxVal + 1, 1)];
+    }
+    return [0, Math.ceil(maxVal * 1.1)];
+  }, [chartData]);
 
   // Calculate best and worst performance days based on CPL (lower is better) or ROAS (higher is better)
   const performanceMarkers = useMemo(() => {
@@ -725,7 +742,7 @@ export default function PredictiveAnalysis() {
                           axisLine={false}
                           width={50}
                           allowDecimals={false}
-                          domain={[0, 'dataMax']}
+                          domain={conversionsYDomain}
                           tickCount={6}
                           label={{ value: showCPL ? 'Leads' : 'Conversões', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
                         />
