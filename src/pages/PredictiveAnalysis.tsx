@@ -148,10 +148,23 @@ export default function PredictiveAnalysis() {
 
   const chartData = useMemo(() => {
     if (!data?.dailyTrend) return [];
-    return data.dailyTrend.map((d) => ({
-      ...d,
-      date: new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    }));
+    
+    const rawData = data.dailyTrend.map((d, index, arr) => {
+      // Calculate 7-day moving average for conversions
+      let movingAvg = null;
+      if (index >= 6) {
+        const sum = arr.slice(index - 6, index + 1).reduce((acc, item) => acc + (item.conversions || 0), 0);
+        movingAvg = sum / 7;
+      }
+      
+      return {
+        ...d,
+        date: new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        movingAvg,
+      };
+    });
+    
+    return rawData;
   }, [data]);
 
   // Calculate best and worst performance days based on CPL (lower is better) or ROAS (higher is better)
@@ -179,6 +192,13 @@ export default function PredictiveAnalysis() {
       bestCPL: bestDay.cpl,
       worstCPL: worstDay.cpl
     };
+  }, [chartData]);
+
+  // Calculate max value for right Y axis to ensure proper scaling
+  const maxConversions = useMemo(() => {
+    if (!chartData || chartData.length === 0) return 10;
+    const max = Math.max(...chartData.map(d => d.conversions || 0));
+    return Math.ceil(max * 1.1); // Add 10% padding
   }, [chartData]);
 
   const chartConfig = {
@@ -679,6 +699,10 @@ export default function PredictiveAnalysis() {
                       />
                       <span className="text-sm font-medium">{showCPL ? 'Leads' : 'Conversões'}</span>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-0.5 bg-orange-500" style={{ width: 16 }} />
+                      <span className="text-sm font-medium">Média móvel 7d</span>
+                    </div>
                     {performanceMarkers.best && (
                       <>
                         <div className="flex items-center gap-2">
@@ -725,7 +749,7 @@ export default function PredictiveAnalysis() {
                           axisLine={false}
                           width={50}
                           allowDecimals={false}
-                          domain={[0, 'auto']}
+                          domain={[0, maxConversions]}
                           tickCount={6}
                           label={{ value: showCPL ? 'Leads' : 'Conversões', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
                         />
@@ -745,6 +769,17 @@ export default function PredictiveAnalysis() {
                           name={showCPL ? "Leads" : "Conversões"}
                           fill={trendChartCustomization.secondaryColor}
                           radius={[4, 4, 0, 0]}
+                        />
+                        {/* 7-day Moving Average Line */}
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="movingAvg"
+                          name="Média móvel 7d"
+                          stroke="#f97316"
+                          strokeWidth={2}
+                          dot={false}
+                          connectNulls={false}
                         />
                         {/* Best Performance Day Marker */}
                         {performanceMarkers.best && (
