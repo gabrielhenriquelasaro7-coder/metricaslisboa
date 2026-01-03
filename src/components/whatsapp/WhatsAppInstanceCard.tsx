@@ -80,7 +80,7 @@ export function WhatsAppInstanceCard({
   };
 
   return (
-    <Card className="bg-card/50 border-border/50">
+    <Card className="bg-card/50 border-border/50 group">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 flex-1 min-w-0">
