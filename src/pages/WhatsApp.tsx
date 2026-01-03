@@ -59,6 +59,7 @@ import { ptBR } from 'date-fns/locale';
 import { WhatsAppInstanceCard } from '@/components/whatsapp/WhatsAppInstanceCard';
 import { WhatsAppQRModal } from '@/components/whatsapp/WhatsAppQRModal';
 import { WhatsAppGroupSelector } from '@/components/whatsapp/WhatsAppGroupSelector';
+import { AnomalyAlertsCard } from '@/components/alerts/AnomalyAlertsCard';
 
 interface WhatsAppSubscription {
   id: string;
@@ -977,6 +978,9 @@ export default function WhatsApp() {
             )}
           </CardContent>
         </Card>
+
+        {/* Anomaly Alerts Card */}
+        <AnomalyAlertsCard projectId={selectedProject.id} />
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Left Column - Configuration */}
