@@ -27,9 +27,10 @@ export function CampaignGoalsConfig({ projectId, campaigns, businessModel, onGoa
   const [targetCpl, setTargetCpl] = useState<string>('');
   const [targetRoas, setTargetRoas] = useState<string>('');
 
-  const isInsideSales = businessModel === 'inside_sales';
-  const isEcommerce = businessModel === 'ecommerce' || businessModel === 'pdv';
-  const isCustom = businessModel === 'custom';
+  // Inside Sales e Custom usam CPL/Leads
+  // E-commerce e PDV usam ROAS/Receita
+  const showCPL = businessModel === 'inside_sales' || businessModel === 'custom';
+  const showROAS = businessModel === 'ecommerce' || businessModel === 'pdv';
 
   const handleEdit = (campaign: Campaign) => {
     const existing = getGoalForCampaign(campaign.campaignId);
@@ -75,7 +76,7 @@ export function CampaignGoalsConfig({ projectId, campaigns, businessModel, onGoa
         <DialogHeader>
           <DialogTitle>Metas Personalizadas por Campanha</DialogTitle>
           <DialogDescription>
-            Defina metas de {isInsideSales ? 'CPL' : isEcommerce ? 'ROAS' : 'CPL e ROAS'} para cada campanha.
+            Defina metas de {showCPL ? 'CPL (Custo por Lead)' : 'ROAS (Retorno sobre Investimento)'} para cada campanha.
             Campanhas sem meta usarão os valores padrão.
           </DialogDescription>
         </DialogHeader>
@@ -101,8 +102,8 @@ export function CampaignGoalsConfig({ projectId, campaigns, businessModel, onGoa
                 
                 {isEditing ? (
                   <div className="space-y-3">
-                    <div className="grid gap-4 grid-cols-2">
-                      {(isInsideSales || isCustom) && (
+                    <div className="grid gap-4 grid-cols-1">
+                      {showCPL && (
                         <div className="space-y-2">
                           <Label htmlFor={`cpl-${campaign.campaignId}`}>Meta CPL (R$)</Label>
                           <Input
@@ -115,7 +116,7 @@ export function CampaignGoalsConfig({ projectId, campaigns, businessModel, onGoa
                           />
                         </div>
                       )}
-                      {(isEcommerce || isCustom) && (
+                      {showROAS && (
                         <div className="space-y-2">
                           <Label htmlFor={`roas-${campaign.campaignId}`}>Meta ROAS (x)</Label>
                           <Input
@@ -142,7 +143,7 @@ export function CampaignGoalsConfig({ projectId, campaigns, businessModel, onGoa
                 ) : (
                   <div className="flex items-center justify-between">
                     <div className="flex gap-4 text-sm text-muted-foreground">
-                      {(isInsideSales || isCustom) && (
+                      {showCPL && (
                         <span>
                           CPL: {existingGoal?.target_cpl 
                             ? formatCurrency(existingGoal.target_cpl) 
@@ -150,7 +151,7 @@ export function CampaignGoalsConfig({ projectId, campaigns, businessModel, onGoa
                           }
                         </span>
                       )}
-                      {(isEcommerce || isCustom) && (
+                      {showROAS && (
                         <span>
                           ROAS: {existingGoal?.target_roas 
                             ? `${existingGoal.target_roas}x` 
