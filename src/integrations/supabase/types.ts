@@ -343,6 +343,134 @@ export type Database = {
           },
         ]
       }
+      anomaly_alert_config: {
+        Row: {
+          ad_paused_alert: boolean | null
+          ad_set_paused_alert: boolean | null
+          budget_change_alert: boolean | null
+          campaign_paused_alert: boolean | null
+          cpl_increase_threshold: number | null
+          created_at: string
+          ctr_drop_threshold: number | null
+          enabled: boolean
+          group_id: string | null
+          group_name: string | null
+          id: string
+          instance_id: string | null
+          last_alert_at: string | null
+          phone_number: string | null
+          project_id: string
+          target_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ad_paused_alert?: boolean | null
+          ad_set_paused_alert?: boolean | null
+          budget_change_alert?: boolean | null
+          campaign_paused_alert?: boolean | null
+          cpl_increase_threshold?: number | null
+          created_at?: string
+          ctr_drop_threshold?: number | null
+          enabled?: boolean
+          group_id?: string | null
+          group_name?: string | null
+          id?: string
+          instance_id?: string | null
+          last_alert_at?: string | null
+          phone_number?: string | null
+          project_id: string
+          target_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ad_paused_alert?: boolean | null
+          ad_set_paused_alert?: boolean | null
+          budget_change_alert?: boolean | null
+          campaign_paused_alert?: boolean | null
+          cpl_increase_threshold?: number | null
+          created_at?: string
+          ctr_drop_threshold?: number | null
+          enabled?: boolean
+          group_id?: string | null
+          group_name?: string | null
+          id?: string
+          instance_id?: string | null
+          last_alert_at?: string | null
+          phone_number?: string | null
+          project_id?: string
+          target_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anomaly_alert_config_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anomaly_alert_config_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anomaly_alerts: {
+        Row: {
+          anomaly_type: string
+          created_at: string
+          details: Json | null
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          id: string
+          notified: boolean
+          notified_at: string | null
+          project_id: string
+          severity: string
+        }
+        Insert: {
+          anomaly_type: string
+          created_at?: string
+          details?: Json | null
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          id?: string
+          notified?: boolean
+          notified_at?: string | null
+          project_id: string
+          severity?: string
+        }
+        Update: {
+          anomaly_type?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          notified?: boolean
+          notified_at?: string | null
+          project_id?: string
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anomaly_alerts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_goals: {
         Row: {
           campaign_id: string

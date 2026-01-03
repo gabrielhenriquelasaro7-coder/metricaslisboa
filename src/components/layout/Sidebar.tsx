@@ -26,7 +26,8 @@ import {
   Compass,
   Lock,
   TrendingUp,
-  History
+  History,
+  Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ import {
 import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 import { OptimizationHistoryDialog } from '@/components/optimization/OptimizationHistoryDialog';
+import { AnomalyAlertConfigDialog } from '@/components/alerts/AnomalyAlertConfigDialog';
 
 // Skeleton component for campaign list items
 function CampaignSkeleton() {
@@ -77,6 +79,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [alertConfigOpen, setAlertConfigOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
@@ -394,6 +397,17 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </button>
             )}
 
+            {/* Alertas de Anomalias - Hidden for guests */}
+            {!roleLoading && !isGuest && selectedProject && (
+              <button
+                onClick={() => setAlertConfigOpen(true)}
+                className="sidebar-item w-full"
+              >
+                <Bell className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>Alertas</span>}
+              </button>
+            )}
+
             {/* Tour Button - Only for guests */}
             {!roleLoading && isGuest && (
               <button
@@ -500,6 +514,15 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         <OptimizationHistoryDialog
           open={historyDialogOpen}
           onOpenChange={setHistoryDialogOpen}
+          projectId={selectedProject.id}
+        />
+      )}
+
+      {/* Anomaly Alert Config Dialog */}
+      {selectedProject && (
+        <AnomalyAlertConfigDialog
+          open={alertConfigOpen}
+          onOpenChange={setAlertConfigOpen}
           projectId={selectedProject.id}
         />
       )}
