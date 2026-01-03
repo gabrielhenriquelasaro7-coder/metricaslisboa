@@ -81,6 +81,10 @@ export default function PredictiveAnalysis() {
   });
   const [trendChartDialogOpen, setTrendChartDialogOpen] = useState(false);
   const [projectionChartDialogOpen, setProjectionChartDialogOpen] = useState(false);
+  
+  // Chart type state: 'area' | 'line' | 'bar' for each series
+  const [spendChartType, setSpendChartType] = useState<'area' | 'line' | 'bar'>('area');
+  const [conversionsChartType, setConversionsChartType] = useState<'area' | 'line' | 'bar'>('bar');
 
   // Build campaign goals from saved data
   const campaignGoals: CampaignGoal[] = useMemo(() => {
@@ -680,34 +684,104 @@ export default function PredictiveAnalysis() {
                     </p>
                   </div>
                   
-                  {/* Custom Legend with Performance Markers */}
-                  <div className="flex items-center justify-center gap-6 mb-4 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-4 h-4 rounded" 
-                        style={{ backgroundColor: trendChartCustomization.primaryColor }} 
-                      />
-                      <span className="text-sm font-medium">Gasto (R$)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-4 h-4 rounded" 
-                        style={{ backgroundColor: trendChartCustomization.secondaryColor }} 
-                      />
-                      <span className="text-sm font-medium">{showCPL ? 'Leads' : 'Conversões'}</span>
-                    </div>
-                    {performanceMarkers.best && (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full bg-metric-positive border-2 border-white shadow" />
-                          <span className="text-sm font-medium text-metric-positive">Melhor dia</span>
+                  {/* Chart Type Selector */}
+                  <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Gasto:</span>
+                        <div className="flex rounded-md border border-border overflow-hidden">
+                          <button
+                            onClick={() => setSpendChartType('area')}
+                            className={cn(
+                              "px-2 py-1 text-xs transition-colors",
+                              spendChartType === 'area' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+                            )}
+                          >
+                            Área
+                          </button>
+                          <button
+                            onClick={() => setSpendChartType('line')}
+                            className={cn(
+                              "px-2 py-1 text-xs transition-colors border-x border-border",
+                              spendChartType === 'line' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+                            )}
+                          >
+                            Linha
+                          </button>
+                          <button
+                            onClick={() => setSpendChartType('bar')}
+                            className={cn(
+                              "px-2 py-1 text-xs transition-colors",
+                              spendChartType === 'bar' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+                            )}
+                          >
+                            Barra
+                          </button>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full bg-destructive border-2 border-white shadow" />
-                          <span className="text-sm font-medium text-destructive">Pior dia</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{showCPL ? 'Leads' : 'Conversões'}:</span>
+                        <div className="flex rounded-md border border-border overflow-hidden">
+                          <button
+                            onClick={() => setConversionsChartType('area')}
+                            className={cn(
+                              "px-2 py-1 text-xs transition-colors",
+                              conversionsChartType === 'area' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+                            )}
+                          >
+                            Área
+                          </button>
+                          <button
+                            onClick={() => setConversionsChartType('line')}
+                            className={cn(
+                              "px-2 py-1 text-xs transition-colors border-x border-border",
+                              conversionsChartType === 'line' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+                            )}
+                          >
+                            Linha
+                          </button>
+                          <button
+                            onClick={() => setConversionsChartType('bar')}
+                            className={cn(
+                              "px-2 py-1 text-xs transition-colors",
+                              conversionsChartType === 'bar' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+                            )}
+                          >
+                            Barra
+                          </button>
                         </div>
-                      </>
-                    )}
+                      </div>
+                    </div>
+                    
+                    {/* Legend */}
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-4 h-4 rounded" 
+                          style={{ backgroundColor: trendChartCustomization.primaryColor }} 
+                        />
+                        <span className="text-sm font-medium">Gasto (R$)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-4 h-4 rounded" 
+                          style={{ backgroundColor: trendChartCustomization.secondaryColor }} 
+                        />
+                        <span className="text-sm font-medium">{showCPL ? 'Leads' : 'Conversões'}</span>
+                      </div>
+                      {performanceMarkers.best && (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full bg-metric-positive border-2 border-white shadow" />
+                            <span className="text-sm font-medium text-metric-positive">Melhor dia</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full bg-destructive border-2 border-white shadow" />
+                            <span className="text-sm font-medium text-destructive">Pior dia</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <ChartContainer config={chartConfig} className="h-[350px] w-full !aspect-auto">
                     <ResponsiveContainer width="100%" height="100%">
@@ -747,22 +821,73 @@ export default function PredictiveAnalysis() {
                           label={{ value: showCPL ? 'Leads' : 'Conversões', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
                         />
                         <ChartTooltip content={<ChartTooltipContent />} />
-                        <Area
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="spend"
-                          name="Gasto (R$)"
-                          stroke={trendChartCustomization.primaryColor}
-                          fill={trendChartCustomization.primaryColor}
-                          fillOpacity={0.2}
-                        />
-                        <Bar
-                          yAxisId="right"
-                          dataKey="conversions"
-                          name={showCPL ? "Leads" : "Conversões"}
-                          fill={trendChartCustomization.secondaryColor}
-                          radius={[4, 4, 0, 0]}
-                        />
+                        
+                        {/* Spend Series - Dynamic Chart Type */}
+                        {spendChartType === 'area' && (
+                          <Area
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey="spend"
+                            name="Gasto (R$)"
+                            stroke={trendChartCustomization.primaryColor}
+                            fill={trendChartCustomization.primaryColor}
+                            fillOpacity={0.2}
+                          />
+                        )}
+                        {spendChartType === 'line' && (
+                          <Line
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey="spend"
+                            name="Gasto (R$)"
+                            stroke={trendChartCustomization.primaryColor}
+                            strokeWidth={2}
+                            dot={{ r: 3, fill: trendChartCustomization.primaryColor }}
+                          />
+                        )}
+                        {spendChartType === 'bar' && (
+                          <Bar
+                            yAxisId="left"
+                            dataKey="spend"
+                            name="Gasto (R$)"
+                            fill={trendChartCustomization.primaryColor}
+                            radius={[4, 4, 0, 0]}
+                            fillOpacity={0.8}
+                          />
+                        )}
+                        
+                        {/* Conversions Series - Dynamic Chart Type */}
+                        {conversionsChartType === 'area' && (
+                          <Area
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="conversions"
+                            name={showCPL ? "Leads" : "Conversões"}
+                            stroke={trendChartCustomization.secondaryColor}
+                            fill={trendChartCustomization.secondaryColor}
+                            fillOpacity={0.2}
+                          />
+                        )}
+                        {conversionsChartType === 'line' && (
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="conversions"
+                            name={showCPL ? "Leads" : "Conversões"}
+                            stroke={trendChartCustomization.secondaryColor}
+                            strokeWidth={2}
+                            dot={{ r: 3, fill: trendChartCustomization.secondaryColor }}
+                          />
+                        )}
+                        {conversionsChartType === 'bar' && (
+                          <Bar
+                            yAxisId="right"
+                            dataKey="conversions"
+                            name={showCPL ? "Leads" : "Conversões"}
+                            fill={trendChartCustomization.secondaryColor}
+                            radius={[4, 4, 0, 0]}
+                          />
+                        )}
                         {/* Best Performance Day Marker */}
                         {performanceMarkers.best && (
                           <ReferenceDot
