@@ -26,6 +26,23 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 15 * 60 * 1000; // 15 minutos para retry
 const VALIDATION_RETRY_DELAYS = [5000, 10000, 20000]; // Delays menores para retry imediato
 
+// Fields to track for optimization history
+const TRACKED_FIELDS_CAMPAIGN = ['status', 'daily_budget', 'lifetime_budget', 'objective'];
+const TRACKED_FIELDS_ADSET = ['status', 'daily_budget', 'lifetime_budget'];
+const TRACKED_FIELDS_AD = ['status'];
+
+interface OptimizationChange {
+  project_id: string;
+  entity_type: 'campaign' | 'adset' | 'ad';
+  entity_id: string;
+  entity_name: string;
+  field_changed: string;
+  old_value: string | null;
+  new_value: string | null;
+  change_type: string;
+  change_percentage: number | null;
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -514,6 +531,100 @@ function validateSyncData(records: any[]): { isValid: boolean; totalSpend: numbe
   };
 }
 
+// ============ DETECT CHANGES FOR OPTIMIZATION HISTORY ============
+async function detectAndRecordChanges(
+  supabase: any,
+  projectId: string,
+  entityType: 'campaign' | 'adset' | 'ad',
+  tableName: string,
+  newRecords: any[],
+  trackedFields: string[]
+): Promise<OptimizationChange[]> {
+  const changes: OptimizationChange[] = [];
+  
+  if (newRecords.length === 0) return changes;
+  
+  // Fetch existing records
+  const ids = newRecords.map(r => r.id);
+  const { data: existingRecords, error } = await supabase
+    .from(tableName)
+    .select('*')
+    .in('id', ids)
+    .eq('project_id', projectId);
+  
+  if (error) {
+    console.error(`[CHANGES] Error fetching existing ${entityType}s:`, error.message);
+    return changes;
+  }
+  
+  const existingMap = new Map((existingRecords || []).map((r: any) => [r.id, r]));
+  
+  for (const newRecord of newRecords) {
+    const existing = existingMap.get(newRecord.id) as Record<string, any> | undefined;
+    
+    if (!existing) {
+      // New entity - record as "created"
+      changes.push({
+        project_id: projectId,
+        entity_type: entityType,
+        entity_id: newRecord.id,
+        entity_name: newRecord.name || 'Unknown',
+        field_changed: 'created',
+        old_value: null,
+        new_value: newRecord.status || 'ACTIVE',
+        change_type: 'created',
+        change_percentage: null,
+      });
+      continue;
+    }
+    
+    // Check tracked fields for changes
+    for (const field of trackedFields) {
+      const oldValue = existing[field] as string | number | null | undefined;
+      const newValue = newRecord[field] as string | number | null | undefined;
+      
+      // Skip if both are null/undefined or equal
+      if (oldValue === newValue) continue;
+      if (oldValue == null && newValue == null) continue;
+      
+      // Determine change type
+      let changeType = 'modified';
+      let changePercentage: number | null = null;
+      
+      if (field === 'status') {
+        if (oldValue === 'ACTIVE' && newValue !== 'ACTIVE') {
+          changeType = 'paused';
+        } else if (oldValue !== 'ACTIVE' && newValue === 'ACTIVE') {
+          changeType = 'activated';
+        } else {
+          changeType = 'status_change';
+        }
+      } else if (field.includes('budget')) {
+        changeType = 'budget_change';
+        const oldNum = parseFloat(String(oldValue)) || 0;
+        const newNum = parseFloat(String(newValue)) || 0;
+        if (oldNum > 0) {
+          changePercentage = ((newNum - oldNum) / oldNum) * 100;
+        }
+      }
+      
+      changes.push({
+        project_id: projectId,
+        entity_type: entityType,
+        entity_id: newRecord.id,
+        entity_name: newRecord.name || (existing.name as string) || 'Unknown',
+        field_changed: field,
+        old_value: oldValue != null ? String(oldValue) : null,
+        new_value: newValue != null ? String(newValue) : null,
+        change_type: changeType,
+        change_percentage: changePercentage,
+      });
+    }
+  }
+  
+  return changes;
+}
+
 // ============ MAIN HANDLER ============
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -803,6 +914,41 @@ Deno.serve(async (req) => {
     const adsetRecords = Array.from(adsetMetrics.values()).map(calculateDerived);
     const adRecords = Array.from(adMetrics.values()).map(calculateDerived);
     
+    // ========== STEP 6.1: Detect changes for optimization history ==========
+    const allChanges: OptimizationChange[] = [];
+    
+    // Detect campaign changes
+    const campaignChanges = await detectAndRecordChanges(
+      supabase, project_id, 'campaign', 'campaigns', campaignRecords, TRACKED_FIELDS_CAMPAIGN
+    );
+    allChanges.push(...campaignChanges);
+    
+    // Detect adset changes
+    const adsetChanges = await detectAndRecordChanges(
+      supabase, project_id, 'adset', 'ad_sets', adsetRecords, TRACKED_FIELDS_ADSET
+    );
+    allChanges.push(...adsetChanges);
+    
+    // Detect ad changes
+    const adChanges = await detectAndRecordChanges(
+      supabase, project_id, 'ad', 'ads', adRecords, TRACKED_FIELDS_AD
+    );
+    allChanges.push(...adChanges);
+    
+    // Save all changes to optimization_history
+    if (allChanges.length > 0) {
+      const { error: historyError } = await supabase
+        .from('optimization_history')
+        .insert(allChanges);
+      
+      if (historyError) {
+        console.error('[CHANGES] Error saving optimization history:', historyError.message);
+      } else {
+        console.log(`[CHANGES] Recorded ${allChanges.length} changes (campaigns: ${campaignChanges.length}, adsets: ${adsetChanges.length}, ads: ${adChanges.length})`);
+      }
+    }
+    
+    // ========== STEP 6.2: Upsert entity tables ==========
     // Upsert campaigns
     if (campaignRecords.length > 0) {
       await supabase.from('campaigns').upsert(campaignRecords, { onConflict: 'id' });
