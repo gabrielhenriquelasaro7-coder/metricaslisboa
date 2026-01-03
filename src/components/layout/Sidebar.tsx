@@ -25,7 +25,8 @@ import {
   UserPlus,
   Compass,
   Lock,
-  TrendingUp
+  TrendingUp,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,7 @@ import {
 } from '@/components/ui/collapsible';
 import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
+import { OptimizationHistoryDialog } from '@/components/optimization/OptimizationHistoryDialog';
 
 // Skeleton component for campaign list items
 function CampaignSkeleton() {
@@ -74,6 +76,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const [campaignsOpen, setCampaignsOpen] = useState(true);
   const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
@@ -380,6 +383,17 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </Link>
             )}
 
+            {/* Histórico de Otimizações */}
+            {selectedProject && (
+              <button
+                onClick={() => setHistoryDialogOpen(true)}
+                className="sidebar-item w-full"
+              >
+                <History className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>Histórico</span>}
+              </button>
+            )}
+
             {/* Tour Button - Only for guests */}
             {!roleLoading && isGuest && (
               <button
@@ -478,6 +492,15 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           onOpenChange={setInviteDialogOpen}
           preselectedProjectId={selectedProject.id}
           preselectedProjectName={selectedProject.name}
+        />
+      )}
+
+      {/* Optimization History Dialog */}
+      {selectedProject && (
+        <OptimizationHistoryDialog
+          open={historyDialogOpen}
+          onOpenChange={setHistoryDialogOpen}
+          projectId={selectedProject.id}
         />
       )}
     </aside>

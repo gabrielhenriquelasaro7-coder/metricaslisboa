@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { generatePredictiveReportPDF } from '@/components/pdf/PredictiveReportPDF';
 import { CampaignGoalsConfig } from '@/components/predictive/CampaignGoalsConfig';
 import { ChartCustomizationDialog } from '@/components/dashboard/ChartCustomizationDialog';
-import { OptimizationHistoryDialog } from '@/components/optimization/OptimizationHistoryDialog';
+
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -35,7 +35,6 @@ import {
   XCircle,
   HelpCircle,
   Settings2,
-  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -88,8 +87,6 @@ export default function PredictiveAnalysis() {
   const [spendChartType, setSpendChartType] = useState<'area' | 'line' | 'bar'>('area');
   const [conversionsChartType, setConversionsChartType] = useState<'area' | 'line' | 'bar'>('bar');
   
-  // Optimization history dialog state
-  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
 
   // Build campaign goals from saved data
   const campaignGoals: CampaignGoal[] = useMemo(() => {
@@ -273,14 +270,6 @@ export default function PredictiveAnalysis() {
                   onGoalsSaved={handleGoalsSaved}
                 />
               )}
-              <Button 
-                variant="outline"
-                onClick={() => setHistoryDialogOpen(true)}
-                className="gap-2"
-              >
-                <History className="w-4 h-4" />
-                Histórico
-              </Button>
               <Button 
                 variant="outline"
                 onClick={() => {
@@ -1324,13 +1313,6 @@ export default function PredictiveAnalysis() {
           )}
         </div>
       </TooltipProvider>
-      
-      {/* Optimization History Dialog */}
-      <OptimizationHistoryDialog
-        open={historyDialogOpen}
-        onOpenChange={setHistoryDialogOpen}
-        projectId={projectId}
-      />
     </DashboardLayout>
   );
 }
