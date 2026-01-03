@@ -625,6 +625,237 @@ async function detectAndRecordChanges(
   return changes;
 }
 
+// ============ DETECT AND SEND ANOMALY ALERTS ============
+interface AnomalyAlert {
+  project_id: string;
+  anomaly_type: string;
+  entity_type: string;
+  entity_id: string;
+  entity_name: string;
+  details: Record<string, any>;
+  severity: 'info' | 'warning' | 'critical';
+}
+
+async function detectAndSendAnomalyAlerts(
+  supabase: any,
+  projectId: string,
+  changes: OptimizationChange[],
+  campaignMetrics: Map<string, any>,
+  existingCampaigns: any[]
+): Promise<void> {
+  // Fetch alert configs for this project
+  const { data: alertConfigs, error: configError } = await supabase
+    .from('anomaly_alert_config')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('enabled', true);
+  
+  if (configError || !alertConfigs || alertConfigs.length === 0) {
+    return; // No active alert configs
+  }
+  
+  console.log(`[ANOMALY] Found ${alertConfigs.length} active alert configs`);
+  
+  const anomalies: AnomalyAlert[] = [];
+  
+  // Create lookup for existing campaign metrics
+  const existingMetricsMap = new Map(existingCampaigns.map(c => [c.id, c]));
+  
+  for (const config of alertConfigs) {
+    // Check for paused entities in changes
+    for (const change of changes) {
+      if (change.change_type === 'paused') {
+        const shouldAlert = 
+          (change.entity_type === 'campaign' && config.campaign_paused_alert) ||
+          (change.entity_type === 'adset' && config.ad_set_paused_alert) ||
+          (change.entity_type === 'ad' && config.ad_paused_alert);
+        
+        if (shouldAlert) {
+          anomalies.push({
+            project_id: projectId,
+            anomaly_type: `${change.entity_type}_paused`,
+            entity_type: change.entity_type,
+            entity_id: change.entity_id,
+            entity_name: change.entity_name,
+            details: { old_status: change.old_value, new_status: change.new_value },
+            severity: 'warning',
+          });
+        }
+      }
+      
+      // Check budget changes
+      if (change.change_type === 'budget_change' && config.budget_change_alert) {
+        anomalies.push({
+          project_id: projectId,
+          anomaly_type: 'budget_change',
+          entity_type: change.entity_type,
+          entity_id: change.entity_id,
+          entity_name: change.entity_name,
+          details: { 
+            old_budget: change.old_value, 
+            new_budget: change.new_value,
+            change_percentage: change.change_percentage 
+          },
+          severity: Math.abs(change.change_percentage || 0) > 50 ? 'critical' : 'warning',
+        });
+      }
+    }
+    
+    // Check for CTR drop and CPL increase
+    for (const [campaignId, newMetrics] of campaignMetrics.entries()) {
+      const existing = existingMetricsMap.get(campaignId);
+      if (!existing) continue;
+      
+      // CTR Drop
+      const oldCtr = existing.ctr || 0;
+      const newCtr = newMetrics.ctr || 0;
+      if (oldCtr > 0 && newCtr > 0) {
+        const ctrChange = ((newCtr - oldCtr) / oldCtr) * 100;
+        if (ctrChange < -(config.ctr_drop_threshold || 20)) {
+          anomalies.push({
+            project_id: projectId,
+            anomaly_type: 'ctr_drop',
+            entity_type: 'campaign',
+            entity_id: campaignId,
+            entity_name: newMetrics.name || existing.name || 'Unknown',
+            details: { 
+              old_ctr: oldCtr.toFixed(2), 
+              new_ctr: newCtr.toFixed(2),
+              change_percentage: ctrChange.toFixed(1)
+            },
+            severity: Math.abs(ctrChange) > 40 ? 'critical' : 'warning',
+          });
+        }
+      }
+      
+      // CPL Increase
+      const oldCpa = existing.cpa || 0;
+      const newCpa = newMetrics.cpa || 0;
+      if (oldCpa > 0 && newCpa > 0) {
+        const cpaChange = ((newCpa - oldCpa) / oldCpa) * 100;
+        if (cpaChange > (config.cpl_increase_threshold || 30)) {
+          anomalies.push({
+            project_id: projectId,
+            anomaly_type: 'cpl_increase',
+            entity_type: 'campaign',
+            entity_id: campaignId,
+            entity_name: newMetrics.name || existing.name || 'Unknown',
+            details: { 
+              old_cpl: oldCpa.toFixed(2), 
+              new_cpl: newCpa.toFixed(2),
+              change_percentage: cpaChange.toFixed(1)
+            },
+            severity: cpaChange > 60 ? 'critical' : 'warning',
+          });
+        }
+      }
+    }
+    
+    // Send alerts if any anomalies detected
+    if (anomalies.length > 0) {
+      console.log(`[ANOMALY] Detected ${anomalies.length} anomalies`);
+      
+      // Save anomalies to database
+      const { error: insertError } = await supabase
+        .from('anomaly_alerts')
+        .insert(anomalies);
+      
+      if (insertError) {
+        console.error('[ANOMALY] Error saving alerts:', insertError.message);
+      }
+      
+      // Send WhatsApp notification
+      if (config.instance_id && config.phone_number) {
+        try {
+          const message = formatAnomalyMessage(anomalies);
+          
+          const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+          const response = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-send`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({
+              instanceId: config.instance_id,
+              phone: config.phone_number,
+              message: message,
+              messageType: 'anomaly_alert',
+              targetType: config.target_type,
+              groupId: config.group_id,
+            }),
+          });
+          
+          if (response.ok) {
+            console.log('[ANOMALY] WhatsApp alert sent successfully');
+            // Update last_alert_at
+            await supabase
+              .from('anomaly_alert_config')
+              .update({ last_alert_at: new Date().toISOString() })
+              .eq('id', config.id);
+          } else {
+            console.error('[ANOMALY] Failed to send WhatsApp alert:', await response.text());
+          }
+        } catch (err) {
+          console.error('[ANOMALY] Error sending WhatsApp alert:', err);
+        }
+      }
+    }
+  }
+}
+
+function formatAnomalyMessage(anomalies: AnomalyAlert[]): string {
+  const emoji: Record<string, string> = {
+    ctr_drop: '📉',
+    cpl_increase: '💸',
+    campaign_paused: '⏸️',
+    adset_paused: '⏸️',
+    ad_paused: '⏸️',
+    budget_change: '💰',
+  };
+  
+  const severity_emoji: Record<string, string> = {
+    info: 'ℹ️',
+    warning: '⚠️',
+    critical: '🚨',
+  };
+  
+  let message = '🔔 *ALERTAS DE ANOMALIA*\n\n';
+  
+  for (const anomaly of anomalies) {
+    const icon = emoji[anomaly.anomaly_type] || '📊';
+    const sev = severity_emoji[anomaly.severity] || '';
+    
+    message += `${icon} ${sev} *${anomaly.entity_name}*\n`;
+    
+    switch (anomaly.anomaly_type) {
+      case 'ctr_drop':
+        message += `CTR caiu ${anomaly.details.change_percentage}%\n`;
+        message += `${anomaly.details.old_ctr}% → ${anomaly.details.new_ctr}%\n`;
+        break;
+      case 'cpl_increase':
+        message += `CPL aumentou ${anomaly.details.change_percentage}%\n`;
+        message += `R$ ${anomaly.details.old_cpl} → R$ ${anomaly.details.new_cpl}\n`;
+        break;
+      case 'campaign_paused':
+      case 'adset_paused':
+      case 'ad_paused':
+        message += `Status: ${anomaly.details.old_status} → ${anomaly.details.new_status}\n`;
+        break;
+      case 'budget_change':
+        message += `Orçamento alterado ${anomaly.details.change_percentage?.toFixed(0)}%\n`;
+        message += `R$ ${anomaly.details.old_budget} → R$ ${anomaly.details.new_budget}\n`;
+        break;
+    }
+    
+    message += '\n';
+  }
+  
+  message += `_${new Date().toLocaleString('pt-BR')}_`;
+  
+  return message;
+}
+
 // ============ MAIN HANDLER ============
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -946,6 +1177,21 @@ Deno.serve(async (req) => {
       } else {
         console.log(`[CHANGES] Recorded ${allChanges.length} changes (campaigns: ${campaignChanges.length}, adsets: ${adsetChanges.length}, ads: ${adChanges.length})`);
       }
+      
+      // Detect and send anomaly alerts
+      // Get existing campaigns for CTR/CPL comparison
+      const { data: existingCampaigns } = await supabase
+        .from('campaigns')
+        .select('id, name, ctr, cpa')
+        .eq('project_id', project_id);
+      
+      await detectAndSendAnomalyAlerts(
+        supabase,
+        project_id,
+        allChanges,
+        campaignMetrics,
+        existingCampaigns || []
+      );
     }
     
     // ========== STEP 6.2: Upsert entity tables ==========

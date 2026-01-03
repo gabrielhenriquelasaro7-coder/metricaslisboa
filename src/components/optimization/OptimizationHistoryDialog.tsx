@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,13 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   History, 
   Search, 
@@ -23,10 +30,12 @@ import {
   FileText,
   ArrowRight,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  Download
 } from 'lucide-react';
 import { useOptimizationHistory, OptimizationRecord } from '@/hooks/useOptimizationHistory';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface OptimizationHistoryDialogProps {
   open: boolean;
@@ -75,6 +84,7 @@ export function OptimizationHistoryDialog({
   const { history, loading, refetch } = useOptimizationHistory(projectId);
   const [search, setSearch] = useState('');
   const [entityFilter, setEntityFilter] = useState<string>('all');
+  const [changeTypeFilter, setChangeTypeFilter] = useState<string>('all');
 
   const filteredHistory = useMemo(() => {
     return history.filter(record => {
@@ -84,9 +94,11 @@ export function OptimizationHistoryDialog({
       
       const matchesEntity = entityFilter === 'all' || record.entity_type === entityFilter;
       
-      return matchesSearch && matchesEntity;
+      const matchesChangeType = changeTypeFilter === 'all' || record.change_type === changeTypeFilter;
+      
+      return matchesSearch && matchesEntity && matchesChangeType;
     });
-  }, [history, search, entityFilter]);
+  }, [history, search, entityFilter, changeTypeFilter]);
 
   const groupedByDate = useMemo(() => {
     const groups: Record<string, OptimizationRecord[]> = {};
@@ -130,6 +142,59 @@ export function OptimizationHistoryDialog({
     return { campaigns, adSets, ads, total: history.length };
   }, [history]);
 
+  // Export to CSV
+  const exportToCSV = useCallback(() => {
+    if (filteredHistory.length === 0) {
+      toast.error('Nenhum dado para exportar');
+      return;
+    }
+
+    const headers = [
+      'Data',
+      'Hora',
+      'Tipo de Entidade',
+      'Nome da Entidade',
+      'ID da Entidade',
+      'Campo Alterado',
+      'Valor Anterior',
+      'Novo Valor',
+      'Tipo de Mudança',
+      'Variação (%)'
+    ];
+
+    const rows = filteredHistory.map(record => [
+      new Date(record.detected_at).toLocaleDateString('pt-BR'),
+      new Date(record.detected_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      ENTITY_TYPE_LABELS[record.entity_type]?.label || record.entity_type,
+      record.entity_name,
+      record.entity_id,
+      FIELD_LABELS[record.field_changed] || record.field_changed,
+      record.old_value || '-',
+      record.new_value || '-',
+      CHANGE_TYPE_LABELS[record.change_type]?.label || record.change_type,
+      record.change_percentage !== null ? `${record.change_percentage.toFixed(1)}%` : '-'
+    ]);
+
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(';'))
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `historico-otimizacoes-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+
+    toast.success(`${filteredHistory.length} registros exportados`);
+  }, [filteredHistory]);
+
+  // Get unique change types from history
+  const availableChangeTypes = useMemo(() => {
+    const types = new Set(history.map(h => h.change_type));
+    return Array.from(types);
+  }, [history]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
@@ -164,8 +229,8 @@ export function OptimizationHistoryDialog({
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por nome ou campo..."
@@ -174,8 +239,33 @@ export function OptimizationHistoryDialog({
               className="pl-9"
             />
           </div>
+          
+          <Select value={changeTypeFilter} onValueChange={setChangeTypeFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Tipo de mudança" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas mudanças</SelectItem>
+              {availableChangeTypes.map(type => (
+                <SelectItem key={type} value={type}>
+                  {CHANGE_TYPE_LABELS[type]?.label || type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Button variant="outline" size="icon" onClick={refetch} disabled={loading}>
             <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={exportToCSV}
+            disabled={filteredHistory.length === 0}
+            className="gap-2"
+          >
+            <Download className="w-4 h-4" />
+            CSV
           </Button>
         </div>
 
