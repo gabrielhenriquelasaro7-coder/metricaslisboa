@@ -585,7 +585,7 @@ export default function PredictiveAnalysis() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[300px]">
+                  <ChartContainer config={chartConfig} className="h-[450px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -629,6 +629,153 @@ export default function PredictiveAnalysis() {
                       </ComposedChart>
                     </ResponsiveContainer>
                   </ChartContainer>
+                </CardContent>
+              </Card>
+
+              {/* Future Projection Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    Projeção Futura (7 e 30 dias)
+                  </CardTitle>
+                  <CardDescription>
+                    Estimativa de gasto e {showCPL ? 'leads' : 'conversões'} com base nos dados históricos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    // Build projection data
+                    const today = new Date();
+                    const projectionData = [];
+                    
+                    // Last 7 days of historical data
+                    const last7Days = chartData.slice(-7);
+                    last7Days.forEach((d, i) => {
+                      projectionData.push({
+                        date: d.date,
+                        spend: d.spend,
+                        conversions: d.conversions,
+                        type: 'historical'
+                      });
+                    });
+                    
+                    // Projection for next 7 days
+                    const avgDailySpend = data.predictions.trends.avgDailySpend;
+                    const avgDailyConversions = data.predictions.trends.avgDailyConversions;
+                    
+                    for (let i = 1; i <= 7; i++) {
+                      const projDate = new Date(today);
+                      projDate.setDate(projDate.getDate() + i);
+                      projectionData.push({
+                        date: projDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+                        projectedSpend: avgDailySpend,
+                        projectedConversions: avgDailyConversions,
+                        type: 'projection'
+                      });
+                    }
+                    
+                    const projectionConfig = {
+                      spend: { label: 'Gasto Real', color: 'hsl(var(--primary))' },
+                      projectedSpend: { label: 'Gasto Projetado', color: 'hsl(var(--primary))' },
+                      conversions: { label: showCPL ? 'Leads Reais' : 'Conversões Reais', color: 'hsl(var(--metric-positive))' },
+                      projectedConversions: { label: showCPL ? 'Leads Projetados' : 'Conversões Projetadas', color: 'hsl(var(--metric-positive))' },
+                    };
+                    
+                    return (
+                      <ChartContainer config={projectionConfig} className="h-[400px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <ComposedChart data={projectionData}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                            <XAxis 
+                              dataKey="date" 
+                              tick={{ fontSize: 12 }} 
+                              tickLine={false}
+                              axisLine={false}
+                            />
+                            <YAxis 
+                              yAxisId="left"
+                              tick={{ fontSize: 12 }} 
+                              tickLine={false}
+                              axisLine={false}
+                              tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`}
+                            />
+                            <YAxis 
+                              yAxisId="right"
+                              orientation="right"
+                              tick={{ fontSize: 12 }} 
+                              tickLine={false}
+                              axisLine={false}
+                            />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            {/* Historical Data - Solid Lines */}
+                            <Area
+                              yAxisId="left"
+                              type="monotone"
+                              dataKey="spend"
+                              name="Gasto Real"
+                              stroke="hsl(var(--primary))"
+                              fill="hsl(var(--primary))"
+                              fillOpacity={0.2}
+                              connectNulls={false}
+                            />
+                            <Bar
+                              yAxisId="right"
+                              dataKey="conversions"
+                              name={showCPL ? "Leads Reais" : "Conversões Reais"}
+                              fill="hsl(var(--metric-positive))"
+                              radius={[4, 4, 0, 0]}
+                            />
+                            {/* Projected Data - Dashed Lines */}
+                            <Line
+                              yAxisId="left"
+                              type="monotone"
+                              dataKey="projectedSpend"
+                              name="Gasto Projetado"
+                              stroke="hsl(var(--primary))"
+                              strokeDasharray="8 4"
+                              strokeWidth={3}
+                              dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2 }}
+                              connectNulls={false}
+                            />
+                            <Line
+                              yAxisId="right"
+                              type="monotone"
+                              dataKey="projectedConversions"
+                              name={showCPL ? "Leads Projetados" : "Conversões Projetadas"}
+                              stroke="hsl(var(--metric-positive))"
+                              strokeDasharray="8 4"
+                              strokeWidth={3}
+                              dot={{ fill: 'hsl(var(--metric-positive))', strokeWidth: 2 }}
+                              connectNulls={false}
+                            />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                    );
+                  })()}
+                  <div className="flex items-center justify-center gap-6 mt-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-0.5 bg-primary" />
+                      <span>Dados históricos</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-0.5 bg-primary border-dashed" style={{ borderTop: '3px dashed hsl(var(--primary))' }} />
+                      <span>Projeção futura</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-border">
+                    <div className="text-center p-4 rounded-lg bg-muted/30">
+                      <p className="text-sm text-muted-foreground">Projeção 7 Dias</p>
+                      <p className="text-xl font-bold text-primary">{formatCurrency(data.predictions.next7Days.estimatedSpend)}</p>
+                      <p className="text-sm text-muted-foreground">{formatNumber(data.predictions.next7Days.estimatedConversions)} {showCPL ? 'leads' : 'conversões'}</p>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-muted/30">
+                      <p className="text-sm text-muted-foreground">Projeção 30 Dias</p>
+                      <p className="text-xl font-bold text-primary">{formatCurrency(data.predictions.next30Days.estimatedSpend)}</p>
+                      <p className="text-sm text-muted-foreground">{formatNumber(data.predictions.next30Days.estimatedConversions)} {showCPL ? 'leads' : 'conversões'}</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
