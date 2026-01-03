@@ -590,12 +590,14 @@ export default function WhatsApp() {
     }
   }, [subscription, businessModel]);
 
-  // Load groups when instance is selected
+  // Load groups when instance is selected (always load to show saved group)
   useEffect(() => {
-    if (selectedInstanceId && targetType === 'group') {
+    if (selectedInstanceId) {
       loadGroups(selectedInstanceId);
+    } else {
+      setGroups([]);
     }
-  }, [selectedInstanceId, targetType]);
+  }, [selectedInstanceId]);
 
   const loadGroups = async (instanceId: string) => {
     setLoadingGroups(true);
