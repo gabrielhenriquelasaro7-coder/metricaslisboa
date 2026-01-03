@@ -154,14 +154,21 @@ export default function PredictiveAnalysis() {
   }
 
   // Determine which metrics to show based on business model
+  // Inside Sales e Custom = CPL/Leads only
+  // E-commerce e PDV = ROAS/Revenue only
   const isInsideSales = data?.project.businessModel === 'inside_sales';
   const isEcommerce = data?.project.businessModel === 'ecommerce' || data?.project.businessModel === 'pdv';
   const isCustom = data?.project.businessModel === 'custom';
+  
+  // Inside Sales e Custom usam CPL/Leads
+  const showCPL = isInsideSales || isCustom;
+  // Somente E-commerce/PDV usam ROAS/Receita
+  const showROAS = isEcommerce;
 
   return (
     <DashboardLayout>
       <TooltipProvider>
-        <div className="space-y-8 p-2">
+        <div className="space-y-8 p-6">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -222,10 +229,10 @@ export default function PredictiveAnalysis() {
                   <h3 className="font-semibold">O que é a Análise Preditiva?</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     Esta ferramenta analisa os dados de performance dos últimos 30 dias para projetar 
-                    resultados futuros. As previsões de gasto, {isInsideSales ? 'leads' : 'conversões'}{' '}
-                    {isEcommerce ? 'e receita' : ''} são calculadas com base na média diária recente. 
+                    resultados futuros. As previsões de gasto e {showCPL ? 'leads' : 'conversões'}{' '}
+                    {showROAS ? 'e receita' : ''} são calculadas com base na média diária recente. 
                     Use as metas personalizadas para acompanhar o progresso de cada campanha em relação 
-                    aos seus objetivos de {isInsideSales ? 'CPL' : isEcommerce ? 'ROAS' : 'CPL e ROAS'}.
+                    aos seus objetivos de {showCPL ? 'CPL (Custo por Lead)' : 'ROAS (Retorno sobre Investimento)'}.
                   </p>
                   {data && (
                     <Badge variant="outline" className="mt-2">
@@ -379,7 +386,7 @@ export default function PredictiveAnalysis() {
                   <CardHeader className="pb-2">
                     <CardDescription className="flex items-center gap-2">
                       <Target className="w-4 h-4" />
-                      {isInsideSales ? 'Leads Estimados (7d)' : 'Conversões Estimadas (7d)'}
+                      {showCPL ? 'Leads Estimados (7d)' : 'Conversões Estimadas (7d)'}
                       <Tooltip>
                         <TooltipTrigger>
                           <Info className="w-3 h-3 text-muted-foreground" />
@@ -395,13 +402,13 @@ export default function PredictiveAnalysis() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-sm text-muted-foreground">
-                      ~{formatNumber(data.predictions.trends.avgDailyConversions)} {isInsideSales ? 'leads' : 'conversões'}/dia
+                      ~{formatNumber(data.predictions.trends.avgDailyConversions)} {showCPL ? 'leads' : 'conversões'}/dia
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* CPL for Inside Sales / ROAS for Ecommerce / Both for Custom */}
-                {(isInsideSales || isCustom) && (
+                {/* CPL for Inside Sales and Custom */}
+                {showCPL && (
                   <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
                       <CardDescription className="flex items-center gap-2">
@@ -428,7 +435,8 @@ export default function PredictiveAnalysis() {
                   </Card>
                 )}
 
-                {(isEcommerce || isCustom) && (
+                {/* ROAS for E-commerce/PDV only */}
+                {showROAS && (
                   <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
                       <CardDescription className="flex items-center gap-2">
@@ -455,8 +463,8 @@ export default function PredictiveAnalysis() {
                   </Card>
                 )}
 
-                {/* 30-Day Revenue Prediction - Only for Ecommerce/Custom */}
-                {(isEcommerce || isCustom) && (
+                {/* 30-Day Revenue Prediction - Only for Ecommerce/PDV */}
+                {showROAS && (
                   <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
                       <CardDescription className="flex items-center gap-2">
@@ -483,8 +491,8 @@ export default function PredictiveAnalysis() {
                   </Card>
                 )}
 
-                {/* 30-Day Leads Prediction - Only for Inside Sales */}
-                {isInsideSales && (
+                {/* 30-Day Leads Prediction - For Inside Sales and Custom */}
+                {showCPL && (
                   <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
                       <CardDescription className="flex items-center gap-2">
@@ -520,17 +528,17 @@ export default function PredictiveAnalysis() {
                 <CardContent>
                   <div className={cn(
                     "grid gap-6",
-                    isInsideSales ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-5"
+                    showROAS ? "grid-cols-2 md:grid-cols-5" : "grid-cols-2 md:grid-cols-4"
                   )}>
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Gasto Total</p>
                       <p className="text-xl font-semibold">{formatCurrency(data.totals.spend30Days)}</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">{isInsideSales ? 'Leads' : 'Conversões'}</p>
+                      <p className="text-sm text-muted-foreground">{showCPL ? 'Leads' : 'Conversões'}</p>
                       <p className="text-xl font-semibold">{formatNumber(data.totals.conversions30Days)}</p>
                     </div>
-                    {(isEcommerce || isCustom) && (
+                    {showROAS && (
                       <div className="space-y-1">
                         <p className="text-sm text-muted-foreground">Receita</p>
                         <p className="text-xl font-semibold">{formatCurrency(data.totals.revenue30Days)}</p>
@@ -558,7 +566,7 @@ export default function PredictiveAnalysis() {
                       Tendência dos Últimos 30 Dias
                     </CardTitle>
                     <CardDescription>
-                      Gasto diário e {isInsideSales ? 'leads' : 'conversões'} ao longo do tempo
+                      Gasto diário e {showCPL ? 'leads' : 'conversões'} ao longo do tempo
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -599,7 +607,7 @@ export default function PredictiveAnalysis() {
                           <Bar
                             yAxisId="right"
                             dataKey="conversions"
-                            name={isInsideSales ? "Leads" : "Conversões"}
+                            name={showCPL ? "Leads" : "Conversões"}
                             fill="hsl(var(--metric-positive))"
                             radius={[4, 4, 0, 0]}
                           />
@@ -678,11 +686,9 @@ export default function PredictiveAnalysis() {
                       Metas por Campanha (30 dias)
                     </CardTitle>
                     <CardDescription>
-                      {isInsideSales 
+                      {showCPL 
                         ? 'Progresso de CPL em relação às metas'
-                        : isEcommerce 
-                          ? 'Progresso de ROAS em relação às metas'
-                          : 'Progresso de ROAS e CPL em relação às metas'
+                        : 'Progresso de ROAS em relação às metas'
                       }
                     </CardDescription>
                   </CardHeader>
@@ -703,12 +709,9 @@ export default function PredictiveAnalysis() {
                               </span>
                             </div>
                             
-                            <div className={cn(
-                              "grid gap-4",
-                              isCustom ? "grid-cols-2" : "grid-cols-1"
-                            )}>
+                            <div className="grid gap-4 grid-cols-1">
                               {/* CPL Progress - Show for Inside Sales and Custom */}
-                              {(isInsideSales || isCustom) && (
+                              {showCPL && (
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-1">
@@ -739,8 +742,8 @@ export default function PredictiveAnalysis() {
                                 </div>
                               )}
 
-                              {/* ROAS Progress - Show for Ecommerce and Custom */}
-                              {(isEcommerce || isCustom) && (
+                              {/* ROAS Progress - Show for Ecommerce only */}
+                              {showROAS && (
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-1">
@@ -774,8 +777,8 @@ export default function PredictiveAnalysis() {
 
                             {/* Additional metrics - Adapted by business model */}
                             <div className="flex gap-4 text-xs text-muted-foreground pt-1 border-t border-border/50">
-                              <span>{formatNumber(campaign.conversions)} {isInsideSales ? 'leads' : 'conversões'}</span>
-                              {(isEcommerce || isCustom) && (
+                              <span>{formatNumber(campaign.conversions)} {showCPL ? 'leads' : 'conversões'}</span>
+                              {showROAS && (
                                 <span>{formatCurrency(campaign.conversion_value)} receita</span>
                               )}
                               <span>CTR: {campaign.ctr?.toFixed(2) || 0}%</span>
