@@ -126,10 +126,15 @@ export default function PredictiveAnalysis() {
     );
   }
 
+  // Determine which metrics to show based on business model
+  const isInsideSales = data?.project.businessModel === 'inside_sales';
+  const isEcommerce = data?.project.businessModel === 'ecommerce' || data?.project.businessModel === 'pdv';
+  const isCustom = data?.project.businessModel === 'custom';
+
   return (
     <DashboardLayout>
       <TooltipProvider>
-        <div className="space-y-8">
+        <div className="space-y-8 px-1">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -250,8 +255,8 @@ export default function PredictiveAnalysis() {
                 </CardContent>
               </Card>
 
-              {/* Prediction Cards - With proper spacing */}
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {/* Prediction Cards - With proper spacing and margins */}
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 p-1">
                 {/* 7-Day Spend Prediction */}
                 <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2">
@@ -311,39 +316,60 @@ export default function PredictiveAnalysis() {
                   </CardContent>
                 </Card>
 
-                {/* CPL / ROAS based on business model */}
-                <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4" />
-                      {data.project.businessModel === 'ecommerce' ? 'ROAS Médio' : 'CPL Médio'}
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="w-3 h-3 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{data.project.businessModel === 'ecommerce' 
-                            ? 'Retorno sobre investimento em anúncios' 
-                            : 'Custo por lead/conversão'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </CardDescription>
-                    <CardTitle className="text-2xl">
-                      {data.project.businessModel === 'ecommerce' 
-                        ? `${(data.predictions.trends.avgDailyRoas || 0).toFixed(2)}x`
-                        : formatCurrency(data.predictions.trends.avgDailyCpl || 0)
-                      }
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm text-muted-foreground">
-                      {data.project.businessModel === 'ecommerce' 
-                        ? `Meta recomendada: 3x ou superior`
-                        : `Meta recomendada: R$ 30 ou inferior`
-                      }
-                    </div>
-                  </CardContent>
-                </Card>
+                {/* CPL for Inside Sales / ROAS for Ecommerce / Both for Custom */}
+                {(isInsideSales || isCustom) && (
+                  <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="flex items-center gap-2">
+                        <Target className="w-4 h-4" />
+                        CPL Médio
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Info className="w-3 h-3 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Custo por lead/conversão</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </CardDescription>
+                      <CardTitle className="text-2xl">
+                        {formatCurrency(data.predictions.trends.avgDailyCpl || 0)}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-sm text-muted-foreground">
+                        Meta recomendada: R$ 30 ou inferior
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {(isEcommerce || isCustom) && (
+                  <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="flex items-center gap-2">
+                        <DollarSign className="w-4 h-4" />
+                        ROAS Médio
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Info className="w-3 h-3 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Retorno sobre investimento em anúncios</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </CardDescription>
+                      <CardTitle className="text-2xl">
+                        {(data.predictions.trends.avgDailyRoas || 0).toFixed(2)}x
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-sm text-muted-foreground">
+                        Meta recomendada: 3x ou superior
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* 30-Day Revenue Prediction */}
                 <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
@@ -524,7 +550,7 @@ export default function PredictiveAnalysis() {
                 </Card>
               </div>
 
-              {/* Campaign Goals Progress */}
+              {/* Campaign Goals Progress - Adapted by business model */}
               {data.campaignGoalsProgress.length > 0 && (
                 <Card>
                   <CardHeader>
@@ -533,7 +559,12 @@ export default function PredictiveAnalysis() {
                       Metas por Campanha (30 dias)
                     </CardTitle>
                     <CardDescription>
-                      Progresso de ROAS e CPL em relação às metas
+                      {isInsideSales 
+                        ? 'Progresso de CPL em relação às metas'
+                        : isEcommerce 
+                          ? 'Progresso de ROAS em relação às metas'
+                          : 'Progresso de ROAS e CPL em relação às metas'
+                      }
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -553,72 +584,81 @@ export default function PredictiveAnalysis() {
                               </span>
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-4">
-                              {/* ROAS Progress */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="flex items-center gap-1">
-                                    {getStatusIcon(campaign.roasStatus)}
-                                    ROAS
-                                  </span>
-                                  <span className={cn(
-                                    "font-medium",
-                                    campaign.roasStatus === 'success' && "text-metric-positive",
-                                    campaign.roasStatus === 'warning' && "text-metric-warning",
-                                    campaign.roasStatus === 'critical' && "text-destructive"
-                                  )}>
-                                    {campaign.roas !== null ? `${campaign.roas.toFixed(2)}x` : '-'}
-                                    <span className="text-muted-foreground font-normal"> / {campaign.targetRoas}x</span>
-                                  </span>
+                            <div className={cn(
+                              "grid gap-4",
+                              isCustom ? "grid-cols-2" : "grid-cols-1"
+                            )}>
+                              {/* CPL Progress - Show for Inside Sales and Custom */}
+                              {(isInsideSales || isCustom) && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="flex items-center gap-1">
+                                      {getStatusIcon(campaign.cplStatus)}
+                                      CPL
+                                    </span>
+                                    <span className={cn(
+                                      "font-medium",
+                                      campaign.cplStatus === 'success' && "text-metric-positive",
+                                      campaign.cplStatus === 'warning' && "text-metric-warning",
+                                      campaign.cplStatus === 'critical' && "text-destructive"
+                                    )}>
+                                      {campaign.cpl !== null ? formatCurrency(campaign.cpl) : '-'}
+                                      <span className="text-muted-foreground font-normal"> / {formatCurrency(campaign.targetCpl)}</span>
+                                    </span>
+                                  </div>
+                                  {campaign.cplProgress !== null && (
+                                    <Progress 
+                                      value={campaign.cplProgress} 
+                                      className={cn(
+                                        "h-2",
+                                        campaign.cplStatus === 'success' && "[&>div]:bg-metric-positive",
+                                        campaign.cplStatus === 'warning' && "[&>div]:bg-metric-warning",
+                                        campaign.cplStatus === 'critical' && "[&>div]:bg-destructive"
+                                      )}
+                                    />
+                                  )}
                                 </div>
-                                {campaign.roasProgress !== null && (
-                                  <Progress 
-                                    value={campaign.roasProgress} 
-                                    className={cn(
-                                      "h-2",
-                                      campaign.roasStatus === 'success' && "[&>div]:bg-metric-positive",
-                                      campaign.roasStatus === 'warning' && "[&>div]:bg-metric-warning",
-                                      campaign.roasStatus === 'critical' && "[&>div]:bg-destructive"
-                                    )}
-                                  />
-                                )}
-                              </div>
+                              )}
 
-                              {/* CPL Progress */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="flex items-center gap-1">
-                                    {getStatusIcon(campaign.cplStatus)}
-                                    CPL
-                                  </span>
-                                  <span className={cn(
-                                    "font-medium",
-                                    campaign.cplStatus === 'success' && "text-metric-positive",
-                                    campaign.cplStatus === 'warning' && "text-metric-warning",
-                                    campaign.cplStatus === 'critical' && "text-destructive"
-                                  )}>
-                                    {campaign.cpl !== null ? formatCurrency(campaign.cpl) : '-'}
-                                    <span className="text-muted-foreground font-normal"> / {formatCurrency(campaign.targetCpl)}</span>
-                                  </span>
+                              {/* ROAS Progress - Show for Ecommerce and Custom */}
+                              {(isEcommerce || isCustom) && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="flex items-center gap-1">
+                                      {getStatusIcon(campaign.roasStatus)}
+                                      ROAS
+                                    </span>
+                                    <span className={cn(
+                                      "font-medium",
+                                      campaign.roasStatus === 'success' && "text-metric-positive",
+                                      campaign.roasStatus === 'warning' && "text-metric-warning",
+                                      campaign.roasStatus === 'critical' && "text-destructive"
+                                    )}>
+                                      {campaign.roas !== null ? `${campaign.roas.toFixed(2)}x` : '-'}
+                                      <span className="text-muted-foreground font-normal"> / {campaign.targetRoas}x</span>
+                                    </span>
+                                  </div>
+                                  {campaign.roasProgress !== null && (
+                                    <Progress 
+                                      value={campaign.roasProgress} 
+                                      className={cn(
+                                        "h-2",
+                                        campaign.roasStatus === 'success' && "[&>div]:bg-metric-positive",
+                                        campaign.roasStatus === 'warning' && "[&>div]:bg-metric-warning",
+                                        campaign.roasStatus === 'critical' && "[&>div]:bg-destructive"
+                                      )}
+                                    />
+                                  )}
                                 </div>
-                                {campaign.cplProgress !== null && (
-                                  <Progress 
-                                    value={campaign.cplProgress} 
-                                    className={cn(
-                                      "h-2",
-                                      campaign.cplStatus === 'success' && "[&>div]:bg-metric-positive",
-                                      campaign.cplStatus === 'warning' && "[&>div]:bg-metric-warning",
-                                      campaign.cplStatus === 'critical' && "[&>div]:bg-destructive"
-                                    )}
-                                  />
-                                )}
-                              </div>
+                              )}
                             </div>
 
-                            {/* Additional metrics */}
+                            {/* Additional metrics - Adapted by business model */}
                             <div className="flex gap-4 text-xs text-muted-foreground pt-1 border-t border-border/50">
-                              <span>{formatNumber(campaign.conversions)} conversões</span>
-                              <span>{formatCurrency(campaign.conversion_value)} receita</span>
+                              <span>{formatNumber(campaign.conversions)} {isInsideSales ? 'leads' : 'conversões'}</span>
+                              {(isEcommerce || isCustom) && (
+                                <span>{formatCurrency(campaign.conversion_value)} receita</span>
+                              )}
                               <span>CTR: {campaign.ctr?.toFixed(2) || 0}%</span>
                             </div>
                           </div>
