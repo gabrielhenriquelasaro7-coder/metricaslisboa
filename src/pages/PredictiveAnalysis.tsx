@@ -647,7 +647,8 @@ export default function PredictiveAnalysis() {
                           tick={{ fontSize: 11 }} 
                           tickLine={false}
                           axisLine={false}
-                          interval={2}
+                          interval={Math.floor(chartData.length / 10)}
+                          tickFormatter={(value, index) => value}
                         />
                         <YAxis 
                           yAxisId="left"
@@ -807,6 +808,7 @@ export default function PredictiveAnalysis() {
                                 tick={{ fontSize: 11 }} 
                                 tickLine={false}
                                 axisLine={false}
+                                interval={0}
                               />
                               <YAxis 
                                 yAxisId="left"
