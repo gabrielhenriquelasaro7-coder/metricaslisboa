@@ -154,16 +154,17 @@ export default function PredictiveAnalysis() {
   }
 
   // Determine which metrics to show based on business model
-  // Inside Sales e Custom = CPL/Leads only
-  // E-commerce e PDV = ROAS/Revenue only
+  // ROAS: ecommerce e custom
+  // CPL: inside_sales, custom e pdv
   const isInsideSales = data?.project.businessModel === 'inside_sales';
-  const isEcommerce = data?.project.businessModel === 'ecommerce' || data?.project.businessModel === 'pdv';
+  const isEcommerce = data?.project.businessModel === 'ecommerce';
+  const isPDV = data?.project.businessModel === 'pdv';
   const isCustom = data?.project.businessModel === 'custom';
   
-  // Inside Sales e Custom usam CPL/Leads
-  const showCPL = isInsideSales || isCustom;
-  // Somente E-commerce/PDV usam ROAS/Receita
-  const showROAS = isEcommerce;
+  // CPL para inside_sales, custom e pdv
+  const showCPL = isInsideSales || isCustom || isPDV;
+  // ROAS para ecommerce e custom
+  const showROAS = isEcommerce || isCustom;
 
   return (
     <DashboardLayout>
@@ -225,15 +226,31 @@ export default function PredictiveAnalysis() {
                 <div className="p-2 rounded-full bg-primary/10">
                   <HelpCircle className="w-5 h-5 text-primary" />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <h3 className="font-semibold">O que é a Análise Preditiva?</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     Esta ferramenta analisa os dados de performance dos últimos 30 dias para projetar 
-                    resultados futuros. As previsões de gasto e {showCPL ? 'leads' : 'conversões'}{' '}
-                    {showROAS ? 'e receita' : ''} são calculadas com base na média diária recente. 
-                    Use as metas personalizadas para acompanhar o progresso de cada campanha em relação 
-                    aos seus objetivos de {showCPL ? 'CPL (Custo por Lead)' : 'ROAS (Retorno sobre Investimento)'}.
+                    resultados futuros. Use as metas personalizadas para acompanhar o progresso de cada 
+                    campanha em relação aos seus objetivos.
                   </p>
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 text-sm">
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="font-medium text-foreground">Previsão 7 dias</p>
+                      <p className="text-muted-foreground text-xs">Estimativa de gasto baseada na média dos últimos 7 dias</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="font-medium text-foreground">{showCPL ? 'Leads Estimados' : 'Conversões Estimadas'}</p>
+                      <p className="text-muted-foreground text-xs">Projeção de {showCPL ? 'leads' : 'conversões'} para os próximos 7 e 30 dias</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="font-medium text-foreground">{showCPL ? 'CPL Médio' : 'ROAS Médio'}</p>
+                      <p className="text-muted-foreground text-xs">{showCPL ? 'Custo médio por lead nos últimos 7 dias' : 'Retorno sobre investimento nos últimos 7 dias'}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="font-medium text-foreground">{showCPL ? 'Leads 30d' : 'Receita 30d'}</p>
+                      <p className="text-muted-foreground text-xs">Projeção de {showCPL ? 'leads' : 'receita'} e gasto para os próximos 30 dias</p>
+                    </div>
+                  </div>
                   {data && (
                     <Badge variant="outline" className="mt-2">
                       Modelo: {getBusinessModelLabel(data.project.businessModel)}
@@ -556,126 +573,64 @@ export default function PredictiveAnalysis() {
                 </CardContent>
               </Card>
 
-              {/* Charts and Alerts Row */}
-              <div className="grid gap-6 lg:grid-cols-3">
-                {/* Trend Chart */}
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5" />
-                      Tendência dos Últimos 30 Dias
-                    </CardTitle>
-                    <CardDescription>
-                      Gasto diário e {showCPL ? 'leads' : 'conversões'} ao longo do tempo
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer config={chartConfig} className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={chartData}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                          <XAxis 
-                            dataKey="date" 
-                            tick={{ fontSize: 12 }} 
-                            tickLine={false}
-                            axisLine={false}
-                          />
-                          <YAxis 
-                            yAxisId="left"
-                            tick={{ fontSize: 12 }} 
-                            tickLine={false}
-                            axisLine={false}
-                            tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`}
-                          />
-                          <YAxis 
-                            yAxisId="right"
-                            orientation="right"
-                            tick={{ fontSize: 12 }} 
-                            tickLine={false}
-                            axisLine={false}
-                          />
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Area
-                            yAxisId="left"
-                            type="monotone"
-                            dataKey="spend"
-                            name="Gasto"
-                            stroke="hsl(var(--primary))"
-                            fill="hsl(var(--primary))"
-                            fillOpacity={0.2}
-                          />
-                          <Bar
-                            yAxisId="right"
-                            dataKey="conversions"
-                            name={showCPL ? "Leads" : "Conversões"}
-                            fill="hsl(var(--metric-positive))"
-                            radius={[4, 4, 0, 0]}
-                          />
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
-
-                {/* Budget Alerts */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-metric-warning" />
-                      Alertas de Orçamento
-                    </CardTitle>
-                    <CardDescription>
-                      Campanhas com orçamento baixo
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {data.budgetAlerts.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Nenhuma campanha com orçamento configurado
-                      </p>
-                    ) : (
-                      data.budgetAlerts
-                        .filter(alert => alert.lifetimeBudget > 0)
-                        .sort((a, b) => (a.daysRemaining || 999) - (b.daysRemaining || 999))
-                        .slice(0, 5)
-                        .map((alert) => (
-                          <div key={alert.campaignId} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium truncate max-w-[180px]">
-                                {alert.campaignName}
-                              </span>
-                              <Badge variant={
-                                alert.budgetStatus === 'critical' ? 'destructive' :
-                                alert.budgetStatus === 'warning' ? 'secondary' : 'outline'
-                              }>
-                                {alert.daysRemaining !== null 
-                                  ? `${alert.daysRemaining}d restantes`
-                                  : 'OK'
-                                }
-                              </Badge>
-                            </div>
-                            {alert.percentUsed !== null && (
-                              <div className="space-y-1">
-                                <Progress 
-                                  value={Math.min(alert.percentUsed, 100)} 
-                                  className={cn(
-                                    "h-2",
-                                    alert.budgetStatus === 'critical' && "[&>div]:bg-destructive",
-                                    alert.budgetStatus === 'warning' && "[&>div]:bg-metric-warning"
-                                  )}
-                                />
-                                <div className="flex justify-between text-xs text-muted-foreground">
-                                  <span>{formatCurrency(alert.currentSpend)}</span>
-                                  <span>{formatCurrency(alert.lifetimeBudget)}</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+              {/* Charts Row - Trend Chart Full Width */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    Tendência dos Últimos 30 Dias
+                  </CardTitle>
+                  <CardDescription>
+                    Gasto diário e {showCPL ? 'leads' : 'conversões'} ao longo do tempo
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 12 }} 
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis 
+                          yAxisId="left"
+                          tick={{ fontSize: 12 }} 
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`}
+                        />
+                        <YAxis 
+                          yAxisId="right"
+                          orientation="right"
+                          tick={{ fontSize: 12 }} 
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Area
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="spend"
+                          name="Gasto"
+                          stroke="hsl(var(--primary))"
+                          fill="hsl(var(--primary))"
+                          fillOpacity={0.2}
+                        />
+                        <Bar
+                          yAxisId="right"
+                          dataKey="conversions"
+                          name={showCPL ? "Leads" : "Conversões"}
+                          fill="hsl(var(--metric-positive))"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
 
               {/* Campaign Goals Progress - Adapted by business model */}
               {data.campaignGoalsProgress.length > 0 && (

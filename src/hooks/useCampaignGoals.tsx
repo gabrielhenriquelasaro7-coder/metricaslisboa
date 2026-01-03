@@ -9,6 +9,9 @@ export interface CampaignGoalData {
   campaign_name: string;
   target_cpl: number | null;
   target_roas: number | null;
+  target_ctr: number | null;
+  max_cpc: number | null;
+  target_leads: number | null;
 }
 
 export function useCampaignGoals(projectId: string | null) {
@@ -42,7 +45,10 @@ export function useCampaignGoals(projectId: string | null) {
     campaignId: string,
     campaignName: string,
     targetCpl: number | null,
-    targetRoas: number | null
+    targetRoas: number | null,
+    targetCtr?: number | null,
+    maxCpc?: number | null,
+    targetLeads?: number | null
   ) => {
     if (!projectId) return;
 
@@ -55,6 +61,9 @@ export function useCampaignGoals(projectId: string | null) {
           campaign_name: campaignName,
           target_cpl: targetCpl,
           target_roas: targetRoas,
+          target_ctr: targetCtr ?? null,
+          max_cpc: maxCpc ?? null,
+          target_leads: targetLeads ?? null,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'project_id,campaign_id'

@@ -362,6 +362,8 @@ IMPORTANTE:
 - Cada sugestão DEVE ser baseada em dados concretos fornecidos
 - Explique o MOTIVO da sugestão com números específicos
 - Indique prioridade (high, medium, low) baseada no impacto potencial
+- SEMPRE escreva em português correto, sem abreviações estranhas
+- Use "CPL" não "avaliCPL", use "ROAS" não "avaliROAS"
 
 Formato de resposta (JSON array estrito):
 [
@@ -377,6 +379,7 @@ Exemplos de boas sugestões:
 - "CPL de R$45 está 50% acima da meta de R$30 - otimize públicos"
 - "ROAS de 4.2x está excelente - aumente budget em 20%"
 - "Saldo de conta para apenas 3 dias - recarregue urgente"
+- "CTR de 0.5% está baixo - teste novos criativos"
 
 Responda APENAS com o JSON array, sem texto adicional.`;
 
