@@ -24,7 +24,8 @@ import {
   MessageSquare,
   UserPlus,
   Compass,
-  Lock
+  Lock,
+  TrendingUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -361,6 +362,20 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               >
                 <Bot className="w-5 h-5 flex-shrink-0" />
                 {!collapsed && <span>Agente Lisboa</span>}
+              </Link>
+            )}
+
+            {/* Análise Preditiva - Hidden for guests */}
+            {!roleLoading && !isGuest && (
+              <Link
+                to="/predictive-analysis"
+                className={cn(
+                  'sidebar-item',
+                  location.pathname === '/predictive-analysis' && 'active'
+                )}
+              >
+                <TrendingUp className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>Análise Preditiva</span>}
               </Link>
             )}
 
