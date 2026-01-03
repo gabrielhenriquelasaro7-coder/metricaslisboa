@@ -124,7 +124,7 @@ export default function PredictiveAnalysis() {
     if (!data?.dailyTrend) return [];
     return data.dailyTrend.map((d) => ({
       ...d,
-      date: new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+      date: new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
     }));
   }, [data]);
 
@@ -591,23 +591,34 @@ export default function PredictiveAnalysis() {
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis 
                           dataKey="date" 
-                          tick={{ fontSize: 12 }} 
+                          tick={{ fontSize: 11 }} 
                           tickLine={false}
                           axisLine={false}
+                          interval={2}
                         />
                         <YAxis 
                           yAxisId="left"
-                          tick={{ fontSize: 12 }} 
+                          tick={{ fontSize: 11 }} 
                           tickLine={false}
                           axisLine={false}
-                          tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`}
+                          width={70}
+                          tickFormatter={(v) => {
+                            if (v >= 1000) return `R$${(v/1000).toFixed(1)}k`;
+                            return `R$${v.toFixed(0)}`;
+                          }}
+                          domain={['dataMin', 'dataMax']}
+                          label={{ value: 'Gasto (R$)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
                         />
                         <YAxis 
                           yAxisId="right"
                           orientation="right"
-                          tick={{ fontSize: 12 }} 
+                          tick={{ fontSize: 11 }} 
                           tickLine={false}
                           axisLine={false}
+                          width={50}
+                          allowDecimals={false}
+                          domain={[0, 'dataMax']}
+                          label={{ value: showCPL ? 'Leads' : 'Conversões', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
                         />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Area
@@ -668,12 +679,22 @@ export default function PredictiveAnalysis() {
                       const projDate = new Date(today);
                       projDate.setDate(projDate.getDate() + i);
                       projectionData.push({
-                        date: projDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+                        date: projDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
                         projectedSpend: avgDailySpend,
                         projectedConversions: avgDailyConversions,
                         type: 'projection'
                       });
                     }
+                    
+                    // Calculate max values for proper domain
+                    const maxSpend = Math.max(
+                      ...projectionData.map(d => d.spend || 0),
+                      ...projectionData.map(d => d.projectedSpend || 0)
+                    );
+                    const maxConversions = Math.max(
+                      ...projectionData.map(d => d.conversions || 0),
+                      ...projectionData.map(d => d.projectedConversions || 0)
+                    );
                     
                     const projectionConfig = {
                       spend: { label: 'Gasto Real', color: 'hsl(var(--primary))' },
@@ -689,23 +710,33 @@ export default function PredictiveAnalysis() {
                             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                             <XAxis 
                               dataKey="date" 
-                              tick={{ fontSize: 12 }} 
+                              tick={{ fontSize: 11 }} 
                               tickLine={false}
                               axisLine={false}
                             />
                             <YAxis 
                               yAxisId="left"
-                              tick={{ fontSize: 12 }} 
+                              tick={{ fontSize: 11 }} 
                               tickLine={false}
                               axisLine={false}
-                              tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`}
+                              width={70}
+                              domain={[0, Math.ceil(maxSpend * 1.1)]}
+                              tickFormatter={(v) => {
+                                if (v >= 1000) return `R$${(v/1000).toFixed(1)}k`;
+                                return `R$${v.toFixed(0)}`;
+                              }}
+                              label={{ value: 'Gasto (R$)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
                             />
                             <YAxis 
                               yAxisId="right"
                               orientation="right"
-                              tick={{ fontSize: 12 }} 
+                              tick={{ fontSize: 11 }} 
                               tickLine={false}
                               axisLine={false}
+                              width={50}
+                              allowDecimals={false}
+                              domain={[0, Math.ceil(maxConversions * 1.2)]}
+                              label={{ value: showCPL ? 'Leads' : 'Conversões', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
                             />
                             <ChartTooltip content={<ChartTooltipContent />} />
                             {/* Historical Data - Solid Lines */}
@@ -735,7 +766,7 @@ export default function PredictiveAnalysis() {
                               stroke="hsl(var(--primary))"
                               strokeDasharray="8 4"
                               strokeWidth={3}
-                              dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2 }}
+                              dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
                               connectNulls={false}
                             />
                             <Line
@@ -746,7 +777,7 @@ export default function PredictiveAnalysis() {
                               stroke="hsl(var(--metric-positive))"
                               strokeDasharray="8 4"
                               strokeWidth={3}
-                              dot={{ fill: 'hsl(var(--metric-positive))', strokeWidth: 2 }}
+                              dot={{ fill: 'hsl(var(--metric-positive))', strokeWidth: 2, r: 4 }}
                               connectNulls={false}
                             />
                           </ComposedChart>
