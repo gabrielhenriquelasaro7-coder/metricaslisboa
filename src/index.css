@@ -187,19 +187,22 @@
 }
 
 @layer components {
-  /* Glass Card - Futuristic glassmorphism */
+  /* Glass Card - INTENSE Futuristic glassmorphism */
   .glass-card {
     @apply relative overflow-hidden rounded-xl;
     background: linear-gradient(135deg, 
-      hsl(var(--card) / 0.8) 0%, 
-      hsl(var(--card) / 0.6) 100%
+      hsl(var(--card) / 0.75) 0%, 
+      hsl(var(--card) / 0.55) 50%,
+      hsl(var(--primary) / 0.03) 100%
     );
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid hsl(var(--border) / 0.5);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid hsl(var(--primary) / 0.12);
     box-shadow: 
-      var(--shadow-card),
-      inset 0 1px 0 hsl(var(--foreground) / 0.03);
+      0 8px 32px hsl(0, 0%, 0%, 0.4),
+      0 0 0 1px hsl(var(--primary) / 0.05),
+      inset 0 1px 0 hsl(var(--foreground) / 0.04),
+      inset 0 -1px 0 hsl(0, 0%, 0%, 0.2);
   }
 
   .glass-card-hover {
@@ -207,12 +210,52 @@
   }
 
   .glass-card-hover:hover {
-    border-color: hsl(var(--primary) / 0.4);
+    border-color: hsl(var(--primary) / 0.35);
     box-shadow: 
-      var(--shadow-elevated),
-      0 0 40px hsl(var(--primary) / 0.12),
-      inset 0 1px 0 hsl(var(--foreground) / 0.05);
-    transform: translateY(-2px);
+      0 12px 48px hsl(0, 0%, 0%, 0.5),
+      0 0 60px hsl(var(--primary) / 0.15),
+      0 0 0 1px hsl(var(--primary) / 0.2),
+      inset 0 1px 0 hsl(var(--foreground) / 0.06),
+      inset 0 -1px 0 hsl(0, 0%, 0%, 0.25);
+    transform: translateY(-3px);
+  }
+
+  /* Animated Grid Background with V4 Red */
+  .grid-background {
+    position: relative;
+  }
+  
+  .grid-background::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      radial-gradient(circle at center, hsl(var(--primary) / 0.06) 1.5px, transparent 1.5px);
+    background-size: 50px 50px;
+    animation: grid-pulse 6s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  @keyframes grid-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+  }
+
+  /* Red texture background overlay */
+  .red-texture-bg {
+    position: relative;
+  }
+  
+  .red-texture-bg::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 20% 30%, hsl(var(--primary) / 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 70%, hsl(var(--primary) / 0.03) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
   }
 
   /* Gradient text */
@@ -289,18 +332,60 @@
     opacity: 0.3;
   }
 
-  /* Sidebar styles */
+  /* Sidebar styles with animated icons */
   .sidebar-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground transition-all duration-300;
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground transition-all duration-300 relative;
   }
 
   .sidebar-item:hover {
     @apply bg-secondary text-foreground;
   }
 
+  .sidebar-item:hover svg {
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.6));
+    color: hsl(var(--primary));
+  }
+
+  .sidebar-item svg {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
   .sidebar-item.active {
-    @apply bg-primary/15 text-primary border-l-2 border-primary;
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.15);
+    @apply bg-primary/15 text-primary;
+    box-shadow: 0 0 25px hsl(var(--primary) / 0.2);
+  }
+  
+  .sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 70%;
+    background: linear-gradient(180deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.5) 100%);
+    border-radius: 0 2px 2px 0;
+    box-shadow: 0 0 12px hsl(var(--primary) / 0.6);
+    animation: sidebar-pulse 2s ease-in-out infinite;
+  }
+
+  .sidebar-item.active svg {
+    animation: icon-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes sidebar-pulse {
+    0%, 100% { opacity: 0.8; height: 70%; }
+    50% { opacity: 1; height: 85%; }
+  }
+
+  @keyframes icon-glow {
+    0%, 100% { 
+      filter: drop-shadow(0 0 6px hsl(var(--primary) / 0.5));
+    }
+    50% { 
+      filter: drop-shadow(0 0 12px hsl(var(--primary) / 0.8));
+    }
   }
 
   /* Input with glow focus */
@@ -439,23 +524,31 @@
   }
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling - V4 Red */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background));
+  background: hsl(var(--background) / 0.5);
+  border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, hsl(var(--primary) / 0.4), hsl(var(--primary) / 0.2));
-  border-radius: 4px;
+  background: linear-gradient(180deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.6) 100%);
+  border-radius: 5px;
+  border: 2px solid hsl(var(--background) / 0.3);
+  box-shadow: 0 0 10px hsl(var(--primary) / 0.3);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, hsl(var(--primary) / 0.6), hsl(var(--primary) / 0.3));
+  background: linear-gradient(180deg, hsl(var(--primary) / 1) 0%, hsl(var(--primary) / 0.8) 100%);
+  box-shadow: 0 0 15px hsl(var(--primary) / 0.5);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Selection styling */

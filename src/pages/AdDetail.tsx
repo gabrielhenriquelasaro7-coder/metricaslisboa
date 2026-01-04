@@ -32,6 +32,31 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+// Helper to clean image URLs - removes stp resize parameters to get HD images
+const cleanImageUrl = (url: string | null): string | null => {
+  if (!url) return null;
+  
+  // Remove stp= parameter that forces resize
+  let clean = url.replace(/[&?]stp=[^&]*/g, '');
+  
+  // Remove size parameters in path
+  clean = clean.replace(/\/p\d+x\d+\//g, '/');
+  clean = clean.replace(/\/s\d+x\d+\//g, '/');
+  
+  // Remove width/height query params
+  clean = clean.replace(/[&?]width=\d+/gi, '');
+  clean = clean.replace(/[&?]height=\d+/gi, '');
+  
+  // Fix malformed URL
+  if (clean.includes('&') && !clean.includes('?')) {
+    clean = clean.replace('&', '?');
+  }
+  
+  clean = clean.replace(/[&?]$/g, '');
+  
+  return clean;
+};
 import {
   Dialog,
   DialogContent,
@@ -194,7 +219,7 @@ export default function AdDetail() {
 
   const hasVideo = ad?.creative_video_url;
   const hasImage = ad?.creative_image_url || ad?.creative_thumbnail;
-  const creativeUrl = ad?.creative_image_url || ad?.creative_thumbnail || '';
+  const creativeUrl = cleanImageUrl(ad?.creative_image_url || ad?.creative_thumbnail) || '';
 
   if (loading) {
     return (

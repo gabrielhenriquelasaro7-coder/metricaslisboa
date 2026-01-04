@@ -27,6 +27,32 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
+// Helper to clean image URLs - removes stp resize parameters to get HD images
+const cleanImageUrl = (url: string | null): string | null => {
+  if (!url) return null;
+  
+  // Remove stp= parameter that forces resize (e.g., stp=dst-jpg_p64x64_q75_tt6)
+  let clean = url.replace(/[&?]stp=[^&]*/g, '');
+  
+  // Remove size parameters in path
+  clean = clean.replace(/\/p\d+x\d+\//g, '/');
+  clean = clean.replace(/\/s\d+x\d+\//g, '/');
+  
+  // Remove width/height query params
+  clean = clean.replace(/[&?]width=\d+/gi, '');
+  clean = clean.replace(/[&?]height=\d+/gi, '');
+  
+  // Fix malformed URL: if & appears before any ?, replace first & with ?
+  if (clean.includes('&') && !clean.includes('?')) {
+    clean = clean.replace('&', '?');
+  }
+  
+  // Clean trailing ? or &
+  clean = clean.replace(/[&?]$/g, '');
+  
+  return clean;
+};
+
 interface AdSet {
   id: string;
   campaign_id: string;
@@ -405,7 +431,7 @@ export default function AdSetDetail() {
               {sortedAds.map((ad) => {
                 const hasVideo = ad.creative_video_url;
                 const hasImage = ad.creative_image_url || ad.creative_thumbnail;
-                const creativeUrl = ad.creative_image_url || ad.creative_thumbnail || '';
+                const creativeUrl = cleanImageUrl(ad.creative_image_url || ad.creative_thumbnail) || '';
                 
                 return (
                   <Link 
@@ -421,7 +447,7 @@ export default function AdSetDetail() {
                             src={ad.creative_video_url || ''} 
                             className="w-full h-full object-cover"
                             muted
-                            poster={ad.creative_thumbnail || undefined}
+                            poster={cleanImageUrl(ad.creative_thumbnail) || undefined}
                           />
                           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                             <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
