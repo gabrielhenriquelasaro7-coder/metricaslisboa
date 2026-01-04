@@ -63,7 +63,7 @@ const createMetricOptions = (currency: string = 'BRL'): MetricOption[] => {
   return [
     { key: 'spend', label: 'Gasto', format: formatCurrency, color: 'hsl(var(--primary))' },
     { key: 'conversions', label: 'Conversões', format: formatNumber, color: 'hsl(var(--chart-1))' },
-    { key: 'revenue', label: 'Receita', format: formatCurrency, color: 'hsl(142, 76%, 36%)' },
+    { key: 'revenue', label: 'Receita', format: formatCurrency, color: 'hsl(var(--metric-positive))' },
     { key: 'impressions', label: 'Impressões', format: formatNumber, color: 'hsl(var(--chart-2))' },
     { key: 'clicks', label: 'Cliques', format: formatNumber, color: 'hsl(var(--chart-3))' },
     { key: 'reach', label: 'Alcance', format: formatNumber, color: 'hsl(var(--chart-4))' },
@@ -71,7 +71,7 @@ const createMetricOptions = (currency: string = 'BRL'): MetricOption[] => {
     { key: 'cpc', label: 'CPC', format: formatCurrency, color: 'hsl(280, 70%, 50%)' },
     { key: 'cpm', label: 'CPM', format: formatCurrency, color: 'hsl(200, 70%, 50%)' },
     { key: 'cpl', label: 'CPL/CPA', format: formatCurrency, color: 'hsl(30, 70%, 50%)' },
-    { key: 'roas', label: 'ROAS', format: formatMultiplier, color: 'hsl(142, 76%, 36%)' },
+    { key: 'roas', label: 'ROAS', format: formatMultiplier, color: 'hsl(var(--metric-positive))' },
     { key: 'frequency', label: 'Frequência', format: (v) => v.toFixed(2), color: 'hsl(var(--muted-foreground))' },
   ];
 };
@@ -101,10 +101,10 @@ export function CustomizableChart({
   );
   const [customName, setCustomName] = useState(savedPref?.custom_name || '');
   const [primaryColor, setPrimaryColor] = useState(
-    savedPref?.primary_color || 'hsl(220, 70%, 50%)'
+    savedPref?.primary_color || 'hsl(var(--primary))'
   );
   const [secondaryColor, setSecondaryColor] = useState(
-    savedPref?.secondary_color || 'hsl(142, 76%, 36%)'
+    savedPref?.secondary_color || 'hsl(var(--metric-positive))'
   );
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -198,15 +198,15 @@ export function CustomizableChart({
     if (!active || !payload || !payload.length) return null;
 
     return (
-      <div className="bg-background/95 backdrop-blur-xl border border-primary/20 rounded-xl p-4 shadow-[0_0_30px_hsl(var(--neon-purple)/0.2)]">
+      <div className="bg-background/95 backdrop-blur-xl border border-border/50 rounded-xl p-4 shadow-[0_8px_32px_hsl(0,0%,0%,0.4)]">
         <p className="font-semibold text-sm mb-3 text-primary">{label}</p>
         {payload.map((entry: any, index: number) => {
           const metric = DEFAULT_METRIC_OPTIONS.find(m => m.label === entry.name);
           return (
             <div key={index} className="flex items-center gap-2 text-sm py-1">
               <div 
-                className="w-3 h-3 rounded-full shadow-[0_0_8px_currentColor]" 
-                style={{ backgroundColor: entry.color, boxShadow: `0 0 8px ${entry.color}` }}
+                className="w-3 h-3 rounded-full" 
+                style={{ backgroundColor: entry.color }}
               />
               <span className="text-muted-foreground">{entry.name}:</span>
               <span className="font-medium text-foreground">
@@ -278,15 +278,15 @@ export function CustomizableChart({
         <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={gradientId1} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={primaryColor} stopOpacity={0.4} />
+              <stop offset="5%" stopColor={primaryColor} stopOpacity={0.35} />
               <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
             </linearGradient>
             <linearGradient id={gradientId2} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={secondaryColor} stopOpacity={0.4} />
+              <stop offset="5%" stopColor={secondaryColor} stopOpacity={0.35} />
               <stop offset="95%" stopColor={secondaryColor} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
@@ -299,7 +299,7 @@ export function CustomizableChart({
     } else if (chartType === 'bar') {
       return (
         <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
@@ -314,11 +314,11 @@ export function CustomizableChart({
         <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={gradientId1} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={primaryColor} stopOpacity={0.4} />
+              <stop offset="5%" stopColor={primaryColor} stopOpacity={0.35} />
               <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
@@ -337,17 +337,17 @@ export function CustomizableChart({
     <>
       <div className={cn(
         'glass-card p-6 transition-all duration-500 group',
-        'hover:shadow-[0_0_40px_hsl(var(--neon-purple)/0.15)]',
+        'hover:shadow-[0_8px_40px_hsl(0,0%,0%,0.4),0_0_40px_hsl(var(--primary)/0.1)]',
         'hover:border-primary/30',
         className
       )}>
         {/* Animated top border */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary via-neon-purple to-neon-cyan opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary via-v4-crimson to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           <div className="flex items-center gap-2">
-            <Settings2 className="w-4 h-4 text-primary group-hover:drop-shadow-[0_0_8px_currentColor] transition-all duration-500" />
-            <h3 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80 group-hover:from-primary group-hover:to-foreground transition-all duration-500">{displayTitle}</h3>
+            <Settings2 className="w-4 h-4 text-primary group-hover:drop-shadow-[0_0_6px_currentColor] transition-all duration-500" />
+            <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-500">{displayTitle}</h3>
             <Button
               variant="ghost"
               size="sm"
