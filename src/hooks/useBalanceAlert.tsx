@@ -113,7 +113,7 @@ export function useBalanceAlert(projectId: string | null, projectName?: string) 
             duration: 10000,
             action: {
               label: 'Ver detalhes',
-              onClick: () => window.location.href = '/predictive',
+              onClick: () => window.location.href = '/predictive-analysis',
             },
           }
         );
@@ -130,7 +130,7 @@ export function useBalanceAlert(projectId: string | null, projectName?: string) 
             duration: 8000,
             action: {
               label: 'Ver detalhes',
-              onClick: () => window.location.href = '/predictive',
+              onClick: () => window.location.href = '/predictive-analysis',
             },
           }
         );
