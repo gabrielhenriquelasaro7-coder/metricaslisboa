@@ -57,18 +57,28 @@ function getDateRangeFromPeriod(preset: DatePresetKey) {
   console.log(`[DailyMetrics] Preset ${preset} -> since: ${since}, until: ${until}, days: ${days}`);
   
   // Determine previous type based on preset
-  let previousType: 'same_length' | 'previous_month' | 'previous_year' = 'same_length';
-  if (preset === 'this_month' || preset === 'last_month') {
+  // For last_year and last_month, we don't compare with an even older period
+  // since it usually doesn't exist. Instead we use 'none' to skip comparison.
+  let previousType: 'same_length' | 'previous_month' | 'previous_year' | 'none' = 'same_length';
+  if (preset === 'this_month') {
     previousType = 'previous_month';
-  } else if (preset === 'this_year' || preset === 'last_year') {
+  } else if (preset === 'this_year') {
     previousType = 'previous_year';
+  } else if (preset === 'last_month' || preset === 'last_year') {
+    // For last_month and last_year, skip comparison as previous data likely doesn't exist
+    previousType = 'none';
   }
   
   return { since, until, days, previousType };
 }
 
 // Get previous period dates based on the type of comparison
-function getPreviousPeriodDates(since: string, until: string, days: number, previousType: 'same_length' | 'previous_month' | 'previous_year') {
+function getPreviousPeriodDates(since: string, until: string, days: number, previousType: 'same_length' | 'previous_month' | 'previous_year' | 'none'): { since: string; until: string } | null {
+  // For 'none', don't calculate previous period
+  if (previousType === 'none') {
+    return null;
+  }
+  
   const now = new Date();
   
   if (previousType === 'previous_month') {
@@ -230,43 +240,50 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
       const previousDates = getPreviousPeriodDates(since, until, days, previousType);
       
       console.log(`[DailyMetrics] Loading: ${since} to ${until} (${days} days)`);
-      console.log(`[DailyMetrics] Previous: ${previousDates.since} to ${previousDates.until}`);
+      console.log(`[DailyMetrics] Previous dates: ${previousDates ? `${previousDates.since} to ${previousDates.until}` : 'none (skipped)'}`);
       
-      // Fetch current and previous period in parallel - no limit to get all data
-      const [currentResult, previousResult] = await Promise.all([
-        supabase
-          .from('ads_daily_metrics')
-          .select('date, spend, impressions, clicks, reach, conversions, conversion_value')
-          .eq('project_id', projectId)
-          .gte('date', since)
-          .lte('date', until)
-          .order('date', { ascending: true })
-          .limit(10000),
-        supabase
+      // Always fetch current period
+      const currentResult = await supabase
+        .from('ads_daily_metrics')
+        .select('date, spend, impressions, clicks, reach, conversions, conversion_value')
+        .eq('project_id', projectId)
+        .gte('date', since)
+        .lte('date', until)
+        .order('date', { ascending: true })
+        .limit(10000);
+      
+      if (currentResult.error) {
+        console.error('[DailyMetrics] Current period error:', currentResult.error);
+      }
+      
+      console.log(`[DailyMetrics] Raw current rows: ${currentResult.data?.length || 0}`);
+      
+      const currentData = aggregateDaily(currentResult.data || []);
+      const currentTotals = calculateTotals(currentData);
+      
+      // Only fetch previous period if we have dates
+      let previousData: DailyMetric[] = [];
+      let previousTotals = calculateTotals([]);
+      
+      if (previousDates) {
+        const previousResult = await supabase
           .from('ads_daily_metrics')
           .select('date, spend, impressions, clicks, reach, conversions, conversion_value')
           .eq('project_id', projectId)
           .gte('date', previousDates.since)
           .lte('date', previousDates.until)
           .order('date', { ascending: true })
-          .limit(10000),
-      ]);
-      
-      if (currentResult.error) {
-        console.error('[DailyMetrics] Current period error:', currentResult.error);
+          .limit(10000);
+        
+        if (previousResult.error) {
+          console.error('[DailyMetrics] Previous period error:', previousResult.error);
+        }
+        
+        console.log(`[DailyMetrics] Raw previous rows: ${previousResult.data?.length || 0}`);
+        
+        previousData = aggregateDaily(previousResult.data || []);
+        previousTotals = calculateTotals(previousData);
       }
-      if (previousResult.error) {
-        console.error('[DailyMetrics] Previous period error:', previousResult.error);
-      }
-      
-      console.log(`[DailyMetrics] Raw current rows: ${currentResult.data?.length || 0}`);
-      console.log(`[DailyMetrics] Raw previous rows: ${previousResult.data?.length || 0}`);
-      
-      const currentData = aggregateDaily(currentResult.data || []);
-      const previousData = aggregateDaily(previousResult.data || []);
-      
-      const currentTotals = calculateTotals(currentData);
-      const previousTotals = calculateTotals(previousData);
       
       setDailyData(currentData);
       setComparison({
@@ -285,6 +302,7 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
       });
       
       console.log(`[DailyMetrics] Loaded ${currentData.length} days current, ${previousData.length} days previous`);
+      console.log(`[DailyMetrics] Current totals: spend=${currentTotals.spend}, conversions=${currentTotals.conversions}`);
     } catch (error) {
       console.error('Error loading daily metrics:', error);
     } finally {
