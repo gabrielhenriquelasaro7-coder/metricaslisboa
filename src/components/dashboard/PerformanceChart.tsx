@@ -56,20 +56,18 @@ export default function PerformanceChart({
               type="monotone"
               dataKey={dataKey}
               stroke={color}
-              strokeWidth={2.5}
-              strokeDasharray="6 4"
-              dot={{ r: 4, fill: color, stroke: color, strokeWidth: 1 }}
-              activeDot={{ r: 6, fill: color, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+              strokeWidth={3}
+              dot={{ r: 4, fill: color, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+              activeDot={{ r: 7, fill: color, stroke: 'hsl(var(--background))', strokeWidth: 3 }}
             />
             {dataKey2 && (
               <Line
                 type="monotone"
                 dataKey={dataKey2}
                 stroke={color2}
-                strokeWidth={2.5}
-                strokeDasharray="6 4"
-                dot={{ r: 4, fill: color2, stroke: color2, strokeWidth: 1 }}
-                activeDot={{ r: 6, fill: color2, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+                strokeWidth={3}
+                dot={{ r: 4, fill: color2, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+                activeDot={{ r: 7, fill: color2, stroke: 'hsl(var(--background))', strokeWidth: 3 }}
               />
             )}
           </LineChart>

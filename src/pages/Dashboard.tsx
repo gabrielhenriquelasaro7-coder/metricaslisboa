@@ -611,7 +611,7 @@ export default function Dashboard() {
                 defaultTitle="Gráfico 2 - Alcance"
                 defaultPrimaryMetric="impressions"
                 defaultSecondaryMetric="ctr"
-                defaultChartType="area"
+                defaultChartType="line"
                 currency={selectedProject?.currency || 'BRL'}
               />
               <CustomizableChart

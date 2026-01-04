@@ -10,7 +10,10 @@ import {
   Legend,
   ComposedChart,
   Bar,
-  BarChart
+  BarChart,
+  ScatterChart,
+  Scatter,
+  ZAxis
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { DailyMetric } from '@/hooks/useDailyMetrics';
@@ -18,11 +21,11 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, LineChart, TrendingUp, Settings2, Pencil } from 'lucide-react';
+import { BarChart2, LineChart, TrendingUp, Settings2, Pencil, Circle } from 'lucide-react';
 import { ChartCustomizationDialog } from './ChartCustomizationDialog';
 import { useChartPreferences, ChartPreference } from '@/hooks/useChartPreferences';
 
-type ChartType = 'area' | 'bar' | 'composed';
+type ChartType = 'line' | 'bar' | 'composed' | 'scatter';
 
 interface MetricOption {
   key: string;
@@ -223,9 +226,10 @@ export function CustomizableChart({
     <div className="flex items-center gap-0.5 bg-secondary/50 rounded-lg p-0.5">
       <Button
         size="sm"
-        variant={chartType === 'area' ? 'default' : 'ghost'}
+        variant={chartType === 'line' ? 'default' : 'ghost'}
         className="h-7 px-2 text-xs"
-        onClick={() => handleChartTypeChange('area')}
+        onClick={() => handleChartTypeChange('line')}
+        title="Linha"
       >
         <TrendingUp className="w-3 h-3" />
       </Button>
@@ -234,6 +238,7 @@ export function CustomizableChart({
         variant={chartType === 'bar' ? 'default' : 'ghost'}
         className="h-7 px-2 text-xs"
         onClick={() => handleChartTypeChange('bar')}
+        title="Barras"
       >
         <BarChart2 className="w-3 h-3" />
       </Button>
@@ -242,8 +247,18 @@ export function CustomizableChart({
         variant={chartType === 'composed' ? 'default' : 'ghost'}
         className="h-7 px-2 text-xs"
         onClick={() => handleChartTypeChange('composed')}
+        title="Misto"
       >
         <LineChart className="w-3 h-3" />
+      </Button>
+      <Button
+        size="sm"
+        variant={chartType === 'scatter' ? 'default' : 'ghost'}
+        className="h-7 px-2 text-xs"
+        onClick={() => handleChartTypeChange('scatter')}
+        title="Pontilhado"
+      >
+        <Circle className="w-3 h-3" />
       </Button>
     </div>
   );
@@ -273,8 +288,8 @@ export function CustomizableChart({
   const gradientId2 = `gradient-${chartKey}-secondary`;
 
   const renderChart = () => {
-    if (chartType === 'area') {
-      // Use LineChart with dots for dotted line style
+    if (chartType === 'line') {
+      // LineChart with solid visible lines
       return (
         <RechartsLineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
@@ -289,10 +304,9 @@ export function CustomizableChart({
             dataKey={primaryMetric} 
             name={primary.label} 
             stroke={primaryColor} 
-            strokeWidth={2.5} 
-            strokeDasharray="6 4"
-            dot={{ r: 4, fill: primaryColor, stroke: primaryColor, strokeWidth: 1 }}
-            activeDot={{ r: 6, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            strokeWidth={3}
+            dot={{ r: 4, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            activeDot={{ r: 7, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 3 }}
             animationDuration={800} 
           />
           <Line 
@@ -301,10 +315,9 @@ export function CustomizableChart({
             dataKey={secondaryMetric} 
             name={secondary.label} 
             stroke={secondaryColor} 
-            strokeWidth={2.5} 
-            strokeDasharray="6 4"
-            dot={{ r: 4, fill: secondaryColor, stroke: secondaryColor, strokeWidth: 1 }}
-            activeDot={{ r: 6, fill: secondaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            strokeWidth={3}
+            dot={{ r: 4, fill: secondaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            activeDot={{ r: 7, fill: secondaryColor, stroke: 'hsl(var(--background))', strokeWidth: 3 }}
             animationDuration={800} 
           />
         </RechartsLineChart>
@@ -322,8 +335,42 @@ export function CustomizableChart({
           <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} animationDuration={800} />
         </BarChart>
       );
+    } else if (chartType === 'scatter') {
+      // SCATTER/DOT CHART - Only dots, no lines
+      return (
+        <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
+          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+          <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
+          <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
+          <Tooltip content={<CustomTooltip />} />
+          <Legend wrapperStyle={{ paddingTop: '20px' }} />
+          <Line 
+            yAxisId="left" 
+            type="monotone" 
+            dataKey={primaryMetric} 
+            name={primary.label} 
+            stroke="transparent"
+            strokeWidth={0}
+            dot={{ r: 6, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            activeDot={{ r: 9, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 3 }}
+            animationDuration={800} 
+          />
+          <Line 
+            yAxisId="right" 
+            type="monotone" 
+            dataKey={secondaryMetric} 
+            name={secondary.label} 
+            stroke="transparent"
+            strokeWidth={0}
+            dot={{ r: 6, fill: secondaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            activeDot={{ r: 9, fill: secondaryColor, stroke: 'hsl(var(--background))', strokeWidth: 3 }}
+            animationDuration={800} 
+          />
+        </ComposedChart>
+      );
     } else {
-      // Composed: Line with dots + Bar
+      // Composed: Line + Bar
       return (
         <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
@@ -338,10 +385,9 @@ export function CustomizableChart({
             dataKey={primaryMetric} 
             name={primary.label} 
             stroke={primaryColor} 
-            strokeWidth={2.5} 
-            strokeDasharray="6 4"
-            dot={{ r: 4, fill: primaryColor, stroke: primaryColor, strokeWidth: 1 }}
-            activeDot={{ r: 6, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            strokeWidth={3}
+            dot={{ r: 4, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            activeDot={{ r: 7, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 3 }}
             animationDuration={800} 
           />
           <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} opacity={0.85} animationDuration={800} />

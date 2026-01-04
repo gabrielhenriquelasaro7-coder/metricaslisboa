@@ -989,11 +989,18 @@ Deno.serve(async (req) => {
         
         // Extract conversions with logging for first 10 rows
         const shouldLog = logCounter < 10 && (insights.actions?.length > 0);
-        const { conversions, conversionValue } = extractConversions(insights, shouldLog);
+        let { conversions, conversionValue } = extractConversions(insights, shouldLog);
         if (shouldLog && insights.actions?.length > 0) logCounter++;
         
         // Extract messaging metrics for Inside Sales campaigns
         const messagingReplies = extractMessagingReplies(insights);
+        
+        // IMPORTANTE: Se não há conversões tradicionais mas há messaging_replies,
+        // usar messaging_replies como lead (para campanhas de mensagem/tráfego WhatsApp)
+        if (conversions === 0 && messagingReplies > 0) {
+          console.log(`[MESSAGING_AS_LEAD] Ad ${adId}: Using ${messagingReplies} messaging_replies as conversions`);
+          conversions = messagingReplies;
+        }
         
         // Get HD image URL
         const { imageUrl, videoUrl } = ad ? extractHdImageUrl(ad, adImageMap) : { imageUrl: null, videoUrl: null };

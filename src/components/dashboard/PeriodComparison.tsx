@@ -130,6 +130,20 @@ export default function PeriodComparison({
         change: calculateChange(currentMetrics.ctr, previousMetrics.ctr),
         isInverse: false,
       },
+      {
+        label: 'CPM',
+        current: formatCurrencyValue(currentMetrics.cpm),
+        previous: formatCurrencyValue(previousMetrics.cpm),
+        change: calculateChange(currentMetrics.cpm, previousMetrics.cpm),
+        isInverse: true,
+      },
+      {
+        label: 'CPC',
+        current: formatCurrencyValue(currentMetrics.cpc),
+        previous: formatCurrencyValue(previousMetrics.cpc),
+        change: calculateChange(currentMetrics.cpc, previousMetrics.cpc),
+        isInverse: true,
+      },
     ];
 
     // Add business-model specific metrics
@@ -244,6 +258,8 @@ export default function PeriodComparison({
       { label: 'Impressões', value: formatNumber(currentMetrics.totalImpressions) },
       { label: 'Cliques', value: formatNumber(currentMetrics.totalClicks) },
       { label: 'CTR', value: `${currentMetrics.ctr.toFixed(2)}%` },
+      { label: 'CPM', value: formatCurrencyValue(currentMetrics.cpm) },
+      { label: 'CPC', value: formatCurrencyValue(currentMetrics.cpc) },
     ];
 
     // Add business-model specific
