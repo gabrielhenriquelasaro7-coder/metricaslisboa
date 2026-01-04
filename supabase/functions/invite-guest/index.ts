@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +14,11 @@ function generateTempPassword(): string {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return password;
+}
+
+async function hashPassword(password: string): Promise<string> {
+  const salt = await bcrypt.genSalt(10);
+  return await bcrypt.hash(password, salt);
 }
 
 serve(async (req) => {
@@ -186,15 +192,19 @@ serve(async (req) => {
     // Create or update invitation record
     console.log(resend ? 'Updating invitation record...' : 'Creating invitation record...');
     
+    // Hash the temp password before storing (store only hash for security)
+    const hashedPassword = isNewUser ? await hashPassword(tempPassword) : null;
+    const storedPasswordValue = hashedPassword ? `hashed:${hashedPassword}` : '***REDACTED***';
+    
     let invitation;
     let invitationError;
     
     if (resend) {
-      // Update existing invitation with new password
+      // Update existing invitation with new hashed password
       const updateResult = await supabase
         .from('guest_invitations')
         .update({
-          temp_password: isNewUser ? tempPassword : '(senha resetada)',
+          temp_password: storedPasswordValue,
           status: 'pending',
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         })
@@ -206,7 +216,7 @@ serve(async (req) => {
       invitation = updateResult.data;
       invitationError = updateResult.error;
     } else {
-      // Create new invitation
+      // Create new invitation with hashed password
       const insertResult = await supabase
         .from('guest_invitations')
         .insert({
@@ -215,7 +225,7 @@ serve(async (req) => {
           guest_email: guest_email,
           guest_name: guest_name,
           guest_user_id: guestUserId,
-          temp_password: isNewUser ? tempPassword : '(usuário já existente)',
+          temp_password: storedPasswordValue,
           status: 'pending'
         })
         .select()
