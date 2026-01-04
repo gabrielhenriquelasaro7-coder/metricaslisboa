@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { DatePresetKey } from '@/utils/dateUtils';
+import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
 
 export interface DailyMetric {
   date: string;
@@ -32,52 +32,35 @@ export interface PeriodComparison {
   };
 }
 
-// Calculate date range based on preset
+// Calculate date range based on preset - use centralized dateUtils
 function getDateRangeFromPeriod(preset: DatePresetKey) {
-  const now = new Date();
-  const today = now.toISOString().split('T')[0];
-  const yesterdayDate = new Date(now);
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterday = yesterdayDate.toISOString().split('T')[0];
+  const period = getDateRangeFromPreset(preset, 'America/Sao_Paulo');
   
-  switch (preset) {
-    case 'yesterday':
-      return { since: yesterday, until: yesterday, days: 1, previousType: 'same_length' as const };
-    case 'last_7d':
-      return { since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 7, previousType: 'same_length' as const };
-    case 'last_14d':
-      return { since: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 14, previousType: 'same_length' as const };
-    case 'last_30d':
-      return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 30, previousType: 'same_length' as const };
-    case 'last_60d':
-      return { since: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 60, previousType: 'same_length' as const };
-    case 'last_90d':
-      return { since: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday, days: 90, previousType: 'same_length' as const };
-    case 'this_month': {
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { since: firstDay.toISOString().split('T')[0], until: today, days: Math.ceil((now.getTime() - firstDay.getTime()) / (24 * 60 * 60 * 1000)) + 1, previousType: 'previous_month' as const };
-    }
-    case 'last_month': {
-      // Mês passado completo
-      const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-      const days = Math.ceil((lastDayLastMonth.getTime() - firstDayLastMonth.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-      return { since: firstDayLastMonth.toISOString().split('T')[0], until: lastDayLastMonth.toISOString().split('T')[0], days, previousType: 'previous_month' as const };
-    }
-    case 'this_year': {
-      const firstDay = new Date(now.getFullYear(), 0, 1);
-      return { since: firstDay.toISOString().split('T')[0], until: today, days: Math.ceil((now.getTime() - firstDay.getTime()) / (24 * 60 * 60 * 1000)) + 1, previousType: 'previous_year' as const };
-    }
-    case 'last_year': {
-      // Ano passado completo (01/01 a 31/12 do ano anterior)
-      const firstDayLastYear = new Date(now.getFullYear() - 1, 0, 1);
-      const lastDayLastYear = new Date(now.getFullYear() - 1, 11, 31);
-      const days = Math.ceil((lastDayLastYear.getTime() - firstDayLastYear.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-      return { since: firstDayLastYear.toISOString().split('T')[0], until: lastDayLastYear.toISOString().split('T')[0], days, previousType: 'previous_year' as const };
-    }
-    default:
-      return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: today, days: 30, previousType: 'same_length' as const };
+  if (!period) {
+    // Fallback for custom - last 30 days
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    return { 
+      since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      until: today, 
+      days: 30, 
+      previousType: 'same_length' as const 
+    };
   }
+  
+  const since = period.since;
+  const until = period.until;
+  const days = Math.ceil((new Date(until).getTime() - new Date(since).getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  
+  // Determine previous type based on preset
+  let previousType: 'same_length' | 'previous_month' | 'previous_year' = 'same_length';
+  if (preset === 'this_month' || preset === 'last_month') {
+    previousType = 'previous_month';
+  } else if (preset === 'this_year' || preset === 'last_year') {
+    previousType = 'previous_year';
+  }
+  
+  return { since, until, days, previousType };
 }
 
 // Get previous period dates based on the type of comparison

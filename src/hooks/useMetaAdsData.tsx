@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from './useProjects';
 import { toast } from 'sonner';
+import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
 
 export interface Campaign {
   id: string;
@@ -228,68 +229,18 @@ export function useMetaAdsData() {
     setLoading(true);
 
     try {
-      // Calculate date range based on period key
-      const now = new Date();
-      const today = now.toISOString().split('T')[0];
-      
-      // Create separate date for yesterday to avoid mutating 'now'
-      const yesterdayDate = new Date(now);
-      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-      const yesterday = yesterdayDate.toISOString().split('T')[0];
+      // Use centralized date utility for consistent date ranges
+      const period = getDateRangeFromPreset(periodKey as DatePresetKey, 'America/Sao_Paulo');
       
       let since: string, until: string;
-      
-      switch (periodKey) {
-        case 'yesterday':
-          since = until = yesterday;
-          break;
-        case 'last_7d':
-          since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          until = yesterday;
-          break;
-        case 'last_14d':
-          since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          until = yesterday;
-          break;
-        case 'last_30d':
-          since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          until = yesterday;
-          break;
-        case 'last_60d':
-          since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          until = yesterday;
-          break;
-        case 'last_90d':
-          since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          until = yesterday;
-          break;
-        case 'this_month':
-          since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-          until = today;
-          break;
-        case 'last_month': {
-          // Mês passado completo (01 a último dia do mês anterior)
-          const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-          since = firstDayLastMonth.toISOString().split('T')[0];
-          until = lastDayLastMonth.toISOString().split('T')[0];
-          break;
-        }
-        case 'this_year':
-          since = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
-          until = today;
-          break;
-        case 'last_year': {
-          // Ano passado completo (01/01 a 31/12 do ano anterior)
-          const firstDayLastYear = new Date(now.getFullYear() - 1, 0, 1);
-          const lastDayLastYear = new Date(now.getFullYear() - 1, 11, 31);
-          since = firstDayLastYear.toISOString().split('T')[0];
-          until = lastDayLastYear.toISOString().split('T')[0];
-          break;
-        }
-        default:
-          since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          until = today;
+      if (period) {
+        since = period.since;
+        until = period.until;
+      } else {
+        // Fallback for custom - last 30 days
+        const now = new Date();
+        since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        until = now.toISOString().split('T')[0];
       }
 
       console.log(`[PERIOD] Date range: ${since} to ${until}`);
