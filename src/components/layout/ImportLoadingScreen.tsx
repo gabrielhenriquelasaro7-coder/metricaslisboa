@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, CheckCircle2, Clock, AlertCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import v4LogoFull from '@/assets/v4-logo-full.png';
 
@@ -136,7 +137,18 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background red-texture-bg p-8">
+    <div className="min-h-screen flex items-center justify-center bg-background red-texture-bg p-8 relative">
+      {/* Exit Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onComplete}
+        className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+        title="Sair da importação"
+      >
+        <X className="w-5 h-5" />
+      </Button>
+
       <div className="max-w-2xl w-full space-y-8">
         {/* Logo */}
         <div className="flex justify-center">
@@ -212,12 +224,19 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
           </div>
         </div>
 
-        {/* Info */}
-        <p className="text-center text-xs text-muted-foreground">
-          Este processo pode levar alguns minutos dependendo da quantidade de dados.
-          <br />
-          Não feche ou atualize esta página.
-        </p>
+        {/* Info & Exit Button */}
+        <div className="text-center space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Este processo pode levar alguns minutos dependendo da quantidade de dados.
+          </p>
+          <Button
+            variant="outline"
+            onClick={onComplete}
+            className="text-sm"
+          >
+            Continuar em segundo plano
+          </Button>
+        </div>
       </div>
     </div>
   );
