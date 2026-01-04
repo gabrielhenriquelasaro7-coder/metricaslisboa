@@ -54,8 +54,8 @@ serve(async (req) => {
 
     console.log('Requesting user:', requestingUser.id);
 
-    const { guest_email, guest_name, project_id } = await req.json();
-    console.log('Request body:', { guest_email, guest_name, project_id });
+    const { guest_email, guest_name, project_id, resend } = await req.json();
+    console.log('Request body:', { guest_email, guest_name, project_id, resend });
 
     if (!guest_email || !guest_name || !project_id) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -102,7 +102,22 @@ serve(async (req) => {
       console.log('User already exists:', existingUser.id);
       guestUserId = existingUser.id;
       
-      // Delete existing gestor role and insert convidado role
+      // If resending, generate a new password for the existing user
+      if (resend) {
+        const { error: updatePasswordError } = await supabase.auth.admin.updateUserById(
+          guestUserId,
+          { password: tempPassword }
+        );
+        
+        if (updatePasswordError) {
+          console.error('Error updating password:', updatePasswordError);
+        } else {
+          isNewUser = true; // Set to true so we return the new password
+          console.log('Password updated for resend');
+        }
+      }
+      
+      // Ensure role is set to convidado
       await supabase
         .from('user_roles')
         .delete()
@@ -168,25 +183,51 @@ serve(async (req) => {
       }
     }
 
-    // Create invitation record
-    console.log('Creating invitation record...');
-    const { data: invitation, error: invitationError } = await supabase
-      .from('guest_invitations')
-      .insert({
-        invited_by: requestingUser.id,
-        project_id: project_id,
-        guest_email: guest_email,
-        guest_name: guest_name,
-        guest_user_id: guestUserId,
-        temp_password: isNewUser ? tempPassword : '(usuário já existente)',
-        status: 'pending'
-      })
-      .select()
-      .single();
+    // Create or update invitation record
+    console.log(resend ? 'Updating invitation record...' : 'Creating invitation record...');
+    
+    let invitation;
+    let invitationError;
+    
+    if (resend) {
+      // Update existing invitation with new password
+      const updateResult = await supabase
+        .from('guest_invitations')
+        .update({
+          temp_password: isNewUser ? tempPassword : '(senha resetada)',
+          status: 'pending',
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        })
+        .eq('guest_email', guest_email)
+        .eq('project_id', project_id)
+        .select()
+        .maybeSingle();
+      
+      invitation = updateResult.data;
+      invitationError = updateResult.error;
+    } else {
+      // Create new invitation
+      const insertResult = await supabase
+        .from('guest_invitations')
+        .insert({
+          invited_by: requestingUser.id,
+          project_id: project_id,
+          guest_email: guest_email,
+          guest_name: guest_name,
+          guest_user_id: guestUserId,
+          temp_password: isNewUser ? tempPassword : '(usuário já existente)',
+          status: 'pending'
+        })
+        .select()
+        .single();
+      
+      invitation = insertResult.data;
+      invitationError = insertResult.error;
+    }
 
     if (invitationError) {
-      console.error('Error creating invitation:', invitationError);
-      return new Response(JSON.stringify({ error: 'Failed to create invitation: ' + invitationError.message }), {
+      console.error('Error with invitation:', invitationError);
+      return new Response(JSON.stringify({ error: 'Failed to process invitation: ' + invitationError.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

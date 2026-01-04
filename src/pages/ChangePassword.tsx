@@ -47,7 +47,7 @@ export default function ChangePassword() {
       
       console.log('[ChangePassword] Password updated successfully');
 
-      // Mark password as changed in guest_invitations
+      // Mark password as changed in guest_invitations and clear temp_password for security
       if (user) {
         console.log('[ChangePassword] Updating guest_invitations for user:', user.id);
         
@@ -56,7 +56,8 @@ export default function ChangePassword() {
           .update({ 
             password_changed: true, 
             status: 'accepted', 
-            accepted_at: new Date().toISOString() 
+            accepted_at: new Date().toISOString(),
+            temp_password: '***REDACTED***' // Clear temp password for security
           })
           .eq('guest_user_id', user.id)
           .select();
