@@ -140,24 +140,32 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300',
+        'h-screen border-r border-sidebar-border transition-all duration-500 ease-out sidebar-container',
         onNavigate ? 'relative w-full' : 'fixed left-0 top-0 z-40',
         !onNavigate && (collapsed ? 'w-20' : 'w-72')
       )}
     >
-      {/* Subtle red texture overlay */}
-      <div className="absolute inset-0 red-texture-bg opacity-30 pointer-events-none" />
+      {/* Animated gradient overlay */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div 
+          className="absolute -top-1/2 -right-1/2 w-full h-full opacity-30"
+          style={{
+            background: 'radial-gradient(ellipse at 70% 30%, hsl(var(--sidebar-gradient-start) / 0.15) 0%, transparent 60%)',
+            animation: 'sidebar-ambient 10s ease-in-out infinite reverse'
+          }}
+        />
+      </div>
       
       <div className="relative flex flex-col h-full">
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
+        <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border/50">
           {!isGuest ? (
-            <Link to="/projects" className="flex items-center gap-3">
+            <Link to="/projects" className="flex items-center gap-3 group">
               <img 
                 src={v4LogoFull} 
                 alt="V4 Company" 
                 className={cn(
-                  "transition-all",
+                  "transition-all duration-500 sidebar-logo",
                   collapsed ? "h-8 w-auto" : "h-10 w-auto"
                 )}
               />
@@ -168,41 +176,45 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 src={v4LogoFull} 
                 alt="V4 Company" 
                 className={cn(
-                  "transition-all",
+                  "transition-all duration-500 sidebar-logo",
                   collapsed ? "h-8 w-auto" : "h-10 w-auto"
                 )}
               />
             </div>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex-shrink-0 hover:bg-primary/10"
+            className="sidebar-collapse-btn flex-shrink-0"
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </Button>
+          </button>
         </div>
 
         {/* Project Selector */}
         {selectedProject && !collapsed && (
-          <div className="px-3 py-3 border-b border-sidebar-border" data-tour="project-selector">
+          <div className="px-3 py-3 border-b border-sidebar-border/50" data-tour="project-selector">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="w-full flex items-center justify-between p-3 rounded-lg bg-sidebar-accent hover:bg-sidebar-accent/80 transition-colors">
+                <button className="sidebar-project-selector w-full flex items-center justify-between group">
                   <div className="text-left">
-                    <p className="text-xs text-muted-foreground">Projeto</p>
-                    <p className="font-medium truncate">{selectedProject.name}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-metric-positive animate-pulse" />
+                      Projeto Ativo
+                    </p>
+                    <p className="font-semibold truncate mt-0.5 group-hover:text-primary transition-colors">{selectedProject.name}</p>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-all group-hover:rotate-180 duration-300" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56 bg-popover">
+              <DropdownMenuContent align="start" className="w-56 bg-popover/95 backdrop-blur-xl border-sidebar-border">
                 {projects.filter(p => !p.archived).map((project) => (
                   <DropdownMenuItem 
                     key={project.id}
                     onClick={() => handleChangeProject(project.id)}
-                    className={project.id === selectedProject.id ? 'bg-primary/10' : ''}
+                    className={cn(
+                      'transition-all duration-200',
+                      project.id === selectedProject.id && 'bg-primary/15 text-primary'
+                    )}
                   >
                     <div>
                       <p className="font-medium">{project.name}</p>
@@ -216,7 +228,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 ))}
                 {/* Hide "Gerenciar Projetos" for guests */}
                 {!isGuest && (
-                  <DropdownMenuItem onClick={() => navigate('/projects')} className="border-t mt-1 pt-2">
+                  <DropdownMenuItem onClick={() => navigate('/projects')} className="border-t border-sidebar-border mt-1 pt-2">
                     <FolderKanban className="w-4 h-4 mr-2" />
                     Gerenciar Projetos
                   </DropdownMenuItem>
@@ -225,11 +237,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             </DropdownMenu>
             
             {/* Sync Status Badge */}
-            <div className="mt-2 px-1">
+            <div className="mt-3 px-1">
               <SyncStatusBadge projectId={selectedProject.id} />
             </div>
           </div>
         )}
+        
+        {/* Divider decorativo */}
+        {selectedProject && !collapsed && <div className="sidebar-divider mx-3" />}
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 overflow-y-auto flex flex-col">
@@ -292,33 +307,41 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                         const isExpanded = expandedCampaigns[campaign.id];
                         
                         return (
-                          <div key={campaign.id}>
+                          <div key={campaign.id} className="group/campaign">
                             <button
                               onClick={() => toggleCampaignExpand(campaign.id)}
-                              className="w-full flex items-center gap-2 px-3 py-2 pl-8 text-sm hover:bg-sidebar-accent rounded-lg transition-colors"
+                              className="w-full flex items-center gap-2 px-3 py-2 pl-8 text-sm rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent hover:translate-x-1"
                             >
-                              <span className={cn('w-2 h-2 rounded-full flex-shrink-0', getStatusColor(campaign.status))} />
-                              <span className="truncate flex-1 text-left">{campaign.name}</span>
+                              <span className={cn(
+                                'w-2 h-2 rounded-full flex-shrink-0 transition-all duration-300',
+                                getStatusColor(campaign.status),
+                                campaign.status === 'ACTIVE' && 'shadow-[0_0_8px_hsl(var(--metric-positive)/0.6)]'
+                              )} />
+                              <span className="truncate flex-1 text-left text-muted-foreground group-hover/campaign:text-foreground transition-colors">{campaign.name}</span>
                               {campaignAdSets.length > 0 && (
-                                isExpanded ? (
-                                  <ChevronUp className="w-3 h-3 flex-shrink-0" />
-                                ) : (
+                                <span className={cn(
+                                  'transition-transform duration-300',
+                                  isExpanded && 'rotate-180'
+                                )}>
                                   <ChevronDown className="w-3 h-3 flex-shrink-0" />
-                                )
+                                </span>
                               )}
                             </button>
                             
                             {/* Ad Sets */}
                             {isExpanded && campaignAdSets.length > 0 && (
-                              <div className="ml-6 border-l border-sidebar-border">
+                              <div className="ml-6 border-l-2 border-gradient-to-b from-primary/30 to-transparent animate-fade-in">
                                 {campaignAdSets.map((adSet) => (
                                   <Link
                                     key={adSet.id}
                                     to={`/adset/${adSet.id}`}
-                                    className="flex items-center gap-2 px-3 py-1.5 pl-4 text-xs hover:bg-sidebar-accent rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                                    className="flex items-center gap-2 px-3 py-1.5 pl-4 text-xs rounded-lg transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-primary/5 hover:translate-x-1"
                                   >
-                                    <Layers className="w-3 h-3 flex-shrink-0" />
-                                    <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', getStatusColor(adSet.status))} />
+                                    <Layers className="w-3 h-3 flex-shrink-0 opacity-50" />
+                                    <span className={cn(
+                                      'w-1.5 h-1.5 rounded-full flex-shrink-0',
+                                      getStatusColor(adSet.status)
+                                    )} />
                                     <span className="truncate">{adSet.name}</span>
                                   </Link>
                                 ))}
@@ -425,10 +448,13 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
           {/* Spacer to push admin/settings to bottom */}
           <div className="flex-1" />
+          
+          {/* Divider antes da seção de admin */}
+          {!roleLoading && !isGuest && !collapsed && <div className="sidebar-divider mx-3" />}
 
           {/* Admin & Settings at bottom - Hidden for guests, hidden while loading role */}
           {!roleLoading && !isGuest && (
-            <div className="space-y-1 mt-4">
+            <div className="space-y-1 mt-2 mb-2">
               {/* WhatsApp */}
               <Link
                 to="/whatsapp"
@@ -470,12 +496,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           )}
         </nav>
 
-        {/* User section */}
-        <div className="p-4 border-t border-sidebar-border">
+        {/* User section com gradiente */}
+        <div className="p-4 border-t border-sidebar-border/50 bg-gradient-to-t from-black/20 to-transparent">
           <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
-            <Avatar className="w-10 h-10 ring-2 ring-primary/20 shadow-lg shadow-primary/30">
+            <Avatar className="w-10 h-10 ring-2 ring-primary/30 shadow-lg shadow-primary/20 transition-all duration-300 hover:ring-primary/50 hover:shadow-primary/40">
               <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground font-bold">
+              <AvatarFallback className="bg-gradient-to-br from-primary via-primary to-v4-crimson text-primary-foreground font-bold">
                 {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -484,15 +510,22 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 <p className="text-sm font-medium truncate">
                   {profile?.full_name || 'Investidor'}
                 </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user?.email}
+                </p>
               </div>
             )}
           </div>
           <Button
             variant="ghost"
             onClick={handleSignOut}
-            className={cn('mt-4 w-full hover:bg-primary/10 hover:text-primary transition-colors', collapsed ? 'px-0' : '')}
+            className={cn(
+              'mt-4 w-full transition-all duration-300 group',
+              'hover:bg-gradient-to-r hover:from-destructive/20 hover:to-transparent hover:text-destructive',
+              collapsed ? 'px-0' : ''
+            )}
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
             {!collapsed && <span className="ml-2">Sair</span>}
           </Button>
         </div>
