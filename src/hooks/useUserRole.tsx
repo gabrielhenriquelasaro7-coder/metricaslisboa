@@ -34,14 +34,16 @@ export function useUserRole(): UserRoleData {
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (roleError) {
           console.error('Error fetching user role:', roleError);
-          // Default to gestor if no role found
           setRole('gestor');
         } else if (roleData) {
           setRole(roleData.role as AppRole);
+        } else {
+          // No role found, default to gestor
+          setRole('gestor');
         }
 
         // If guest, check if password needs to be changed and fetch accessible projects

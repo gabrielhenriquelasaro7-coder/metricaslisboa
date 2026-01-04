@@ -52,6 +52,7 @@ import {
 import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 import { OptimizationHistoryDialog } from '@/components/optimization/OptimizationHistoryDialog';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 
 
 // Skeleton component for campaign list items
@@ -78,6 +79,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [isChangingProject, setIsChangingProject] = useState(false);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -104,6 +106,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   const handleChangeProject = (projectId: string) => {
+    if (projectId === selectedProjectId) return;
+    setIsChangingProject(true);
     localStorage.setItem('selectedProjectId', projectId);
     window.location.reload();
   };
@@ -127,6 +131,11 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     navigate(to);
     onNavigate?.();
   };
+
+  // Show loading screen when changing projects
+  if (isChangingProject) {
+    return <LoadingScreen message="Trocando de projeto..." />;
+  }
 
   return (
     <aside
