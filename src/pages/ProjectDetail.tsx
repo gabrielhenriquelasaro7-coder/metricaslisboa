@@ -4,7 +4,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import PerformanceChart from '@/components/dashboard/PerformanceChart';
-import ProjectAdminTab from '@/components/admin/ProjectAdminTab';
+
 import { supabase } from '@/integrations/supabase/client';
 import { Project, BusinessModel } from '@/hooks/useProjects';
 import { DateRange } from 'react-day-picker';
@@ -21,7 +21,7 @@ import {
   Percent,
   Store,
   Megaphone,
-  Settings
+  
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -272,10 +272,6 @@ export default function ProjectDetail() {
             <TabsTrigger value="adsets">Conjuntos</TabsTrigger>
             <TabsTrigger value="ads">Anúncios</TabsTrigger>
             <TabsTrigger value="creatives">Criativos</TabsTrigger>
-            <TabsTrigger value="admin" className="flex items-center gap-1.5">
-              <Settings className="w-3.5 h-3.5" />
-              Administração
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -395,9 +391,6 @@ export default function ProjectDetail() {
             </div>
           </TabsContent>
 
-          <TabsContent value="admin" className="space-y-6">
-            <ProjectAdminTab projectId={project.id} projectName={project.name} />
-          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
