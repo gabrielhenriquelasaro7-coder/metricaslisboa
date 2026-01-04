@@ -266,13 +266,33 @@ const PURCHASE_ACTIONS = [
 ];
 
 // MENSAGENS - Para campanhas de tráfego para WhatsApp/Messenger (Inside Sales)
-// Essas são métricas SEPARADAS, não somam com conversões
+// LISTA COMPLETA de todos os action_types relacionados a mensagens no Meta
+// Referência: https://developers.facebook.com/docs/marketing-api/reference/ads-action-stats/
 const MESSAGING_ACTION_TYPES = [
+  // Conversas iniciadas / primeiras respostas (PRINCIPAL para campanhas de mensagem)
   'onsite_conversion.messaging_first_reply',              // Primeira resposta no Messenger
-  'onsite_conversion.messaging_conversation_started_7d',  // Conversa iniciada (7 dias)
+  'onsite_conversion.messaging_conversation_started_7d',  // Conversa iniciada (7 dias) - MAIS COMUM
+  'onsite_conversion.messaging_conversation_started_1d',  // Conversa iniciada (1 dia)
+  'onsite_conversion.messaging_reply',                    // Resposta no Messenger
+  'onsite_conversion.messaging_user_depth_2_message_send', // Usuário enviou 2+ mensagens
+  'onsite_conversion.messaging_user_depth_3_message_send', // Usuário enviou 3+ mensagens
+  
+  // Contatos diretos
+  'contact',                                               // Contato genérico (pode ser WhatsApp)
   'contact_total',                                         // Total de contatos
   'contact_website',                                       // Contato via website
-  'onsite_web_app_view_content',                          // Visualização de conteúdo no app
+  'onsite_web_contact',                                    // Contato web
+  
+  // WhatsApp específico
+  'onsite_conversion.click_to_whatsapp',                  // Clique para WhatsApp
+  'onsite_conversion.post_engagement_whatsapp',           // Engajamento WhatsApp
+  
+  // Instagram Direct
+  'onsite_conversion.instagram_messaging_reply',          // Resposta no Instagram Direct
+  
+  // Outros tipos de conversas
+  'onsite_conversion.send_message',                       // Mensagem enviada
+  'onsite_conversion.total_messaging_connection',         // Total de conexões de mensagem
 ];
 
 // LISTA COMPLETA DE CONVERSÕES VÁLIDAS
@@ -394,21 +414,51 @@ function extractConversions(insights: any, logAllActions: boolean = false): { co
 
 // ============ EXTRACT MESSAGING METRICS ============
 // For Inside Sales campaigns that use WhatsApp/Messenger traffic
-function extractMessagingReplies(insights: any): number {
+// O Meta Ads Manager mostra "Conversas por mensagem" que corresponde a messaging_conversation_started_7d
+function extractMessagingReplies(insights: any, logActions: boolean = false): number {
   let messagingReplies = 0;
+  const foundMessages: string[] = [];
   
   if (insights?.actions && Array.isArray(insights.actions)) {
+    // PRIORIDADE: O Meta mostra messaging_conversation_started_7d como resultado principal
+    // Se não tiver, usamos total_messaging_connection ou first_reply
+    let conversationStarted7d = 0;
+    let totalMessagingConnection = 0;
+    let firstReply = 0;
+    
     for (const action of insights.actions) {
       const actionType = action.action_type;
       const actionValue = parseInt(action.value) || 0;
       
-      if (MESSAGING_ACTION_TYPES.includes(actionType) && actionValue > 0) {
-        // Take the highest value to avoid double counting
-        if (actionValue > messagingReplies) {
-          messagingReplies = actionValue;
+      if (actionValue > 0) {
+        // Log all messaging-related actions for debugging
+        if (MESSAGING_ACTION_TYPES.includes(actionType)) {
+          foundMessages.push(`${actionType}:${actionValue}`);
+        }
+        
+        // Captura os valores específicos
+        if (actionType === 'onsite_conversion.messaging_conversation_started_7d') {
+          conversationStarted7d = actionValue;
+        } else if (actionType === 'onsite_conversion.total_messaging_connection') {
+          totalMessagingConnection = actionValue;
+        } else if (actionType === 'onsite_conversion.messaging_first_reply') {
+          firstReply = actionValue;
         }
       }
     }
+    
+    // Prioridade: usar messaging_conversation_started_7d (o que o Meta mostra como resultado)
+    // Fallback: total_messaging_connection ou first_reply (pegar o maior)
+    if (conversationStarted7d > 0) {
+      messagingReplies = conversationStarted7d;
+    } else {
+      messagingReplies = Math.max(totalMessagingConnection, firstReply);
+    }
+  }
+  
+  // Log found messaging actions for debugging
+  if (foundMessages.length > 0 && logActions) {
+    console.log(`[MESSAGING] Found: ${foundMessages.join(', ')}, Using: ${messagingReplies}`);
   }
   
   return messagingReplies;
@@ -992,8 +1042,8 @@ Deno.serve(async (req) => {
         let { conversions, conversionValue } = extractConversions(insights, shouldLog);
         if (shouldLog && insights.actions?.length > 0) logCounter++;
         
-        // Extract messaging metrics for Inside Sales campaigns
-        const messagingReplies = extractMessagingReplies(insights);
+        // Extract messaging metrics for Inside Sales campaigns (log first 20 rows with actions)
+        const messagingReplies = extractMessagingReplies(insights, logCounter < 20);
         
         // IMPORTANTE: Se não há conversões tradicionais mas há messaging_replies,
         // usar messaging_replies como lead (para campanhas de mensagem/tráfego WhatsApp)
