@@ -68,7 +68,8 @@ export default function PerformanceChart({
               type="monotone"
               dataKey={dataKey}
               stroke={color}
-              strokeWidth={2}
+              strokeWidth={2.5}
+              strokeDasharray="6 3"
               fillOpacity={1}
               fill="url(#colorValue)"
             />
@@ -77,7 +78,8 @@ export default function PerformanceChart({
                 type="monotone"
                 dataKey={dataKey2}
                 stroke={color2}
-                strokeWidth={2}
+                strokeWidth={2.5}
+                strokeDasharray="6 3"
                 fillOpacity={1}
                 fill="url(#colorValue2)"
               />
