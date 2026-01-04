@@ -133,7 +133,7 @@ export default function SparklineCard({
         )}
       </div>
       
-      {/* Sparkline - LINE CHART with DOTS (dotted style) */}
+      {/* Sparkline - LINE CHART with visible solid line */}
       {sparklineData.length > 1 && (
         <div className="h-14 -mx-2 mt-1 relative z-10">
           <ResponsiveContainer width="100%" height="100%">
@@ -151,12 +151,11 @@ export default function SparklineCard({
                 type="monotone"
                 dataKey="value"
                 stroke={finalSparklineColor}
-                strokeWidth={2}
-                strokeDasharray="4 4"
+                strokeWidth={2.5}
                 dot={{ 
-                  r: 3, 
+                  r: 2.5, 
                   fill: finalSparklineColor,
-                  stroke: finalSparklineColor,
+                  stroke: 'hsl(var(--background))',
                   strokeWidth: 1
                 }}
                 activeDot={{ 
