@@ -12,6 +12,88 @@ interface InstancePayload {
   displayName?: string;
 }
 
+// Simple encryption using AES-GCM with a derived key
+const ENCRYPTION_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.slice(0, 32) || 'default-encryption-key-32bytes!';
+
+async function getEncryptionKey(): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(ENCRYPTION_KEY),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  );
+  
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode('whatsapp-token-salt'),
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptToken(token: string): Promise<string> {
+  const key = await getEncryptionKey();
+  const encoder = new TextEncoder();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    encoder.encode(token)
+  );
+  
+  // Combine IV and encrypted data
+  const combined = new Uint8Array(iv.length + new Uint8Array(encrypted).length);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+  
+  // Convert to base64 manually for Deno compatibility
+  return `encrypted:${btoa(String.fromCharCode(...combined))}`;
+}
+
+async function decryptToken(encryptedToken: string): Promise<string | null> {
+  if (!encryptedToken || !encryptedToken.startsWith('encrypted:')) {
+    // Return as-is if not encrypted (legacy tokens)
+    return encryptedToken;
+  }
+  
+  try {
+    const key = await getEncryptionKey();
+    const decoder = new TextDecoder();
+    
+    // Decode base64 manually for Deno compatibility
+    const base64String = encryptedToken.replace('encrypted:', '');
+    const binaryString = atob(base64String);
+    const combined = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      combined[i] = binaryString.charCodeAt(i);
+    }
+    
+    // Extract IV and encrypted data
+    const iv = combined.slice(0, 12);
+    const encryptedData = combined.slice(12);
+    
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      encryptedData
+    );
+    
+    return decoder.decode(decrypted);
+  } catch (error) {
+    console.error('[INSTANCE-MANAGER] Error decrypting token:', error);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -129,7 +211,11 @@ Deno.serve(async (req) => {
         const instanceToken = createData.hash || createData.token || createData.instance?.token || createData.instance?.hash || null;
         console.log(`[INSTANCE-MANAGER] Instance token captured: ${instanceToken ? 'yes' : 'no'}`);
 
-        // Save instance to database with token
+        // Encrypt the token before storing
+        const encryptedToken = instanceToken ? await encryptToken(instanceToken) : null;
+        console.log(`[INSTANCE-MANAGER] Token encrypted: ${encryptedToken ? 'yes' : 'no'}`);
+
+        // Save instance to database with encrypted token
         const { data: instance, error: insertError } = await supabase
           .from('whatsapp_instances')
           .insert({
@@ -138,9 +224,9 @@ Deno.serve(async (req) => {
             instance_name: instanceName,
             display_name: displayName || 'Nova Conexão',
             instance_status: 'disconnected',
-            token: instanceToken,
+            token: encryptedToken,
           })
-          .select()
+          .select('id, project_id, user_id, instance_name, display_name, instance_status, phone_connected, created_at, updated_at')
           .single();
 
         if (insertError) {
@@ -187,9 +273,10 @@ Deno.serve(async (req) => {
 
         console.log(`[INSTANCE-MANAGER] Connecting instance: ${instance.instance_name}`);
 
-        // Use instance token if available, otherwise fall back to global key
-        const authKey = instance.token || EVOLUTION_KEY;
-        console.log(`[INSTANCE-MANAGER] Using ${instance.token ? 'instance token' : 'global key'} for auth`);
+        // Decrypt and use instance token if available, otherwise fall back to global key
+        const decryptedToken = instance.token ? await decryptToken(instance.token) : null;
+        const authKey = decryptedToken || EVOLUTION_KEY;
+        console.log(`[INSTANCE-MANAGER] Using ${decryptedToken ? 'instance token' : 'global key'} for auth`);
 
         // Get QR code from Evolution API
         const connectResponse = await fetch(
@@ -256,8 +343,9 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Use instance token if available
-        const authKey = instance.token || EVOLUTION_KEY;
+        // Decrypt and use instance token if available
+        const decryptedToken = instance.token ? await decryptToken(instance.token) : null;
+        const authKey = decryptedToken || EVOLUTION_KEY;
 
         // Get status from Evolution API
         const statusResponse = await fetch(
@@ -330,8 +418,9 @@ Deno.serve(async (req) => {
 
         console.log(`[INSTANCE-MANAGER] Disconnecting instance: ${instance.instance_name}`);
 
-        // Use instance token if available
-        const authKey = instance.token || EVOLUTION_KEY;
+        // Decrypt and use instance token if available
+        const decryptedToken = instance.token ? await decryptToken(instance.token) : null;
+        const authKey = decryptedToken || EVOLUTION_KEY;
 
         // Logout from Evolution API
         await fetch(`${EVOLUTION_URL}/instance/logout/${instance.instance_name}`, {
@@ -381,8 +470,9 @@ Deno.serve(async (req) => {
 
         console.log(`[INSTANCE-MANAGER] Deleting instance: ${instance.instance_name}`);
 
-        // Use instance token if available
-        const authKey = instance.token || EVOLUTION_KEY;
+        // Decrypt and use instance token if available
+        const decryptedToken = instance.token ? await decryptToken(instance.token) : null;
+        const authKey = decryptedToken || EVOLUTION_KEY;
 
         // Delete from Evolution API
         await fetch(`${EVOLUTION_URL}/instance/delete/${instance.instance_name}`, {
@@ -434,8 +524,9 @@ Deno.serve(async (req) => {
 
         console.log(`[INSTANCE-MANAGER] Listing groups for instance: ${instance.instance_name}`);
 
-        // Use instance token if available
-        const authKey = instance.token || EVOLUTION_KEY;
+        // Decrypt and use instance token if available
+        const decryptedToken = instance.token ? await decryptToken(instance.token) : null;
+        const authKey = decryptedToken || EVOLUTION_KEY;
 
         // Get groups from Evolution API
         const groupsResponse = await fetch(
