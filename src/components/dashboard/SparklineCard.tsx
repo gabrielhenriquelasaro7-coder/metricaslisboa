@@ -15,58 +15,39 @@ interface SparklineCardProps {
   invertTrend?: boolean;
   className?: string;
   tooltip?: string;
-  accentColor?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'purple' | 'cyan';
+  accentColor?: 'primary' | 'success' | 'warning' | 'danger' | 'info';
 }
 
 const accentColors = {
   primary: {
     bg: 'bg-primary/10',
     icon: 'text-primary',
-    glow: 'shadow-[0_0_30px_hsl(var(--neon-yellow)/0.3)]',
     gradient: 'from-primary/10 to-transparent',
-    sparkline: 'hsl(var(--neon-yellow))',
+    sparkline: 'hsl(var(--primary))',
   },
   success: {
     bg: 'bg-metric-positive/10',
     icon: 'text-metric-positive',
-    glow: 'shadow-[0_0_30px_hsl(var(--neon-green)/0.3)]',
     gradient: 'from-metric-positive/10 to-transparent',
-    sparkline: 'hsl(var(--neon-green))',
+    sparkline: 'hsl(var(--metric-positive))',
   },
   warning: {
     bg: 'bg-metric-warning/10',
     icon: 'text-metric-warning',
-    glow: 'shadow-[0_0_30px_hsl(var(--metric-warning)/0.3)]',
     gradient: 'from-metric-warning/10 to-transparent',
     sparkline: 'hsl(var(--metric-warning))',
   },
   danger: {
     bg: 'bg-metric-negative/10',
     icon: 'text-metric-negative',
-    glow: 'shadow-[0_0_30px_hsl(var(--metric-negative)/0.3)]',
     gradient: 'from-metric-negative/10 to-transparent',
     sparkline: 'hsl(var(--metric-negative))',
   },
   info: {
-    bg: 'bg-neon-cyan/10',
-    icon: 'text-neon-cyan',
-    glow: 'shadow-[0_0_30px_hsl(var(--neon-cyan)/0.3)]',
-    gradient: 'from-neon-cyan/10 to-transparent',
-    sparkline: 'hsl(var(--neon-cyan))',
-  },
-  purple: {
-    bg: 'bg-neon-purple/10',
-    icon: 'text-neon-purple',
-    glow: 'shadow-[0_0_30px_hsl(var(--neon-purple)/0.3)]',
-    gradient: 'from-neon-purple/10 to-transparent',
-    sparkline: 'hsl(var(--neon-purple))',
-  },
-  cyan: {
-    bg: 'bg-neon-cyan/10',
-    icon: 'text-neon-cyan',
-    glow: 'shadow-[0_0_30px_hsl(var(--neon-cyan)/0.3)]',
-    gradient: 'from-neon-cyan/10 to-transparent',
-    sparkline: 'hsl(var(--neon-cyan))',
+    bg: 'bg-chart-5/10',
+    icon: 'text-chart-5',
+    gradient: 'from-chart-5/10 to-transparent',
+    sparkline: 'hsl(var(--chart-5))',
   },
 };
 
@@ -110,7 +91,7 @@ export default function SparklineCard({
       <TooltipTrigger className="text-sm text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help inline-block text-left">
         {title}
       </TooltipTrigger>
-      <TooltipContent className="max-w-xs bg-background/95 backdrop-blur-sm border-border/50">
+      <TooltipContent className="max-w-xs bg-background/95 backdrop-blur-xl border-border/50">
         {tooltip}
       </TooltipContent>
     </Tooltip>
@@ -121,56 +102,47 @@ export default function SparklineCard({
   return (
     <div 
       className={cn(
-        'relative overflow-hidden rounded-xl border bg-card/80 backdrop-blur-sm p-4',
-        'transition-all duration-500 ease-out group',
-        'border-border/30 hover:border-primary/40',
-        'hover:shadow-[0_0_40px_hsl(var(--neon-yellow)/0.15),0_0_60px_hsl(var(--neon-purple)/0.1)]',
-        'hover:-translate-y-1',
+        'glass-card-hover p-4 group',
         className
       )}
     >
-      {/* Animated top border */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary via-neon-purple to-neon-cyan opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-glow-rotate bg-[length:200%_100%]" />
+      {/* Animated top border on hover */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary via-v4-crimson to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       
-      {/* Background gradient */}
+      {/* Subtle background gradient */}
       <div className={cn(
-        'absolute inset-0 bg-gradient-to-br opacity-30 pointer-events-none transition-opacity duration-500 group-hover:opacity-60',
+        'absolute inset-0 bg-gradient-to-br opacity-0 pointer-events-none transition-opacity duration-500 group-hover:opacity-40',
         colors.gradient
       )} />
-      
-      {/* Subtle scan lines effect */}
-      <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{
-        backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, hsl(var(--foreground)) 2px, hsl(var(--foreground)) 4px)',
-      }} />
       
       <div className="flex items-start justify-between mb-3 relative z-10">
         <div className="flex-1 min-w-0">
           {titleElement}
-          <p className="text-2xl font-bold mt-1 animate-fade-in bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80 group-hover:from-primary group-hover:to-foreground transition-all duration-500">
+          <p className="text-2xl font-bold mt-1 text-foreground group-hover:text-primary transition-colors duration-500">
             {value}
           </p>
         </div>
         {Icon && (
           <div className={cn(
             'w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ml-3',
-            'transition-all duration-500 group-hover:scale-110',
+            'transition-all duration-500 group-hover:scale-105',
             colors.bg,
-            'group-hover:shadow-[0_0_20px_currentColor]'
+            'group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.25)]'
           )}>
-            <Icon className={cn('w-5 h-5 transition-all duration-500', colors.icon, 'group-hover:drop-shadow-[0_0_8px_currentColor]')} />
+            <Icon className={cn('w-5 h-5 transition-all duration-500', colors.icon, 'group-hover:drop-shadow-[0_0_6px_currentColor]')} />
           </div>
         )}
       </div>
       
-      {/* Sparkline with neon glow */}
+      {/* Sparkline with glow */}
       {sparklineData.length > 1 && (
         <div className="h-14 -mx-2 mt-1 relative z-10">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={uniqueId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={finalSparklineColor} stopOpacity={0.5} />
-                  <stop offset="50%" stopColor={finalSparklineColor} stopOpacity={0.2} />
+                  <stop offset="0%" stopColor={finalSparklineColor} stopOpacity={0.4} />
+                  <stop offset="50%" stopColor={finalSparklineColor} stopOpacity={0.15} />
                   <stop offset="100%" stopColor={finalSparklineColor} stopOpacity={0.02} />
                 </linearGradient>
                 <filter id={`glow-${uniqueId}`}>
@@ -196,7 +168,7 @@ export default function SparklineCard({
         </div>
       )}
       
-      {/* Change indicator with neon styling */}
+      {/* Change indicator */}
       {change !== undefined && (
         <div className="flex items-center gap-2 mt-3 relative z-10">
           <div className={cn(
