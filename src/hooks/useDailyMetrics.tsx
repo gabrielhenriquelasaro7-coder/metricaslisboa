@@ -265,7 +265,7 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
       // Always fetch current period - use pagination to get ALL records
       let allCurrentRows: any[] = [];
       let currentPage = 0;
-      const pageSize = 1000;
+      const pageSize = 5000; // Increased for large projects like Rica
       
       while (true) {
         const { data, error } = await supabase
