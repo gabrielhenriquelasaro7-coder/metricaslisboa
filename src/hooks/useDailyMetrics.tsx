@@ -80,15 +80,18 @@ function getPreviousPeriodDates(since: string, until: string, days: number, prev
     return null;
   }
   
-  // For 'two_months_ago' (used by last_month), get the month before the current period
+  // For 'two_months_ago' (used by last_month), get the month directly before the current period
+  // Since current period is "last month" (e.g., December), we want "month before last" (e.g., November)
   if (previousType === 'two_months_ago') {
     const currentSince = new Date(since);
-    // Get month before current period's month
+    // Get month before current period's month (e.g., if since is Dec 1, we want Nov)
     const prevMonth = currentSince.getMonth() === 0 ? 11 : currentSince.getMonth() - 1;
     const prevYear = currentSince.getMonth() === 0 ? currentSince.getFullYear() - 1 : currentSince.getFullYear();
     
     const prevMonthFirstDay = new Date(prevYear, prevMonth, 1);
     const prevMonthLastDay = new Date(prevYear, prevMonth + 1, 0);
+    
+    console.log(`[DailyMetrics] two_months_ago: since=${since}, prevMonth=${prevMonth}, prevYear=${prevYear}, result=${prevMonthFirstDay.toISOString().split('T')[0]} to ${prevMonthLastDay.toISOString().split('T')[0]}`);
     
     return {
       since: prevMonthFirstDay.toISOString().split('T')[0],
@@ -259,23 +262,36 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
       console.log(`[DailyMetrics] Loading: ${since} to ${until} (${days} days)`);
       console.log(`[DailyMetrics] Previous dates: ${previousDates ? `${previousDates.since} to ${previousDates.until}` : 'none (skipped)'}`);
       
-      // Always fetch current period
-      const currentResult = await supabase
-        .from('ads_daily_metrics')
-        .select('date, spend, impressions, clicks, reach, conversions, conversion_value')
-        .eq('project_id', projectId)
-        .gte('date', since)
-        .lte('date', until)
-        .order('date', { ascending: true })
-        .limit(10000);
+      // Always fetch current period - use pagination to get ALL records
+      let allCurrentRows: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
       
-      if (currentResult.error) {
-        console.error('[DailyMetrics] Current period error:', currentResult.error);
+      while (true) {
+        const { data, error } = await supabase
+          .from('ads_daily_metrics')
+          .select('date, spend, impressions, clicks, reach, conversions, conversion_value')
+          .eq('project_id', projectId)
+          .gte('date', since)
+          .lte('date', until)
+          .order('date', { ascending: true })
+          .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1);
+        
+        if (error) {
+          console.error('[DailyMetrics] Current period error:', error);
+          break;
+        }
+        
+        if (!data || data.length === 0) break;
+        allCurrentRows = [...allCurrentRows, ...data];
+        
+        if (data.length < pageSize) break;
+        currentPage++;
       }
       
-      console.log(`[DailyMetrics] Raw current rows: ${currentResult.data?.length || 0}`);
+      console.log(`[DailyMetrics] Raw current rows: ${allCurrentRows.length} (${currentPage + 1} pages)`);
       
-      const currentData = aggregateDaily(currentResult.data || []);
+      const currentData = aggregateDaily(allCurrentRows);
       const currentTotals = calculateTotals(currentData);
       
       // Only fetch previous period if we have dates
@@ -283,22 +299,34 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
       let previousTotals = calculateTotals([]);
       
       if (previousDates) {
-        const previousResult = await supabase
-          .from('ads_daily_metrics')
-          .select('date, spend, impressions, clicks, reach, conversions, conversion_value')
-          .eq('project_id', projectId)
-          .gte('date', previousDates.since)
-          .lte('date', previousDates.until)
-          .order('date', { ascending: true })
-          .limit(10000);
+        let allPreviousRows: any[] = [];
+        let prevPage = 0;
         
-        if (previousResult.error) {
-          console.error('[DailyMetrics] Previous period error:', previousResult.error);
+        while (true) {
+          const { data, error } = await supabase
+            .from('ads_daily_metrics')
+            .select('date, spend, impressions, clicks, reach, conversions, conversion_value')
+            .eq('project_id', projectId)
+            .gte('date', previousDates.since)
+            .lte('date', previousDates.until)
+            .order('date', { ascending: true })
+            .range(prevPage * pageSize, (prevPage + 1) * pageSize - 1);
+          
+          if (error) {
+            console.error('[DailyMetrics] Previous period error:', error);
+            break;
+          }
+          
+          if (!data || data.length === 0) break;
+          allPreviousRows = [...allPreviousRows, ...data];
+          
+          if (data.length < pageSize) break;
+          prevPage++;
         }
         
-        console.log(`[DailyMetrics] Raw previous rows: ${previousResult.data?.length || 0}`);
+        console.log(`[DailyMetrics] Raw previous rows: ${allPreviousRows.length} (${prevPage + 1} pages)`);
         
-        previousData = aggregateDaily(previousResult.data || []);
+        previousData = aggregateDaily(allPreviousRows);
         previousTotals = calculateTotals(previousData);
       }
       
