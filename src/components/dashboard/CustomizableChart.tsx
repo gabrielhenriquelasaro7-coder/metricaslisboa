@@ -198,18 +198,18 @@ export function CustomizableChart({
     if (!active || !payload || !payload.length) return null;
 
     return (
-      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
-        <p className="font-medium text-sm mb-2">{label}</p>
+      <div className="bg-background/95 backdrop-blur-xl border border-primary/20 rounded-xl p-4 shadow-[0_0_30px_hsl(var(--neon-purple)/0.2)]">
+        <p className="font-semibold text-sm mb-3 text-primary">{label}</p>
         {payload.map((entry: any, index: number) => {
           const metric = DEFAULT_METRIC_OPTIONS.find(m => m.label === entry.name);
           return (
-            <div key={index} className="flex items-center gap-2 text-sm">
+            <div key={index} className="flex items-center gap-2 text-sm py-1">
               <div 
-                className="w-3 h-3 rounded-full" 
-                style={{ backgroundColor: entry.color }}
+                className="w-3 h-3 rounded-full shadow-[0_0_8px_currentColor]" 
+                style={{ backgroundColor: entry.color, boxShadow: `0 0 8px ${entry.color}` }}
               />
               <span className="text-muted-foreground">{entry.name}:</span>
-              <span className="font-medium">
+              <span className="font-medium text-foreground">
                 {metric ? metric.format(entry.value) : entry.value}
               </span>
             </div>
@@ -335,11 +335,19 @@ export function CustomizableChart({
 
   return (
     <>
-      <div className={cn('glass-card p-6 transition-all duration-300 hover:shadow-lg', className)}>
+      <div className={cn(
+        'glass-card p-6 transition-all duration-500 group',
+        'hover:shadow-[0_0_40px_hsl(var(--neon-purple)/0.15)]',
+        'hover:border-primary/30',
+        className
+      )}>
+        {/* Animated top border */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary via-neon-purple to-neon-cyan opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           <div className="flex items-center gap-2">
-            <Settings2 className="w-4 h-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold">{displayTitle}</h3>
+            <Settings2 className="w-4 h-4 text-primary group-hover:drop-shadow-[0_0_8px_currentColor] transition-all duration-500" />
+            <h3 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80 group-hover:from-primary group-hover:to-foreground transition-all duration-500">{displayTitle}</h3>
             <Button
               variant="ghost"
               size="sm"
