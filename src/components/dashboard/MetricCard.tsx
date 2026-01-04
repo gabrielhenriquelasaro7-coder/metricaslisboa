@@ -105,7 +105,7 @@ export default function MetricCard({
       <TooltipTrigger className="text-xs text-muted-foreground mb-1 border-b border-dashed border-muted-foreground/50 cursor-help inline-block text-left">
         {title}
       </TooltipTrigger>
-      <TooltipContent className="max-w-xs">
+      <TooltipContent className="max-w-xs bg-background/95 backdrop-blur-sm border-border/50">
         {tooltip}
       </TooltipContent>
     </Tooltip>
@@ -115,26 +115,30 @@ export default function MetricCard({
 
   return (
     <div className={cn('metric-card group hover-lift', className)}>
-      {/* Top red border accent */}
-      <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      {/* Top neon border accent */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary via-neon-purple to-neon-cyan opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-glow-rotate bg-[length:200%_100%]" />
       
       <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1 sm:mb-2">
         <div className="flex-1 min-w-0">
           {titleElement}
-          <p className="text-base sm:text-lg md:text-xl font-bold truncate">
+          <p className="text-base sm:text-lg md:text-xl font-bold truncate bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80 group-hover:from-primary group-hover:to-foreground transition-all duration-500">
             {animatedValue}
           </p>
         </div>
         {Icon && (
-          <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
-            <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.4)] transition-all duration-500 flex-shrink-0">
+            <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary group-hover:drop-shadow-[0_0_8px_currentColor] transition-all duration-500" />
           </div>
         )}
       </div>
       
       {(change !== undefined || changeLabel) && (
         <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-          <div className={cn('flex items-center gap-1 text-xs sm:text-sm font-medium', trendColor)}>
+          <div className={cn('flex items-center gap-1 text-xs sm:text-sm font-medium px-2 py-0.5 rounded-full backdrop-blur-sm', 
+            trend === 'up' ? 'bg-metric-positive/15 text-metric-positive' :
+            trend === 'down' ? 'bg-metric-negative/15 text-metric-negative' :
+            'bg-muted/50 text-muted-foreground'
+          )}>
             <TrendIcon className="w-3 h-3 sm:w-4 sm:h-4" />
             {change !== undefined && (
               <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
