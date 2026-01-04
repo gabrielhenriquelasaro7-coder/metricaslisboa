@@ -336,7 +336,7 @@ export function CustomizableChart({
         </BarChart>
       );
     } else if (chartType === 'scatter') {
-      // SCATTER/DOT CHART - Only dots, no lines
+      // SCATTER/DOT CHART - Dots with dashed connecting lines
       return (
         <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
@@ -350,8 +350,9 @@ export function CustomizableChart({
             type="monotone" 
             dataKey={primaryMetric} 
             name={primary.label} 
-            stroke="transparent"
-            strokeWidth={0}
+            stroke={primaryColor}
+            strokeWidth={2}
+            strokeDasharray="6 4"
             dot={{ r: 6, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
             activeDot={{ r: 9, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 3 }}
             animationDuration={800} 
@@ -361,8 +362,9 @@ export function CustomizableChart({
             type="monotone" 
             dataKey={secondaryMetric} 
             name={secondary.label} 
-            stroke="transparent"
-            strokeWidth={0}
+            stroke={secondaryColor}
+            strokeWidth={2}
+            strokeDasharray="6 4"
             dot={{ r: 6, fill: secondaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
             activeDot={{ r: 9, fill: secondaryColor, stroke: 'hsl(var(--background))', strokeWidth: 3 }}
             animationDuration={800} 
@@ -370,7 +372,7 @@ export function CustomizableChart({
         </ComposedChart>
       );
     } else {
-      // Composed: Line + Bar
+      // Composed: Bar first, then Line on top
       return (
         <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
@@ -379,6 +381,9 @@ export function CustomizableChart({
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
+          {/* Bar rendered FIRST so it's behind */}
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} opacity={0.85} animationDuration={800} />
+          {/* Line rendered AFTER so it's on top */}
           <Line 
             yAxisId="left" 
             type="monotone" 
@@ -386,11 +391,10 @@ export function CustomizableChart({
             name={primary.label} 
             stroke={primaryColor} 
             strokeWidth={3}
-            dot={{ r: 4, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
-            activeDot={{ r: 7, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 3 }}
+            dot={{ r: 5, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            activeDot={{ r: 8, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 3 }}
             animationDuration={800} 
           />
-          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} opacity={0.85} animationDuration={800} />
         </ComposedChart>
       );
     }
