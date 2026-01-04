@@ -25,6 +25,7 @@ import CreativeDetail from "./pages/CreativeDetail";
 import Settings from "./pages/Settings";
 import SyncHistory from "./pages/SyncHistory";
 import Admin from "./pages/Admin";
+import ProjectAdmin from "./pages/ProjectAdmin";
 import AIAssistant from "./pages/AIAssistant";
 import WhatsApp from "./pages/WhatsApp";
 import ChangePassword from "./pages/ChangePassword";
@@ -55,6 +56,7 @@ function AnimatedRoutes() {
           <Route path="/projects" element={<ProjectSelector />} />
           <Route path="/project-setup/:projectId" element={<ProjectSetup />} />
           <Route path="/project/:id" element={<ProjectDetail />} />
+          <Route path="/project/:id/admin" element={<ProjectAdmin />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/campaign/:campaignId/adsets" element={<AdSets />} />
