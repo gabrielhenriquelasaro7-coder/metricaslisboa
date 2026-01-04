@@ -101,18 +101,19 @@ export default function SparklineCard({
   return (
     <div 
       className={cn(
-        'glass-card-hover p-4 group',
+        'metric-card group relative',
         className
       )}
     >
-      {/* Animated top border on hover */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary via-v4-crimson to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      {/* Animated gradient overlay */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+      </div>
       
-      {/* Subtle background gradient */}
-      <div className={cn(
-        'absolute inset-0 bg-gradient-to-br opacity-0 pointer-events-none transition-opacity duration-500 group-hover:opacity-40',
-        colors.gradient
-      )} />
+      {/* Sparkle effects */}
+      <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-primary opacity-0 group-hover:opacity-100 group-hover:animate-ping" />
+      <div className="absolute top-6 right-8 w-1 h-1 rounded-full bg-primary/70 opacity-0 group-hover:opacity-100 group-hover:animate-ping" style={{ animationDelay: '0.3s' }} />
+      <div className="absolute bottom-8 left-4 w-0.5 h-0.5 rounded-full bg-primary/50 opacity-0 group-hover:opacity-100 group-hover:animate-ping" style={{ animationDelay: '0.5s' }} />
       
       <div className="flex items-start justify-between mb-3 relative z-10">
         <div className="flex-1 min-w-0">
@@ -122,49 +123,59 @@ export default function SparklineCard({
           </p>
         </div>
         {Icon && (
-          <div className={cn(
-            'w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ml-3',
-            'transition-all duration-500 group-hover:scale-105',
-            colors.bg,
-            'group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.25)]'
-          )}>
-            <Icon className={cn('w-5 h-5 transition-all duration-500', colors.icon, 'group-hover:drop-shadow-[0_0_6px_currentColor]')} />
+          <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 ml-3 group-hover:from-primary/30 group-hover:to-primary/10 transition-all duration-500 overflow-hidden">
+            {/* Icon glow ring */}
+            <div className="absolute inset-0 rounded-xl border border-primary/20 group-hover:border-primary/40 transition-colors duration-500" />
+            <div className="absolute inset-[2px] rounded-lg bg-gradient-to-br from-background/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            
+            {/* Rotating gradient on hover */}
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+              <div className="absolute inset-0 bg-gradient-conic from-primary/30 via-transparent to-primary/30 animate-spin" style={{ animationDuration: '3s' }} />
+            </div>
+            
+            <Icon className="w-5 h-5 text-primary relative z-10 group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_currentColor] transition-all duration-500" />
           </div>
         )}
       </div>
       
-      {/* Sparkline - LINE CHART with visible solid line */}
+      {/* Sparkline - Enhanced animated line chart */}
       {sparklineData.length > 1 && (
-        <div className="h-14 -mx-2 mt-1 relative z-10">
+        <div className="h-16 -mx-2 mt-2 relative z-10">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <defs>
                 <filter id={`glow-${uniqueId}`}>
-                  <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
                   <feMerge>
                     <feMergeNode in="coloredBlur"/>
                     <feMergeNode in="SourceGraphic"/>
                   </feMerge>
                 </filter>
+                <linearGradient id={`line-gradient-${uniqueId}`} x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="hsl(var(--primary) / 0.5)" />
+                  <stop offset="50%" stopColor="hsl(var(--primary))" />
+                  <stop offset="100%" stopColor="hsl(var(--primary) / 0.5)" />
+                </linearGradient>
               </defs>
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke={finalSparklineColor}
-                strokeWidth={2.5}
+                stroke={`url(#line-gradient-${uniqueId})`}
+                strokeWidth={3}
                 dot={{ 
-                  r: 2.5, 
-                  fill: finalSparklineColor,
-                  stroke: 'hsl(var(--background))',
-                  strokeWidth: 1
-                }}
-                activeDot={{ 
-                  r: 5, 
-                  fill: finalSparklineColor,
+                  r: 3, 
+                  fill: 'hsl(var(--primary))',
                   stroke: 'hsl(var(--background))',
                   strokeWidth: 2
                 }}
-                animationDuration={800}
+                activeDot={{ 
+                  r: 6, 
+                  fill: 'hsl(var(--primary))',
+                  stroke: 'hsl(var(--background))',
+                  strokeWidth: 2,
+                  className: 'drop-shadow-[0_0_8px_hsl(var(--primary))]'
+                }}
+                animationDuration={1000}
                 animationEasing="ease-out"
                 style={{ filter: `url(#glow-${uniqueId})` }}
               />
@@ -173,15 +184,19 @@ export default function SparklineCard({
         </div>
       )}
       
-      {/* Change indicator */}
+      {/* Change indicator with enhanced styling */}
       {change !== undefined && (
         <div className="flex items-center gap-2 mt-3 relative z-10">
           <div className={cn(
-            'flex items-center gap-1 text-sm font-medium px-2.5 py-1 rounded-full',
-            'transition-all duration-300 backdrop-blur-sm',
-            trendColor
+            'flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full',
+            'transition-all duration-300 backdrop-blur-sm border',
+            displayTrend === 'up' 
+              ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20 group-hover:bg-metric-positive/25 group-hover:shadow-[0_0_12px_hsl(var(--metric-positive)/0.3)]' 
+              : displayTrend === 'down' 
+                ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20 group-hover:bg-metric-negative/25 group-hover:shadow-[0_0_12px_hsl(var(--metric-negative)/0.3)]' 
+                : 'bg-muted/50 text-muted-foreground border-muted/30 group-hover:bg-muted/70'
           )}>
-            <TrendIcon className="w-3.5 h-3.5" />
+            <TrendIcon className="w-4 h-4" />
             <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
           </div>
           {changeLabel && (

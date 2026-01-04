@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
+    <div className="relative w-full overflow-auto rounded-xl">
       <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   ),
@@ -34,7 +34,13 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
   ({ className, ...props }, ref) => (
     <tr
       ref={ref}
-      className={cn("border-b transition-colors data-[state=selected]:bg-muted hover:bg-muted/50", className)}
+      className={cn(
+        "border-b border-border/50 transition-all duration-300 data-[state=selected]:bg-muted",
+        "hover:bg-gradient-to-r hover:from-primary/5 hover:via-primary/10 hover:to-primary/5",
+        "hover:shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.15)]",
+        "relative group/row",
+        className
+      )}
       {...props}
     />
   ),
@@ -46,7 +52,10 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
     <th
       ref={ref}
       className={cn(
-        "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        "h-12 px-4 text-left align-middle font-semibold text-foreground/80 [&:has([role=checkbox])]:pr-0",
+        "bg-gradient-to-b from-secondary/80 to-secondary/40 backdrop-blur-sm",
+        "first:rounded-tl-lg last:rounded-tr-lg",
+        "border-b border-primary/10",
         className,
       )}
       {...props}
