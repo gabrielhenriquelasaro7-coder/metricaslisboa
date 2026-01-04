@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
-  AreaChart, 
-  Area, 
+  LineChart as RechartsLineChart,
+  Line,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -274,27 +274,40 @@ export function CustomizableChart({
 
   const renderChart = () => {
     if (chartType === 'area') {
+      // Use LineChart with dots for dotted line style
       return (
-        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id={gradientId1} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={primaryColor} stopOpacity={0.35} />
-              <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id={gradientId2} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={secondaryColor} stopOpacity={0.35} />
-              <stop offset="95%" stopColor={secondaryColor} stopOpacity={0} />
-            </linearGradient>
-          </defs>
+        <RechartsLineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primaryColor} strokeWidth={2.5} strokeDasharray="6 3" fill={`url(#${gradientId1})`} animationDuration={800} />
-          <Area yAxisId="right" type="monotone" dataKey={secondaryMetric} name={secondary.label} stroke={secondaryColor} strokeWidth={2.5} strokeDasharray="6 3" fill={`url(#${gradientId2})`} animationDuration={800} />
-        </AreaChart>
+          <Line 
+            yAxisId="left" 
+            type="monotone" 
+            dataKey={primaryMetric} 
+            name={primary.label} 
+            stroke={primaryColor} 
+            strokeWidth={2.5} 
+            strokeDasharray="6 4"
+            dot={{ r: 4, fill: primaryColor, stroke: primaryColor, strokeWidth: 1 }}
+            activeDot={{ r: 6, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            animationDuration={800} 
+          />
+          <Line 
+            yAxisId="right" 
+            type="monotone" 
+            dataKey={secondaryMetric} 
+            name={secondary.label} 
+            stroke={secondaryColor} 
+            strokeWidth={2.5} 
+            strokeDasharray="6 4"
+            dot={{ r: 4, fill: secondaryColor, stroke: secondaryColor, strokeWidth: 1 }}
+            activeDot={{ r: 6, fill: secondaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            animationDuration={800} 
+          />
+        </RechartsLineChart>
       );
     } else if (chartType === 'bar') {
       return (
@@ -310,21 +323,27 @@ export function CustomizableChart({
         </BarChart>
       );
     } else {
+      // Composed: Line with dots + Bar
       return (
         <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id={gradientId1} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={primaryColor} stopOpacity={0.35} />
-              <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
-            </linearGradient>
-          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primaryColor} strokeWidth={2.5} strokeDasharray="6 3" fill={`url(#${gradientId1})`} animationDuration={800} />
+          <Line 
+            yAxisId="left" 
+            type="monotone" 
+            dataKey={primaryMetric} 
+            name={primary.label} 
+            stroke={primaryColor} 
+            strokeWidth={2.5} 
+            strokeDasharray="6 4"
+            dot={{ r: 4, fill: primaryColor, stroke: primaryColor, strokeWidth: 1 }}
+            activeDot={{ r: 6, fill: primaryColor, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            animationDuration={800} 
+          />
           <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} opacity={0.85} animationDuration={800} />
         </ComposedChart>
       );
