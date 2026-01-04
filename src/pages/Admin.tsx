@@ -431,7 +431,10 @@ function AdminContent() {
             </Button>
             <Button
               variant="outline"
-              onClick={logout}
+              onClick={() => {
+                logout();
+                navigate('/projects');
+              }}
               className="gap-2 text-muted-foreground hover:text-destructive hover:border-destructive"
             >
               <LogOut className="w-4 h-4" />
