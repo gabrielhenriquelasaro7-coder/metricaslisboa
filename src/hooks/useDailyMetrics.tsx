@@ -34,9 +34,11 @@ export interface PeriodComparison {
 
 // Calculate date range based on preset - use centralized dateUtils
 function getDateRangeFromPeriod(preset: DatePresetKey) {
+  console.log(`[DailyMetrics] Getting date range for preset: ${preset}`);
   const period = getDateRangeFromPreset(preset, 'America/Sao_Paulo');
   
   if (!period) {
+    console.log(`[DailyMetrics] No period found for preset ${preset}, using fallback`);
     // Fallback for custom - last 30 days
     const now = new Date();
     const today = now.toISOString().split('T')[0];
@@ -51,6 +53,8 @@ function getDateRangeFromPeriod(preset: DatePresetKey) {
   const since = period.since;
   const until = period.until;
   const days = Math.ceil((new Date(until).getTime() - new Date(since).getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  
+  console.log(`[DailyMetrics] Preset ${preset} -> since: ${since}, until: ${until}, days: ${days}`);
   
   // Determine previous type based on preset
   let previousType: 'same_length' | 'previous_month' | 'previous_year' = 'same_length';

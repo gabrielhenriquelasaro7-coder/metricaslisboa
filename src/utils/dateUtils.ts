@@ -40,13 +40,19 @@ function getOffsetFromTimezone(timezone: string): number {
 }
 
 function toTimezone(date: Date, offsetHours: number): Date {
-  const d = new Date(date);
-  d.setHours(d.getHours() + d.getTimezoneOffset() / 60 + offsetHours);
-  return d;
+  // Create a new date in the target timezone
+  // We need to get the current time in the specified timezone
+  const utcTime = date.getTime() + (date.getTimezoneOffset() * 60 * 1000);
+  const targetTime = utcTime + (offsetHours * 60 * 60 * 1000);
+  return new Date(targetTime);
 }
 
 function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
+  // Format as YYYY-MM-DD without timezone conversion issues
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function subDays(date: Date, days: number): Date {
@@ -59,23 +65,33 @@ export function calculateTimePeriods(timezone: string = 'America/Sao_Paulo'): Ti
   const now = new Date();
   const offsetHours = getOffsetFromTimezone(timezone);
   const today = toTimezone(now, offsetHours);
+  
+  // Get the actual date components from the adjusted time
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth();
+  const todayDate = today.getDate();
+  
+  console.log(`[DateUtils] Calculating periods - Today: ${todayYear}-${String(todayMonth + 1).padStart(2, '0')}-${String(todayDate).padStart(2, '0')} (timezone: ${timezone})`);
 
   // Yesterday
   const yesterday = subDays(today, 1);
 
   // This month
-  const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const firstDayThisMonth = new Date(todayYear, todayMonth, 1);
 
   // Last month (full month)
-  const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+  const firstDayLastMonth = new Date(todayYear, todayMonth - 1, 1);
+  const lastDayLastMonth = new Date(todayYear, todayMonth, 0);
 
   // This year
-  const firstDayThisYear = new Date(today.getFullYear(), 0, 1);
+  const firstDayThisYear = new Date(todayYear, 0, 1);
 
-  // Last year (full year)
-  const firstDayLastYear = new Date(today.getFullYear() - 1, 0, 1);
-  const lastDayLastYear = new Date(today.getFullYear() - 1, 11, 31);
+  // Last year (full year) - this should be the ENTIRE previous year
+  const lastYear = todayYear - 1;
+  const firstDayLastYear = new Date(lastYear, 0, 1);
+  const lastDayLastYear = new Date(lastYear, 11, 31);
+  
+  console.log(`[DateUtils] Last year range: ${formatDate(firstDayLastYear)} to ${formatDate(lastDayLastYear)}`);
 
   return {
     reference_date: formatDate(today),
