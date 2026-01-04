@@ -1,26 +1,101 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- TODO: Set the document title to the name of your application -->
-    <title>Lovable App</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
+    <title>V4 Traffic Manager</title>
+    <meta name="description" content="Gerenciamento de tráfego e métricas de campanhas" />
+    <meta name="author" content="V4 Company" />
 
-    <!-- TODO: Update og:title to match your application name -->
-    <meta property="og:title" content="Lovable App" />
-    <meta property="og:description" content="Lovable Generated Project" />
+    <meta property="og:title" content="V4 Traffic Manager" />
+    <meta property="og:description" content="Gerenciamento de tráfego e métricas de campanhas" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    
+    <!-- Prevent white flash during page load -->
+    <style>
+      :root {
+        --loading-bg: hsl(224, 71%, 4%);
+        --loading-primary: hsl(0, 84%, 60%);
+      }
+      
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--loading-bg);
+      }
+      
+      #root {
+        min-height: 100vh;
+        background-color: var(--loading-bg);
+      }
+      
+      /* Initial loading screen - shown before React hydrates */
+      #initial-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--loading-bg);
+        z-index: 9999;
+        opacity: 1;
+        transition: opacity 0.15s ease-out;
+      }
+      
+      #initial-loader.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      
+      #initial-loader .dots {
+        display: flex;
+        gap: 8px;
+      }
+      
+      #initial-loader .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: var(--loading-primary);
+        animation: bounce 0.6s ease-in-out infinite;
+      }
+      
+      #initial-loader .dot:nth-child(1) { animation-delay: 0ms; }
+      #initial-loader .dot:nth-child(2) { animation-delay: 100ms; }
+      #initial-loader .dot:nth-child(3) { animation-delay: 200ms; }
+      
+      @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+      }
+    </style>
   </head>
 
   <body>
+    <!-- Initial loader to prevent white flash -->
+    <div id="initial-loader">
+      <div class="dots">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Hide initial loader once React app is ready -->
+    <script>
+      window.hideInitialLoader = function() {
+        const loader = document.getElementById('initial-loader');
+        if (loader) {
+          loader.classList.add('hidden');
+          setTimeout(() => loader.remove(), 150);
+        }
+      };
+    </script>
   </body>
 </html>
