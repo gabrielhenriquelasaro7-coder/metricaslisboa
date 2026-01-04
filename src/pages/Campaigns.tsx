@@ -371,7 +371,7 @@ export default function Campaigns() {
             />
 
             {/* Campaigns Table - Mobile Cards + Desktop Table */}
-            <div className="glass-card overflow-hidden border-t-2 border-t-primary/50">
+            <div className="vibrant-table overflow-hidden">
               {/* Mobile: Card View */}
               <div className="block lg:hidden divide-y divide-border/50">
                 {filteredCampaigns.map((campaign, index) => {
@@ -446,7 +446,7 @@ export default function Campaigns() {
               <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-border bg-secondary/50">
+                    <tr className="border-b border-border/30">
                       <th className="text-left py-4 px-4 text-xs font-semibold text-foreground uppercase tracking-wide">
                         Campanha
                       </th>
@@ -508,17 +508,18 @@ export default function Campaigns() {
                       return (
                         <tr 
                           key={campaign.id}
-                          className="border-b border-border/50 hover:bg-secondary/30 transition-colors cursor-pointer group"
+                          className="vibrant-table-row table-row-animated border-b border-border/30 cursor-pointer group"
                           onClick={() => navigate(`/campaign/${campaign.id}/adsets`)}
-                          style={{ animationDelay: `${index * 50}ms` }}
+                          style={{ '--row-index': index } as React.CSSProperties}
                         >
                           <td className="py-4 px-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0">
-                                <Megaphone className="w-5 h-5 text-primary" />
+                              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary/25 to-primary/5 flex items-center justify-center flex-shrink-0 group-hover:from-primary/35 group-hover:to-primary/15 transition-all duration-300 overflow-hidden">
+                                <div className="absolute inset-0 rounded-xl border border-primary/20 group-hover:border-primary/40 transition-colors" />
+                                <Megaphone className="w-5 h-5 text-primary group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_currentColor] transition-all duration-300" />
                               </div>
                               <div>
-                                <p className="font-medium text-sm group-hover:text-primary transition-colors line-clamp-1">
+                                <p className="font-medium text-sm group-hover:text-primary transition-colors duration-300 line-clamp-1">
                                   {campaign.name}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
@@ -603,7 +604,7 @@ export default function Campaigns() {
                             </span>
                           </td>
                           <td className="py-4 px-3">
-                            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
                           </td>
                         </tr>
                       );

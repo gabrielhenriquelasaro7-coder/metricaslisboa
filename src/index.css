@@ -295,25 +295,138 @@
     opacity: 1;
   }
 
-  /* Metric Card with futuristic styling */
+  /* ===== VIBRANT METRIC CARD STYLES ===== */
   .metric-card {
-    @apply glass-card-hover p-4 lg:p-5 relative overflow-hidden;
+    @apply relative overflow-hidden rounded-xl p-3 sm:p-4;
+    background: linear-gradient(135deg, 
+      hsl(var(--card)) 0%, 
+      hsl(var(--card) / 0.8) 100%
+    );
+    border: 1px solid hsl(var(--border) / 0.5);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .metric-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at 50% 0%,
+      hsl(var(--primary) / 0.08) 0%,
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+
+  .metric-card::after {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     height: 2px;
-    background: var(--gradient-primary);
+    background: linear-gradient(90deg, 
+      transparent 0%,
+      hsl(var(--primary)) 50%,
+      transparent 100%
+    );
     opacity: 0;
-    transition: opacity 0.5s ease;
+    transform: scaleX(0);
+    transition: all 0.4s ease;
+  }
+
+  .metric-card:hover {
+    transform: translateY(-4px);
+    border-color: hsl(var(--primary) / 0.4);
+    box-shadow: 
+      0 8px 32px hsl(var(--primary) / 0.15),
+      0 0 0 1px hsl(var(--primary) / 0.1),
+      inset 0 1px 0 hsl(var(--background) / 0.1);
   }
 
   .metric-card:hover::before {
     opacity: 1;
+  }
+
+  .metric-card:hover::after {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  /* ===== VIBRANT TABLE STYLES ===== */
+  .vibrant-table {
+    @apply relative overflow-hidden rounded-xl;
+    background: linear-gradient(135deg, 
+      hsl(var(--card)) 0%, 
+      hsl(var(--card) / 0.95) 100%
+    );
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+
+  .vibrant-table::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, 
+      hsl(var(--primary)) 0%,
+      hsl(var(--primary) / 0.6) 50%,
+      hsl(var(--primary)) 100%
+    );
+    z-index: 10;
+  }
+
+  .vibrant-table-row {
+    @apply relative transition-all duration-300;
+  }
+
+  .vibrant-table-row::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, 
+      hsl(var(--primary)) 0%,
+      hsl(var(--primary) / 0.5) 100%
+    );
+    opacity: 0;
+    transform: scaleY(0);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .vibrant-table-row:hover::before {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  .vibrant-table-row:hover {
+    background: linear-gradient(90deg, 
+      hsl(var(--primary) / 0.08) 0%,
+      hsl(var(--primary) / 0.04) 50%,
+      transparent 100%
+    );
+  }
+
+  /* Stagger animation for table rows */
+  @keyframes table-row-enter {
+    from {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .table-row-animated {
+    animation: table-row-enter 0.4s ease-out forwards;
+    animation-delay: calc(var(--row-index, 0) * 50ms);
   }
 
   /* Glow effect on hover */

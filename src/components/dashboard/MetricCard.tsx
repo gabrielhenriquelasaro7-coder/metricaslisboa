@@ -115,7 +115,16 @@ export default function MetricCard({
 
   return (
     <div className={cn('metric-card group', className)}>
-      <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1 sm:mb-2">
+      {/* Animated gradient overlay */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+      </div>
+      
+      {/* Sparkle effect */}
+      <div className="absolute top-2 right-2 w-1 h-1 rounded-full bg-primary opacity-0 group-hover:opacity-100 group-hover:animate-ping" />
+      <div className="absolute top-4 right-6 w-0.5 h-0.5 rounded-full bg-primary/70 opacity-0 group-hover:opacity-100 group-hover:animate-ping" style={{ animationDelay: '0.2s' }} />
+      
+      <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1 sm:mb-2 relative z-10">
         <div className="flex-1 min-w-0">
           {titleElement}
           <p className="text-base sm:text-lg md:text-xl font-bold truncate text-foreground group-hover:text-primary transition-colors duration-500">
@@ -123,20 +132,30 @@ export default function MetricCard({
           </p>
         </div>
         {Icon && (
-          <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:shadow-[0_0_16px_hsl(var(--primary)/0.3)] transition-all duration-500 flex-shrink-0">
-            <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary group-hover:drop-shadow-[0_0_6px_currentColor] transition-all duration-500" />
+          <div className="relative w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center group-hover:from-primary/30 group-hover:to-primary/10 transition-all duration-500 flex-shrink-0 overflow-hidden">
+            {/* Icon glow ring */}
+            <div className="absolute inset-0 rounded-xl border border-primary/20 group-hover:border-primary/40 transition-colors duration-500" />
+            <div className="absolute inset-[2px] rounded-lg bg-gradient-to-br from-background/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            
+            {/* Rotating gradient on hover */}
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+              <div className="absolute inset-0 bg-gradient-conic from-primary/30 via-transparent to-primary/30 animate-spin" style={{ animationDuration: '3s' }} />
+            </div>
+            
+            <Icon className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5 text-primary relative z-10 group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_currentColor] transition-all duration-500" />
           </div>
         )}
       </div>
       
       {(change !== undefined || changeLabel) && (
-        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-          <div className={cn('flex items-center gap-1 text-xs sm:text-sm font-medium px-2 py-0.5 rounded-full backdrop-blur-sm', 
-            trend === 'up' ? 'bg-metric-positive/15 text-metric-positive' :
-            trend === 'down' ? 'bg-metric-negative/15 text-metric-negative' :
-            'bg-muted/50 text-muted-foreground'
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap relative z-10">
+          <div className={cn(
+            'flex items-center gap-1 text-xs sm:text-sm font-medium px-2.5 py-1 rounded-full backdrop-blur-sm border transition-all duration-300', 
+            trend === 'up' ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20 group-hover:bg-metric-positive/25' :
+            trend === 'down' ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20 group-hover:bg-metric-negative/25' :
+            'bg-muted/50 text-muted-foreground border-muted/30 group-hover:bg-muted/70'
           )}>
-            <TrendIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+            <TrendIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             {change !== undefined && (
               <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
             )}
