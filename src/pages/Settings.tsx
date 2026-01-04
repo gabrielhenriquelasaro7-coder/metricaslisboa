@@ -941,9 +941,9 @@ export default function Settings() {
           </TabsContent>
 
           {/* Guests Tab */}
-          {!isGuest && (
+          {!isGuest && selectedProjectId && (
             <TabsContent value="guests">
-              <GuestsTab />
+              <GuestsTab projectId={selectedProjectId} />
             </TabsContent>
           )}
 
