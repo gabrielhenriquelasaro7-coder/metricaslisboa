@@ -33,9 +33,10 @@ export function useWhatsAppInstances(projectId: string | null) {
 
     setLoading(true);
     try {
+      // Explicitly select only non-sensitive fields (exclude 'token' for security)
       const { data, error } = await supabase
         .from('whatsapp_instances')
-        .select('*')
+        .select('id, project_id, user_id, instance_name, display_name, instance_status, phone_connected, qr_code, qr_code_expires_at, created_at, updated_at')
         .eq('project_id', projectId)
         .order('created_at', { ascending: true });
 
