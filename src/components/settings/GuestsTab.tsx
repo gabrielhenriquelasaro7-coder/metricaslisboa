@@ -22,8 +22,10 @@ import {
   XCircle, 
   Clock,
   Trash2,
-  Users
+  Users,
+  RefreshCw
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 
 interface GuestInvitation {
@@ -46,6 +48,7 @@ export function GuestsTab({ projectId }: GuestsTabProps) {
   const [invitations, setInvitations] = useState<GuestInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const fetchInvitations = async () => {
     if (!user || !projectId) return;
@@ -86,6 +89,48 @@ export function GuestsTab({ projectId }: GuestsTabProps) {
     } catch (error) {
       toast.error('Erro ao revogar acesso');
     }
+  };
+
+  const handleResendInvite = async (invitation: GuestInvitation) => {
+    if (!projectId) return;
+    
+    setResendingId(invitation.id);
+    try {
+      const response = await supabase.functions.invoke('invite-guest', {
+        body: {
+          guest_email: invitation.guest_email,
+          guest_name: invitation.guest_name,
+          project_id: projectId,
+          resend: true,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const { temp_password, is_new_user } = response.data;
+      
+      if (is_new_user && temp_password) {
+        // Copy credentials to clipboard
+        const credentials = `E-mail: ${invitation.guest_email}\nSenha: ${temp_password}`;
+        await navigator.clipboard.writeText(credentials);
+        toast.success('Nova senha gerada e copiada para a área de transferência!');
+      } else {
+        toast.success('Convite reenviado! O usuário pode usar a senha atual.');
+      }
+      
+      fetchInvitations();
+    } catch (error) {
+      console.error('Error resending invite:', error);
+      toast.error('Erro ao reenviar convite');
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  const isPending = (invitation: GuestInvitation) => {
+    return invitation.status !== 'revoked' && !invitation.password_changed;
   };
 
   const getStatusBadge = (invitation: GuestInvitation) => {
@@ -183,16 +228,45 @@ export function GuestsTab({ projectId }: GuestsTabProps) {
                         {format(new Date(invitation.created_at), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                       <TableCell className="text-right">
-                        {invitation.status !== 'revoked' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRevokeAccess(invitation.id)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
+                        <TooltipProvider>
+                          <div className="flex items-center justify-end gap-1">
+                            {isPending(invitation) && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleResendInvite(invitation)}
+                                    disabled={resendingId === invitation.id}
+                                    className="text-primary hover:text-primary hover:bg-primary/10"
+                                  >
+                                    {resendingId === invitation.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <RefreshCw className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Reenviar convite</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {invitation.status !== 'revoked' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRevokeAccess(invitation.id)}
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Revogar acesso</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))}
