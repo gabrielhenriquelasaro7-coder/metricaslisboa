@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import { useNavigate } from 'react-router-dom';
 import AdminPasswordGate from '@/components/admin/AdminPasswordGate';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useProjects, Project } from '@/hooks/useProjects';
@@ -361,13 +361,15 @@ function AdminContent() {
     return (progress.current_batch / progress.total_batches) * 100;
   };
 
+  const navigate = useNavigate();
+
   if (projectsLoading) {
     return (
-      <DashboardLayout>
+      <div className="min-h-screen bg-background red-texture-bg">
         <div className="p-8 flex items-center justify-center min-h-[60vh]">
           <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
@@ -407,26 +409,35 @@ function AdminContent() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="p-8 space-y-8 animate-fade-in max-w-6xl">
+    <div className="min-h-screen bg-background red-texture-bg">
+      <div className="p-8 space-y-8 animate-fade-in max-w-6xl mx-auto">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
               <Database className="w-8 h-8 text-primary" />
-              Administração
+              Administração Global
             </h1>
             <p className="text-muted-foreground">
-              Gerenciamento de dados, sincronizações e monitoramento
+              Gerenciamento de dados, sincronizações e monitoramento de todos os projetos
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={logout}
-            className="gap-2 text-muted-foreground hover:text-destructive hover:border-destructive"
-          >
-            <LogOut className="w-4 h-4" />
-            Sair do Admin
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/projects')}
+              className="gap-2"
+            >
+              Voltar aos Projetos
+            </Button>
+            <Button
+              variant="outline"
+              onClick={logout}
+              className="gap-2 text-muted-foreground hover:text-destructive hover:border-destructive"
+            >
+              <LogOut className="w-4 h-4" />
+              Sair do Admin
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="monitoring" className="space-y-6">
@@ -1087,7 +1098,7 @@ function AdminContent() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
 
