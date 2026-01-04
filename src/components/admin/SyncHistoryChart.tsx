@@ -56,6 +56,9 @@ export default function SyncHistoryChart({ projectId, showProjectSelector = true
   const effectiveProjectId = projectId || (selectedProject !== 'all' ? selectedProject : null);
 
   useEffect(() => {
+    // Reset logs when projectId changes
+    setLogs([]);
+    
     const fetchData = async () => {
       setLoading(true);
       

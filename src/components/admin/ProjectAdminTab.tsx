@@ -48,6 +48,11 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
+    // Reset state when projectId changes
+    setLastSync(null);
+    setRecentLogs([]);
+    setImportMonths([]);
+    
     const fetchData = async () => {
       setLoading(true);
       

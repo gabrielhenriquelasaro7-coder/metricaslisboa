@@ -396,7 +396,7 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="admin" className="space-y-6">
-            <ProjectAdminTab projectId={project.id} projectName={project.name} />
+            <ProjectAdminTab key={project.id} projectId={project.id} projectName={project.name} />
           </TabsContent>
 
         </Tabs>
