@@ -5,7 +5,7 @@ import { useCampaignGoals } from '@/hooks/useCampaignGoals';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PredictiveSkeleton } from '@/components/skeletons';
 import { generatePredictiveReportPDF } from '@/components/pdf/PredictiveReportPDF';
 import { CampaignGoalsConfig } from '@/components/predictive/CampaignGoalsConfig';
 import { ChartCustomizationDialog } from '@/components/dashboard/ChartCustomizationDialog';
@@ -338,11 +338,7 @@ export default function PredictiveAnalysis() {
           </Card>
 
           {loading && !data && (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-36 rounded-xl" />
-              ))}
-            </div>
+            <PredictiveSkeleton />
           )}
 
           {error && (

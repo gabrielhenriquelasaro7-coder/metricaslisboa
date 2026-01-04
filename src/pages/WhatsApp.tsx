@@ -61,6 +61,7 @@ import { WhatsAppQRModal } from '@/components/whatsapp/WhatsAppQRModal';
 import { WhatsAppGroupSelector } from '@/components/whatsapp/WhatsAppGroupSelector';
 import { AnomalyAlertsCard } from '@/components/alerts/AnomalyAlertsCard';
 import { useBalanceAlert, generateBalanceAlertMessage } from '@/hooks/useBalanceAlert';
+import { WhatsAppSkeleton } from '@/components/skeletons';
 
 interface WhatsAppSubscription {
   id: string;
@@ -966,8 +967,8 @@ export default function WhatsApp() {
   if (authLoading || loading) {
     return (
       <DashboardLayout>
-        <div className="p-6 lg:p-8 flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="p-6 lg:p-8">
+          <WhatsAppSkeleton />
         </div>
       </DashboardLayout>
     );
