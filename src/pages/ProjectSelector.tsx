@@ -50,7 +50,8 @@ import {
   Search,
   Settings2,
   Target,
-  UserPlus
+  UserPlus,
+  Shield
 } from 'lucide-react';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -751,14 +752,24 @@ export default function ProjectSelector() {
               </div>
             </div>
             
-            <Button 
-              variant="ghost" 
-              onClick={handleLogout} 
-              className="text-muted-foreground hover:text-foreground hover:bg-card/50 gap-2 rounded-xl transition-all"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sair</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate('/admin')}
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10 gap-2 rounded-xl transition-all"
+              >
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={handleLogout} 
+                className="text-muted-foreground hover:text-foreground hover:bg-card/50 gap-2 rounded-xl transition-all"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Sair</span>
+              </Button>
+            </div>
           </div>
         </header>
 
