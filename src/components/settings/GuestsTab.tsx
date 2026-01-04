@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useProjects } from '@/hooks/useProjects';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,15 +37,18 @@ interface GuestInvitation {
   expires_at: string;
 }
 
-export function GuestsTab() {
+interface GuestsTabProps {
+  projectId?: string;
+}
+
+export function GuestsTab({ projectId }: GuestsTabProps) {
   const { user } = useAuth();
-  const { projects } = useProjects();
   const [invitations, setInvitations] = useState<GuestInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   const fetchInvitations = async () => {
-    if (!user) return;
+    if (!user || !projectId) return;
     
     setLoading(true);
     try {
@@ -54,6 +56,7 @@ export function GuestsTab() {
         .from('guest_invitations')
         .select('*')
         .eq('invited_by', user.id)
+        .eq('project_id', projectId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -67,7 +70,7 @@ export function GuestsTab() {
 
   useEffect(() => {
     fetchInvitations();
-  }, [user]);
+  }, [user, projectId]);
 
   const handleRevokeAccess = async (invitationId: string) => {
     try {
@@ -110,10 +113,7 @@ export function GuestsTab() {
     );
   };
 
-  const getProjectName = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    return project?.name || 'Projeto não encontrado';
-  };
+
 
   return (
     <div className="space-y-6">
@@ -144,7 +144,7 @@ export function GuestsTab() {
             Clientes Convidados
           </CardTitle>
           <CardDescription>
-            Gerencie os acessos dos clientes aos seus projetos
+            Clientes com acesso a este projeto
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -155,7 +155,7 @@ export function GuestsTab() {
           ) : invitations.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Nenhum cliente convidado ainda</p>
+              <p>Nenhum cliente convidado para este projeto</p>
               <p className="text-sm">Clique em "Novo Convite" para convidar seu primeiro cliente</p>
             </div>
           ) : (
@@ -164,7 +164,6 @@ export function GuestsTab() {
                 <TableHeader>
                   <TableRow className="bg-muted/30">
                     <TableHead>Cliente</TableHead>
-                    <TableHead>Projeto</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -179,7 +178,6 @@ export function GuestsTab() {
                           <p className="text-sm text-muted-foreground">{invitation.guest_email}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{getProjectName(invitation.project_id)}</TableCell>
                       <TableCell>{getStatusBadge(invitation)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {format(new Date(invitation.created_at), "dd/MM/yyyy", { locale: ptBR })}
