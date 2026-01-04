@@ -441,14 +441,13 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 {!collapsed && <span>WhatsApp</span>}
               </Link>
 
-              {/* Admin - link para aba admin do projeto atual */}
+              {/* Admin - sempre vai para página global */}
               <Link
-                to={selectedProject ? `/project/${selectedProject.id}?tab=admin` : '/admin'}
+                to="/admin"
                 onClick={onNavigate}
                 className={cn(
                   'sidebar-item',
-                  (location.pathname === '/admin' || 
-                   (location.pathname.startsWith('/project/') && location.search?.includes('tab=admin'))) && 'active'
+                  location.pathname === '/admin' && 'active'
                 )}
               >
                 <Database className="w-5 h-5 flex-shrink-0" />
