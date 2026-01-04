@@ -173,12 +173,13 @@ Deno.serve(async (req) => {
 
     const concurrentLimit = Math.min(concurrent, 10); // Max 10 concurrent
 
-    // Fetch projects
+    // Fetch META ONLY projects (ad_account_id starts with 'act_')
     let projectsQuery = supabase
       .from('projects')
       .select('id, ad_account_id, name')
       .eq('archived', false)
-      .not('ad_account_id', 'is', null);
+      .not('ad_account_id', 'is', null)
+      .like('ad_account_id', 'act_%'); // Only Meta Ads accounts
 
     if (project_ids && project_ids.length > 0) {
       projectsQuery = projectsQuery.in('id', project_ids);
@@ -188,6 +189,8 @@ Deno.serve(async (req) => {
     if (retry_failed) {
       projectsQuery = projectsQuery.eq('webhook_status', 'retry_pending');
     }
+    
+    console.log(`[SYNC] Filtering Meta projects only (ad_account_id LIKE 'act_%')`);
 
     const { data: projects, error: projectsError } = await projectsQuery;
 
