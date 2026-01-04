@@ -240,29 +240,33 @@ async function fetchDailyInsights(
 
 // LEADS REAIS - Formulários (Lead Ads / Instant Forms)
 // Estes são os únicos leads que aparecem como "Resultados" no Gerenciador
+// IMPORTANTE: O Meta reporta o mesmo lead em múltiplos action_types (lead, leadgen, on_facebook_lead)
+// Por isso, usamos APENAS os tipos mais específicos para evitar dupla contagem
 const LEAD_FORM_ACTIONS = [
-  'lead',                                    // Lead genérico (formulário)
-  'leadgen.other',                           // Lead via formulário
-  'on_facebook_lead',                        // Lead no Facebook (formulário)
+  'leadgen.other',                           // Lead via formulário (formulário do Lead Ads)
+  'on_facebook_lead',                        // Lead no Facebook (formulário no feed)
+  // REMOVIDO 'lead' genérico pois é duplicado de on_facebook_lead na maioria dos casos
 ];
 
 // LEADS VIA PIXEL - "Lead no site" / "Leads no site"
-// Apenas conversões trackadas pelo pixel do site
+// Este é o PRINCIPAL para campanhas de tráfego/conversão
+// O Meta Gerenciador mostra este como "Leads" na coluna de resultados
 const LEAD_PIXEL_ACTIONS = [
-  'offsite_conversion.fb_pixel_lead',        // Lead via pixel (Lead no site)
+  'offsite_conversion.fb_pixel_lead',        // Lead via pixel (Lead no site) - ÚNICO usado
+  // REMOVIDO 'lead' genérico pois aparece duplicado junto com fb_pixel_lead
 ];
 
 // REGISTROS COMPLETOS - Contam como lead/conversão
 const REGISTRATION_ACTIONS = [
-  'complete_registration',                             // Cadastro completo
-  'offsite_conversion.fb_pixel_complete_registration', // Cadastro via pixel
+  'offsite_conversion.fb_pixel_complete_registration', // Cadastro via pixel (PRINCIPAL)
+  // REMOVIDO 'complete_registration' genérico para evitar dupla contagem
 ];
 
 // COMPRAS - Para campanhas de e-commerce
 const PURCHASE_ACTIONS = [
-  'purchase',                                // Compra genérica
-  'omni_purchase',                           // Compra omnichannel
-  'offsite_conversion.fb_pixel_purchase',    // Compra via pixel
+  'offsite_conversion.fb_pixel_purchase',    // Compra via pixel (PRINCIPAL)
+  'omni_purchase',                           // Compra omnichannel (alternativa)
+  // REMOVIDO 'purchase' genérico para evitar dupla contagem
 ];
 
 // MENSAGENS - Para campanhas de tráfego para WhatsApp/Messenger (Inside Sales)
@@ -317,28 +321,31 @@ const VALUE_ACTION_TYPES = [
 ];
 
 // Mapeamento de action_types para uma categoria base para evitar dupla contagem
-// SIMPLIFICADO: Apenas 3 categorias (lead, registration, purchase)
-// NÃO inclui contact pois tráfego Instagram não gera leads
+// SIMPLIFICADO: Apenas 3 categorias (lead_form, lead_pixel, registration, purchase)
+// Cada categoria usa APENAS UM action_type específico para evitar duplicação
 function normalizeActionTypeToBase(actionType: string): string {
-  // LEADS - todos os tipos de lead viram 'lead'
-  if (actionType === 'lead' || 
-      actionType === 'on_facebook_lead' ||
-      actionType === 'offsite_conversion.fb_pixel_lead' ||
+  // LEADS VIA FORMULÁRIO (Lead Ads) - categoria separada
+  if (actionType === 'on_facebook_lead' ||
       actionType === 'leadgen.other') {
-    return 'lead';
+    return 'lead_form';
   }
   
-  // REGISTROS - todos viram 'registration'
-  if (actionType === 'complete_registration' ||
-      actionType === 'offsite_conversion.fb_pixel_complete_registration') {
+  // LEADS VIA PIXEL (Lead no site) - categoria separada
+  if (actionType === 'offsite_conversion.fb_pixel_lead') {
+    return 'lead_pixel';
+  }
+  
+  // REGISTROS - apenas pixel
+  if (actionType === 'offsite_conversion.fb_pixel_complete_registration') {
     return 'registration';
   }
   
-  // COMPRAS - todos viram 'purchase'
-  if (actionType === 'purchase' ||
-      actionType === 'omni_purchase' ||
-      actionType === 'offsite_conversion.fb_pixel_purchase') {
-    return 'purchase';
+  // COMPRAS - pixel tem prioridade
+  if (actionType === 'offsite_conversion.fb_pixel_purchase') {
+    return 'purchase_pixel';
+  }
+  if (actionType === 'omni_purchase') {
+    return 'purchase_omni';
   }
   
   // Default: retorna o próprio tipo (será ignorado se não estiver na lista)
