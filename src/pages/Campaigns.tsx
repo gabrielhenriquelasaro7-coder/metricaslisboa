@@ -508,9 +508,8 @@ export default function Campaigns() {
                       return (
                         <tr 
                           key={campaign.id}
-                          className="vibrant-table-row table-row-animated border-b border-border/30 cursor-pointer group"
+                          className="vibrant-table-row border-b border-border/30 cursor-pointer group hover:bg-primary/5 transition-all duration-300"
                           onClick={() => navigate(`/campaign/${campaign.id}/adsets`)}
-                          style={{ '--row-index': index } as React.CSSProperties}
                         >
                           <td className="py-4 px-4">
                             <div className="flex items-center gap-3">

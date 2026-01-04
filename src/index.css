@@ -415,8 +415,8 @@
   /* Stagger animation for table rows */
   @keyframes table-row-enter {
     from {
-      opacity: 0;
-      transform: translateX(-10px);
+      opacity: 0.5;
+      transform: translateX(-5px);
     }
     to {
       opacity: 1;
@@ -425,8 +425,7 @@
   }
 
   .table-row-animated {
-    animation: table-row-enter 0.4s ease-out forwards;
-    animation-delay: calc(var(--row-index, 0) * 50ms);
+    animation: table-row-enter 0.3s ease-out forwards;
   }
 
   /* Glow effect on hover */
