@@ -30,6 +30,7 @@ export type Database = {
           id: string
           impressions: number | null
           lifetime_budget: number | null
+          messaging_replies: number | null
           name: string
           project_id: string
           reach: number | null
@@ -54,6 +55,7 @@ export type Database = {
           id: string
           impressions?: number | null
           lifetime_budget?: number | null
+          messaging_replies?: number | null
           name: string
           project_id: string
           reach?: number | null
@@ -78,6 +80,7 @@ export type Database = {
           id?: string
           impressions?: number | null
           lifetime_budget?: number | null
+          messaging_replies?: number | null
           name?: string
           project_id?: string
           reach?: number | null
@@ -118,6 +121,7 @@ export type Database = {
           headline: string | null
           id: string
           impressions: number | null
+          messaging_replies: number | null
           name: string
           primary_text: string | null
           project_id: string
@@ -147,6 +151,7 @@ export type Database = {
           headline?: string | null
           id: string
           impressions?: number | null
+          messaging_replies?: number | null
           name: string
           primary_text?: string | null
           project_id: string
@@ -176,6 +181,7 @@ export type Database = {
           headline?: string | null
           id?: string
           impressions?: number | null
+          messaging_replies?: number | null
           name?: string
           primary_text?: string | null
           project_id?: string
@@ -222,6 +228,7 @@ export type Database = {
           frequency: number | null
           id: string
           impressions: number
+          messaging_replies: number | null
           project_id: string
           reach: number
           roas: number | null
@@ -254,6 +261,7 @@ export type Database = {
           frequency?: number | null
           id?: string
           impressions?: number
+          messaging_replies?: number | null
           project_id: string
           reach?: number
           roas?: number | null
@@ -286,6 +294,7 @@ export type Database = {
           frequency?: number | null
           id?: string
           impressions?: number
+          messaging_replies?: number | null
           project_id?: string
           reach?: number
           roas?: number | null
@@ -537,6 +546,7 @@ export type Database = {
           id: string
           impressions: number | null
           lifetime_budget: number | null
+          messaging_replies: number | null
           name: string
           objective: string | null
           project_id: string
@@ -562,6 +572,7 @@ export type Database = {
           id: string
           impressions?: number | null
           lifetime_budget?: number | null
+          messaging_replies?: number | null
           name: string
           objective?: string | null
           project_id: string
@@ -587,6 +598,7 @@ export type Database = {
           id?: string
           impressions?: number | null
           lifetime_budget?: number | null
+          messaging_replies?: number | null
           name?: string
           objective?: string | null
           project_id?: string

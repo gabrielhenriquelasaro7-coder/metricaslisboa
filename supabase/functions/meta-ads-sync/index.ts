@@ -265,6 +265,16 @@ const PURCHASE_ACTIONS = [
   'offsite_conversion.fb_pixel_purchase',    // Compra via pixel
 ];
 
+// MENSAGENS - Para campanhas de tráfego para WhatsApp/Messenger (Inside Sales)
+// Essas são métricas SEPARADAS, não somam com conversões
+const MESSAGING_ACTION_TYPES = [
+  'onsite_conversion.messaging_first_reply',              // Primeira resposta no Messenger
+  'onsite_conversion.messaging_conversation_started_7d',  // Conversa iniciada (7 dias)
+  'contact_total',                                         // Total de contatos
+  'contact_website',                                       // Contato via website
+  'onsite_web_app_view_content',                          // Visualização de conteúdo no app
+];
+
 // LISTA COMPLETA DE CONVERSÕES VÁLIDAS
 // NÃO INCLUI: contact, messaging, conversations, onsite_web_lead, leadgen_grouped, etc.
 // Esses tipos causam dupla contagem ou não são leads reais
@@ -382,6 +392,28 @@ function extractConversions(insights: any, logAllActions: boolean = false): { co
   return { conversions, conversionValue };
 }
 
+// ============ EXTRACT MESSAGING METRICS ============
+// For Inside Sales campaigns that use WhatsApp/Messenger traffic
+function extractMessagingReplies(insights: any): number {
+  let messagingReplies = 0;
+  
+  if (insights?.actions && Array.isArray(insights.actions)) {
+    for (const action of insights.actions) {
+      const actionType = action.action_type;
+      const actionValue = parseInt(action.value) || 0;
+      
+      if (MESSAGING_ACTION_TYPES.includes(actionType) && actionValue > 0) {
+        // Take the highest value to avoid double counting
+        if (actionValue > messagingReplies) {
+          messagingReplies = actionValue;
+        }
+      }
+    }
+  }
+  
+  return messagingReplies;
+}
+
 // ============ EXTRACT HD IMAGE URL ============
 function extractHdImageUrl(ad: any, adImageMap: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
   let imageUrl: string | null = null;
@@ -443,16 +475,34 @@ function extractHdImageUrl(ad: any, adImageMap: Map<string, string>): { imageUrl
     }
   }
   
-  // Priority 6: Fallback to thumbnail (but try to get higher resolution)
+  // Priority 6: Fallback to thumbnail (but aggressively clean resize parameters)
   if (!imageUrl && creative.thumbnail_url) {
-    // Remove resolution limiting parameters to try to get better quality
     let thumbnailUrl = creative.thumbnail_url;
-    // Remove p64x64 or similar size constraints
-    thumbnailUrl = thumbnailUrl.replace(/\/p\d+x\d+\//, '/');
-    thumbnailUrl = thumbnailUrl.replace(/[?&]width=\d+/, '');
-    thumbnailUrl = thumbnailUrl.replace(/[?&]height=\d+/, '');
-    // Try to get larger size by modifying URL
+    
+    // AGGRESSIVE URL CLEANING - Remove ALL resize parameters
+    // Remove stp parameter (e.g., stp=dst-jpg_p64x64_q75_tt6 or stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6)
+    thumbnailUrl = thumbnailUrl.replace(/[&?]stp=[^&]*/g, '');
+    
+    // Remove size constraints in path
+    thumbnailUrl = thumbnailUrl.replace(/\/p\d+x\d+\//g, '/');
+    thumbnailUrl = thumbnailUrl.replace(/\/s\d+x\d+\//g, '/');
+    
+    // Remove query params for width/height
+    thumbnailUrl = thumbnailUrl.replace(/[&?]width=\d+/gi, '');
+    thumbnailUrl = thumbnailUrl.replace(/[&?]height=\d+/gi, '');
+    
+    // Try to get larger size by modifying URL patterns
     thumbnailUrl = thumbnailUrl.replace('_t.', '_n.'); // Facebook uses _t for thumb, _n for normal
+    thumbnailUrl = thumbnailUrl.replace('_s.', '_n.'); // _s is small, _n is normal
+    
+    // Fix malformed URL: if & appears before any ?, replace first & with ?
+    if (thumbnailUrl.includes('&') && !thumbnailUrl.includes('?')) {
+      thumbnailUrl = thumbnailUrl.replace('&', '?');
+    }
+    
+    // Clean trailing ? or &
+    thumbnailUrl = thumbnailUrl.replace(/[&?]$/g, '');
+    
     imageUrl = thumbnailUrl;
   }
   
@@ -942,6 +992,9 @@ Deno.serve(async (req) => {
         const { conversions, conversionValue } = extractConversions(insights, shouldLog);
         if (shouldLog && insights.actions?.length > 0) logCounter++;
         
+        // Extract messaging metrics for Inside Sales campaigns
+        const messagingReplies = extractMessagingReplies(insights);
+        
         // Get HD image URL
         const { imageUrl, videoUrl } = ad ? extractHdImageUrl(ad, adImageMap) : { imageUrl: null, videoUrl: null };
         
@@ -986,6 +1039,7 @@ Deno.serve(async (req) => {
           conversion_value: conversionValue,
           cpa,
           roas,
+          messaging_replies: messagingReplies,
           synced_at: new Date().toISOString(),
         });
       }

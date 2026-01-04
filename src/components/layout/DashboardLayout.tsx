@@ -120,7 +120,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Mobile layout with Sheet
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background red-texture-bg">
+      <div className="min-h-screen bg-background red-texture-bg grid-background">
         {/* Mobile Header */}
         <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-sidebar border-b border-sidebar-border flex items-center px-4">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -135,7 +135,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </Sheet>
           <span className="font-semibold text-foreground">MetaAds Manager</span>
         </header>
-        <main className="pt-14 min-h-screen">
+        <main className="pt-14 min-h-screen relative z-10">
           {children}
         </main>
       </div>
@@ -144,9 +144,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // Desktop layout
   return (
-    <div className="min-h-screen bg-background red-texture-bg">
+    <div className="min-h-screen bg-background red-texture-bg grid-background">
       <Sidebar />
-      <main className={cn('ml-72 min-h-screen transition-all duration-300')}>
+      <main className={cn('ml-72 min-h-screen transition-all duration-300 relative z-10')}>
         {children}
       </main>
     </div>
