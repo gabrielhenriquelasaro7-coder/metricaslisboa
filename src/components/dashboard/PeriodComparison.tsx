@@ -238,29 +238,61 @@ export default function PeriodComparison({
   }
 
   if (!hasPreviousData) {
+    // Show current period data without comparison when no previous data
+    const currentOnlyItems = [
+      { label: 'Gasto', value: formatCurrencyValue(currentMetrics.totalSpend) },
+      { label: 'Impressões', value: formatNumber(currentMetrics.totalImpressions) },
+      { label: 'Cliques', value: formatNumber(currentMetrics.totalClicks) },
+      { label: 'CTR', value: `${currentMetrics.ctr.toFixed(2)}%` },
+    ];
+
+    // Add business-model specific
+    if (businessModel === 'ecommerce') {
+      currentOnlyItems.push(
+        { label: 'ROAS', value: `${currentMetrics.roas.toFixed(2)}x` },
+        { label: 'Compras', value: formatNumber(currentMetrics.totalConversions) },
+        { label: 'Receita', value: formatCurrencyValue(currentMetrics.totalConversionValue) },
+        { label: 'CPA', value: formatCurrencyValue(currentMetrics.cpa) }
+      );
+    } else if (businessModel === 'inside_sales') {
+      currentOnlyItems.push(
+        { label: 'Leads', value: formatNumber(currentMetrics.totalConversions) },
+        { label: 'CPL', value: formatCurrencyValue(currentMetrics.cpa) }
+      );
+    } else if (businessModel === 'pdv') {
+      currentOnlyItems.push(
+        { label: 'Visitas', value: formatNumber(currentMetrics.totalConversions) },
+        { label: 'Custo/Visita', value: formatCurrencyValue(currentMetrics.cpa) }
+      );
+    } else if (businessModel === 'custom') {
+      currentOnlyItems.push(
+        { label: 'Conversões', value: formatNumber(currentMetrics.totalConversions) },
+        { label: 'CPA', value: formatCurrencyValue(currentMetrics.cpa) }
+      );
+    }
+
     return (
       <div className="glass-card p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-          <h3 className="text-lg font-semibold">Comparação de Períodos</h3>
+          <h3 className="text-lg font-semibold">Métricas do Período</h3>
           <div className="flex items-center gap-2 text-sm">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full">
               <Calendar className="w-4 h-4 text-primary" />
               <span className="font-medium text-primary">{currentPeriodLabel}</span>
             </div>
-            <ArrowRight className="w-4 h-4 text-muted-foreground" />
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-full">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <span className="text-muted-foreground">{previousPeriodLabel}</span>
-            </div>
           </div>
         </div>
-        <div className="text-center py-8 text-muted-foreground">
-          <Calendar className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p className="font-medium">Sem dados para o período anterior</p>
-          <p className="text-sm mt-1 opacity-75">
-            Não existem dados históricos suficientes para comparar com "{previousPeriodLabel}"
-          </p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {currentOnlyItems.map((item) => (
+            <div key={item.label} className="p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-all hover:scale-[1.02]">
+              <p className="text-sm text-muted-foreground mb-2">{item.label}</p>
+              <p className="text-xl font-bold">{item.value}</p>
+            </div>
+          ))}
         </div>
+        <p className="text-xs text-muted-foreground mt-4 text-center">
+          Sem dados de período anterior para comparação
+        </p>
       </div>
     );
   }
