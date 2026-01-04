@@ -57,9 +57,23 @@ function getDateRangeFromPeriod(preset: DatePresetKey) {
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
       return { since: firstDay.toISOString().split('T')[0], until: today, days: Math.ceil((now.getTime() - firstDay.getTime()) / (24 * 60 * 60 * 1000)) + 1, previousType: 'previous_month' as const };
     }
+    case 'last_month': {
+      // Mês passado completo
+      const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      const days = Math.ceil((lastDayLastMonth.getTime() - firstDayLastMonth.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+      return { since: firstDayLastMonth.toISOString().split('T')[0], until: lastDayLastMonth.toISOString().split('T')[0], days, previousType: 'previous_month' as const };
+    }
     case 'this_year': {
       const firstDay = new Date(now.getFullYear(), 0, 1);
       return { since: firstDay.toISOString().split('T')[0], until: today, days: Math.ceil((now.getTime() - firstDay.getTime()) / (24 * 60 * 60 * 1000)) + 1, previousType: 'previous_year' as const };
+    }
+    case 'last_year': {
+      // Ano passado completo (01/01 a 31/12 do ano anterior)
+      const firstDayLastYear = new Date(now.getFullYear() - 1, 0, 1);
+      const lastDayLastYear = new Date(now.getFullYear() - 1, 11, 31);
+      const days = Math.ceil((lastDayLastYear.getTime() - firstDayLastYear.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+      return { since: firstDayLastYear.toISOString().split('T')[0], until: lastDayLastYear.toISOString().split('T')[0], days, previousType: 'previous_year' as const };
     }
     default:
       return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: today, days: 30, previousType: 'same_length' as const };
