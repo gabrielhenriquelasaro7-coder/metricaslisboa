@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
 interface SparklineCardProps {
   title: string;
@@ -138,48 +138,35 @@ export default function SparklineCard({
         )}
       </div>
       
-      {/* Sparkline - Enhanced animated line chart */}
+      {/* Sparkline - Area chart with gradient fill */}
       {sparklineData.length > 1 && (
         <div className="h-16 -mx-2 mt-2 relative z-10">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <defs>
-                <filter id={`glow-${uniqueId}`}>
-                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                  <feMerge>
-                    <feMergeNode in="coloredBlur"/>
-                    <feMergeNode in="SourceGraphic"/>
-                  </feMerge>
-                </filter>
-                <linearGradient id={`line-gradient-${uniqueId}`} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="hsl(var(--primary) / 0.5)" />
+                <linearGradient id={`area-gradient-${uniqueId}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                  <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id={`stroke-gradient-${uniqueId}`} x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="hsl(var(--primary) / 0.6)" />
                   <stop offset="50%" stopColor="hsl(var(--primary))" />
-                  <stop offset="100%" stopColor="hsl(var(--primary) / 0.5)" />
+                  <stop offset="100%" stopColor="hsl(var(--primary) / 0.6)" />
                 </linearGradient>
               </defs>
-              <Line
+              <Area
                 type="monotone"
                 dataKey="value"
-                stroke={`url(#line-gradient-${uniqueId})`}
-                strokeWidth={3}
-                dot={{ 
-                  r: 3, 
-                  fill: 'hsl(var(--primary))',
-                  stroke: 'hsl(var(--background))',
-                  strokeWidth: 2
-                }}
-                activeDot={{ 
-                  r: 6, 
-                  fill: 'hsl(var(--primary))',
-                  stroke: 'hsl(var(--background))',
-                  strokeWidth: 2,
-                  className: 'drop-shadow-[0_0_8px_hsl(var(--primary))]'
-                }}
+                stroke={`url(#stroke-gradient-${uniqueId})`}
+                strokeWidth={2}
+                fill={`url(#area-gradient-${uniqueId})`}
+                dot={false}
+                activeDot={false}
                 animationDuration={1000}
                 animationEasing="ease-out"
-                style={{ filter: `url(#glow-${uniqueId})` }}
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       )}

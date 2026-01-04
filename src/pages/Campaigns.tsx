@@ -371,7 +371,7 @@ export default function Campaigns() {
             />
 
             {/* Campaigns Table - Mobile Cards + Desktop Table */}
-            <div className="vibrant-table overflow-hidden">
+            <div className="vibrant-table overflow-hidden min-h-[200px]">
               {/* Mobile: Card View */}
               <div className="block lg:hidden divide-y divide-border/50">
                 {filteredCampaigns.map((campaign, index) => {

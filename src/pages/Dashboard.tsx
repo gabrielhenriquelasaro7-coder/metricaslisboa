@@ -33,7 +33,13 @@ import {
   Loader2,
   GitCompare,
   RefreshCw,
-  MoreVertical
+  MoreVertical,
+  Banknote,
+  BarChart3,
+  Activity,
+  Crosshair,
+  Receipt,
+  Zap
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'react-router-dom';
@@ -394,7 +400,7 @@ export default function Dashboard() {
                   value={formatCurrency(metrics.totalSpend)}
                   change={changes?.spend}
                   changeLabel="vs anterior"
-                  icon={DollarSign}
+                  icon={Banknote}
                   sparklineData={sparklineData.spend}
                 />
                 <SparklineCard
@@ -419,14 +425,14 @@ export default function Dashboard() {
                   change={changes?.ctr}
                   changeLabel="vs anterior"
                   sparklineData={sparklineData.ctr}
-                  icon={Target}
+                  icon={Crosshair}
                 />
                 <SparklineCard
                   title="CPM"
                   value={formatCurrency(metrics.cpm)}
                   change={changes?.cpm}
                   changeLabel="vs anterior"
-                  icon={Eye}
+                  icon={BarChart3}
                   invertTrend
                 />
                 <SparklineCard
@@ -434,7 +440,7 @@ export default function Dashboard() {
                   value={formatCurrency(metrics.cpc)}
                   change={changes?.cpc}
                   changeLabel="vs anterior"
-                  icon={MousePointerClick}
+                  icon={Zap}
                   invertTrend
                 />
               </div>
@@ -462,7 +468,6 @@ export default function Dashboard() {
                     changeLabel="vs anterior"
                     icon={TrendingUp}
                     sparklineData={sparklineData.roas}
-                    sparklineColor="hsl(142, 76%, 36%)"
                     className="border-l-4 border-l-metric-positive"
                   />
                   <SparklineCard
@@ -472,16 +477,14 @@ export default function Dashboard() {
                     changeLabel="vs anterior"
                     icon={ShoppingCart}
                     sparklineData={sparklineData.conversions}
-                    sparklineColor="hsl(var(--chart-1))"
                   />
                   <SparklineCard
                     title="Receita"
                     value={formatCurrency(metrics.totalConversionValue)}
                     change={changes?.revenue}
                     changeLabel="vs anterior"
-                    icon={DollarSign}
+                    icon={Receipt}
                     sparklineData={sparklineData.revenue}
-                    sparklineColor="hsl(142, 76%, 36%)"
                   />
                   <SparklineCard
                     title="CPA"
@@ -490,7 +493,6 @@ export default function Dashboard() {
                     changeLabel="vs anterior"
                     icon={Target}
                     sparklineData={sparklineData.cpl}
-                    sparklineColor="hsl(var(--chart-2))"
                     invertTrend
                   />
                 </div>
@@ -506,7 +508,6 @@ export default function Dashboard() {
                     changeLabel="vs anterior"
                     icon={Users}
                     sparklineData={sparklineData.conversions}
-                    sparklineColor="hsl(var(--chart-1))"
                     className="border-l-4 border-l-chart-1"
                   />
                   <SparklineCard
@@ -514,22 +515,21 @@ export default function Dashboard() {
                     value={formatCurrency(metrics.cpa)}
                     change={changes?.cpa}
                     changeLabel="vs anterior"
-                    icon={DollarSign}
+                    icon={Receipt}
                     sparklineData={sparklineData.cpl}
-                    sparklineColor="hsl(var(--chart-2))"
                     invertTrend
                   />
                   <SparklineCard
                     title="Taxa de Conversão"
                     value={`${metrics.totalClicks > 0 ? ((metrics.totalConversions / metrics.totalClicks) * 100).toFixed(2) : 0}%`}
-                    icon={Percent}
+                    icon={Activity}
                   />
                   <SparklineCard
                     title="Alcance"
                     value={formatNumber(metrics.totalReach)}
                     change={changes?.reach}
                     changeLabel="vs anterior"
-                    icon={Users}
+                    icon={Eye}
                   />
                 </div>
               )}
