@@ -14,6 +14,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { useDailyMetrics } from '@/hooks/useDailyMetrics';
 import { useTour } from '@/hooks/useTour';
+import { useBalanceAlert } from '@/hooks/useBalanceAlert';
 import { GuidedTour } from '@/components/tour/GuidedTour';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -60,8 +61,9 @@ export default function Dashboard() {
   // Get campaigns and selected project from hook (uses localStorage)
   const { campaigns, loading: dataLoading, syncing, syncData, syncDemographics, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
   
+  // Balance alert hook - shows notification when balance is critical
+  useBalanceAlert(selectedProject?.id || null, selectedProject?.name);
 
-  // Get daily metrics for charts
   // Get daily metrics for charts
   const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset);
   
