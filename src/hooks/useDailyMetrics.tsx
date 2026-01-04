@@ -57,15 +57,16 @@ function getDateRangeFromPeriod(preset: DatePresetKey) {
   console.log(`[DailyMetrics] Preset ${preset} -> since: ${since}, until: ${until}, days: ${days}`);
   
   // Determine previous type based on preset
-  // For last_year and last_month, we don't compare with an even older period
-  // since it usually doesn't exist. Instead we use 'none' to skip comparison.
-  let previousType: 'same_length' | 'previous_month' | 'previous_year' | 'none' = 'same_length';
+  let previousType: 'same_length' | 'previous_month' | 'previous_year' | 'two_months_ago' | 'none' = 'same_length';
   if (preset === 'this_month') {
     previousType = 'previous_month';
   } else if (preset === 'this_year') {
     previousType = 'previous_year';
-  } else if (preset === 'last_month' || preset === 'last_year') {
-    // For last_month and last_year, skip comparison as previous data likely doesn't exist
+  } else if (preset === 'last_month') {
+    // last_month should compare with 2 months ago
+    previousType = 'two_months_ago';
+  } else if (preset === 'last_year') {
+    // For last_year, skip comparison as previous year data likely doesn't exist
     previousType = 'none';
   }
   
@@ -73,10 +74,26 @@ function getDateRangeFromPeriod(preset: DatePresetKey) {
 }
 
 // Get previous period dates based on the type of comparison
-function getPreviousPeriodDates(since: string, until: string, days: number, previousType: 'same_length' | 'previous_month' | 'previous_year' | 'none'): { since: string; until: string } | null {
+function getPreviousPeriodDates(since: string, until: string, days: number, previousType: 'same_length' | 'previous_month' | 'previous_year' | 'two_months_ago' | 'none'): { since: string; until: string } | null {
   // For 'none', don't calculate previous period
   if (previousType === 'none') {
     return null;
+  }
+  
+  // For 'two_months_ago' (used by last_month), get the month before the current period
+  if (previousType === 'two_months_ago') {
+    const currentSince = new Date(since);
+    // Get month before current period's month
+    const prevMonth = currentSince.getMonth() === 0 ? 11 : currentSince.getMonth() - 1;
+    const prevYear = currentSince.getMonth() === 0 ? currentSince.getFullYear() - 1 : currentSince.getFullYear();
+    
+    const prevMonthFirstDay = new Date(prevYear, prevMonth, 1);
+    const prevMonthLastDay = new Date(prevYear, prevMonth + 1, 0);
+    
+    return {
+      since: prevMonthFirstDay.toISOString().split('T')[0],
+      until: prevMonthLastDay.toISOString().split('T')[0],
+    };
   }
   
   const now = new Date();
