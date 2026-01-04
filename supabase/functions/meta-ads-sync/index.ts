@@ -1150,9 +1150,10 @@ Deno.serve(async (req) => {
       
       // Aggregate ads
       if (!adMetrics.has(record.ad_id)) {
-        // Find the original ad to extract ad copy
+        // Find the original ad to extract ad copy and HD image
         const originalAd = ads.find(a => a.id === record.ad_id);
         const { primaryText, headline, cta } = originalAd ? extractAdCopy(originalAd) : { primaryText: null, headline: null, cta: null };
+        const { imageUrl: hdImageUrl, videoUrl } = originalAd ? extractHdImageUrl(originalAd, adImageMap) : { imageUrl: null, videoUrl: null };
         
         adMetrics.set(record.ad_id, {
           id: record.ad_id,
@@ -1163,6 +1164,8 @@ Deno.serve(async (req) => {
           status: record.ad_status,
           creative_id: record.creative_id,
           creative_thumbnail: record.creative_thumbnail,
+          creative_image_url: hdImageUrl || record.creative_thumbnail, // HD image URL
+          creative_video_url: videoUrl, // Video URL if available
           primary_text: primaryText,
           headline: headline,
           cta: cta,

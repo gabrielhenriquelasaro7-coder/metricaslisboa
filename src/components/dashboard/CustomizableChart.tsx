@@ -292,8 +292,8 @@ export function CustomizableChart({
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primaryColor} strokeWidth={2} fill={`url(#${gradientId1})`} animationDuration={800} />
-          <Area yAxisId="right" type="monotone" dataKey={secondaryMetric} name={secondary.label} stroke={secondaryColor} strokeWidth={2} fill={`url(#${gradientId2})`} animationDuration={800} />
+          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primaryColor} strokeWidth={2.5} strokeDasharray="6 3" fill={`url(#${gradientId1})`} animationDuration={800} />
+          <Area yAxisId="right" type="monotone" dataKey={secondaryMetric} name={secondary.label} stroke={secondaryColor} strokeWidth={2.5} strokeDasharray="6 3" fill={`url(#${gradientId2})`} animationDuration={800} />
         </AreaChart>
       );
     } else if (chartType === 'bar') {
@@ -324,8 +324,8 @@ export function CustomizableChart({
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primaryColor} strokeWidth={2} fill={`url(#${gradientId1})`} animationDuration={800} />
-          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} opacity={0.8} animationDuration={800} />
+          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primaryColor} strokeWidth={2.5} strokeDasharray="6 3" fill={`url(#${gradientId1})`} animationDuration={800} />
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} opacity={0.85} animationDuration={800} />
         </ComposedChart>
       );
     }

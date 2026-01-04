@@ -37,8 +37,11 @@ import { cn } from '@/lib/utils';
 const cleanImageUrl = (url: string | null): string | null => {
   if (!url) return null;
   
-  // Remove stp= parameter that forces resize
-  let clean = url.replace(/[&?]stp=[^&]*/g, '');
+  // AGGRESSIVE CLEANING: Remove ALL stp parameters (including complex ones like c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6)
+  let clean = url;
+  
+  // Remove stp= parameter completely (handles all variations)
+  clean = clean.replace(/[&?]stp=[^&]*/gi, '');
   
   // Remove size parameters in path
   clean = clean.replace(/\/p\d+x\d+\//g, '/');
@@ -48,11 +51,19 @@ const cleanImageUrl = (url: string | null): string | null => {
   clean = clean.replace(/[&?]width=\d+/gi, '');
   clean = clean.replace(/[&?]height=\d+/gi, '');
   
+  // Remove ur= parameter (often forces small size)
+  clean = clean.replace(/[&?]ur=[^&]*/gi, '');
+  
+  // Convert thumbnail indicators to full-size
+  clean = clean.replace('_t.', '_n.');
+  clean = clean.replace('_s.', '_n.');
+  
   // Fix malformed URL
   if (clean.includes('&') && !clean.includes('?')) {
     clean = clean.replace('&', '?');
   }
   
+  // Clean trailing ? or &
   clean = clean.replace(/[&?]$/g, '');
   
   return clean;

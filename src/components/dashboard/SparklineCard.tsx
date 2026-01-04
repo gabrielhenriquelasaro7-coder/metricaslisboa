@@ -18,36 +18,34 @@ interface SparklineCardProps {
   accentColor?: 'primary' | 'success' | 'warning' | 'danger' | 'info';
 }
 
+// V4 RED THEME: All sparklines use V4 red color for consistency
+const V4_RED_SPARKLINE = 'hsl(var(--primary))';
+
 const accentColors = {
   primary: {
     bg: 'bg-primary/10',
     icon: 'text-primary',
     gradient: 'from-primary/10 to-transparent',
-    sparkline: 'hsl(var(--primary))',
   },
   success: {
-    bg: 'bg-metric-positive/10',
-    icon: 'text-metric-positive',
-    gradient: 'from-metric-positive/10 to-transparent',
-    sparkline: 'hsl(var(--metric-positive))',
+    bg: 'bg-primary/10',
+    icon: 'text-primary',
+    gradient: 'from-primary/10 to-transparent',
   },
   warning: {
-    bg: 'bg-metric-warning/10',
-    icon: 'text-metric-warning',
-    gradient: 'from-metric-warning/10 to-transparent',
-    sparkline: 'hsl(var(--metric-warning))',
+    bg: 'bg-primary/10',
+    icon: 'text-primary',
+    gradient: 'from-primary/10 to-transparent',
   },
   danger: {
-    bg: 'bg-metric-negative/10',
-    icon: 'text-metric-negative',
-    gradient: 'from-metric-negative/10 to-transparent',
-    sparkline: 'hsl(var(--metric-negative))',
+    bg: 'bg-primary/10',
+    icon: 'text-primary',
+    gradient: 'from-primary/10 to-transparent',
   },
   info: {
-    bg: 'bg-chart-5/10',
-    icon: 'text-chart-5',
-    gradient: 'from-chart-5/10 to-transparent',
-    sparkline: 'hsl(var(--chart-5))',
+    bg: 'bg-primary/10',
+    icon: 'text-primary',
+    gradient: 'from-primary/10 to-transparent',
   },
 };
 
@@ -84,7 +82,8 @@ export default function SparklineCard({
   const chartData = sparklineData.map((value, index) => ({ value, index }));
   const colors = accentColors[accentColor];
   const uniqueId = `sparkline-${title.replace(/\s/g, '')}-${Math.random().toString(36).substr(2, 9)}`;
-  const finalSparklineColor = sparklineColor || colors.sparkline;
+  // V4 THEME: Always use V4 red for sparklines - ignore accentColor for chart color
+  const finalSparklineColor = sparklineColor || V4_RED_SPARKLINE;
 
   const titleElement = tooltip ? (
     <Tooltip>
@@ -157,7 +156,8 @@ export default function SparklineCard({
                 type="monotone"
                 dataKey="value"
                 stroke={finalSparklineColor}
-                strokeWidth={2}
+                strokeWidth={2.5}
+                strokeDasharray="6 3"
                 fill={`url(#${uniqueId})`}
                 animationDuration={800}
                 animationEasing="ease-out"
