@@ -267,10 +267,26 @@ export function useMetaAdsData() {
           since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
           until = today;
           break;
+        case 'last_month': {
+          // Mês passado completo (01 a último dia do mês anterior)
+          const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+          since = firstDayLastMonth.toISOString().split('T')[0];
+          until = lastDayLastMonth.toISOString().split('T')[0];
+          break;
+        }
         case 'this_year':
           since = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
           until = today;
           break;
+        case 'last_year': {
+          // Ano passado completo (01/01 a 31/12 do ano anterior)
+          const firstDayLastYear = new Date(now.getFullYear() - 1, 0, 1);
+          const lastDayLastYear = new Date(now.getFullYear() - 1, 11, 31);
+          since = firstDayLastYear.toISOString().split('T')[0];
+          until = lastDayLastYear.toISOString().split('T')[0];
+          break;
+        }
         default:
           since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
           until = today;
