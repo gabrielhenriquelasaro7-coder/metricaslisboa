@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AreaChart, Area, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 interface SparklineCardProps {
   title: string;
@@ -82,8 +82,8 @@ export default function SparklineCard({
   const chartData = sparklineData.map((value, index) => ({ value, index }));
   const colors = accentColors[accentColor];
   const uniqueId = `sparkline-${title.replace(/\s/g, '')}-${Math.random().toString(36).substr(2, 9)}`;
-  // V4 THEME: Always use V4 red for sparklines - ignore accentColor for chart color
-  const finalSparklineColor = sparklineColor || V4_RED_SPARKLINE;
+  // V4 THEME: Always use V4 red for sparklines
+  const finalSparklineColor = V4_RED_SPARKLINE;
 
   const titleElement = tooltip ? (
     <Tooltip>
@@ -133,17 +133,12 @@ export default function SparklineCard({
         )}
       </div>
       
-      {/* Sparkline with glow */}
+      {/* Sparkline - LINE CHART with DOTS (dotted style) */}
       {sparklineData.length > 1 && (
         <div className="h-14 -mx-2 mt-1 relative z-10">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <defs>
-                <linearGradient id={uniqueId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={finalSparklineColor} stopOpacity={0.4} />
-                  <stop offset="50%" stopColor={finalSparklineColor} stopOpacity={0.15} />
-                  <stop offset="100%" stopColor={finalSparklineColor} stopOpacity={0.02} />
-                </linearGradient>
                 <filter id={`glow-${uniqueId}`}>
                   <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
                   <feMerge>
@@ -152,18 +147,29 @@ export default function SparklineCard({
                   </feMerge>
                 </filter>
               </defs>
-              <Area
+              <Line
                 type="monotone"
                 dataKey="value"
                 stroke={finalSparklineColor}
-                strokeWidth={2.5}
-                strokeDasharray="6 3"
-                fill={`url(#${uniqueId})`}
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                dot={{ 
+                  r: 3, 
+                  fill: finalSparklineColor,
+                  stroke: finalSparklineColor,
+                  strokeWidth: 1
+                }}
+                activeDot={{ 
+                  r: 5, 
+                  fill: finalSparklineColor,
+                  stroke: 'hsl(var(--background))',
+                  strokeWidth: 2
+                }}
                 animationDuration={800}
                 animationEasing="ease-out"
                 style={{ filter: `url(#glow-${uniqueId})` }}
               />
-            </AreaChart>
+            </LineChart>
           </ResponsiveContainer>
         </div>
       )}

@@ -396,20 +396,21 @@ export default function Dashboard() {
                   changeLabel="vs anterior"
                   icon={DollarSign}
                   sparklineData={sparklineData.spend}
-                  sparklineColor="hsl(var(--primary))"
                 />
                 <SparklineCard
                   title="Impressões"
                   value={formatNumber(metrics.totalImpressions)}
+                  change={changes?.impressions}
+                  changeLabel="vs anterior"
                   sparklineData={sparklineData.impressions}
-                  sparklineColor="hsl(var(--chart-1))"
                   icon={Eye}
                 />
                 <SparklineCard
                   title="Cliques"
                   value={formatNumber(metrics.totalClicks)}
+                  change={changes?.clicks}
+                  changeLabel="vs anterior"
                   sparklineData={sparklineData.clicks}
-                  sparklineColor="hsl(var(--chart-2))"
                   icon={MousePointerClick}
                 />
                 <SparklineCard
@@ -418,18 +419,21 @@ export default function Dashboard() {
                   change={changes?.ctr}
                   changeLabel="vs anterior"
                   sparklineData={sparklineData.ctr}
-                  sparklineColor="hsl(var(--chart-3))"
                   icon={Target}
                 />
                 <SparklineCard
                   title="CPM"
                   value={formatCurrency(metrics.cpm)}
+                  change={changes?.cpm}
+                  changeLabel="vs anterior"
                   icon={Eye}
                   invertTrend
                 />
                 <SparklineCard
                   title="CPC"
                   value={formatCurrency(metrics.cpc)}
+                  change={changes?.cpc}
+                  changeLabel="vs anterior"
                   icon={MousePointerClick}
                   invertTrend
                 />
@@ -515,17 +519,17 @@ export default function Dashboard() {
                     sparklineColor="hsl(var(--chart-2))"
                     invertTrend
                   />
-                  <MetricCard
+                  <SparklineCard
                     title="Taxa de Conversão"
                     value={`${metrics.totalClicks > 0 ? ((metrics.totalConversions / metrics.totalClicks) * 100).toFixed(2) : 0}%`}
                     icon={Percent}
-                    trend="neutral"
                   />
-                  <MetricCard
+                  <SparklineCard
                     title="Alcance"
                     value={formatNumber(metrics.totalReach)}
+                    change={changes?.reach}
+                    changeLabel="vs anterior"
                     icon={Users}
-                    trend="neutral"
                   />
                 </div>
               )}

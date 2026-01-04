@@ -1,4 +1,4 @@
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
 
 interface PerformanceChartProps {
@@ -20,7 +20,7 @@ export default function PerformanceChart({
   title,
   dataKey,
   dataKey2,
-  color = 'hsl(199, 89%, 48%)',
+  color = 'hsl(var(--primary))',
   color2 = 'hsl(280, 100%, 70%)',
   className,
 }: PerformanceChartProps) {
@@ -29,19 +29,7 @@ export default function PerformanceChart({
       <h3 className="text-lg font-semibold mb-6">{title}</h3>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-              {dataKey2 && (
-                <linearGradient id="colorValue2" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={color2} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={color2} stopOpacity={0} />
-                </linearGradient>
-              )}
-            </defs>
+          <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 47%, 16%)" />
             <XAxis 
               dataKey="date" 
@@ -64,27 +52,27 @@ export default function PerformanceChart({
               }}
               labelStyle={{ color: 'hsl(210, 40%, 98%)' }}
             />
-            <Area
+            <Line
               type="monotone"
               dataKey={dataKey}
               stroke={color}
               strokeWidth={2.5}
-              strokeDasharray="6 3"
-              fillOpacity={1}
-              fill="url(#colorValue)"
+              strokeDasharray="6 4"
+              dot={{ r: 4, fill: color, stroke: color, strokeWidth: 1 }}
+              activeDot={{ r: 6, fill: color, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
             />
             {dataKey2 && (
-              <Area
+              <Line
                 type="monotone"
                 dataKey={dataKey2}
                 stroke={color2}
                 strokeWidth={2.5}
-                strokeDasharray="6 3"
-                fillOpacity={1}
-                fill="url(#colorValue2)"
+                strokeDasharray="6 4"
+                dot={{ r: 4, fill: color2, stroke: color2, strokeWidth: 1 }}
+                activeDot={{ r: 6, fill: color2, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
               />
             )}
-          </AreaChart>
+          </LineChart>
         </ResponsiveContainer>
       </div>
     </div>

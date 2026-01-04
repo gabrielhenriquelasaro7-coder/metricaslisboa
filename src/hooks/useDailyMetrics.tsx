@@ -24,10 +24,15 @@ export interface PeriodComparison {
   previousTotals: DailyMetric;
   changes: {
     spend: number;
+    impressions: number;
+    clicks: number;
+    reach: number;
     conversions: number;
     roas: number;
     cpa: number;
     ctr: number;
+    cpm: number;
+    cpc: number;
     revenue: number;
   };
 }
@@ -340,10 +345,15 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
         previousTotals,
         changes: {
           spend: calculateChange(currentTotals.spend, previousTotals.spend),
+          impressions: calculateChange(currentTotals.impressions, previousTotals.impressions),
+          clicks: calculateChange(currentTotals.clicks, previousTotals.clicks),
+          reach: calculateChange(currentTotals.reach, previousTotals.reach),
           conversions: calculateChange(currentTotals.conversions, previousTotals.conversions),
           roas: calculateChange(currentTotals.roas, previousTotals.roas),
           cpa: calculateChange(currentTotals.cpa, previousTotals.cpa),
           ctr: calculateChange(currentTotals.ctr, previousTotals.ctr),
+          cpm: calculateChange(currentTotals.cpm, previousTotals.cpm),
+          cpc: calculateChange(currentTotals.cpc, previousTotals.cpc),
           revenue: calculateChange(currentTotals.conversion_value, previousTotals.conversion_value),
         },
       });
