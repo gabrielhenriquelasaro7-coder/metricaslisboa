@@ -143,15 +143,20 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
       // Success with detailed info
       lastSyncTime.current = Date.now();
       
-      const count = data?.data;
-      if (count) {
+      // Response comes directly as: { success, campaigns, adsets, ads, records, elapsed_seconds }
+      const campaignsCount = data?.campaigns || 0;
+      const adsetsCount = data?.adsets || 0;
+      const adsCount = data?.ads || 0;
+      const elapsedSeconds = data?.elapsed_seconds || '0';
+      
+      if (data?.success) {
         setProgress({ 
           step: 'complete', 
-          message: `Sincronizado em ${count.elapsed_seconds}s`,
+          message: `Sincronizado em ${elapsedSeconds}s`,
           detail: {
-            current: count.campaigns_count + count.ad_sets_count + count.ads_count,
-            total: count.campaigns_count + count.ad_sets_count + count.ads_count,
-            entity: `${count.campaigns_count} campanhas, ${count.ad_sets_count} conjuntos, ${count.ads_count} anúncios`
+            current: campaignsCount + adsetsCount + adsCount,
+            total: campaignsCount + adsetsCount + adsCount,
+            entity: `${campaignsCount} campanhas, ${adsetsCount} conjuntos, ${adsCount} anúncios`
           }
         });
         
@@ -161,7 +166,7 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
         
         // Only show toast if not syncing all periods (to avoid spam)
         if (!syncingAllPeriods) {
-          toast.success(`Sincronizado: ${count.campaigns_count} campanhas, ${count.ad_sets_count} conjuntos, ${count.ads_count} anúncios`);
+          toast.success(`Sincronizado: ${campaignsCount} campanhas, ${adsetsCount} conjuntos, ${adsCount} anúncios`);
         }
       } else {
         setProgress({ step: 'complete', message: stepMessages.complete });
