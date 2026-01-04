@@ -60,6 +60,7 @@ import { WhatsAppInstanceCard } from '@/components/whatsapp/WhatsAppInstanceCard
 import { WhatsAppQRModal } from '@/components/whatsapp/WhatsAppQRModal';
 import { WhatsAppGroupSelector } from '@/components/whatsapp/WhatsAppGroupSelector';
 import { AnomalyAlertsCard } from '@/components/alerts/AnomalyAlertsCard';
+import { useBalanceAlert, generateBalanceAlertMessage } from '@/hooks/useBalanceAlert';
 
 interface WhatsAppSubscription {
   id: string;
@@ -395,10 +396,15 @@ export default function WhatsApp() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
+  const [sendingBalanceTest, setSendingBalanceTest] = useState(false);
   
   // Real metrics data for preview
   const [realMetrics, setRealMetrics] = useState<AggregatedMetrics | null>(null);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
+
+  // Balance alert hook
+  const { calculateBalanceStatus } = useBalanceAlert(selectedProject?.id || null);
+  const [balancePreview, setBalancePreview] = useState<{ balance: number; daysRemaining: number; avgDailySpend: number } | null>(null);
 
   // Form state
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -502,6 +508,23 @@ export default function WhatsApp() {
   useEffect(() => {
     fetchRealMetrics();
   }, [fetchRealMetrics]);
+
+  // Fetch balance preview data when balance alert is enabled
+  useEffect(() => {
+    const loadBalancePreview = async () => {
+      if (balanceAlertEnabled && selectedProject?.id) {
+        const data = await calculateBalanceStatus();
+        if (data) {
+          setBalancePreview({
+            balance: data.balance,
+            daysRemaining: data.daysRemaining,
+            avgDailySpend: data.avgDailySpend,
+          });
+        }
+      }
+    };
+    loadBalancePreview();
+  }, [balanceAlertEnabled, selectedProject?.id, calculateBalanceStatus]);
 
   // Fetch subscription for current project
   const fetchSubscription = useCallback(async () => {
@@ -839,6 +862,65 @@ export default function WhatsApp() {
       toast.error(error.message || 'Erro ao enviar relatório de teste');
     } finally {
       setSendingTest(false);
+    }
+  };
+
+  const sendBalanceAlertTest = async () => {
+    if (!subscription) {
+      toast.error('Configure e salve suas configurações primeiro');
+      return;
+    }
+
+    if (!selectedInstanceId) {
+      toast.error('Selecione uma conexão WhatsApp primeiro');
+      return;
+    }
+
+    if (!balancePreview) {
+      toast.error('Não foi possível obter dados de saldo');
+      return;
+    }
+
+    setSendingBalanceTest(true);
+    try {
+      const message = generateBalanceAlertMessage(
+        selectedProject?.name || 'Projeto',
+        balancePreview.balance,
+        balancePreview.daysRemaining,
+        balancePreview.avgDailySpend
+      );
+
+      const payload: Record<string, unknown> = {
+        message,
+        subscriptionId: subscription.id,
+        messageType: 'balance_alert_test',
+        instanceId: selectedInstanceId,
+        targetType,
+      };
+
+      if (targetType === 'group' && selectedGroupId) {
+        payload.groupId = selectedGroupId;
+      } else {
+        payload.phone = phoneNumber;
+      }
+
+      const { data, error } = await supabase.functions.invoke('whatsapp-send', {
+        body: payload,
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success('Alerta de saldo de teste enviado!');
+        await fetchMessageLogs();
+      } else {
+        toast.error('Erro ao enviar alerta de teste');
+      }
+    } catch (error: any) {
+      console.error('Error sending balance alert test:', error);
+      toast.error(error.message || 'Erro ao enviar alerta de teste');
+    } finally {
+      setSendingBalanceTest(false);
     }
   };
 
@@ -1191,29 +1273,76 @@ export default function WhatsApp() {
                 </div>
 
                 {balanceAlertEnabled && (
-                  <div className="space-y-2">
-                    <Label>Alertar quando restar menos de</Label>
-                    <Select
-                      value={balanceAlertThreshold.toString()}
-                      onValueChange={(v) => setBalanceAlertThreshold(parseInt(v))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 dia de saldo</SelectItem>
-                        <SelectItem value="2">2 dias de saldo</SelectItem>
-                        <SelectItem value="3">3 dias de saldo</SelectItem>
-                        <SelectItem value="5">5 dias de saldo</SelectItem>
-                        <SelectItem value="7">7 dias de saldo</SelectItem>
-                        <SelectItem value="10">10 dias de saldo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" />
-                      Baseado no gasto médio diário do projeto
-                    </p>
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label>Alertar quando restar menos de</Label>
+                      <Select
+                        value={balanceAlertThreshold.toString()}
+                        onValueChange={(v) => setBalanceAlertThreshold(parseInt(v))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 dia de saldo</SelectItem>
+                          <SelectItem value="2">2 dias de saldo</SelectItem>
+                          <SelectItem value="3">3 dias de saldo</SelectItem>
+                          <SelectItem value="5">5 dias de saldo</SelectItem>
+                          <SelectItem value="7">7 dias de saldo</SelectItem>
+                          <SelectItem value="10">10 dias de saldo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Baseado no gasto médio diário do projeto
+                      </p>
+                    </div>
+
+                    {/* Balance Alert Preview */}
+                    {balancePreview && (
+                      <div className="space-y-3 pt-3 border-t border-border/50">
+                        <Label className="text-sm font-medium">Preview da mensagem de alerta:</Label>
+                        <div className="bg-gradient-to-br from-green-950/30 to-green-900/20 rounded-xl p-4 border border-green-500/20">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                              <MessageSquare className="w-4 h-4 text-white" />
+                            </div>
+                            <span className="text-sm font-medium text-green-400">WhatsApp</span>
+                          </div>
+                          <pre className="whitespace-pre-wrap text-sm font-sans text-foreground/90 leading-relaxed">
+                            {generateBalanceAlertMessage(
+                              selectedProject?.name || 'Projeto',
+                              balancePreview.balance,
+                              balancePreview.daysRemaining,
+                              balancePreview.avgDailySpend
+                            )}
+                          </pre>
+                        </div>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={sendBalanceAlertTest}
+                          disabled={sendingBalanceTest || !subscription || !selectedInstanceId}
+                          className="w-full"
+                        >
+                          {sendingBalanceTest ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          ) : (
+                            <Send className="w-4 h-4 mr-2" />
+                          )}
+                          Enviar Alerta de Teste
+                        </Button>
+                      </div>
+                    )}
+
+                    {!balancePreview && (
+                      <div className="text-sm text-muted-foreground text-center py-4 bg-muted/30 rounded-lg">
+                        <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" />
+                        Carregando dados de saldo...
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
