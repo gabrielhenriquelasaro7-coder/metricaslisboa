@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import SparklineCard from '@/components/dashboard/SparklineCard';
+import { DashboardSkeleton } from '@/components/skeletons';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
@@ -357,12 +358,9 @@ export default function Dashboard() {
             </Link>
           </div>
         ) : loading ? (
-          <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <DashboardSkeleton />
         ) : (
           <>
-            {/* Comparison Toggle */}
             <div className="flex items-center justify-end gap-2">
               <GitCompare className="w-4 h-4 text-muted-foreground" />
               <Label htmlFor="comparison-toggle" className="text-sm text-muted-foreground cursor-pointer">

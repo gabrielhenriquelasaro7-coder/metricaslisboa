@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { GuestsTab } from '@/components/settings/GuestsTab';
 import { useUserRole } from '@/hooks/useUserRole';
+import { SettingsSkeleton } from '@/components/skeletons';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -420,8 +421,8 @@ export default function Settings() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="p-8 flex items-center justify-center min-h-[60vh]">
-          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+        <div className="p-8 max-w-4xl">
+          <SettingsSkeleton />
         </div>
       </DashboardLayout>
     );
