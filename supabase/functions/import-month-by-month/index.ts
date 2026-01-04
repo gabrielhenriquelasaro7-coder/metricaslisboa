@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
       throw new Error(syncResult.error || `Sync failed with status ${syncResponse.status}`);
     }
     
-    const recordsCount = syncResult.data?.daily_records_count || syncResult.count || 0;
+    const recordsCount = syncResult.records || syncResult.data?.daily_records_count || syncResult.count || 0;
     console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${recordsCount} records`);
     
     // Update status to success
