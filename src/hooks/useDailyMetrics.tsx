@@ -263,9 +263,10 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
       console.log(`[DailyMetrics] Previous dates: ${previousDates ? `${previousDates.since} to ${previousDates.until}` : 'none (skipped)'}`);
       
       // Always fetch current period - use pagination to get ALL records
+      // Supabase max is 1000 per request regardless of range
       let allCurrentRows: any[] = [];
       let currentPage = 0;
-      const pageSize = 5000; // Increased for large projects like Rica
+      const pageSize = 1000; // Supabase hard limit
       
       while (true) {
         const { data, error } = await supabase
@@ -285,6 +286,7 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
         if (!data || data.length === 0) break;
         allCurrentRows = [...allCurrentRows, ...data];
         
+        // If we got exactly 1000, there might be more
         if (data.length < pageSize) break;
         currentPage++;
       }
