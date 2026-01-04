@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
@@ -76,6 +76,9 @@ const mockCampaigns = [
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab') || 'overview';
+  
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -86,6 +89,9 @@ export default function ProjectDetail() {
   useEffect(() => {
     const fetchProject = async () => {
       if (!id) return;
+      
+      // Salvar o projeto selecionado no localStorage para a Sidebar
+      localStorage.setItem('selectedProjectId', id);
       
       const { data, error } = await supabase
         .from('projects')
@@ -259,7 +265,7 @@ export default function ProjectDetail() {
         </div>
 
         {/* Tabs for different levels */}
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs defaultValue={tabFromUrl} className="space-y-6">
           <TabsList className="bg-secondary">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
