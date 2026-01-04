@@ -45,9 +45,19 @@
         transition: opacity 0.15s ease-out;
       }
       
-      #initial-loader.hidden {
+      #initial-loader.fade-out {
         opacity: 0;
         pointer-events: none;
+      }
+      
+      /* Smooth app reveal */
+      #root {
+        opacity: 0;
+        transition: opacity 0.2s ease-out;
+      }
+      
+      #root.visible {
+        opacity: 1;
       }
       
       #initial-loader .dots {
@@ -87,13 +97,23 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Hide initial loader once React app is ready -->
+    <!-- Smooth transition from loader to React -->
     <script>
       window.hideInitialLoader = function() {
         const loader = document.getElementById('initial-loader');
-        if (loader) {
-          loader.classList.add('hidden');
-          setTimeout(() => loader.remove(), 150);
+        const root = document.getElementById('root');
+        
+        if (loader && root) {
+          // Start fading out loader
+          loader.classList.add('fade-out');
+          
+          // Reveal app with slight delay for overlap
+          setTimeout(() => {
+            root.classList.add('visible');
+          }, 50);
+          
+          // Remove loader from DOM
+          setTimeout(() => loader.remove(), 200);
         }
       };
     </script>
