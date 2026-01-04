@@ -48,15 +48,12 @@ interface DayData {
 export default function SyncHistoryChart({ projectId, showProjectSelector = true }: SyncHistoryChartProps) {
   const [logs, setLogs] = useState<SyncLog[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>(projectId || 'all');
+  const [selectedProject, setSelectedProject] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [daysRange, setDaysRange] = useState<string>('14');
 
-  useEffect(() => {
-    if (projectId) {
-      setSelectedProject(projectId);
-    }
-  }, [projectId]);
+  // Determina o projeto efetivo a ser usado
+  const effectiveProjectId = projectId || (selectedProject !== 'all' ? selectedProject : null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,7 +61,7 @@ export default function SyncHistoryChart({ projectId, showProjectSelector = true
       
       const startDate = subDays(new Date(), parseInt(daysRange));
       
-      // Fetch projects se não for um projeto específico
+      // Fetch projects apenas se não for um projeto específico e showProjectSelector for true
       if (!projectId && showProjectSelector) {
         const { data: projectsData } = await supabase
           .from('projects')
@@ -77,15 +74,18 @@ export default function SyncHistoryChart({ projectId, showProjectSelector = true
         }
       }
       
-      // Fetch sync logs
+      // Fetch sync logs - sempre filtrar pelo projeto quando projectId é passado
       let query = supabase
         .from('sync_logs')
         .select('*')
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: true });
       
-      if (projectId || (selectedProject && selectedProject !== 'all')) {
-        query = query.eq('project_id', projectId || selectedProject);
+      // Se projectId foi passado como prop, SEMPRE filtrar por ele
+      if (projectId) {
+        query = query.eq('project_id', projectId);
+      } else if (selectedProject && selectedProject !== 'all') {
+        query = query.eq('project_id', selectedProject);
       }
       
       const { data: logsData } = await query;
