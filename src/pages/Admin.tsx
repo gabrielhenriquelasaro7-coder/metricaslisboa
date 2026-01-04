@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import MonthImportGrid from '@/components/admin/MonthImportGrid';
 import SyncHealthMonitor from '@/components/admin/SyncHealthMonitor';
+import SyncHistoryChart from '@/components/admin/SyncHistoryChart';
 import { 
   Database, 
   Play, 
@@ -446,8 +447,11 @@ function AdminContent() {
 
           {/* MONITORING TAB */}
           <TabsContent value="monitoring" className="space-y-6">
-            {/* Sync Health Monitor - NEW */}
+            {/* Sync Health Monitor */}
             <SyncHealthMonitor projects={activeProjects} />
+
+            {/* Sync History Chart - NEW */}
+            <SyncHistoryChart showProjectSelector={true} />
 
             {/* Quick Sync Card */}
             <Card className="glass-card border-primary/20">
