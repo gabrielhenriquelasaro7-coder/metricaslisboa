@@ -121,112 +121,91 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   
   const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
 
+  // Health indicator colors (small dot only)
+  const healthDotColor = {
+    safe: 'bg-emerald-500',
+    care: 'bg-amber-500',
+    danger: 'bg-red-500',
+    undefined: 'bg-slate-500',
+  }[displayHealthScore];
+
   return (
     <div 
       className={cn(
-        "group relative overflow-hidden rounded-2xl transition-all duration-500 cursor-pointer",
-        "bg-gradient-to-br from-card/95 via-card/80 to-card/60",
-        "border border-border/30 backdrop-blur-xl",
-        "hover:border-primary/40 hover:shadow-[0_8px_40px_hsl(0,0%,0%,0.5),0_0_60px_hsl(var(--primary)/0.15)]",
-        "hover:translate-y-[-4px]",
+        "group relative overflow-hidden rounded-xl transition-all duration-300 cursor-pointer",
+        "bg-card border border-border/50",
+        "hover:border-border hover:shadow-lg hover:shadow-black/20",
+        "hover:-translate-y-1",
         project.archived && 'opacity-50 grayscale-[30%]'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Animated gradient border on hover */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-        <div className="absolute inset-[-1px] rounded-2xl bg-gradient-to-r from-primary/50 via-v4-crimson/30 to-primary/50 blur-sm" />
-      </div>
-
-      {/* Top Accent Bar with Health Color */}
-      <div className={cn(
-        "absolute top-0 left-0 right-0 h-1 transition-all duration-300",
-        displayHealthScore === 'safe' && "bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-500",
-        displayHealthScore === 'care' && "bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500",
-        displayHealthScore === 'danger' && "bg-gradient-to-r from-red-500 via-red-400 to-rose-500",
-        displayHealthScore === 'undefined' && "bg-gradient-to-r from-slate-500 via-slate-400 to-gray-500"
-      )} />
-
       {/* Content */}
-      <div className="relative p-5">
+      <div className="p-5">
         {/* Header Row */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-start gap-3">
-            {/* Avatar with glow effect */}
-            <div className={cn(
-              "relative w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden",
-              "transition-all duration-300 group-hover:scale-110",
-              !project.avatar_url && modelColors.bgColor
-            )}>
-              {/* Glow behind avatar */}
-              <div className={cn(
-                "absolute inset-0 blur-md opacity-0 group-hover:opacity-60 transition-opacity",
-                modelColors.bgColor
-              )} />
-              {project.avatar_url ? (
-                <img src={project.avatar_url} alt={project.name} className="relative w-full h-full object-cover rounded-xl" />
-              ) : (
-                <Icon className={cn("relative w-6 h-6", modelColors.iconColor)} />
-              )}
-            </div>
-            
-            {/* Title & Subtitle */}
-            <div className="min-w-0">
-              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1 tracking-tight" title={project.name}>
+        <div className="flex items-start gap-4 mb-4">
+          {/* Avatar */}
+          <div className={cn(
+            "relative w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden",
+            "bg-secondary/80 border border-border/50",
+            "transition-transform duration-300 group-hover:scale-105"
+          )}>
+            {project.avatar_url ? (
+              <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
+            ) : (
+              <Icon className="w-7 h-7 text-muted-foreground" />
+            )}
+          </div>
+          
+          {/* Title & Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors truncate" title={project.name}>
                 {project.name}
               </h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={cn(
-                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium",
-                  modelColors.bgColor, modelColors.textColor
-                )}>
-                  <Icon className="w-3 h-3" />
-                  {model?.label}
-                </span>
-              </div>
+              {/* Health indicator dot */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", healthDotColor)} />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    Health: {healthOption.label}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={cn(
+                "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium",
+                "bg-secondary text-muted-foreground"
+              )}>
+                <Icon className="w-3 h-3" />
+                {model?.label}
+              </span>
+              <span className="text-xs text-muted-foreground font-mono bg-secondary/50 px-2 py-1 rounded-md">
+                {project.ad_account_id.replace('act_', '')}
+              </span>
             </div>
           </div>
+        </div>
 
-          {/* Health Badge with glow */}
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-3 border-t border-border/50">
+          {/* Sync Status */}
           <div className={cn(
-            "relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-300",
-            healthOption.bgColor, healthOption.textColor, healthOption.borderColor,
-            "group-hover:shadow-lg"
+            "flex items-center gap-1.5 text-xs",
+            lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
+              ? "text-emerald-500" 
+              : "text-muted-foreground"
           )}>
-            {/* Glow effect */}
-            <div className={cn(
-              "absolute inset-0 rounded-xl blur-md opacity-0 group-hover:opacity-40 transition-opacity",
-              healthOption.bgColor
-            )} />
-            <healthOption.icon className="relative w-4 h-4" />
-            <span className="relative">{healthOption.label}</span>
-          </div>
-        </div>
-
-        {/* Account ID */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4 px-1">
-          <div className="flex items-center gap-1.5 bg-secondary/50 px-2 py-1 rounded-lg">
-            <FolderKanban className="w-3 h-3" />
-            <span className="font-mono">{project.ad_account_id.replace('act_', '')}</span>
-          </div>
-        </div>
-
-        {/* Footer with Sync Info and Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-border/30">
-          <div className="flex items-center gap-2">
-            <div className={cn(
-              "flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg",
-              lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
-                ? "text-emerald-400 bg-emerald-500/10" 
-                : "text-muted-foreground bg-secondary/50"
-            )}>
-              <Clock className="w-3 h-3" />
-              <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca sincronizado'}</span>
-            </div>
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca'}</span>
           </div>
           
           {/* Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
@@ -234,19 +213,19 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
                 e.stopPropagation();
                 onSelect(project);
               }}
-              className="text-primary hover:text-primary hover:bg-primary/10 gap-1 px-3 h-8 rounded-lg text-xs font-medium transition-all"
+              className="text-primary hover:bg-primary/10 gap-1 h-8 px-3 text-xs font-medium"
             >
               Acessar
-              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <ChevronRight className="w-4 h-4" />
             </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-secondary/80">
+                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary">
                   <MoreVertical className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 rounded-xl" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer">
                   <Pencil className="w-4 h-4" />
                   Editar
@@ -268,7 +247,7 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-400 focus:text-red-400">
+                <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
                   <Trash2 className="w-4 h-4" />
                   Excluir
                 </DropdownMenuItem>
@@ -284,86 +263,80 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
 function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: Omit<ProjectCardProps, 'health'>) {
   const model = businessModels.find(m => m.value === project.business_model);
   const Icon = model?.icon || Users;
-  const modelColors = businessModelColors[project.business_model];
   
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
   const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore) || healthScoreOptions[3];
   
   const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
 
+  // Health indicator colors (small dot only)
+  const healthDotColor = {
+    safe: 'bg-emerald-500',
+    care: 'bg-amber-500',
+    danger: 'bg-red-500',
+    undefined: 'bg-slate-500',
+  }[displayHealthScore];
+
   return (
     <div 
       className={cn(
-        "group relative flex items-center gap-4 overflow-hidden rounded-xl transition-all duration-300 cursor-pointer",
-        "bg-gradient-to-r from-card/95 via-card/80 to-card/60",
-        "border border-border/30 backdrop-blur-xl p-4",
-        "hover:border-primary/40 hover:shadow-[0_4px_20px_hsl(0,0%,0%,0.4),0_0_30px_hsl(var(--primary)/0.1)]",
+        "group relative flex items-center gap-4 overflow-hidden rounded-lg transition-all duration-300 cursor-pointer",
+        "bg-card border border-border/50 p-4",
+        "hover:border-border hover:bg-secondary/30",
         project.archived && 'opacity-50'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Left accent bar based on health */}
+      {/* Avatar */}
       <div className={cn(
-        "absolute left-0 top-0 bottom-0 w-1 transition-all duration-300",
-        displayHealthScore === 'safe' && "bg-gradient-to-b from-emerald-500 to-teal-500",
-        displayHealthScore === 'care' && "bg-gradient-to-b from-amber-500 to-orange-500",
-        displayHealthScore === 'danger' && "bg-gradient-to-b from-red-500 to-rose-500",
-        displayHealthScore === 'undefined' && "bg-gradient-to-b from-slate-500 to-gray-500"
-      )} />
-
-      {/* Avatar with glow */}
-      <div className={cn(
-        "relative w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ml-2",
-        "transition-all duration-300 group-hover:scale-105",
-        !project.avatar_url && modelColors.bgColor
+        "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden",
+        "bg-secondary border border-border/50"
       )}>
         {project.avatar_url ? (
-          <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover rounded-xl" />
+          <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
         ) : (
-          <Icon className={cn("w-5 h-5", modelColors.iconColor)} />
+          <Icon className="w-5 h-5 text-muted-foreground" />
         )}
       </div>
       
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate">
+          <h3 className="font-medium text-foreground group-hover:text-primary transition-colors truncate">
             {project.name}
           </h3>
-          <div className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold border",
-            healthOption.bgColor, healthOption.textColor, healthOption.borderColor
-          )}>
-            <healthOption.icon className="w-3 h-3" />
-            {healthOption.label}
-          </div>
+          {/* Health indicator dot */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={cn("w-2 h-2 rounded-full flex-shrink-0", healthDotColor)} />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                Health: {healthOption.label}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded-md",
-            modelColors.bgColor, modelColors.textColor
-          )}>
+          <span className="inline-flex items-center gap-1 bg-secondary px-2 py-0.5 rounded">
             <Icon className="w-3 h-3" />
             {model?.label}
           </span>
-          <div className="flex items-center gap-1.5 bg-secondary/50 px-2 py-0.5 rounded-md">
-            <FolderKanban className="w-3 h-3" />
-            <span className="font-mono">{project.ad_account_id.replace('act_', '')}</span>
-          </div>
+          <span className="font-mono">{project.ad_account_id.replace('act_', '')}</span>
           <div className={cn(
             "flex items-center gap-1",
             lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
-              ? "text-emerald-400" 
+              ? "text-emerald-500" 
               : "text-muted-foreground"
           )}>
-            <Clock className="w-3 h-3" />
+            <RefreshCw className="w-3 h-3" />
             <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca'}</span>
           </div>
         </div>
       </div>
       
       {/* Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <Button
           variant="ghost"
           size="sm"
@@ -371,7 +344,7 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
             e.stopPropagation();
             onSelect(project);
           }}
-          className="text-primary hover:text-primary hover:bg-primary/10 gap-1 px-3 h-8 rounded-lg text-xs font-medium"
+          className="text-primary hover:bg-primary/10 gap-1 h-8 px-3 text-xs font-medium"
         >
           Acessar
           <ChevronRight className="w-4 h-4" />
@@ -379,11 +352,11 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-secondary/80">
+            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary">
               <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 rounded-xl" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
             <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer">
               <Pencil className="w-4 h-4" />
               Editar
@@ -405,7 +378,7 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-400 focus:text-red-400">
+            <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
               <Trash2 className="w-4 h-4" />
               Excluir
             </DropdownMenuItem>
