@@ -41,9 +41,10 @@ interface GuestInvitation {
 
 interface GuestsTabProps {
   projectId?: string;
+  projectName?: string;
 }
 
-export function GuestsTab({ projectId }: GuestsTabProps) {
+export function GuestsTab({ projectId, projectName }: GuestsTabProps) {
   const { user } = useAuth();
   const [invitations, setInvitations] = useState<GuestInvitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -277,10 +278,12 @@ export function GuestsTab({ projectId }: GuestsTabProps) {
         </CardContent>
       </Card>
 
-      {/* Invite Guest Dialog */}
+      {/* Invite Guest Dialog - with preselected project since we're inside the project */}
       <InviteGuestDialog
         open={inviteDialogOpen}
         onOpenChange={setInviteDialogOpen}
+        preselectedProjectId={projectId}
+        preselectedProjectName={projectName}
         onSuccess={fetchInvitations}
       />
     </div>
