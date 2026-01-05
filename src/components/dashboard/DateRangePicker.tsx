@@ -108,7 +108,10 @@ export default function DateRangePicker({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 bg-popover/95 backdrop-blur-sm border-border/50 shadow-xl" align="start">
+          <div className="p-2 border-b border-border/30">
+            <p className="text-xs text-muted-foreground font-medium">Selecione o período</p>
+          </div>
           <Calendar
             initialFocus
             mode="range"
@@ -117,8 +120,20 @@ export default function DateRangePicker({
             onSelect={handleCalendarSelect}
             numberOfMonths={2}
             locale={ptBR}
-            className={cn("p-3 pointer-events-auto")}
           />
+          {dateRange?.from && dateRange?.to && (
+            <div className="p-3 border-t border-border/30 bg-muted/30">
+              <p className="text-xs text-center text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {format(dateRange.from, 'dd/MM/yyyy', { locale: ptBR })}
+                </span>
+                {' até '}
+                <span className="font-medium text-foreground">
+                  {format(dateRange.to, 'dd/MM/yyyy', { locale: ptBR })}
+                </span>
+              </p>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
     </div>

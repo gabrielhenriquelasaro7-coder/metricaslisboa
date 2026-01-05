@@ -133,8 +133,8 @@ export default function AdDetail() {
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
 
-  // Fetch real daily metrics for this ad
-  const { dailyData: adDailyData } = useAdDailyMetrics(adId, projectId);
+  // Fetch real daily metrics for this ad - pass date range for custom period
+  const { dailyData: adDailyData, totals: adMetricsTotals } = useAdDailyMetrics(adId, projectId, dateRange);
 
   const fetchAd = useCallback(async () => {
     if (!adId) return;

@@ -51,13 +51,13 @@ export default function Campaigns() {
     return acc;
   }, {} as Record<string, number>);
 
-  // Load metrics when preset changes - INSTANT from local database
+  // Load metrics when preset or date range changes - INSTANT from local database
   useEffect(() => {
     if (!selectedProject) return;
     
     console.log(`[Campaigns] Loading period: ${selectedPreset}`);
-    loadMetricsByPeriod(selectedPreset);
-  }, [selectedPreset, selectedProject, loadMetricsByPeriod]);
+    loadMetricsByPeriod(selectedPreset, false, selectedPreset === 'custom' ? dateRange : undefined);
+  }, [selectedPreset, dateRange, selectedProject, loadMetricsByPeriod]);
 
   // Handle date range change - NO sync, just load from database
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {

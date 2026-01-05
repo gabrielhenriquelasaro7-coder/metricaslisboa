@@ -71,8 +71,12 @@ export default function Dashboard() {
   // Balance alert hook - shows notification when balance is critical
   useBalanceAlert(selectedProject?.id || null, selectedProject?.name);
 
-  // Get daily metrics for charts
-  const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset);
+  // Get daily metrics for charts - pass custom date range for custom preset
+  const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(
+    selectedProject?.id, 
+    selectedPreset,
+    selectedPreset === 'custom' ? dateRange : undefined
+  );
   
   // Calculate date range for demographics based on preset
   const demographicDateRange = useMemo(() => {
@@ -115,13 +119,13 @@ export default function Dashboard() {
   // Get custom metric config for custom business model
   const { config: metricConfig, loading: metricConfigLoading } = useProjectMetricConfig(isCustom ? selectedProject?.id : null);
 
-  // Load metrics when preset changes - INSTANT from local database
+  // Load metrics when preset or date range changes - INSTANT from local database
   useEffect(() => {
     if (!selectedProject) return;
     
     console.log(`[Dashboard] Loading period: ${selectedPreset}`);
-    loadMetricsByPeriod(selectedPreset);
-  }, [selectedPreset, selectedProject, loadMetricsByPeriod]);
+    loadMetricsByPeriod(selectedPreset, false, selectedPreset === 'custom' ? dateRange : undefined);
+  }, [selectedPreset, dateRange, selectedProject, loadMetricsByPeriod]);
 
   // Handle date range change - NO sync, just load from database
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {

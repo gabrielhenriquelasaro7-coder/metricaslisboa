@@ -74,8 +74,16 @@ export default function Ads() {
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
 
-  // Calculate date range based on preset
-  const getDateRangeFromPeriod = useCallback((preset: DatePresetKey) => {
+  // Calculate date range based on preset or custom range
+  const getDateRangeFromPeriod = useCallback((preset: DatePresetKey, customRange?: DateRange) => {
+    // If custom and we have a range, use it
+    if (preset === 'custom' && customRange?.from && customRange?.to) {
+      const since = customRange.from.toISOString().split('T')[0];
+      const until = customRange.to.toISOString().split('T')[0];
+      console.log(`[Ads] Using custom range: ${since} to ${until}`);
+      return { since, until };
+    }
+    
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const yesterdayDate = new Date(now);
@@ -105,7 +113,7 @@ export default function Ads() {
   }, []);
 
   // Load ads with metrics from ads_daily_metrics
-  const loadAdsByPeriod = useCallback(async (preset: DatePresetKey) => {
+  const loadAdsByPeriod = useCallback(async (preset: DatePresetKey, customRange?: DateRange) => {
     if (!adSetId) return;
     setLoading(true);
     
@@ -123,8 +131,9 @@ export default function Ads() {
         return;
       }
 
-      const { since, until } = getDateRangeFromPeriod(preset);
+      const { since, until } = getDateRangeFromPeriod(preset, customRange);
       console.log(`[Ads] Loading period: ${preset} (${since} to ${until})`);
+
 
       // Check what dates we have data for
       const { data: firstDateData } = await supabase
@@ -227,10 +236,10 @@ export default function Ads() {
     ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
   ];
 
-  // Load data when preset changes
+  // Load data when preset or date range changes
   useEffect(() => {
-    loadAdsByPeriod(selectedPreset);
-  }, [selectedPreset, loadAdsByPeriod]);
+    loadAdsByPeriod(selectedPreset, selectedPreset === 'custom' ? dateRange : undefined);
+  }, [selectedPreset, dateRange, loadAdsByPeriod]);
 
   // Handle date range change
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
