@@ -380,34 +380,13 @@
   }
 
   .vibrant-table-row {
-    @apply relative transition-all duration-300;
-  }
-
-  .vibrant-table-row::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: linear-gradient(180deg, 
-      hsl(var(--primary)) 0%,
-      hsl(var(--primary) / 0.5) 100%
-    );
-    opacity: 0;
-    transform: scaleY(0);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .vibrant-table-row:hover::before {
-    opacity: 1;
-    transform: scaleY(1);
+    @apply transition-all duration-300;
   }
 
   .vibrant-table-row:hover {
     background: linear-gradient(90deg, 
-      hsl(var(--primary) / 0.08) 0%,
-      hsl(var(--primary) / 0.04) 50%,
+      hsl(var(--primary) / 0.06) 0%,
+      hsl(var(--primary) / 0.03) 50%,
       transparent 100%
     );
   }
