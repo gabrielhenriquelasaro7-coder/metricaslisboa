@@ -24,6 +24,53 @@ interface DailyEvolutionChartProps {
   currency?: string;
 }
 
+// Aggregate data by month when there are too many days
+function aggregateByMonth(data: DailyMetric[]): DailyMetric[] {
+  const monthlyMap = new Map<string, DailyMetric>();
+  
+  for (const d of data) {
+    const date = parseISO(d.date);
+    const monthKey = format(date, 'yyyy-MM');
+    
+    if (!monthlyMap.has(monthKey)) {
+      monthlyMap.set(monthKey, {
+        date: monthKey,
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        reach: 0,
+        conversions: 0,
+        conversion_value: 0,
+        ctr: 0,
+        cpm: 0,
+        cpc: 0,
+        roas: 0,
+        cpa: 0,
+      });
+    }
+    
+    const agg = monthlyMap.get(monthKey)!;
+    agg.spend += d.spend;
+    agg.impressions += d.impressions;
+    agg.clicks += d.clicks;
+    agg.reach += d.reach;
+    agg.conversions += d.conversions;
+    agg.conversion_value += d.conversion_value;
+  }
+  
+  // Calculate derived metrics
+  return Array.from(monthlyMap.values())
+    .map(d => ({
+      ...d,
+      ctr: d.impressions > 0 ? (d.clicks / d.impressions) * 100 : 0,
+      cpm: d.impressions > 0 ? (d.spend / d.impressions) * 1000 : 0,
+      cpc: d.clicks > 0 ? d.spend / d.clicks : 0,
+      roas: d.spend > 0 ? d.conversion_value / d.spend : 0,
+      cpa: d.conversions > 0 ? d.spend / d.conversions : 0,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export default function DailyEvolutionChart({ 
   data, 
   businessModel,
@@ -32,18 +79,32 @@ export default function DailyEvolutionChart({
 }: DailyEvolutionChartProps) {
   const isEcommerce = businessModel === 'ecommerce';
   
+  // Determine if we should aggregate by month (more than 60 days = ~2 months)
+  const shouldAggregateByMonth = data.length > 60;
+  
   const chartData = useMemo(() => {
-    return data.map(d => ({
-      date: format(parseISO(d.date), 'dd/MM', { locale: ptBR }),
-      fullDate: d.date,
-      spend: d.spend,
-      conversions: d.conversions,
-      revenue: d.conversion_value,
-      roas: d.roas,
-      cpl: d.cpa,
-      ctr: d.ctr,
-    }));
-  }, [data]);
+    // If too many data points, aggregate by month
+    const processedData = shouldAggregateByMonth ? aggregateByMonth(data) : data;
+    
+    return processedData.map(d => {
+      // For monthly data, the date is already in 'yyyy-MM' format
+      const isMonthly = d.date.length === 7; // 'yyyy-MM' = 7 chars
+      const formattedDate = isMonthly 
+        ? format(parseISO(`${d.date}-01`), 'MMM/yy', { locale: ptBR })
+        : format(parseISO(d.date), 'dd/MM', { locale: ptBR });
+      
+      return {
+        date: formattedDate,
+        fullDate: d.date,
+        spend: d.spend,
+        conversions: d.conversions,
+        revenue: d.conversion_value,
+        roas: d.roas,
+        cpl: d.cpa,
+        ctr: d.ctr,
+      };
+    });
+  }, [data, shouldAggregateByMonth]);
 
   const formatCurrency = (value: number) => {
     const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
@@ -97,7 +158,7 @@ export default function DailyEvolutionChart({
   return (
     <div className={cn('glass-card p-6', className)}>
       <h3 className="text-lg font-semibold mb-4">
-        Evolução Diária - {isEcommerce ? 'Gasto vs Receita' : 'Gasto vs Leads'}
+        {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'} - {isEcommerce ? 'Gasto vs Receita' : 'Gasto vs Leads'}
       </h3>
       <div className="h-[350px]">
         <ResponsiveContainer width="100%" height="100%">
