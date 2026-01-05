@@ -333,16 +333,25 @@ export default function AdDetail() {
                     poster={ad.creative_thumbnail || undefined}
                   />
                 </div>
-              ) : hasImage && !imageError ? (
+              ) : hasImage ? (
                 <Dialog>
                   <DialogTrigger asChild>
-                    <div className="aspect-square rounded-lg overflow-hidden bg-muted cursor-zoom-in hover:opacity-90 transition-opacity">
-                      <img 
-                        src={creativeUrl} 
-                        alt={ad.name}
-                        className="w-full h-full object-contain"
-                        onError={() => setImageError(true)}
-                      />
+                    <div className="aspect-square rounded-lg overflow-hidden bg-muted cursor-zoom-in hover:opacity-90 transition-opacity relative">
+                      {!imageError && (
+                        <img 
+                          src={creativeUrl} 
+                          alt={ad.name}
+                          className="w-full h-full object-contain"
+                          onError={() => setImageError(true)}
+                        />
+                      )}
+                      {imageError && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <ImageIcon className="w-16 h-16 text-muted-foreground/50 mb-2" />
+                          <p className="text-xs text-muted-foreground">Imagem expirada</p>
+                          <p className="text-xs text-muted-foreground">Sincronize para atualizar</p>
+                        </div>
+                      )}
                     </div>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl p-2">
