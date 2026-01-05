@@ -129,18 +129,21 @@ export default function AdvancedCharts({
   const METRIC_OPTIONS = useMemo(() => createMetricOptions(currency), [currency]);
   
   // Calculate the date range span to determine if we should aggregate by month
-  // More than 60 unique days = aggregate by month
+  // More than 60 unique days OR more than 60 data points = aggregate by month
   const shouldAggregateByMonth = useMemo(() => {
-    if (data.length <= 60) return false;
+    if (data.length === 0) return false;
     
-    // Also check actual date span
-    if (data.length > 0) {
-      const firstDate = new Date(data[0].date);
-      const lastDate = new Date(data[data.length - 1].date);
-      const daysDiff = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
-      return daysDiff > 60;
-    }
-    return false;
+    // If more than 60 data points, aggregate
+    if (data.length > 60) return true;
+    
+    // Also check actual date span (e.g., might have gaps but long period)
+    const firstDate = new Date(data[0].date);
+    const lastDate = new Date(data[data.length - 1].date);
+    const daysDiff = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    console.log(`[AdvancedCharts] Data length: ${data.length}, Days span: ${daysDiff}, shouldAggregate: ${data.length > 60 || daysDiff > 60}`);
+    
+    return daysDiff > 60;
   }, [data]);
   
   // State for customizable charts
