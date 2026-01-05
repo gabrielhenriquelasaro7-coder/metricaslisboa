@@ -1155,6 +1155,109 @@ export type Database = {
           },
         ]
       }
+      leadgen_forms: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_synced_at: string | null
+          leads_count: number | null
+          name: string | null
+          page_id: string
+          project_id: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          last_synced_at?: string | null
+          leads_count?: number | null
+          name?: string | null
+          page_id: string
+          project_id: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          leads_count?: number | null
+          name?: string | null
+          page_id?: string
+          project_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leadgen_forms_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          ad_id: string | null
+          ad_name: string | null
+          adset_id: string | null
+          campaign_id: string | null
+          created_at: string | null
+          created_time: string
+          field_data: Json | null
+          form_id: string
+          form_name: string | null
+          id: string
+          lead_email: string | null
+          lead_name: string | null
+          lead_phone: string | null
+          project_id: string
+          synced_at: string | null
+        }
+        Insert: {
+          ad_id?: string | null
+          ad_name?: string | null
+          adset_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          created_time: string
+          field_data?: Json | null
+          form_id: string
+          form_name?: string | null
+          id: string
+          lead_email?: string | null
+          lead_name?: string | null
+          lead_phone?: string | null
+          project_id: string
+          synced_at?: string | null
+        }
+        Update: {
+          ad_id?: string | null
+          ad_name?: string | null
+          adset_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          created_time?: string
+          field_data?: Json | null
+          form_id?: string
+          form_name?: string | null
+          id?: string
+          lead_email?: string | null
+          lead_name?: string | null
+          lead_phone?: string | null
+          project_id?: string
+          synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       optimization_history: {
         Row: {
           change_percentage: number | null
@@ -1400,6 +1503,7 @@ export type Database = {
           business_model: Database["public"]["Enums"]["business_model"]
           created_at: string
           currency: string
+          facebook_page_id: string | null
           google_customer_id: string | null
           health_score: string | null
           id: string
@@ -1422,6 +1526,7 @@ export type Database = {
           business_model: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
+          facebook_page_id?: string | null
           google_customer_id?: string | null
           health_score?: string | null
           id?: string
@@ -1444,6 +1549,7 @@ export type Database = {
           business_model?: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
+          facebook_page_id?: string | null
           google_customer_id?: string | null
           health_score?: string | null
           id?: string

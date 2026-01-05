@@ -30,6 +30,7 @@ export interface Project {
   sync_progress: SyncProgress | null;
   avatar_url: string | null;
   google_customer_id: string | null;
+  facebook_page_id: string | null;
 }
 
 export interface CreateProjectData {

@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.predictive-analysis]
 verify_jwt = false
+
+[functions.meta-leads-sync]
+verify_jwt = false

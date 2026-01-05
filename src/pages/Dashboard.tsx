@@ -7,6 +7,7 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
 import { DynamicResultMetrics } from '@/components/dashboard/DynamicResultMetrics';
+import { LeadsSyncCard } from '@/components/leads/LeadsSyncCard';
 import { useDemographicInsights } from '@/hooks/useDemographicInsights';
 import { useProjectMetricConfig } from '@/hooks/useProjectMetricConfig';
 import PeriodComparison from '@/components/dashboard/PeriodComparison';
@@ -670,6 +671,17 @@ export default function Dashboard() {
               isLoading={demographicLoading}
               currency={selectedProject?.currency || 'BRL'}
             />
+
+            {/* Leads Sync Card - Only for Inside Sales */}
+            {hasSelectedProject && isInsideSales && selectedProject && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <LeadsSyncCard
+                  projectId={selectedProject.id}
+                  facebookPageId={selectedProject.facebook_page_id}
+                  dateRange={dateRange?.from && dateRange?.to ? { from: dateRange.from, to: dateRange.to } : undefined}
+                />
+              </div>
+            )}
 
             {/* Top Campaigns */}
             <div className="glass-card p-6">
