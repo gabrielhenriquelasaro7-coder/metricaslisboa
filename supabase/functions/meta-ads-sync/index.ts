@@ -364,14 +364,24 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
   // object_story_spec contains the ad copy data: body (primary_text), title (headline), call_to_action
   // IMPROVED: Also fetch video_data for video thumbnails
   url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,image_url,picture},video_data{message,title,call_to_action,video_id,image_url}}}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
+  console.log(`[ADS] Fetching ads with creative data...`);
   while (url) {
     const data = await fetchWithRetry(url, 'ADS', supabase);
     if (isTokenExpiredError(data)) {
       return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), tokenExpired: true };
     }
-    if (data.data) ads.push(...data.data);
+    if (data.data) {
+      console.log(`[ADS] Fetched ${data.data.length} ads in this batch`);
+      // Log first ad creative data for debugging
+      if (data.data.length > 0 && ads.length === 0) {
+        const firstAd = data.data[0];
+        console.log(`[ADS] First ad creative sample: id=${firstAd.id}, has_creative=${!!firstAd.creative}, thumbnail=${firstAd.creative?.thumbnail_url ? 'yes' : 'no'}, video_data=${firstAd.creative?.object_story_spec?.video_data ? 'yes' : 'no'}`);
+      }
+      ads.push(...data.data);
+    }
     url = data.paging?.next || null;
   }
+  console.log(`[ADS] Total ads fetched: ${ads.length}`);
 
   // STEP 2: Fetch HD images for creatives that have image_hash
   const imageHashes: string[] = [];
@@ -1621,9 +1631,21 @@ Deno.serve(async (req) => {
       // Aggregate ads
       if (!adMetrics.has(record.ad_id)) {
         // Find the original ad to extract ad copy and HD image
-        const originalAd = ads.find(a => a.id === record.ad_id);
+        // Note: record.ad_id is a string, ads[].id might be number or string
+        const originalAd = ads.find(a => String(a.id) === String(record.ad_id));
+        
+        // Log when we DON'T find the original ad (helps debug)
+        if (!originalAd && ads.length > 0) {
+          console.log(`[DEBUG] Could not find ad ${record.ad_id} in ${ads.length} ads`);
+        }
+        
         const { primaryText, headline, cta } = originalAd ? extractAdCopy(originalAd) : { primaryText: null, headline: null, cta: null };
         const { imageUrl: hdImageUrl, videoUrl } = originalAd ? extractHdImageUrl(originalAd, adImageMap, videoThumbnailMap) : { imageUrl: null, videoUrl: null };
+        
+        // Log if we found ad copy data
+        if (originalAd && (primaryText || headline || cta)) {
+          console.log(`[AD_COPY] Ad ${record.ad_id}: headline="${headline?.substring(0, 30) || 'null'}", cta="${cta || 'null'}"`);
+        }
         
         adMetrics.set(record.ad_id, {
           id: record.ad_id,
