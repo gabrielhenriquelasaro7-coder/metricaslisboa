@@ -391,6 +391,31 @@ export function useMetaAdsData() {
         ada.conversion_value += Number(row.conversion_value) || 0;
       }
 
+      // Fetch creative data from ads table to enrich aggregated ads
+      const adIds = Array.from(adAgg.keys());
+      const creativeMap = new Map<string, any>();
+      
+      if (adIds.length > 0) {
+        console.log(`[PERIOD] Fetching creative data for ${adIds.length} ads from ads table`);
+        
+        // Paginate to handle large number of ads
+        const chunkSize = 100;
+        for (let i = 0; i < adIds.length; i += chunkSize) {
+          const chunk = adIds.slice(i, i + chunkSize);
+          const { data: adCreativeData, error: creativeError } = await supabase
+            .from('ads')
+            .select('id, creative_id, creative_thumbnail, creative_image_url, creative_video_url, cached_image_url, headline, primary_text, cta')
+            .in('id', chunk);
+          
+          if (!creativeError && adCreativeData) {
+            for (const ad of adCreativeData) {
+              creativeMap.set(ad.id, ad);
+            }
+          }
+        }
+        console.log(`[PERIOD] Found creative data for ${creativeMap.size} ads`);
+      }
+
       // Calculate derived metrics - for campaigns and adsets
       const calcMetrics = (agg: any) => ({
         ...agg,
@@ -405,22 +430,30 @@ export function useMetaAdsData() {
         created_time: null, updated_time: null,
       });
       
-      // Calculate derived metrics for ads - keeping creative_thumbnail
-      const calcAdMetrics = (agg: any) => ({
-        ...agg,
-        ctr: agg.impressions > 0 ? (agg.clicks / agg.impressions) * 100 : 0,
-        cpm: agg.impressions > 0 ? (agg.spend / agg.impressions) * 1000 : 0,
-        cpc: agg.clicks > 0 ? agg.spend / agg.clicks : 0,
-        roas: agg.spend > 0 ? agg.conversion_value / agg.spend : 0,
-        cpa: agg.conversions > 0 ? agg.spend / agg.conversions : 0,
-        frequency: agg.reach > 0 ? agg.impressions / agg.reach : 0,
-        synced_at: new Date().toISOString(),
-        daily_budget: null, lifetime_budget: null, targeting: null,
-        created_time: null, updated_time: null,
-        creative_image_url: agg.creative_thumbnail, // Use thumbnail as image
-        headline: null, primary_text: null, cta: null,
-        cached_image_url: null,
-      });
+      // Calculate derived metrics for ads - enriching with creative data from ads table
+      const calcAdMetrics = (agg: any) => {
+        const creative = creativeMap.get(agg.id);
+        return {
+          ...agg,
+          ctr: agg.impressions > 0 ? (agg.clicks / agg.impressions) * 100 : 0,
+          cpm: agg.impressions > 0 ? (agg.spend / agg.impressions) * 1000 : 0,
+          cpc: agg.clicks > 0 ? agg.spend / agg.clicks : 0,
+          roas: agg.spend > 0 ? agg.conversion_value / agg.spend : 0,
+          cpa: agg.conversions > 0 ? agg.spend / agg.conversions : 0,
+          frequency: agg.reach > 0 ? agg.impressions / agg.reach : 0,
+          synced_at: new Date().toISOString(),
+          daily_budget: null, lifetime_budget: null, targeting: null,
+          created_time: null, updated_time: null,
+          // Enrich with creative data from ads table
+          creative_image_url: creative?.creative_image_url || creative?.cached_image_url || agg.creative_thumbnail || null,
+          creative_video_url: creative?.creative_video_url || null,
+          cached_image_url: creative?.cached_image_url || null,
+          creative_thumbnail: agg.creative_thumbnail || creative?.creative_thumbnail || null,
+          headline: creative?.headline || null,
+          primary_text: creative?.primary_text || null,
+          cta: creative?.cta || null,
+        };
+      };
 
       const campaignsResult = Array.from(campaignAgg.values()).map(calcMetrics);
       const adsetsResult = Array.from(adsetAgg.values()).map(calcMetrics);
