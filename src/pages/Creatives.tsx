@@ -463,6 +463,7 @@ export default function Creatives() {
                     const statusBadge = getStatusBadge(ad.status);
                     const ticket = ad.conversions > 0 ? ad.conversion_value / ad.conversions : 0;
                     const cpa = ad.conversions > 0 ? ad.spend / ad.conversions : 0;
+                    const imageUrl = cleanImageUrl(ad.creative_image_url) || cleanImageUrl(ad.creative_thumbnail);
 
                     return (
                       <tr 
@@ -471,11 +472,31 @@ export default function Creatives() {
                         onClick={() => navigate(`/ad/${ad.id}`)}
                       >
                         <td className="py-3 px-4">
-                          <div className="min-w-0">
-                            <p className="font-medium truncate max-w-[250px]">{ad.name}</p>
-                            {ad.headline && (
-                              <p className="text-xs text-muted-foreground truncate max-w-[250px]">{ad.headline}</p>
-                            )}
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* Creative Thumbnail */}
+                            <div className="w-12 h-12 rounded-lg bg-secondary/50 flex-shrink-0 overflow-hidden border border-border/50">
+                              {imageUrl ? (
+                                <img 
+                                  src={imageUrl}
+                                  alt={ad.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    target.nextElementSibling?.classList.remove('hidden');
+                                  }}
+                                />
+                              ) : null}
+                              <div className={cn("w-full h-full flex items-center justify-center", imageUrl && "hidden")}>
+                                <ImageOff className="w-5 h-5 text-muted-foreground/50" />
+                              </div>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium truncate max-w-[200px]">{ad.name}</p>
+                              {ad.headline && (
+                                <p className="text-xs text-muted-foreground truncate max-w-[200px]">{ad.headline}</p>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="py-3 px-4 hidden lg:table-cell">

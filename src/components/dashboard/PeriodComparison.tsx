@@ -74,23 +74,6 @@ function ComparisonItem({ label, current, previous, change, isInverse = false }:
         
         <p className="text-xl font-bold group-hover:text-primary transition-colors duration-300">{current}</p>
         
-        {/* Progress bar visualization */}
-        {!isNeutral && (
-          <div className="mt-2 h-1.5 bg-muted/30 rounded-full overflow-hidden">
-            <div 
-              className={cn(
-                "h-full rounded-full transition-all duration-700 ease-out",
-                isPositive && "bg-gradient-to-r from-metric-positive to-metric-positive/60",
-                isNegative && "bg-gradient-to-r from-metric-negative to-metric-negative/60"
-              )}
-              style={{ 
-                width: `${progressWidth}%`,
-                animation: 'progress-grow 0.8s ease-out'
-              }}
-            />
-          </div>
-        )}
-        
         {previous && (
           <p className="text-xs text-muted-foreground mt-2">
             Anterior: {previous}
