@@ -329,53 +329,60 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
   ads: any[];
   adImageMap: Map<string, string>;
   videoThumbnailMap: Map<string, string>;
+  creativeDataMap: Map<string, any>;
   tokenExpired?: boolean;
 }> {
   const campaigns: any[] = [];
   const adsets: any[] = [];
   const ads: any[] = [];
 
+  console.log(`[ENTITIES] Starting fetch for account ${adAccountId}`);
+
   // Effective status filter for all statuses (URL encoded) - exclude DELETED as Meta API doesn't allow it
   const effectiveStatusFilter = encodeURIComponent('["ACTIVE","PAUSED","ARCHIVED","PENDING_REVIEW","DISAPPROVED","PREAPPROVED","PENDING_BILLING_INFO","CAMPAIGN_PAUSED","ADSET_PAUSED","IN_PROCESS","WITH_ISSUES"]');
 
   // Fetch campaigns - include all statuses
+  console.log(`[CAMPAIGNS] Fetching campaigns...`);
   let url = `https://graph.facebook.com/v19.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'CAMPAIGNS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), tokenExpired: true };
+      return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), tokenExpired: true };
     }
     if (data.data) campaigns.push(...data.data);
     url = data.paging?.next || null;
   }
+  console.log(`[CAMPAIGNS] Fetched ${campaigns.length} campaigns`);
 
   // Fetch adsets - include all statuses
+  console.log(`[ADSETS] Fetching adsets...`);
   url = `https://graph.facebook.com/v19.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADSETS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), tokenExpired: true };
+      return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), tokenExpired: true };
     }
     if (data.data) adsets.push(...data.data);
     url = data.paging?.next || null;
   }
+  console.log(`[ADSETS] Fetched ${adsets.length} adsets`);
 
   // Fetch ads with creative fields for HD images AND ad copy (primary_text, headline, cta)
   // object_story_spec contains the ad copy data: body (primary_text), title (headline), call_to_action
   // IMPROVED: Also fetch video_data for video thumbnails
-  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,image_url,picture},video_data{message,title,call_to_action,video_id,image_url}}}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   console.log(`[ADS] Fetching ads with creative data...`);
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,image_url,picture},video_data{message,title,call_to_action,video_id,image_url}}}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), tokenExpired: true };
+      return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), tokenExpired: true };
     }
     if (data.data) {
-      console.log(`[ADS] Fetched ${data.data.length} ads in this batch`);
+      console.log(`[ADS] Batch received: ${data.data.length} ads`);
       // Log first ad creative data for debugging
       if (data.data.length > 0 && ads.length === 0) {
         const firstAd = data.data[0];
-        console.log(`[ADS] First ad creative sample: id=${firstAd.id}, has_creative=${!!firstAd.creative}, thumbnail=${firstAd.creative?.thumbnail_url ? 'yes' : 'no'}, video_data=${firstAd.creative?.object_story_spec?.video_data ? 'yes' : 'no'}`);
+        console.log(`[ADS] Sample ad: id=${firstAd.id}, has_creative=${!!firstAd.creative}, creative_id=${firstAd.creative?.id || 'none'}`);
       }
       ads.push(...data.data);
     }
@@ -394,6 +401,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
   // Fetch adimages to get full HD URLs
   const adImageMap = new Map<string, string>();
   if (imageHashes.length > 0) {
+    console.log(`[ADIMAGES] Fetching HD images for ${imageHashes.length} hashes...`);
     // Batch fetch images - Meta allows up to 50 hashes per request
     for (let i = 0; i < imageHashes.length; i += 50) {
       const batch = imageHashes.slice(i, i + 50);
@@ -466,8 +474,53 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
     console.log(`[VIDEOS] Fetched ${videoThumbnailMap.size} HD video thumbnails`);
   }
 
-  console.log(`[ENTITIES] Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}`);
-  return { campaigns, adsets, ads, adImageMap, videoThumbnailMap };
+  // STEP 4: Fetch ad creatives directly using /adcreatives endpoint for better data
+  // This is the OFFICIAL way to get creative assets per Meta API documentation
+  const creativeDataMap = new Map<string, any>();
+  const creativeIds: string[] = [];
+  
+  for (const ad of ads) {
+    if (ad.creative?.id) {
+      creativeIds.push(ad.creative.id);
+    }
+  }
+  
+  if (creativeIds.length > 0) {
+    console.log(`[CREATIVES] Fetching ${creativeIds.length} creative details via /adcreatives endpoint...`);
+    
+    // Fetch creatives in batches of 50
+    for (let i = 0; i < creativeIds.length; i += 50) {
+      const batch = creativeIds.slice(i, i + 50);
+      
+      for (const creativeId of batch) {
+        try {
+          // Use the official adcreatives endpoint with all creative fields
+          const creativeUrl = `https://graph.facebook.com/v19.0/${creativeId}?fields=id,name,thumbnail_url,image_url,object_story_spec,asset_feed_spec,body,title,call_to_action_type&access_token=${token}`;
+          const creativeData = await fetchWithRetry(creativeUrl, 'CREATIVE', supabase);
+          
+          if (creativeData && !creativeData.error) {
+            creativeDataMap.set(creativeId, creativeData);
+            
+            // Log first creative for debugging
+            if (creativeDataMap.size === 1) {
+              console.log(`[CREATIVES] Sample creative: id=${creativeId}, has_thumbnail=${!!creativeData.thumbnail_url}, has_image=${!!creativeData.image_url}, has_body=${!!creativeData.body}`);
+            }
+          }
+        } catch (err) {
+          console.log(`[CREATIVES] Error fetching creative ${creativeId}`);
+        }
+      }
+      
+      // Small delay between batches
+      if (i + 50 < creativeIds.length) {
+        await delay(100);
+      }
+    }
+    console.log(`[CREATIVES] Fetched ${creativeDataMap.size} creative details`);
+  }
+
+  console.log(`[ENTITIES] FINAL: Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}, Creatives: ${creativeDataMap.size}`);
+  return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap };
 }
 
 // ============ FETCH DAILY INSIGHTS (time_increment=1) ============
@@ -924,56 +977,175 @@ function extractHdImageUrl(ad: any, adImageMap: Map<string, string>, videoThumbn
 }
 
 // ============ EXTRACT AD COPY (PRIMARY TEXT, HEADLINE, CTA) ============
-function extractAdCopy(ad: any): { primaryText: string | null; headline: string | null; cta: string | null } {
+// Can extract from ad object or from creativeData fetched directly from /adcreatives endpoint
+function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | null; headline: string | null; cta: string | null } {
   let primaryText: string | null = null;
   let headline: string | null = null;
   let cta: string | null = null;
   
-  const creative = ad?.creative;
-  if (!creative) return { primaryText, headline, cta };
-  
-  // Direct fields from creative
-  if (creative.body) {
-    primaryText = creative.body;
-  }
-  if (creative.title) {
-    headline = creative.title;
-  }
-  if (creative.call_to_action_type) {
-    cta = creative.call_to_action_type;
-  }
-  
-  // Extract from object_story_spec (more detailed)
-  const storySpec = creative.object_story_spec;
-  if (storySpec) {
-    // Link data (single image/carousel ads)
-    if (storySpec.link_data) {
-      if (!primaryText && storySpec.link_data.message) {
-        primaryText = storySpec.link_data.message;
-      }
-      if (!headline && storySpec.link_data.name) {
-        headline = storySpec.link_data.name;
-      }
-      if (!cta && storySpec.link_data.call_to_action?.type) {
-        cta = storySpec.link_data.call_to_action.type;
-      }
+  // First try creativeData from /adcreatives endpoint (more reliable)
+  if (creativeData) {
+    if (creativeData.body) {
+      primaryText = creativeData.body;
+    }
+    if (creativeData.title) {
+      headline = creativeData.title;
+    }
+    if (creativeData.call_to_action_type) {
+      cta = creativeData.call_to_action_type;
     }
     
-    // Video data (video ads)
-    if (storySpec.video_data) {
-      if (!primaryText && storySpec.video_data.message) {
-        primaryText = storySpec.video_data.message;
+    // Extract from object_story_spec in creativeData
+    const storySpec = creativeData.object_story_spec;
+    if (storySpec) {
+      if (storySpec.link_data) {
+        if (!primaryText && storySpec.link_data.message) {
+          primaryText = storySpec.link_data.message;
+        }
+        if (!headline && storySpec.link_data.name) {
+          headline = storySpec.link_data.name;
+        }
+        if (!cta && storySpec.link_data.call_to_action?.type) {
+          cta = storySpec.link_data.call_to_action.type;
+        }
       }
-      if (!headline && storySpec.video_data.title) {
-        headline = storySpec.video_data.title;
+      
+      if (storySpec.video_data) {
+        if (!primaryText && storySpec.video_data.message) {
+          primaryText = storySpec.video_data.message;
+        }
+        if (!headline && storySpec.video_data.title) {
+          headline = storySpec.video_data.title;
+        }
+        if (!cta && storySpec.video_data.call_to_action?.type) {
+          cta = storySpec.video_data.call_to_action.type;
+        }
       }
-      if (!cta && storySpec.video_data.call_to_action?.type) {
-        cta = storySpec.video_data.call_to_action.type;
+    }
+  }
+  
+  // Fallback to ad's embedded creative data
+  const creative = ad?.creative;
+  if (creative && (!primaryText || !headline || !cta)) {
+    if (!primaryText && creative.body) {
+      primaryText = creative.body;
+    }
+    if (!headline && creative.title) {
+      headline = creative.title;
+    }
+    if (!cta && creative.call_to_action_type) {
+      cta = creative.call_to_action_type;
+    }
+    
+    // Extract from object_story_spec (more detailed)
+    const storySpec = creative.object_story_spec;
+    if (storySpec) {
+      if (storySpec.link_data) {
+        if (!primaryText && storySpec.link_data.message) {
+          primaryText = storySpec.link_data.message;
+        }
+        if (!headline && storySpec.link_data.name) {
+          headline = storySpec.link_data.name;
+        }
+        if (!cta && storySpec.link_data.call_to_action?.type) {
+          cta = storySpec.link_data.call_to_action.type;
+        }
+      }
+      
+      if (storySpec.video_data) {
+        if (!primaryText && storySpec.video_data.message) {
+          primaryText = storySpec.video_data.message;
+        }
+        if (!headline && storySpec.video_data.title) {
+          headline = storySpec.video_data.title;
+        }
+        if (!cta && storySpec.video_data.call_to_action?.type) {
+          cta = storySpec.video_data.call_to_action.type;
+        }
       }
     }
   }
   
   return { primaryText, headline, cta };
+}
+
+// ============ EXTRACT CREATIVE IMAGE FROM CREATIVE DATA ============
+function extractCreativeImage(ad: any, creativeData?: any, adImageMap?: Map<string, string>, videoThumbnailMap?: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
+  let imageUrl: string | null = null;
+  let videoUrl: string | null = null;
+  
+  // First try creativeData from /adcreatives endpoint
+  if (creativeData) {
+    // Direct image_url from creative
+    if (creativeData.image_url) {
+      imageUrl = creativeData.image_url;
+    }
+    // Thumbnail as fallback
+    if (!imageUrl && creativeData.thumbnail_url) {
+      imageUrl = creativeData.thumbnail_url;
+    }
+    
+    // Try object_story_spec for images
+    const storySpec = creativeData.object_story_spec;
+    if (storySpec) {
+      if (storySpec.link_data) {
+        if (!imageUrl && storySpec.link_data.image_url) {
+          imageUrl = storySpec.link_data.image_url;
+        }
+        if (!imageUrl && storySpec.link_data.picture) {
+          imageUrl = storySpec.link_data.picture;
+        }
+      }
+      
+      if (storySpec.video_data) {
+        if (storySpec.video_data.video_id && videoThumbnailMap) {
+          const videoThumbnail = videoThumbnailMap.get(storySpec.video_data.video_id);
+          if (videoThumbnail) {
+            imageUrl = videoThumbnail;
+          }
+        }
+        if (storySpec.video_data.image_url) {
+          videoUrl = storySpec.video_data.image_url;
+          if (!imageUrl) {
+            imageUrl = storySpec.video_data.image_url;
+          }
+        }
+      }
+    }
+  }
+  
+  // Fallback to ad's embedded creative data and HD image maps
+  const creative = ad?.creative;
+  if (creative) {
+    // Try HD image from adImageMap (highest quality)
+    if (!imageUrl && creative.image_hash && adImageMap) {
+      const hdImage = adImageMap.get(creative.image_hash);
+      if (hdImage) {
+        imageUrl = hdImage;
+      }
+    }
+    
+    // Try image_url from creative
+    if (!imageUrl && creative.image_url) {
+      imageUrl = creative.image_url;
+    }
+    
+    // Try thumbnail_url as fallback
+    if (!imageUrl && creative.thumbnail_url) {
+      imageUrl = creative.thumbnail_url;
+    }
+    
+    // Video thumbnail from map
+    const videoId = creative.object_story_spec?.video_data?.video_id;
+    if (videoId && videoThumbnailMap) {
+      const videoThumbnail = videoThumbnailMap.get(videoId);
+      if (videoThumbnail && !imageUrl) {
+        imageUrl = videoThumbnail;
+      }
+    }
+  }
+  
+  return { imageUrl, videoUrl };
 }
 
 // ============ VALIDATE DATA (ANTI-ZERO) ============
@@ -1377,7 +1549,7 @@ Deno.serve(async (req) => {
     }
 
     // ========== STEP 1: Fetch entities (campaigns, adsets, ads) ==========
-    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase);
+    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase);
     
     // Check if token expired
     if (tokenExpired) {
@@ -1395,7 +1567,7 @@ Deno.serve(async (req) => {
     const adsetMap = new Map(adsets.map(a => [extractId(a.id), a]));
     const adMap = new Map(ads.map(a => [extractId(a.id), a]));
     
-    console.log(`[ENTITIES] Loaded for enrichment: ${campaignMap.size} campaigns, ${adMap.size} ads`);
+    console.log(`[ENTITIES] Loaded for enrichment: ${campaignMap.size} campaigns, ${adMap.size} ads, ${creativeDataMap.size} creatives`);
 
     // ========== STEP 2: Fetch daily insights ==========
     const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
@@ -1651,6 +1823,10 @@ Deno.serve(async (req) => {
         // Note: record.ad_id is a string, ads[].id might be number or string
         const originalAd = ads.find(a => String(a.id) === String(record.ad_id));
         
+        // Get creative data from the /adcreatives endpoint (more reliable)
+        const creativeId = originalAd?.creative?.id;
+        const creativeData = creativeId ? creativeDataMap.get(creativeId) : null;
+        
         // If we can't find the ad in entities, try to get existing data from DB
         // This preserves creative data for archived/deleted ads
         let existingCreativeData = null;
@@ -1662,12 +1838,15 @@ Deno.serve(async (req) => {
           }
         }
         
-        const { primaryText, headline, cta } = originalAd ? extractAdCopy(originalAd) : { primaryText: null, headline: null, cta: null };
-        const { imageUrl: hdImageUrl, videoUrl } = originalAd ? extractHdImageUrl(originalAd, adImageMap, videoThumbnailMap) : { imageUrl: null, videoUrl: null };
+        // Extract ad copy using both creativeData (primary) and ad (fallback)
+        const { primaryText, headline, cta } = extractAdCopy(originalAd, creativeData);
+        
+        // Extract creative image using both sources
+        const { imageUrl: hdImageUrl, videoUrl } = extractCreativeImage(originalAd, creativeData, adImageMap, videoThumbnailMap);
         
         // Log if we found ad copy data
-        if (originalAd && (primaryText || headline || cta)) {
-          console.log(`[AD_COPY] Ad ${record.ad_id}: headline="${headline?.substring(0, 30) || 'null'}", cta="${cta || 'null'}"`);
+        if (primaryText || headline || cta || hdImageUrl) {
+          console.log(`[AD_DATA] Ad ${record.ad_id}: image=${hdImageUrl ? 'yes' : 'no'}, headline="${headline?.substring(0, 30) || 'null'}", cta="${cta || 'null'}"`);
         }
         
         // Use extracted data, or fallback to existing data from DB, or use daily record data
@@ -1678,8 +1857,8 @@ Deno.serve(async (req) => {
           ad_set_id: record.adset_id,
           name: record.ad_name,
           status: record.ad_status,
-          creative_id: record.creative_id || existingCreativeData?.creative_id,
-          creative_thumbnail: record.creative_thumbnail || existingCreativeData?.creative_thumbnail,
+          creative_id: creativeId || record.creative_id || existingCreativeData?.creative_id,
+          creative_thumbnail: hdImageUrl || record.creative_thumbnail || existingCreativeData?.creative_thumbnail,
           creative_image_url: hdImageUrl || record.creative_thumbnail || existingCreativeData?.creative_image_url,
           creative_video_url: videoUrl || existingCreativeData?.creative_video_url,
           cached_image_url: existingCreativeData?.cached_image_url, // PRESERVE cached URL
