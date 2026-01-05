@@ -1876,11 +1876,12 @@ Deno.serve(async (req) => {
           // Para campanhas de tráfego, NÃO convertemos visitas em leads
           // As visitas são armazenadas separadamente
           console.log(`[TRAFFIC_CAMPAIGN] Ad ${adId}: ${profileVisits} profile visits (not counting as leads)`);
-        } else if (conversions === 0 && messagingReplies > 0) {
-          // IMPORTANTE: Se não há conversões tradicionais mas há messaging_replies,
-          // usar messaging_replies como lead (para campanhas de mensagem/tráfego WhatsApp)
-          console.log(`[MESSAGING_AS_LEAD] Ad ${adId}: Using ${messagingReplies} messaging_replies as conversions`);
-          conversions = messagingReplies;
+        }
+        
+        // NOTA: messaging_replies é mantido como métrica separada, NÃO substituímos conversions
+        // Isso garante que leads reais (conversions) não sejam inflados por respostas de mensagem
+        if (messagingReplies > 0) {
+          console.log(`[MESSAGING_REPLIES] Ad ${adId}: ${messagingReplies} messaging replies (kept separate from conversions: ${conversions})`);
         }
         
         // Get HD image URL - check immediate cache first, then db cache, then new data
