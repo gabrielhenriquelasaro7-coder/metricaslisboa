@@ -18,6 +18,44 @@ interface SyncRequest {
   };
   period_key?: string; // Mantido para compatibilidade com period_metrics
   retry_count?: number; // Contador de retries para validação anti-zero
+  // CHUNKED SYNC: Divide o período em partes menores (10 dias)
+  chunk_mode?: 'single' | 'ten_days' | 'weekly' | 'daily';
+  chunk_index?: number; // Para retomar de onde parou
+  progress_id?: string; // ID do sync_progress para atualizar
+}
+
+interface DateChunk {
+  index: number;
+  since: string;
+  until: string;
+}
+
+// Divide período em chunks de N dias
+function splitPeriodIntoChunks(since: string, until: string, daysPerChunk: number = 10): DateChunk[] {
+  const chunks: DateChunk[] = [];
+  const start = new Date(since + 'T00:00:00Z');
+  const end = new Date(until + 'T00:00:00Z');
+  
+  let current = new Date(start);
+  let index = 0;
+  
+  while (current <= end) {
+    const chunkEnd = new Date(current);
+    chunkEnd.setDate(chunkEnd.getDate() + daysPerChunk - 1);
+    
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    
+    chunks.push({
+      index,
+      since: formatDate(current),
+      until: formatDate(chunkEnd > end ? end : chunkEnd)
+    });
+    
+    current.setDate(current.getDate() + daysPerChunk);
+    index++;
+  }
+  
+  return chunks;
 }
 
 // Constants
@@ -1675,7 +1713,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: SyncRequest = await req.json();
-    const { project_id, ad_account_id, access_token, date_preset, time_range, period_key, retry_count = 0 } = body;
+    const { project_id, ad_account_id, access_token, date_preset, time_range, period_key, retry_count = 0, chunk_mode = 'single', chunk_index = 0, progress_id } = body;
     
     // Determine date range - PADRÃO: last_90d
     let since: string;
@@ -1708,7 +1746,160 @@ Deno.serve(async (req) => {
 
     console.log(`[SYNC] Project: ${project_id}`);
     console.log(`[SYNC] Range: ${since} to ${until} (time_increment=1)`);
-    console.log(`[SYNC] Retry count: ${retry_count}`);
+    console.log(`[SYNC] Retry count: ${retry_count}, Chunk mode: ${chunk_mode}`);
+
+    // ========== CHUNKED SYNC LOGIC ==========
+    // If chunk_mode is not 'single', divide the period into chunks
+    const daysPerChunk = chunk_mode === 'ten_days' ? 10 : chunk_mode === 'weekly' ? 7 : chunk_mode === 'daily' ? 1 : 999;
+    const chunks = chunk_mode !== 'single' ? splitPeriodIntoChunks(since, until, daysPerChunk) : [];
+    
+    // If we have chunks, process them
+    if (chunks.length > 1) {
+      console.log(`[CHUNKED] Dividing ${since} to ${until} into ${chunks.length} chunks of ${daysPerChunk} days each`);
+      
+      // Create or update progress record
+      let progressRecordId = progress_id;
+      if (!progressRecordId && chunk_index === 0) {
+        const { data: progressData, error: progressError } = await supabase
+          .from('sync_progress')
+          .insert({
+            project_id,
+            sync_type: 'metrics',
+            period_start: since,
+            period_end: until,
+            total_chunks: chunks.length,
+            completed_chunks: 0,
+            status: 'in_progress',
+            started_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+        
+        if (progressError) {
+          console.error('[CHUNKED] Error creating progress record:', progressError.message);
+        } else {
+          progressRecordId = progressData.id;
+          console.log(`[CHUNKED] Created progress record: ${progressRecordId}`);
+        }
+      }
+      
+      let totalRecordsSynced = 0;
+      
+      // Process each chunk starting from chunk_index
+      for (let i = chunk_index; i < chunks.length; i++) {
+        const currentChunk = chunks[i];
+        
+        // Update progress record with current chunk
+        if (progressRecordId) {
+          await supabase.from('sync_progress').update({
+            current_chunk: currentChunk,
+            completed_chunks: i,
+            updated_at: new Date().toISOString(),
+          }).eq('id', progressRecordId);
+        }
+        
+        console.log(`[CHUNK ${i + 1}/${chunks.length}] Processing: ${currentChunk.since} to ${currentChunk.until}`);
+        
+        try {
+          // Call self recursively with single chunk
+          const chunkResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              project_id,
+              ad_account_id,
+              access_token,
+              time_range: { since: currentChunk.since, until: currentChunk.until },
+              chunk_mode: 'single', // Process this chunk as single
+              retry_count: 0,
+            }),
+          });
+          
+          const chunkResult = await chunkResponse.json();
+          
+          if (chunkResult.success) {
+            totalRecordsSynced += chunkResult.records || 0;
+            console.log(`[CHUNK ${i + 1}/${chunks.length}] Success: ${chunkResult.records} records`);
+          } else if (chunkResult.rate_limited || chunkResult.keep_existing) {
+            console.log(`[CHUNK ${i + 1}/${chunks.length}] Rate limited, will use existing data`);
+            // Continue to next chunk after rate limit delay
+            await delay(5000);
+          } else {
+            console.error(`[CHUNK ${i + 1}/${chunks.length}] Error:`, chunkResult.error);
+          }
+          
+          // Update progress after chunk
+          if (progressRecordId) {
+            await supabase.from('sync_progress').update({
+              completed_chunks: i + 1,
+              records_synced: totalRecordsSynced,
+              updated_at: new Date().toISOString(),
+            }).eq('id', progressRecordId);
+          }
+          
+          // Delay between chunks to avoid rate limiting
+          if (i < chunks.length - 1) {
+            await delay(1500); // 1.5s between chunks
+          }
+          
+        } catch (chunkError) {
+          console.error(`[CHUNK ${i + 1}/${chunks.length}] Fatal error:`, chunkError);
+          
+          // Update progress with error
+          if (progressRecordId) {
+            await supabase.from('sync_progress').update({
+              status: 'error',
+              error_message: chunkError instanceof Error ? chunkError.message : 'Unknown chunk error',
+              completed_chunks: i,
+            }).eq('id', progressRecordId);
+          }
+          
+          // Return partial success with the ability to resume
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Erro no chunk ${i + 1}/${chunks.length}: ${chunkError instanceof Error ? chunkError.message : 'Unknown error'}`,
+              partial_records: totalRecordsSynced,
+              completed_chunks: i,
+              total_chunks: chunks.length,
+              can_resume: true,
+              resume_from: i,
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+      
+      // All chunks completed - mark progress as complete
+      if (progressRecordId) {
+        await supabase.from('sync_progress').update({
+          status: 'completed',
+          completed_chunks: chunks.length,
+          records_synced: totalRecordsSynced,
+          completed_at: new Date().toISOString(),
+        }).eq('id', progressRecordId);
+      }
+      
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`[CHUNKED] Complete: ${totalRecordsSynced} total records in ${elapsed}s across ${chunks.length} chunks`);
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          records: totalRecordsSynced,
+          chunks: chunks.length,
+          elapsed_seconds: elapsed,
+          chunked: true,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // ========== SINGLE CHUNK / REGULAR SYNC ==========
+    console.log(`[SYNC] Processing as single period: ${since} to ${until}`);
 
     const token = access_token || metaAccessToken;
     if (!token) {
