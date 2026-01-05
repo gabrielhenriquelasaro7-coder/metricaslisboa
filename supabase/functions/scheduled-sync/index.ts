@@ -107,6 +107,7 @@ interface SyncRequest {
   group?: PeriodGroup;
   skip_cache?: boolean;
   project_ids?: string[];
+  light_sync?: boolean; // Se true, pula fetch de criativos/imagens (mais rápido)
 }
 
 Deno.serve(async (req) => {
@@ -139,7 +140,7 @@ Deno.serve(async (req) => {
       // No body provided, use defaults
     }
 
-    const { periods, group = 'all', skip_cache = false, project_ids } = requestBody;
+    const { periods, group = 'all', skip_cache = false, project_ids, light_sync = true } = requestBody;
 
     // Determine which periods to sync
     const periodsToSync = periods || PERIOD_GROUPS[group] || PERIOD_GROUPS.all;
@@ -168,7 +169,7 @@ Deno.serve(async (req) => {
     console.log(`[SCHEDULED SYNC] Started at: ${new Date().toISOString()}`);
     console.log(`[SCHEDULED SYNC] Found ${projects?.length || 0} projects`);
     console.log(`[SCHEDULED SYNC] Group: ${group}, Periods: ${periodsToSync.join(', ')}`);
-    console.log(`[SCHEDULED SYNC] Skip cache: ${skip_cache}`);
+    console.log(`[SCHEDULED SYNC] Skip cache: ${skip_cache}, Light sync: ${light_sync}`);
 
     const results: any[] = [];
     let totalSynced = 0;
@@ -221,6 +222,7 @@ Deno.serve(async (req) => {
               ad_account_id: project.ad_account_id,
               time_range: { since: periodDates.since, until: periodDates.until },
               period_key: periodKey,
+              light_sync: light_sync, // Sync mais rápido sem buscar criativos
             }),
           });
           
