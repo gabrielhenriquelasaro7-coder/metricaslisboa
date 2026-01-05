@@ -16,6 +16,7 @@ import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { useDailyMetrics } from '@/hooks/useDailyMetrics';
 import { useTour } from '@/hooks/useTour';
 import { useBalanceAlert } from '@/hooks/useBalanceAlert';
+import { useProfileVisitsMetrics } from '@/hooks/useProfileVisitsMetrics';
 import { GuidedTour } from '@/components/tour/GuidedTour';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -39,7 +40,8 @@ import {
   Activity,
   Crosshair,
   Receipt,
-  Zap
+  Zap,
+  Instagram
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'react-router-dom';
@@ -74,6 +76,13 @@ export default function Dashboard() {
   // Get daily metrics for charts - pass custom date range for custom preset
   const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(
     selectedProject?.id, 
+    selectedPreset,
+    selectedPreset === 'custom' ? dateRange : undefined
+  );
+
+  // Get profile visits metrics (for Instagram traffic campaigns)
+  const { data: profileVisitsData, loading: profileVisitsLoading } = useProfileVisitsMetrics(
+    selectedProject?.id,
     selectedPreset,
     selectedPreset === 'custom' ? dateRange : undefined
   );
@@ -449,6 +458,31 @@ export default function Dashboard() {
                 />
               </div>
             </div>
+
+            {/* Top of Funnel Metrics - Only show when there are Instagram traffic campaigns with profile visits */}
+            {hasSelectedProject && profileVisitsData.hasProfileVisitCampaigns && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4 text-muted-foreground flex items-center gap-2">
+                  <Instagram className="w-5 h-5 text-pink-500" />
+                  Métricas Topo de Funil
+                  <span className="text-sm font-normal">(Tráfego para Instagram)</span>
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+                  <SparklineCard
+                    title="Visitas ao Perfil"
+                    value={formatNumber(profileVisitsData.totalProfileVisits)}
+                    icon={Instagram}
+                    className="border-l-4 border-l-pink-500"
+                  />
+                  <SparklineCard
+                    title="Custo por Visita"
+                    value={formatCurrency(profileVisitsData.costPerVisit)}
+                    icon={DollarSign}
+                    invertTrend
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Result Metrics - Dynamic based on business model - Only show when a specific project is selected */}
             {hasSelectedProject && (
