@@ -13,7 +13,8 @@ import {
   BarChart,
   ScatterChart,
   Scatter,
-  ZAxis
+  ZAxis,
+  LabelList
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { DailyMetric } from '@/hooks/useDailyMetrics';
@@ -53,6 +54,50 @@ const formatNumber = (value: number) => {
 
 const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 const formatMultiplier = (value: number) => `${value.toFixed(2)}x`;
+
+// Aggregate data by month for long periods
+const aggregateByMonth = (data: DailyMetric[]): DailyMetric[] => {
+  const monthlyMap = new Map<string, DailyMetric>();
+  
+  data.forEach(d => {
+    const monthKey = d.date.substring(0, 7); // 'yyyy-MM'
+    const existing = monthlyMap.get(monthKey);
+    
+    if (existing) {
+      existing.spend += d.spend;
+      existing.impressions += d.impressions;
+      existing.clicks += d.clicks;
+      existing.reach += d.reach;
+      existing.conversions += d.conversions;
+      existing.conversion_value += d.conversion_value;
+    } else {
+      monthlyMap.set(monthKey, {
+        date: monthKey,
+        spend: d.spend,
+        impressions: d.impressions,
+        clicks: d.clicks,
+        reach: d.reach,
+        conversions: d.conversions,
+        conversion_value: d.conversion_value,
+        ctr: 0,
+        cpm: 0,
+        cpc: 0,
+        roas: 0,
+        cpa: 0,
+      });
+    }
+  });
+  
+  // Recalculate derived metrics
+  return Array.from(monthlyMap.values()).map(m => ({
+    ...m,
+    ctr: m.impressions > 0 ? (m.clicks / m.impressions) * 100 : 0,
+    cpm: m.impressions > 0 ? (m.spend / m.impressions) * 1000 : 0,
+    cpc: m.clicks > 0 ? m.spend / m.clicks : 0,
+    roas: m.spend > 0 ? m.conversion_value / m.spend : 0,
+    cpa: m.conversions > 0 ? m.spend / m.conversions : 0,
+  })).sort((a, b) => a.date.localeCompare(b.date));
+};
 
 const createMetricOptions = (currency: string = 'BRL'): MetricOption[] => {
   const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
@@ -123,24 +168,46 @@ export function CustomizableChart({
     }
   }, [savedPref]);
 
-  const chartData = useMemo(() => {
-    return data.map(d => ({
-      date: format(parseISO(d.date), 'dd/MM', { locale: ptBR }),
-      fullDate: d.date,
-      spend: d.spend,
-      conversions: d.conversions,
-      revenue: d.conversion_value,
-      roas: d.roas,
-      cpl: d.cpa,
-      ctr: d.ctr,
-      cpm: d.cpm,
-      cpc: d.cpc,
-      impressions: d.impressions,
-      clicks: d.clicks,
-      reach: d.reach,
-      frequency: d.reach > 0 ? d.impressions / d.reach : 0,
-    }));
+  // Determine if we should aggregate by month (more than 60 data points)
+  const shouldAggregateByMonth = useMemo(() => {
+    if (data.length === 0) return false;
+    if (data.length > 60) return true;
+    
+    // Also check actual date span
+    const firstDate = new Date(data[0].date);
+    const lastDate = new Date(data[data.length - 1].date);
+    const daysDiff = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+    return daysDiff > 60;
   }, [data]);
+
+  const chartData = useMemo(() => {
+    const processedData = shouldAggregateByMonth ? aggregateByMonth(data) : data;
+    
+    return processedData.map(d => {
+      // For monthly data, the date is in 'yyyy-MM' format
+      const isMonthly = d.date.length === 7;
+      const formattedDate = isMonthly 
+        ? format(parseISO(`${d.date}-01`), 'MMM/yy', { locale: ptBR })
+        : format(parseISO(d.date), 'dd/MM', { locale: ptBR });
+      
+      return {
+        date: formattedDate,
+        fullDate: d.date,
+        spend: d.spend,
+        conversions: d.conversions,
+        revenue: d.conversion_value,
+        roas: d.roas,
+        cpl: d.cpa,
+        ctr: d.ctr,
+        cpm: d.cpm,
+        cpc: d.cpc,
+        impressions: d.impressions,
+        clicks: d.clicks,
+        reach: d.reach,
+        frequency: d.reach > 0 ? d.impressions / d.reach : 0,
+      };
+    });
+  }, [data, shouldAggregateByMonth]);
 
   const getMetric = useCallback((key: string) => {
     return DEFAULT_METRIC_OPTIONS.find(m => m.key === key) || DEFAULT_METRIC_OPTIONS[0];
@@ -323,16 +390,30 @@ export function CustomizableChart({
         </RechartsLineChart>
       );
     } else if (chartType === 'bar') {
+      const renderLabel = (props: any) => {
+        const { x, y, width, value } = props;
+        if (!shouldAggregateByMonth || !value) return null;
+        return (
+          <text x={x + width / 2} y={y - 5} fill="hsl(var(--foreground))" textAnchor="middle" fontSize={9}>
+            {formatNumber(value)}
+          </text>
+        );
+      };
+      
       return (
-        <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+        <BarChart data={chartData} margin={{ top: shouldAggregateByMonth ? 25 : 10, right: 30, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Bar yAxisId="left" dataKey={primaryMetric} name={primary.label} fill={primaryColor} radius={[4, 4, 0, 0]} animationDuration={800} />
-          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} animationDuration={800} />
+          <Bar yAxisId="left" dataKey={primaryMetric} name={primary.label} fill={primaryColor} radius={[4, 4, 0, 0]} animationDuration={800}>
+            {shouldAggregateByMonth && <LabelList dataKey={primaryMetric} content={renderLabel} />}
+          </Bar>
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} animationDuration={800}>
+            {shouldAggregateByMonth && <LabelList dataKey={secondaryMetric} content={renderLabel} />}
+          </Bar>
         </BarChart>
       );
     } else if (chartType === 'scatter') {
@@ -373,8 +454,18 @@ export function CustomizableChart({
       );
     } else {
       // Composed: Bar first, then Line on top
+      const renderBarLabel = (props: any) => {
+        const { x, y, width, value } = props;
+        if (!shouldAggregateByMonth || !value) return null;
+        return (
+          <text x={x + width / 2} y={y - 5} fill="hsl(var(--foreground))" textAnchor="middle" fontSize={9}>
+            {formatNumber(value)}
+          </text>
+        );
+      };
+      
       return (
-        <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+        <ComposedChart data={chartData} margin={{ top: shouldAggregateByMonth ? 25 : 10, right: 30, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
@@ -382,7 +473,9 @@ export function CustomizableChart({
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
           {/* Bar rendered FIRST so it's behind */}
-          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} opacity={0.85} animationDuration={800} />
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} opacity={0.85} animationDuration={800}>
+            {shouldAggregateByMonth && <LabelList dataKey={secondaryMetric} content={renderBarLabel} />}
+          </Bar>
           {/* Line rendered AFTER so it's on top */}
           <Line 
             yAxisId="left" 
