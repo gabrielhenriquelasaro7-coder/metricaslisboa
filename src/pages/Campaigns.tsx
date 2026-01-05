@@ -505,108 +505,108 @@ export default function Campaigns() {
                       const adSetsCount = adSetsCountByCampaign[campaign.id] || 0;
                       const adsCount = adsCountByCampaign[campaign.id] || 0;
                       
-                      return (
-                        <tr 
-                          key={campaign.id}
-                          className="vibrant-table-row border-b border-border/30 cursor-pointer group hover:bg-primary/5 transition-all duration-300"
-                          onClick={() => navigate(`/campaign/${campaign.id}/adsets`)}
-                        >
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-3">
-                              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary/25 to-primary/5 flex items-center justify-center flex-shrink-0 group-hover:from-primary/35 group-hover:to-primary/15 transition-all duration-300 overflow-hidden">
-                                <div className="absolute inset-0 rounded-xl border border-primary/20 group-hover:border-primary/40 transition-colors" />
-                                <Megaphone className="w-5 h-5 text-primary group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_currentColor] transition-all duration-300" />
+                        return (
+                          <tr 
+                            key={campaign.id}
+                            className="border-b border-border/30 cursor-pointer group hover:bg-primary/5 transition-all duration-300"
+                            onClick={() => navigate(`/campaign/${campaign.id}/adsets`)}
+                          >
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-primary/25 to-primary/5 flex items-center justify-center flex-shrink-0 group-hover:from-primary/35 group-hover:to-primary/15 transition-all duration-300 overflow-hidden">
+                                  <div className="absolute inset-0 rounded-lg border border-primary/20 group-hover:border-primary/40 transition-colors" />
+                                  <Megaphone className="w-4 h-4 text-primary group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_currentColor] transition-all duration-300" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm group-hover:text-primary transition-colors duration-300 line-clamp-1">
+                                    {campaign.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {campaign.objective?.replace(/_/g, ' ') || 'Sem objetivo'}
+                                  </p>
+                                </div>
                               </div>
+                            </td>
+                            <td className="py-3 px-3 text-center">
+                              <Badge 
+                                variant={campaign.status === 'ACTIVE' ? 'default' : 'secondary'}
+                                className={cn(
+                                  "text-xs",
+                                  campaign.status === 'ACTIVE' && "bg-metric-positive text-white",
+                                  campaign.status === 'PAUSED' && "bg-metric-warning text-white"
+                                )}
+                              >
+                                {campaign.status === 'ACTIVE' ? 'Ativo' : campaign.status === 'PAUSED' ? 'Pausado' : campaign.status}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-3 text-center">
+                              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                                <Layers className="w-3 h-3" />
+                                <span>{adSetsCount}</span>
+                                <span>/</span>
+                                <span>{adsCount}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 text-right">
                               <div>
-                                <p className="font-medium text-sm group-hover:text-primary transition-colors duration-300 line-clamp-1">
-                                  {campaign.name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {campaign.objective?.replace(/_/g, ' ') || 'Sem objetivo'}
-                                </p>
+                                <span className="font-medium text-sm">{formatCurrency(budget)}</span>
+                                <span className="text-xs text-muted-foreground ml-1">{budgetType}</span>
                               </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-3 text-center">
-                            <Badge 
-                              variant={campaign.status === 'ACTIVE' ? 'default' : 'secondary'}
-                              className={cn(
-                                "text-xs",
-                                campaign.status === 'ACTIVE' && "bg-metric-positive text-white",
-                                campaign.status === 'PAUSED' && "bg-metric-warning text-white"
-                              )}
-                            >
-                              {campaign.status === 'ACTIVE' ? 'Ativo' : campaign.status === 'PAUSED' ? 'Pausado' : campaign.status}
-                            </Badge>
-                          </td>
-                          <td className="py-4 px-3 text-center">
-                            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                              <Layers className="w-3 h-3" />
-                              <span>{adSetsCount}</span>
-                              <span>/</span>
-                              <span>{adsCount}</span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-3 text-right">
-                            <div>
-                              <span className="font-medium text-sm">{formatCurrency(budget)}</span>
-                              <span className="text-xs text-muted-foreground ml-1">{budgetType}</span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-3 text-right font-medium text-sm">
-                            {formatCurrency(campaign.spend)}
-                          </td>
-                          <td className="py-4 px-3 text-right text-sm text-muted-foreground">
-                            {formatNumber(campaign.reach)}
-                          </td>
-                          <td className="py-4 px-3 text-right text-sm text-muted-foreground">
-                            {formatNumber(campaign.impressions)}
-                          </td>
-                          <td className="py-4 px-3 text-right text-sm">
-                            {formatNumber(campaign.clicks)}
-                          </td>
-                          <td className="py-4 px-3 text-right">
-                            <span className={cn(
-                              "text-sm font-medium",
-                              campaign.ctr >= 2 && "text-metric-positive",
-                              campaign.ctr < 1 && "text-metric-negative"
-                            )}>
-                              {campaign.ctr.toFixed(2)}%
-                            </span>
-                          </td>
-                          <td className="py-4 px-3 text-right font-medium text-sm">
-                            {campaign.conversions}
-                          </td>
-                          {isEcommerce && (
-                            <>
-                              <td className="py-4 px-3 text-right font-medium text-sm text-metric-positive">
-                                {formatCurrency(campaign.conversion_value)}
-                              </td>
-                              <td className="py-4 px-3 text-right">
-                                <span className={cn(
-                                  "text-sm font-bold",
-                                  campaign.roas >= 3 && "text-metric-positive",
-                                  campaign.roas < 1 && "text-metric-negative"
-                                )}>
-                                  {campaign.roas.toFixed(2)}x
-                                </span>
-                              </td>
-                            </>
-                          )}
-                          <td className="py-4 px-3 text-right">
-                            <span className={cn(
-                              "text-sm font-medium",
-                              campaign.cpa > 0 && campaign.cpa < 50 && "text-metric-positive",
-                              campaign.cpa > 100 && "text-metric-negative"
-                            )}>
-                              {formatCurrency(campaign.cpa)}
-                            </span>
-                          </td>
-                          <td className="py-4 px-3">
-                            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
-                          </td>
-                        </tr>
-                      );
+                            </td>
+                            <td className="py-3 px-3 text-right font-medium text-sm">
+                              {formatCurrency(campaign.spend)}
+                            </td>
+                            <td className="py-3 px-3 text-right text-sm text-muted-foreground">
+                              {formatNumber(campaign.reach)}
+                            </td>
+                            <td className="py-3 px-3 text-right text-sm text-muted-foreground">
+                              {formatNumber(campaign.impressions)}
+                            </td>
+                            <td className="py-3 px-3 text-right text-sm">
+                              {formatNumber(campaign.clicks)}
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              <span className={cn(
+                                "text-sm font-medium",
+                                campaign.ctr >= 2 && "text-metric-positive",
+                                campaign.ctr < 1 && "text-metric-negative"
+                              )}>
+                                {campaign.ctr.toFixed(2)}%
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right font-medium text-sm">
+                              {campaign.conversions}
+                            </td>
+                            {isEcommerce && (
+                              <>
+                                <td className="py-3 px-3 text-right font-medium text-sm text-metric-positive">
+                                  {formatCurrency(campaign.conversion_value)}
+                                </td>
+                                <td className="py-3 px-3 text-right">
+                                  <span className={cn(
+                                    "text-sm font-bold",
+                                    campaign.roas >= 3 && "text-metric-positive",
+                                    campaign.roas < 1 && "text-metric-negative"
+                                  )}>
+                                    {campaign.roas.toFixed(2)}x
+                                  </span>
+                                </td>
+                              </>
+                            )}
+                            <td className="py-3 px-3 text-right">
+                              <span className={cn(
+                                "text-sm font-medium",
+                                campaign.cpa > 0 && campaign.cpa < 50 && "text-metric-positive",
+                                campaign.cpa > 100 && "text-metric-negative"
+                              )}>
+                                {formatCurrency(campaign.cpa)}
+                              </span>
+                            </td>
+                            <td className="py-3 px-2">
+                              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
+                            </td>
+                          </tr>
+                        );
                     })}
                   </tbody>
                 </table>
