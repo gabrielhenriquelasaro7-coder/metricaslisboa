@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from './useProjects';
 import { toast } from 'sonner';
 import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
 
 export interface Campaign {
   id: string;
@@ -213,15 +215,20 @@ export function useMetaAdsData() {
   }, [selectedProject]);
 
   // Load metrics by period - CALCULATES from ads_daily_metrics via SQL
-  const loadMetricsByPeriod = useCallback(async (periodKey: string, forceReload: boolean = false) => {
+  const loadMetricsByPeriod = useCallback(async (periodKey: string, forceReload: boolean = false, customDateRange?: DateRange) => {
     if (!selectedProject) {
       setLoading(false);
       return { found: false };
     }
 
+    // Create a unique key that includes custom dates if present
+    const cacheKey = periodKey === 'custom' && customDateRange?.from && customDateRange?.to
+      ? `custom_${format(customDateRange.from, 'yyyy-MM-dd')}_${format(customDateRange.to, 'yyyy-MM-dd')}`
+      : periodKey;
+
     // Skip if already loaded this period (unless forced)
-    if (!forceReload && lastLoadedPeriodRef.current === periodKey) {
-      console.log(`[PERIOD] Already loaded period ${periodKey}, skipping`);
+    if (!forceReload && lastLoadedPeriodRef.current === cacheKey) {
+      console.log(`[PERIOD] Already loaded period ${cacheKey}, skipping`);
       return { found: true };
     }
 
@@ -229,18 +236,26 @@ export function useMetaAdsData() {
     setLoading(true);
 
     try {
-      // Use centralized date utility for consistent date ranges
-      const period = getDateRangeFromPreset(periodKey as DatePresetKey, 'America/Sao_Paulo');
-      
       let since: string, until: string;
-      if (period) {
-        since = period.since;
-        until = period.until;
+      
+      // Check if custom period with date range
+      if (periodKey === 'custom' && customDateRange?.from && customDateRange?.to) {
+        since = format(customDateRange.from, 'yyyy-MM-dd');
+        until = format(customDateRange.to, 'yyyy-MM-dd');
+        console.log(`[PERIOD] Using custom date range: ${since} to ${until}`);
       } else {
-        // Fallback for custom - last 30 days
-        const now = new Date();
-        since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        until = now.toISOString().split('T')[0];
+        // Use centralized date utility for consistent date ranges
+        const period = getDateRangeFromPreset(periodKey as DatePresetKey, 'America/Sao_Paulo');
+        
+        if (period) {
+          since = period.since;
+          until = period.until;
+        } else {
+          // Fallback for custom - last 30 days
+          const now = new Date();
+          since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          until = now.toISOString().split('T')[0];
+        }
       }
 
       console.log(`[PERIOD] Date range: ${since} to ${until}`);
@@ -310,7 +325,7 @@ export function useMetaAdsData() {
         setCampaigns([]);
         setAdSets([]);
         setAds([]);
-        lastLoadedPeriodRef.current = periodKey;
+        lastLoadedPeriodRef.current = cacheKey;
         setLoading(false);
         return { found: false, noData: true };
       }
@@ -401,7 +416,7 @@ export function useMetaAdsData() {
       setCampaigns(campaignsResult as Campaign[]);
       setAdSets(adsetsResult as AdSet[]);
       setAds(adsResult as Ad[]);
-      lastLoadedPeriodRef.current = periodKey;
+      lastLoadedPeriodRef.current = cacheKey;
 
       console.log(`[PERIOD] Loaded: ${campaignsResult.length} campaigns, ${adsetsResult.length} adsets, ${adsResult.length} ads`);
       return { found: true };

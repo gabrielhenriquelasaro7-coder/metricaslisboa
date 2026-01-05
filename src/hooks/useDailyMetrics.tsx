@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
 
 export interface DailyMetric {
   date: string;
@@ -38,7 +40,23 @@ export interface PeriodComparison {
 }
 
 // Calculate date range based on preset - use centralized dateUtils
-function getDateRangeFromPeriod(preset: DatePresetKey) {
+function getDateRangeFromPeriod(preset: DatePresetKey, customRange?: DateRange) {
+  // If custom preset and we have a custom range, use it
+  if (preset === 'custom' && customRange?.from && customRange?.to) {
+    const since = format(customRange.from, 'yyyy-MM-dd');
+    const until = format(customRange.to, 'yyyy-MM-dd');
+    const days = Math.ceil((customRange.to.getTime() - customRange.from.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+    
+    console.log(`[DailyMetrics] Custom range: ${since} to ${until} (${days} days)`);
+    
+    return { 
+      since, 
+      until, 
+      days, 
+      previousType: 'same_length' as const 
+    };
+  }
+  
   console.log(`[DailyMetrics] Getting date range for preset: ${preset}`);
   const period = getDateRangeFromPreset(preset, 'America/Sao_Paulo');
   
@@ -251,7 +269,11 @@ function calculateChange(current: number, previous: number): number {
   return ((current - previous) / previous) * 100;
 }
 
-export function useDailyMetrics(projectId: string | undefined, preset: DatePresetKey) {
+export function useDailyMetrics(
+  projectId: string | undefined, 
+  preset: DatePresetKey,
+  customDateRange?: DateRange
+) {
   const [dailyData, setDailyData] = useState<DailyMetric[]>([]);
   const [comparison, setComparison] = useState<PeriodComparison | null>(null);
   const [loading, setLoading] = useState(false);
@@ -261,7 +283,7 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
     
     setLoading(true);
     try {
-      const { since, until, days, previousType } = getDateRangeFromPeriod(preset);
+      const { since, until, days, previousType } = getDateRangeFromPeriod(preset, customDateRange);
       const previousDates = getPreviousPeriodDates(since, until, days, previousType);
       
       console.log(`[DailyMetrics] Loading: ${since} to ${until} (${days} days)`);
@@ -365,7 +387,7 @@ export function useDailyMetrics(projectId: string | undefined, preset: DatePrese
     } finally {
       setLoading(false);
     }
-  }, [projectId, preset]);
+  }, [projectId, preset, customDateRange]);
 
   useEffect(() => {
     loadDailyMetrics();
