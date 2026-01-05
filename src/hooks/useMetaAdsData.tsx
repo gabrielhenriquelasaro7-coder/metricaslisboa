@@ -107,6 +107,9 @@ export function useMetaAdsData() {
   const selectedProject = useMemo(() => {
     if (projectsLoading) return undefined;
     
+    // If no projects available, return null
+    if (!projects.length) return null;
+    
     // Try to find the stored project
     if (selectedProjectId) {
       const found = projects.find(p => p.id === selectedProjectId);
@@ -117,8 +120,14 @@ export function useMetaAdsData() {
       localStorage.removeItem('selectedProjectId');
     }
     
-    // Default to first available project
-    return projects[0] || null;
+    // Default to first available project and save it
+    const defaultProject = projects[0] || null;
+    if (defaultProject && !selectedProjectId) {
+      // Auto-save the first project for guests who only have one project
+      localStorage.setItem('selectedProjectId', defaultProject.id);
+      console.log('[META] Auto-selected project:', defaultProject.id);
+    }
+    return defaultProject;
   }, [projects, projectsLoading, selectedProjectId]);
 
   const fetchCampaigns = useCallback(async () => {
