@@ -893,15 +893,38 @@ async function fetchDailyInsights(
 }
 
 // ============ EXTRACT CONVERSIONS ============
-// SIMPLIFICADO: Usa apenas os action_types mais comuns do Meta
-// O Meta geralmente retorna 'lead' como o tipo principal - é o mais confiável
+// HIERARQUIA DE PRIORIDADE PARA INSIDE SALES:
+// Cada insight deve considerar APENAS UM tipo de lead (o de maior prioridade)
+// Isso evita somar duplicatas quando a Meta retorna múltiplos action_types
 
-// Tipos de conversão aceitos (sem duplicação)
-const LEAD_ACTION_TYPES = ['lead', 'offsite_conversion.fb_pixel_lead', 'on_facebook_lead'];
+// HIERARQUIA DE PRIORIDADE (1 = máxima):
+// 1. lead, offsite_conversion.fb_pixel_lead, on_facebook_lead
+// 2. lead_on_website, contact, offsite_conversion.fb_pixel_contact
+// 3. messaging_conversation_started_7d, messaging_first_reply
+
+// Prioridade 1 - Lead padrão (mais alta)
+const LEAD_PRIORITY_1 = ['lead', 'offsite_conversion.fb_pixel_lead', 'on_facebook_lead'];
+
+// Prioridade 2 - Lead on website / Contact
+const LEAD_PRIORITY_2 = [
+  'lead_on_website',
+  'contact',
+  'offsite_conversion.fb_pixel_contact',
+  'contact_on_website',
+  'onsite_conversion.lead_grouped',
+];
+
+// Prioridade 3 - Messaging (mais baixa para leads)
+const LEAD_PRIORITY_3 = [
+  'onsite_conversion.messaging_conversation_started_7d',
+  'onsite_conversion.messaging_first_reply',
+];
+
+// Purchases e registrations são contados separadamente (não competem com leads)
 const PURCHASE_ACTION_TYPES = ['purchase', 'offsite_conversion.fb_pixel_purchase', 'omni_purchase'];
 const REGISTRATION_ACTION_TYPES = ['complete_registration', 'offsite_conversion.fb_pixel_complete_registration'];
 
-// MENSAGENS - Para campanhas de WhatsApp/Messenger
+// MENSAGENS - Para campanhas de WhatsApp/Messenger (usado para metric separada)
 const MESSAGING_ACTION_TYPES = [
   'onsite_conversion.messaging_conversation_started_7d',
   'onsite_conversion.messaging_first_reply',
@@ -931,6 +954,7 @@ function extractConversions(insights: any, logAllActions: boolean = false): { co
   let purchases = 0;
   let registrations = 0;
   let conversionValue = 0;
+  let leadSource = ''; // Para debug - qual tipo de lead foi usado
   
   if (insights?.actions && Array.isArray(insights.actions)) {
     // Log ALL actions for debugging
@@ -944,15 +968,54 @@ function extractConversions(insights: any, logAllActions: boolean = false): { co
       }
     }
     
-    // LEADS - pega apenas o maior valor entre os tipos (evita duplicação)
+    // HIERARQUIA DE PRIORIDADE PARA LEADS:
+    // Verifica cada nível de prioridade. Se encontrar, usa e para.
+    // Isso garante que não somamos múltiplos tipos de lead.
+    
+    // Prioridade 1: lead padrão
+    let priority1Lead = 0;
     for (const action of insights.actions) {
-      if (LEAD_ACTION_TYPES.includes(action.action_type)) {
+      if (LEAD_PRIORITY_1.includes(action.action_type)) {
         const val = parseInt(action.value) || 0;
-        if (val > leads) leads = val;
+        if (val > priority1Lead) {
+          priority1Lead = val;
+          leadSource = action.action_type;
+        }
       }
     }
     
-    // PURCHASES - pega apenas o maior valor
+    // Prioridade 2: lead_on_website / contact
+    let priority2Lead = 0;
+    if (priority1Lead === 0) { // Só verifica se não achou prioridade 1
+      for (const action of insights.actions) {
+        if (LEAD_PRIORITY_2.includes(action.action_type)) {
+          const val = parseInt(action.value) || 0;
+          if (val > priority2Lead) {
+            priority2Lead = val;
+            leadSource = action.action_type;
+          }
+        }
+      }
+    }
+    
+    // Prioridade 3: messaging_conversation_started
+    let priority3Lead = 0;
+    if (priority1Lead === 0 && priority2Lead === 0) { // Só verifica se não achou prioridades superiores
+      for (const action of insights.actions) {
+        if (LEAD_PRIORITY_3.includes(action.action_type)) {
+          const val = parseInt(action.value) || 0;
+          if (val > priority3Lead) {
+            priority3Lead = val;
+            leadSource = action.action_type;
+          }
+        }
+      }
+    }
+    
+    // LEADS = apenas UM dos níveis de prioridade (o mais alto encontrado)
+    leads = priority1Lead || priority2Lead || priority3Lead;
+    
+    // PURCHASES - pega apenas o maior valor (sem hierarquia, conta separado)
     for (const action of insights.actions) {
       if (PURCHASE_ACTION_TYPES.includes(action.action_type)) {
         const val = parseInt(action.value) || 0;
@@ -979,11 +1042,12 @@ function extractConversions(insights: any, logAllActions: boolean = false): { co
     }
   }
   
-  // Total de conversões = leads + purchases + registrations (sem duplicação)
+  // Total de conversões = leads + purchases + registrations
+  // Leads já está deduplicado pela hierarquia de prioridade
   const conversions = leads + purchases + registrations;
   
   if (logAllActions && conversions > 0) {
-    console.log(`[CONVERSIONS] leads:${leads} purchases:${purchases} registrations:${registrations} = total:${conversions}`);
+    console.log(`[CONVERSIONS] leads:${leads} (source:${leadSource}) purchases:${purchases} registrations:${registrations} = total:${conversions}`);
   }
   
   return { conversions, conversionValue };
