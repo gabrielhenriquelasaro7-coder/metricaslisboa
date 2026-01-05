@@ -66,13 +66,14 @@ export function ImportProgressDialog({
     if (!projectId || !open) return;
 
     const fetchSyncProgress = async () => {
+      // First try sync_progress table (new chunked sync)
       const { data } = await supabase
         .from('sync_progress')
         .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (data) {
         const progressData: SyncProgressData = {
@@ -102,6 +103,10 @@ export function ImportProgressDialog({
           const monthPart = getMonthPart(chunk.since, chunk.until);
           setChunkInfo(monthPart);
           setStatusMessage(`Sincronizando ${monthPart.monthName} parte ${monthPart.part}/${monthPart.totalParts}...`);
+        } else if (progressData.status === 'in_progress') {
+          // In progress but no current chunk yet
+          setProgress(Math.max(5, percentage));
+          setStatusMessage(`Iniciando chunk ${progressData.completed_chunks + 1}/${progressData.total_chunks}...`);
         }
       }
     };
