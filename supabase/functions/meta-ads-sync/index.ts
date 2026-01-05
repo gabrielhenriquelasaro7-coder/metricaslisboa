@@ -1824,11 +1824,13 @@ Deno.serve(async (req) => {
             totalRecordsSynced += chunkResult.records || 0;
             console.log(`[CHUNK ${i + 1}/${chunks.length}] Success: ${chunkResult.records} records`);
           } else if (chunkResult.rate_limited || chunkResult.keep_existing) {
-            console.log(`[CHUNK ${i + 1}/${chunks.length}] Rate limited, will use existing data`);
-            // Continue to next chunk after rate limit delay
-            await delay(5000);
+            console.log(`[CHUNK ${i + 1}/${chunks.length}] Rate limited, waiting 30s before continuing...`);
+            // Wait longer after rate limit to let API cool down
+            await delay(30000);
           } else {
             console.error(`[CHUNK ${i + 1}/${chunks.length}] Error:`, chunkResult.error);
+            // Wait a bit after error too
+            await delay(10000);
           }
           
           // Update progress after chunk
@@ -1840,9 +1842,10 @@ Deno.serve(async (req) => {
             }).eq('id', progressRecordId);
           }
           
-          // Delay between chunks to avoid rate limiting
+          // Delay between chunks to avoid rate limiting (5s minimum)
           if (i < chunks.length - 1) {
-            await delay(1500); // 1.5s between chunks
+            console.log(`[CHUNK] Waiting 5s before next chunk...`);
+            await delay(5000); // 5s between chunks to avoid rate limit
           }
           
         } catch (chunkError) {
