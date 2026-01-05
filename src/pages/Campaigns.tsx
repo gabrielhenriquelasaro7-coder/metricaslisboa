@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import StatusBadge from '@/components/campaigns/StatusBadge';
 
 export default function Campaigns() {
   const navigate = useNavigate();
@@ -396,16 +397,7 @@ export default function Campaigns() {
                             </p>
                           </div>
                         </div>
-                        <Badge 
-                          variant={campaign.status === 'ACTIVE' ? 'default' : 'secondary'}
-                          className={cn(
-                            "text-xs flex-shrink-0",
-                            campaign.status === 'ACTIVE' && "bg-metric-positive text-white",
-                            campaign.status === 'PAUSED' && "bg-metric-warning text-white"
-                          )}
-                        >
-                          {campaign.status === 'ACTIVE' ? 'Ativo' : campaign.status === 'PAUSED' ? 'Pausado' : campaign.status}
-                        </Badge>
+                        <StatusBadge status={campaign.status} />
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
@@ -528,16 +520,7 @@ export default function Campaigns() {
                               </div>
                             </td>
                             <td className="py-3 px-3 text-center">
-                              <Badge 
-                                variant={campaign.status === 'ACTIVE' ? 'default' : 'secondary'}
-                                className={cn(
-                                  "text-xs",
-                                  campaign.status === 'ACTIVE' && "bg-metric-positive text-white",
-                                  campaign.status === 'PAUSED' && "bg-metric-warning text-white"
-                                )}
-                              >
-                                {campaign.status === 'ACTIVE' ? 'Ativo' : campaign.status === 'PAUSED' ? 'Pausado' : campaign.status}
-                              </Badge>
+                              <StatusBadge status={campaign.status} />
                             </td>
                             <td className="py-3 px-3 text-center">
                               <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">

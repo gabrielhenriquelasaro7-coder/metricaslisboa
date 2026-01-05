@@ -4,14 +4,14 @@ function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>)
   return (
     <div 
       className={cn(
-        "rounded-md bg-muted/60 relative overflow-hidden",
+        "rounded-lg bg-gradient-to-r from-muted/40 via-muted/60 to-muted/40 relative overflow-hidden",
+        "before:absolute before:inset-0 before:-translate-x-full",
+        "before:animate-[shimmer_2s_ease-in-out_infinite]",
+        "before:bg-gradient-to-r before:from-transparent before:via-primary/5 before:to-transparent",
         className
       )} 
       {...props}
-    >
-      {/* Shimmer effect overlay */}
-      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-    </div>
+    />
   );
 }
 
