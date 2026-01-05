@@ -9,6 +9,7 @@ export interface AdSetDailyMetric {
   reach: number;
   conversions: number;
   conversion_value: number;
+  profile_visits: number;
   ctr: number;
   cpm: number;
   cpc: number;
@@ -23,6 +24,7 @@ export interface AdSetAggregatedMetrics {
   reach: number;
   conversions: number;
   conversion_value: number;
+  profile_visits: number;
   ctr: number;
   cpm: number;
   cpc: number;
@@ -85,7 +87,7 @@ export function useAdSetDailyMetrics(
         dailyData: [],
         aggregated: {
           spend: 0, impressions: 0, clicks: 0, reach: 0,
-          conversions: 0, conversion_value: 0,
+          conversions: 0, conversion_value: 0, profile_visits: 0,
           ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0,
         }
       };
@@ -94,6 +96,7 @@ export function useAdSetDailyMetrics(
     const byDate: Record<string, AdSetDailyMetric> = {};
     let totalSpend = 0, totalImpressions = 0, totalClicks = 0;
     let totalReach = 0, totalConversions = 0, totalConversionValue = 0;
+    let totalProfileVisits = 0;
 
     rawData.forEach((row) => {
       const date = row.date;
@@ -101,7 +104,7 @@ export function useAdSetDailyMetrics(
         byDate[date] = {
           date,
           spend: 0, impressions: 0, clicks: 0, reach: 0,
-          conversions: 0, conversion_value: 0,
+          conversions: 0, conversion_value: 0, profile_visits: 0,
           ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0,
         };
       }
@@ -111,6 +114,7 @@ export function useAdSetDailyMetrics(
       byDate[date].reach += row.reach || 0;
       byDate[date].conversions += row.conversions || 0;
       byDate[date].conversion_value += row.conversion_value || 0;
+      byDate[date].profile_visits += row.profile_visits || 0;
 
       // Accumulate totals
       totalSpend += row.spend || 0;
@@ -119,6 +123,7 @@ export function useAdSetDailyMetrics(
       totalReach += row.reach || 0;
       totalConversions += row.conversions || 0;
       totalConversionValue += row.conversion_value || 0;
+      totalProfileVisits += row.profile_visits || 0;
     });
 
     // Calculate derived metrics for each day
@@ -139,6 +144,7 @@ export function useAdSetDailyMetrics(
       reach: totalReach,
       conversions: totalConversions,
       conversion_value: totalConversionValue,
+      profile_visits: totalProfileVisits,
       ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
       cpm: totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0,
       cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
