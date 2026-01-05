@@ -17,7 +17,8 @@ import {
   Database,
   TrendingUp,
   AlertCircle,
-  Zap
+  Zap,
+  Plus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Project } from '@/hooks/useProjects';
@@ -222,6 +223,8 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
 }
 
 function ProjectMonthGrid({ projectId, projectName }: { projectId: string; projectName: string }) {
+  const [selectedYearToAdd, setSelectedYearToAdd] = useState<number | null>(null);
+  
   const {
     monthsByYear,
     loading,
@@ -233,9 +236,20 @@ function ProjectMonthGrid({ projectId, projectName }: { projectId: string; proje
     startChainedImport,
   } = useMonthImportStatus(projectId);
 
-  const years = Object.keys(monthsByYear).map(Number).sort((a, b) => b - a);
+  const existingYears = Object.keys(monthsByYear).map(Number);
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
+  
+  // Anos disponíveis para adicionar (de 2020 até o ano atual, excluindo os que já existem)
+  const availableYearsToAdd = Array.from({ length: currentYear - 2019 }, (_, i) => currentYear - i)
+    .filter(y => !existingYears.includes(y));
+  
+  // Anos a exibir: existentes + ano selecionado para adicionar
+  const yearsToDisplay = [...existingYears];
+  if (selectedYearToAdd && !yearsToDisplay.includes(selectedYearToAdd)) {
+    yearsToDisplay.push(selectedYearToAdd);
+  }
+  const years = yearsToDisplay.sort((a, b) => b - a);
 
   if (loading) {
     return (
@@ -248,21 +262,27 @@ function ProjectMonthGrid({ projectId, projectName }: { projectId: string; proje
     );
   }
 
-  if (years.length === 0) {
+  if (years.length === 0 && availableYearsToAdd.length > 0) {
     return (
       <div className="text-center py-12">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 mb-4">
           <Calendar className="w-8 h-8 text-muted-foreground" />
         </div>
-        <h3 className="font-semibold text-lg mb-2">Nenhum mês configurado</h3>
-        <p className="text-muted-foreground text-sm mb-6">Este projeto ainda não tem meses para importação</p>
-        <Button 
-          onClick={() => startChainedImport(currentYear, 1)}
-          className="gap-2"
-        >
-          <Play className="w-4 h-4" />
-          Iniciar desde Janeiro {currentYear}
-        </Button>
+        <h3 className="font-semibold text-lg mb-2">Nenhum mês importado</h3>
+        <p className="text-muted-foreground text-sm mb-6">Selecione um ano para começar a importação</p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {availableYearsToAdd.slice(0, 5).map(year => (
+            <Button 
+              key={year}
+              variant="outline"
+              onClick={() => startChainedImport(year, 1)}
+              className="gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Iniciar {year}
+            </Button>
+          ))}
+        </div>
       </div>
     );
   }
@@ -366,6 +386,31 @@ function ProjectMonthGrid({ projectId, projectName }: { projectId: string; proje
           </div>
         );
       })}
+
+      {/* Add year button */}
+      {availableYearsToAdd.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-border/50">
+          <span className="text-sm text-muted-foreground font-medium">Adicionar ano:</span>
+          <div className="flex flex-wrap gap-2">
+            {availableYearsToAdd.map(year => (
+              <Button 
+                key={year}
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedYearToAdd(year);
+                  // Inicia a importação do primeiro mês desse ano
+                  startChainedImport(year, 1);
+                }}
+                className="gap-1.5"
+              >
+                <Plus className="w-3 h-3" />
+                {year}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Action buttons */}
       {(stats.error > 0 || stats.pending > 0) && (
