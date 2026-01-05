@@ -60,23 +60,42 @@ async function cacheCreativeImage(
   supabase: any,
   projectId: string,
   adId: string,
-  imageUrl: string | null
+  imageUrl: string | null,
+  forceRefresh: boolean = false
 ): Promise<string | null> {
   if (!imageUrl) return null;
   
   try {
-    // Check if we already have a cached version
     const fileName = `${projectId}/${adId}.jpg`;
     
-    // Try to get existing file URL
-    const { data: existingFile } = supabase.storage
-      .from('creative-images')
-      .getPublicUrl(fileName);
+    // If not forcing refresh, check if we already have a cached version
+    if (!forceRefresh) {
+      const { data: existingFile } = await supabase.storage
+        .from('creative-images')
+        .list(projectId, { limit: 1, search: `${adId}.jpg` });
+      
+      if (existingFile && existingFile.length > 0) {
+        const { data: publicUrlData } = supabase.storage
+          .from('creative-images')
+          .getPublicUrl(fileName);
+        if (publicUrlData?.publicUrl) {
+          return publicUrlData.publicUrl;
+        }
+      }
+    }
     
-    // Try to download the image from Facebook
+    // Try to download the image from Facebook with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    
     const response = await fetch(imageUrl, { 
-      headers: { 'User-Agent': 'Mozilla/5.0' },
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'image/*'
+      },
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       console.log(`[IMAGE_CACHE] Failed to download image for ad ${adId}: ${response.status}`);
@@ -84,6 +103,13 @@ async function cacheCreativeImage(
     }
     
     const imageBuffer = await response.arrayBuffer();
+    
+    // Validate image size (must be > 1KB to be valid)
+    if (imageBuffer.byteLength < 1024) {
+      console.log(`[IMAGE_CACHE] Image too small for ad ${adId}, skipping`);
+      return null;
+    }
+    
     const contentType = response.headers.get('content-type') || 'image/jpeg';
     
     // Upload to Supabase Storage
@@ -106,8 +132,13 @@ async function cacheCreativeImage(
     
     console.log(`[IMAGE_CACHE] Cached image for ad ${adId}`);
     return publicUrlData?.publicUrl || null;
-  } catch (error) {
-    console.log(`[IMAGE_CACHE] Error caching image for ad ${adId}: ${error}`);
+  } catch (error: unknown) {
+    const err = error as Error;
+    if (err.name === 'AbortError') {
+      console.log(`[IMAGE_CACHE] Timeout downloading image for ad ${adId}`);
+    } else {
+      console.log(`[IMAGE_CACHE] Error caching image for ad ${adId}: ${err.message || error}`);
+    }
     return null;
   }
 }
@@ -332,6 +363,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   creativeDataMap: Map<string, any>;
   cachedCreativeMap: Map<string, any>;
   adPreviewMap: Map<string, string>;
+  immediateCache: Map<string, string>;
   tokenExpired?: boolean;
 }> {
   const campaigns: any[] = [];
@@ -380,7 +412,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   while (url) {
     const data = await fetchWithRetry(url, 'CAMPAIGNS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), tokenExpired: true };
+      return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true };
     }
     if (data.data) campaigns.push(...data.data);
     url = data.paging?.next || null;
@@ -393,7 +425,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   while (url) {
     const data = await fetchWithRetry(url, 'ADSETS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), tokenExpired: true };
+      return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true };
     }
     if (data.data) adsets.push(...data.data);
     url = data.paging?.next || null;
@@ -408,7 +440,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   while (url) {
     const data = await fetchWithRetry(url, 'ADS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), tokenExpired: true };
+      return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true };
     }
     if (data.data) {
       console.log(`[ADS] Batch received: ${data.data.length} ads`);
@@ -669,8 +701,95 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
     console.log(`[PREVIEWS] Fetched ${adPreviewMap.size} ad previews via Batch API`);
   }
 
-  console.log(`[ENTITIES] FINAL: Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}, Creatives: ${creativeDataMap.size}, Cached: ${cachedCreativeMap.size}, Previews: ${adPreviewMap.size}`);
-  return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap };
+  // ========== STEP 6: IMMEDIATE IMAGE CACHING (while URLs are fresh) ==========
+  // Cache images RIGHT NOW before they expire - this is critical!
+  const immediateCache = new Map<string, string>();
+  const adsNeedingCache: Array<{ adId: string; imageUrl: string }> = [];
+  
+  for (const ad of ads) {
+    const adId = String(ad.id);
+    
+    // Skip if already cached in database
+    if (cachedCreativeMap.has(adId)) {
+      const cached = cachedCreativeMap.get(adId);
+      if (cached?.cached_url) {
+        immediateCache.set(adId, cached.cached_url);
+        continue;
+      }
+    }
+    
+    // Get the freshest image URL available
+    let freshImageUrl: string | null = null;
+    
+    // Check adimages (HD images)
+    if (ad.creative?.image_hash && adImageMap.has(ad.creative.image_hash)) {
+      freshImageUrl = adImageMap.get(ad.creative.image_hash) || null;
+    }
+    
+    // Check creative thumbnail from creativeDataMap
+    if (!freshImageUrl && ad.creative?.id) {
+      const creativeData = creativeDataMap.get(ad.creative.id);
+      if (creativeData?.thumbnail_url) {
+        freshImageUrl = creativeData.thumbnail_url;
+      }
+    }
+    
+    // Check video thumbnails
+    if (!freshImageUrl) {
+      const videoId = ad.creative?.object_story_spec?.video_data?.video_id;
+      if (videoId && videoThumbnailMap.has(videoId)) {
+        freshImageUrl = videoThumbnailMap.get(videoId) || null;
+      }
+    }
+    
+    // Check ad thumbnail
+    if (!freshImageUrl && ad.creative?.thumbnail_url) {
+      freshImageUrl = ad.creative.thumbnail_url;
+    }
+    
+    // Check ad preview
+    if (!freshImageUrl && adPreviewMap.has(adId)) {
+      freshImageUrl = adPreviewMap.get(adId) || null;
+    }
+    
+    if (freshImageUrl) {
+      adsNeedingCache.push({ adId, imageUrl: freshImageUrl });
+    }
+  }
+  
+  // Cache images in parallel batches (immediately while URLs are fresh!)
+  if (adsNeedingCache.length > 0 && supabase && projectId) {
+    console.log(`[IMMEDIATE_CACHE] Caching ${adsNeedingCache.length} images NOW (while URLs are fresh)`);
+    
+    const CACHE_BATCH_SIZE = 10; // More aggressive batching
+    const pId = projectId; // Capture for closure
+    for (let i = 0; i < adsNeedingCache.length; i += CACHE_BATCH_SIZE) {
+      const batch = adsNeedingCache.slice(i, i + CACHE_BATCH_SIZE);
+      
+      const results = await Promise.all(
+        batch.map(async ({ adId, imageUrl }) => {
+          const cachedUrl = await cacheCreativeImage(supabase, pId, adId, imageUrl);
+          return { adId, cachedUrl };
+        })
+      );
+      
+      for (const { adId, cachedUrl } of results) {
+        if (cachedUrl) {
+          immediateCache.set(adId, cachedUrl);
+        }
+      }
+      
+      // Brief pause between batches to avoid overwhelming storage
+      if (i + CACHE_BATCH_SIZE < adsNeedingCache.length) {
+        await delay(50);
+      }
+    }
+    
+    console.log(`[IMMEDIATE_CACHE] Successfully cached ${immediateCache.size} images`);
+  }
+
+  console.log(`[ENTITIES] FINAL: Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}, Creatives: ${creativeDataMap.size}, Cached: ${cachedCreativeMap.size}, Previews: ${adPreviewMap.size}, Immediate: ${immediateCache.size}`);
+  return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache };
 }
 
 // ============ FETCH DAILY INSIGHTS (time_increment=1) ============
@@ -1700,7 +1819,7 @@ Deno.serve(async (req) => {
 
     // ========== STEP 1: Fetch entities (campaigns, adsets, ads) ==========
     // Pass projectId to enable cache - only fetch new creative data, not already cached ones
-    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id);
+    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id);
     
     // Check if token expired
     if (tokenExpired) {
@@ -1764,15 +1883,22 @@ Deno.serve(async (req) => {
           conversions = messagingReplies;
         }
         
-        // Get HD image URL - first check cache, then new data, then video thumbnails
+        // Get HD image URL - check immediate cache first, then db cache, then new data
         let imageUrl: string | null = null;
         let videoUrl: string | null = null;
         
+        // Priority 0: Check immediate cache (freshly cached URLs from Supabase Storage)
+        if (immediateCache.has(adId)) {
+          imageUrl = immediateCache.get(adId) || null;
+        }
+        
         // Priority 1: Check cached creative data from database
-        const cachedCreative = cachedCreativeMap.get(adId);
-        if (cachedCreative) {
-          imageUrl = cachedCreative.cached_url || cachedCreative.image_url || cachedCreative.thumbnail_url || null;
-          videoUrl = cachedCreative.video_url || null;
+        if (!imageUrl) {
+          const cachedCreative = cachedCreativeMap.get(adId);
+          if (cachedCreative) {
+            imageUrl = cachedCreative.cached_url || cachedCreative.image_url || cachedCreative.thumbnail_url || null;
+            videoUrl = cachedCreative.video_url || null;
+          }
         }
         
         // Priority 2: If not in cache, use newly fetched data
