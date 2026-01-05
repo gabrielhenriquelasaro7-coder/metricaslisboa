@@ -377,7 +377,8 @@ export function useMetaAdsData() {
           adAgg.set(row.ad_id, {
             id: row.ad_id, project_id: selectedProject.id, campaign_id: row.campaign_id,
             ad_set_id: row.adset_id, name: row.ad_name, status: row.ad_status,
-            creative_id: row.creative_id, creative_thumbnail: row.creative_thumbnail,
+            creative_id: row.creative_id, 
+            creative_thumbnail: row.cached_creative_thumbnail || row.creative_thumbnail,
             spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0,
           });
         }
@@ -390,7 +391,7 @@ export function useMetaAdsData() {
         ada.conversion_value += Number(row.conversion_value) || 0;
       }
 
-      // Calculate derived metrics
+      // Calculate derived metrics - for campaigns and adsets
       const calcMetrics = (agg: any) => ({
         ...agg,
         ctr: agg.impressions > 0 ? (agg.clicks / agg.impressions) * 100 : 0,
@@ -402,12 +403,28 @@ export function useMetaAdsData() {
         synced_at: new Date().toISOString(),
         daily_budget: null, lifetime_budget: null, targeting: null,
         created_time: null, updated_time: null,
-        creative_image_url: null, headline: null, primary_text: null, cta: null,
+      });
+      
+      // Calculate derived metrics for ads - keeping creative_thumbnail
+      const calcAdMetrics = (agg: any) => ({
+        ...agg,
+        ctr: agg.impressions > 0 ? (agg.clicks / agg.impressions) * 100 : 0,
+        cpm: agg.impressions > 0 ? (agg.spend / agg.impressions) * 1000 : 0,
+        cpc: agg.clicks > 0 ? agg.spend / agg.clicks : 0,
+        roas: agg.spend > 0 ? agg.conversion_value / agg.spend : 0,
+        cpa: agg.conversions > 0 ? agg.spend / agg.conversions : 0,
+        frequency: agg.reach > 0 ? agg.impressions / agg.reach : 0,
+        synced_at: new Date().toISOString(),
+        daily_budget: null, lifetime_budget: null, targeting: null,
+        created_time: null, updated_time: null,
+        creative_image_url: agg.creative_thumbnail, // Use thumbnail as image
+        headline: null, primary_text: null, cta: null,
+        cached_image_url: null,
       });
 
       const campaignsResult = Array.from(campaignAgg.values()).map(calcMetrics);
       const adsetsResult = Array.from(adsetAgg.values()).map(calcMetrics);
-      const adsResult = Array.from(adAgg.values()).map(calcMetrics);
+      const adsResult = Array.from(adAgg.values()).map(calcAdMetrics);
 
       // Sort by spend
       campaignsResult.sort((a, b) => b.spend - a.spend);
