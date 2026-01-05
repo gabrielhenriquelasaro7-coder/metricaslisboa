@@ -63,12 +63,14 @@ export default function GuestOnboarding() {
       }
 
       try {
-        // Get guest invitation info
+        // Get the most recent guest invitation info (in case user has multiple)
         const { data: invitation } = await supabase
           .from('guest_invitations')
           .select('guest_name, project_id')
           .eq('guest_user_id', user.id)
-          .single();
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
         if (invitation) {
           setGuestName(invitation.guest_name);
@@ -98,11 +100,28 @@ export default function GuestOnboarding() {
     fetchGuestInfo();
   }, [user]);
 
-  const handleStart = () => {
+  const handleStart = async () => {
     // Clear any previous tour completion state so the tour shows for this session
     localStorage.removeItem('dashboard_tour_completed');
     localStorage.setItem('guestOnboardingComplete', 'true');
     localStorage.setItem('tour_pending', 'true'); // Flag to trigger tour on dashboard
+    
+    // Get the guest's accessible project and set it in localStorage
+    if (user) {
+      const { data: access } = await supabase
+        .from('guest_project_access')
+        .select('project_id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (access?.project_id) {
+        localStorage.setItem('selectedProjectId', access.project_id);
+        console.log('[GuestOnboarding] Set selected project to:', access.project_id);
+      }
+    }
+    
     navigate('/dashboard');
   };
 

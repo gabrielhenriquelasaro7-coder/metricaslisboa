@@ -111,8 +111,19 @@ serve(async (req) => {
       console.log('User already exists:', existingUser.id);
       guestUserId = existingUser.id;
       
-      // If resending, generate a new password for the existing user
-      if (resend) {
+      // Check if this user already has access to THIS specific project
+      const { data: existingAccess } = await supabase
+        .from('guest_project_access')
+        .select('id')
+        .eq('user_id', guestUserId)
+        .eq('project_id', project_id)
+        .maybeSingle();
+      
+      // If user exists but is being invited to a NEW project, or if resending
+      // Always generate new password so we can show it to the inviter
+      const shouldGeneratePassword = resend || !existingAccess;
+      
+      if (shouldGeneratePassword) {
         const { error: updatePasswordError } = await supabase.auth.admin.updateUserById(
           guestUserId,
           { password: tempPassword }
@@ -122,7 +133,7 @@ serve(async (req) => {
           console.error('Error updating password:', updatePasswordError);
         } else {
           isNewUser = true; // Set to true so we return the new password
-          console.log('Password updated for resend');
+          console.log('Password updated for', resend ? 'resend' : 'new project invitation');
         }
       }
       
@@ -195,9 +206,9 @@ serve(async (req) => {
     // Create or update invitation record
     console.log(resend ? 'Updating invitation record...' : 'Creating invitation record...');
     
-    // Hash the temp password before storing (store only hash for security)
-    const hashedPassword = isNewUser ? await hashPassword(tempPassword) : null;
-    const storedPasswordValue = hashedPassword ? `hashed:${hashedPassword}` : '***REDACTED***';
+    // Store a placeholder for the temp password (not the actual password for security)
+    // The actual password is returned to the client once and never stored in plain text
+    const storedPasswordValue = isNewUser ? '***GENERATED***' : '***REDACTED***';
     
     let invitation;
     let invitationError;
