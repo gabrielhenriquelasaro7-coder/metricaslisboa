@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import {
   Loader2,
   ImageOff,
   Play,
+  X,
   ShoppingCart,
   TrendingUp,
   DollarSign,
@@ -17,9 +19,15 @@ import {
   Eye,
   Users,
   BarChart3,
-  ExternalLink
+  ExternalLink,
+  Maximize2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 // Helper to clean image URLs - ONLY removes stp resize parameter, keeps auth params
 const cleanImageUrl = (url: string | null): string | null => {
@@ -40,6 +48,10 @@ export default function CreativeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { ads, campaigns, adSets, loading, selectedProject, projectsLoading } = useMetaAdsData();
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
 
   // Redirect if no project selected
   if (!selectedProject && !projectsLoading && !loading) {
@@ -145,45 +157,115 @@ export default function CreativeDetail() {
             <div className="glass-card p-6">
               <h2 className="text-lg font-semibold mb-4">Preview do Criativo</h2>
               <div className="relative aspect-square max-w-[500px] mx-auto rounded-xl overflow-hidden bg-secondary/30 border border-border">
-                {imageUrl ? (
+                {/* Loading skeleton */}
+                {!imageLoaded && !imageError && imageUrl && (
+                  <div className="absolute inset-0 bg-secondary/50 animate-pulse flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                
+                {imageUrl && !imageError ? (
                   <>
                     <img
                       src={imageUrl}
                       alt={creative.name}
-                      className="w-full h-full object-contain"
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        img.style.display = 'none';
-                        const parent = img.parentElement;
-                        if (parent) {
-                          const placeholder = document.createElement('div');
-                          placeholder.className = 'w-full h-full flex items-center justify-center';
-                          placeholder.innerHTML = '<span class="text-muted-foreground">Imagem não disponível</span>';
-                          parent.appendChild(placeholder);
-                        }
+                      className={cn(
+                        "w-full h-full object-contain transition-opacity duration-300",
+                        imageLoaded ? "opacity-100" : "opacity-0"
+                      )}
+                      loading="lazy"
+                      onLoad={() => setImageLoaded(true)}
+                      onError={() => {
+                        setImageError(true);
+                        setImageLoaded(true);
                       }}
                     />
                     {hasVideo && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <div className="w-16 h-16 rounded-full bg-primary/90 flex items-center justify-center">
-                          <Play className="w-8 h-8 text-primary-foreground ml-1" />
+                      <button
+                        onClick={() => setVideoOpen(true)}
+                        className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/50 transition-colors cursor-pointer group"
+                      >
+                        <div className="w-20 h-20 rounded-full bg-primary/90 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Play className="w-10 h-10 text-primary-foreground ml-1" />
                         </div>
-                      </div>
+                      </button>
+                    )}
+                    {/* Fullscreen button */}
+                    {imageLoaded && !hasVideo && (
+                      <button
+                        onClick={() => setFullscreenOpen(true)}
+                        className="absolute top-3 right-3 p-2 rounded-lg bg-black/50 hover:bg-black/70 transition-colors"
+                      >
+                        <Maximize2 className="w-4 h-4 text-white" />
+                      </button>
                     )}
                   </>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-2">
                     <ImageOff className="w-16 h-16 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">Imagem não disponível</p>
                   </div>
                 )}
               </div>
               
+              {/* Video Player Modal */}
+              <Dialog open={videoOpen} onOpenChange={setVideoOpen}>
+                <DialogContent className="max-w-4xl p-0 bg-black border-none">
+                  <DialogTitle className="sr-only">Vídeo do Criativo</DialogTitle>
+                  <div className="relative aspect-video w-full">
+                    <button
+                      onClick={() => setVideoOpen(false)}
+                      className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+                    >
+                      <X className="w-5 h-5 text-white" />
+                    </button>
+                    {videoUrl && (
+                      <video
+                        src={videoUrl}
+                        controls
+                        autoPlay
+                        className="w-full h-full"
+                        poster={imageUrl || undefined}
+                      >
+                        Seu navegador não suporta vídeo.
+                      </video>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Fullscreen Image Modal */}
+              <Dialog open={fullscreenOpen} onOpenChange={setFullscreenOpen}>
+                <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 bg-black/95 border-none">
+                  <DialogTitle className="sr-only">Criativo em tela cheia</DialogTitle>
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <button
+                      onClick={() => setFullscreenOpen(false)}
+                      className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+                    >
+                      <X className="w-5 h-5 text-white" />
+                    </button>
+                    {imageUrl && (
+                      <img
+                        src={imageUrl}
+                        alt={creative.name}
+                        className="max-w-full max-h-[85vh] object-contain"
+                      />
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
               {hasVideo && videoUrl && (
-                <div className="mt-4 text-center">
+                <div className="mt-4 flex items-center justify-center gap-3">
+                  <Button onClick={() => setVideoOpen(true)}>
+                    <Play className="w-4 h-4 mr-2" />
+                    Assistir Vídeo
+                  </Button>
                   <Button variant="outline" asChild>
                     <a href={videoUrl} target="_blank" rel="noopener noreferrer">
                       <ExternalLink className="w-4 h-4 mr-2" />
-                      Assistir Vídeo no Facebook
+                      Abrir no Facebook
                     </a>
                   </Button>
                 </div>
