@@ -838,91 +838,28 @@ async function fetchDailyInsights(
 }
 
 // ============ EXTRACT CONVERSIONS ============
-// LISTA DE ACTION_TYPES PARA CONVERSÕES
-// Baseado na documentação do Meta: https://developers.facebook.com/docs/marketing-api/reference/ads-action-stats/
+// SIMPLIFICADO: Usa apenas os action_types mais comuns do Meta
+// O Meta geralmente retorna 'lead' como o tipo principal - é o mais confiável
 
-// LEADS REAIS - Formulários (Lead Ads / Instant Forms)
-// O Meta reporta leads em múltiplos action_types - usamos normalização para evitar dupla contagem
-const LEAD_FORM_ACTIONS = [
-  'leadgen.other',                           // Lead via formulário (Lead Ads)
-  'on_facebook_lead',                        // Lead no Facebook (formulário no feed)
-  'lead',                                    // Lead genérico (IMPORTANTE: Alguns projetos usam apenas este!)
-  'leadgen',                                 // Leadgen básico
-  'onsite_conversion.lead_grouped',          // Leads agrupados
-  'onsite_web_lead',                         // Lead via web (dentro do Facebook)
-];
+// Tipos de conversão aceitos (sem duplicação)
+const LEAD_ACTION_TYPES = ['lead', 'offsite_conversion.fb_pixel_lead', 'on_facebook_lead'];
+const PURCHASE_ACTION_TYPES = ['purchase', 'offsite_conversion.fb_pixel_purchase', 'omni_purchase'];
+const REGISTRATION_ACTION_TYPES = ['complete_registration', 'offsite_conversion.fb_pixel_complete_registration'];
 
-// LEADS VIA PIXEL - "Lead no site" / "Leads no site"
-// Este é o PRINCIPAL para campanhas de tráfego/conversão
-const LEAD_PIXEL_ACTIONS = [
-  'offsite_conversion.fb_pixel_lead',        // Lead via pixel (Lead no site)
-];
-
-// REGISTROS COMPLETOS - Contam como lead/conversão
-const REGISTRATION_ACTIONS = [
-  'offsite_conversion.fb_pixel_complete_registration', // Cadastro via pixel
-  'complete_registration',                             // Cadastro genérico
-];
-
-// COMPRAS - Para campanhas de e-commerce
-const PURCHASE_ACTIONS = [
-  'offsite_conversion.fb_pixel_purchase',    // Compra via pixel (PRINCIPAL)
-  'omni_purchase',                           // Compra omnichannel
-  'purchase',                                // Compra genérica
-];
-
-// MENSAGENS - Para campanhas de tráfego para WhatsApp/Messenger (Inside Sales)
-// LISTA COMPLETA de todos os action_types relacionados a mensagens no Meta
-// Referência: https://developers.facebook.com/docs/marketing-api/reference/ads-action-stats/
+// MENSAGENS - Para campanhas de WhatsApp/Messenger
 const MESSAGING_ACTION_TYPES = [
-  // Conversas iniciadas / primeiras respostas (PRINCIPAL para campanhas de mensagem)
-  'onsite_conversion.messaging_first_reply',              // Primeira resposta no Messenger
-  'onsite_conversion.messaging_conversation_started_7d',  // Conversa iniciada (7 dias) - MAIS COMUM
-  'onsite_conversion.messaging_conversation_started_1d',  // Conversa iniciada (1 dia)
-  'onsite_conversion.messaging_reply',                    // Resposta no Messenger
-  'onsite_conversion.messaging_user_depth_2_message_send', // Usuário enviou 2+ mensagens
-  'onsite_conversion.messaging_user_depth_3_message_send', // Usuário enviou 3+ mensagens
-  
-  // Contatos diretos
-  'contact',                                               // Contato genérico (pode ser WhatsApp)
-  'contact_total',                                         // Total de contatos
-  'contact_website',                                       // Contato via website
-  'onsite_web_contact',                                    // Contato web
-  
-  // WhatsApp específico
-  'onsite_conversion.click_to_whatsapp',                  // Clique para WhatsApp
-  'onsite_conversion.post_engagement_whatsapp',           // Engajamento WhatsApp
-  
-  // Instagram Direct
-  'onsite_conversion.instagram_messaging_reply',          // Resposta no Instagram Direct
-  
-  // Outros tipos de conversas
-  'onsite_conversion.send_message',                       // Mensagem enviada
-  'onsite_conversion.total_messaging_connection',         // Total de conexões de mensagem
+  'onsite_conversion.messaging_conversation_started_7d',
+  'onsite_conversion.messaging_first_reply',
+  'onsite_conversion.total_messaging_connection',
 ];
 
-// VISITAS AO PERFIL DO INSTAGRAM - Para campanhas de tráfego Instagram (Topo de Funil)
-// Estas campanhas NÃO geram leads, a métrica principal é Visitas ao Perfil
-// IMPORTANTE: O Meta pode retornar essas ações com diferentes nomes dependendo da versão da API
+// VISITAS AO PERFIL - Para campanhas de tráfego Instagram
 const PROFILE_VISIT_ACTION_TYPES = [
-  'onsite_conversion.profile_view',                       // Visualização de perfil
-  'ig_profile_visit',                                     // Visita ao perfil do Instagram
-  'profile_visit',                                        // Visita ao perfil (genérico)
-  'onsite_conversion.instagram_profile_view',             // Visualização de perfil Instagram
-  'onsite_conversion.ig_profile_visit',                   // Alternativa IG profile visit
-  'instagram_profile_view',                               // Alternativa simples
-  'page_engagement',                                      // Engajamento na página (fallback)
-  'post_engagement',                                      // Engajamento no post (fallback para campanhas de tráfego)
-];
-
-// LISTA COMPLETA DE CONVERSÕES VÁLIDAS
-// NÃO INCLUI: contact, messaging, conversations, onsite_web_lead, leadgen_grouped, etc.
-// Esses tipos causam dupla contagem ou não são leads reais
-const CONVERSION_ACTION_TYPES = [
-  ...LEAD_FORM_ACTIONS,
-  ...LEAD_PIXEL_ACTIONS,
-  ...REGISTRATION_ACTIONS,
-  ...PURCHASE_ACTIONS,
+  'onsite_conversion.profile_view',
+  'ig_profile_visit',
+  'profile_visit',
+  'page_engagement',
+  'post_engagement',
 ];
 
 // Lista de action_types para valores de conversão (receita)
@@ -932,99 +869,49 @@ const VALUE_ACTION_TYPES = [
   'offsite_conversion.fb_pixel_purchase',
   'lead',
   'offsite_conversion.fb_pixel_lead',
-  'complete_registration',
-  'offsite_conversion.fb_pixel_complete_registration',
 ];
 
-// Mapeamento de action_types para uma categoria base para evitar dupla contagem
-// Cada categoria usa APENAS UM action_type específico para evitar duplicação
-function normalizeActionTypeToBase(actionType: string): string {
-  // LEADS VIA FORMULÁRIO (Lead Ads) - categoria separada
-  if (actionType === 'on_facebook_lead' ||
-      actionType === 'leadgen.other' ||
-      actionType === 'lead' ||
-      actionType === 'leadgen' ||
-      actionType === 'onsite_conversion.lead_grouped' ||
-      actionType === 'onsite_web_lead') {
-    return 'lead_form';
-  }
-  
-  // LEADS VIA PIXEL (Lead no site) - categoria separada
-  if (actionType === 'offsite_conversion.fb_pixel_lead') {
-    return 'lead_pixel';
-  }
-  
-  // REGISTROS
-  if (actionType === 'offsite_conversion.fb_pixel_complete_registration' ||
-      actionType === 'complete_registration') {
-    return 'registration';
-  }
-  
-  // COMPRAS - pixel tem prioridade
-  if (actionType === 'offsite_conversion.fb_pixel_purchase') {
-    return 'purchase_pixel';
-  }
-  if (actionType === 'omni_purchase' || actionType === 'purchase') {
-    return 'purchase_omni';
-  }
-  
-  // Default: retorna o próprio tipo (será ignorado se não estiver na lista)
-  return actionType;
-}
-
 function extractConversions(insights: any, logAllActions: boolean = false): { conversions: number; conversionValue: number } {
-  let conversions = 0;
+  let leads = 0;
+  let purchases = 0;
+  let registrations = 0;
   let conversionValue = 0;
   
-  // Track which action types we found for debugging
-  const foundActions: string[] = [];
-  const allActions: string[] = [];
-  
-  // Extrair conversões - SOMA todos os tipos encontrados
-  // Mas evita dupla contagem usando normalização para categoria base
   if (insights?.actions && Array.isArray(insights.actions)) {
-    // Map para guardar o maior valor de cada categoria base
-    const categoryValues = new Map<string, { value: number; actionType: string }>();
+    // Log ALL actions for debugging
+    if (logAllActions) {
+      const allActions = insights.actions
+        .filter((a: any) => parseInt(a.value) > 0)
+        .map((a: any) => `${a.action_type}:${a.value}`)
+        .join(', ');
+      if (allActions) {
+        console.log(`[ACTIONS] ${allActions}`);
+      }
+    }
     
+    // LEADS - pega apenas o maior valor entre os tipos (evita duplicação)
     for (const action of insights.actions) {
-      const actionType = action.action_type;
-      const actionValue = parseInt(action.value) || 0;
-      
-      // Log ALL action types for debugging (always when logAllActions is true)
-      if (logAllActions && actionValue > 0) {
-        allActions.push(`${actionType}:${actionValue}`);
-      }
-      
-      if (CONVERSION_ACTION_TYPES.includes(actionType) && actionValue > 0) {
-        // Normaliza para categoria base para evitar dupla contagem
-        const baseCategory = normalizeActionTypeToBase(actionType);
-        
-        // Guarda apenas o maior valor para cada categoria
-        const existing = categoryValues.get(baseCategory);
-        if (!existing || actionValue > existing.value) {
-          categoryValues.set(baseCategory, { value: actionValue, actionType });
-        }
+      if (LEAD_ACTION_TYPES.includes(action.action_type)) {
+        const val = parseInt(action.value) || 0;
+        if (val > leads) leads = val;
       }
     }
     
-    // Soma os valores de cada categoria (sem dupla contagem)
-    for (const [category, { value, actionType }] of categoryValues) {
-      conversions += value;
-      foundActions.push(`${actionType}:${value}`);
+    // PURCHASES - pega apenas o maior valor
+    for (const action of insights.actions) {
+      if (PURCHASE_ACTION_TYPES.includes(action.action_type)) {
+        const val = parseInt(action.value) || 0;
+        if (val > purchases) purchases = val;
+      }
     }
     
-    // Log ALL actions from first few insights for ALWAYS debugging leads issue
-    if (logAllActions && allActions.length > 0) {
-      console.log(`[ALL_ACTIONS] ${allActions.join(', ')}`);
-    } else if (logAllActions && insights?.actions?.length > 0) {
-      // Log even when no matching actions found - helps debug missing leads
-      console.log(`[NO_CONVERSIONS] Actions present but no matches. Total actions: ${insights.actions.length}`);
+    // REGISTRATIONS - pega apenas o maior valor
+    for (const action of insights.actions) {
+      if (REGISTRATION_ACTION_TYPES.includes(action.action_type)) {
+        const val = parseInt(action.value) || 0;
+        if (val > registrations) registrations = val;
+      }
     }
-  }
-  
-  // Log all found actions for debugging
-  if (foundActions.length > 0) {
-    console.log(`[CONVERSIONS] Found: ${foundActions.join(', ')}, Total: ${conversions}`);
   }
   
   // Extrair valor de conversão
@@ -1032,11 +919,16 @@ function extractConversions(insights: any, logAllActions: boolean = false): { co
     for (const av of insights.action_values) {
       if (VALUE_ACTION_TYPES.includes(av.action_type)) {
         const val = parseFloat(av.value) || 0;
-        if (val > conversionValue) {
-          conversionValue = val;
-        }
+        if (val > conversionValue) conversionValue = val;
       }
     }
+  }
+  
+  // Total de conversões = leads + purchases + registrations (sem duplicação)
+  const conversions = leads + purchases + registrations;
+  
+  if (logAllActions && conversions > 0) {
+    console.log(`[CONVERSIONS] leads:${leads} purchases:${purchases} registrations:${registrations} = total:${conversions}`);
   }
   
   return { conversions, conversionValue };
