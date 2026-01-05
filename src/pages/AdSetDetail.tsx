@@ -430,8 +430,9 @@ export default function AdSetDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {sortedAds.map((ad) => {
                 const hasVideo = ad.creative_video_url;
-                const hasImage = ad.creative_image_url || ad.creative_thumbnail;
-                const creativeUrl = cleanImageUrl(ad.creative_image_url || ad.creative_thumbnail) || '';
+                const hasImage = ad.creative_image_url || ad.creative_thumbnail || (ad as any).cached_image_url;
+                // Prefer cached URL (permanent, never expires), then fallback to Facebook URLs
+                const creativeUrl = (ad as any).cached_image_url || cleanImageUrl(ad.creative_image_url || ad.creative_thumbnail) || '';
                 
                 return (
                   <Link 

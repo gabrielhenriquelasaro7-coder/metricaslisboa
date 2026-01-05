@@ -65,6 +65,7 @@ export interface Ad {
   creative_id: string | null;
   creative_thumbnail: string | null;
   creative_image_url: string | null;
+  cached_image_url: string | null; // Permanent cached URL in Supabase Storage
   headline: string | null;
   primary_text: string | null;
   cta: string | null;

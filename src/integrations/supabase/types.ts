@@ -103,6 +103,7 @@ export type Database = {
       ads: {
         Row: {
           ad_set_id: string
+          cached_image_url: string | null
           campaign_id: string
           clicks: number | null
           conversion_value: number | null
@@ -133,6 +134,7 @@ export type Database = {
         }
         Insert: {
           ad_set_id: string
+          cached_image_url?: string | null
           campaign_id: string
           clicks?: number | null
           conversion_value?: number | null
@@ -163,6 +165,7 @@ export type Database = {
         }
         Update: {
           ad_set_id?: string
+          cached_image_url?: string | null
           campaign_id?: string
           clicks?: number | null
           conversion_value?: number | null
@@ -210,6 +213,7 @@ export type Database = {
           adset_id: string
           adset_name: string
           adset_status: string | null
+          cached_creative_thumbnail: string | null
           campaign_id: string
           campaign_name: string
           campaign_objective: string | null
@@ -243,6 +247,7 @@ export type Database = {
           adset_id: string
           adset_name: string
           adset_status?: string | null
+          cached_creative_thumbnail?: string | null
           campaign_id: string
           campaign_name: string
           campaign_objective?: string | null
@@ -276,6 +281,7 @@ export type Database = {
           adset_id?: string
           adset_name?: string
           adset_status?: string | null
+          cached_creative_thumbnail?: string | null
           campaign_id?: string
           campaign_name?: string
           campaign_objective?: string | null
