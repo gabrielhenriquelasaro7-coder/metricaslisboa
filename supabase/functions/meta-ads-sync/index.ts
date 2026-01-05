@@ -18,6 +18,47 @@ interface SyncRequest {
   };
   period_key?: string; // Mantido para compatibilidade com period_metrics
   retry_count?: number; // Contador de retries para validação anti-zero
+  light_sync?: boolean; // Se true, pula fetch de criativos/imagens (mais rápido)
+}
+
+// ============ GLOBAL RATE LIMIT CONTROL ============
+// Controle global de rate limit por ad_account_id para evitar bloqueios
+const rateLimitState = new Map<string, {
+  lastCallTime: number;
+  backoffMs: number;
+  consecutiveErrors: number;
+}>();
+
+const BASE_DELAY_MS = 200; // Delay base entre chamadas
+const MAX_BACKOFF_MS = 60000; // Máximo backoff de 60s
+
+function getRateLimitDelay(adAccountId: string): number {
+  const state = rateLimitState.get(adAccountId);
+  if (!state) return BASE_DELAY_MS;
+  
+  const elapsed = Date.now() - state.lastCallTime;
+  const waitNeeded = Math.max(0, state.backoffMs - elapsed);
+  return waitNeeded + BASE_DELAY_MS;
+}
+
+function updateRateLimitSuccess(adAccountId: string): void {
+  const state = rateLimitState.get(adAccountId) || { lastCallTime: 0, backoffMs: BASE_DELAY_MS, consecutiveErrors: 0 };
+  rateLimitState.set(adAccountId, {
+    lastCallTime: Date.now(),
+    backoffMs: Math.max(BASE_DELAY_MS, state.backoffMs * 0.8), // Reduz backoff gradualmente
+    consecutiveErrors: 0
+  });
+}
+
+function updateRateLimitError(adAccountId: string): void {
+  const state = rateLimitState.get(adAccountId) || { lastCallTime: 0, backoffMs: BASE_DELAY_MS, consecutiveErrors: 0 };
+  const newBackoff = Math.min(MAX_BACKOFF_MS, (state.backoffMs || BASE_DELAY_MS) * 2);
+  rateLimitState.set(adAccountId, {
+    lastCallTime: Date.now(),
+    backoffMs: newBackoff,
+    consecutiveErrors: state.consecutiveErrors + 1
+  });
+  console.log(`[RATE_LIMIT] Backoff increased to ${newBackoff}ms for ${adAccountId}`);
 }
 
 // Constants
@@ -354,7 +395,7 @@ async function fetchWithRetry(url: string, entityName: string, supabase?: any, o
 }
 
 // ============ FETCH ENTITIES ============
-async function fetchEntities(adAccountId: string, token: string, supabase?: any, projectId?: string): Promise<{
+async function fetchEntities(adAccountId: string, token: string, supabase?: any, projectId?: string, lightSync: boolean = false): Promise<{
   campaigns: any[];
   adsets: any[];
   ads: any[];
@@ -432,11 +473,13 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   }
   console.log(`[ADSETS] Fetched ${adsets.length} adsets`);
 
-  // Fetch ads with creative fields for HD images AND ad copy (primary_text, headline, cta)
-  // object_story_spec contains the ad copy data: body (primary_text), title (headline), call_to_action
-  // FIXED: Removed image_url from creative{} as it's not a valid field on the ads endpoint - use thumbnail_url and fetch full images via adimages endpoint
-  console.log(`[ADS] Fetching ads with creative data...`);
-  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,picture},video_data{message,title,call_to_action,video_id,image_hash}}}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
+  // Fetch ads - LIGHT SYNC usa campos mínimos para velocidade
+  const adsFields = lightSync 
+    ? 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}'  // Campos mínimos
+    : 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,picture},video_data{message,title,call_to_action,video_id,image_hash}}}';
+  
+  console.log(`[ADS] Fetching ads (light_sync=${lightSync})...`);
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADS', supabase);
     if (isTokenExpiredError(data)) {
@@ -444,7 +487,6 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
     }
     if (data.data) {
       console.log(`[ADS] Batch received: ${data.data.length} ads`);
-      // Log first ad creative data for debugging
       if (data.data.length > 0 && ads.length === 0) {
         const firstAd = data.data[0];
         console.log(`[ADS] Sample ad: id=${firstAd.id}, has_creative=${!!firstAd.creative}, creative_id=${firstAd.creative?.id || 'none'}`);
@@ -455,6 +497,20 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   }
   console.log(`[ADS] Total ads fetched: ${ads.length}`);
 
+  // ============ LIGHT SYNC: Skip HD images, videos, creatives fetching ============
+  const adImageMap = new Map<string, string>();
+  const videoThumbnailMap = new Map<string, string>();
+  const creativeDataMap = new Map<string, any>();
+  const adPreviewMap = new Map<string, string>();
+  const immediateCache = new Map<string, string>();
+
+  if (lightSync) {
+    console.log(`[LIGHT_SYNC] Skipping HD images, videos, creatives, and immediate caching`);
+    console.log(`[ENTITIES] FINAL (LIGHT): Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}, Using cached creatives: ${cachedCreativeMap.size}`);
+    return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache };
+  }
+
+  // ============ FULL SYNC: Continue with HD images, videos, etc ============
   // STEP 2: Fetch HD images for creatives that have image_hash
   const imageHashes: string[] = [];
   for (const ad of ads) {
@@ -464,7 +520,6 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   }
   
   // Fetch adimages to get full HD URLs
-  const adImageMap = new Map<string, string>();
   if (imageHashes.length > 0) {
     console.log(`[ADIMAGES] Fetching HD images for ${imageHashes.length} hashes...`);
     // Batch fetch images - Meta allows up to 50 hashes per request
@@ -506,7 +561,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   
   console.log(`[VIDEOS] Skipped ${skippedVideosFromCache} videos (cached), fetching ${videoIds.length} new ones`);
   
-  const videoThumbnailMap = new Map<string, string>(); // video_id -> thumbnail_url
+  // videoThumbnailMap already declared above
   if (videoIds.length > 0) {
     // Use Meta Batch API - up to 50 requests per batch call
     for (let i = 0; i < videoIds.length; i += 50) {
@@ -568,7 +623,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   }
 
   // STEP 4: Fetch ad creatives - ONLY for ads not in cache
-  const creativeDataMap = new Map<string, any>();
+  // creativeDataMap already declared above
   const creativeIdsToFetch: string[] = [];
   let skippedCreativesFromCache = 0;
   
@@ -640,7 +695,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 
   // STEP 5: Fallback - Fetch ad previews for ads WITHOUT creative_id using Batch API
   const adsWithoutCreative: string[] = [];
-  const adPreviewMap = new Map<string, string>(); // ad_id -> preview_url
+  // adPreviewMap already declared above
   
   for (const ad of ads) {
     // Check if this ad has no creative_id AND is not in cache
@@ -703,7 +758,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 
   // ========== STEP 6: IMMEDIATE IMAGE CACHING (while URLs are fresh) ==========
   // Cache images RIGHT NOW before they expire - this is critical!
-  const immediateCache = new Map<string, string>();
+  // immediateCache already declared above
   const adsNeedingCache: Array<{ adId: string; imageUrl: string }> = [];
   
   for (const ad of ads) {
@@ -1675,7 +1730,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: SyncRequest = await req.json();
-    const { project_id, ad_account_id, access_token, date_preset, time_range, period_key, retry_count = 0 } = body;
+    const { project_id, ad_account_id, access_token, date_preset, time_range, period_key, retry_count = 0, light_sync = false } = body;
     
     // Determine date range - PADRÃO: last_90d
     let since: string;
@@ -1708,7 +1763,7 @@ Deno.serve(async (req) => {
 
     console.log(`[SYNC] Project: ${project_id}`);
     console.log(`[SYNC] Range: ${since} to ${until} (time_increment=1)`);
-    console.log(`[SYNC] Retry count: ${retry_count}`);
+    console.log(`[SYNC] Light sync: ${light_sync}, Retry count: ${retry_count}`);
 
     const token = access_token || metaAccessToken;
     if (!token) {
@@ -1717,7 +1772,8 @@ Deno.serve(async (req) => {
 
     // ========== STEP 1: Fetch entities (campaigns, adsets, ads) ==========
     // Pass projectId to enable cache - only fetch new creative data, not already cached ones
-    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id);
+    // Pass lightSync to skip HD images/videos/creatives fetch (faster for frequent syncs)
+    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id, light_sync);
     
     // Check if token expired
     if (tokenExpired) {
