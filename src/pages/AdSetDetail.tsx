@@ -460,12 +460,18 @@ export default function AdSetDetail() {
                           src={creativeUrl} 
                           alt={ad.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            if (target.nextElementSibling) {
+                              target.nextElementSibling.classList.remove('hidden');
+                            }
+                          }}
                         />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <ImageIcon className="w-16 h-16 text-muted-foreground/30" />
-                        </div>
-                      )}
+                      ) : null}
+                      <div className={cn("w-full h-full flex items-center justify-center", hasImage && "hidden")}>
+                        <ImageIcon className="w-16 h-16 text-muted-foreground/30" />
+                      </div>
                       
                       {/* Status Badge Overlay */}
                       <div className="absolute top-3 left-3">
