@@ -838,38 +838,37 @@ async function fetchDailyInsights(
 }
 
 // ============ EXTRACT CONVERSIONS ============
-// LISTA SUPER RESTRITIVA: Apenas LEADS REAIS conforme aparecem no Gerenciador de Anúncios do Meta
-// EXCLUI: mensagens, conversas, tráfego Instagram, contatos genéricos, etc.
+// LISTA DE ACTION_TYPES PARA CONVERSÕES
+// Baseado na documentação do Meta: https://developers.facebook.com/docs/marketing-api/reference/ads-action-stats/
 
 // LEADS REAIS - Formulários (Lead Ads / Instant Forms)
-// Estes são os únicos leads que aparecem como "Resultados" no Gerenciador
-// IMPORTANTE: O Meta reporta o mesmo lead em múltiplos action_types (lead, leadgen, on_facebook_lead)
-// Por isso, usamos APENAS os tipos mais específicos para evitar dupla contagem
+// O Meta reporta leads em múltiplos action_types - usamos normalização para evitar dupla contagem
 const LEAD_FORM_ACTIONS = [
-  'leadgen.other',                           // Lead via formulário (formulário do Lead Ads)
+  'leadgen.other',                           // Lead via formulário (Lead Ads)
   'on_facebook_lead',                        // Lead no Facebook (formulário no feed)
-  // REMOVIDO 'lead' genérico pois é duplicado de on_facebook_lead na maioria dos casos
+  'lead',                                    // Lead genérico (IMPORTANTE: Alguns projetos usam apenas este!)
+  'leadgen',                                 // Leadgen básico
+  'onsite_conversion.lead_grouped',          // Leads agrupados
+  'onsite_web_lead',                         // Lead via web (dentro do Facebook)
 ];
 
 // LEADS VIA PIXEL - "Lead no site" / "Leads no site"
 // Este é o PRINCIPAL para campanhas de tráfego/conversão
-// O Meta Gerenciador mostra este como "Leads" na coluna de resultados
 const LEAD_PIXEL_ACTIONS = [
-  'offsite_conversion.fb_pixel_lead',        // Lead via pixel (Lead no site) - ÚNICO usado
-  // REMOVIDO 'lead' genérico pois aparece duplicado junto com fb_pixel_lead
+  'offsite_conversion.fb_pixel_lead',        // Lead via pixel (Lead no site)
 ];
 
 // REGISTROS COMPLETOS - Contam como lead/conversão
 const REGISTRATION_ACTIONS = [
-  'offsite_conversion.fb_pixel_complete_registration', // Cadastro via pixel (PRINCIPAL)
-  // REMOVIDO 'complete_registration' genérico para evitar dupla contagem
+  'offsite_conversion.fb_pixel_complete_registration', // Cadastro via pixel
+  'complete_registration',                             // Cadastro genérico
 ];
 
 // COMPRAS - Para campanhas de e-commerce
 const PURCHASE_ACTIONS = [
   'offsite_conversion.fb_pixel_purchase',    // Compra via pixel (PRINCIPAL)
-  'omni_purchase',                           // Compra omnichannel (alternativa)
-  // REMOVIDO 'purchase' genérico para evitar dupla contagem
+  'omni_purchase',                           // Compra omnichannel
+  'purchase',                                // Compra genérica
 ];
 
 // MENSAGENS - Para campanhas de tráfego para WhatsApp/Messenger (Inside Sales)
@@ -938,12 +937,15 @@ const VALUE_ACTION_TYPES = [
 ];
 
 // Mapeamento de action_types para uma categoria base para evitar dupla contagem
-// SIMPLIFICADO: Apenas 3 categorias (lead_form, lead_pixel, registration, purchase)
 // Cada categoria usa APENAS UM action_type específico para evitar duplicação
 function normalizeActionTypeToBase(actionType: string): string {
   // LEADS VIA FORMULÁRIO (Lead Ads) - categoria separada
   if (actionType === 'on_facebook_lead' ||
-      actionType === 'leadgen.other') {
+      actionType === 'leadgen.other' ||
+      actionType === 'lead' ||
+      actionType === 'leadgen' ||
+      actionType === 'onsite_conversion.lead_grouped' ||
+      actionType === 'onsite_web_lead') {
     return 'lead_form';
   }
   
@@ -952,8 +954,9 @@ function normalizeActionTypeToBase(actionType: string): string {
     return 'lead_pixel';
   }
   
-  // REGISTROS - apenas pixel
-  if (actionType === 'offsite_conversion.fb_pixel_complete_registration') {
+  // REGISTROS
+  if (actionType === 'offsite_conversion.fb_pixel_complete_registration' ||
+      actionType === 'complete_registration') {
     return 'registration';
   }
   
@@ -961,7 +964,7 @@ function normalizeActionTypeToBase(actionType: string): string {
   if (actionType === 'offsite_conversion.fb_pixel_purchase') {
     return 'purchase_pixel';
   }
-  if (actionType === 'omni_purchase') {
+  if (actionType === 'omni_purchase' || actionType === 'purchase') {
     return 'purchase_omni';
   }
   
@@ -987,7 +990,7 @@ function extractConversions(insights: any, logAllActions: boolean = false): { co
       const actionType = action.action_type;
       const actionValue = parseInt(action.value) || 0;
       
-      // Log ALL action types for debugging (only first few rows)
+      // Log ALL action types for debugging (always when logAllActions is true)
       if (logAllActions && actionValue > 0) {
         allActions.push(`${actionType}:${actionValue}`);
       }
@@ -1010,9 +1013,12 @@ function extractConversions(insights: any, logAllActions: boolean = false): { co
       foundActions.push(`${actionType}:${value}`);
     }
     
-    // Log ALL actions from first few insights for debugging
+    // Log ALL actions from first few insights for ALWAYS debugging leads issue
     if (logAllActions && allActions.length > 0) {
       console.log(`[ALL_ACTIONS] ${allActions.join(', ')}`);
+    } else if (logAllActions && insights?.actions?.length > 0) {
+      // Log even when no matching actions found - helps debug missing leads
+      console.log(`[NO_CONVERSIONS] Actions present but no matches. Total actions: ${insights.actions.length}`);
     }
   }
   
@@ -1854,8 +1860,8 @@ Deno.serve(async (req) => {
         const adset = adsetId ? adsetMap.get(adsetId) : null;
         const campaign = campaignId ? campaignMap.get(campaignId) : null;
         
-        // Extract conversions with logging for first 10 rows
-        const shouldLog = logCounter < 10 && (insights.actions?.length > 0);
+        // Extract conversions with enhanced logging for first 30 rows to debug missing leads
+        const shouldLog = logCounter < 30 && (insights.actions?.length > 0);
         let { conversions, conversionValue } = extractConversions(insights, shouldLog);
         if (shouldLog && insights.actions?.length > 0) logCounter++;
         
