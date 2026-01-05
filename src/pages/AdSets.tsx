@@ -309,6 +309,7 @@ export default function AdSets() {
               onDateRangeChange={handleDateRangeChange}
               timezone={selectedProject?.timezone}
               onPresetChange={handlePresetChange}
+              selectedPreset={selectedPreset}
             />
           </div>
         </div>

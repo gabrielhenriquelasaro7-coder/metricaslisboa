@@ -326,6 +326,7 @@ export default function Dashboard() {
                 onDateRangeChange={handleDateRangeChange}
                 timezone={projectTimezone}
                 onPresetChange={handlePresetChange}
+                selectedPreset={selectedPreset}
               />
             </div>
             

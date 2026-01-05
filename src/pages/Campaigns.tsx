@@ -221,6 +221,7 @@ export default function Campaigns() {
               onDateRangeChange={handleDateRangeChange}
               timezone={selectedProject?.timezone}
               onPresetChange={handlePresetChange}
+              selectedPreset={selectedPreset}
             />
           </div>
         </div>
