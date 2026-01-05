@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { DateRange } from 'react-day-picker';
 
 export interface AdSetDailyMetric {
   date: string;
@@ -41,11 +42,16 @@ interface UseAdSetDailyMetricsResult {
 
 export function useAdSetDailyMetrics(
   adSetId: string | undefined,
-  projectId: string | undefined
+  projectId: string | undefined,
+  dateRange?: DateRange
 ): UseAdSetDailyMetricsResult {
   const [rawData, setRawData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  // Format date range for query
+  const since = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined;
+  const until = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : undefined;
 
   useEffect(() => {
     if (!adSetId || !projectId) {
@@ -59,13 +65,22 @@ export function useAdSetDailyMetrics(
       setError(null);
 
       try {
-        // Get ALL available data for this ad set (no date filtering)
-        const { data, error: fetchError } = await supabase
+        let query = supabase
           .from('ads_daily_metrics')
           .select('*')
           .eq('project_id', projectId)
           .eq('adset_id', adSetId)
           .order('date', { ascending: true });
+
+        // Apply date filters if provided
+        if (since) {
+          query = query.gte('date', since);
+        }
+        if (until) {
+          query = query.lte('date', until);
+        }
+
+        const { data, error: fetchError } = await query;
 
         if (fetchError) throw fetchError;
         setRawData(data || []);
@@ -78,7 +93,7 @@ export function useAdSetDailyMetrics(
     };
 
     fetchData();
-  }, [adSetId, projectId]);
+  }, [adSetId, projectId, since, until]);
 
   // Aggregate by date (sum all ads in the ad set for each day)
   const { dailyData, aggregated } = useMemo(() => {

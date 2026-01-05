@@ -1,11 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
 import AdSetCharts from '@/components/dashboard/AdSetCharts';
+import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { useAdSetDailyMetrics } from '@/hooks/useAdSetDailyMetrics';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
+import { DateRange } from 'react-day-picker';
+import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { 
   ChevronLeft,
   Layers,
@@ -124,6 +127,13 @@ export default function AdSetDetail() {
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
+  
+  // Date range state
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
+    return period ? datePeriodToDateRange(period) : undefined;
+  });
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
 
   const selectedProject = projects.find(p => p.id === projectId);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
@@ -132,8 +142,17 @@ export default function AdSetDetail() {
   // Check if this is a traffic campaign (top of funnel - profile visits instead of leads)
   const isTrafficCampaign = campaign?.objective ? TRAFFIC_OBJECTIVES.includes(campaign.objective) : false;
   
-  // Fetch ALL daily metrics for this ad set (not filtered by period)
-  const { dailyData: adSetDailyData, aggregated: periodMetrics, loading: metricsLoading } = useAdSetDailyMetrics(adSetId, projectId);
+  // Fetch daily metrics for this ad set - now filtered by date range
+  const { dailyData: adSetDailyData, aggregated: periodMetrics, loading: metricsLoading } = useAdSetDailyMetrics(adSetId, projectId, dateRange);
+
+  // Handle date range change
+  const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
+    setDateRange(newRange);
+  }, []);
+
+  const handlePresetChange = useCallback((preset: DatePresetKey) => {
+    setSelectedPreset(preset);
+  }, []);
 
   // Calculate date range from daily data for display
   const dataDateRange = useMemo(() => {
@@ -258,31 +277,25 @@ export default function AdSetDetail() {
               </div>
             </div>
           </div>
-          <div className="text-right text-sm text-muted-foreground">
-            <p>Orçamento: {formatCurrency(adSet.daily_budget || adSet.lifetime_budget || 0)}</p>
-            {adSet.synced_at && (
-              <p className="text-xs mt-1">
-                Atualizado: {new Date(adSet.synced_at).toLocaleString('pt-BR')}
-              </p>
-            )}
+          <div className="flex items-center gap-3">
+            <DateRangePicker 
+              dateRange={dateRange} 
+              onDateRangeChange={handleDateRangeChange}
+              timezone={selectedProject?.timezone}
+              onPresetChange={handlePresetChange}
+            />
           </div>
         </div>
 
-        {/* Period Banner - Shows date range of available data */}
+        {/* Period Info */}
         {dataDateRange && (
-          <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
-            <div>
-              <p className="font-medium text-foreground">
-                Período dos dados disponíveis
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {dataDateRange.from} - {dataDateRange.to}
-                {metricsLoading && ' • Carregando métricas...'}
-              </p>
-            </div>
+          <div className="text-sm text-muted-foreground flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            <span>Dados disponíveis: {dataDateRange.from} - {dataDateRange.to}</span>
+            {metricsLoading && <RefreshCw className="w-3 h-3 animate-spin" />}
           </div>
         )}
+
 
         {/* Main Metrics - Using period aggregated data */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
