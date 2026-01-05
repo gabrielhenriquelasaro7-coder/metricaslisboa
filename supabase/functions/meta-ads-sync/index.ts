@@ -1570,6 +1570,23 @@ Deno.serve(async (req) => {
     }
 
     // ========== STEP 6: Aggregate and update entity tables ==========
+    // First, fetch existing ads to preserve creative data for ads not in entities
+    const existingAdIds = [...new Set(dailyRecords.map(r => r.ad_id))];
+    let existingAdsMap = new Map<string, any>();
+    
+    if (existingAdIds.length > 0) {
+      const { data: existingAds } = await supabase
+        .from('ads')
+        .select('id, creative_id, creative_thumbnail, creative_image_url, creative_video_url, cached_image_url, primary_text, headline, cta')
+        .eq('project_id', project_id)
+        .in('id', existingAdIds);
+      
+      if (existingAds) {
+        existingAdsMap = new Map(existingAds.map(a => [a.id, a]));
+        console.log(`[PRESERVE] Loaded ${existingAdsMap.size} existing ads for creative preservation`);
+      }
+    }
+    
     // Group by campaign, adset, ad and sum metrics
     const campaignMetrics = new Map<string, any>();
     const adsetMetrics = new Map<string, any>();
@@ -1634,9 +1651,15 @@ Deno.serve(async (req) => {
         // Note: record.ad_id is a string, ads[].id might be number or string
         const originalAd = ads.find(a => String(a.id) === String(record.ad_id));
         
-        // Log when we DON'T find the original ad (helps debug)
-        if (!originalAd && ads.length > 0) {
-          console.log(`[DEBUG] Could not find ad ${record.ad_id} in ${ads.length} ads`);
+        // If we can't find the ad in entities, try to get existing data from DB
+        // This preserves creative data for archived/deleted ads
+        let existingCreativeData = null;
+        if (!originalAd) {
+          console.log(`[DEBUG] Ad ${record.ad_id} not found in ${ads.length} entities, will check existing data`);
+          existingCreativeData = existingAdsMap?.get(record.ad_id);
+          if (existingCreativeData) {
+            console.log(`[DEBUG] Found existing creative data for ad ${record.ad_id}`);
+          }
         }
         
         const { primaryText, headline, cta } = originalAd ? extractAdCopy(originalAd) : { primaryText: null, headline: null, cta: null };
@@ -1647,6 +1670,7 @@ Deno.serve(async (req) => {
           console.log(`[AD_COPY] Ad ${record.ad_id}: headline="${headline?.substring(0, 30) || 'null'}", cta="${cta || 'null'}"`);
         }
         
+        // Use extracted data, or fallback to existing data from DB, or use daily record data
         adMetrics.set(record.ad_id, {
           id: record.ad_id,
           project_id,
@@ -1654,13 +1678,14 @@ Deno.serve(async (req) => {
           ad_set_id: record.adset_id,
           name: record.ad_name,
           status: record.ad_status,
-          creative_id: record.creative_id,
-          creative_thumbnail: record.creative_thumbnail,
-          creative_image_url: hdImageUrl || record.creative_thumbnail, // HD image URL
-          creative_video_url: videoUrl, // Video URL if available
-          primary_text: primaryText,
-          headline: headline,
-          cta: cta,
+          creative_id: record.creative_id || existingCreativeData?.creative_id,
+          creative_thumbnail: record.creative_thumbnail || existingCreativeData?.creative_thumbnail,
+          creative_image_url: hdImageUrl || record.creative_thumbnail || existingCreativeData?.creative_image_url,
+          creative_video_url: videoUrl || existingCreativeData?.creative_video_url,
+          cached_image_url: existingCreativeData?.cached_image_url, // PRESERVE cached URL
+          primary_text: primaryText || existingCreativeData?.primary_text,
+          headline: headline || existingCreativeData?.headline,
+          cta: cta || existingCreativeData?.cta,
           spend: 0,
           impressions: 0,
           clicks: 0,
