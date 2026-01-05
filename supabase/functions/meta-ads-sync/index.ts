@@ -369,9 +369,9 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
 
   // Fetch ads with creative fields for HD images AND ad copy (primary_text, headline, cta)
   // object_story_spec contains the ad copy data: body (primary_text), title (headline), call_to_action
-  // FIXED: Removed image_url from link_data/video_data as it's not a valid field - use 'picture' instead
+  // FIXED: Removed image_url from creative{} as it's not a valid field on the ads endpoint - use thumbnail_url and fetch full images via adimages endpoint
   console.log(`[ADS] Fetching ads with creative data...`);
-  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,picture},video_data{message,title,call_to_action,video_id,image_hash}}}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,picture},video_data{message,title,call_to_action,video_id,image_hash}}}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADS', supabase);
     if (isTokenExpiredError(data)) {
@@ -495,7 +495,8 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
       for (const creativeId of batch) {
         try {
           // Use the official adcreatives endpoint with all creative fields
-          const creativeUrl = `https://graph.facebook.com/v19.0/${creativeId}?fields=id,name,thumbnail_url,image_url,object_story_spec,asset_feed_spec,body,title,call_to_action_type&access_token=${token}`;
+          // FIXED: Removed image_url as it causes API error - use thumbnail_url and effective_object_story_id for images
+          const creativeUrl = `https://graph.facebook.com/v19.0/${creativeId}?fields=id,name,thumbnail_url,object_story_spec,asset_feed_spec,body,title,call_to_action_type&access_token=${token}`;
           const creativeData = await fetchWithRetry(creativeUrl, 'CREATIVE', supabase);
           
           if (creativeData && !creativeData.error) {
