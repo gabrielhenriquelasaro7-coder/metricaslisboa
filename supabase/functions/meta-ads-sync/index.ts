@@ -2047,6 +2047,15 @@ Deno.serve(async (req) => {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[COMPLETE] ${dailyRecords.length} daily records in ${elapsed}s`);
 
+    // Calculate cache statistics
+    const cacheStats = {
+      cached_creatives: cachedCreativeMap.size,
+      new_creatives: creativeDataMap.size,
+      cache_hit_rate: cachedCreativeMap.size + creativeDataMap.size > 0 
+        ? Math.round((cachedCreativeMap.size / (cachedCreativeMap.size + creativeDataMap.size)) * 100)
+        : 0
+    };
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -2056,6 +2065,7 @@ Deno.serve(async (req) => {
         ads: adRecords.length,
         validation,
         elapsed_seconds: elapsed,
+        cache_stats: cacheStats,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

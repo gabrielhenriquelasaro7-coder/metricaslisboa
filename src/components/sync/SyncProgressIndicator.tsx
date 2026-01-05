@@ -1,6 +1,6 @@
-import { RefreshCw, CheckCircle2, AlertCircle, Loader2, Database, BarChart3 } from 'lucide-react';
+import { RefreshCw, CheckCircle2, AlertCircle, Loader2, Database, BarChart3, HardDrive } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SyncStep, SyncProgress } from '@/hooks/useSyncWithProgress';
+import { SyncStep, SyncProgress, CacheStats } from '@/hooks/useSyncWithProgress';
 import { Progress } from '@/components/ui/progress';
 
 interface SyncProgressIndicatorProps {
@@ -8,6 +8,7 @@ interface SyncProgressIndicatorProps {
   message: string;
   syncing: boolean;
   detail?: SyncProgress['detail'];
+  cacheStats?: CacheStats;
 }
 
 const stepConfig: Record<SyncStep, { icon: React.ElementType; color: string; label: string }> = {
@@ -24,7 +25,7 @@ const stepConfig: Record<SyncStep, { icon: React.ElementType; color: string; lab
 // Step order for progress calculation
 const stepOrder: SyncStep[] = ['campaigns', 'adsets', 'ads', 'insights', 'saving', 'complete'];
 
-export function SyncProgressIndicator({ step, message, syncing, detail }: SyncProgressIndicatorProps) {
+export function SyncProgressIndicator({ step, message, syncing, detail, cacheStats }: SyncProgressIndicatorProps) {
   if (step === 'idle' && !syncing) return null;
 
   const config = stepConfig[step];
@@ -61,6 +62,13 @@ export function SyncProgressIndicator({ step, message, syncing, detail }: SyncPr
         <p className="text-xs text-muted-foreground">
           {detail.entity}
         </p>
+      )}
+      
+      {cacheStats && step === 'complete' && cacheStats.cache_hit_rate > 0 && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <HardDrive className="w-3 h-3 text-chart-2" />
+          <span>Cache: {cacheStats.cache_hit_rate}% ({cacheStats.cached_creatives} criativos em cache)</span>
+        </div>
       )}
     </div>
   );
