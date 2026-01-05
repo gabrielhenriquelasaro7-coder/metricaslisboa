@@ -11,6 +11,7 @@ export interface AdDailyMetric {
   reach: number;
   conversions: number;
   conversion_value: number;
+  profile_visits: number;
   ctr: number;
   cpm: number;
   cpc: number;
@@ -99,6 +100,7 @@ export function useAdDailyMetrics(
       reach: row.reach || 0,
       conversions: row.conversions || 0,
       conversion_value: row.conversion_value || 0,
+      profile_visits: row.profile_visits || 0,
       ctr: row.impressions > 0 ? (row.clicks / row.impressions) * 100 : 0,
       cpm: row.impressions > 0 ? (row.spend / row.impressions) * 1000 : 0,
       cpc: row.clicks > 0 ? row.spend / row.clicks : 0,
@@ -119,12 +121,13 @@ export function useAdDailyMetrics(
       reach: acc.reach + d.reach,
       conversions: acc.conversions + d.conversions,
       conversion_value: acc.conversion_value + d.conversion_value,
+      profile_visits: acc.profile_visits + d.profile_visits,
       ctr: 0,
       cpm: 0,
       cpc: 0,
       roas: 0,
       cpa: 0,
-    }), { date: '', spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0 });
+    }), { date: '', spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, profile_visits: 0, ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0 });
     
     // Calculate derived metrics
     sum.ctr = sum.impressions > 0 ? (sum.clicks / sum.impressions) * 100 : 0;

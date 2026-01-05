@@ -22,7 +22,8 @@ import {
   Play,
   Image as ImageIcon,
   ExternalLink,
-  Calendar
+  Calendar,
+  Instagram
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -100,7 +101,20 @@ interface Campaign {
   id: string;
   name: string;
   project_id: string;
+  objective: string | null;
 }
+
+// List of objectives that are considered "traffic to Instagram profile"
+const TRAFFIC_OBJECTIVES = [
+  'OUTCOME_TRAFFIC',
+  'LINK_CLICKS', 
+  'POST_ENGAGEMENT',
+  'REACH',
+  'BRAND_AWARENESS',
+  'VIDEO_VIEWS',
+  'OUTCOME_ENGAGEMENT',
+  'OUTCOME_AWARENESS',
+];
 
 export default function AdSetDetail() {
   const { adSetId } = useParams<{ adSetId: string }>();
@@ -114,6 +128,9 @@ export default function AdSetDetail() {
   const selectedProject = projects.find(p => p.id === projectId);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
+  
+  // Check if this is a traffic campaign (top of funnel - profile visits instead of leads)
+  const isTrafficCampaign = campaign?.objective ? TRAFFIC_OBJECTIVES.includes(campaign.objective) : false;
   
   // Fetch ALL daily metrics for this ad set (not filtered by period)
   const { dailyData: adSetDailyData, aggregated: periodMetrics, loading: metricsLoading } = useAdSetDailyMetrics(adSetId, projectId);
@@ -146,10 +163,10 @@ export default function AdSetDetail() {
           
           const { data: campaignData } = await supabase
             .from('campaigns')
-            .select('id, name, project_id')
+            .select('id, name, project_id, objective')
             .eq('id', adSetData.campaign_id)
             .maybeSingle();
-          if (campaignData) setCampaign(campaignData);
+          if (campaignData) setCampaign(campaignData as Campaign);
         }
 
         const { data: adsData } = await supabase
@@ -365,7 +382,58 @@ export default function AdSetDetail() {
                 </p>
               </div>
             </>
+          ) : isTrafficCampaign ? (
+            /* Traffic Campaign Metrics - Profile Visits instead of Leads */
+            <>
+              <div className="glass-card p-6 border-l-4 border-l-pink-500">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center">
+                    <Instagram className="w-6 h-6 text-pink-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Visitas ao Perfil</p>
+                    <p className="text-3xl font-bold">{periodMetrics.profile_visits || 0}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Instagram className="w-3 h-3" /> Topo de Funil
+                </p>
+              </div>
+              <div className="glass-card p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <DollarSign className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Custo por Visita</p>
+                    <p className="text-3xl font-bold">
+                      {(periodMetrics.profile_visits || 0) > 0 
+                        ? formatCurrency(periodMetrics.spend / periodMetrics.profile_visits) 
+                        : formatCurrency(0)}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Custo por visita ao perfil
+                </p>
+              </div>
+              <div className="glass-card p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-chart-3/10 flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6 text-chart-3" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Custo/Clique</p>
+                    <p className="text-3xl font-bold">{formatCurrency(periodMetrics.cpc)}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Média por clique
+                </p>
+              </div>
+            </>
           ) : (
+            /* Inside Sales / PDV - Leads */
             <>
               <div className="glass-card p-6">
                 <div className="flex items-center gap-3 mb-4">
