@@ -66,6 +66,8 @@ const createMetricOptions = (currency: string = 'BRL'): MetricOption[] => {
     { key: 'cpm', label: 'CPM', format: formatCurrency, color: 'hsl(200, 70%, 50%)' },
     { key: 'cpa', label: 'CPL/CPA', format: formatCurrency, color: 'hsl(30, 70%, 50%)' },
     { key: 'roas', label: 'ROAS', format: formatMultiplier, color: 'hsl(142, 76%, 36%)' },
+    { key: 'profile_visits', label: 'Visitas ao Perfil', format: formatNumber, color: 'hsl(330, 80%, 60%)' },
+    { key: 'cost_per_visit', label: 'Custo por Visita', format: formatCurrency, color: 'hsl(330, 60%, 45%)' },
   ];
 };
 
@@ -84,21 +86,29 @@ export default function AdSetCharts({
   const [secondaryMetric, setSecondaryMetric] = useState(isEcommerce ? 'conversions' : 'conversions');
   
   const chartData = useMemo(() => {
-    return data.map(d => ({
-      date: format(parseISO(d.date), 'dd/MM', { locale: ptBR }),
-      fullDate: d.date,
-      spend: d.spend ?? 0,
-      conversions: d.conversions ?? 0,
-      revenue: d.conversion_value ?? 0,
-      roas: d.roas ?? 0,
-      cpa: d.cpa ?? 0,
-      ctr: d.ctr ?? 0,
-      cpm: d.cpm ?? 0,
-      cpc: d.cpc ?? 0,
-      impressions: d.impressions ?? 0,
-      clicks: d.clicks ?? 0,
-      reach: d.reach ?? 0,
-    }));
+    return data.map(d => {
+      const profileVisits = d.profile_visits ?? 0;
+      const spend = d.spend ?? 0;
+      const costPerVisit = profileVisits > 0 ? spend / profileVisits : 0;
+      
+      return {
+        date: format(parseISO(d.date), 'dd/MM', { locale: ptBR }),
+        fullDate: d.date,
+        spend,
+        conversions: d.conversions ?? 0,
+        revenue: d.conversion_value ?? 0,
+        roas: d.roas ?? 0,
+        cpa: d.cpa ?? 0,
+        ctr: d.ctr ?? 0,
+        cpm: d.cpm ?? 0,
+        cpc: d.cpc ?? 0,
+        impressions: d.impressions ?? 0,
+        clicks: d.clicks ?? 0,
+        reach: d.reach ?? 0,
+        profile_visits: profileVisits,
+        cost_per_visit: costPerVisit,
+      };
+    });
   }, [data]);
 
   const getMetric = (key: string) => METRIC_OPTIONS.find(m => m.key === key) || METRIC_OPTIONS[0];
