@@ -128,8 +128,20 @@ export default function AdvancedCharts({
   // Create metric options with dynamic currency
   const METRIC_OPTIONS = useMemo(() => createMetricOptions(currency), [currency]);
   
-  // Determine if we should aggregate by month (more than 60 days)
-  const shouldAggregateByMonth = data.length > 60;
+  // Calculate the date range span to determine if we should aggregate by month
+  // More than 60 unique days = aggregate by month
+  const shouldAggregateByMonth = useMemo(() => {
+    if (data.length <= 60) return false;
+    
+    // Also check actual date span
+    if (data.length > 0) {
+      const firstDate = new Date(data[0].date);
+      const lastDate = new Date(data[data.length - 1].date);
+      const daysDiff = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+      return daysDiff > 60;
+    }
+    return false;
+  }, [data]);
   
   // State for customizable charts
   const [chart1Type, setChart1Type] = useState<ChartType>('composed');
@@ -147,6 +159,8 @@ export default function AdvancedCharts({
   const chartData = useMemo(() => {
     // If too many data points, aggregate by month
     const processedData = shouldAggregateByMonth ? aggregateByMonth(data) : data;
+    
+    console.log(`[AdvancedCharts] Data points: ${data.length}, shouldAggregateByMonth: ${shouldAggregateByMonth}, processed: ${processedData.length}`);
     
     return processedData.map(d => {
       // For monthly data, the date is already in 'yyyy-MM' format

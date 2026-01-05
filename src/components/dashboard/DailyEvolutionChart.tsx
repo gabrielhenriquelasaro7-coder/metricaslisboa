@@ -79,8 +79,20 @@ export default function DailyEvolutionChart({
 }: DailyEvolutionChartProps) {
   const isEcommerce = businessModel === 'ecommerce';
   
-  // Determine if we should aggregate by month (more than 60 days = ~2 months)
-  const shouldAggregateByMonth = data.length > 60;
+  // Calculate the date range span to determine if we should aggregate by month
+  const shouldAggregateByMonth = useMemo(() => {
+    if (data.length <= 60) return false;
+    
+    // Also check actual date span
+    if (data.length > 0) {
+      const firstDate = new Date(data[0].date);
+      const lastDate = new Date(data[data.length - 1].date);
+      const daysDiff = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`[DailyEvolutionChart] Days: ${data.length}, span: ${daysDiff}, shouldAggregate: ${daysDiff > 60}`);
+      return daysDiff > 60;
+    }
+    return false;
+  }, [data]);
   
   const chartData = useMemo(() => {
     // If too many data points, aggregate by month
