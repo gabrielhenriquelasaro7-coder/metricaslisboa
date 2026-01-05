@@ -251,6 +251,7 @@ export default function Creatives() {
             onDateRangeChange={handleDateRangeChange}
             timezone={projectTimezone}
             onPresetChange={handlePresetChange}
+            selectedPreset={selectedPreset}
           />
         </div>
 

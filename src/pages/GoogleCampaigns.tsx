@@ -226,6 +226,7 @@ export default function GoogleCampaigns() {
               onDateRangeChange={handleDateRangeChange}
               timezone={selectedProject?.timezone}
               onPresetChange={handlePresetChange}
+              selectedPreset={selectedPreset}
             />
           </div>
         </div>

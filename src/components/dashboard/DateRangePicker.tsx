@@ -27,22 +27,27 @@ interface DateRangePickerProps {
   onDateRangeChange: (range: DateRange | undefined) => void;
   timezone?: string;
   onPresetChange?: (presetKey: DatePresetKey) => void;
+  selectedPreset?: DatePresetKey;
 }
 
 export default function DateRangePicker({ 
   dateRange, 
   onDateRangeChange, 
   timezone = 'America/Sao_Paulo',
-  onPresetChange
+  onPresetChange,
+  selectedPreset: externalPreset
 }: DateRangePickerProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
+  const [internalPreset, setInternalPreset] = useState<DatePresetKey>('this_month');
+  
+  // Use external preset if provided, otherwise use internal state
+  const selectedPreset = externalPreset ?? internalPreset;
 
   // Calcula os períodos baseado no timezone
   const periods = useMemo(() => calculateTimePeriods(timezone), [timezone]);
 
   const handlePresetChange = (presetKey: DatePresetKey) => {
-    setSelectedPreset(presetKey);
+    setInternalPreset(presetKey);
     
     if (presetKey === 'custom') {
       setIsCalendarOpen(true);
@@ -61,7 +66,7 @@ export default function DateRangePicker({
   const handleCalendarSelect = (range: DateRange | undefined) => {
     onDateRangeChange(range);
     if (range?.from && range?.to) {
-      setSelectedPreset('custom');
+      setInternalPreset('custom');
       onPresetChange?.('custom');
     }
   };
