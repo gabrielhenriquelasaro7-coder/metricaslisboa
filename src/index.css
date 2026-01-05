@@ -248,20 +248,9 @@
     50% { opacity: 0.6; }
   }
 
-  /* Red texture background overlay */
+  /* Red texture background overlay - clean version */
   .red-texture-bg {
     position: relative;
-  }
-  
-  .red-texture-bg::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: 
-      radial-gradient(ellipse at 20% 30%, hsl(var(--primary) / 0.04) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 70%, hsl(var(--primary) / 0.03) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
   }
 
   /* Gradient text */
