@@ -113,6 +113,17 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
 
   const currentlyImporting = months.find(m => m.status === 'importing');
 
+  // Organize months by year
+  const monthsByYear = months.reduce((acc, month) => {
+    if (!acc[month.year]) {
+      acc[month.year] = [];
+    }
+    acc[month.year].push(month);
+    return acc;
+  }, {} as Record<number, MonthImportRecord[]>);
+
+  const years = Object.keys(monthsByYear).map(Number).sort((a, b) => b - a); // Descending order
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
@@ -126,6 +137,10 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
       default:
         return <CheckCircle2 className="w-4 h-4 text-muted-foreground" />;
     }
+  };
+
+  const getMonthForYear = (year: number, monthNum: number): MonthImportRecord | null => {
+    return monthsByYear[year]?.find(m => m.month === monthNum) || null;
   };
 
   if (loading) {
@@ -149,7 +164,7 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
         <X className="w-5 h-5" />
       </Button>
 
-      <div className="max-w-2xl w-full space-y-8">
+      <div className="max-w-3xl w-full space-y-8">
         {/* Logo */}
         <div className="flex justify-center">
           <img src={v4LogoFull} alt="V4 Company" className="h-16" />
@@ -198,30 +213,53 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
           </div>
         </div>
 
-        {/* Month Grid */}
-        <div className="glass-card p-6 space-y-4">
-          <h3 className="font-semibold text-sm text-muted-foreground">Meses</h3>
-          <div className="grid grid-cols-6 sm:grid-cols-12 gap-2">
-            {months.map((month) => (
-              <div
-                key={month.id}
-                className={cn(
-                  "flex flex-col items-center justify-center p-2 rounded-lg border transition-all",
-                  month.status === 'success' && "bg-metric-positive/10 border-metric-positive/30",
-                  month.status === 'importing' && "bg-primary/10 border-primary/30 animate-pulse",
-                  month.status === 'error' && "bg-metric-negative/10 border-metric-negative/30",
-                  month.status === 'pending' && "bg-muted/30 border-border",
-                  month.status === 'skipped' && "bg-muted/20 border-border/50"
-                )}
-                title={`${MONTH_NAMES[month.month - 1]} ${month.year}: ${month.records_count || 0} registros`}
-              >
-                {getStatusIcon(month.status)}
-                <span className="text-[10px] mt-1 text-muted-foreground">
-                  {MONTH_NAMES[month.month - 1].substring(0, 3)}
-                </span>
+        {/* Month Grid by Year */}
+        <div className="glass-card p-6 space-y-6 max-h-[400px] overflow-y-auto">
+          {years.map((year) => (
+            <div key={year} className="space-y-3">
+              <h3 className="font-semibold text-sm text-primary">{year}</h3>
+              <div className="grid grid-cols-12 gap-2">
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((monthNum) => {
+                  const month = getMonthForYear(year, monthNum);
+                  
+                  if (!month) {
+                    return (
+                      <div
+                        key={`${year}-${monthNum}`}
+                        className="flex flex-col items-center justify-center p-2 rounded-lg border border-border/30 bg-muted/10 opacity-40"
+                        title={`${MONTH_NAMES[monthNum - 1]} ${year}: Não disponível`}
+                      >
+                        <div className="w-4 h-4" />
+                        <span className="text-[10px] mt-1 text-muted-foreground">
+                          {MONTH_NAMES[monthNum - 1].substring(0, 3)}
+                        </span>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div
+                      key={month.id}
+                      className={cn(
+                        "flex flex-col items-center justify-center p-2 rounded-lg border transition-all",
+                        month.status === 'success' && "bg-metric-positive/10 border-metric-positive/30",
+                        month.status === 'importing' && "bg-primary/10 border-primary/30 animate-pulse",
+                        month.status === 'error' && "bg-metric-negative/10 border-metric-negative/30",
+                        month.status === 'pending' && "bg-muted/30 border-border",
+                        month.status === 'skipped' && "bg-muted/20 border-border/50"
+                      )}
+                      title={`${MONTH_NAMES[month.month - 1]} ${month.year}: ${month.records_count || 0} registros`}
+                    >
+                      {getStatusIcon(month.status)}
+                      <span className="text-[10px] mt-1 text-muted-foreground">
+                        {MONTH_NAMES[month.month - 1].substring(0, 3)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
 
         {/* Info & Exit Button */}
