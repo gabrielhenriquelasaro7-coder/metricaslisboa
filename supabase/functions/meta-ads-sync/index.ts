@@ -328,6 +328,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
   adsets: any[];
   ads: any[];
   adImageMap: Map<string, string>;
+  videoThumbnailMap: Map<string, string>;
   tokenExpired?: boolean;
 }> {
   const campaigns: any[] = [];
@@ -342,7 +343,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
   while (url) {
     const data = await fetchWithRetry(url, 'CAMPAIGNS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), tokenExpired: true };
+      return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), tokenExpired: true };
     }
     if (data.data) campaigns.push(...data.data);
     url = data.paging?.next || null;
@@ -353,7 +354,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
   while (url) {
     const data = await fetchWithRetry(url, 'ADSETS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns, adsets: [], ads: [], adImageMap: new Map(), tokenExpired: true };
+      return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), tokenExpired: true };
     }
     if (data.data) adsets.push(...data.data);
     url = data.paging?.next || null;
@@ -361,11 +362,12 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
 
   // Fetch ads with creative fields for HD images AND ad copy (primary_text, headline, cta)
   // object_story_spec contains the ad copy data: body (primary_text), title (headline), call_to_action
-  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action},video_data{message,title,call_to_action}}}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
+  // IMPROVED: Also fetch video_data for video thumbnails
+  url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,image_url,picture},video_data{message,title,call_to_action,video_id,image_url}}}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
     const data = await fetchWithRetry(url, 'ADS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns, adsets, ads: [], adImageMap: new Map(), tokenExpired: true };
+      return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), tokenExpired: true };
     }
     if (data.data) ads.push(...data.data);
     url = data.paging?.next || null;
@@ -400,8 +402,62 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
     console.log(`[ADIMAGES] Fetched ${adImageMap.size} HD image URLs`);
   }
 
+  // STEP 3: Fetch HD video thumbnails for video ads
+  const videoIds: string[] = [];
+  const adToVideoMap = new Map<string, string>(); // ad_id -> video_id
+  for (const ad of ads) {
+    const videoId = ad.creative?.object_story_spec?.video_data?.video_id;
+    if (videoId) {
+      videoIds.push(videoId);
+      adToVideoMap.set(ad.id, videoId);
+    }
+  }
+  
+  const videoThumbnailMap = new Map<string, string>(); // video_id -> thumbnail_url
+  if (videoIds.length > 0) {
+    console.log(`[VIDEOS] Found ${videoIds.length} videos, fetching HD thumbnails...`);
+    
+    // Fetch video thumbnails in batches - use picture field for HD thumbnail
+    for (let i = 0; i < videoIds.length; i += 50) {
+      const batch = videoIds.slice(i, i + 50);
+      
+      // Fetch each video's thumbnail
+      for (const videoId of batch) {
+        try {
+          const videoUrl = `https://graph.facebook.com/v19.0/${videoId}?fields=id,picture,thumbnails{uri,height,width}&access_token=${token}`;
+          const videoData = await fetchWithRetry(videoUrl, 'VIDEO_THUMBNAIL', supabase);
+          
+          if (videoData && !videoData.error) {
+            // Priority: Get largest thumbnail from thumbnails array, or use picture field
+            let bestThumbnail = videoData.picture;
+            
+            if (videoData.thumbnails?.data && videoData.thumbnails.data.length > 0) {
+              // Sort by height descending and get the largest
+              const thumbnails = videoData.thumbnails.data.sort((a: any, b: any) => (b.height || 0) - (a.height || 0));
+              if (thumbnails[0]?.uri) {
+                bestThumbnail = thumbnails[0].uri;
+              }
+            }
+            
+            if (bestThumbnail) {
+              videoThumbnailMap.set(videoId, bestThumbnail);
+            }
+          }
+        } catch (err) {
+          console.log(`[VIDEO_THUMBNAIL] Error fetching thumbnail for video ${videoId}`);
+        }
+      }
+      
+      // Small delay between batches
+      if (i + 50 < videoIds.length) {
+        await delay(100);
+      }
+    }
+    console.log(`[VIDEOS] Fetched ${videoThumbnailMap.size} HD video thumbnails`);
+  }
+
   console.log(`[ENTITIES] Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}`);
-  return { campaigns, adsets, ads, adImageMap };
+  return { campaigns, adsets, ads, adImageMap, videoThumbnailMap };
 }
 
 // ============ FETCH DAILY INSIGHTS (time_increment=1) ============
@@ -751,7 +807,7 @@ function isInstagramTrafficCampaign(objective: string | null): boolean {
 }
 
 // ============ EXTRACT HD IMAGE URL ============
-function extractHdImageUrl(ad: any, adImageMap: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
+function extractHdImageUrl(ad: any, adImageMap: Map<string, string>, videoThumbnailMap?: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
   let imageUrl: string | null = null;
   let videoUrl: string | null = null;
   
@@ -782,12 +838,12 @@ function extractHdImageUrl(ad: any, adImageMap: Map<string, string>): { imageUrl
     }
   }
   
-  // Priority 5: Check object_story_spec for image/video
-  if (!imageUrl && creative.object_story_spec) {
+  // Priority 4: Check object_story_spec for image/video
+  if (creative.object_story_spec) {
     const spec = creative.object_story_spec;
     
     // Link data (single image ads)
-    if (spec.link_data?.image_url) {
+    if (!imageUrl && spec.link_data?.image_url) {
       imageUrl = spec.link_data.image_url;
     }
     if (!imageUrl && spec.link_data?.picture) {
@@ -799,10 +855,22 @@ function extractHdImageUrl(ad: any, adImageMap: Map<string, string>): { imageUrl
       imageUrl = adImageMap.get(spec.link_data.image_hash)!;
     }
     
-    // Video data
+    // Video data - IMPROVED: Use HD thumbnail from videoThumbnailMap
     if (spec.video_data?.video_id) {
-      // Use video thumbnail if available
-      videoUrl = spec.video_data.image_url || null;
+      const videoId = spec.video_data.video_id;
+      
+      // First priority: Use HD thumbnail fetched from Videos API
+      if (videoThumbnailMap && videoThumbnailMap.has(videoId)) {
+        imageUrl = videoThumbnailMap.get(videoId)!;
+        console.log(`[VIDEO] Using HD thumbnail for video ${videoId}`);
+      }
+      // Fallback: Use video_data.image_url from object_story_spec
+      else if (!imageUrl && spec.video_data.image_url) {
+        imageUrl = spec.video_data.image_url;
+      }
+      
+      // Mark this as a video ad
+      videoUrl = videoId;
     }
     
     // Photo data
@@ -811,7 +879,7 @@ function extractHdImageUrl(ad: any, adImageMap: Map<string, string>): { imageUrl
     }
   }
   
-  // Priority 6: Fallback to thumbnail (but aggressively clean resize parameters)
+  // Priority 5: Fallback to thumbnail (but aggressively clean resize parameters)
   if (!imageUrl && creative.thumbnail_url) {
     let thumbnailUrl = creative.thumbnail_url;
     
@@ -1299,7 +1367,7 @@ Deno.serve(async (req) => {
     }
 
     // ========== STEP 1: Fetch entities (campaigns, adsets, ads) ==========
-    const { campaigns, adsets, ads, adImageMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase);
+    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase);
     
     // Check if token expired
     if (tokenExpired) {
@@ -1363,8 +1431,8 @@ Deno.serve(async (req) => {
           conversions = messagingReplies;
         }
         
-        // Get HD image URL
-        const { imageUrl, videoUrl } = ad ? extractHdImageUrl(ad, adImageMap) : { imageUrl: null, videoUrl: null };
+        // Get HD image URL (including video thumbnails)
+        const { imageUrl, videoUrl } = ad ? extractHdImageUrl(ad, adImageMap, videoThumbnailMap) : { imageUrl: null, videoUrl: null };
         
         const spend = parseFloat(insights.spend) || 0;
         const impressions = parseInt(insights.impressions) || 0;
@@ -1555,7 +1623,7 @@ Deno.serve(async (req) => {
         // Find the original ad to extract ad copy and HD image
         const originalAd = ads.find(a => a.id === record.ad_id);
         const { primaryText, headline, cta } = originalAd ? extractAdCopy(originalAd) : { primaryText: null, headline: null, cta: null };
-        const { imageUrl: hdImageUrl, videoUrl } = originalAd ? extractHdImageUrl(originalAd, adImageMap) : { imageUrl: null, videoUrl: null };
+        const { imageUrl: hdImageUrl, videoUrl } = originalAd ? extractHdImageUrl(originalAd, adImageMap, videoThumbnailMap) : { imageUrl: null, videoUrl: null };
         
         adMetrics.set(record.ad_id, {
           id: record.ad_id,
