@@ -32,6 +32,7 @@ export type Database = {
           lifetime_budget: number | null
           messaging_replies: number | null
           name: string
+          profile_visits: number | null
           project_id: string
           reach: number | null
           roas: number | null
@@ -57,6 +58,7 @@ export type Database = {
           lifetime_budget?: number | null
           messaging_replies?: number | null
           name: string
+          profile_visits?: number | null
           project_id: string
           reach?: number | null
           roas?: number | null
@@ -82,6 +84,7 @@ export type Database = {
           lifetime_budget?: number | null
           messaging_replies?: number | null
           name?: string
+          profile_visits?: number | null
           project_id?: string
           reach?: number | null
           roas?: number | null
@@ -125,6 +128,7 @@ export type Database = {
           messaging_replies: number | null
           name: string
           primary_text: string | null
+          profile_visits: number | null
           project_id: string
           reach: number | null
           roas: number | null
@@ -156,6 +160,7 @@ export type Database = {
           messaging_replies?: number | null
           name: string
           primary_text?: string | null
+          profile_visits?: number | null
           project_id: string
           reach?: number | null
           roas?: number | null
@@ -187,6 +192,7 @@ export type Database = {
           messaging_replies?: number | null
           name?: string
           primary_text?: string | null
+          profile_visits?: number | null
           project_id?: string
           reach?: number | null
           roas?: number | null
@@ -233,6 +239,7 @@ export type Database = {
           id: string
           impressions: number
           messaging_replies: number | null
+          profile_visits: number | null
           project_id: string
           reach: number
           roas: number | null
@@ -267,6 +274,7 @@ export type Database = {
           id?: string
           impressions?: number
           messaging_replies?: number | null
+          profile_visits?: number | null
           project_id: string
           reach?: number
           roas?: number | null
@@ -301,6 +309,7 @@ export type Database = {
           id?: string
           impressions?: number
           messaging_replies?: number | null
+          profile_visits?: number | null
           project_id?: string
           reach?: number
           roas?: number | null
@@ -555,6 +564,7 @@ export type Database = {
           messaging_replies: number | null
           name: string
           objective: string | null
+          profile_visits: number | null
           project_id: string
           reach: number | null
           roas: number | null
@@ -581,6 +591,7 @@ export type Database = {
           messaging_replies?: number | null
           name: string
           objective?: string | null
+          profile_visits?: number | null
           project_id: string
           reach?: number | null
           roas?: number | null
@@ -607,6 +618,7 @@ export type Database = {
           messaging_replies?: number | null
           name?: string
           objective?: string | null
+          profile_visits?: number | null
           project_id?: string
           reach?: number | null
           roas?: number | null

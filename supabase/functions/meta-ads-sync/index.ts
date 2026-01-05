@@ -170,6 +170,109 @@ function isRateLimitError(data: any): boolean {
          errorMessage.includes('too many calls');
 }
 
+// ============ CHECK IF TOKEN EXPIRED ============
+function isTokenExpiredError(data: any): boolean {
+  if (!data?.error) return false;
+  const errorCode = data.error.code;
+  const errorSubcode = data.error.error_subcode;
+  const errorMessage = (data.error.message || '').toLowerCase();
+  
+  // OAuth errors related to token expiration
+  // Code 190: Invalid OAuth access token
+  // Subcode 463: Token has expired
+  // Subcode 467: Token has been invalidated
+  return errorCode === 190 || 
+         errorCode === '190' ||
+         errorSubcode === 463 || 
+         errorSubcode === 467 ||
+         errorMessage.includes('access token') && (
+           errorMessage.includes('expired') ||
+           errorMessage.includes('invalid') ||
+           errorMessage.includes('session')
+         );
+}
+
+// ============ SEND TOKEN EXPIRY NOTIFICATION ============
+async function sendTokenExpiryNotification(supabase: any): Promise<void> {
+  try {
+    // Get admin email from system_settings
+    const { data: emailSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'admin_notification_email')
+      .single();
+    
+    const adminEmail = emailSetting?.value;
+    if (!adminEmail) {
+      console.log('[TOKEN_EXPIRY] No admin email configured');
+      return;
+    }
+    
+    // Check if we already notified recently (within 1 hour)
+    const { data: lastNotified } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'token_expiry_notified_at')
+      .single();
+    
+    if (lastNotified?.value) {
+      const lastNotifiedAt = new Date(lastNotified.value);
+      const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      if (lastNotifiedAt > hourAgo) {
+        console.log('[TOKEN_EXPIRY] Already notified within the last hour');
+        return;
+      }
+    }
+    
+    // Check if RESEND_API_KEY is configured
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+    if (!RESEND_API_KEY) {
+      console.log('[TOKEN_EXPIRY] RESEND_API_KEY not configured, cannot send email');
+      return;
+    }
+    
+    // Send email via Resend
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: 'V4 Dashboard <alerts@resend.dev>',
+        to: [adminEmail],
+        subject: '🚨 Token do Meta Ads Expirou - Ação Necessária',
+        html: `
+          <h1>Token do Meta Ads Expirou</h1>
+          <p>O token de acesso do Meta Ads expirou e precisa ser renovado para continuar sincronizando os dados.</p>
+          <h2>Como renovar:</h2>
+          <ol>
+            <li>Acesse o <a href="https://developers.facebook.com/tools/explorer/">Graph API Explorer</a></li>
+            <li>Gere um novo token com as permissões necessárias</li>
+            <li>Atualize o secret META_ACCESS_TOKEN no dashboard</li>
+          </ol>
+          <p><strong>Data/Hora:</strong> ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
+        `,
+      }),
+    });
+    
+    if (response.ok) {
+      console.log('[TOKEN_EXPIRY] Email notification sent successfully');
+      
+      // Update last notified timestamp
+      await supabase
+        .from('system_settings')
+        .update({ value: new Date().toISOString() })
+        .eq('key', 'token_expiry_notified_at');
+    } else {
+      const errorData = await response.json();
+      console.error('[TOKEN_EXPIRY] Failed to send email:', errorData);
+    }
+  } catch (error) {
+    console.error('[TOKEN_EXPIRY] Error sending notification:', error);
+  }
+}
+
 async function simpleFetch(url: string, options?: RequestInit, timeoutMs = 30000): Promise<any> {
   try {
     const controller = new AbortController();
@@ -182,7 +285,7 @@ async function simpleFetch(url: string, options?: RequestInit, timeoutMs = 30000
   }
 }
 
-async function fetchWithRetry(url: string, entityName: string, options?: RequestInit, timeoutMs = 30000): Promise<any> {
+async function fetchWithRetry(url: string, entityName: string, supabase?: any, options?: RequestInit, timeoutMs = 30000): Promise<any> {
   let lastError: any = null;
   
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -194,6 +297,14 @@ async function fetchWithRetry(url: string, entityName: string, options?: Request
     
     // Log the error for debugging
     console.error(`[${entityName}] API Error:`, JSON.stringify(data.error));
+    
+    // Check if token expired - notify admin
+    if (isTokenExpiredError(data) && supabase) {
+      console.error(`[${entityName}] Token expired! Sending notification...`);
+      await sendTokenExpiryNotification(supabase);
+      // Don't retry for token expiration
+      return data;
+    }
     
     if (isRateLimitError(data)) {
       if (attempt < MAX_RETRIES) {
@@ -212,11 +323,12 @@ async function fetchWithRetry(url: string, entityName: string, options?: Request
 }
 
 // ============ FETCH ENTITIES ============
-async function fetchEntities(adAccountId: string, token: string): Promise<{
+async function fetchEntities(adAccountId: string, token: string, supabase?: any): Promise<{
   campaigns: any[];
   adsets: any[];
   ads: any[];
   adImageMap: Map<string, string>;
+  tokenExpired?: boolean;
 }> {
   const campaigns: any[] = [];
   const adsets: any[] = [];
@@ -228,7 +340,10 @@ async function fetchEntities(adAccountId: string, token: string): Promise<{
   // Fetch campaigns - include all statuses
   let url = `https://graph.facebook.com/v19.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
-    const data = await fetchWithRetry(url, 'CAMPAIGNS');
+    const data = await fetchWithRetry(url, 'CAMPAIGNS', supabase);
+    if (isTokenExpiredError(data)) {
+      return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), tokenExpired: true };
+    }
     if (data.data) campaigns.push(...data.data);
     url = data.paging?.next || null;
   }
@@ -236,7 +351,10 @@ async function fetchEntities(adAccountId: string, token: string): Promise<{
   // Fetch adsets - include all statuses
   url = `https://graph.facebook.com/v19.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
-    const data = await fetchWithRetry(url, 'ADSETS');
+    const data = await fetchWithRetry(url, 'ADSETS', supabase);
+    if (isTokenExpiredError(data)) {
+      return { campaigns, adsets: [], ads: [], adImageMap: new Map(), tokenExpired: true };
+    }
     if (data.data) adsets.push(...data.data);
     url = data.paging?.next || null;
   }
@@ -245,7 +363,10 @@ async function fetchEntities(adAccountId: string, token: string): Promise<{
   // object_story_spec contains the ad copy data: body (primary_text), title (headline), call_to_action
   url = `https://graph.facebook.com/v19.0/${adAccountId}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action},video_data{message,title,call_to_action}}}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) {
-    const data = await fetchWithRetry(url, 'ADS');
+    const data = await fetchWithRetry(url, 'ADS', supabase);
+    if (isTokenExpiredError(data)) {
+      return { campaigns, adsets, ads: [], adImageMap: new Map(), tokenExpired: true };
+    }
     if (data.data) ads.push(...data.data);
     url = data.paging?.next || null;
   }
@@ -266,7 +387,7 @@ async function fetchEntities(adAccountId: string, token: string): Promise<{
       const batch = imageHashes.slice(i, i + 50);
       const hashesParam = batch.join(',');
       const imageUrl = `https://graph.facebook.com/v19.0/${adAccountId}/adimages?hashes=${encodeURIComponent(JSON.stringify(batch))}&fields=hash,url,url_128,original_width,original_height&access_token=${token}`;
-      const imageData = await fetchWithRetry(imageUrl, 'ADIMAGES');
+      const imageData = await fetchWithRetry(imageUrl, 'ADIMAGES', supabase);
       
       if (imageData.data) {
         for (const img of imageData.data) {
@@ -391,6 +512,15 @@ const MESSAGING_ACTION_TYPES = [
   // Outros tipos de conversas
   'onsite_conversion.send_message',                       // Mensagem enviada
   'onsite_conversion.total_messaging_connection',         // Total de conexões de mensagem
+];
+
+// VISITAS AO PERFIL DO INSTAGRAM - Para campanhas de tráfego Instagram (Topo de Funil)
+// Estas campanhas NÃO geram leads, a métrica principal é Visitas ao Perfil
+const PROFILE_VISIT_ACTION_TYPES = [
+  'onsite_conversion.profile_view',                       // Visualização de perfil
+  'ig_profile_visit',                                     // Visita ao perfil do Instagram
+  'profile_visit',                                        // Visita ao perfil (genérico)
+  'onsite_conversion.instagram_profile_view',             // Visualização de perfil Instagram
 ];
 
 // LISTA COMPLETA DE CONVERSÕES VÁLIDAS
@@ -563,6 +693,45 @@ function extractMessagingReplies(insights: any, logActions: boolean = false): nu
   }
   
   return messagingReplies;
+}
+
+// ============ EXTRACT PROFILE VISITS (Instagram Traffic Campaigns) ============
+// Para campanhas de tráfego para Instagram (Topo de Funil)
+// Estas campanhas NÃO geram leads/CPL - a métrica principal é Visitas ao Perfil
+function extractProfileVisits(insights: any, logActions: boolean = false): number {
+  let profileVisits = 0;
+  const foundActions: string[] = [];
+  
+  if (insights?.actions && Array.isArray(insights.actions)) {
+    for (const action of insights.actions) {
+      const actionType = action.action_type;
+      const actionValue = parseInt(action.value) || 0;
+      
+      if (actionValue > 0 && PROFILE_VISIT_ACTION_TYPES.includes(actionType)) {
+        foundActions.push(`${actionType}:${actionValue}`);
+        // Pega o maior valor (evita dupla contagem)
+        if (actionValue > profileVisits) {
+          profileVisits = actionValue;
+        }
+      }
+    }
+  }
+  
+  // Log found profile visit actions for debugging
+  if (foundActions.length > 0 && logActions) {
+    console.log(`[PROFILE_VISITS] Found: ${foundActions.join(', ')}, Using: ${profileVisits}`);
+  }
+  
+  return profileVisits;
+}
+
+// ============ CHECK IF CAMPAIGN IS INSTAGRAM TRAFFIC (Top of Funnel) ============
+// Campanhas com objective OUTCOME_TRAFFIC ou OUTCOME_ENGAGEMENT são topo de funil
+// Não devem mostrar Leads/CPL, e sim Visitas ao Perfil
+function isInstagramTrafficCampaign(objective: string | null): boolean {
+  if (!objective) return false;
+  const trafficObjectives = ['OUTCOME_TRAFFIC', 'OUTCOME_ENGAGEMENT', 'OUTCOME_AWARENESS', 'TRAFFIC', 'ENGAGEMENT', 'REACH', 'BRAND_AWARENESS'];
+  return trafficObjectives.includes(objective.toUpperCase());
 }
 
 // ============ EXTRACT HD IMAGE URL ============
@@ -1114,7 +1283,18 @@ Deno.serve(async (req) => {
     }
 
     // ========== STEP 1: Fetch entities (campaigns, adsets, ads) ==========
-    const { campaigns, adsets, ads, adImageMap } = await fetchEntities(ad_account_id, token);
+    const { campaigns, adsets, ads, adImageMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase);
+    
+    // Check if token expired
+    if (tokenExpired) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Token do Meta expirou. Uma notificação foi enviada para o administrador.' 
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // Build lookup maps
     const campaignMap = new Map(campaigns.map(c => [extractId(c.id), c]));
@@ -1146,9 +1326,23 @@ Deno.serve(async (req) => {
         // Extract messaging metrics for Inside Sales campaigns (log first 20 rows with actions)
         const messagingReplies = extractMessagingReplies(insights, logCounter < 20);
         
-        // IMPORTANTE: Se não há conversões tradicionais mas há messaging_replies,
-        // usar messaging_replies como lead (para campanhas de mensagem/tráfego WhatsApp)
-        if (conversions === 0 && messagingReplies > 0) {
+        // Extract profile visits for Instagram Traffic campaigns (top of funnel)
+        const profileVisits = extractProfileVisits(insights, logCounter < 20);
+        
+        // Check if this is an Instagram Traffic campaign (top of funnel)
+        const campaignObjective = campaign?.objective || null;
+        const isTrafficCampaign = isInstagramTrafficCampaign(campaignObjective);
+        
+        // IMPORTANTE: Para campanhas de tráfego Instagram (topo de funil):
+        // - NÃO usar leads/CPL
+        // - A métrica principal é Visitas ao Perfil
+        if (isTrafficCampaign && profileVisits > 0) {
+          // Para campanhas de tráfego, NÃO convertemos visitas em leads
+          // As visitas são armazenadas separadamente
+          console.log(`[TRAFFIC_CAMPAIGN] Ad ${adId}: ${profileVisits} profile visits (not counting as leads)`);
+        } else if (conversions === 0 && messagingReplies > 0) {
+          // IMPORTANTE: Se não há conversões tradicionais mas há messaging_replies,
+          // usar messaging_replies como lead (para campanhas de mensagem/tráfego WhatsApp)
           console.log(`[MESSAGING_AS_LEAD] Ad ${adId}: Using ${messagingReplies} messaging_replies as conversions`);
           conversions = messagingReplies;
         }
@@ -1176,7 +1370,7 @@ Deno.serve(async (req) => {
           campaign_id: campaignId || 'unknown',
           campaign_name: insights.campaign_name || campaign?.name || 'Unknown Campaign',
           campaign_status: campaign?.status || null,
-          campaign_objective: campaign?.objective || null,
+          campaign_objective: campaignObjective,
           adset_id: adsetId || 'unknown',
           adset_name: insights.adset_name || adset?.name || 'Unknown Adset',
           adset_status: adset?.status || null,
@@ -1198,6 +1392,7 @@ Deno.serve(async (req) => {
           cpa,
           roas,
           messaging_replies: messagingReplies,
+          profile_visits: profileVisits,
           synced_at: new Date().toISOString(),
         });
       }
@@ -1272,6 +1467,7 @@ Deno.serve(async (req) => {
           reach: 0,
           conversions: 0,
           conversion_value: 0,
+          profile_visits: 0,
         });
       }
       const cm = campaignMetrics.get(record.campaign_id);
@@ -1281,6 +1477,7 @@ Deno.serve(async (req) => {
       cm.reach += record.reach;
       cm.conversions += record.conversions;
       cm.conversion_value += record.conversion_value;
+      cm.profile_visits += record.profile_visits || 0;
       
       // Aggregate adsets
       if (!adsetMetrics.has(record.adset_id)) {
@@ -1296,6 +1493,7 @@ Deno.serve(async (req) => {
           reach: 0,
           conversions: 0,
           conversion_value: 0,
+          profile_visits: 0,
         });
       }
       const am = adsetMetrics.get(record.adset_id);
@@ -1305,6 +1503,7 @@ Deno.serve(async (req) => {
       am.reach += record.reach;
       am.conversions += record.conversions;
       am.conversion_value += record.conversion_value;
+      am.profile_visits += record.profile_visits || 0;
       
       // Aggregate ads
       if (!adMetrics.has(record.ad_id)) {
@@ -1333,6 +1532,7 @@ Deno.serve(async (req) => {
           reach: 0,
           conversions: 0,
           conversion_value: 0,
+          profile_visits: 0,
         });
       }
       const adm = adMetrics.get(record.ad_id);
@@ -1342,6 +1542,7 @@ Deno.serve(async (req) => {
       adm.reach += record.reach;
       adm.conversions += record.conversions;
       adm.conversion_value += record.conversion_value;
+      adm.profile_visits += record.profile_visits || 0;
     }
     
     // Calculate derived metrics for aggregated data
