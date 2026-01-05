@@ -516,11 +516,16 @@ const MESSAGING_ACTION_TYPES = [
 
 // VISITAS AO PERFIL DO INSTAGRAM - Para campanhas de tráfego Instagram (Topo de Funil)
 // Estas campanhas NÃO geram leads, a métrica principal é Visitas ao Perfil
+// IMPORTANTE: O Meta pode retornar essas ações com diferentes nomes dependendo da versão da API
 const PROFILE_VISIT_ACTION_TYPES = [
   'onsite_conversion.profile_view',                       // Visualização de perfil
   'ig_profile_visit',                                     // Visita ao perfil do Instagram
   'profile_visit',                                        // Visita ao perfil (genérico)
   'onsite_conversion.instagram_profile_view',             // Visualização de perfil Instagram
+  'onsite_conversion.ig_profile_visit',                   // Alternativa IG profile visit
+  'instagram_profile_view',                               // Alternativa simples
+  'page_engagement',                                      // Engajamento na página (fallback)
+  'post_engagement',                                      // Engajamento no post (fallback para campanhas de tráfego)
 ];
 
 // LISTA COMPLETA DE CONVERSÕES VÁLIDAS
@@ -698,14 +703,20 @@ function extractMessagingReplies(insights: any, logActions: boolean = false): nu
 // ============ EXTRACT PROFILE VISITS (Instagram Traffic Campaigns) ============
 // Para campanhas de tráfego para Instagram (Topo de Funil)
 // Estas campanhas NÃO geram leads/CPL - a métrica principal é Visitas ao Perfil
-function extractProfileVisits(insights: any, logActions: boolean = false): number {
+function extractProfileVisits(insights: any, logActions: boolean = false, campaignObjective?: string): number {
   let profileVisits = 0;
   const foundActions: string[] = [];
+  const allActionsDebug: string[] = [];
   
   if (insights?.actions && Array.isArray(insights.actions)) {
     for (const action of insights.actions) {
       const actionType = action.action_type;
       const actionValue = parseInt(action.value) || 0;
+      
+      // Log ALL actions for debugging (first few rows only)
+      if (actionValue > 0 && logActions) {
+        allActionsDebug.push(`${actionType}:${actionValue}`);
+      }
       
       if (actionValue > 0 && PROFILE_VISIT_ACTION_TYPES.includes(actionType)) {
         foundActions.push(`${actionType}:${actionValue}`);
@@ -715,6 +726,11 @@ function extractProfileVisits(insights: any, logActions: boolean = false): numbe
         }
       }
     }
+  }
+  
+  // Log ALL actions for debugging traffic campaigns (helps identify new action types)
+  if (logActions && allActionsDebug.length > 0 && campaignObjective === 'OUTCOME_TRAFFIC') {
+    console.log(`[TRAFFIC_CAMPAIGN_ACTIONS] All actions: ${allActionsDebug.join(', ')}`);
   }
   
   // Log found profile visit actions for debugging
@@ -1327,10 +1343,10 @@ Deno.serve(async (req) => {
         const messagingReplies = extractMessagingReplies(insights, logCounter < 20);
         
         // Extract profile visits for Instagram Traffic campaigns (top of funnel)
-        const profileVisits = extractProfileVisits(insights, logCounter < 20);
+        const campaignObjective = campaign?.objective || null;
+        const profileVisits = extractProfileVisits(insights, logCounter < 20, campaignObjective);
         
         // Check if this is an Instagram Traffic campaign (top of funnel)
-        const campaignObjective = campaign?.objective || null;
         const isTrafficCampaign = isInstagramTrafficCampaign(campaignObjective);
         
         // IMPORTANTE: Para campanhas de tráfego Instagram (topo de funil):
