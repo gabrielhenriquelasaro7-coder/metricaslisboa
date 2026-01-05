@@ -331,6 +331,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   videoThumbnailMap: Map<string, string>;
   creativeDataMap: Map<string, any>;
   cachedCreativeMap: Map<string, any>;
+  adPreviewMap: Map<string, string>;
   tokenExpired?: boolean;
 }> {
   const campaigns: any[] = [];
@@ -379,7 +380,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   while (url) {
     const data = await fetchWithRetry(url, 'CAMPAIGNS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, tokenExpired: true };
+      return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), tokenExpired: true };
     }
     if (data.data) campaigns.push(...data.data);
     url = data.paging?.next || null;
@@ -392,7 +393,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   while (url) {
     const data = await fetchWithRetry(url, 'ADSETS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, tokenExpired: true };
+      return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), tokenExpired: true };
     }
     if (data.data) adsets.push(...data.data);
     url = data.paging?.next || null;
@@ -407,7 +408,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   while (url) {
     const data = await fetchWithRetry(url, 'ADS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, tokenExpired: true };
+      return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), tokenExpired: true };
     }
     if (data.data) {
       console.log(`[ADS] Batch received: ${data.data.length} ads`);
@@ -605,8 +606,71 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
     console.log(`[CREATIVES] Fetched ${creativeDataMap.size} new creative details via Batch API`);
   }
 
-  console.log(`[ENTITIES] FINAL: Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}, Creatives: ${creativeDataMap.size}, Cached: ${cachedCreativeMap.size}`);
-  return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap };
+  // STEP 5: Fallback - Fetch ad previews for ads WITHOUT creative_id using Batch API
+  const adsWithoutCreative: string[] = [];
+  const adPreviewMap = new Map<string, string>(); // ad_id -> preview_url
+  
+  for (const ad of ads) {
+    // Check if this ad has no creative_id AND is not in cache
+    if (!ad.creative?.id) {
+      const cached = cachedCreativeMap.get(ad.id);
+      if (!cached || (!cached.thumbnail_url && !cached.image_url && !cached.cached_url)) {
+        adsWithoutCreative.push(ad.id);
+      }
+    }
+  }
+  
+  if (adsWithoutCreative.length > 0) {
+    console.log(`[PREVIEWS] Found ${adsWithoutCreative.length} ads without creative_id, fetching previews via Batch API`);
+    
+    // Use Batch API for previews
+    for (let i = 0; i < adsWithoutCreative.length; i += 50) {
+      const batch = adsWithoutCreative.slice(i, i + 50);
+      
+      const batchRequests = batch.map(adId => ({
+        method: 'GET',
+        relative_url: `${adId}?fields=id,creative{thumbnail_url,effective_object_story_id}`
+      }));
+      
+      try {
+        const batchUrl = `https://graph.facebook.com/v19.0/?access_token=${token}`;
+        const response = await fetch(batchUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch: batchRequests })
+        });
+        
+        if (response.ok) {
+          const batchResults = await response.json();
+          
+          for (let j = 0; j < batchResults.length; j++) {
+            const result = batchResults[j];
+            const adId = batch[j];
+            
+            if (result.code === 200 && result.body) {
+              try {
+                const adData = JSON.parse(result.body);
+                // Extract thumbnail_url from creative if available
+                if (adData.creative?.thumbnail_url) {
+                  adPreviewMap.set(adId, adData.creative.thumbnail_url);
+                }
+              } catch (parseErr) {
+                // Ignore
+              }
+            }
+          }
+        }
+        
+        console.log(`[PREVIEWS_BATCH] Processed batch ${Math.floor(i/50) + 1}: ${batch.length} ads`);
+      } catch (err) {
+        console.log(`[PREVIEWS_BATCH] Error: ${err}`);
+      }
+    }
+    console.log(`[PREVIEWS] Fetched ${adPreviewMap.size} ad previews via Batch API`);
+  }
+
+  console.log(`[ENTITIES] FINAL: Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}, Creatives: ${creativeDataMap.size}, Cached: ${cachedCreativeMap.size}, Previews: ${adPreviewMap.size}`);
+  return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap };
 }
 
 // ============ FETCH DAILY INSIGHTS (time_increment=1) ============
@@ -1636,7 +1700,7 @@ Deno.serve(async (req) => {
 
     // ========== STEP 1: Fetch entities (campaigns, adsets, ads) ==========
     // Pass projectId to enable cache - only fetch new creative data, not already cached ones
-    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id);
+    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id);
     
     // Check if token expired
     if (tokenExpired) {
@@ -1716,6 +1780,11 @@ Deno.serve(async (req) => {
           const extracted = extractHdImageUrl(ad, adImageMap, videoThumbnailMap);
           imageUrl = extracted.imageUrl;
           videoUrl = extracted.videoUrl;
+        }
+        
+        // Priority 3: Fallback to ad preview for ads without creative_id
+        if (!imageUrl && adPreviewMap.has(adId)) {
+          imageUrl = adPreviewMap.get(adId) || null;
         }
         
         const spend = parseFloat(insights.spend) || 0;
