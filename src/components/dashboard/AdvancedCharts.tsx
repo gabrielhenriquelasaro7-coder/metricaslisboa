@@ -70,6 +70,53 @@ const createMetricOptions = (currency: string = 'BRL'): MetricOption[] => {
   ];
 };
 
+// Aggregate data by month when there are too many days
+function aggregateByMonth(data: DailyMetric[]): DailyMetric[] {
+  const monthlyMap = new Map<string, DailyMetric>();
+  
+  for (const d of data) {
+    const date = parseISO(d.date);
+    const monthKey = format(date, 'yyyy-MM');
+    
+    if (!monthlyMap.has(monthKey)) {
+      monthlyMap.set(monthKey, {
+        date: monthKey,
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        reach: 0,
+        conversions: 0,
+        conversion_value: 0,
+        ctr: 0,
+        cpm: 0,
+        cpc: 0,
+        roas: 0,
+        cpa: 0,
+      });
+    }
+    
+    const agg = monthlyMap.get(monthKey)!;
+    agg.spend += d.spend;
+    agg.impressions += d.impressions;
+    agg.clicks += d.clicks;
+    agg.reach += d.reach;
+    agg.conversions += d.conversions;
+    agg.conversion_value += d.conversion_value;
+  }
+  
+  // Calculate derived metrics
+  return Array.from(monthlyMap.values())
+    .map(d => ({
+      ...d,
+      ctr: d.impressions > 0 ? (d.clicks / d.impressions) * 100 : 0,
+      cpm: d.impressions > 0 ? (d.spend / d.impressions) * 1000 : 0,
+      cpc: d.clicks > 0 ? d.spend / d.clicks : 0,
+      roas: d.spend > 0 ? d.conversion_value / d.spend : 0,
+      cpa: d.conversions > 0 ? d.spend / d.conversions : 0,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export default function AdvancedCharts({ 
   data, 
   businessModel,
@@ -80,6 +127,9 @@ export default function AdvancedCharts({
   
   // Create metric options with dynamic currency
   const METRIC_OPTIONS = useMemo(() => createMetricOptions(currency), [currency]);
+  
+  // Determine if we should aggregate by month (more than 60 days)
+  const shouldAggregateByMonth = data.length > 60;
   
   // State for customizable charts
   const [chart1Type, setChart1Type] = useState<ChartType>('composed');
@@ -95,23 +145,34 @@ export default function AdvancedCharts({
   const [chart3Secondary, setChart3Secondary] = useState('clicks');
   
   const chartData = useMemo(() => {
-    return data.map(d => ({
-      date: format(parseISO(d.date), 'dd/MM', { locale: ptBR }),
-      fullDate: d.date,
-      spend: d.spend,
-      conversions: d.conversions,
-      revenue: d.conversion_value,
-      roas: d.roas,
-      cpl: d.cpa,
-      ctr: d.ctr,
-      cpm: d.cpm,
-      cpc: d.cpc,
-      impressions: d.impressions,
-      clicks: d.clicks,
-      reach: d.reach,
-      frequency: d.reach > 0 ? d.impressions / d.reach : 0,
-    }));
-  }, [data]);
+    // If too many data points, aggregate by month
+    const processedData = shouldAggregateByMonth ? aggregateByMonth(data) : data;
+    
+    return processedData.map(d => {
+      // For monthly data, the date is already in 'yyyy-MM' format
+      const isMonthly = d.date.length === 7; // 'yyyy-MM' = 7 chars
+      const formattedDate = isMonthly 
+        ? format(parseISO(`${d.date}-01`), 'MMM/yy', { locale: ptBR })
+        : format(parseISO(d.date), 'dd/MM', { locale: ptBR });
+      
+      return {
+        date: formattedDate,
+        fullDate: d.date,
+        spend: d.spend,
+        conversions: d.conversions,
+        revenue: d.conversion_value,
+        roas: d.roas,
+        cpl: d.cpa,
+        ctr: d.ctr,
+        cpm: d.cpm,
+        cpc: d.cpc,
+        impressions: d.impressions,
+        clicks: d.clicks,
+        reach: d.reach,
+        frequency: d.reach > 0 ? d.impressions / d.reach : 0,
+      };
+    });
+  }, [data, shouldAggregateByMonth]);
 
   const getMetric = (key: string) => METRIC_OPTIONS.find(m => m.key === key) || METRIC_OPTIONS[0];
 

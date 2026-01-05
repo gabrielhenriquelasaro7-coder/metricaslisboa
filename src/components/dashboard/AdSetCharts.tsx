@@ -71,6 +71,74 @@ const createMetricOptions = (currency: string = 'BRL'): MetricOption[] => {
   ];
 };
 
+// Aggregate data by month when there are too many days
+interface MonthlyAggregate {
+  date: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  reach: number;
+  conversions: number;
+  conversion_value: number;
+  profile_visits: number;
+  ctr: number;
+  cpm: number;
+  cpc: number;
+  roas: number;
+  cpa: number;
+  cost_per_visit: number;
+}
+
+function aggregateByMonth(data: AdSetDailyMetric[]): MonthlyAggregate[] {
+  const monthlyMap = new Map<string, MonthlyAggregate>();
+  
+  for (const d of data) {
+    const date = parseISO(d.date);
+    const monthKey = format(date, 'yyyy-MM');
+    
+    if (!monthlyMap.has(monthKey)) {
+      monthlyMap.set(monthKey, {
+        date: monthKey,
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        reach: 0,
+        conversions: 0,
+        conversion_value: 0,
+        profile_visits: 0,
+        ctr: 0,
+        cpm: 0,
+        cpc: 0,
+        roas: 0,
+        cpa: 0,
+        cost_per_visit: 0,
+      });
+    }
+    
+    const agg = monthlyMap.get(monthKey)!;
+    agg.spend += d.spend ?? 0;
+    agg.impressions += d.impressions ?? 0;
+    agg.clicks += d.clicks ?? 0;
+    agg.reach += d.reach ?? 0;
+    agg.conversions += d.conversions ?? 0;
+    agg.conversion_value += d.conversion_value ?? 0;
+    agg.profile_visits += d.profile_visits ?? 0;
+  }
+  
+  // Calculate derived metrics
+  return Array.from(monthlyMap.values())
+    .map(d => ({
+      ...d,
+      ctr: d.impressions > 0 ? (d.clicks / d.impressions) * 100 : 0,
+      cpm: d.impressions > 0 ? (d.spend / d.impressions) * 1000 : 0,
+      cpc: d.clicks > 0 ? d.spend / d.clicks : 0,
+      roas: d.spend > 0 ? d.conversion_value / d.spend : 0,
+      cpa: d.conversions > 0 ? d.spend / d.conversions : 0,
+      cost_per_visit: d.profile_visits > 0 ? d.spend / d.profile_visits : 0,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export default function AdSetCharts({ 
   data, 
   businessModel,
@@ -81,11 +149,35 @@ export default function AdSetCharts({
   
   const METRIC_OPTIONS = useMemo(() => createMetricOptions(currency), [currency]);
   
+  // Determine if we should aggregate by month (more than 60 days)
+  const shouldAggregateByMonth = data.length > 60;
+  
   const [chartType, setChartType] = useState<ChartType>('composed');
   const [primaryMetric, setPrimaryMetric] = useState('spend');
   const [secondaryMetric, setSecondaryMetric] = useState(isEcommerce ? 'conversions' : 'conversions');
   
   const chartData = useMemo(() => {
+    if (shouldAggregateByMonth) {
+      const monthlyData = aggregateByMonth(data);
+      return monthlyData.map(d => ({
+        date: format(parseISO(`${d.date}-01`), 'MMM/yy', { locale: ptBR }),
+        fullDate: d.date,
+        spend: d.spend,
+        conversions: d.conversions,
+        revenue: d.conversion_value,
+        roas: d.roas,
+        cpa: d.cpa,
+        ctr: d.ctr,
+        cpm: d.cpm,
+        cpc: d.cpc,
+        impressions: d.impressions,
+        clicks: d.clicks,
+        reach: d.reach,
+        profile_visits: d.profile_visits,
+        cost_per_visit: d.cost_per_visit,
+      }));
+    }
+    
     return data.map(d => {
       const profileVisits = d.profile_visits ?? 0;
       const spend = d.spend ?? 0;
@@ -109,7 +201,7 @@ export default function AdSetCharts({
         cost_per_visit: costPerVisit,
       };
     });
-  }, [data]);
+  }, [data, shouldAggregateByMonth]);
 
   const getMetric = (key: string) => METRIC_OPTIONS.find(m => m.key === key) || METRIC_OPTIONS[0];
 
@@ -265,7 +357,9 @@ export default function AdSetCharts({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">
           <Settings2 className="w-4 h-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold">Evolução de Performance</h3>
+          <h3 className="text-lg font-semibold">
+            {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
+          </h3>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
