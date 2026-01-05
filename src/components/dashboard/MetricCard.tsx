@@ -114,15 +114,17 @@ export default function MetricCard({
   );
 
   return (
-    <div className={cn('metric-card group', className)}>
-      {/* Animated gradient overlay */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+    <div className={cn('metric-card group cursor-default', className)}>
+      {/* Shimmer effect on hover */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
       </div>
       
-      {/* Sparkle effect */}
+      {/* Sparkle effects */}
       <div className="absolute top-2 right-2 w-1 h-1 rounded-full bg-primary opacity-0 group-hover:opacity-100 group-hover:animate-ping" />
       <div className="absolute top-4 right-6 w-0.5 h-0.5 rounded-full bg-primary/70 opacity-0 group-hover:opacity-100 group-hover:animate-ping" style={{ animationDelay: '0.2s' }} />
+      <div className="absolute bottom-4 left-3 w-0.5 h-0.5 rounded-full bg-primary/50 opacity-0 group-hover:opacity-100 group-hover:animate-ping" style={{ animationDelay: '0.4s' }} />
       
       <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1 sm:mb-2 relative z-10">
         <div className="flex-1 min-w-0">

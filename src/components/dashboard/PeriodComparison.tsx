@@ -36,35 +36,67 @@ function ComparisonItem({ label, current, previous, change, isInverse = false }:
   const isPositive = isInverse ? change < 0 : change > 0;
   const isNegative = isInverse ? change > 0 : change < 0;
   const isNeutral = change === 0 || isNaN(change);
+  
+  // Calculate progress bar width (capped at 100%)
+  const progressWidth = Math.min(Math.abs(change), 100);
 
   return (
-    <div className="p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-all hover:scale-[1.02]">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <div
-          className={cn(
-            'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
-            isPositive && 'bg-metric-positive/20 text-metric-positive',
-            isNegative && 'bg-metric-negative/20 text-metric-negative',
-            isNeutral && 'bg-muted text-muted-foreground'
-          )}
-        >
-          {isNeutral ? (
-            <Minus className="w-3 h-3" />
-          ) : isPositive ? (
-            <TrendingUp className="w-3 h-3" />
-          ) : (
-            <TrendingDown className="w-3 h-3" />
-          )}
-          <span>{isNeutral ? '0%' : `${change > 0 ? '+' : ''}${change.toFixed(1)}%`}</span>
+    <div className="group p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden">
+      {/* Animated background gradient on hover */}
+      <div className={cn(
+        "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none",
+        isPositive && "bg-gradient-to-br from-metric-positive/5 to-transparent",
+        isNegative && "bg-gradient-to-br from-metric-negative/5 to-transparent",
+        isNeutral && "bg-gradient-to-br from-muted/10 to-transparent"
+      )} />
+      
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{label}</p>
+          <div
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-300',
+              isPositive && 'bg-metric-positive/20 text-metric-positive group-hover:bg-metric-positive/30 group-hover:shadow-[0_0_10px_hsl(var(--metric-positive)/0.3)]',
+              isNegative && 'bg-metric-negative/20 text-metric-negative group-hover:bg-metric-negative/30 group-hover:shadow-[0_0_10px_hsl(var(--metric-negative)/0.3)]',
+              isNeutral && 'bg-muted text-muted-foreground'
+            )}
+          >
+            {isNeutral ? (
+              <Minus className="w-3 h-3" />
+            ) : isPositive ? (
+              <TrendingUp className="w-3 h-3" />
+            ) : (
+              <TrendingDown className="w-3 h-3" />
+            )}
+            <span>{isNeutral ? '0%' : `${change > 0 ? '+' : ''}${change.toFixed(1)}%`}</span>
+          </div>
         </div>
+        
+        <p className="text-xl font-bold group-hover:text-primary transition-colors duration-300">{current}</p>
+        
+        {/* Progress bar visualization */}
+        {!isNeutral && (
+          <div className="mt-2 h-1.5 bg-muted/30 rounded-full overflow-hidden">
+            <div 
+              className={cn(
+                "h-full rounded-full transition-all duration-700 ease-out",
+                isPositive && "bg-gradient-to-r from-metric-positive to-metric-positive/60",
+                isNegative && "bg-gradient-to-r from-metric-negative to-metric-negative/60"
+              )}
+              style={{ 
+                width: `${progressWidth}%`,
+                animation: 'progress-grow 0.8s ease-out'
+              }}
+            />
+          </div>
+        )}
+        
+        {previous && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Anterior: {previous}
+          </p>
+        )}
       </div>
-      <p className="text-xl font-bold">{current}</p>
-      {previous && (
-        <p className="text-xs text-muted-foreground mt-1">
-          Anterior: {previous}
-        </p>
-      )}
     </div>
   );
 }

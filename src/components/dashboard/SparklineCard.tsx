@@ -101,13 +101,14 @@ export default function SparklineCard({
   return (
     <div 
       className={cn(
-        'metric-card group relative',
+        'metric-card group relative cursor-default',
         className
       )}
     >
-      {/* Animated gradient overlay */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+      {/* Shimmer effect on hover */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
       </div>
       
       {/* Sparkle effects */}

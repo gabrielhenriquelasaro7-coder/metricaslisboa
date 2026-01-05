@@ -711,8 +711,72 @@
   }
 
   @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* Status badge animations */
+  .status-badge-active {
+    @apply bg-metric-positive/20 text-metric-positive border border-metric-positive/30;
+    animation: status-glow-green 2s ease-in-out infinite;
+  }
+
+  .status-badge-active:hover {
+    @apply bg-metric-positive/30 shadow-[0_0_15px_hsl(var(--metric-positive)/0.4)];
+    transform: scale(1.05);
+  }
+
+  .status-badge-paused {
+    @apply bg-metric-warning/20 text-metric-warning border border-metric-warning/30;
+    animation: status-breathe 3s ease-in-out infinite;
+  }
+
+  .status-badge-paused:hover {
+    @apply bg-metric-warning/30;
+    transform: scale(1.05);
+  }
+
+  .status-badge-deleted {
+    @apply bg-muted/50 text-muted-foreground border border-muted/30 opacity-70;
+  }
+
+  .status-badge-default {
+    @apply bg-secondary text-muted-foreground border border-border/50;
+  }
+
+  @keyframes status-glow-green {
+    0%, 100% { 
+      box-shadow: 0 0 0 0 hsl(var(--metric-positive) / 0.4);
+    }
+    50% { 
+      box-shadow: 0 0 8px 2px hsl(var(--metric-positive) / 0.2);
+    }
+  }
+
+  @keyframes status-breathe {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  /* Progress bar animation */
+  @keyframes progress-grow {
+    from { width: 0; }
+  }
+
+  /* Toast enter animation */
+  .sonner-toast {
+    animation: toast-enter 0.3s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+  }
+
+  @keyframes toast-enter {
+    0% {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
   /* Stagger fade in animation */
