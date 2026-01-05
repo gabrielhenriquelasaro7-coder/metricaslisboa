@@ -5,6 +5,12 @@ import { format, subDays } from 'date-fns';
 
 export type SyncStep = 'idle' | 'campaigns' | 'adsets' | 'ads' | 'insights' | 'saving' | 'complete' | 'error';
 
+export interface CacheStats {
+  cached_creatives: number;
+  new_creatives: number;
+  cache_hit_rate: number;
+}
+
 export interface SyncProgress {
   step: SyncStep;
   message: string;
@@ -13,6 +19,7 @@ export interface SyncProgress {
     total: number;
     entity: string;
   };
+  cacheStats?: CacheStats;
 }
 
 export interface AllPeriodsProgress {
@@ -143,21 +150,27 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
       // Success with detailed info
       lastSyncTime.current = Date.now();
       
-      // Response comes directly as: { success, campaigns, adsets, ads, records, elapsed_seconds }
+      // Response comes directly as: { success, campaigns, adsets, ads, records, elapsed_seconds, cache_stats }
       const campaignsCount = data?.campaigns || 0;
       const adsetsCount = data?.adsets || 0;
       const adsCount = data?.ads || 0;
       const elapsedSeconds = data?.elapsed_seconds || '0';
+      const cacheStats = data?.cache_stats;
       
       if (data?.success) {
+        const cacheInfo = cacheStats 
+          ? ` (${cacheStats.cached_creatives} em cache, ${cacheStats.new_creatives} novos)`
+          : '';
+        
         setProgress({ 
           step: 'complete', 
           message: `Sincronizado em ${elapsedSeconds}s`,
           detail: {
             current: campaignsCount + adsetsCount + adsCount,
             total: campaignsCount + adsetsCount + adsCount,
-            entity: `${campaignsCount} campanhas, ${adsetsCount} conjuntos, ${adsCount} anúncios`
-          }
+            entity: `${campaignsCount} campanhas, ${adsetsCount} conjuntos, ${adsCount} anúncios${cacheInfo}`
+          },
+          cacheStats
         });
         
         // Cache this data
