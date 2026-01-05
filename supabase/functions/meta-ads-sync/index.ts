@@ -323,18 +323,50 @@ async function fetchWithRetry(url: string, entityName: string, supabase?: any, o
 }
 
 // ============ FETCH ENTITIES ============
-async function fetchEntities(adAccountId: string, token: string, supabase?: any): Promise<{
+async function fetchEntities(adAccountId: string, token: string, supabase?: any, projectId?: string): Promise<{
   campaigns: any[];
   adsets: any[];
   ads: any[];
   adImageMap: Map<string, string>;
   videoThumbnailMap: Map<string, string>;
   creativeDataMap: Map<string, any>;
+  cachedCreativeMap: Map<string, any>;
   tokenExpired?: boolean;
 }> {
   const campaigns: any[] = [];
   const adsets: any[] = [];
   const ads: any[] = [];
+  
+  // CACHE: Load existing creative data from database to avoid unnecessary API calls
+  const cachedCreativeMap = new Map<string, any>();
+  if (supabase && projectId) {
+    try {
+      const { data: existingAds } = await supabase
+        .from('ads')
+        .select('id, creative_id, creative_thumbnail, creative_image_url, creative_video_url, cached_image_url, headline, primary_text, cta')
+        .eq('project_id', projectId);
+      
+      if (existingAds && existingAds.length > 0) {
+        for (const ad of existingAds) {
+          if (ad.creative_id && (ad.creative_thumbnail || ad.creative_image_url || ad.cached_image_url)) {
+            cachedCreativeMap.set(ad.id, {
+              creative_id: ad.creative_id,
+              thumbnail_url: ad.creative_thumbnail,
+              image_url: ad.creative_image_url,
+              video_url: ad.creative_video_url,
+              cached_url: ad.cached_image_url,
+              headline: ad.headline,
+              primary_text: ad.primary_text,
+              cta: ad.cta
+            });
+          }
+        }
+        console.log(`[CACHE] Loaded ${cachedCreativeMap.size} cached creatives from database`);
+      }
+    } catch (err) {
+      console.log(`[CACHE] Error loading cached creatives: ${err}`);
+    }
+  }
 
   console.log(`[ENTITIES] Starting fetch for account ${adAccountId}`);
 
@@ -347,7 +379,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
   while (url) {
     const data = await fetchWithRetry(url, 'CAMPAIGNS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), tokenExpired: true };
+      return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, tokenExpired: true };
     }
     if (data.data) campaigns.push(...data.data);
     url = data.paging?.next || null;
@@ -360,7 +392,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
   while (url) {
     const data = await fetchWithRetry(url, 'ADSETS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), tokenExpired: true };
+      return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, tokenExpired: true };
     }
     if (data.data) adsets.push(...data.data);
     url = data.paging?.next || null;
@@ -375,7 +407,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
   while (url) {
     const data = await fetchWithRetry(url, 'ADS', supabase);
     if (isTokenExpiredError(data)) {
-      return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), tokenExpired: true };
+      return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, tokenExpired: true };
     }
     if (data.data) {
       console.log(`[ADS] Batch received: ${data.data.length} ads`);
@@ -420,21 +452,29 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
     console.log(`[ADIMAGES] Fetched ${adImageMap.size} HD image URLs`);
   }
 
-  // STEP 3: Fetch HD video thumbnails for video ads
+  // STEP 3: Fetch HD video thumbnails for video ads - ONLY for ads not in cache
   const videoIds: string[] = [];
   const adToVideoMap = new Map<string, string>(); // ad_id -> video_id
+  let skippedVideosFromCache = 0;
+  
   for (const ad of ads) {
     const videoId = ad.creative?.object_story_spec?.video_data?.video_id;
     if (videoId) {
+      // Check if we have this ad in cache with a video thumbnail
+      const cached = cachedCreativeMap.get(ad.id);
+      if (cached && (cached.video_url || cached.thumbnail_url || cached.cached_url)) {
+        skippedVideosFromCache++;
+        continue; // Skip - we already have thumbnail
+      }
       videoIds.push(videoId);
       adToVideoMap.set(ad.id, videoId);
     }
   }
   
+  console.log(`[VIDEOS] Skipped ${skippedVideosFromCache} videos (cached), fetching ${videoIds.length} new ones`);
+  
   const videoThumbnailMap = new Map<string, string>(); // video_id -> thumbnail_url
   if (videoIds.length > 0) {
-    console.log(`[VIDEOS] Found ${videoIds.length} videos, fetching HD thumbnails...`);
-    
     // Fetch video thumbnails in batches - use picture field for HD thumbnail
     for (let i = 0; i < videoIds.length; i += 50) {
       const batch = videoIds.slice(i, i + 50);
@@ -474,23 +514,29 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
     console.log(`[VIDEOS] Fetched ${videoThumbnailMap.size} HD video thumbnails`);
   }
 
-  // STEP 4: Fetch ad creatives directly using /adcreatives endpoint for better data
-  // This is the OFFICIAL way to get creative assets per Meta API documentation
+  // STEP 4: Fetch ad creatives - ONLY for ads not in cache
   const creativeDataMap = new Map<string, any>();
-  const creativeIds: string[] = [];
+  const creativeIdsToFetch: string[] = [];
+  let skippedCreativesFromCache = 0;
   
   for (const ad of ads) {
     if (ad.creative?.id) {
-      creativeIds.push(ad.creative.id);
+      // Check if we have this ad in cache with creative data
+      const cached = cachedCreativeMap.get(ad.id);
+      if (cached && (cached.thumbnail_url || cached.image_url || cached.cached_url)) {
+        skippedCreativesFromCache++;
+        continue; // Skip - we already have creative data
+      }
+      creativeIdsToFetch.push(ad.creative.id);
     }
   }
   
-  if (creativeIds.length > 0) {
-    console.log(`[CREATIVES] Fetching ${creativeIds.length} creative details via /adcreatives endpoint...`);
-    
+  console.log(`[CREATIVES] Skipped ${skippedCreativesFromCache} creatives (cached), fetching ${creativeIdsToFetch.length} new ones`);
+  
+  if (creativeIdsToFetch.length > 0) {
     // Fetch creatives in batches of 50
-    for (let i = 0; i < creativeIds.length; i += 50) {
-      const batch = creativeIds.slice(i, i + 50);
+    for (let i = 0; i < creativeIdsToFetch.length; i += 50) {
+      const batch = creativeIdsToFetch.slice(i, i + 50);
       
       for (const creativeId of batch) {
         try {
@@ -504,7 +550,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
             
             // Log first creative for debugging
             if (creativeDataMap.size === 1) {
-              console.log(`[CREATIVES] Sample creative: id=${creativeId}, has_thumbnail=${!!creativeData.thumbnail_url}, has_image=${!!creativeData.image_url}, has_body=${!!creativeData.body}`);
+              console.log(`[CREATIVES] Sample creative: id=${creativeId}, has_thumbnail=${!!creativeData.thumbnail_url}, has_body=${!!creativeData.body}`);
             }
           }
         } catch (err) {
@@ -513,15 +559,15 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any)
       }
       
       // Small delay between batches
-      if (i + 50 < creativeIds.length) {
+      if (i + 50 < creativeIdsToFetch.length) {
         await delay(100);
       }
     }
-    console.log(`[CREATIVES] Fetched ${creativeDataMap.size} creative details`);
+    console.log(`[CREATIVES] Fetched ${creativeDataMap.size} new creative details`);
   }
 
-  console.log(`[ENTITIES] FINAL: Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}, Creatives: ${creativeDataMap.size}`);
-  return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap };
+  console.log(`[ENTITIES] FINAL: Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}, Creatives: ${creativeDataMap.size}, Cached: ${cachedCreativeMap.size}`);
+  return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap };
 }
 
 // ============ FETCH DAILY INSIGHTS (time_increment=1) ============
@@ -1550,7 +1596,8 @@ Deno.serve(async (req) => {
     }
 
     // ========== STEP 1: Fetch entities (campaigns, adsets, ads) ==========
-    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase);
+    // Pass projectId to enable cache - only fetch new creative data, not already cached ones
+    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id);
     
     // Check if token expired
     if (tokenExpired) {
@@ -1568,7 +1615,7 @@ Deno.serve(async (req) => {
     const adsetMap = new Map(adsets.map(a => [extractId(a.id), a]));
     const adMap = new Map(ads.map(a => [extractId(a.id), a]));
     
-    console.log(`[ENTITIES] Loaded for enrichment: ${campaignMap.size} campaigns, ${adMap.size} ads, ${creativeDataMap.size} creatives`);
+    console.log(`[ENTITIES] Loaded for enrichment: ${campaignMap.size} campaigns, ${adMap.size} ads, ${creativeDataMap.size} new creatives, ${cachedCreativeMap.size} cached`);
 
     // ========== STEP 2: Fetch daily insights ==========
     const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
@@ -1614,8 +1661,23 @@ Deno.serve(async (req) => {
           conversions = messagingReplies;
         }
         
-        // Get HD image URL (including video thumbnails)
-        const { imageUrl, videoUrl } = ad ? extractHdImageUrl(ad, adImageMap, videoThumbnailMap) : { imageUrl: null, videoUrl: null };
+        // Get HD image URL - first check cache, then new data, then video thumbnails
+        let imageUrl: string | null = null;
+        let videoUrl: string | null = null;
+        
+        // Priority 1: Check cached creative data from database
+        const cachedCreative = cachedCreativeMap.get(adId);
+        if (cachedCreative) {
+          imageUrl = cachedCreative.cached_url || cachedCreative.image_url || cachedCreative.thumbnail_url || null;
+          videoUrl = cachedCreative.video_url || null;
+        }
+        
+        // Priority 2: If not in cache, use newly fetched data
+        if (!imageUrl && ad) {
+          const extracted = extractHdImageUrl(ad, adImageMap, videoThumbnailMap);
+          imageUrl = extracted.imageUrl;
+          videoUrl = extracted.videoUrl;
+        }
         
         const spend = parseFloat(insights.spend) || 0;
         const impressions = parseInt(insights.impressions) || 0;
