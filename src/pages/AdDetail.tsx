@@ -97,6 +97,7 @@ interface Ad {
   creative_thumbnail: string | null;
   creative_image_url: string | null;
   creative_video_url: string | null;
+  cached_image_url: string | null;
   headline: string | null;
   primary_text: string | null;
   cta: string | null;
@@ -229,8 +230,9 @@ export default function AdDetail() {
     new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
   const hasVideo = ad?.creative_video_url;
-  const hasImage = ad?.creative_image_url || ad?.creative_thumbnail;
-  const creativeUrl = cleanImageUrl(ad?.creative_image_url || ad?.creative_thumbnail) || '';
+  const hasImage = ad?.creative_image_url || ad?.creative_thumbnail || ad?.cached_image_url;
+  // Prefer cached URL (permanent, never expires), then fallback to Facebook URLs
+  const creativeUrl = ad?.cached_image_url || cleanImageUrl(ad?.creative_image_url || ad?.creative_thumbnail) || '';
 
   if (loading) {
     return (

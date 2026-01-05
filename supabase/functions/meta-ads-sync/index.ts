@@ -55,6 +55,100 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
+// ============ IMAGE CACHING TO SUPABASE STORAGE ============
+async function cacheCreativeImage(
+  supabase: any,
+  projectId: string,
+  adId: string,
+  imageUrl: string | null
+): Promise<string | null> {
+  if (!imageUrl) return null;
+  
+  try {
+    // Check if we already have a cached version
+    const fileName = `${projectId}/${adId}.jpg`;
+    
+    // Try to get existing file URL
+    const { data: existingFile } = supabase.storage
+      .from('creative-images')
+      .getPublicUrl(fileName);
+    
+    // Try to download the image from Facebook
+    const response = await fetch(imageUrl, { 
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
+    
+    if (!response.ok) {
+      console.log(`[IMAGE_CACHE] Failed to download image for ad ${adId}: ${response.status}`);
+      return null;
+    }
+    
+    const imageBuffer = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from('creative-images')
+      .upload(fileName, imageBuffer, {
+        contentType,
+        upsert: true,
+      });
+    
+    if (uploadError) {
+      console.log(`[IMAGE_CACHE] Upload error for ad ${adId}: ${uploadError.message}`);
+      return null;
+    }
+    
+    // Get the public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('creative-images')
+      .getPublicUrl(fileName);
+    
+    console.log(`[IMAGE_CACHE] Cached image for ad ${adId}`);
+    return publicUrlData?.publicUrl || null;
+  } catch (error) {
+    console.log(`[IMAGE_CACHE] Error caching image for ad ${adId}: ${error}`);
+    return null;
+  }
+}
+
+// Batch cache images with concurrency limit
+async function batchCacheImages(
+  supabase: any,
+  projectId: string,
+  adsWithImages: Array<{ adId: string; imageUrl: string | null }>
+): Promise<Map<string, string>> {
+  const cachedUrls = new Map<string, string>();
+  const BATCH_SIZE = 5; // Process 5 images at a time
+  
+  console.log(`[IMAGE_CACHE] Starting batch cache for ${adsWithImages.length} images`);
+  
+  for (let i = 0; i < adsWithImages.length; i += BATCH_SIZE) {
+    const batch = adsWithImages.slice(i, i + BATCH_SIZE);
+    
+    const results = await Promise.all(
+      batch.map(async ({ adId, imageUrl }) => {
+        const cachedUrl = await cacheCreativeImage(supabase, projectId, adId, imageUrl);
+        return { adId, cachedUrl };
+      })
+    );
+    
+    for (const { adId, cachedUrl } of results) {
+      if (cachedUrl) {
+        cachedUrls.set(adId, cachedUrl);
+      }
+    }
+    
+    // Small delay between batches to avoid rate limiting
+    if (i + BATCH_SIZE < adsWithImages.length) {
+      await delay(100);
+    }
+  }
+  
+  console.log(`[IMAGE_CACHE] Cached ${cachedUrls.size} images successfully`);
+  return cachedUrls;
+}
+
 function extractId(value: any): string | null {
   if (!value) return null;
   if (typeof value === 'string') return value;
@@ -1264,7 +1358,45 @@ Deno.serve(async (req) => {
     
     const campaignRecords = Array.from(campaignMetrics.values()).map(calculateDerived);
     const adsetRecords = Array.from(adsetMetrics.values()).map(calculateDerived);
-    const adRecords = Array.from(adMetrics.values()).map(calculateDerived);
+    let adRecords = Array.from(adMetrics.values()).map(calculateDerived);
+    
+    // ========== STEP 6.0.5: Cache creative images to Supabase Storage ==========
+    // Collect ads that have images to cache
+    const adsWithImages = adRecords
+      .filter(ad => ad.creative_image_url || ad.creative_thumbnail)
+      .map(ad => ({
+        adId: ad.id,
+        imageUrl: ad.creative_image_url || ad.creative_thumbnail,
+      }));
+    
+    if (adsWithImages.length > 0) {
+      console.log(`[IMAGE_CACHE] Found ${adsWithImages.length} ads with images to cache`);
+      
+      // Cache images in background-friendly batches
+      const cachedUrls = await batchCacheImages(supabase, project_id, adsWithImages);
+      
+      // Update ad records with cached URLs
+      adRecords = adRecords.map(ad => {
+        const cachedUrl = cachedUrls.get(ad.id);
+        if (cachedUrl) {
+          return {
+            ...ad,
+            cached_image_url: cachedUrl,
+          };
+        }
+        return ad;
+      });
+      
+      // Also update daily records with cached thumbnails for ads that have cached URLs
+      for (const record of dailyRecords) {
+        const cachedUrl = cachedUrls.get(record.ad_id);
+        if (cachedUrl) {
+          record.cached_creative_thumbnail = cachedUrl;
+        }
+      }
+      
+      console.log(`[IMAGE_CACHE] Updated ${cachedUrls.size} ad records with cached URLs`);
+    }
     
     // ========== STEP 6.1: Detect changes for optimization history ==========
     const allChanges: OptimizationChange[] = [];
