@@ -475,43 +475,63 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   
   const videoThumbnailMap = new Map<string, string>(); // video_id -> thumbnail_url
   if (videoIds.length > 0) {
-    // Fetch video thumbnails in batches - use picture field for HD thumbnail
+    // Use Meta Batch API - up to 50 requests per batch call
     for (let i = 0; i < videoIds.length; i += 50) {
       const batch = videoIds.slice(i, i + 50);
       
-      // Fetch each video's thumbnail
-      for (const videoId of batch) {
-        try {
-          const videoUrl = `https://graph.facebook.com/v19.0/${videoId}?fields=id,picture,thumbnails{uri,height,width}&access_token=${token}`;
-          const videoData = await fetchWithRetry(videoUrl, 'VIDEO_THUMBNAIL', supabase);
+      // Build batch requests array
+      const batchRequests = batch.map(videoId => ({
+        method: 'GET',
+        relative_url: `${videoId}?fields=id,picture,thumbnails{uri,height,width}`
+      }));
+      
+      try {
+        // Single batch request for up to 50 videos
+        const batchUrl = `https://graph.facebook.com/v19.0/?access_token=${token}`;
+        const response = await fetch(batchUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch: batchRequests })
+        });
+        
+        if (response.ok) {
+          const batchResults = await response.json();
           
-          if (videoData && !videoData.error) {
-            // Priority: Get largest thumbnail from thumbnails array, or use picture field
-            let bestThumbnail = videoData.picture;
+          // Process each result in the batch
+          for (let j = 0; j < batchResults.length; j++) {
+            const result = batchResults[j];
+            const videoId = batch[j];
             
-            if (videoData.thumbnails?.data && videoData.thumbnails.data.length > 0) {
-              // Sort by height descending and get the largest
-              const thumbnails = videoData.thumbnails.data.sort((a: any, b: any) => (b.height || 0) - (a.height || 0));
-              if (thumbnails[0]?.uri) {
-                bestThumbnail = thumbnails[0].uri;
+            if (result.code === 200 && result.body) {
+              try {
+                const videoData = JSON.parse(result.body);
+                
+                // Priority: Get largest thumbnail from thumbnails array, or use picture field
+                let bestThumbnail = videoData.picture;
+                
+                if (videoData.thumbnails?.data && videoData.thumbnails.data.length > 0) {
+                  const thumbnails = videoData.thumbnails.data.sort((a: any, b: any) => (b.height || 0) - (a.height || 0));
+                  if (thumbnails[0]?.uri) {
+                    bestThumbnail = thumbnails[0].uri;
+                  }
+                }
+                
+                if (bestThumbnail) {
+                  videoThumbnailMap.set(videoId, bestThumbnail);
+                }
+              } catch (parseErr) {
+                // Ignore parse errors for individual items
               }
             }
-            
-            if (bestThumbnail) {
-              videoThumbnailMap.set(videoId, bestThumbnail);
-            }
           }
-        } catch (err) {
-          console.log(`[VIDEO_THUMBNAIL] Error fetching thumbnail for video ${videoId}`);
         }
-      }
-      
-      // Small delay between batches
-      if (i + 50 < videoIds.length) {
-        await delay(100);
+        
+        console.log(`[VIDEOS_BATCH] Processed batch ${Math.floor(i/50) + 1}: ${batch.length} videos in 1 API call`);
+      } catch (err) {
+        console.log(`[VIDEOS_BATCH] Error processing batch: ${err}`);
       }
     }
-    console.log(`[VIDEOS] Fetched ${videoThumbnailMap.size} HD video thumbnails`);
+    console.log(`[VIDEOS] Fetched ${videoThumbnailMap.size} HD video thumbnails via Batch API`);
   }
 
   // STEP 4: Fetch ad creatives - ONLY for ads not in cache
@@ -534,36 +554,55 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   console.log(`[CREATIVES] Skipped ${skippedCreativesFromCache} creatives (cached), fetching ${creativeIdsToFetch.length} new ones`);
   
   if (creativeIdsToFetch.length > 0) {
-    // Fetch creatives in batches of 50
+    // Use Meta Batch API - up to 50 requests per batch call
     for (let i = 0; i < creativeIdsToFetch.length; i += 50) {
       const batch = creativeIdsToFetch.slice(i, i + 50);
       
-      for (const creativeId of batch) {
-        try {
-          // Use the official adcreatives endpoint with all creative fields
-          // FIXED: Removed image_url as it causes API error - use thumbnail_url and effective_object_story_id for images
-          const creativeUrl = `https://graph.facebook.com/v19.0/${creativeId}?fields=id,name,thumbnail_url,object_story_spec,asset_feed_spec,body,title,call_to_action_type&access_token=${token}`;
-          const creativeData = await fetchWithRetry(creativeUrl, 'CREATIVE', supabase);
+      // Build batch requests array
+      const batchRequests = batch.map(creativeId => ({
+        method: 'GET',
+        relative_url: `${creativeId}?fields=id,name,thumbnail_url,object_story_spec,asset_feed_spec,body,title,call_to_action_type`
+      }));
+      
+      try {
+        // Single batch request for up to 50 creatives
+        const batchUrl = `https://graph.facebook.com/v19.0/?access_token=${token}`;
+        const response = await fetch(batchUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch: batchRequests })
+        });
+        
+        if (response.ok) {
+          const batchResults = await response.json();
           
-          if (creativeData && !creativeData.error) {
-            creativeDataMap.set(creativeId, creativeData);
+          // Process each result in the batch
+          for (let j = 0; j < batchResults.length; j++) {
+            const result = batchResults[j];
+            const creativeId = batch[j];
             
-            // Log first creative for debugging
-            if (creativeDataMap.size === 1) {
-              console.log(`[CREATIVES] Sample creative: id=${creativeId}, has_thumbnail=${!!creativeData.thumbnail_url}, has_body=${!!creativeData.body}`);
+            if (result.code === 200 && result.body) {
+              try {
+                const creativeData = JSON.parse(result.body);
+                creativeDataMap.set(creativeId, creativeData);
+                
+                // Log first creative for debugging
+                if (creativeDataMap.size === 1) {
+                  console.log(`[CREATIVES] Sample creative: id=${creativeId}, has_thumbnail=${!!creativeData.thumbnail_url}, has_body=${!!creativeData.body}`);
+                }
+              } catch (parseErr) {
+                // Ignore parse errors for individual items
+              }
             }
           }
-        } catch (err) {
-          console.log(`[CREATIVES] Error fetching creative ${creativeId}`);
         }
-      }
-      
-      // Small delay between batches
-      if (i + 50 < creativeIdsToFetch.length) {
-        await delay(100);
+        
+        console.log(`[CREATIVES_BATCH] Processed batch ${Math.floor(i/50) + 1}: ${batch.length} creatives in 1 API call`);
+      } catch (err) {
+        console.log(`[CREATIVES_BATCH] Error processing batch: ${err}`);
       }
     }
-    console.log(`[CREATIVES] Fetched ${creativeDataMap.size} new creative details`);
+    console.log(`[CREATIVES] Fetched ${creativeDataMap.size} new creative details via Batch API`);
   }
 
   console.log(`[ENTITIES] FINAL: Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}, Creatives: ${creativeDataMap.size}, Cached: ${cachedCreativeMap.size}`);
