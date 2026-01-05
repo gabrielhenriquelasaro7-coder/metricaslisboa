@@ -9,13 +9,8 @@ export default function Index() {
   useEffect(() => {
     if (!loading) {
       if (user) {
-        // If a project is already selected, go directly to dashboard
-        const selectedProjectId = localStorage.getItem('selectedProjectId');
-        if (selectedProjectId) {
-          navigate('/dashboard');
-        } else {
-          navigate('/projects');
-        }
+        // Always go to projects page after login - user selects which project to view
+        navigate('/projects');
       } else {
         navigate('/auth');
       }
