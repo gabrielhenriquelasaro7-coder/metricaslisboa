@@ -134,74 +134,24 @@ Deno.serve(async (req) => {
     const { since, until } = getMonthDateRange(year, month);
     console.log(`[MONTH-IMPORT] Date range: ${since} to ${until}`);
     
-    // Call meta-ads-sync with timeout and chunk mode for better reliability
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 55000); // 55s timeout
+    // Call meta-ads-sync
+    const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify({
+        project_id,
+        ad_account_id: project.ad_account_id,
+        time_range: { since, until },
+      }),
+    });
     
-    let syncResult: { success: boolean; error?: string; records?: number; data?: { daily_records_count?: number }; count?: number };
+    const syncResult = await syncResponse.json();
     
-    try {
-      const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({
-          project_id,
-          ad_account_id: project.ad_account_id,
-          time_range: { since, until },
-          chunk_mode: 'ten_days', // Use chunks for better reliability
-        }),
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      syncResult = await syncResponse.json();
-      
-      if (!syncResponse.ok || !syncResult.success) {
-        throw new Error(syncResult.error || `Sync failed with status ${syncResponse.status}`);
-      }
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        console.log(`[MONTH-IMPORT] Timeout waiting for meta-ads-sync, checking sync_progress...`);
-        
-        // Check if sync is still in progress via sync_progress table
-        const { data: progress } = await supabase
-          .from('sync_progress')
-          .select('*')
-          .eq('project_id', project_id)
-          .eq('status', 'in_progress')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        if (progress) {
-          // Sync is still running in background, mark as pending and let it complete
-          await supabase
-            .from('project_import_months')
-            .update({
-              status: 'pending',
-              error_message: 'Sync in progress, will complete in background',
-            })
-            .eq('project_id', project_id)
-            .eq('year', year)
-            .eq('month', month);
-          
-          return new Response(
-            JSON.stringify({
-              success: true,
-              message: `${monthName} ${year} sync started, running in background`,
-              in_progress: true,
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        
-        throw new Error('Timeout waiting for sync to complete');
-      }
-      throw fetchError;
+    if (!syncResponse.ok || !syncResult.success) {
+      throw new Error(syncResult.error || `Sync failed with status ${syncResponse.status}`);
     }
     
     const recordsCount = syncResult.records || syncResult.data?.daily_records_count || syncResult.count || 0;

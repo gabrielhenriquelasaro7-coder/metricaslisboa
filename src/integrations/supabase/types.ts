@@ -1595,68 +1595,6 @@ export type Database = {
           },
         ]
       }
-      sync_progress: {
-        Row: {
-          completed_at: string | null
-          completed_chunks: number | null
-          created_at: string | null
-          current_chunk: Json | null
-          error_message: string | null
-          id: string
-          period_end: string
-          period_start: string
-          project_id: string
-          records_synced: number | null
-          started_at: string | null
-          status: string | null
-          sync_type: string
-          total_chunks: number
-          updated_at: string | null
-        }
-        Insert: {
-          completed_at?: string | null
-          completed_chunks?: number | null
-          created_at?: string | null
-          current_chunk?: Json | null
-          error_message?: string | null
-          id?: string
-          period_end: string
-          period_start: string
-          project_id: string
-          records_synced?: number | null
-          started_at?: string | null
-          status?: string | null
-          sync_type?: string
-          total_chunks: number
-          updated_at?: string | null
-        }
-        Update: {
-          completed_at?: string | null
-          completed_chunks?: number | null
-          created_at?: string | null
-          current_chunk?: Json | null
-          error_message?: string | null
-          id?: string
-          period_end?: string
-          period_start?: string
-          project_id?: string
-          records_synced?: number | null
-          started_at?: string | null
-          status?: string | null
-          sync_type?: string
-          total_chunks?: number
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sync_progress_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       system_settings: {
         Row: {
           created_at: string | null

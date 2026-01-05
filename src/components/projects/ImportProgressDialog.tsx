@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, Loader2, AlertCircle, Calendar } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 interface ImportProgressDialogProps {
   open: boolean;
@@ -21,32 +19,6 @@ interface SyncLog {
   created_at: string;
 }
 
-interface SyncProgressData {
-  id: string;
-  project_id: string;
-  sync_type: string;
-  total_chunks: number;
-  completed_chunks: number;
-  current_chunk: { since: string; until: string; index: number } | null;
-  status: string;
-  records_synced: number;
-  error_message: string | null;
-}
-
-// Helper to get month name and part from date range
-function getMonthPart(since: string, until: string): { monthName: string; part: number; totalParts: number } {
-  const sinceDate = parseISO(since);
-  const untilDate = parseISO(until);
-  const monthName = format(sinceDate, 'MMMM', { locale: ptBR });
-  
-  const dayOfMonth = sinceDate.getDate();
-  let part = 1;
-  if (dayOfMonth > 20) part = 3;
-  else if (dayOfMonth > 10) part = 2;
-  
-  return { monthName: monthName.charAt(0).toUpperCase() + monthName.slice(1), part, totalParts: 3 };
-}
-
 export function ImportProgressDialog({ 
   open, 
   onOpenChange, 
@@ -54,73 +26,15 @@ export function ImportProgressDialog({
   projectName 
 }: ImportProgressDialogProps) {
   const [logs, setLogs] = useState<SyncLog[]>([]);
-  const [syncProgress, setSyncProgress] = useState<SyncProgressData | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [progress, setProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('Iniciando importação...');
-  const [chunkInfo, setChunkInfo] = useState<{ monthName: string; part: number; totalParts: number } | null>(null);
 
-  // Poll sync_progress table for chunk updates
   useEffect(() => {
     if (!projectId || !open) return;
 
-    const fetchSyncProgress = async () => {
-      // First try sync_progress table (new chunked sync)
-      const { data } = await supabase
-        .from('sync_progress')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (data) {
-        const progressData: SyncProgressData = {
-          ...data,
-          current_chunk: data.current_chunk as SyncProgressData['current_chunk']
-        };
-        setSyncProgress(progressData);
-        
-        // Calculate progress percentage
-        const percentage = progressData.total_chunks > 0 
-          ? Math.round((progressData.completed_chunks / progressData.total_chunks) * 100)
-          : 0;
-        
-        if (progressData.status === 'completed') {
-          setProgress(100);
-          setIsComplete(true);
-          setStatusMessage(`Importação completa: ${progressData.records_synced.toLocaleString()} registros!`);
-          setChunkInfo(null);
-        } else if (progressData.status === 'error') {
-          setProgress(percentage);
-          setIsComplete(true);
-          setHasError(true);
-          setStatusMessage(progressData.error_message || 'Erro na importação');
-        } else if (progressData.status === 'in_progress' && progressData.current_chunk) {
-          setProgress(percentage);
-          const chunk = progressData.current_chunk;
-          const monthPart = getMonthPart(chunk.since, chunk.until);
-          setChunkInfo(monthPart);
-          setStatusMessage(`Sincronizando ${monthPart.monthName} parte ${monthPart.part}/${monthPart.totalParts}...`);
-        } else if (progressData.status === 'in_progress') {
-          // In progress but no current chunk yet
-          setProgress(Math.max(5, percentage));
-          setStatusMessage(`Iniciando chunk ${progressData.completed_chunks + 1}/${progressData.total_chunks}...`);
-        }
-      }
-    };
-
-    fetchSyncProgress();
-    const interval = setInterval(fetchSyncProgress, 2000);
-
-    return () => clearInterval(interval);
-  }, [projectId, open]);
-
-  // Fallback: also check sync_logs for legacy behavior
-  useEffect(() => {
-    if (!projectId || !open || syncProgress) return;
-
+    // Fetch initial logs
     const fetchLogs = async () => {
       const { data } = await supabase
         .from('sync_logs')
@@ -137,6 +51,7 @@ export function ImportProgressDialog({
 
     fetchLogs();
 
+    // Subscribe to realtime updates
     const channel = supabase
       .channel(`sync-logs-${projectId}`)
       .on(
@@ -155,13 +70,14 @@ export function ImportProgressDialog({
       )
       .subscribe();
 
+    // Poll for updates every 5 seconds as backup
     const interval = setInterval(fetchLogs, 5000);
 
     return () => {
       channel.unsubscribe();
       clearInterval(interval);
     };
-  }, [projectId, open, syncProgress]);
+  }, [projectId, open]);
 
   const analyzeProgress = (logData: SyncLog[]) => {
     const latestLog = logData[0];
@@ -194,6 +110,7 @@ export function ImportProgressDialog({
         setStatusMessage('Sincronizando dados do Meta Ads...');
       }
     } catch {
+      // If message is not JSON, use status
       if (latestLog.status === 'success') {
         setProgress(100);
         setIsComplete(true);
@@ -207,9 +124,9 @@ export function ImportProgressDialog({
     }
   };
 
-  // Simulate progress while waiting for real updates (only if no sync_progress)
+  // Simulate progress while waiting for real updates
   useEffect(() => {
-    if (!open || isComplete || syncProgress) return;
+    if (!open || isComplete) return;
 
     const timer = setInterval(() => {
       setProgress(prev => {
@@ -219,7 +136,7 @@ export function ImportProgressDialog({
     }, 2000);
 
     return () => clearInterval(timer);
-  }, [open, isComplete, syncProgress]);
+  }, [open, isComplete]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -230,7 +147,7 @@ export function ImportProgressDialog({
               hasError ? (
                 <AlertCircle className="h-5 w-5 text-yellow-500" />
               ) : (
-                <CheckCircle className="h-5 w-5 text-metric-positive" />
+                <CheckCircle className="h-5 w-5 text-green-500" />
               )
             ) : (
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -242,35 +159,11 @@ export function ImportProgressDialog({
         <div className="space-y-4 py-4">
           <Progress value={progress} className="h-2" />
           
-          <p className="text-sm text-muted-foreground text-center font-medium">
+          <p className="text-sm text-muted-foreground text-center">
             {statusMessage}
           </p>
 
-          {/* Chunk info with month/part */}
-          {chunkInfo && !isComplete && (
-            <div className="flex items-center justify-center gap-2 text-sm text-primary">
-              <Calendar className="w-4 h-4" />
-              <span className="font-medium">
-                {chunkInfo.monthName} - Parte {chunkInfo.part} de {chunkInfo.totalParts}
-              </span>
-            </div>
-          )}
-
-          {/* Records synced */}
-          {syncProgress && syncProgress.records_synced > 0 && !isComplete && (
-            <p className="text-xs text-muted-foreground text-center">
-              {syncProgress.records_synced.toLocaleString()} registros sincronizados
-            </p>
-          )}
-
-          {/* Chunk progress */}
-          {syncProgress && syncProgress.total_chunks > 1 && !isComplete && (
-            <p className="text-xs text-muted-foreground text-center">
-              Chunk {syncProgress.completed_chunks + 1} de {syncProgress.total_chunks}
-            </p>
-          )}
-
-          {!isComplete && !syncProgress && (
+          {!isComplete && (
             <p className="text-xs text-muted-foreground text-center">
               Importando dados desde 01/01/2025... Isso pode levar alguns minutos.
             </p>

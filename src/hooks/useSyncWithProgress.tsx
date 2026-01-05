@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
-import { useQuery } from '@tanstack/react-query';
 
 export type SyncStep = 'idle' | 'campaigns' | 'adsets' | 'ads' | 'insights' | 'saving' | 'complete' | 'error';
 
@@ -10,13 +9,6 @@ export interface CacheStats {
   cached_creatives: number;
   new_creatives: number;
   cache_hit_rate: number;
-}
-
-export interface ChunkProgress {
-  current: number;
-  total: number;
-  since: string;
-  until: string;
 }
 
 export interface SyncProgress {
@@ -28,29 +20,12 @@ export interface SyncProgress {
     entity: string;
   };
   cacheStats?: CacheStats;
-  chunk?: ChunkProgress;
 }
 
 export interface AllPeriodsProgress {
   currentPeriod: number;
   totalPeriods: number;
   periodKey: string;
-}
-
-export interface DbSyncProgress {
-  id: string;
-  project_id: string;
-  sync_type: string;
-  period_start: string;
-  period_end: string;
-  total_chunks: number;
-  completed_chunks: number;
-  current_chunk: { index: number; since: string; until: string } | null;
-  status: 'pending' | 'in_progress' | 'completed' | 'error';
-  error_message: string | null;
-  records_synced: number;
-  started_at: string | null;
-  completed_at: string | null;
 }
 
 const stepMessages: Record<SyncStep, string> = {
@@ -92,33 +67,6 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
   const autoSyncInterval = useRef<NodeJS.Timeout | null>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Poll for sync progress from database
-  const { data: dbSyncProgress, refetch: refetchDbProgress } = useQuery({
-    queryKey: ['sync-progress', projectId],
-    queryFn: async () => {
-      if (!projectId) return null;
-      const { data } = await supabase
-        .from('sync_progress')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('status', 'in_progress')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (!data) return null;
-      
-      // Transform the data to match our interface
-      return {
-        ...data,
-        current_chunk: data.current_chunk as { index: number; since: string; until: string } | null,
-        status: data.status as 'pending' | 'in_progress' | 'completed' | 'error',
-      } as DbSyncProgress;
-    },
-    refetchInterval: syncing ? 2000 : false, // Poll every 2s during sync
-    enabled: !!projectId,
-  });
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -158,25 +106,11 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
 
       console.log('Syncing with time range:', timeRange);
       
-      // Determine chunk mode based on period length
-      // For periods > 10 days, use chunked sync (10-day chunks)
-      let chunkMode: 'single' | 'ten_days' = 'single';
-      if (timeRange) {
-        const daysDiff = Math.ceil(
-          (new Date(timeRange.until).getTime() - new Date(timeRange.since).getTime()) / (1000 * 60 * 60 * 24)
-        );
-        if (daysDiff > 10) {
-          chunkMode = 'ten_days';
-          console.log(`Using chunked sync (${daysDiff} days will be split into ~${Math.ceil(daysDiff / 10)} chunks)`);
-        }
-      }
-      
       const response = await supabase.functions.invoke('meta-ads-sync', {
         body: {
           project_id: projectId,
           ad_account_id: adAccountId,
           time_range: timeRange,
-          chunk_mode: chunkMode,
         },
       });
 
@@ -409,7 +343,6 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
     syncingAllPeriods,
     progress,
     allPeriodsProgress,
-    dbSyncProgress,
     syncData,
     syncAllPeriods,
     syncWithDebounce,
@@ -417,6 +350,5 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
     stopAutoSync,
     canSync,
     getTimeUntilCanSync,
-    refetchDbProgress,
   };
 }
