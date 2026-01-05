@@ -132,42 +132,59 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   return (
     <div 
       className={cn(
-        "group relative overflow-hidden rounded-xl transition-all duration-300 cursor-pointer",
-        "bg-card border border-border/50",
-        "hover:border-border hover:shadow-lg hover:shadow-black/20",
-        "hover:-translate-y-1",
+        "group relative overflow-hidden rounded-xl transition-all duration-500 cursor-pointer",
+        "bg-gradient-to-br from-card via-card to-card/90",
+        "border border-border/40",
+        "hover:border-primary/50 hover:-translate-y-2",
+        "hover:shadow-[0_20px_50px_-12px_hsl(var(--primary)/0.35)]",
         project.archived && 'opacity-50 grayscale-[30%]'
       )}
       onClick={() => onSelect(project)}
     >
+      {/* Animated glowing border on hover */}
+      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+        <div className="absolute inset-[-1px] rounded-xl bg-gradient-to-r from-primary via-primary/60 to-primary animate-pulse" style={{ filter: 'blur(2px)' }} />
+      </div>
+      
+      {/* Top accent line - animates on hover */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500" />
+      
+      {/* Subtle glow effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
       {/* Content */}
-      <div className="p-5">
+      <div className="relative p-5 bg-card rounded-xl">
         {/* Header Row */}
         <div className="flex items-start gap-4 mb-4">
-          {/* Avatar */}
+          {/* Avatar with glow on hover */}
           <div className={cn(
             "relative w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden",
             "bg-secondary/80 border border-border/50",
-            "transition-transform duration-300 group-hover:scale-105"
+            "transition-all duration-500 group-hover:scale-110 group-hover:border-primary/30",
+            "group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
           )}>
             {project.avatar_url ? (
               <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
             ) : (
-              <Icon className="w-7 h-7 text-muted-foreground" />
+              <Icon className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
             )}
           </div>
           
           {/* Title & Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1.5">
-              <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors truncate" title={project.name}>
+              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300 truncate" title={project.name}>
                 {project.name}
               </h3>
-              {/* Health indicator dot */}
+              {/* Health indicator dot with glow */}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", healthDotColor)} />
+                    <div className={cn(
+                      "w-2.5 h-2.5 rounded-full flex-shrink-0 transition-all duration-300",
+                      healthDotColor,
+                      "group-hover:scale-125 group-hover:shadow-[0_0_8px_currentColor]"
+                    )} />
                   </TooltipTrigger>
                   <TooltipContent side="top" className="text-xs">
                     Health: {healthOption.label}
@@ -179,12 +196,13 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
             <div className="flex items-center gap-2 flex-wrap">
               <span className={cn(
                 "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium",
-                "bg-secondary text-muted-foreground"
+                "bg-secondary/80 text-muted-foreground",
+                "group-hover:bg-primary/10 group-hover:text-primary/90 transition-colors duration-300"
               )}>
                 <Icon className="w-3 h-3" />
                 {model?.label}
               </span>
-              <span className="text-xs text-muted-foreground font-mono bg-secondary/50 px-2 py-1 rounded-md">
+              <span className="text-xs text-muted-foreground font-mono bg-secondary/50 px-2 py-1 rounded-md group-hover:bg-secondary/80 transition-colors duration-300">
                 {project.ad_account_id.replace('act_', '')}
               </span>
             </div>
@@ -192,13 +210,13 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-border/50">
+        <div className="flex items-center justify-between pt-3 border-t border-border/30 group-hover:border-primary/20 transition-colors duration-300">
           {/* Sync Status */}
           <div className={cn(
-            "flex items-center gap-1.5 text-xs",
+            "flex items-center gap-1.5 text-xs transition-colors duration-300",
             lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
               ? "text-emerald-500" 
-              : "text-muted-foreground"
+              : "text-muted-foreground group-hover:text-muted-foreground/80"
           )}>
             <RefreshCw className="w-3.5 h-3.5" />
             <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca'}</span>
@@ -213,15 +231,15 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
                 e.stopPropagation();
                 onSelect(project);
               }}
-              className="text-primary hover:bg-primary/10 gap-1 h-8 px-3 text-xs font-medium"
+              className="text-primary hover:bg-primary/15 hover:text-primary gap-1 h-8 px-3 text-xs font-semibold transition-all duration-300"
             >
               Acessar
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
             </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary">
+                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary/80 hover:text-primary transition-colors duration-300">
                   <MoreVertical className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -280,36 +298,45 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
   return (
     <div 
       className={cn(
-        "group relative flex items-center gap-4 overflow-hidden rounded-lg transition-all duration-300 cursor-pointer",
-        "bg-card border border-border/50 p-4",
-        "hover:border-border hover:bg-secondary/30",
+        "group relative flex items-center gap-4 overflow-hidden rounded-lg transition-all duration-500 cursor-pointer",
+        "bg-card border border-border/40 p-4",
+        "hover:border-primary/40 hover:bg-primary/5",
+        "hover:shadow-[0_8px_30px_-10px_hsl(var(--primary)/0.3)]",
         project.archived && 'opacity-50'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Avatar */}
+      {/* Left accent line - glows on hover */}
+      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-primary/40 via-primary to-primary/40 opacity-0 group-hover:opacity-100 transition-all duration-500" />
+
+      {/* Avatar with glow */}
       <div className={cn(
-        "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden",
-        "bg-secondary border border-border/50"
+        "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden ml-1",
+        "bg-secondary border border-border/50",
+        "transition-all duration-500 group-hover:border-primary/30 group-hover:shadow-[0_0_15px_hsl(var(--primary)/0.25)]"
       )}>
         {project.avatar_url ? (
           <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
         ) : (
-          <Icon className="w-5 h-5 text-muted-foreground" />
+          <Icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
         )}
       </div>
       
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-medium text-foreground group-hover:text-primary transition-colors truncate">
+          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors duration-300 truncate">
             {project.name}
           </h3>
-          {/* Health indicator dot */}
+          {/* Health indicator dot with glow */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className={cn("w-2 h-2 rounded-full flex-shrink-0", healthDotColor)} />
+                <div className={cn(
+                  "w-2 h-2 rounded-full flex-shrink-0 transition-all duration-300",
+                  healthDotColor,
+                  "group-hover:scale-125 group-hover:shadow-[0_0_6px_currentColor]"
+                )} />
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs">
                 Health: {healthOption.label}
@@ -318,13 +345,13 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
           </TooltipProvider>
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1 bg-secondary px-2 py-0.5 rounded">
+          <span className="inline-flex items-center gap-1 bg-secondary px-2 py-0.5 rounded group-hover:bg-primary/10 group-hover:text-primary/80 transition-colors duration-300">
             <Icon className="w-3 h-3" />
             {model?.label}
           </span>
           <span className="font-mono">{project.ad_account_id.replace('act_', '')}</span>
           <div className={cn(
-            "flex items-center gap-1",
+            "flex items-center gap-1 transition-colors duration-300",
             lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
               ? "text-emerald-500" 
               : "text-muted-foreground"
@@ -344,15 +371,15 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
             e.stopPropagation();
             onSelect(project);
           }}
-          className="text-primary hover:bg-primary/10 gap-1 h-8 px-3 text-xs font-medium"
+          className="text-primary hover:bg-primary/15 hover:text-primary gap-1 h-8 px-3 text-xs font-semibold transition-all duration-300"
         >
           Acessar
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
         </Button>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary">
+            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary/80 hover:text-primary transition-colors duration-300">
               <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
