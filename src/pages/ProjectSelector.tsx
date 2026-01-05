@@ -114,6 +114,7 @@ interface ProjectCardProps {
 function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: Omit<ProjectCardProps, 'health'>) {
   const model = businessModels.find(m => m.value === project.business_model);
   const Icon = model?.icon || Users;
+  const modelColors = businessModelColors[project.business_model];
   
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
   const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore) || healthScoreOptions[3];
@@ -123,103 +124,157 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   return (
     <div 
       className={cn(
-        "group relative bg-card rounded-xl border border-border/50 p-5 transition-all duration-300 cursor-pointer",
-        "hover:shadow-lg hover:border-border",
+        "group relative overflow-hidden rounded-2xl transition-all duration-500 cursor-pointer",
+        "bg-gradient-to-br from-card/95 via-card/80 to-card/60",
+        "border border-border/30 backdrop-blur-xl",
+        "hover:border-primary/40 hover:shadow-[0_8px_40px_hsl(0,0%,0%,0.5),0_0_60px_hsl(var(--primary)/0.15)]",
+        "hover:translate-y-[-4px]",
         project.archived && 'opacity-50 grayscale-[30%]'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Header Row */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-start gap-3">
-          {/* Avatar */}
-          <div className={cn(
-            "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden",
-            !project.avatar_url && "bg-primary/10"
-          )}>
-            {project.avatar_url ? (
-              <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
-            ) : (
-              <Icon className="w-5 h-5 text-primary" />
-            )}
-          </div>
-          
-          {/* Title & Assignee */}
-          <div className="min-w-0">
-            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1" title={project.name}>
-              {project.name}
-            </h3>
-            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
-              <Users className="w-3.5 h-3.5" />
-              <span className="line-clamp-1">{project.ad_account_id.replace('act_', '')}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Health Badge */}
-        <div className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
-          healthOption.bgColor, healthOption.textColor, healthOption.borderColor
-        )}>
-          <healthOption.icon className="w-3.5 h-3.5" />
-          {healthOption.label}
-        </div>
+      {/* Animated gradient border on hover */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+        <div className="absolute inset-[-1px] rounded-2xl bg-gradient-to-r from-primary/50 via-v4-crimson/30 to-primary/50 blur-sm" />
       </div>
 
-      {/* Sync Info */}
-      <div className="flex items-center justify-between pt-3 border-t border-border/50">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Clock className="w-3.5 h-3.5" />
-          <span>Atualizado em {lastSyncDate ? lastSyncDate.toLocaleDateString('pt-BR') : 'Nunca'}</span>
-        </div>
-        
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(project);
-            }}
-            className="text-sm text-primary hover:underline flex items-center gap-1"
-          >
-            Ver Detalhes
-            <ChevronRight className="w-4 h-4" />
-          </button>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem onClick={() => onEdit(project)}>
-                <Pencil className="w-4 h-4 mr-2" />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onResync(project)}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Re-sincronizar
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {project.archived ? (
-                <DropdownMenuItem onClick={() => onUnarchive(project)}>
-                  <ArchiveRestore className="w-4 h-4 mr-2" />
-                  Restaurar
-                </DropdownMenuItem>
+      {/* Top Accent Bar with Health Color */}
+      <div className={cn(
+        "absolute top-0 left-0 right-0 h-1 transition-all duration-300",
+        displayHealthScore === 'safe' && "bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-500",
+        displayHealthScore === 'care' && "bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500",
+        displayHealthScore === 'danger' && "bg-gradient-to-r from-red-500 via-red-400 to-rose-500",
+        displayHealthScore === 'undefined' && "bg-gradient-to-r from-slate-500 via-slate-400 to-gray-500"
+      )} />
+
+      {/* Content */}
+      <div className="relative p-5">
+        {/* Header Row */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-start gap-3">
+            {/* Avatar with glow effect */}
+            <div className={cn(
+              "relative w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden",
+              "transition-all duration-300 group-hover:scale-110",
+              !project.avatar_url && modelColors.bgColor
+            )}>
+              {/* Glow behind avatar */}
+              <div className={cn(
+                "absolute inset-0 blur-md opacity-0 group-hover:opacity-60 transition-opacity",
+                modelColors.bgColor
+              )} />
+              {project.avatar_url ? (
+                <img src={project.avatar_url} alt={project.name} className="relative w-full h-full object-cover rounded-xl" />
               ) : (
-                <DropdownMenuItem onClick={() => onArchive(project)}>
-                  <Archive className="w-4 h-4 mr-2" />
-                  Arquivar
-                </DropdownMenuItem>
+                <Icon className={cn("relative w-6 h-6", modelColors.iconColor)} />
               )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onDelete(project)} className="text-red-400 focus:text-red-400">
-                <Trash2 className="w-4 h-4 mr-2" />
-                Excluir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </div>
+            
+            {/* Title & Subtitle */}
+            <div className="min-w-0">
+              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1 tracking-tight" title={project.name}>
+                {project.name}
+              </h3>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={cn(
+                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium",
+                  modelColors.bgColor, modelColors.textColor
+                )}>
+                  <Icon className="w-3 h-3" />
+                  {model?.label}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Health Badge with glow */}
+          <div className={cn(
+            "relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-300",
+            healthOption.bgColor, healthOption.textColor, healthOption.borderColor,
+            "group-hover:shadow-lg"
+          )}>
+            {/* Glow effect */}
+            <div className={cn(
+              "absolute inset-0 rounded-xl blur-md opacity-0 group-hover:opacity-40 transition-opacity",
+              healthOption.bgColor
+            )} />
+            <healthOption.icon className="relative w-4 h-4" />
+            <span className="relative">{healthOption.label}</span>
+          </div>
+        </div>
+
+        {/* Account ID */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4 px-1">
+          <div className="flex items-center gap-1.5 bg-secondary/50 px-2 py-1 rounded-lg">
+            <FolderKanban className="w-3 h-3" />
+            <span className="font-mono">{project.ad_account_id.replace('act_', '')}</span>
+          </div>
+        </div>
+
+        {/* Footer with Sync Info and Actions */}
+        <div className="flex items-center justify-between pt-4 border-t border-border/30">
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg",
+              lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
+                ? "text-emerald-400 bg-emerald-500/10" 
+                : "text-muted-foreground bg-secondary/50"
+            )}>
+              <Clock className="w-3 h-3" />
+              <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca sincronizado'}</span>
+            </div>
+          </div>
+          
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(project);
+              }}
+              className="text-primary hover:text-primary hover:bg-primary/10 gap-1 px-3 h-8 rounded-lg text-xs font-medium transition-all"
+            >
+              Acessar
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-secondary/80">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 rounded-xl" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer">
+                  <Pencil className="w-4 h-4" />
+                  Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer">
+                  <RefreshCw className="w-4 h-4" />
+                  Re-sincronizar
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {project.archived ? (
+                  <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer">
+                    <ArchiveRestore className="w-4 h-4" />
+                    Restaurar
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer">
+                    <Archive className="w-4 h-4" />
+                    Arquivar
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-400 focus:text-red-400">
+                  <Trash2 className="w-4 h-4" />
+                  Excluir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </div>
@@ -229,6 +284,7 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
 function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: Omit<ProjectCardProps, 'health'>) {
   const model = businessModels.find(m => m.value === project.business_model);
   const Icon = model?.icon || Users;
+  const modelColors = businessModelColors[project.business_model];
   
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
   const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore) || healthScoreOptions[3];
@@ -238,90 +294,119 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
   return (
     <div 
       className={cn(
-        "group flex items-center gap-4 bg-card rounded-xl border border-border/50 p-4 transition-all duration-200 cursor-pointer",
-        "hover:shadow-md hover:border-border",
+        "group relative flex items-center gap-4 overflow-hidden rounded-xl transition-all duration-300 cursor-pointer",
+        "bg-gradient-to-r from-card/95 via-card/80 to-card/60",
+        "border border-border/30 backdrop-blur-xl p-4",
+        "hover:border-primary/40 hover:shadow-[0_4px_20px_hsl(0,0%,0%,0.4),0_0_30px_hsl(var(--primary)/0.1)]",
         project.archived && 'opacity-50'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Avatar */}
+      {/* Left accent bar based on health */}
       <div className={cn(
-        "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden",
-        !project.avatar_url && "bg-primary/10"
+        "absolute left-0 top-0 bottom-0 w-1 transition-all duration-300",
+        displayHealthScore === 'safe' && "bg-gradient-to-b from-emerald-500 to-teal-500",
+        displayHealthScore === 'care' && "bg-gradient-to-b from-amber-500 to-orange-500",
+        displayHealthScore === 'danger' && "bg-gradient-to-b from-red-500 to-rose-500",
+        displayHealthScore === 'undefined' && "bg-gradient-to-b from-slate-500 to-gray-500"
+      )} />
+
+      {/* Avatar with glow */}
+      <div className={cn(
+        "relative w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ml-2",
+        "transition-all duration-300 group-hover:scale-105",
+        !project.avatar_url && modelColors.bgColor
       )}>
         {project.avatar_url ? (
-          <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
+          <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover rounded-xl" />
         ) : (
-          <Icon className="w-5 h-5 text-primary" />
+          <Icon className={cn("w-5 h-5", modelColors.iconColor)} />
         )}
       </div>
       
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate">
             {project.name}
           </h3>
           <div className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border",
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold border",
             healthOption.bgColor, healthOption.textColor, healthOption.borderColor
           )}>
             <healthOption.icon className="w-3 h-3" />
             {healthOption.label}
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Users className="w-3 h-3" />
-          <span>{project.ad_account_id.replace('act_', '')}</span>
-          <span className="text-muted-foreground/50">•</span>
-          <Clock className="w-3 h-3" />
-          <span>{lastSyncDate ? lastSyncDate.toLocaleDateString('pt-BR') : 'Nunca'}</span>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className={cn(
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-md",
+            modelColors.bgColor, modelColors.textColor
+          )}>
+            <Icon className="w-3 h-3" />
+            {model?.label}
+          </span>
+          <div className="flex items-center gap-1.5 bg-secondary/50 px-2 py-0.5 rounded-md">
+            <FolderKanban className="w-3 h-3" />
+            <span className="font-mono">{project.ad_account_id.replace('act_', '')}</span>
+          </div>
+          <div className={cn(
+            "flex items-center gap-1",
+            lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
+              ? "text-emerald-400" 
+              : "text-muted-foreground"
+          )}>
+            <Clock className="w-3 h-3" />
+            <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca'}</span>
+          </div>
         </div>
       </div>
       
       {/* Actions */}
       <div className="flex items-center gap-2">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.stopPropagation();
             onSelect(project);
           }}
-          className="text-sm text-primary hover:underline flex items-center gap-1"
+          className="text-primary hover:text-primary hover:bg-primary/10 gap-1 px-3 h-8 rounded-lg text-xs font-medium"
         >
-          Ver Detalhes
+          Acessar
           <ChevronRight className="w-4 h-4" />
-        </button>
+        </Button>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-secondary/80">
               <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={() => onEdit(project)}>
-              <Pencil className="w-4 h-4 mr-2" />
+          <DropdownMenuContent align="end" className="w-48 rounded-xl" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer">
+              <Pencil className="w-4 h-4" />
               Editar
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onResync(project)}>
-              <RefreshCw className="w-4 h-4 mr-2" />
+            <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer">
+              <RefreshCw className="w-4 h-4" />
               Re-sincronizar
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {project.archived ? (
-              <DropdownMenuItem onClick={() => onUnarchive(project)}>
-                <ArchiveRestore className="w-4 h-4 mr-2" />
+              <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer">
+                <ArchiveRestore className="w-4 h-4" />
                 Restaurar
               </DropdownMenuItem>
             ) : (
-              <DropdownMenuItem onClick={() => onArchive(project)}>
-                <Archive className="w-4 h-4 mr-2" />
+              <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer">
+                <Archive className="w-4 h-4" />
                 Arquivar
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onDelete(project)} className="text-red-400 focus:text-red-400">
-              <Trash2 className="w-4 h-4 mr-2" />
+            <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-400 focus:text-red-400">
+              <Trash2 className="w-4 h-4" />
               Excluir
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -735,20 +820,26 @@ export default function ProjectSelector() {
 
       {/* Main Content */}
       <div className="relative z-10">
-        {/* Header Section */}
+        {/* Header Section - Premium Design */}
         <header className="container mx-auto px-6 pt-8 pb-4">
           <div className="flex items-center justify-between">
-            {/* Logo with Glow */}
-            <div className="flex items-center gap-4">
-              <img 
-                src={v4LogoIcon} 
-                alt="V4 Company" 
-                className="h-12 w-auto rounded-xl animate-float"
-                style={{ filter: 'drop-shadow(0 0 20px rgba(255, 0, 0, 0.6)) saturate(2.5) brightness(1.3) contrast(1.1)' }}
-              />
+            {/* Logo with Enhanced Glow */}
+            <div className="flex items-center gap-4 group">
+              <div className="relative">
+                {/* Glow effect behind logo */}
+                <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full opacity-60 group-hover:opacity-100 transition-opacity" />
+                <img 
+                  src={v4LogoIcon} 
+                  alt="V4 Company" 
+                  className="relative h-14 w-auto rounded-xl animate-float"
+                  style={{ filter: 'drop-shadow(0 0 25px rgba(255, 0, 0, 0.7)) saturate(2.5) brightness(1.3) contrast(1.1)' }}
+                />
+              </div>
               <div className="flex flex-col">
-                <h1 className="text-xl font-bold text-foreground">MetaAds Manager</h1>
-                <span className="text-xs text-muted-foreground">by V4 Company</span>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text text-transparent">
+                  MetaAds Manager
+                </h1>
+                <span className="text-xs text-muted-foreground tracking-wider">by V4 Company</span>
               </div>
             </div>
             
@@ -756,7 +847,7 @@ export default function ProjectSelector() {
               <Button 
                 variant="ghost" 
                 onClick={() => navigate('/admin')}
-                className="text-muted-foreground hover:text-primary hover:bg-primary/10 gap-2 rounded-xl transition-all"
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10 gap-2 rounded-xl transition-all hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
               >
                 <Shield className="w-4 h-4" />
                 <span className="hidden sm:inline">Admin</span>
@@ -773,57 +864,73 @@ export default function ProjectSelector() {
           </div>
         </header>
 
-        {/* Summary Cards - Glass Effect */}
-        <div className="container mx-auto px-6 py-6">
+        {/* Section Title */}
+        <div className="container mx-auto px-6 py-4">
+          <div className="max-w-4xl mx-auto text-center mb-2">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground via-primary/80 to-foreground bg-clip-text text-transparent mb-2">
+              Seus Projetos
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Gerencie e monitore suas campanhas de anúncios
+            </p>
+          </div>
+        </div>
+
+        {/* Summary Cards - Enhanced Glass Effect */}
+        <div className="container mx-auto px-6 py-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
             {/* Total */}
-            <div className="glass-card p-4 hover:border-primary/30 transition-all group">
-              <div className="flex items-center justify-between">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-primary/40 hover:shadow-[0_4px_30px_hsl(var(--primary)/0.15)]">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Total de Clientes</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">{healthCounts.total}</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total de Clientes</p>
+                  <p className="text-3xl font-bold text-foreground mt-2 group-hover:text-primary transition-colors">{healthCounts.total}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <FolderKanban className="w-5 h-5 text-primary" />
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 transition-all">
+                  <FolderKanban className="w-6 h-6 text-primary" />
                 </div>
               </div>
             </div>
             
             {/* Safe */}
-            <div className="glass-card p-4 hover:border-emerald-500/30 transition-all group">
-              <div className="flex items-center justify-between">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-emerald-500/40 hover:shadow-[0_4px_30px_hsl(150,80%,42%,0.15)]">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Safe</p>
-                  <p className="text-2xl font-bold text-emerald-400 mt-1">{healthCounts.safe}</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Safe</p>
+                  <p className="text-3xl font-bold text-emerald-400 mt-2">{healthCounts.safe}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
-                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 group-hover:scale-110 transition-all">
+                  <ShieldCheck className="w-6 h-6 text-emerald-400" />
                 </div>
               </div>
             </div>
             
             {/* Care */}
-            <div className="glass-card p-4 hover:border-amber-500/30 transition-all group">
-              <div className="flex items-center justify-between">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-amber-500/40 hover:shadow-[0_4px_30px_hsl(38,95%,50%,0.15)]">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Care</p>
-                  <p className="text-2xl font-bold text-amber-400 mt-1">{healthCounts.care}</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Care</p>
+                  <p className="text-3xl font-bold text-amber-400 mt-2">{healthCounts.care}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
-                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 group-hover:scale-110 transition-all">
+                  <AlertTriangle className="w-6 h-6 text-amber-400" />
                 </div>
               </div>
             </div>
             
             {/* Danger */}
-            <div className="glass-card p-4 hover:border-red-500/30 transition-all group">
-              <div className="flex items-center justify-between">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-red-500/40 hover:shadow-[0_4px_30px_hsl(0,80%,55%,0.15)]">
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Danger</p>
-                  <p className="text-2xl font-bold text-red-400 mt-1">{healthCounts.danger}</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Danger</p>
+                  <p className="text-3xl font-bold text-red-400 mt-2">{healthCounts.danger}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
-                  <AlertCircle className="w-5 h-5 text-red-400" />
+                <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 group-hover:scale-110 transition-all">
+                  <AlertCircle className="w-6 h-6 text-red-400" />
                 </div>
               </div>
             </div>
