@@ -134,26 +134,33 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
       className={cn(
         "group relative overflow-hidden rounded-xl transition-all duration-500 cursor-pointer",
         "bg-gradient-to-br from-card via-card to-card/90",
-        "border border-border/40",
-        "hover:border-primary/50 hover:-translate-y-2",
-        "hover:shadow-[0_20px_50px_-12px_hsl(var(--primary)/0.35)]",
+        "border-2 border-primary/20 hover:border-primary/60",
+        "hover:-translate-y-2",
+        "shadow-[0_4px_20px_-5px_hsl(var(--primary)/0.15)]",
+        "hover:shadow-[0_20px_50px_-12px_hsl(var(--primary)/0.4)]",
         project.archived && 'opacity-50 grayscale-[30%]'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Animated glowing border on hover */}
-      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-        <div className="absolute inset-[-1px] rounded-xl bg-gradient-to-r from-primary via-primary/60 to-primary animate-pulse" style={{ filter: 'blur(2px)' }} />
+      {/* Animated corner accents */}
+      <div className="absolute top-0 left-0 w-8 h-[2px] bg-gradient-to-r from-primary to-transparent" />
+      <div className="absolute top-0 left-0 h-8 w-[2px] bg-gradient-to-b from-primary to-transparent" />
+      <div className="absolute bottom-0 right-0 w-8 h-[2px] bg-gradient-to-l from-primary to-transparent" />
+      <div className="absolute bottom-0 right-0 h-8 w-[2px] bg-gradient-to-t from-primary to-transparent" />
+      
+      {/* Glowing border effect on hover */}
+      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
+        <div className="absolute inset-[-2px] rounded-xl bg-gradient-to-r from-primary via-primary/50 to-primary" style={{ filter: 'blur(4px)', opacity: 0.6 }} />
       </div>
       
-      {/* Top accent line - animates on hover */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500" />
+      {/* Top accent line with animation */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent group-hover:w-2/3 transition-all duration-500" />
       
-      {/* Subtle glow effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      {/* Subtle inner glow */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-primary/5 opacity-50 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
       {/* Content */}
-      <div className="relative p-5 bg-card rounded-xl">
+      <div className="relative p-5 bg-gradient-to-br from-card/95 via-card to-card/90 rounded-xl backdrop-blur-sm">
         {/* Header Row */}
         <div className="flex items-start gap-4 mb-4">
           {/* Avatar with glow on hover */}
@@ -299,26 +306,28 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
     <div 
       className={cn(
         "group relative flex items-center gap-4 overflow-hidden rounded-lg transition-all duration-500 cursor-pointer",
-        "bg-card border border-border/40 p-4",
-        "hover:border-primary/40 hover:bg-primary/5",
-        "hover:shadow-[0_8px_30px_-10px_hsl(var(--primary)/0.3)]",
+        "bg-gradient-to-r from-card via-card to-card/90",
+        "border-2 border-primary/15 hover:border-primary/50 p-4",
+        "shadow-[0_2px_15px_-5px_hsl(var(--primary)/0.15)]",
+        "hover:shadow-[0_8px_30px_-10px_hsl(var(--primary)/0.35)]",
+        "hover:bg-primary/5",
         project.archived && 'opacity-50'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Left accent line - glows on hover */}
-      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-primary/40 via-primary to-primary/40 opacity-0 group-hover:opacity-100 transition-all duration-500" />
+      {/* Left accent bar - always visible */}
+      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-primary/60 via-primary to-primary/60 group-hover:shadow-[0_0_10px_hsl(var(--primary)/0.5)] transition-all duration-500" />
 
       {/* Avatar with glow */}
       <div className={cn(
-        "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden ml-1",
-        "bg-secondary border border-border/50",
-        "transition-all duration-500 group-hover:border-primary/30 group-hover:shadow-[0_0_15px_hsl(var(--primary)/0.25)]"
+        "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden ml-2",
+        "bg-secondary border border-primary/20 hover:border-primary/40",
+        "transition-all duration-500 group-hover:border-primary/40 group-hover:shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
       )}>
         {project.avatar_url ? (
           <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
         ) : (
-          <Icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+          <Icon className="w-5 h-5 text-primary/60 group-hover:text-primary transition-colors duration-300" />
         )}
       </div>
       
@@ -335,7 +344,7 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
                 <div className={cn(
                   "w-2 h-2 rounded-full flex-shrink-0 transition-all duration-300",
                   healthDotColor,
-                  "group-hover:scale-125 group-hover:shadow-[0_0_6px_currentColor]"
+                  "shadow-[0_0_4px_currentColor] group-hover:scale-125 group-hover:shadow-[0_0_8px_currentColor]"
                 )} />
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs">
@@ -345,11 +354,11 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
           </TooltipProvider>
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1 bg-secondary px-2 py-0.5 rounded group-hover:bg-primary/10 group-hover:text-primary/80 transition-colors duration-300">
+          <span className="inline-flex items-center gap-1 bg-primary/10 text-primary/80 px-2 py-0.5 rounded group-hover:bg-primary/15 transition-colors duration-300">
             <Icon className="w-3 h-3" />
             {model?.label}
           </span>
-          <span className="font-mono">{project.ad_account_id.replace('act_', '')}</span>
+          <span className="font-mono text-primary/50">{project.ad_account_id.replace('act_', '')}</span>
           <div className={cn(
             "flex items-center gap-1 transition-colors duration-300",
             lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
@@ -379,7 +388,7 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary/80 hover:text-primary transition-colors duration-300">
+            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors duration-300">
               <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
