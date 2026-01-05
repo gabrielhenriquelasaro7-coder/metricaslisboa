@@ -1442,7 +1442,36 @@ Deno.serve(async (req) => {
       return retryResponse;
     }
 
-    // ========== STEP 5: Upsert daily records ==========
+    // ========== STEP 4.5: Cache creative images BEFORE upserting daily records ==========
+    // Get unique ads with images to cache
+    const uniqueAdImages = new Map<string, string>();
+    for (const record of dailyRecords) {
+      if (record.creative_thumbnail && !uniqueAdImages.has(record.ad_id)) {
+        uniqueAdImages.set(record.ad_id, record.creative_thumbnail);
+      }
+    }
+    
+    const adsToCache = Array.from(uniqueAdImages.entries()).map(([adId, imageUrl]) => ({
+      adId,
+      imageUrl,
+    }));
+    
+    let cachedUrlsMap = new Map<string, string>();
+    if (adsToCache.length > 0) {
+      console.log(`[IMAGE_CACHE] Found ${adsToCache.length} unique ads with images to cache`);
+      cachedUrlsMap = await batchCacheImages(supabase, project_id, adsToCache);
+      
+      // Update daily records with cached thumbnails
+      for (const record of dailyRecords) {
+        const cachedUrl = cachedUrlsMap.get(record.ad_id);
+        if (cachedUrl) {
+          record.cached_creative_thumbnail = cachedUrl;
+        }
+      }
+      console.log(`[IMAGE_CACHE] Cached ${cachedUrlsMap.size} images before upsert`);
+    }
+
+    // ========== STEP 5: Upsert daily records (now with cached thumbnails) ==========
     if (dailyRecords.length > 0) {
       const batches = chunk(dailyRecords, BATCH_SIZE);
       for (const batch of batches) {
@@ -1575,45 +1604,15 @@ Deno.serve(async (req) => {
     
     const campaignRecords = Array.from(campaignMetrics.values()).map(calculateDerived);
     const adsetRecords = Array.from(adsetMetrics.values()).map(calculateDerived);
-    let adRecords = Array.from(adMetrics.values()).map(calculateDerived);
-    
-    // ========== STEP 6.0.5: Cache creative images to Supabase Storage ==========
-    // Collect ads that have images to cache
-    const adsWithImages = adRecords
-      .filter(ad => ad.creative_image_url || ad.creative_thumbnail)
-      .map(ad => ({
-        adId: ad.id,
-        imageUrl: ad.creative_image_url || ad.creative_thumbnail,
-      }));
-    
-    if (adsWithImages.length > 0) {
-      console.log(`[IMAGE_CACHE] Found ${adsWithImages.length} ads with images to cache`);
-      
-      // Cache images in background-friendly batches
-      const cachedUrls = await batchCacheImages(supabase, project_id, adsWithImages);
-      
-      // Update ad records with cached URLs
-      adRecords = adRecords.map(ad => {
-        const cachedUrl = cachedUrls.get(ad.id);
-        if (cachedUrl) {
-          return {
-            ...ad,
-            cached_image_url: cachedUrl,
-          };
-        }
-        return ad;
-      });
-      
-      // Also update daily records with cached thumbnails for ads that have cached URLs
-      for (const record of dailyRecords) {
-        const cachedUrl = cachedUrls.get(record.ad_id);
-        if (cachedUrl) {
-          record.cached_creative_thumbnail = cachedUrl;
-        }
+    // Use cached URLs from Step 4.5 for ad records
+    let adRecords = Array.from(adMetrics.values()).map(ad => {
+      const derived = calculateDerived(ad);
+      const cachedUrl = cachedUrlsMap.get(ad.id);
+      if (cachedUrl) {
+        derived.cached_image_url = cachedUrl;
       }
-      
-      console.log(`[IMAGE_CACHE] Updated ${cachedUrls.size} ad records with cached URLs`);
-    }
+      return derived;
+    });
     
     // ========== STEP 6.1: Detect changes for optimization history ==========
     const allChanges: OptimizationChange[] = [];
