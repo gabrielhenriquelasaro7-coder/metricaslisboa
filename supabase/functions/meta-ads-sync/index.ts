@@ -19,6 +19,7 @@ interface SyncRequest {
   period_key?: string; // Mantido para compatibilidade com period_metrics
   retry_count?: number; // Contador de retries para validação anti-zero
   light_sync?: boolean; // Se true, pula fetch de criativos/imagens (mais rápido)
+  skip_image_cache?: boolean; // Se true, pula download de imagens para Storage (importação histórica)
 }
 
 // ============ GLOBAL RATE LIMIT CONTROL ============
@@ -395,7 +396,7 @@ async function fetchWithRetry(url: string, entityName: string, supabase?: any, o
 }
 
 // ============ FETCH ENTITIES ============
-async function fetchEntities(adAccountId: string, token: string, supabase?: any, projectId?: string, lightSync: boolean = false): Promise<{
+async function fetchEntities(adAccountId: string, token: string, supabase?: any, projectId?: string, lightSync: boolean = false, skipImageCache: boolean = false): Promise<{
   campaigns: any[];
   adsets: any[];
   ads: any[];
@@ -813,7 +814,8 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   }
   
   // Cache images in parallel batches (immediately while URLs are fresh!)
-  if (adsNeedingCache.length > 0 && supabase && projectId) {
+  // SKIP if skipImageCache is true (for historical imports - much faster)
+  if (adsNeedingCache.length > 0 && supabase && projectId && !skipImageCache) {
     console.log(`[IMMEDIATE_CACHE] Caching ${adsNeedingCache.length} images NOW (while URLs are fresh)`);
     
     const CACHE_BATCH_SIZE = 10; // More aggressive batching
@@ -841,6 +843,8 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
     }
     
     console.log(`[IMMEDIATE_CACHE] Successfully cached ${immediateCache.size} images`);
+  } else if (skipImageCache && adsNeedingCache.length > 0) {
+    console.log(`[IMMEDIATE_CACHE] Skipped caching ${adsNeedingCache.length} images (skip_image_cache=true)`);
   }
 
   console.log(`[ENTITIES] FINAL: Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}, Creatives: ${creativeDataMap.size}, Cached: ${cachedCreativeMap.size}, Previews: ${adPreviewMap.size}, Immediate: ${immediateCache.size}`);
@@ -1794,7 +1798,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: SyncRequest = await req.json();
-    const { project_id, ad_account_id, access_token, date_preset, time_range, period_key, retry_count = 0, light_sync = false } = body;
+    const { project_id, ad_account_id, access_token, date_preset, time_range, period_key, retry_count = 0, light_sync = false, skip_image_cache = false } = body;
     
     // Determine date range - PADRÃO: last_90d
     let since: string;
@@ -1827,7 +1831,7 @@ Deno.serve(async (req) => {
 
     console.log(`[SYNC] Project: ${project_id}`);
     console.log(`[SYNC] Range: ${since} to ${until} (time_increment=1)`);
-    console.log(`[SYNC] Light sync: ${light_sync}, Retry count: ${retry_count}`);
+    console.log(`[SYNC] Light sync: ${light_sync}, Skip image cache: ${skip_image_cache}, Retry count: ${retry_count}`);
 
     const token = access_token || metaAccessToken;
     if (!token) {
@@ -1837,7 +1841,8 @@ Deno.serve(async (req) => {
     // ========== STEP 1: Fetch entities (campaigns, adsets, ads) ==========
     // Pass projectId to enable cache - only fetch new creative data, not already cached ones
     // Pass lightSync to skip HD images/videos/creatives fetch (faster for frequent syncs)
-    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id, light_sync);
+    // Pass skipImageCache to skip downloading images to Storage (faster for historical imports)
+    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id, light_sync, skip_image_cache);
     
     // Check if token expired
     if (tokenExpired) {
