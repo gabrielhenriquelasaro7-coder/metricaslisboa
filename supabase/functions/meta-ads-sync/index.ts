@@ -25,20 +25,15 @@ const TRACKED_FIELDS_CAMPAIGN = ['status', 'daily_budget', 'lifetime_budget', 'o
 const TRACKED_FIELDS_ADSET = ['status', 'daily_budget', 'lifetime_budget'];
 const TRACKED_FIELDS_AD = ['status'];
 
-// HIERARQUIA DE PRIORIDADE DE LEADS - 4 NÍVEIS EXATOS
-// Prioridade 1: lead
-const LEAD_PRIORITY_1 = ['lead', 'offsite_conversion.fb_pixel_lead', 'on_facebook_lead'];
-// Prioridade 2: lead_on_website
-const LEAD_PRIORITY_2 = ['onsite_conversion.lead_grouped', 'lead_on_website', 'offsite_conversion.fb_pixel_lead_grouped'];
-// Prioridade 3: contact_on_website
-const LEAD_PRIORITY_3 = ['contact_total', 'contact', 'offsite_conversion.fb_pixel_contact', 'contact_on_website'];
-// Prioridade 4: messaging_conversation_started
-const LEAD_PRIORITY_4 = ['onsite_conversion.messaging_conversation_started_7d', 'messaging_conversation_started_7d', 'onsite_conversion.messaging_first_reply'];
-const PURCHASE_ACTION_TYPES = ['purchase', 'offsite_conversion.fb_pixel_purchase', 'omni_purchase'];
-const REGISTRATION_ACTION_TYPES = ['complete_registration', 'offsite_conversion.fb_pixel_complete_registration'];
+// ===========================================================================================
+// PRINCÍPIO FUNDAMENTAL: Este sistema é um ESPELHO do Gerenciador de Anúncios
+// NÃO reinterpretamos conversões - usamos EXATAMENTE o que a API oficial retorna
+// ===========================================================================================
+
+// Action types que queremos extrair individualmente para debug/análise
+// MAS NÃO USAMOS PARA CALCULAR O CAMPO "conversions" - esse vem direto da API
 const MESSAGING_ACTION_TYPES = ['onsite_conversion.messaging_conversation_started_7d', 'onsite_conversion.messaging_first_reply', 'onsite_conversion.total_messaging_connection'];
 const PROFILE_VISIT_ACTION_TYPES = ['onsite_conversion.profile_view', 'ig_profile_visit', 'profile_visit', 'page_engagement', 'post_engagement'];
-const VALUE_ACTION_TYPES = ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'lead', 'offsite_conversion.fb_pixel_lead'];
 
 function delay(ms: number): Promise<void> { return new Promise(resolve => setTimeout(resolve, ms)); }
 
@@ -209,101 +204,91 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 
 async function fetchDailyInsights(adAccountId: string, token: string, since: string, until: string): Promise<Map<string, Map<string, any>>> {
   const dailyInsights = new Map<string, Map<string, any>>();
-  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values';
+  
+  // IMPORTANTE: Incluímos 'conversions' direto da API - é o campo oficial que o Gerenciador usa
+  // 'actions' é mantido para métricas auxiliares (messaging, profile_visits) mas NÃO para conversions
+  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,conversions,actions,action_values';
+  
   const timeRange = JSON.stringify({ since, until });
   let url = `https://graph.facebook.com/v19.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&access_token=${token}`;
+  
   while (url) {
     const data = await fetchWithRetry(url, 'INSIGHTS');
-    if (data.data) for (const row of data.data) { const adId = extractId(row.ad_id), dateKey = row.date_start; if (adId && dateKey) { if (!dailyInsights.has(adId)) dailyInsights.set(adId, new Map()); dailyInsights.get(adId)!.set(dateKey, row); } }
+    if (data.data) {
+      for (const row of data.data) {
+        const adId = extractId(row.ad_id);
+        const dateKey = row.date_start;
+        if (adId && dateKey) {
+          if (!dailyInsights.has(adId)) dailyInsights.set(adId, new Map());
+          dailyInsights.get(adId)!.set(dateKey, row);
+        }
+      }
+    }
     url = data.paging?.next || null;
     if (url) await delay(200);
   }
+  
   console.log(`[INSIGHTS] Rows fetched, Unique ads: ${dailyInsights.size}`);
   return dailyInsights;
 }
 
-function extractConversions(insights: any): { conversions: number; conversionValue: number; leadSource: string | null } {
-  let leads = 0, purchases = 0, registrations = 0, conversionValue = 0;
-  let leadSource: string | null = null;
+// ===========================================================================================
+// EXTRAÇÃO DE CONVERSÕES - USANDO DIRETAMENTE O CAMPO OFICIAL DA API
+// ===========================================================================================
+// O campo "conversions" da API de Insights JÁ vem calculado e atribuído pelo Meta.
+// NÃO recalculamos a partir de actions. Apenas usamos o valor oficial.
+// ===========================================================================================
+function extractConversions(insights: any): { conversions: number; conversionValue: number } {
+  let conversions = 0;
+  let conversionValue = 0;
   
-  if (insights?.actions) {
-    let p1 = 0, p2 = 0, p3 = 0, p4 = 0;
-    
-    // Hierarquia de 4 níveis para leads
-    for (const a of insights.actions) {
-      const v = parseInt(a.value) || 0;
-      
-      // Prioridade 1: lead
-      if (LEAD_PRIORITY_1.includes(a.action_type) && v > p1) {
-        p1 = v;
+  // 1. CONVERSÕES: Usar DIRETAMENTE o campo "conversions" da API
+  // Este é o valor oficial que aparece no Gerenciador de Anúncios
+  if (insights?.conversions) {
+    // O campo conversions pode ser um número ou um array de objetos
+    if (typeof insights.conversions === 'number') {
+      conversions = insights.conversions;
+    } else if (Array.isArray(insights.conversions)) {
+      // Se for array, somar todos os valores (cada action_type)
+      for (const conv of insights.conversions) {
+        conversions += parseInt(conv.value) || 0;
       }
-      // Prioridade 2: lead_on_website (só se P1 = 0)
-      if (LEAD_PRIORITY_2.includes(a.action_type) && v > p2 && p1 === 0) {
-        p2 = v;
-      }
-      // Prioridade 3: contact_on_website (só se P1 e P2 = 0)
-      if (LEAD_PRIORITY_3.includes(a.action_type) && v > p3 && p1 === 0 && p2 === 0) {
-        p3 = v;
-      }
-      // Prioridade 4: messaging_conversation_started (só se P1, P2 e P3 = 0)
-      if (LEAD_PRIORITY_4.includes(a.action_type) && v > p4 && p1 === 0 && p2 === 0 && p3 === 0) {
-        p4 = v;
-      }
-      
-      // Purchases e registrations
-      if (PURCHASE_ACTION_TYPES.includes(a.action_type) && v > purchases) {
-        purchases = v;
-      }
-      if (REGISTRATION_ACTION_TYPES.includes(a.action_type) && v > registrations) {
-        registrations = v;
-      }
-    }
-    
-    // Determinar source e valor
-    if (p1 > 0) {
-      leads = p1;
-      leadSource = 'lead';
-    } else if (p2 > 0) {
-      leads = p2;
-      leadSource = 'lead_on_website';
-    } else if (p3 > 0) {
-      leads = p3;
-      leadSource = 'contact_on_website';
-    } else if (p4 > 0) {
-      leads = p4;
-      leadSource = 'messaging_conversation_started';
     }
   }
   
+  // 2. VALOR DE CONVERSÃO: Usar "action_values" para obter o valor monetário
   if (insights?.action_values) {
     for (const av of insights.action_values) {
-      if (VALUE_ACTION_TYPES.includes(av.action_type)) {
-        const v = parseFloat(av.value) || 0;
-        if (v > conversionValue) conversionValue = v;
-      }
+      const v = parseFloat(av.value) || 0;
+      if (v > conversionValue) conversionValue = v;
     }
   }
   
-  return { conversions: leads + purchases + registrations, conversionValue, leadSource };
+  return { conversions, conversionValue };
 }
 
+// Extrair messaging replies - métricas auxiliares (não afeta conversions)
 function extractMessagingReplies(insights: any): number {
   if (!insights?.actions) return 0;
   let c7d = 0, total = 0, first = 0;
-  for (const a of insights.actions) { const v = parseInt(a.value) || 0; if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d') c7d = v; else if (a.action_type === 'onsite_conversion.total_messaging_connection') total = v; else if (a.action_type === 'onsite_conversion.messaging_first_reply') first = v; }
+  for (const a of insights.actions) {
+    const v = parseInt(a.value) || 0;
+    if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d') c7d = v;
+    else if (a.action_type === 'onsite_conversion.total_messaging_connection') total = v;
+    else if (a.action_type === 'onsite_conversion.messaging_first_reply') first = v;
+  }
   return c7d > 0 ? c7d : Math.max(total, first);
 }
 
+// Extrair profile visits - métricas auxiliares (não afeta conversions)
 function extractProfileVisits(insights: any): number {
   if (!insights?.actions) return 0;
   let max = 0;
-  for (const a of insights.actions) { const v = parseInt(a.value) || 0; if (PROFILE_VISIT_ACTION_TYPES.includes(a.action_type) && v > max) max = v; }
+  for (const a of insights.actions) {
+    const v = parseInt(a.value) || 0;
+    if (PROFILE_VISIT_ACTION_TYPES.includes(a.action_type) && v > max) max = v;
+  }
   return max;
-}
-
-function isInstagramTrafficCampaign(objective: string | null): boolean {
-  if (!objective) return false;
-  return ['OUTCOME_TRAFFIC', 'OUTCOME_ENGAGEMENT', 'OUTCOME_AWARENESS', 'TRAFFIC', 'ENGAGEMENT', 'REACH', 'BRAND_AWARENESS'].includes(objective.toUpperCase());
 }
 
 function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | null; headline: string | null; cta: string | null } {
@@ -320,11 +305,12 @@ function extractCreativeImage(ad: any, creativeData?: any, adImageMap?: Map<stri
   return { imageUrl, videoUrl };
 }
 
-function validateSyncData(records: any[]): { isValid: boolean; totalSpend: number; totalImpressions: number } {
+function validateSyncData(records: any[]): { isValid: boolean; totalSpend: number; totalImpressions: number; totalConversions: number } {
   const totalSpend = records.reduce((s, r) => s + (r.spend || 0), 0);
   const totalImpressions = records.reduce((s, r) => s + (r.impressions || 0), 0);
+  const totalConversions = records.reduce((s, r) => s + (r.conversions || 0), 0);
   const allZero = records.length > 0 && records.every(r => (r.spend || 0) === 0 && (r.impressions || 0) === 0 && (r.clicks || 0) === 0);
-  return { isValid: !allZero || records.length === 0, totalSpend, totalImpressions };
+  return { isValid: !allZero || records.length === 0, totalSpend, totalImpressions, totalConversions };
 }
 
 async function detectAndRecordChanges(supabase: any, projectId: string, entityType: 'campaign' | 'adset' | 'ad', tableName: string, newRecords: any[], trackedFields: string[]): Promise<any[]> {
@@ -408,11 +394,22 @@ Deno.serve(async (req) => {
         const adsetId = extractId(insights.adset_id), campaignId = extractId(insights.campaign_id);
         const adset = adsetId ? adsetMap.get(adsetId) : null;
         const campaign = campaignId ? campaignMap.get(campaignId) : null;
+        
+        // USANDO DIRETAMENTE O CAMPO OFICIAL DA API
         const { conversions, conversionValue } = extractConversions(insights);
         const messagingReplies = extractMessagingReplies(insights);
         const profileVisits = extractProfileVisits(insights);
-        const spend = parseFloat(insights.spend) || 0, impressions = parseInt(insights.impressions) || 0, clicks = parseInt(insights.clicks) || 0, reach = parseInt(insights.reach) || 0;
-        const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0, cpm = impressions > 0 ? (spend / impressions) * 1000 : 0, cpc = clicks > 0 ? spend / clicks : 0, frequency = reach > 0 ? impressions / reach : 0, cpa = conversions > 0 ? spend / conversions : 0, roas = spend > 0 && conversionValue > 0 ? conversionValue / spend : 0;
+        
+        const spend = parseFloat(insights.spend) || 0;
+        const impressions = parseInt(insights.impressions) || 0;
+        const clicks = parseInt(insights.clicks) || 0;
+        const reach = parseInt(insights.reach) || 0;
+        const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+        const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
+        const cpc = clicks > 0 ? spend / clicks : 0;
+        const frequency = reach > 0 ? impressions / reach : 0;
+        const cpa = conversions > 0 ? spend / conversions : 0;
+        const roas = spend > 0 && conversionValue > 0 ? conversionValue / spend : 0;
         
         const creativeData = ad?.creative?.id ? creativeDataMap.get(ad.creative.id) : null;
         const cachedData = cachedCreativeMap.get(adId);
@@ -421,17 +418,48 @@ Deno.serve(async (req) => {
         const cachedUrl = immediateCache.get(adId) || cachedData?.cached_url || null;
         
         dailyRecords.push({
-          project_id, date, ad_account_id, campaign_id: campaignId || '', campaign_name: insights.campaign_name || campaign?.name || 'Unknown', campaign_status: campaign?.status || null, campaign_objective: campaign?.objective || null,
-          adset_id: adsetId || '', adset_name: insights.adset_name || adset?.name || 'Unknown', adset_status: adset?.status || null,
-          ad_id: adId, ad_name: insights.ad_name || ad?.name || 'Unknown', ad_status: ad?.status || null,
-          creative_id: ad?.creative?.id || null, creative_thumbnail: imageUrl || cachedData?.thumbnail_url || null, cached_creative_thumbnail: cachedUrl,
-          spend, impressions, clicks, reach, ctr, cpm, cpc, frequency, conversions, conversion_value: conversionValue, cpa, roas, messaging_replies: messagingReplies, profile_visits: profileVisits, synced_at: new Date().toISOString()
+          project_id,
+          date,
+          ad_account_id,
+          campaign_id: campaignId || '',
+          campaign_name: insights.campaign_name || campaign?.name || 'Unknown',
+          campaign_status: campaign?.status || null,
+          campaign_objective: campaign?.objective || null,
+          adset_id: adsetId || '',
+          adset_name: insights.adset_name || adset?.name || 'Unknown',
+          adset_status: adset?.status || null,
+          ad_id: adId,
+          ad_name: insights.ad_name || ad?.name || 'Unknown',
+          ad_status: ad?.status || null,
+          creative_id: ad?.creative?.id || null,
+          creative_thumbnail: imageUrl || cachedData?.thumbnail_url || null,
+          cached_creative_thumbnail: cachedUrl,
+          spend,
+          impressions,
+          clicks,
+          reach,
+          ctr,
+          cpm,
+          cpc,
+          frequency,
+          conversions, // VALOR OFICIAL DA API
+          conversion_value: conversionValue,
+          cpa,
+          roas,
+          messaging_replies: messagingReplies,
+          profile_visits: profileVisits,
+          synced_at: new Date().toISOString()
         });
       }
     }
     
     const validation = validateSyncData(dailyRecords);
-    if (!validation.isValid && retry_count < 3) { console.log(`[VALIDATION] Invalid data, retry ${retry_count + 1}`); return new Response(JSON.stringify({ success: false, error: 'Validation failed', retry: true }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }); }
+    console.log(`[VALIDATION] Records: ${dailyRecords.length}, Spend: ${validation.totalSpend.toFixed(2)}, Conversions: ${validation.totalConversions}`);
+    
+    if (!validation.isValid && retry_count < 3) {
+      console.log(`[VALIDATION] Invalid data, retry ${retry_count + 1}`);
+      return new Response(JSON.stringify({ success: false, error: 'Validation failed', retry: true }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     
     // Upsert daily records
     if (dailyRecords.length > 0) {
@@ -441,17 +469,64 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Aggregate metrics
-    const campaignMetrics = new Map<string, any>(), adsetMetrics = new Map<string, any>(), adMetrics = new Map<string, any>();
+    // Aggregate metrics for entities
+    const campaignMetrics = new Map<string, any>();
+    const adsetMetrics = new Map<string, any>();
+    const adMetrics = new Map<string, any>();
+    
     for (const r of dailyRecords) {
-      const initMetric = (id: string, name: string, extra: any) => ({ id, name, project_id, status: extra.status, objective: extra.objective, spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, messaging_replies: 0, profile_visits: 0, ...extra });
-      if (!campaignMetrics.has(r.campaign_id)) campaignMetrics.set(r.campaign_id, initMetric(r.campaign_id, r.campaign_name, { status: r.campaign_status, objective: r.campaign_objective }));
-      if (!adsetMetrics.has(r.adset_id)) adsetMetrics.set(r.adset_id, initMetric(r.adset_id, r.adset_name, { status: r.adset_status, campaign_id: r.campaign_id }));
-      if (!adMetrics.has(r.ad_id)) adMetrics.set(r.ad_id, initMetric(r.ad_id, r.ad_name, { status: r.ad_status, campaign_id: r.campaign_id, ad_set_id: r.adset_id, creative_id: r.creative_id, creative_thumbnail: r.creative_thumbnail, cached_image_url: r.cached_creative_thumbnail }));
-      for (const [map, id] of [[campaignMetrics, r.campaign_id], [adsetMetrics, r.adset_id], [adMetrics, r.ad_id]] as const) { const m = map.get(id); m.spend += r.spend; m.impressions += r.impressions; m.clicks += r.clicks; m.reach += r.reach; m.conversions += r.conversions; m.conversion_value += r.conversion_value; m.messaging_replies = (m.messaging_replies || 0) + (r.messaging_replies || 0); m.profile_visits = (m.profile_visits || 0) + (r.profile_visits || 0); }
+      const initMetric = (id: string, name: string, extra: any) => ({
+        id,
+        name,
+        project_id,
+        status: extra.status,
+        objective: extra.objective,
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        reach: 0,
+        conversions: 0,
+        conversion_value: 0,
+        messaging_replies: 0,
+        profile_visits: 0,
+        ...extra
+      });
+      
+      if (!campaignMetrics.has(r.campaign_id)) {
+        campaignMetrics.set(r.campaign_id, initMetric(r.campaign_id, r.campaign_name, { status: r.campaign_status, objective: r.campaign_objective }));
+      }
+      if (!adsetMetrics.has(r.adset_id)) {
+        adsetMetrics.set(r.adset_id, initMetric(r.adset_id, r.adset_name, { status: r.adset_status, campaign_id: r.campaign_id }));
+      }
+      if (!adMetrics.has(r.ad_id)) {
+        adMetrics.set(r.ad_id, initMetric(r.ad_id, r.ad_name, { status: r.ad_status, campaign_id: r.campaign_id, ad_set_id: r.adset_id, creative_id: r.creative_id, creative_thumbnail: r.creative_thumbnail, cached_image_url: r.cached_creative_thumbnail }));
+      }
+      
+      // Aggregate
+      for (const [map, id] of [[campaignMetrics, r.campaign_id], [adsetMetrics, r.adset_id], [adMetrics, r.ad_id]] as const) {
+        const m = map.get(id);
+        m.spend += r.spend;
+        m.impressions += r.impressions;
+        m.clicks += r.clicks;
+        m.reach += r.reach;
+        m.conversions += r.conversions;
+        m.conversion_value += r.conversion_value;
+        m.messaging_replies = (m.messaging_replies || 0) + (r.messaging_replies || 0);
+        m.profile_visits = (m.profile_visits || 0) + (r.profile_visits || 0);
+      }
     }
     
-    const calculateDerived = (m: any) => { m.ctr = m.impressions > 0 ? (m.clicks / m.impressions) * 100 : 0; m.cpm = m.impressions > 0 ? (m.spend / m.impressions) * 1000 : 0; m.cpc = m.clicks > 0 ? m.spend / m.clicks : 0; m.frequency = m.reach > 0 ? m.impressions / m.reach : 0; m.cpa = m.conversions > 0 ? m.spend / m.conversions : 0; m.roas = m.spend > 0 && m.conversion_value > 0 ? m.conversion_value / m.spend : 0; m.synced_at = new Date().toISOString(); return m; };
+    const calculateDerived = (m: any) => {
+      m.ctr = m.impressions > 0 ? (m.clicks / m.impressions) * 100 : 0;
+      m.cpm = m.impressions > 0 ? (m.spend / m.impressions) * 1000 : 0;
+      m.cpc = m.clicks > 0 ? m.spend / m.clicks : 0;
+      m.frequency = m.reach > 0 ? m.impressions / m.reach : 0;
+      m.cpa = m.conversions > 0 ? m.spend / m.conversions : 0;
+      m.roas = m.spend > 0 && m.conversion_value > 0 ? m.conversion_value / m.spend : 0;
+      m.synced_at = new Date().toISOString();
+      return m;
+    };
+    
     const campaignRecords = Array.from(campaignMetrics.values()).map(calculateDerived);
     const adsetRecords = Array.from(adsetMetrics.values()).map(calculateDerived);
     const adRecords = Array.from(adMetrics.values()).map(calculateDerived);
@@ -461,7 +536,12 @@ Deno.serve(async (req) => {
     allChanges.push(...await detectAndRecordChanges(supabase, project_id, 'campaign', 'campaigns', campaignRecords, TRACKED_FIELDS_CAMPAIGN));
     allChanges.push(...await detectAndRecordChanges(supabase, project_id, 'adset', 'ad_sets', adsetRecords, TRACKED_FIELDS_ADSET));
     allChanges.push(...await detectAndRecordChanges(supabase, project_id, 'ad', 'ads', adRecords, TRACKED_FIELDS_AD));
-    if (allChanges.length > 0) { await supabase.from('optimization_history').insert(allChanges); const { data: existingCampaigns } = await supabase.from('campaigns').select('id, name, ctr, cpa').eq('project_id', project_id); await detectAndSendAnomalyAlerts(supabase, project_id, allChanges, campaignMetrics, existingCampaigns || []); }
+    
+    if (allChanges.length > 0) {
+      await supabase.from('optimization_history').insert(allChanges);
+      const { data: existingCampaigns } = await supabase.from('campaigns').select('id, name, ctr, cpa').eq('project_id', project_id);
+      await detectAndSendAnomalyAlerts(supabase, project_id, allChanges, campaignMetrics, existingCampaigns || []);
+    }
     
     // Upsert entities
     if (campaignRecords.length > 0) await supabase.from('campaigns').upsert(campaignRecords, { onConflict: 'id' });
@@ -470,9 +550,17 @@ Deno.serve(async (req) => {
     
     await supabase.from('projects').update({ last_sync_at: new Date().toISOString() }).eq('id', project_id);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[COMPLETE] ${dailyRecords.length} records in ${elapsed}s`);
+    console.log(`[COMPLETE] ${dailyRecords.length} records, ${validation.totalConversions} conversions in ${elapsed}s`);
     
-    return new Response(JSON.stringify({ success: true, records: dailyRecords.length, campaigns: campaignRecords.length, adsets: adsetRecords.length, ads: adRecords.length, validation, elapsed_seconds: elapsed }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({
+      success: true,
+      records: dailyRecords.length,
+      campaigns: campaignRecords.length,
+      adsets: adsetRecords.length,
+      ads: adRecords.length,
+      validation,
+      elapsed_seconds: elapsed
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error('[ERROR]', error);
     return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
