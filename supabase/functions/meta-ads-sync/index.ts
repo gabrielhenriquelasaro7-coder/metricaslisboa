@@ -223,9 +223,11 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
   // results = número oficial de resultados (igual ao Gerenciador)
   // cost_per_result = CPA oficial da Meta
   // action_values = valor de conversão (para ROAS)
-  // actions = métricas auxiliares (messaging, profile visits)
+  // actions = métricas auxiliares (messaging, profile visits, leads, etc)
+  // conversions = campo legado que às vezes tem dados quando results não tem
+  // website_ctr = CTR de cliques no link (útil para diagnóstico)
   // ===========================================================================================
-  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,results,cost_per_result,action_values,actions';
+  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,results,cost_per_result,action_values,actions,conversions,cost_per_conversion,website_ctr,inline_link_clicks,outbound_clicks';
   
   const timeRange = JSON.stringify({ since, until });
   let url = `https://graph.facebook.com/v21.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&access_token=${token}`;
@@ -269,6 +271,11 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
               console.log(`[INSIGHTS] action_value: type=${av.action_type}, value=${av.value}`);
             }
           }
+          
+          // Log de conversions (campo legado)
+          console.log(`[INSIGHTS] conversions field: ${JSON.stringify(row.conversions)}`);
+          console.log(`[INSIGHTS] cost_per_conversion field: ${JSON.stringify(row.cost_per_conversion)}`);
+          console.log(`[INSIGHTS] inline_link_clicks: ${row.inline_link_clicks}, outbound_clicks: ${JSON.stringify(row.outbound_clicks)}`);
           
           firstRowLogged = true;
         }
