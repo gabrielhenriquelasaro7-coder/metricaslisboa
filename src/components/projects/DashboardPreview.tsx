@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 interface MetricConfig {
   resultMetric: string;
   resultMetricLabel: string;
+  resultMetrics?: string[];
+  resultMetricsLabels?: Record<string, string>;
   costMetrics: string[];
   efficiencyMetrics: string[];
 }
@@ -95,7 +97,11 @@ function PreviewMetric({ label, value, icon: Icon, variant = "default" }: Previe
 }
 
 export function DashboardPreview({ config }: DashboardPreviewProps) {
-  const ResultIcon = RESULT_ICONS[config.resultMetric] || Target;
+  // Usar múltiplas métricas se disponíveis, senão fallback para single
+  const resultMetrics = config.resultMetrics && config.resultMetrics.length > 0 
+    ? config.resultMetrics 
+    : [config.resultMetric];
+  const resultMetricsLabels = config.resultMetricsLabels || { [config.resultMetric]: config.resultMetricLabel };
 
   return (
     <div className="rounded-2xl border border-dashed border-primary/30 bg-gradient-to-br from-primary/5 via-transparent to-transparent p-5 overflow-hidden relative">
@@ -120,20 +126,33 @@ export function DashboardPreview({ config }: DashboardPreviewProps) {
           <PreviewMetric label="Cliques" value="3.2K" icon={MousePointerClick} />
         </div>
 
-        {/* Result Metric - Highlighted */}
+        {/* Result Metrics - Now supports multiple */}
         <div className="mb-4">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2 flex items-center gap-2">
             <Target className="w-3 h-3 text-primary" />
-            Resultado Principal
+            Resultado{resultMetrics.length > 1 ? 's' : ''} Principal{resultMetrics.length > 1 ? 'is' : ''}
           </p>
-          <div className="grid grid-cols-2 gap-2">
-            <PreviewMetric 
-              label={config.resultMetricLabel} 
-              value="248" 
-              icon={ResultIcon}
-              variant="primary"
-            />
-            {config.resultMetric === 'purchases' && (
+          <div className={cn(
+            "grid gap-2",
+            resultMetrics.length === 1 ? "grid-cols-2" : 
+            resultMetrics.length === 2 ? "grid-cols-2" : 
+            "grid-cols-3"
+          )}>
+            {resultMetrics.map((metricKey, index) => {
+              const Icon = RESULT_ICONS[metricKey] || Target;
+              const label = resultMetricsLabels[metricKey] || metricKey;
+              const values = ['248', '45', '12', '89', '156', '33'];
+              return (
+                <PreviewMetric 
+                  key={metricKey}
+                  label={label} 
+                  value={values[index % values.length]} 
+                  icon={Icon}
+                  variant="primary"
+                />
+              );
+            })}
+            {resultMetrics.includes('purchases') && (
               <PreviewMetric 
                 label="Faturamento" 
                 value="R$ 52K" 

@@ -1450,6 +1450,8 @@ export type Database = {
           project_id: string
           result_metric: string | null
           result_metric_label: string | null
+          result_metrics: Json | null
+          result_metrics_labels: Json | null
           show_comparison: boolean | null
           updated_at: string | null
         }
@@ -1464,6 +1466,8 @@ export type Database = {
           project_id: string
           result_metric?: string | null
           result_metric_label?: string | null
+          result_metrics?: Json | null
+          result_metrics_labels?: Json | null
           show_comparison?: boolean | null
           updated_at?: string | null
         }
@@ -1478,6 +1482,8 @@ export type Database = {
           project_id?: string
           result_metric?: string | null
           result_metric_label?: string | null
+          result_metrics?: Json | null
+          result_metrics_labels?: Json | null
           show_comparison?: boolean | null
           updated_at?: string | null
         }

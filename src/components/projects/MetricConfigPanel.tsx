@@ -25,6 +25,9 @@ import { cn } from '@/lib/utils';
 export interface MetricConfigData {
   result_metric: string;
   result_metric_label: string;
+  // Novas propriedades para múltiplas métricas
+  result_metrics: string[];
+  result_metrics_labels: Record<string, string>;
   cost_metrics: string[];
   efficiency_metrics: string[];
 }
@@ -44,23 +47,47 @@ const RESULT_ICONS: Record<string, React.ElementType> = {
 };
 
 export function MetricConfigPanel({ value, onChange }: MetricConfigPanelProps) {
-  const [customLabel, setCustomLabel] = useState(value.result_metric_label);
+  const [customLabels, setCustomLabels] = useState<Record<string, string>>(value.result_metrics_labels || {});
 
   useEffect(() => {
-    const selectedResult = RESULT_METRIC_OPTIONS.find(m => m.key === value.result_metric);
-    if (selectedResult && customLabel === '') {
-      setCustomLabel(selectedResult.label);
-    }
-  }, [value.result_metric]);
+    // Inicializa labels baseado nas métricas selecionadas
+    const initialLabels: Record<string, string> = {};
+    value.result_metrics.forEach(metricKey => {
+      const existing = value.result_metrics_labels[metricKey];
+      const defaultLabel = RESULT_METRIC_OPTIONS.find(m => m.key === metricKey)?.label || metricKey;
+      initialLabels[metricKey] = existing || defaultLabel;
+    });
+    setCustomLabels(initialLabels);
+  }, [value.result_metrics]);
 
-  const handleResultMetricChange = (metricKey: string) => {
-    const selectedMetric = RESULT_METRIC_OPTIONS.find(m => m.key === metricKey);
+  const handleResultMetricToggle = (metricKey: string) => {
+    const isSelected = value.result_metrics.includes(metricKey);
+    let newMetrics: string[];
+    let newLabels: Record<string, string>;
+
+    if (isSelected) {
+      // Remover métrica
+      newMetrics = value.result_metrics.filter(m => m !== metricKey);
+      newLabels = { ...value.result_metrics_labels };
+      delete newLabels[metricKey];
+    } else {
+      // Adicionar métrica
+      newMetrics = [...value.result_metrics, metricKey];
+      const defaultLabel = RESULT_METRIC_OPTIONS.find(m => m.key === metricKey)?.label || metricKey;
+      newLabels = { ...value.result_metrics_labels, [metricKey]: defaultLabel };
+    }
+
+    // Atualiza também os campos legados para compatibilidade
+    const primaryMetric = newMetrics[0] || '';
+    const primaryLabel = newLabels[primaryMetric] || '';
+
     onChange({
       ...value,
-      result_metric: metricKey,
-      result_metric_label: selectedMetric?.label || metricKey,
+      result_metrics: newMetrics,
+      result_metrics_labels: newLabels,
+      result_metric: primaryMetric,
+      result_metric_label: primaryLabel,
     });
-    setCustomLabel(selectedMetric?.label || metricKey);
   };
 
   const handleCostMetricToggle = (metricKey: string) => {
@@ -77,9 +104,19 @@ export function MetricConfigPanel({ value, onChange }: MetricConfigPanelProps) {
     onChange({ ...value, efficiency_metrics: newEfficiencyMetrics });
   };
 
-  const handleLabelChange = (newLabel: string) => {
-    setCustomLabel(newLabel);
-    onChange({ ...value, result_metric_label: newLabel });
+  const handleLabelChange = (metricKey: string, newLabel: string) => {
+    const newLabels = { ...value.result_metrics_labels, [metricKey]: newLabel };
+    setCustomLabels(newLabels);
+    
+    // Atualiza os campos legados também
+    const primaryMetric = value.result_metrics[0];
+    const primaryLabel = metricKey === primaryMetric ? newLabel : value.result_metric_label;
+
+    onChange({ 
+      ...value, 
+      result_metrics_labels: newLabels,
+      result_metric_label: primaryLabel,
+    });
   };
 
   const applyTemplate = (templateKey: keyof typeof METRIC_TEMPLATES) => {
@@ -87,10 +124,12 @@ export function MetricConfigPanel({ value, onChange }: MetricConfigPanelProps) {
     onChange({
       result_metric: template.result_metric,
       result_metric_label: template.result_metric_label,
+      result_metrics: template.result_metrics,
+      result_metrics_labels: template.result_metrics_labels,
       cost_metrics: template.cost_metrics,
       efficiency_metrics: template.efficiency_metrics,
     });
-    setCustomLabel(template.result_metric_label);
+    setCustomLabels(template.result_metrics_labels);
   };
 
   const templates = [
@@ -133,26 +172,26 @@ export function MetricConfigPanel({ value, onChange }: MetricConfigPanelProps) {
         </div>
       </div>
 
-      {/* Result Metric Selection */}
+      {/* Result Metrics Selection - Multi-select */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
             <Target className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <Label className="text-sm font-semibold">Métrica de Resultado</Label>
-            <p className="text-xs text-muted-foreground">O que conta como conversão?</p>
+            <Label className="text-sm font-semibold">Métricas de Resultado</Label>
+            <p className="text-xs text-muted-foreground">Selecione uma ou mais conversões (ex: leads + compras)</p>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {RESULT_METRIC_OPTIONS.map((metric) => {
             const Icon = RESULT_ICONS[metric.key] || Target;
-            const isSelected = value.result_metric === metric.key;
+            const isSelected = value.result_metrics.includes(metric.key);
             return (
               <button
                 key={metric.key}
                 type="button"
-                onClick={() => handleResultMetricChange(metric.key)}
+                onClick={() => handleResultMetricToggle(metric.key)}
                 className={cn(
                   "relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-300",
                   isSelected
@@ -180,22 +219,32 @@ export function MetricConfigPanel({ value, onChange }: MetricConfigPanelProps) {
           })}
         </div>
         
-        {/* Custom Label */}
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
-          <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
-          <div className="flex-1">
-            <Label htmlFor="result_label" className="text-xs text-muted-foreground">
-              Nome personalizado
-            </Label>
-            <Input
-              id="result_label"
-              placeholder="Ex: Leads Qualificados"
-              value={customLabel}
-              onChange={(e) => handleLabelChange(e.target.value)}
-              className="h-8 mt-1 bg-background/50 border-border/50"
-            />
+        {/* Custom Labels for selected metrics */}
+        {value.result_metrics.length > 0 && (
+          <div className="space-y-2 p-4 rounded-xl bg-secondary/30">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <Label className="text-sm font-medium">Nomes personalizados</Label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {value.result_metrics.map(metricKey => {
+                const metric = RESULT_METRIC_OPTIONS.find(m => m.key === metricKey);
+                const Icon = RESULT_ICONS[metricKey] || Target;
+                return (
+                  <div key={metricKey} className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 text-primary flex-shrink-0" />
+                    <Input
+                      placeholder={metric?.label || metricKey}
+                      value={customLabels[metricKey] || ''}
+                      onChange={(e) => handleLabelChange(metricKey, e.target.value)}
+                      className="h-8 bg-background/50 border-border/50 text-sm"
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Cost & Efficiency Metrics in 2 columns */}

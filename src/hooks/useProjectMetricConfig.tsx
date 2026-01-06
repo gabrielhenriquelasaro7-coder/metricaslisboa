@@ -18,6 +18,9 @@ export interface ProjectMetricConfig {
   primary_metrics: string[];
   result_metric: string;
   result_metric_label: string;
+  // Novas colunas para múltiplas métricas de resultado
+  result_metrics: string[];
+  result_metrics_labels: Record<string, string>;
   cost_metrics: string[];
   efficiency_metrics: string[];
   show_comparison: boolean;
@@ -69,6 +72,8 @@ export const METRIC_TEMPLATES = {
   inside_sales: {
     result_metric: 'leads',
     result_metric_label: 'Leads',
+    result_metrics: ['leads'],
+    result_metrics_labels: { leads: 'Leads' },
     cost_metrics: ['cpl', 'cpa'],
     efficiency_metrics: ['ctr', 'conversion_rate'],
     primary_metrics: ['spend', 'impressions', 'clicks', 'ctr', 'cpm', 'cpc'],
@@ -78,6 +83,8 @@ export const METRIC_TEMPLATES = {
   ecommerce: {
     result_metric: 'purchases',
     result_metric_label: 'Compras',
+    result_metrics: ['purchases'],
+    result_metrics_labels: { purchases: 'Compras' },
     cost_metrics: ['cpa', 'cpp'],
     efficiency_metrics: ['roas', 'conversion_rate'],
     primary_metrics: ['spend', 'impressions', 'clicks', 'ctr', 'cpm', 'cpc'],
@@ -87,6 +94,8 @@ export const METRIC_TEMPLATES = {
   pdv: {
     result_metric: 'store_visits',
     result_metric_label: 'Visitas à Loja',
+    result_metrics: ['store_visits'],
+    result_metrics_labels: { store_visits: 'Visitas à Loja' },
     cost_metrics: ['cpa'],
     efficiency_metrics: ['ctr'],
     primary_metrics: ['spend', 'impressions', 'reach', 'clicks', 'cpm', 'frequency'],
@@ -96,6 +105,8 @@ export const METRIC_TEMPLATES = {
   custom: {
     result_metric: 'leads',
     result_metric_label: 'Conversões',
+    result_metrics: ['leads'],
+    result_metrics_labels: { leads: 'Leads' },
     cost_metrics: ['cpa'],
     efficiency_metrics: ['roas', 'ctr'],
     primary_metrics: ['spend', 'impressions', 'clicks', 'ctr', 'cpm', 'cpc'],
@@ -131,6 +142,8 @@ export function useProjectMetricConfig(projectId: string | null) {
           primary_metrics: data.primary_metrics as string[],
           cost_metrics: data.cost_metrics as string[],
           efficiency_metrics: data.efficiency_metrics as string[],
+          result_metrics: (data.result_metrics as string[]) || [],
+          result_metrics_labels: (data.result_metrics_labels as Record<string, string>) || {},
         });
       } else {
         setConfig(null);
@@ -170,6 +183,8 @@ export function useProjectMetricConfig(projectId: string | null) {
         primary_metrics: data.primary_metrics as string[],
         cost_metrics: data.cost_metrics as string[],
         efficiency_metrics: data.efficiency_metrics as string[],
+        result_metrics: (data.result_metrics as string[]) || [],
+        result_metrics_labels: (data.result_metrics_labels as Record<string, string>) || {},
       };
       
       setConfig(newConfig);
