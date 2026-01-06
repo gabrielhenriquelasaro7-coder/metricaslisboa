@@ -234,15 +234,28 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
   const timeRange = JSON.stringify({ since, until });
   let url = `https://graph.facebook.com/v19.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&access_token=${token}`;
   
+  let totalRows = 0;
+  let firstRowLogged = false;
+  
   while (url) {
     const data = await fetchWithRetry(url, 'INSIGHTS');
     if (data.data) {
       for (const row of data.data) {
+        // DEBUG: Log primeiro registro para ver estrutura
+        if (!firstRowLogged) {
+          console.log(`[INSIGHTS] SAMPLE ROW KEYS: ${Object.keys(row).join(', ')}`);
+          console.log(`[INSIGHTS] SAMPLE ROW results: ${JSON.stringify(row.results)}`);
+          console.log(`[INSIGHTS] SAMPLE ROW actions (first 3): ${JSON.stringify((row.actions || []).slice(0, 3))}`);
+          console.log(`[INSIGHTS] SAMPLE ROW conversions: ${JSON.stringify(row.conversions)}`);
+          firstRowLogged = true;
+        }
+        
         const adId = extractId(row.ad_id);
         const dateKey = row.date_start;
         if (adId && dateKey) {
           if (!dailyInsights.has(adId)) dailyInsights.set(adId, new Map());
           dailyInsights.get(adId)!.set(dateKey, row);
+          totalRows++;
         }
       }
     }
@@ -250,7 +263,7 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
     if (url) await delay(200);
   }
   
-  console.log(`[INSIGHTS] Rows fetched, Unique ads: ${dailyInsights.size}`);
+  console.log(`[INSIGHTS] Total rows: ${totalRows}, Unique ads: ${dailyInsights.size}`);
   return dailyInsights;
 }
 
