@@ -589,23 +589,9 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Infoproduto Metrics - Leads + Vendas + Receita + ROAS */}
+              {/* Infoproduto Metrics - Vendas + Receita + ROAS + CPA */}
               {isInfoproduto && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                  <SparklineCard
-                    title="Leads"
-                    value={formatNumber(metrics.totalLeadsConversions || 0)}
-                    icon={Users}
-                    sparklineData={sparklineData.leads}
-                    className="border-l-4 border-l-chart-1"
-                    tooltip="Captação de leads via formulário"
-                  />
-                  <SparklineCard
-                    title="CPL"
-                    value={formatCurrency(metrics.totalLeadsConversions && metrics.totalLeadsConversions > 0 ? metrics.totalSpend / metrics.totalLeadsConversions : 0)}
-                    icon={Receipt}
-                    invertTrend
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <SparklineCard
                     title="Vendas"
                     value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)}
