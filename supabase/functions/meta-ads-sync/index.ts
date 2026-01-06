@@ -246,9 +246,10 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
   // ===========================================================================================
   // BUSCAR DADOS DE INSIGHTS
   // Usamos o array "actions" para extrair resultados baseados no objetivo da campanha
-  // Isso é exatamente como o Gerenciador de Anúncios faz
+  // Adicionamos action_breakdowns para garantir que todos os tipos de ação sejam retornados
   // ===========================================================================================
-  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,action_values,actions';
+  // Campos básicos + actions + action_values + conversions para máxima cobertura
+  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values,conversions,cost_per_action_type';
   
   const timeRange = JSON.stringify({ since, until });
   let url = `https://graph.facebook.com/v19.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&access_token=${token}`;
@@ -263,7 +264,9 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
         // DEBUG: Log primeiro registro para ver estrutura COMPLETA
         if (!firstRowLogged) {
           console.log(`[INSIGHTS] SAMPLE ROW KEYS: ${Object.keys(row).join(', ')}`);
-          console.log(`[INSIGHTS] SAMPLE ROW actions FULL: ${JSON.stringify(row.actions)}`);
+          console.log(`[INSIGHTS] SAMPLE ROW actions: ${JSON.stringify(row.actions?.slice(0, 5))}`);
+          console.log(`[INSIGHTS] SAMPLE ROW conversions: ${JSON.stringify(row.conversions)}`);
+          console.log(`[INSIGHTS] SAMPLE ROW cost_per_action_type: ${JSON.stringify(row.cost_per_action_type?.slice(0, 3))}`);
           firstRowLogged = true;
         }
         
