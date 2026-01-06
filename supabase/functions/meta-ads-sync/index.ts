@@ -243,8 +243,6 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
           console.log(`[INSIGHTS] KEYS: ${Object.keys(row).join(', ')}`);
           console.log(`[INSIGHTS] FULL results array: ${JSON.stringify(row.results)}`);
           console.log(`[INSIGHTS] FULL cost_per_result array: ${JSON.stringify(row.cost_per_result)}`);
-          console.log(`[INSIGHTS] FULL actions array (first 5): ${JSON.stringify(row.actions?.slice(0, 5))}`);
-          console.log(`[INSIGHTS] action_values (first 3): ${JSON.stringify(row.action_values?.slice(0, 3))}`);
           console.log(`[INSIGHTS] spend: ${row.spend}, impressions: ${row.impressions}, clicks: ${row.clicks}`);
           
           // Log detalhado de results para debug
@@ -253,6 +251,25 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
               console.log(`[INSIGHTS] results item: action_type=${r.action_type}, value=${r.value}, indicator=${r.indicator}`);
             }
           }
+          
+          // Log COMPLETO de actions para debug (CRÍTICO para diagnóstico)
+          if (row.actions && row.actions.length > 0) {
+            console.log(`[INSIGHTS] TOTAL actions count: ${row.actions.length}`);
+            for (const action of row.actions) {
+              console.log(`[INSIGHTS] action: type=${action.action_type}, value=${action.value}`);
+            }
+          } else {
+            console.log(`[INSIGHTS] actions array is EMPTY or UNDEFINED`);
+          }
+          
+          // Log de action_values
+          if (row.action_values && row.action_values.length > 0) {
+            console.log(`[INSIGHTS] action_values count: ${row.action_values.length}`);
+            for (const av of row.action_values.slice(0, 5)) {
+              console.log(`[INSIGHTS] action_value: type=${av.action_type}, value=${av.value}`);
+            }
+          }
+          
           firstRowLogged = true;
         }
         
@@ -274,32 +291,78 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 }
 
 // ===========================================================================================
-// EXTRAÇÃO DE CONVERSÕES - FONTE ÚNICA: CAMPO "results"
+// EXTRAÇÃO DE CONVERSÕES - FALLBACK HIERÁRQUICO
 // ===========================================================================================
 // 
-// REGRA ABSOLUTA: O campo "results" é a ÚNICA fonte de verdade para conversões.
+// Ordem de prioridade (usa o PRIMEIRO que tiver valor > 0):
+// 1. results (campo oficial do Gerenciador)
+// 2. actions (filtrado por tipos de conversão)
+// 3. 0 (se nada existir)
 // 
-// Se "results" existir → usar exatamente esse valor
-// Se "results" não existir → conversões = 0
-// 
-// NUNCA usar "actions" ou "conversions" para o número principal.
-// Isso garante 100% de consistência com o Gerenciador de Anúncios.
+// Uma vez detectada a fonte, usar APENAS ela para consistência.
 // ===========================================================================================
-function extractConversions(row: any): { conversions: number; costPerResult: number; conversionValue: number } {
+
+// Tipos de ação que contam como conversão/lead
+const CONVERSION_ACTION_TYPES = [
+  'lead',
+  'onsite_conversion.lead_grouped',
+  'offsite_conversion.fb_pixel_lead',
+  'offsite_conversion.fb_pixel_purchase',
+  'offsite_conversion.fb_pixel_complete_registration',
+  'purchase',
+  'complete_registration',
+  'omni_purchase',
+  'omni_complete_registration',
+  'contact_website',
+  'submit_application',
+  'subscribe',
+  'start_trial'
+];
+
+function extractConversions(row: any): { conversions: number; costPerResult: number; conversionValue: number; source: string } {
   let conversions = 0;
   let costPerResult = 0;
   let conversionValue = 0;
+  let source = 'none';
 
-  // FONTE ÚNICA DE VERDADE: Campo "results"
-  if (Array.isArray(row.results)) {
+  // 1. TENTAR: Campo "results" (fonte oficial)
+  if (Array.isArray(row.results) && row.results.length > 0) {
     for (const r of row.results) {
-      conversions += parseInt(r.value) || 0;
+      const val = parseInt(r.value) || 0;
+      if (val > 0) {
+        conversions += val;
+        source = 'results';
+      }
     }
   }
 
-  // CPA oficial da Meta
+  // 2. FALLBACK: Campo "actions" (se results não tiver valor)
+  if (conversions === 0 && Array.isArray(row.actions) && row.actions.length > 0) {
+    for (const action of row.actions) {
+      const actionType = action.action_type || '';
+      // Verificar se é um tipo de conversão
+      const isConversionAction = CONVERSION_ACTION_TYPES.some(t => 
+        actionType === t || actionType.includes(t)
+      );
+      if (isConversionAction) {
+        const val = parseInt(action.value) || 0;
+        if (val > 0) {
+          conversions += val;
+          source = 'actions';
+        }
+      }
+    }
+  }
+
+  // CPA: Primeiro tenta cost_per_result, depois calcula
   if (Array.isArray(row.cost_per_result) && row.cost_per_result.length > 0) {
     costPerResult = parseFloat(row.cost_per_result[0].value) || 0;
+  }
+  
+  // Se não veio CPA mas tem conversões, calcular
+  if (costPerResult === 0 && conversions > 0) {
+    const spend = parseFloat(row.spend) || 0;
+    costPerResult = spend / conversions;
   }
 
   // Valor de conversão (para ROAS) - via action_values
@@ -309,12 +372,12 @@ function extractConversions(row: any): { conversions: number; costPerResult: num
     }
   }
 
-  // Log para validação
-  if (conversions > 0 || costPerResult > 0) {
-    console.log(`[CONVERSIONS] results=${conversions}, cpa=${costPerResult.toFixed(2)}, cv=${conversionValue.toFixed(2)}`);
+  // Log para debug (apenas quando há dados)
+  if (conversions > 0) {
+    console.log(`[CONVERSIONS] source=${source}, conversions=${conversions}, cpa=${costPerResult.toFixed(2)}`);
   }
 
-  return { conversions, costPerResult, conversionValue };
+  return { conversions, costPerResult, conversionValue, source };
 }
 
 // Extrair messaging replies - métricas AUXILIARES (não afeta conversions)
@@ -446,9 +509,9 @@ Deno.serve(async (req) => {
         const campaign = campaignId ? campaignMap.get(campaignId) : null;
         
         // ===========================================================================================
-        // EXTRAÇÃO OFICIAL - Campo "results" é a ÚNICA fonte de verdade
+        // EXTRAÇÃO COM FALLBACK HIERÁRQUICO: results → actions → 0
         // ===========================================================================================
-        const { conversions, costPerResult, conversionValue } = extractConversions(insights);
+        const { conversions, costPerResult, conversionValue, source } = extractConversions(insights);
         const messagingReplies = extractMessagingReplies(insights);
         const profileVisits = extractProfileVisits(insights);
         
