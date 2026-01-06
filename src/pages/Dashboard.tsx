@@ -217,6 +217,8 @@ export default function Dashboard() {
         totalConversionValue: curr.conversion_value,
         totalMessages: curr.messaging_replies,
         totalProfileVisits: curr.profile_visits,
+        totalLeadsConversions: curr.leads_conversions,
+        totalSalesConversions: curr.sales_conversions,
         ctr: curr.ctr,
         cpm: curr.cpm,
         cpc: curr.cpc,
@@ -227,7 +229,7 @@ export default function Dashboard() {
       };
     }
     // Fallback to campaigns data if daily metrics not loaded yet
-    return { ...calculateMetrics(campaigns), totalMessages: 0, totalProfileVisits: 0 };
+    return { ...calculateMetrics(campaigns), totalMessages: 0, totalProfileVisits: 0, totalLeadsConversions: 0, totalSalesConversions: 0 };
   }, [periodComparison, campaigns]);
 
   // Calculate previous period metrics from real data
@@ -259,6 +261,8 @@ export default function Dashboard() {
       conversions: [],
       messages: [],
       profile_visits: [],
+      leads: [],
+      purchases: [],
       revenue: [],
       clicks: [],
       impressions: [],
@@ -272,6 +276,8 @@ export default function Dashboard() {
       conversions: dailyData.map(d => d.conversions),
       messages: dailyData.map(d => d.messaging_replies),
       profile_visits: dailyData.map(d => d.profile_visits),
+      leads: dailyData.map(d => d.leads_conversions),
+      purchases: dailyData.map(d => d.sales_conversions),
       revenue: dailyData.map(d => d.conversion_value),
       clicks: dailyData.map(d => d.clicks),
       impressions: dailyData.map(d => d.impressions),

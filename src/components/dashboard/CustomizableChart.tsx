@@ -81,6 +81,8 @@ const aggregateByMonth = (data: DailyMetric[]): DailyMetric[] => {
         conversion_value: d.conversion_value,
         messaging_replies: d.messaging_replies,
         profile_visits: d.profile_visits,
+        leads_conversions: d.leads_conversions || 0,
+        sales_conversions: d.sales_conversions || 0,
         ctr: 0,
         cpm: 0,
         cpc: 0,
