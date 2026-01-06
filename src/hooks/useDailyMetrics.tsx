@@ -194,8 +194,8 @@ function getPreviousPeriodDates(since: string, until: string, days: number, prev
 }
 
 // Aggregate daily rows - ESPELHO DO GERENCIADOR
-// Conversions agora inclui leads + messaging_replies (conversas iniciadas)
-// pois ambos são tipos de conversão válidos configurados pelo projeto
+// Usamos diretamente o campo "conversions" que já vem calculado pela API
+// O campo conversions já inclui todos os tipos de conversão configurados (leads, messaging, etc.)
 function aggregateDaily(rows: any[]): DailyMetric[] {
   const dailyMap = new Map<string, DailyMetric>();
   
@@ -228,18 +228,16 @@ function aggregateDaily(rows: any[]): DailyMetric[] {
     agg.clicks += Number(row.clicks) || 0;
     agg.reach += Number(row.reach) || 0;
     
-    // CONVERSÕES: Somar conversions + messaging_replies
-    // Ambos são tipos de conversão válidos (leads, mensagens, etc.)
-    const rowConversions = Number(row.conversions) || 0;
-    const rowMessaging = Number(row.messaging_replies) || 0;
-    agg.conversions += rowConversions + rowMessaging;
+    // CONVERSÕES: Usar diretamente o valor da API (já atribuído pelo Meta)
+    // O campo conversions já contém o total correto de todas as conversões
+    agg.conversions += Number(row.conversions) || 0;
     
     agg.conversion_value += Number(row.conversion_value) || 0;
-    agg.messaging_replies += rowMessaging; // Manter para referência
+    agg.messaging_replies += Number(row.messaging_replies) || 0;
     agg.profile_visits += Number(row.profile_visits) || 0;
     
-    // Leads = apenas campo conversions (sem messaging)
-    agg.leads_conversions += rowConversions;
+    // Manter compatibilidade com campos legados
+    agg.leads_conversions += Number(row.conversions) || 0;
     agg.sales_conversions += 0;
   }
   

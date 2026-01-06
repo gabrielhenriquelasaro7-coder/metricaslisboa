@@ -331,13 +331,11 @@ const CONVERSION_ACTION_TYPES = [
   // Contato no site
   'contact_website',
   
-  // Conversa por mensagem iniciadas - TODAS as variações
+  // Conversa por mensagem iniciadas - APENAS o tipo principal
+  // NÃO incluir messaging_first_reply ou total_messaging_connection
+  // pois são métricas relacionadas que causam duplicação
   'messaging_conversation_started_7d',
   'onsite_conversion.messaging_conversation_started_7d',
-  
-  // Outras variações de mensagem que podem aparecer
-  'onsite_conversion.messaging_first_reply',
-  'onsite_conversion.total_messaging_connection',
 ];
 
 function extractConversions(row: any): { conversions: number; costPerResult: number; conversionValue: number; source: string } {
