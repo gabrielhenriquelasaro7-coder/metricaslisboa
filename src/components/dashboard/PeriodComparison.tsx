@@ -256,6 +256,37 @@ export default function PeriodComparison({
           isInverse: true,
         }
       );
+    } else if (businessModel === 'infoproduto') {
+      items.push(
+        {
+          label: 'Vendas',
+          current: formatNumber(currentMetrics.totalConversions),
+          previous: formatNumber(previousMetrics.totalConversions),
+          change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
+          isInverse: false,
+        },
+        {
+          label: 'Receita',
+          current: formatCurrencyValue(currentMetrics.totalConversionValue),
+          previous: formatCurrencyValue(previousMetrics.totalConversionValue),
+          change: calculateChange(currentMetrics.totalConversionValue, previousMetrics.totalConversionValue),
+          isInverse: false,
+        },
+        {
+          label: 'ROAS',
+          current: `${currentMetrics.roas.toFixed(2)}x`,
+          previous: `${previousMetrics.roas.toFixed(2)}x`,
+          change: calculateChange(currentMetrics.roas, previousMetrics.roas),
+          isInverse: false,
+        },
+        {
+          label: 'CPA',
+          current: formatCurrencyValue(currentMetrics.cpa),
+          previous: formatCurrencyValue(previousMetrics.cpa),
+          change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
+          isInverse: true,
+        }
+      );
     } else if (businessModel === 'custom') {
       // For custom, show generic conversions and cost metrics
       items.push(
@@ -323,6 +354,13 @@ export default function PeriodComparison({
       currentOnlyItems.push(
         { label: 'Visitas', value: formatNumber(currentMetrics.totalConversions) },
         { label: 'Custo/Visita', value: formatCurrencyValue(currentMetrics.cpa) }
+      );
+    } else if (businessModel === 'infoproduto') {
+      currentOnlyItems.push(
+        { label: 'Vendas', value: formatNumber(currentMetrics.totalConversions) },
+        { label: 'Receita', value: formatCurrencyValue(currentMetrics.totalConversionValue) },
+        { label: 'ROAS', value: `${currentMetrics.roas.toFixed(2)}x` },
+        { label: 'CPA', value: formatCurrencyValue(currentMetrics.cpa) }
       );
     } else if (businessModel === 'custom') {
       currentOnlyItems.push(
