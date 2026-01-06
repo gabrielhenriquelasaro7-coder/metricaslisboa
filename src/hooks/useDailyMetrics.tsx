@@ -193,7 +193,8 @@ function getPreviousPeriodDates(since: string, until: string, days: number, prev
   };
 }
 
-// Aggregate daily rows
+// Aggregate daily rows - ESPELHO DO GERENCIADOR
+// Usamos diretamente o campo "conversions" que já vem calculado pela API
 function aggregateDaily(rows: any[]): DailyMetric[] {
   const dailyMap = new Map<string, DailyMetric>();
   
@@ -225,19 +226,15 @@ function aggregateDaily(rows: any[]): DailyMetric[] {
     agg.impressions += Number(row.impressions) || 0;
     agg.clicks += Number(row.clicks) || 0;
     agg.reach += Number(row.reach) || 0;
+    // CONVERSÕES: Usar diretamente o valor da API (já atribuído pelo Meta)
     agg.conversions += Number(row.conversions) || 0;
     agg.conversion_value += Number(row.conversion_value) || 0;
     agg.messaging_replies += Number(row.messaging_replies) || 0;
     agg.profile_visits += Number(row.profile_visits) || 0;
     
-    // Aggregate conversions by campaign objective
-    const objective = row.campaign_objective || '';
-    const convValue = Number(row.conversions) || 0;
-    if (objective === 'OUTCOME_LEADS' || objective.includes('LEAD')) {
-      agg.leads_conversions += convValue;
-    } else if (objective === 'OUTCOME_SALES' || objective.includes('SALES') || objective.includes('PURCHASE')) {
-      agg.sales_conversions += convValue;
-    }
+    // Manter compatibilidade com campos legados
+    agg.leads_conversions += Number(row.conversions) || 0;
+    agg.sales_conversions += 0; // Não reinterpretamos mais
   }
   
   // Calculate derived metrics
