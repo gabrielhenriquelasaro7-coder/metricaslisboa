@@ -18,7 +18,8 @@ import {
   TrendingUp,
   AlertCircle,
   Zap,
-  Plus
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Project } from '@/hooks/useProjects';
@@ -224,6 +225,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
 
 function ProjectMonthGrid({ projectId, projectName }: { projectId: string; projectName: string }) {
   const [selectedYearToAdd, setSelectedYearToAdd] = useState<number | null>(null);
+  const [syncingYear, setSyncingYear] = useState<number | null>(null);
   
   const {
     monthsByYear,
@@ -234,6 +236,7 @@ function ProjectMonthGrid({ projectId, projectName }: { projectId: string; proje
     retryMonth,
     retryAllFailed,
     startChainedImport,
+    syncEntireYear,
   } = useMonthImportStatus(projectId);
 
   const existingYears = Object.keys(monthsByYear).map(Number);
@@ -355,12 +358,32 @@ function ProjectMonthGrid({ projectId, projectName }: { projectId: string; proje
                 <Calendar className="w-4 h-4 text-primary" />
                 {year}
               </h4>
-              {yearRecords > 0 && (
-                <Badge variant="secondary" className="gap-1">
-                  <TrendingUp className="w-3 h-3" />
-                  {yearRecords.toLocaleString('pt-BR')} registros
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {yearRecords > 0 && (
+                  <Badge variant="secondary" className="gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    {yearRecords.toLocaleString('pt-BR')} registros
+                  </Badge>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    setSyncingYear(year);
+                    await syncEntireYear(year);
+                    setSyncingYear(null);
+                  }}
+                  disabled={syncingYear === year || stats.importing > 0}
+                  className="gap-1.5 h-7 text-xs"
+                >
+                  {syncingYear === year ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3 h-3" />
+                  )}
+                  Sync {year}
+                </Button>
+              </div>
             </div>
             
             <div className="grid grid-cols-6 sm:grid-cols-12 gap-2 sm:gap-3 p-4 rounded-xl bg-muted/20 border border-border/50">
