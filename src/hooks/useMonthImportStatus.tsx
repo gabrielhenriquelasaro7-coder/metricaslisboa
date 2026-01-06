@@ -204,6 +204,35 @@ export function useMonthImportStatus(projectId: string | null) {
     }
   };
 
+  // Sync entire year (all 12 months or up to current month if current year)
+  const syncEntireYear = async (year: number) => {
+    if (!projectId) return;
+
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    const maxMonth = year === currentYear ? currentMonth : 12;
+
+    try {
+      // Start from January with chain enabled - it will continue through all months
+      const { error } = await supabase.functions.invoke('import-month-by-month', {
+        body: {
+          project_id: projectId,
+          year,
+          month: 1,
+          continue_chain: true,
+          safe_mode: true,
+        },
+      });
+
+      if (error) throw error;
+      
+      toast.success(`Sincronização de ${year} iniciada (Jan a ${maxMonth === 12 ? 'Dez' : ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][maxMonth - 1]})`);
+    } catch (error) {
+      toast.error('Erro ao iniciar sincronização do ano');
+      console.error('Sync year error:', error);
+    }
+  };
+
   return {
     months,
     monthsByYear,
@@ -215,5 +244,6 @@ export function useMonthImportStatus(projectId: string | null) {
     retryMonth,
     retryAllFailed,
     startChainedImport,
+    syncEntireYear,
   };
 }
