@@ -529,6 +529,7 @@ export default function Dashboard() {
                     changeLabel="vs anterior"
                     icon={ShoppingCart}
                     sparklineData={sparklineData.conversions}
+                    tooltip="Pequenas diferenças de ±1-2 conversões em relação ao Gerenciador são normais devido ao timing de atribuição do Meta."
                   />
                   <SparklineCard
                     title="Receita"
@@ -561,6 +562,7 @@ export default function Dashboard() {
                     icon={Users}
                     sparklineData={sparklineData.conversions}
                     className="border-l-4 border-l-chart-1"
+                    tooltip="Pequenas diferenças de ±1-2 leads em relação ao Gerenciador são normais devido ao timing de atribuição do Meta."
                   />
                   <SparklineCard
                     title="CPL"
@@ -598,6 +600,7 @@ export default function Dashboard() {
                     sparklineData={sparklineData.conversions}
                     sparklineColor="hsl(var(--chart-2))"
                     className="border-l-4 border-l-chart-2"
+                    tooltip="Pequenas diferenças de ±1-2 visitas em relação ao Gerenciador são normais devido ao timing de atribuição do Meta."
                   />
                   <SparklineCard
                     title="Custo/Visita"
