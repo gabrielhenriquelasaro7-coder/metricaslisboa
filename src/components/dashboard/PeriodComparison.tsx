@@ -1,6 +1,12 @@
 import { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, Calendar, ArrowRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar, ArrowRight, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Metrics {
   totalSpend: number;
@@ -30,9 +36,10 @@ interface ComparisonItemProps {
   previous?: string;
   change: number;
   isInverse?: boolean;
+  tooltip?: string;
 }
 
-function ComparisonItem({ label, current, previous, change, isInverse = false }: ComparisonItemProps) {
+function ComparisonItem({ label, current, previous, change, isInverse = false, tooltip }: ComparisonItemProps) {
   const isPositive = isInverse ? change < 0 : change > 0;
   const isNegative = isInverse ? change > 0 : change < 0;
   const isNeutral = change === 0 || isNaN(change);
@@ -52,7 +59,21 @@ function ComparisonItem({ label, current, previous, change, isInverse = false }:
       
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{label}</p>
+          <div className="flex items-center gap-1">
+            <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{label}</p>
+            {tooltip && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <p className="text-xs">{tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
           <div
             className={cn(
               'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-300',
@@ -116,7 +137,14 @@ export default function PeriodComparison({
   const comparisons = useMemo(() => {
     if (!previousMetrics) return null;
 
-    const items = [
+    const items: Array<{
+      label: string;
+      current: string;
+      previous: string;
+      change: number;
+      isInverse: boolean;
+      tooltip?: string;
+    }> = [
       {
         label: 'Gasto',
         current: formatCurrencyValue(currentMetrics.totalSpend),
@@ -201,6 +229,7 @@ export default function PeriodComparison({
           previous: formatNumber(previousMetrics.totalConversions),
           change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
           isInverse: false,
+          tooltip: 'Pequenas diferenças de ±1-2 resultados em relação ao Gerenciador são normais devido ao timing de atribuição do Meta.',
         },
         {
           label: 'CPL',
@@ -353,6 +382,7 @@ export default function PeriodComparison({
             previous={item.previous}
             change={item.change}
             isInverse={item.isInverse}
+            tooltip={item.tooltip}
           />
         ))}
       </div>
