@@ -227,10 +227,12 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
   // conversions = campo legado que às vezes tem dados quando results não tem
   // website_ctr = CTR de cliques no link (útil para diagnóstico)
   // ===========================================================================================
-  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,results,cost_per_result,action_values,actions,conversions,cost_per_conversion,website_ctr,inline_link_clicks,outbound_clicks';
+  // Campos que DEVEM ser retornados - incluindo actions para capturar leads
+  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values,conversions,cost_per_action_type,website_ctr,inline_link_clicks,outbound_clicks';
   
   const timeRange = JSON.stringify({ since, until });
-  let url = `https://graph.facebook.com/v21.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&access_token=${token}`;
+  // IMPORTANTE: Adicionando action_breakdowns para garantir que actions seja retornado
+  let url = `https://graph.facebook.com/v21.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&action_breakdowns=action_type&access_token=${token}`;
   
   let totalRows = 0;
   let firstRowLogged = false;
@@ -309,21 +311,28 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 // Uma vez detectada a fonte, usar APENAS ela para consistência.
 // ===========================================================================================
 
-// Tipos de ação que contam como conversão/lead
+// Tipos de ação que contam como conversão/lead (EXPANDIDO para cobrir mais cenários)
 const CONVERSION_ACTION_TYPES = [
   'lead',
   'onsite_conversion.lead_grouped',
   'offsite_conversion.fb_pixel_lead',
   'offsite_conversion.fb_pixel_purchase',
   'offsite_conversion.fb_pixel_complete_registration',
+  'offsite_conversion.fb_pixel_custom',
   'purchase',
   'complete_registration',
   'omni_purchase',
   'omni_complete_registration',
   'contact_website',
+  'contact',
   'submit_application',
   'subscribe',
-  'start_trial'
+  'start_trial',
+  'landing_page_view',
+  'omni_add_to_cart',
+  'add_to_cart',
+  'initiate_checkout',
+  'add_payment_info'
 ];
 
 function extractConversions(row: any): { conversions: number; costPerResult: number; conversionValue: number; source: string } {
@@ -332,19 +341,8 @@ function extractConversions(row: any): { conversions: number; costPerResult: num
   let conversionValue = 0;
   let source = 'none';
 
-  // 1. TENTAR: Campo "results" (fonte oficial)
-  if (Array.isArray(row.results) && row.results.length > 0) {
-    for (const r of row.results) {
-      const val = parseInt(r.value) || 0;
-      if (val > 0) {
-        conversions += val;
-        source = 'results';
-      }
-    }
-  }
-
-  // 2. FALLBACK: Campo "actions" (se results não tiver valor)
-  if (conversions === 0 && Array.isArray(row.actions) && row.actions.length > 0) {
+  // FONTE PRINCIPAL: Campo "actions" - contém todos os eventos de conversão
+  if (Array.isArray(row.actions) && row.actions.length > 0) {
     for (const action of row.actions) {
       const actionType = action.action_type || '';
       // Verificar se é um tipo de conversão
@@ -361,9 +359,29 @@ function extractConversions(row: any): { conversions: number; costPerResult: num
     }
   }
 
-  // CPA: Primeiro tenta cost_per_result, depois calcula
-  if (Array.isArray(row.cost_per_result) && row.cost_per_result.length > 0) {
-    costPerResult = parseFloat(row.cost_per_result[0].value) || 0;
+  // FALLBACK: Campo "conversions" legado (se actions não tiver valor)
+  if (conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
+    for (const c of row.conversions) {
+      const val = parseInt(c.value) || 0;
+      if (val > 0) {
+        conversions += val;
+        source = 'conversions_field';
+      }
+    }
+  }
+
+  // CPA: Primeiro tenta cost_per_action_type, depois calcula
+  if (conversions > 0 && Array.isArray(row.cost_per_action_type) && row.cost_per_action_type.length > 0) {
+    for (const cpa of row.cost_per_action_type) {
+      const actionType = cpa.action_type || '';
+      const isConversionAction = CONVERSION_ACTION_TYPES.some(t => 
+        actionType === t || actionType.includes(t)
+      );
+      if (isConversionAction && cpa.value) {
+        costPerResult = parseFloat(cpa.value) || 0;
+        break; // Usar o primeiro CPA de conversão encontrado
+      }
+    }
   }
   
   // Se não veio CPA mas tem conversões, calcular
