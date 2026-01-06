@@ -157,8 +157,10 @@ Deno.serve(async (req) => {
       throw new Error(syncResult.error || `Sync failed with status ${syncResponse.status}`);
     }
     
-    const recordsCount = syncResult.records || syncResult.data?.daily_records_count || syncResult.count || 0;
-    console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${recordsCount} records`);
+    // O meta-ads-sync retorna os dados em summary.records
+    const recordsCount = syncResult.summary?.records || syncResult.records || syncResult.count || 0;
+    const conversionsCount = syncResult.summary?.conversions || 0;
+    console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${recordsCount} records, ${conversionsCount} conversions`);
     
     // Update status to success
     await supabase
