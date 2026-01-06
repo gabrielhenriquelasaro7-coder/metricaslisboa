@@ -530,7 +530,7 @@ export default function ProjectSelector() {
 
   const handleSelectProject = (project: Project) => {
     localStorage.setItem('selectedProjectId', project.id);
-    navigate('/campaigns');
+    navigate('/dashboard');
   };
 
   const handleCreateProject = async (e: React.FormEvent) => {
