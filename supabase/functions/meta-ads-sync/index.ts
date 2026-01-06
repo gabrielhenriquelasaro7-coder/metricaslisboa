@@ -324,11 +324,10 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 // ===========================================================================================
 
 // Tipos que contam como LEADS (captação)
+// IMPORTANTE: Somente "lead" (Leads no site) - NÃO incluir messaging/conversas
 const LEAD_ACTION_TYPES = [
   'lead',
-  'contact_website',
-  'messaging_conversation_started_7d',
-  'onsite_conversion.messaging_conversation_started_7d',
+  'onsite_conversion.lead_grouped',
 ];
 
 // Tipos que contam como VENDAS/COMPRAS (receita)
