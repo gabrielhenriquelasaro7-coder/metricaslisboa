@@ -27,13 +27,45 @@ const TRACKED_FIELDS_AD = ['status'];
 
 // ===========================================================================================
 // PRINCÍPIO FUNDAMENTAL: Este sistema é um ESPELHO do Gerenciador de Anúncios
-// NÃO reinterpretamos conversões - usamos EXATAMENTE o que a API oficial retorna
+// Usamos o campo "actions" para extrair conversões baseadas no objetivo da campanha
+// O Gerenciador filtra as conversões pelo action_type correspondente ao objetivo
 // ===========================================================================================
 
-// Action types que queremos extrair individualmente para debug/análise
-// MAS NÃO USAMOS PARA CALCULAR O CAMPO "conversions" - esse vem direto da API
-const MESSAGING_ACTION_TYPES = ['onsite_conversion.messaging_conversation_started_7d', 'onsite_conversion.messaging_first_reply', 'onsite_conversion.total_messaging_connection'];
+// Action types para LEADS (campanha de geração de leads)
+const LEAD_ACTION_TYPES = [
+  'lead',
+  'offsite_conversion.fb_pixel_lead',
+  'onsite_conversion.lead_grouped',
+  'leadgen_grouped',
+  'omni_lead_grouped'
+];
+
+// Action types para PURCHASES/ECOMMERCE
+const PURCHASE_ACTION_TYPES = [
+  'purchase',
+  'offsite_conversion.fb_pixel_purchase',
+  'omni_purchase'
+];
+
+// Action types para MENSAGENS
+const MESSAGING_ACTION_TYPES = [
+  'onsite_conversion.messaging_conversation_started_7d', 
+  'onsite_conversion.messaging_first_reply', 
+  'onsite_conversion.total_messaging_connection'
+];
+
+// Action types para VISITAS AO PERFIL
 const PROFILE_VISIT_ACTION_TYPES = ['onsite_conversion.profile_view', 'ig_profile_visit', 'profile_visit', 'page_engagement', 'post_engagement'];
+
+// Mapeamento de objetivos para action_types
+const OBJECTIVE_ACTION_MAP: Record<string, string[]> = {
+  'OUTCOME_LEADS': LEAD_ACTION_TYPES,
+  'LEAD_GENERATION': LEAD_ACTION_TYPES,
+  'OUTCOME_SALES': PURCHASE_ACTION_TYPES,
+  'CONVERSIONS': [...LEAD_ACTION_TYPES, ...PURCHASE_ACTION_TYPES],
+  'OUTCOME_ENGAGEMENT': MESSAGING_ACTION_TYPES,
+  'MESSAGES': MESSAGING_ACTION_TYPES,
+};
 
 function delay(ms: number): Promise<void> { return new Promise(resolve => setTimeout(resolve, ms)); }
 
@@ -233,31 +265,59 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 }
 
 // ===========================================================================================
-// EXTRAÇÃO DE CONVERSÕES - USANDO DIRETAMENTE O CAMPO OFICIAL DA API
+// EXTRAÇÃO DE CONVERSÕES - BASEADA NO OBJETIVO DA CAMPANHA
 // ===========================================================================================
-// O campo "conversions" da API de Insights JÁ vem calculado e atribuído pelo Meta.
-// NÃO recalculamos a partir de actions. Apenas usamos o valor oficial.
+// O Gerenciador de Anúncios mostra apenas conversões do tipo correspondente ao objetivo.
+// Para campanhas de LEADS, mostra apenas action_type = 'lead' ou similares.
+// Para campanhas de VENDAS, mostra apenas action_type = 'purchase'.
 // ===========================================================================================
-function extractConversions(insights: any): { conversions: number; conversionValue: number } {
+function extractConversions(insights: any, campaignObjective?: string | null): { conversions: number; conversionValue: number } {
   let conversions = 0;
   let conversionValue = 0;
   
-  // 1. CONVERSÕES: Usar DIRETAMENTE o campo "conversions" da API
-  // Este é o valor oficial que aparece no Gerenciador de Anúncios
-  if (insights?.conversions) {
-    // O campo conversions pode ser um número ou um array de objetos
-    if (typeof insights.conversions === 'number') {
-      conversions = insights.conversions;
-    } else if (Array.isArray(insights.conversions)) {
-      // Se for array, somar todos os valores (cada action_type)
-      for (const conv of insights.conversions) {
-        conversions += parseInt(conv.value) || 0;
+  // Determinar quais action_types contar baseado no objetivo
+  const targetActionTypes = campaignObjective && OBJECTIVE_ACTION_MAP[campaignObjective] 
+    ? OBJECTIVE_ACTION_MAP[campaignObjective] 
+    : null;
+  
+  // ESTRATÉGIA: 
+  // 1. Se temos um objetivo mapeado, buscamos no campo "actions" pelos tipos específicos
+  // 2. Isso replica exatamente o que o Gerenciador mostra como "Resultados"
+  
+  if (insights?.actions && targetActionTypes) {
+    for (const action of insights.actions) {
+      if (targetActionTypes.includes(action.action_type)) {
+        conversions += parseInt(action.value) || 0;
+      }
+    }
+    console.log(`[CONVERSIONS] Objective: ${campaignObjective}, Found ${conversions} from actions (types: ${targetActionTypes.join(', ')})`);
+  } else if (insights?.actions) {
+    // Fallback: Se não temos objetivo mapeado, procuramos pelos tipos de lead mais comuns
+    // Isso cobre casos onde o objetivo não está na nossa lista
+    for (const action of insights.actions) {
+      if (LEAD_ACTION_TYPES.includes(action.action_type)) {
+        conversions += parseInt(action.value) || 0;
+      }
+    }
+    if (conversions === 0) {
+      // Se ainda zero, tentar purchase
+      for (const action of insights.actions) {
+        if (PURCHASE_ACTION_TYPES.includes(action.action_type)) {
+          conversions += parseInt(action.value) || 0;
+        }
       }
     }
   }
   
-  // 2. VALOR DE CONVERSÃO: Usar "action_values" para obter o valor monetário
-  if (insights?.action_values) {
+  // VALOR DE CONVERSÃO: Usar "action_values" filtrado pelo mesmo action_type
+  if (insights?.action_values && targetActionTypes) {
+    for (const av of insights.action_values) {
+      if (targetActionTypes.includes(av.action_type)) {
+        conversionValue += parseFloat(av.value) || 0;
+      }
+    }
+  } else if (insights?.action_values) {
+    // Fallback: pegar o maior valor
     for (const av of insights.action_values) {
       const v = parseFloat(av.value) || 0;
       if (v > conversionValue) conversionValue = v;
@@ -395,8 +455,9 @@ Deno.serve(async (req) => {
         const adset = adsetId ? adsetMap.get(adsetId) : null;
         const campaign = campaignId ? campaignMap.get(campaignId) : null;
         
-        // USANDO DIRETAMENTE O CAMPO OFICIAL DA API
-        const { conversions, conversionValue } = extractConversions(insights);
+        // EXTRAIR CONVERSÕES BASEADO NO OBJETIVO DA CAMPANHA
+        const campaignObjective = campaign?.objective || null;
+        const { conversions, conversionValue } = extractConversions(insights, campaignObjective);
         const messagingReplies = extractMessagingReplies(insights);
         const profileVisits = extractProfileVisits(insights);
         
