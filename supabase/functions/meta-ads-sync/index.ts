@@ -332,45 +332,34 @@ function extractConversions(row: any): { conversions: number; costPerResult: num
   let conversionValue = 0;
   let source = 'none';
 
-  // FONTE PRINCIPAL: Campo "actions" - contém todos os eventos de conversão
+  // ===========================================================================================
+  // FONTE ÚNICA: Campo "actions" - contém eventos de conversão filtrados por action_type
+  // NÃO usar fallback para "conversions" pois inclui TODOS os tipos (landing_page_view, etc.)
+  // ===========================================================================================
   if (Array.isArray(row.actions) && row.actions.length > 0) {
     for (const action of row.actions) {
       const actionType = action.action_type || '';
-      // Verificar se é um tipo de conversão
-      const isConversionAction = CONVERSION_ACTION_TYPES.some(t => 
-        actionType === t || actionType.includes(t)
-      );
+      // Verificar se é EXATAMENTE um dos tipos que queremos
+      const isConversionAction = CONVERSION_ACTION_TYPES.includes(actionType);
       if (isConversionAction) {
         const val = parseInt(action.value) || 0;
         if (val > 0) {
           conversions += val;
           source = 'actions';
+          console.log(`[CONV-MATCH] action_type=${actionType}, value=${val}`);
         }
       }
     }
   }
 
-  // FALLBACK: Campo "conversions" legado (se actions não tiver valor)
-  if (conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
-    for (const c of row.conversions) {
-      const val = parseInt(c.value) || 0;
-      if (val > 0) {
-        conversions += val;
-        source = 'conversions_field';
-      }
-    }
-  }
-
-  // CPA: Primeiro tenta cost_per_action_type, depois calcula
+  // CPA: Buscar no cost_per_action_type apenas para os tipos que queremos
   if (conversions > 0 && Array.isArray(row.cost_per_action_type) && row.cost_per_action_type.length > 0) {
     for (const cpa of row.cost_per_action_type) {
       const actionType = cpa.action_type || '';
-      const isConversionAction = CONVERSION_ACTION_TYPES.some(t => 
-        actionType === t || actionType.includes(t)
-      );
+      const isConversionAction = CONVERSION_ACTION_TYPES.includes(actionType);
       if (isConversionAction && cpa.value) {
         costPerResult = parseFloat(cpa.value) || 0;
-        break; // Usar o primeiro CPA de conversão encontrado
+        break;
       }
     }
   }
@@ -388,7 +377,7 @@ function extractConversions(row: any): { conversions: number; costPerResult: num
     }
   }
 
-  // Log para debug (apenas quando há dados)
+  // Log para debug
   if (conversions > 0) {
     console.log(`[CONVERSIONS] source=${source}, conversions=${conversions}, cpa=${costPerResult.toFixed(2)}`);
   }
