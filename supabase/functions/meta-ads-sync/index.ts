@@ -319,21 +319,18 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 // ===========================================================================================
 
 // ===========================================================================================
-// TIPOS DE CONVERSÃO/LEAD ACEITOS (conforme especificado pelo usuário)
-// IMPORTANTE: Incluir TODAS as variações dos action_types que a Meta API retorna
-// A Meta API pode retornar com ou sem prefixo "onsite_conversion."
+// TIPOS DE CONVERSÃO/LEAD ACEITOS
+// IMPORTANTE: Usar APENAS 'lead' para evitar duplicação com 'lead_grouped'
+// A Meta retorna ambos para o MESMO evento, causando contagem dupla
 // ===========================================================================================
 const CONVERSION_ACTION_TYPES = [
-  // Lead formulário
+  // Lead formulário - APENAS 'lead' (lead_grouped é duplicata)
   'lead',
-  'onsite_conversion.lead_grouped',
   
   // Contato no site
   'contact_website',
   
   // Conversa por mensagem iniciadas - APENAS o tipo principal
-  // NÃO incluir messaging_first_reply ou total_messaging_connection
-  // pois são métricas relacionadas que causam duplicação
   'messaging_conversation_started_7d',
   'onsite_conversion.messaging_conversation_started_7d',
 ];
