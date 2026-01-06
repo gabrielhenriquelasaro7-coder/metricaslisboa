@@ -33,6 +33,8 @@ interface DynamicResultMetricsProps {
     totalClicks: number;
     totalImpressions: number;
     totalReach?: number;
+    totalMessages?: number;
+    totalProfileVisits?: number;
   };
   changes: Record<string, number> | null;
   sparklineData: Record<string, number[]>;
@@ -49,6 +51,17 @@ const RESULT_ICONS: Record<string, LucideIcon> = {
   messages: MessageSquare,
 };
 
+// Mapeamento de qual campo do banco usar para cada tipo de métrica
+const METRIC_DATA_SOURCE: Record<string, 'conversions' | 'messages' | 'profile_visits'> = {
+  leads: 'messages', // Leads geralmente vêm de messaging_replies (formulários, mensagens)
+  messages: 'messages',
+  purchases: 'conversions',
+  registrations: 'conversions',
+  store_visits: 'profile_visits',
+  appointments: 'conversions',
+  conversions: 'conversions',
+};
+
 const COST_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
   cpl: { label: "CPL", icon: DollarSign },
   cpa: { label: "CPA", icon: DollarSign },
@@ -56,7 +69,6 @@ const COST_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
   cpp: { label: "CPP", icon: DollarSign },
 };
 
-// CTR is already shown in general metrics, so exclude from efficiency metrics to avoid duplication
 const EFFICIENCY_CONFIG: Record<string, { label: string; icon: LucideIcon; format: 'currency' | 'percentage' | 'multiplier' }> = {
   roas: { label: "ROAS", icon: TrendingUp, format: 'multiplier' },
   roi: { label: "ROI", icon: TrendingUp, format: 'percentage' },
@@ -76,15 +88,49 @@ export function DynamicResultMetrics({
     : [config.result_metric];
   const resultMetricsLabels = config.result_metrics_labels || { [config.result_metric]: config.result_metric_label };
   
-  // Calcular métricas de custo
+  // Obter o valor correto baseado no tipo de métrica
+  const getMetricValue = (metricKey: string): number => {
+    const dataSource = METRIC_DATA_SOURCE[metricKey] || 'conversions';
+    switch (dataSource) {
+      case 'messages':
+        return metrics.totalMessages || 0;
+      case 'profile_visits':
+        return metrics.totalProfileVisits || 0;
+      case 'conversions':
+      default:
+        return metrics.totalConversions;
+    }
+  };
+
+  // Obter o sparkline correto baseado no tipo de métrica
+  const getSparklineData = (metricKey: string): number[] => {
+    const dataSource = METRIC_DATA_SOURCE[metricKey] || 'conversions';
+    switch (dataSource) {
+      case 'messages':
+        return sparklineData.messages || [];
+      case 'profile_visits':
+        return sparklineData.profile_visits || [];
+      case 'conversions':
+      default:
+        return sparklineData.conversions || [];
+    }
+  };
+
+  // Calcular total de resultados para métricas de custo (soma de todas as métricas selecionadas)
+  const getTotalResults = (): number => {
+    return resultMetrics.reduce((sum, key) => sum + getMetricValue(key), 0);
+  };
+  
+  // Calcular métricas de custo usando o total de resultados
   const getCostValue = (metric: string): number => {
-    if (metrics.totalConversions === 0) return 0;
+    const totalResults = getTotalResults();
+    if (totalResults === 0) return 0;
     switch (metric) {
       case 'cpl':
       case 'cpa':
       case 'cac':
       case 'cpp':
-        return metrics.totalSpend / metrics.totalConversions;
+        return metrics.totalSpend / totalResults;
       default:
         return 0;
     }
@@ -100,7 +146,7 @@ export function DynamicResultMetrics({
       case 'ctr':
         return metrics.totalImpressions > 0 ? (metrics.totalClicks / metrics.totalImpressions) * 100 : 0;
       case 'conversion_rate':
-        return metrics.totalClicks > 0 ? (metrics.totalConversions / metrics.totalClicks) * 100 : 0;
+        return metrics.totalClicks > 0 ? (getTotalResults() / metrics.totalClicks) * 100 : 0;
       default:
         return 0;
     }
@@ -121,18 +167,12 @@ export function DynamicResultMetrics({
   // Build all metrics for a unified grid (same as predefined models)
   const allCards: JSX.Element[] = [];
 
-  // 1. Multiple result metrics - each gets its own card
-  // Por enquanto, todas as métricas de resultado usam o total de conversões
-  // Em uma implementação futura, cada tipo teria seus próprios dados
+  // 1. Multiple result metrics - each gets its own card with correct data source
   resultMetrics.forEach((metricKey, index) => {
     const Icon = RESULT_ICONS[metricKey] || Target;
     const label = resultMetricsLabels[metricKey] || metricKey;
-    
-    // Para múltiplas métricas, dividimos o valor proporcionalmente como exemplo
-    // Na prática, cada tipo de conversão viria separadamente do banco
-    const value = resultMetrics.length === 1 
-      ? metrics.totalConversions 
-      : Math.round(metrics.totalConversions / resultMetrics.length);
+    const value = getMetricValue(metricKey);
+    const sparkline = getSparklineData(metricKey);
     
     allCards.push(
       <SparklineCard
@@ -142,7 +182,7 @@ export function DynamicResultMetrics({
         change={changes?.conversions}
         changeLabel="vs anterior"
         icon={Icon}
-        sparklineData={sparklineData.conversions || []}
+        sparklineData={sparkline}
         sparklineColor="hsl(var(--chart-1))"
         className={index === 0 ? "border-l-4 border-l-chart-1" : ""}
       />
