@@ -11,12 +11,15 @@ import {
   Percent,
   BadgeDollarSign,
   LucideIcon,
-  Eye
+  Eye,
+  MessageSquare
 } from "lucide-react";
 
 interface MetricConfig {
   result_metric: string;
   result_metric_label: string;
+  result_metrics?: string[];
+  result_metrics_labels?: Record<string, string>;
   cost_metrics: string[];
   efficiency_metrics: string[];
 }
@@ -43,7 +46,7 @@ const RESULT_ICONS: Record<string, LucideIcon> = {
   store_visits: Store,
   appointments: Calendar,
   conversions: Target,
-  messages: Users,
+  messages: MessageSquare,
 };
 
 const COST_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
@@ -67,7 +70,11 @@ export function DynamicResultMetrics({
   sparklineData,
   currency
 }: DynamicResultMetricsProps) {
-  const ResultIcon = RESULT_ICONS[config.result_metric] || Target;
+  // Usar múltiplas métricas se disponíveis, senão fallback para single
+  const resultMetrics = config.result_metrics && config.result_metrics.length > 0 
+    ? config.result_metrics 
+    : [config.result_metric];
+  const resultMetricsLabels = config.result_metrics_labels || { [config.result_metric]: config.result_metric_label };
   
   // Calcular métricas de custo
   const getCostValue = (metric: string): number => {
@@ -114,20 +121,33 @@ export function DynamicResultMetrics({
   // Build all metrics for a unified grid (same as predefined models)
   const allCards: JSX.Element[] = [];
 
-  // 1. Main result metric
-  allCards.push(
-    <SparklineCard
-      key="result-main"
-      title={config.result_metric_label}
-      value={metrics.totalConversions.toLocaleString('pt-BR')}
-      change={changes?.conversions}
-      changeLabel="vs anterior"
-      icon={ResultIcon}
-      sparklineData={sparklineData.conversions || []}
-      sparklineColor="hsl(var(--chart-1))"
-      className="border-l-4 border-l-chart-1"
-    />
-  );
+  // 1. Multiple result metrics - each gets its own card
+  // Por enquanto, todas as métricas de resultado usam o total de conversões
+  // Em uma implementação futura, cada tipo teria seus próprios dados
+  resultMetrics.forEach((metricKey, index) => {
+    const Icon = RESULT_ICONS[metricKey] || Target;
+    const label = resultMetricsLabels[metricKey] || metricKey;
+    
+    // Para múltiplas métricas, dividimos o valor proporcionalmente como exemplo
+    // Na prática, cada tipo de conversão viria separadamente do banco
+    const value = resultMetrics.length === 1 
+      ? metrics.totalConversions 
+      : Math.round(metrics.totalConversions / resultMetrics.length);
+    
+    allCards.push(
+      <SparklineCard
+        key={`result-${metricKey}`}
+        title={label}
+        value={value.toLocaleString('pt-BR')}
+        change={changes?.conversions}
+        changeLabel="vs anterior"
+        icon={Icon}
+        sparklineData={sparklineData.conversions || []}
+        sparklineColor="hsl(var(--chart-1))"
+        className={index === 0 ? "border-l-4 border-l-chart-1" : ""}
+      />
+    );
+  });
 
   // 2. Cost metrics
   if (config.cost_metrics && config.cost_metrics.length > 0) {

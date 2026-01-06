@@ -71,6 +71,8 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const [metricConfig, setMetricConfig] = useState<MetricConfigData>({
     result_metric: 'leads',
     result_metric_label: 'Leads',
+    result_metrics: ['leads'],
+    result_metrics_labels: { leads: 'Leads' },
     cost_metrics: ['cpl', 'cpa'],
     efficiency_metrics: ['ctr', 'roas'],
   });
@@ -110,11 +112,13 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
           primary_metrics: template.primary_metrics,
           result_metric: metricConfig.result_metric,
           result_metric_label: metricConfig.result_metric_label,
+          result_metrics: metricConfig.result_metrics,
+          result_metrics_labels: metricConfig.result_metrics_labels,
           cost_metrics: metricConfig.cost_metrics,
           efficiency_metrics: metricConfig.efficiency_metrics,
           show_comparison: true,
           chart_primary_metric: template.chart_primary_metric,
-          chart_secondary_metric: metricConfig.result_metric,
+          chart_secondary_metric: metricConfig.result_metrics[0] || metricConfig.result_metric,
         });
       }
       
@@ -226,6 +230,8 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
                   <DashboardPreview config={{
                     resultMetric: metricConfig.result_metric,
                     resultMetricLabel: metricConfig.result_metric_label,
+                    resultMetrics: metricConfig.result_metrics,
+                    resultMetricsLabels: metricConfig.result_metrics_labels,
                     costMetrics: metricConfig.cost_metrics,
                     efficiencyMetrics: metricConfig.efficiency_metrics,
                   }} />
