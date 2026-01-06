@@ -38,7 +38,7 @@ import {
   BarChart,
 } from 'recharts';
 
-type BusinessModel = 'ecommerce' | 'inside_sales' | 'pdv' | 'custom' | null;
+type BusinessModel = 'ecommerce' | 'inside_sales' | 'pdv' | 'custom' | 'infoproduto' | null;
 type CampaignSortBy = 'spend' | 'conversions' | 'roas' | 'cpl';
 
 interface MetricDef {
@@ -67,6 +67,12 @@ const GENERAL_METRICS: MetricDef[] = [
 const RESULT_METRICS: Record<string, MetricDef[]> = {
   ecommerce: [
     { key: 'conversions', label: 'Compras', type: 'number' },
+    { key: 'conversion_value', label: 'Receita', type: 'currency' },
+    { key: 'roas', label: 'ROAS', type: 'decimal' },
+    { key: 'cpa', label: 'CPA', type: 'currency' },
+  ],
+  infoproduto: [
+    { key: 'conversions', label: 'Vendas', type: 'number' },
     { key: 'conversion_value', label: 'Receita', type: 'currency' },
     { key: 'roas', label: 'ROAS', type: 'decimal' },
     { key: 'cpa', label: 'CPA', type: 'currency' },

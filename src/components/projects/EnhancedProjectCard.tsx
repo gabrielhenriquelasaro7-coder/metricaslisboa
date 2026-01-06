@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils';
 const businessModelConfig: Record<BusinessModel, { icon: typeof TrendingUp; label: string; color: string }> = {
   inside_sales: { icon: Users, label: 'Inside Sales', color: 'text-chart-1' },
   ecommerce: { icon: TrendingUp, label: 'E-commerce', color: 'text-chart-3' },
+  infoproduto: { icon: TrendingUp, label: 'Infoproduto', color: 'text-chart-2' },
   pdv: { icon: Store, label: 'PDV', color: 'text-chart-4' },
   custom: { icon: Target, label: 'Personalizado', color: 'text-primary' },
 };

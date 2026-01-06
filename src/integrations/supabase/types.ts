@@ -1934,7 +1934,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "gestor" | "convidado"
-      business_model: "inside_sales" | "ecommerce" | "pdv" | "custom"
+      business_model:
+        | "inside_sales"
+        | "ecommerce"
+        | "pdv"
+        | "custom"
+        | "infoproduto"
       user_cargo:
         | "gestor_trafego"
         | "account_manager"
@@ -2068,7 +2073,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "gestor", "convidado"],
-      business_model: ["inside_sales", "ecommerce", "pdv", "custom"],
+      business_model: [
+        "inside_sales",
+        "ecommerce",
+        "pdv",
+        "custom",
+        "infoproduto",
+      ],
       user_cargo: [
         "gestor_trafego",
         "account_manager",

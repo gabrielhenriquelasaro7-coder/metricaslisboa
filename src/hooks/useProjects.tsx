@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
-export type BusinessModel = 'inside_sales' | 'ecommerce' | 'pdv' | 'custom';
+export type BusinessModel = 'inside_sales' | 'ecommerce' | 'pdv' | 'custom' | 'infoproduto';
 export type HealthScore = 'safe' | 'care' | 'danger' | null;
 
 export interface SyncProgress {

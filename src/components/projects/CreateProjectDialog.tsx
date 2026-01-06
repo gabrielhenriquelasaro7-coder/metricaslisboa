@@ -18,7 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 const projectSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(100),
   ad_account_id: z.string().min(1, 'ID da conta Meta Ads é obrigatório'),
-  business_model: z.enum(['inside_sales', 'ecommerce', 'pdv', 'custom']),
+  business_model: z.enum(['inside_sales', 'ecommerce', 'pdv', 'custom', 'infoproduto']),
   timezone: z.string().min(1),
   currency: z.string().min(1),
   google_customer_id: z.string().optional(),
@@ -27,6 +27,7 @@ const projectSchema = z.object({
 const businessModels: { value: BusinessModel; label: string; description: string; icon?: React.ReactNode }[] = [
   { value: 'inside_sales', label: 'Inside Sales', description: 'Geração de leads e vendas internas' },
   { value: 'ecommerce', label: 'E-commerce', description: 'Vendas online com foco em ROAS' },
+  { value: 'infoproduto', label: 'Infoproduto', description: 'Cursos/mentorias - leads e vendas' },
   { value: 'pdv', label: 'PDV', description: 'Tráfego para loja física' },
   { value: 'custom', label: 'Personalizado', description: 'Configure suas próprias métricas', icon: <Settings2 className="w-4 h-4" /> },
 ];
