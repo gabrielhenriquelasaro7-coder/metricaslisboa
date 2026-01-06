@@ -377,17 +377,25 @@ function extractConversions(row: any): {
   // ===========================================================================================
   
   // FONTE 1: Campo "actions" - eventos filtrados por action_type
+  // IMPORTANTE: A Meta retorna AMBOS 'lead' e 'onsite_conversion.lead_grouped' com MESMOS valores
+  // Devemos usar apenas UM para evitar duplicação - priorizamos 'lead'
+  let hasLeadAction = false;
+  let hasLeadGroupedAction = false;
+  let leadValue = 0;
+  let leadGroupedValue = 0;
+  
   if (Array.isArray(row.actions) && row.actions.length > 0) {
+    // Primeiro passo: coletar valores de cada tipo
     for (const action of row.actions) {
       const actionType = action.action_type || '';
       const val = parseInt(action.value) || 0;
       if (val > 0) {
-        // Contar leads NO SITE separadamente
-        if (SITE_LEAD_ACTION_TYPES.includes(actionType)) {
-          leadsCount += val;
-          conversions += val;
-          source = 'actions';
-          console.log(`[SITE-LEAD] action_type=${actionType}, value=${val}`);
+        if (actionType === 'lead') {
+          hasLeadAction = true;
+          leadValue = val;
+        } else if (actionType === 'onsite_conversion.lead_grouped') {
+          hasLeadGroupedAction = true;
+          leadGroupedValue = val;
         }
         // Contar MENSAGENS como conversão também
         else if (MESSAGING_LEAD_ACTION_TYPES.includes(actionType)) {
@@ -404,19 +412,39 @@ function extractConversions(row: any): {
         }
       }
     }
+    
+    // Segundo passo: usar apenas UM dos tipos de lead (priorizar 'lead', fallback para 'lead_grouped')
+    if (hasLeadAction) {
+      leadsCount = leadValue;
+      conversions += leadValue;
+      source = 'actions';
+      console.log(`[SITE-LEAD] Usando 'lead' value=${leadValue}`);
+    } else if (hasLeadGroupedAction) {
+      leadsCount = leadGroupedValue;
+      conversions += leadGroupedValue;
+      source = 'actions';
+      console.log(`[SITE-LEAD] Usando 'lead_grouped' value=${leadGroupedValue}`);
+    }
   }
 
   // FONTE 2: Campo "conversions" - fallback se não veio de actions
-  if (conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
+  // Mesma lógica: evitar duplicação entre 'lead' e 'lead_grouped'
+  if (leadsCount === 0 && conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
+    let hasLeadConv = false;
+    let hasLeadGroupedConv = false;
+    let leadConvValue = 0;
+    let leadGroupedConvValue = 0;
+    
     for (const c of row.conversions) {
       const actionType = c.action_type || '';
       const val = parseInt(c.value) || 0;
       if (val > 0) {
-        if (SITE_LEAD_ACTION_TYPES.includes(actionType)) {
-          leadsCount += val;
-          conversions += val;
-          source = 'conversions_filtered';
-          console.log(`[SITE-LEAD] conversions: action_type=${actionType}, value=${val}`);
+        if (actionType === 'lead') {
+          hasLeadConv = true;
+          leadConvValue = val;
+        } else if (actionType === 'onsite_conversion.lead_grouped') {
+          hasLeadGroupedConv = true;
+          leadGroupedConvValue = val;
         }
         else if (MESSAGING_LEAD_ACTION_TYPES.includes(actionType)) {
           conversions += val;
@@ -430,6 +458,19 @@ function extractConversions(row: any): {
           console.log(`[PURCHASE-MATCH] conversions: action_type=${actionType}, value=${val}`);
         }
       }
+    }
+    
+    // Usar apenas UM dos tipos de lead
+    if (hasLeadConv) {
+      leadsCount = leadConvValue;
+      conversions += leadConvValue;
+      source = 'conversions_filtered';
+      console.log(`[SITE-LEAD] conversions: Usando 'lead' value=${leadConvValue}`);
+    } else if (hasLeadGroupedConv) {
+      leadsCount = leadGroupedConvValue;
+      conversions += leadGroupedConvValue;
+      source = 'conversions_filtered';
+      console.log(`[SITE-LEAD] conversions: Usando 'lead_grouped' value=${leadGroupedConvValue}`);
     }
   }
 
