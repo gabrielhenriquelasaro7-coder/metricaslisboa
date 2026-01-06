@@ -12,6 +12,8 @@ export interface DailyMetric {
   reach: number;
   conversions: number;
   conversion_value: number;
+  messaging_replies: number;
+  profile_visits: number;
   ctr: number;
   cpm: number;
   cpc: number;
@@ -203,6 +205,8 @@ function aggregateDaily(rows: any[]): DailyMetric[] {
         reach: 0,
         conversions: 0,
         conversion_value: 0,
+        messaging_replies: 0,
+        profile_visits: 0,
         ctr: 0,
         cpm: 0,
         cpc: 0,
@@ -218,6 +222,8 @@ function aggregateDaily(rows: any[]): DailyMetric[] {
     agg.reach += Number(row.reach) || 0;
     agg.conversions += Number(row.conversions) || 0;
     agg.conversion_value += Number(row.conversion_value) || 0;
+    agg.messaging_replies += Number(row.messaging_replies) || 0;
+    agg.profile_visits += Number(row.profile_visits) || 0;
   }
   
   // Calculate derived metrics
@@ -244,13 +250,15 @@ function calculateTotals(data: DailyMetric[]): DailyMetric {
       reach: acc.reach + d.reach,
       conversions: acc.conversions + d.conversions,
       conversion_value: acc.conversion_value + d.conversion_value,
+      messaging_replies: acc.messaging_replies + d.messaging_replies,
+      profile_visits: acc.profile_visits + d.profile_visits,
       ctr: 0,
       cpm: 0,
       cpc: 0,
       roas: 0,
       cpa: 0,
     }),
-    { date: '', spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0 }
+    { date: '', spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, messaging_replies: 0, profile_visits: 0, ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0 }
   );
   
   // Calculate derived

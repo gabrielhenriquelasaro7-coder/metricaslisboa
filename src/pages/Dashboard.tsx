@@ -215,6 +215,8 @@ export default function Dashboard() {
         totalReach: curr.reach,
         totalConversions: curr.conversions,
         totalConversionValue: curr.conversion_value,
+        totalMessages: curr.messaging_replies,
+        totalProfileVisits: curr.profile_visits,
         ctr: curr.ctr,
         cpm: curr.cpm,
         cpc: curr.cpc,
@@ -225,7 +227,7 @@ export default function Dashboard() {
       };
     }
     // Fallback to campaigns data if daily metrics not loaded yet
-    return calculateMetrics(campaigns);
+    return { ...calculateMetrics(campaigns), totalMessages: 0, totalProfileVisits: 0 };
   }, [periodComparison, campaigns]);
 
   // Calculate previous period metrics from real data
@@ -255,6 +257,8 @@ export default function Dashboard() {
     if (!dailyData.length) return {
       spend: [],
       conversions: [],
+      messages: [],
+      profile_visits: [],
       revenue: [],
       clicks: [],
       impressions: [],
@@ -266,6 +270,8 @@ export default function Dashboard() {
     return {
       spend: dailyData.map(d => d.spend),
       conversions: dailyData.map(d => d.conversions),
+      messages: dailyData.map(d => d.messaging_replies),
+      profile_visits: dailyData.map(d => d.profile_visits),
       revenue: dailyData.map(d => d.conversion_value),
       clicks: dailyData.map(d => d.clicks),
       impressions: dailyData.map(d => d.impressions),
@@ -623,6 +629,8 @@ export default function Dashboard() {
                     totalClicks: metrics.totalClicks,
                     totalImpressions: metrics.totalImpressions,
                     totalReach: metrics.totalReach,
+                    totalMessages: metrics.totalMessages,
+                    totalProfileVisits: metrics.totalProfileVisits,
                   }}
                   changes={changes}
                   sparklineData={sparklineData}
