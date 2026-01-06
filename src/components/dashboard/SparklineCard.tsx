@@ -86,11 +86,14 @@ export default function SparklineCard({
   const finalSparklineColor = V4_RED_SPARKLINE;
 
   const titleElement = tooltip ? (
-    <Tooltip>
+    <Tooltip delayDuration={100}>
       <TooltipTrigger className="text-sm text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help inline-block text-left">
         {title}
       </TooltipTrigger>
-      <TooltipContent className="max-w-xs bg-background/95 backdrop-blur-xl border-border/50">
+      <TooltipContent 
+        side="top" 
+        className="max-w-[280px] p-3 text-sm leading-relaxed bg-popover text-popover-foreground border shadow-lg z-[100]"
+      >
         {tooltip}
       </TooltipContent>
     </Tooltip>
