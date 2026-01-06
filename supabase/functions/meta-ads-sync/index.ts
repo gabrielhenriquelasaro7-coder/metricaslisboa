@@ -311,28 +311,19 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 // Uma vez detectada a fonte, usar APENAS ela para consistência.
 // ===========================================================================================
 
-// Tipos de ação que contam como conversão/lead (EXPANDIDO para cobrir mais cenários)
+// ===========================================================================================
+// TIPOS DE CONVERSÃO/LEAD ACEITOS (conforme especificado pelo usuário)
+// Hierarquia de prioridade:
+// 1. lead - Lead formulário
+// 2. onsite_conversion.lead_grouped - Lead no site
+// 3. contact_website - Contato no site
+// 4. messaging_conversation_started_7d - Conversa por mensagem iniciadas
+// ===========================================================================================
 const CONVERSION_ACTION_TYPES = [
-  'lead',
-  'onsite_conversion.lead_grouped',
-  'offsite_conversion.fb_pixel_lead',
-  'offsite_conversion.fb_pixel_purchase',
-  'offsite_conversion.fb_pixel_complete_registration',
-  'offsite_conversion.fb_pixel_custom',
-  'purchase',
-  'complete_registration',
-  'omni_purchase',
-  'omni_complete_registration',
-  'contact_website',
-  'contact',
-  'submit_application',
-  'subscribe',
-  'start_trial',
-  'landing_page_view',
-  'omni_add_to_cart',
-  'add_to_cart',
-  'initiate_checkout',
-  'add_payment_info'
+  'lead',                              // Lead formulário
+  'onsite_conversion.lead_grouped',    // Lead no site (lead_grouped)
+  'contact_website',                   // Contato no site
+  'messaging_conversation_started_7d', // Conversa por mensagem iniciadas
 ];
 
 function extractConversions(row: any): { conversions: number; costPerResult: number; conversionValue: number; source: string } {
