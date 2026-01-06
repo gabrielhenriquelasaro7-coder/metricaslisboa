@@ -24,7 +24,7 @@ interface Metrics {
 interface PeriodComparisonProps {
   currentMetrics: Metrics;
   previousMetrics: Metrics | null;
-  businessModel: 'ecommerce' | 'inside_sales' | 'pdv' | 'custom' | null;
+  businessModel: 'ecommerce' | 'inside_sales' | 'pdv' | 'custom' | 'infoproduto' | null;
   currentPeriodLabel?: string;
   previousPeriodLabel?: string;
   currency?: string;

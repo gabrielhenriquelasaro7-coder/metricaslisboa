@@ -96,6 +96,7 @@ const healthScoreOptions: { value: ExtendedHealthScore; label: string; bgColor: 
 const businessModelColors: Record<BusinessModel, { bgColor: string; textColor: string; iconColor: string }> = {
   inside_sales: { bgColor: 'bg-blue-500/15', textColor: 'text-blue-400', iconColor: 'text-blue-400' },
   ecommerce: { bgColor: 'bg-emerald-500/15', textColor: 'text-emerald-400', iconColor: 'text-emerald-400' },
+  infoproduto: { bgColor: 'bg-orange-500/15', textColor: 'text-orange-400', iconColor: 'text-orange-400' },
   pdv: { bgColor: 'bg-purple-500/15', textColor: 'text-purple-400', iconColor: 'text-purple-400' },
   custom: { bgColor: 'bg-primary/15', textColor: 'text-primary', iconColor: 'text-primary' },
 };

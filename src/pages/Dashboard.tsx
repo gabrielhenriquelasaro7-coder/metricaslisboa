@@ -125,6 +125,7 @@ export default function Dashboard() {
   const isInsideSales = hasSelectedProject && businessModel === 'inside_sales';
   const isPdv = hasSelectedProject && businessModel === 'pdv';
   const isCustom = hasSelectedProject && businessModel === 'custom';
+  const isInfoproduto = hasSelectedProject && businessModel === 'infoproduto';
 
   // Get custom metric config for custom business model
   const { config: metricConfig, loading: metricConfigLoading } = useProjectMetricConfig(isCustom ? selectedProject?.id : null);
@@ -505,7 +506,7 @@ export default function Dashboard() {
                 Métricas de Resultado 
                 {!isCustom && (
                   <span className="text-sm font-normal ml-2">
-                    ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : isPdv ? 'PDV' : ''})
+                    ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : isPdv ? 'PDV' : isInfoproduto ? 'Infoproduto' : ''})
                   </span>
                 )}
               </h2>
@@ -584,6 +585,62 @@ export default function Dashboard() {
                     change={changes?.reach}
                     changeLabel="vs anterior"
                     icon={Eye}
+                  />
+                </div>
+              )}
+
+              {/* Infoproduto Metrics - Leads + Vendas + Receita + ROAS */}
+              {isInfoproduto && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                  <SparklineCard
+                    title="Leads"
+                    value={formatNumber(metrics.totalLeadsConversions || 0)}
+                    icon={Users}
+                    sparklineData={sparklineData.leads}
+                    className="border-l-4 border-l-chart-1"
+                    tooltip="Captação de leads via formulário"
+                  />
+                  <SparklineCard
+                    title="CPL"
+                    value={formatCurrency(metrics.totalLeadsConversions && metrics.totalLeadsConversions > 0 ? metrics.totalSpend / metrics.totalLeadsConversions : 0)}
+                    icon={Receipt}
+                    invertTrend
+                  />
+                  <SparklineCard
+                    title="Vendas"
+                    value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)}
+                    change={changes?.conversions}
+                    changeLabel="vs anterior"
+                    icon={ShoppingCart}
+                    sparklineData={sparklineData.purchases}
+                    className="border-l-4 border-l-metric-positive"
+                    tooltip="Compras realizadas via pixel"
+                  />
+                  <SparklineCard
+                    title="Receita"
+                    value={formatCurrency(metrics.totalConversionValue)}
+                    change={changes?.revenue}
+                    changeLabel="vs anterior"
+                    icon={Receipt}
+                    sparklineData={sparklineData.revenue}
+                  />
+                  <SparklineCard
+                    title="ROAS"
+                    value={`${metrics.roas.toFixed(2)}x`}
+                    change={changes?.roas}
+                    changeLabel="vs anterior"
+                    icon={TrendingUp}
+                    sparklineData={sparklineData.roas}
+                    className="border-l-4 border-l-metric-positive"
+                  />
+                  <SparklineCard
+                    title="CPA"
+                    value={formatCurrency(metrics.cpa)}
+                    change={changes?.cpa}
+                    changeLabel="vs anterior"
+                    icon={Target}
+                    sparklineData={sparklineData.cpl}
+                    invertTrend
                   />
                 </div>
               )}

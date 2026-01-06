@@ -175,7 +175,7 @@ const DEFAULT_ECOMMERCE_TEMPLATE = `📊 *Relatório de Tráfego - {projeto}*
 
 _Relatório gerado automaticamente_`;
 
-const getDefaultTemplate = (businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | 'custom' | null): string => {
+const getDefaultTemplate = (businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | 'custom' | 'infoproduto' | null): string => {
   if (businessModel === 'ecommerce' || businessModel === 'pdv') {
     return DEFAULT_ECOMMERCE_TEMPLATE;
   }
@@ -188,27 +188,27 @@ interface MetricConfig {
   label: string;
   emoji: string;
   preview: string;
-  businessModels: ('inside_sales' | 'ecommerce' | 'pdv' | 'custom')[];
+  businessModels: ('inside_sales' | 'ecommerce' | 'pdv' | 'custom' | 'infoproduto')[];
 }
 
 const ALL_METRICS_CONFIG: MetricConfig[] = [
-  { id: 'spend', key: 'investimento', label: '💰 Investimento', emoji: '💰', preview: 'R$ 5.234,50', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom'] },
-  { id: 'reach', key: 'alcance', label: '👁️ Alcance', emoji: '👁️', preview: '32.5K', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom'] },
-  { id: 'impressions', key: 'impressoes', label: '📺 Impressões', emoji: '📺', preview: '45.2K', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom'] },
-  { id: 'frequency', key: 'frequencia', label: '🔄 Frequência', emoji: '🔄', preview: '1.39', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom'] },
-  { id: 'clicks', key: 'cliques', label: '👆 Cliques', emoji: '👆', preview: '1.823', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom'] },
-  { id: 'ctr', key: 'ctr', label: '📈 CTR', emoji: '📈', preview: '3.98%', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom'] },
-  { id: 'cpm', key: 'cpm', label: '💵 CPM', emoji: '💵', preview: 'R$ 115,78', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom'] },
-  { id: 'cpc', key: 'cpc', label: '💳 CPC', emoji: '💳', preview: 'R$ 2,87', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom'] },
-  { id: 'leads', key: 'leads', label: '🎯 Leads', emoji: '🎯', preview: '127', businessModels: ['inside_sales', 'custom'] },
-  { id: 'cpl', key: 'cpl', label: '📊 CPL', emoji: '📊', preview: 'R$ 41,22', businessModels: ['inside_sales', 'custom'] },
-  { id: 'conversions', key: 'conversoes', label: '🛒 Conversões', emoji: '🛒', preview: '127', businessModels: ['ecommerce', 'pdv', 'custom'] },
-  { id: 'conversion_value', key: 'valor_conversao', label: '💎 Valor Conversão', emoji: '💎', preview: 'R$ 23.545,00', businessModels: ['ecommerce', 'pdv', 'custom'] },
-  { id: 'roas', key: 'roas', label: '🚀 ROAS', emoji: '🚀', preview: '4.5x', businessModels: ['ecommerce', 'pdv', 'custom'] },
-  { id: 'cpa', key: 'cpa', label: '💳 CPA', emoji: '💳', preview: 'R$ 41,22', businessModels: ['ecommerce', 'pdv', 'custom'] },
+  { id: 'spend', key: 'investimento', label: '💰 Investimento', emoji: '💰', preview: 'R$ 5.234,50', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom', 'infoproduto'] },
+  { id: 'reach', key: 'alcance', label: '👁️ Alcance', emoji: '👁️', preview: '32.5K', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom', 'infoproduto'] },
+  { id: 'impressions', key: 'impressoes', label: '📺 Impressões', emoji: '📺', preview: '45.2K', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom', 'infoproduto'] },
+  { id: 'frequency', key: 'frequencia', label: '🔄 Frequência', emoji: '🔄', preview: '1.39', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom', 'infoproduto'] },
+  { id: 'clicks', key: 'cliques', label: '👆 Cliques', emoji: '👆', preview: '1.823', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom', 'infoproduto'] },
+  { id: 'ctr', key: 'ctr', label: '📈 CTR', emoji: '📈', preview: '3.98%', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom', 'infoproduto'] },
+  { id: 'cpm', key: 'cpm', label: '💵 CPM', emoji: '💵', preview: 'R$ 115,78', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom', 'infoproduto'] },
+  { id: 'cpc', key: 'cpc', label: '💳 CPC', emoji: '💳', preview: 'R$ 2,87', businessModels: ['inside_sales', 'ecommerce', 'pdv', 'custom', 'infoproduto'] },
+  { id: 'leads', key: 'leads', label: '🎯 Leads', emoji: '🎯', preview: '127', businessModels: ['inside_sales', 'custom', 'infoproduto'] },
+  { id: 'cpl', key: 'cpl', label: '📊 CPL', emoji: '📊', preview: 'R$ 41,22', businessModels: ['inside_sales', 'custom', 'infoproduto'] },
+  { id: 'conversions', key: 'conversoes', label: '🛒 Conversões', emoji: '🛒', preview: '127', businessModels: ['ecommerce', 'pdv', 'custom', 'infoproduto'] },
+  { id: 'conversion_value', key: 'valor_conversao', label: '💎 Valor Conversão', emoji: '💎', preview: 'R$ 23.545,00', businessModels: ['ecommerce', 'pdv', 'custom', 'infoproduto'] },
+  { id: 'roas', key: 'roas', label: '🚀 ROAS', emoji: '🚀', preview: '4.5x', businessModels: ['ecommerce', 'pdv', 'custom', 'infoproduto'] },
+  { id: 'cpa', key: 'cpa', label: '💳 CPA', emoji: '💳', preview: 'R$ 41,22', businessModels: ['ecommerce', 'pdv', 'custom', 'infoproduto'] },
 ];
 
-const getMetricsForBusinessModel = (businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | 'custom' | null): MetricConfig[] => {
+const getMetricsForBusinessModel = (businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | 'custom' | 'infoproduto' | null): MetricConfig[] => {
   const model = businessModel || 'inside_sales';
   return ALL_METRICS_CONFIG.filter(m => m.businessModels.includes(model));
 };
@@ -308,7 +308,7 @@ function generatePreviewWithData(
   projectName: string,
   period: string,
   enabledMetrics: Record<string, boolean>,
-  businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | 'custom' | null,
+  businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | 'custom' | 'infoproduto' | null,
   metrics: AggregatedMetrics | null
 ): string {
   const periodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || 'Últimos 7 dias';
