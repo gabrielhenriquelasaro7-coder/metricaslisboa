@@ -79,6 +79,8 @@ const CHART_METRICS = [
 interface MetricConfig {
   result_metric: string;
   result_metric_label: string;
+  result_metrics: string[];
+  result_metrics_labels: Record<string, string>;
   base_metrics: string[];
   cost_metrics: string[];
   efficiency_metrics: string[];
@@ -96,6 +98,8 @@ export default function ProjectSetup() {
   const [config, setConfig] = useState<MetricConfig>({
     result_metric: 'leads',
     result_metric_label: 'Leads',
+    result_metrics: ['leads'],
+    result_metrics_labels: { leads: 'Leads' },
     base_metrics: ['spend', 'impressions', 'clicks', 'cpm', 'cpc'],
     cost_metrics: ['cpl', 'cpa'],
     efficiency_metrics: ['roas', 'ctr'],
@@ -132,6 +136,8 @@ export default function ProjectSetup() {
         primary_metrics: config.base_metrics,
         result_metric: config.result_metric,
         result_metric_label: config.result_metric_label,
+        result_metrics: config.result_metrics,
+        result_metrics_labels: config.result_metrics_labels,
         cost_metrics: config.cost_metrics,
         efficiency_metrics: config.efficiency_metrics,
         show_comparison: true,
@@ -183,6 +189,37 @@ export default function ProjectSetup() {
         [arrayKey]: [...array, metricKey]
       });
     }
+  };
+
+  const toggleResultMetric = (metricKey: string, metricLabel: string) => {
+    const isSelected = config.result_metrics.includes(metricKey);
+    let newMetrics: string[];
+    let newLabels: Record<string, string>;
+
+    if (isSelected) {
+      // Remove metric (but keep at least one)
+      if (config.result_metrics.length <= 1) return;
+      newMetrics = config.result_metrics.filter(m => m !== metricKey);
+      newLabels = { ...config.result_metrics_labels };
+      delete newLabels[metricKey];
+    } else {
+      // Add metric
+      newMetrics = [...config.result_metrics, metricKey];
+      newLabels = { ...config.result_metrics_labels, [metricKey]: metricLabel };
+    }
+
+    // Update legacy fields for compatibility
+    const primaryMetric = newMetrics[0] || 'leads';
+    const primaryLabel = newLabels[primaryMetric] || 'Leads';
+
+    setConfig({
+      ...config,
+      result_metrics: newMetrics,
+      result_metrics_labels: newLabels,
+      result_metric: primaryMetric,
+      result_metric_label: primaryLabel,
+      chart_secondary_metric: primaryMetric,
+    });
   };
 
   const steps = [
@@ -277,7 +314,7 @@ export default function ProjectSetup() {
           </div>
         )}
 
-        {/* Step 1: Result Metric */}
+        {/* Step 1: Result Metric - Multi-select */}
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="text-center mb-10">
@@ -286,26 +323,21 @@ export default function ProjectSetup() {
                 <span className="text-sm font-medium">Passo 1 de 5</span>
               </div>
               <h2 className="text-3xl font-bold mb-3">
-                <span className="gradient-text">Métrica de Resultado</span>
+                <span className="gradient-text">Métricas de Resultado</span>
               </h2>
               <p className="text-muted-foreground max-w-lg mx-auto">
-                Escolha o que conta como conversão principal para este projeto
+                Selecione uma ou mais conversões para este projeto (ex: Leads + Vendas)
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mx-auto mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mx-auto mb-6">
               {RESULT_METRICS.map((metric) => {
                 const Icon = metric.icon;
-                const isSelected = config.result_metric === metric.key;
+                const isSelected = config.result_metrics.includes(metric.key);
                 return (
                   <button
                     key={metric.key}
-                    onClick={() => setConfig({ 
-                      ...config, 
-                      result_metric: metric.key, 
-                      result_metric_label: metric.label,
-                      chart_secondary_metric: metric.key
-                    })}
+                    onClick={() => toggleResultMetric(metric.key, metric.label)}
                     className={cn(
                       "relative p-5 rounded-2xl border-2 text-left transition-all duration-300",
                       isSelected
@@ -331,6 +363,23 @@ export default function ProjectSetup() {
               })}
             </div>
 
+            {/* Show selected metrics */}
+            {config.result_metrics.length > 0 && (
+              <div className="max-w-xl mx-auto mb-10 p-4 rounded-xl bg-card/50 border border-border/50">
+                <p className="text-sm text-muted-foreground mb-2">Métricas selecionadas:</p>
+                <div className="flex flex-wrap gap-2">
+                  {config.result_metrics.map(key => {
+                    const metric = RESULT_METRICS.find(m => m.key === key);
+                    return (
+                      <span key={key} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/20 text-primary text-sm font-medium">
+                        {metric?.label || key}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-center gap-4">
               <Button variant="outline" onClick={handleBack} className="px-6">
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -338,6 +387,7 @@ export default function ProjectSetup() {
               </Button>
               <Button 
                 onClick={handleNext}
+                disabled={config.result_metrics.length === 0}
                 className="bg-gradient-to-r from-primary via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 shadow-lg shadow-primary/30 px-8 group"
               >
                 Próximo
