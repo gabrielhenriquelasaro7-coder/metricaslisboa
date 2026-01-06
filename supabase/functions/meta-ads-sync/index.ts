@@ -274,8 +274,15 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
             }
           }
           
-          // Log de conversions (campo legado)
-          console.log(`[INSIGHTS] conversions field: ${JSON.stringify(row.conversions)}`);
+          // Log DETALHADO de conversions (campo legado) - ver todos os action_types
+          if (row.conversions && row.conversions.length > 0) {
+            console.log(`[INSIGHTS] TOTAL conversions count: ${row.conversions.length}`);
+            for (const c of row.conversions) {
+              console.log(`[INSIGHTS] conversion: type=${c.action_type}, value=${c.value}`);
+            }
+          } else {
+            console.log(`[INSIGHTS] conversions field is EMPTY or UNDEFINED`);
+          }
           console.log(`[INSIGHTS] cost_per_conversion field: ${JSON.stringify(row.cost_per_conversion)}`);
           console.log(`[INSIGHTS] inline_link_clicks: ${row.inline_link_clicks}, outbound_clicks: ${JSON.stringify(row.outbound_clicks)}`);
           
@@ -333,20 +340,39 @@ function extractConversions(row: any): { conversions: number; costPerResult: num
   let source = 'none';
 
   // ===========================================================================================
-  // FONTE ÚNICA: Campo "actions" - contém eventos de conversão filtrados por action_type
-  // NÃO usar fallback para "conversions" pois inclui TODOS os tipos (landing_page_view, etc.)
+  // ESTRATÉGIA: Tentar múltiplas fontes em ordem de prioridade
+  // 1. Campo "actions" - fonte mais precisa com action_type
+  // 2. Campo "conversions" - fallback que TAMBÉM tem action_type para filtrar
   // ===========================================================================================
+  
+  // FONTE 1: Campo "actions" - eventos filtrados por action_type
   if (Array.isArray(row.actions) && row.actions.length > 0) {
     for (const action of row.actions) {
       const actionType = action.action_type || '';
-      // Verificar se é EXATAMENTE um dos tipos que queremos
       const isConversionAction = CONVERSION_ACTION_TYPES.includes(actionType);
       if (isConversionAction) {
         const val = parseInt(action.value) || 0;
         if (val > 0) {
           conversions += val;
           source = 'actions';
-          console.log(`[CONV-MATCH] action_type=${actionType}, value=${val}`);
+          console.log(`[CONV-MATCH] actions: action_type=${actionType}, value=${val}`);
+        }
+      }
+    }
+  }
+
+  // FONTE 2: Campo "conversions" - TAMBÉM tem action_type, filtrar!
+  if (conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
+    for (const c of row.conversions) {
+      const actionType = c.action_type || '';
+      // SÓ contar se for um dos tipos que queremos
+      const isConversionAction = CONVERSION_ACTION_TYPES.includes(actionType);
+      if (isConversionAction) {
+        const val = parseInt(c.value) || 0;
+        if (val > 0) {
+          conversions += val;
+          source = 'conversions_filtered';
+          console.log(`[CONV-MATCH] conversions: action_type=${actionType}, value=${val}`);
         }
       }
     }
