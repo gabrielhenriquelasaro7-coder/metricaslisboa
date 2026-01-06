@@ -286,7 +286,7 @@
 
   /* ===== VIBRANT METRIC CARD STYLES ===== */
   .metric-card {
-    @apply relative overflow-hidden rounded-xl p-3 sm:p-4;
+    @apply relative overflow-visible rounded-xl p-3 sm:p-4;
     background: linear-gradient(135deg, 
       hsl(var(--card)) 0%, 
       hsl(var(--card) / 0.8) 100%
