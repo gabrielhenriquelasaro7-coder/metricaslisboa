@@ -196,6 +196,7 @@ export function DynamicResultMetrics({
         sparklineData={sparkline}
         sparklineColor="hsl(var(--chart-1))"
         className={index === 0 ? "border-l-4 border-l-chart-1" : ""}
+        tooltip="Pequenas diferenças de ±1-2 resultados em relação ao Gerenciador são normais devido ao timing de atribuição do Meta."
       />
     );
   });
