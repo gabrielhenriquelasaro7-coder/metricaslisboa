@@ -238,9 +238,11 @@ export type Database = {
           frequency: number | null
           id: string
           impressions: number
+          leads_count: number | null
           messaging_replies: number | null
           profile_visits: number | null
           project_id: string
+          purchases_count: number | null
           reach: number
           roas: number | null
           spend: number
@@ -273,9 +275,11 @@ export type Database = {
           frequency?: number | null
           id?: string
           impressions?: number
+          leads_count?: number | null
           messaging_replies?: number | null
           profile_visits?: number | null
           project_id: string
+          purchases_count?: number | null
           reach?: number
           roas?: number | null
           spend?: number
@@ -308,9 +312,11 @@ export type Database = {
           frequency?: number | null
           id?: string
           impressions?: number
+          leads_count?: number | null
           messaging_replies?: number | null
           profile_visits?: number | null
           project_id?: string
+          purchases_count?: number | null
           reach?: number
           roas?: number | null
           spend?: number

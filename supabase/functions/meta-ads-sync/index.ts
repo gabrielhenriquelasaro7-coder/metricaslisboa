@@ -319,24 +319,27 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 // ===========================================================================================
 
 // ===========================================================================================
-// TIPOS DE CONVERSÃO/LEAD ACEITOS
-// IMPORTANTE: Usar APENAS 'lead' para evitar duplicação com 'lead_grouped'
-// A Meta retorna ambos para o MESMO evento, causando contagem dupla
+// TIPOS DE CONVERSÃO SEPARADOS POR CATEGORIA
+// IMPORTANTE: Separar leads de vendas para modelo Infoproduto
 // ===========================================================================================
-const CONVERSION_ACTION_TYPES = [
-  // Lead formulário - APENAS 'lead' (lead_grouped é duplicata)
+
+// Tipos que contam como LEADS (captação)
+const LEAD_ACTION_TYPES = [
   'lead',
-  
-  // Contato no site
   'contact_website',
-  
-  // Conversa por mensagem iniciadas - APENAS o tipo principal
   'messaging_conversation_started_7d',
   'onsite_conversion.messaging_conversation_started_7d',
-  
-  // E-commerce - compras - APENAS 'purchase' principal
-  // NÃO incluir omni_purchase, offsite_conversion, etc. pois são DUPLICATAS do mesmo evento
+];
+
+// Tipos que contam como VENDAS/COMPRAS (receita)
+const PURCHASE_ACTION_TYPES = [
   'purchase',
+];
+
+// Todos os tipos de conversão (para compatibilidade com modelos antigos)
+const CONVERSION_ACTION_TYPES = [
+  ...LEAD_ACTION_TYPES,
+  ...PURCHASE_ACTION_TYPES,
 ];
 
 // Tipos de action_values que representam RECEITA REAL (para ROAS)
@@ -345,14 +348,23 @@ const REVENUE_ACTION_TYPES = [
   'purchase',
 ];
 
-function extractConversions(row: any): { conversions: number; costPerResult: number; conversionValue: number; source: string } {
+function extractConversions(row: any): { 
+  conversions: number; 
+  costPerResult: number; 
+  conversionValue: number; 
+  source: string;
+  leadsCount: number;
+  purchasesCount: number;
+} {
   let conversions = 0;
   let costPerResult = 0;
   let conversionValue = 0;
   let source = 'none';
+  let leadsCount = 0;
+  let purchasesCount = 0;
 
   // ===========================================================================================
-  // ESTRATÉGIA: Tentar múltiplas fontes em ordem de prioridade
+  // ESTRATÉGIA: Extrair leads e purchases SEPARADAMENTE
   // 1. Campo "actions" - fonte mais precisa com action_type
   // 2. Campo "conversions" - fallback que TAMBÉM tem action_type para filtrar
   // ===========================================================================================
@@ -361,30 +373,43 @@ function extractConversions(row: any): { conversions: number; costPerResult: num
   if (Array.isArray(row.actions) && row.actions.length > 0) {
     for (const action of row.actions) {
       const actionType = action.action_type || '';
-      const isConversionAction = CONVERSION_ACTION_TYPES.includes(actionType);
-      if (isConversionAction) {
-        const val = parseInt(action.value) || 0;
-        if (val > 0) {
+      const val = parseInt(action.value) || 0;
+      if (val > 0) {
+        // Contar leads separadamente
+        if (LEAD_ACTION_TYPES.includes(actionType)) {
+          leadsCount += val;
           conversions += val;
           source = 'actions';
-          console.log(`[CONV-MATCH] actions: action_type=${actionType}, value=${val}`);
+          console.log(`[LEAD-MATCH] action_type=${actionType}, value=${val}`);
+        }
+        // Contar purchases separadamente
+        else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
+          purchasesCount += val;
+          conversions += val;
+          source = 'actions';
+          console.log(`[PURCHASE-MATCH] action_type=${actionType}, value=${val}`);
         }
       }
     }
   }
 
-  // FONTE 2: Campo "conversions" - TAMBÉM tem action_type, filtrar!
+  // FONTE 2: Campo "conversions" - fallback se não veio de actions
   if (conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
     for (const c of row.conversions) {
       const actionType = c.action_type || '';
-      // SÓ contar se for um dos tipos que queremos
-      const isConversionAction = CONVERSION_ACTION_TYPES.includes(actionType);
-      if (isConversionAction) {
-        const val = parseInt(c.value) || 0;
-        if (val > 0) {
+      const val = parseInt(c.value) || 0;
+      if (val > 0) {
+        if (LEAD_ACTION_TYPES.includes(actionType)) {
+          leadsCount += val;
           conversions += val;
           source = 'conversions_filtered';
-          console.log(`[CONV-MATCH] conversions: action_type=${actionType}, value=${val}`);
+          console.log(`[LEAD-MATCH] conversions: action_type=${actionType}, value=${val}`);
+        }
+        else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
+          purchasesCount += val;
+          conversions += val;
+          source = 'conversions_filtered';
+          console.log(`[PURCHASE-MATCH] conversions: action_type=${actionType}, value=${val}`);
         }
       }
     }
@@ -427,10 +452,10 @@ function extractConversions(row: any): { conversions: number; costPerResult: num
 
   // Log para debug
   if (conversions > 0) {
-    console.log(`[CONVERSIONS] source=${source}, conversions=${conversions}, cpa=${costPerResult.toFixed(2)}`);
+    console.log(`[CONVERSIONS] source=${source}, total=${conversions}, leads=${leadsCount}, purchases=${purchasesCount}, cpa=${costPerResult.toFixed(2)}`);
   }
 
-  return { conversions, costPerResult, conversionValue, source };
+  return { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount };
 }
 
 // Extrair messaging replies - métricas AUXILIARES (não afeta conversions)
@@ -563,8 +588,9 @@ Deno.serve(async (req) => {
         
         // ===========================================================================================
         // EXTRAÇÃO COM FALLBACK HIERÁRQUICO: results → actions → 0
+        // AGORA COM SEPARAÇÃO DE LEADS E PURCHASES
         // ===========================================================================================
-        const { conversions, costPerResult, conversionValue, source } = extractConversions(insights);
+        const { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount } = extractConversions(insights);
         const messagingReplies = extractMessagingReplies(insights);
         const profileVisits = extractProfileVisits(insights);
         
@@ -611,12 +637,14 @@ Deno.serve(async (req) => {
           cpm,
           cpc,
           frequency,
-          conversions, // VALOR OFICIAL DA API (campo "results")
+          conversions, // VALOR TOTAL (leads + purchases)
           conversion_value: conversionValue,
           cpa,
           roas,
           messaging_replies: messagingReplies,
           profile_visits: profileVisits,
+          leads_count: leadsCount,
+          purchases_count: purchasesCount,
           synced_at: new Date().toISOString()
         });
       }

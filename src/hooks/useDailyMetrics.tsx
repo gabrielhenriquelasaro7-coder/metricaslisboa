@@ -228,17 +228,16 @@ function aggregateDaily(rows: any[]): DailyMetric[] {
     agg.clicks += Number(row.clicks) || 0;
     agg.reach += Number(row.reach) || 0;
     
-    // CONVERSÕES: Usar diretamente o valor da API (já atribuído pelo Meta)
-    // O campo conversions já contém o total correto de todas as conversões
+    // CONVERSÕES: Total (leads + purchases)
     agg.conversions += Number(row.conversions) || 0;
     
     agg.conversion_value += Number(row.conversion_value) || 0;
     agg.messaging_replies += Number(row.messaging_replies) || 0;
     agg.profile_visits += Number(row.profile_visits) || 0;
     
-    // Manter compatibilidade com campos legados
-    agg.leads_conversions += Number(row.conversions) || 0;
-    agg.sales_conversions += 0;
+    // SEPARAÇÃO: leads_count e purchases_count (novos campos)
+    agg.leads_conversions += Number(row.leads_count) || 0;
+    agg.sales_conversions += Number(row.purchases_count) || 0;
   }
   
   // Calculate derived metrics
@@ -323,7 +322,7 @@ export function useDailyMetrics(
       while (true) {
         const { data, error } = await supabase
           .from('ads_daily_metrics')
-          .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits, campaign_objective')
+          .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits, campaign_objective, leads_count, purchases_count')
           .eq('project_id', projectId)
           .gte('date', since)
           .lte('date', until)
@@ -359,7 +358,7 @@ export function useDailyMetrics(
         while (true) {
           const { data, error } = await supabase
             .from('ads_daily_metrics')
-            .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits, campaign_objective')
+            .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits, campaign_objective, leads_count, purchases_count')
             .eq('project_id', projectId)
             .gte('date', previousDates.since)
             .lte('date', previousDates.until)
