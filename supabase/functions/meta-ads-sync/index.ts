@@ -241,11 +241,18 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
         if (!firstRowLogged) {
           console.log(`[INSIGHTS] === SAMPLE ROW (primeira linha) ===`);
           console.log(`[INSIGHTS] KEYS: ${Object.keys(row).join(', ')}`);
-          console.log(`[INSIGHTS] results: ${JSON.stringify(row.results)}`);
-          console.log(`[INSIGHTS] cost_per_result: ${JSON.stringify(row.cost_per_result)}`);
-          console.log(`[INSIGHTS] actions (first 3): ${JSON.stringify(row.actions?.slice(0, 3))}`);
+          console.log(`[INSIGHTS] FULL results array: ${JSON.stringify(row.results)}`);
+          console.log(`[INSIGHTS] FULL cost_per_result array: ${JSON.stringify(row.cost_per_result)}`);
+          console.log(`[INSIGHTS] FULL actions array (first 5): ${JSON.stringify(row.actions?.slice(0, 5))}`);
           console.log(`[INSIGHTS] action_values (first 3): ${JSON.stringify(row.action_values?.slice(0, 3))}`);
           console.log(`[INSIGHTS] spend: ${row.spend}, impressions: ${row.impressions}, clicks: ${row.clicks}`);
+          
+          // Log detalhado de results para debug
+          if (row.results) {
+            for (const r of row.results) {
+              console.log(`[INSIGHTS] results item: action_type=${r.action_type}, value=${r.value}, indicator=${r.indicator}`);
+            }
+          }
           firstRowLogged = true;
         }
         
