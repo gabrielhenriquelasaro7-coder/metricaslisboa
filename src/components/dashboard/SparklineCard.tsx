@@ -87,12 +87,16 @@ export default function SparklineCard({
 
   const titleElement = tooltip ? (
     <Tooltip delayDuration={100}>
-      <TooltipTrigger className="text-sm text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help inline-block text-left">
-        {title}
+      <TooltipTrigger asChild>
+        <span className="text-sm text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help inline-block text-left">
+          {title}
+        </span>
       </TooltipTrigger>
       <TooltipContent 
         side="top" 
-        className="max-w-[280px] p-3 text-sm leading-relaxed bg-popover text-popover-foreground border shadow-lg z-[100]"
+        sideOffset={8}
+        className="max-w-[280px] p-3 text-sm leading-relaxed bg-popover text-popover-foreground border border-border shadow-xl z-[9999]"
+        style={{ zIndex: 9999 }}
       >
         {tooltip}
       </TooltipContent>
