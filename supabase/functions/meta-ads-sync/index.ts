@@ -320,14 +320,21 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 
 // ===========================================================================================
 // TIPOS DE CONVERSÃO SEPARADOS POR CATEGORIA
-// IMPORTANTE: Separar leads de vendas para modelo Infoproduto
+// IMPORTANTE: Separar leads, mensagens e vendas para cada modelo de negócio
 // ===========================================================================================
 
-// Tipos que contam como LEADS (captação)
-// IMPORTANTE: Somente "lead" (Leads no site) - NÃO incluir messaging/conversas
-const LEAD_ACTION_TYPES = [
+// Tipos que contam como LEADS NO SITE (formulários de lead)
+const SITE_LEAD_ACTION_TYPES = [
   'lead',
   'onsite_conversion.lead_grouped',
+];
+
+// Tipos que contam como MENSAGENS/CONVERSAS (WhatsApp, Messenger, DM)
+const MESSAGING_LEAD_ACTION_TYPES = [
+  'messaging_conversation_started_7d',
+  'onsite_conversion.messaging_conversation_started_7d',
+  'onsite_conversion.messaging_first_reply',
+  'onsite_conversion.total_messaging_connection',
 ];
 
 // Tipos que contam como VENDAS/COMPRAS (receita)
@@ -335,9 +342,10 @@ const PURCHASE_ACTION_TYPES = [
   'purchase',
 ];
 
-// Todos os tipos de conversão (para compatibilidade com modelos antigos)
+// Todos os tipos de conversão (leads no site + mensagens + vendas)
 const CONVERSION_ACTION_TYPES = [
-  ...LEAD_ACTION_TYPES,
+  ...SITE_LEAD_ACTION_TYPES,
+  ...MESSAGING_LEAD_ACTION_TYPES,
   ...PURCHASE_ACTION_TYPES,
 ];
 
@@ -374,12 +382,18 @@ function extractConversions(row: any): {
       const actionType = action.action_type || '';
       const val = parseInt(action.value) || 0;
       if (val > 0) {
-        // Contar leads separadamente
-        if (LEAD_ACTION_TYPES.includes(actionType)) {
+        // Contar leads NO SITE separadamente
+        if (SITE_LEAD_ACTION_TYPES.includes(actionType)) {
           leadsCount += val;
           conversions += val;
           source = 'actions';
-          console.log(`[LEAD-MATCH] action_type=${actionType}, value=${val}`);
+          console.log(`[SITE-LEAD] action_type=${actionType}, value=${val}`);
+        }
+        // Contar MENSAGENS como conversão também
+        else if (MESSAGING_LEAD_ACTION_TYPES.includes(actionType)) {
+          conversions += val;
+          source = 'actions';
+          console.log(`[MESSAGING-LEAD] action_type=${actionType}, value=${val}`);
         }
         // Contar purchases separadamente
         else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
@@ -398,11 +412,16 @@ function extractConversions(row: any): {
       const actionType = c.action_type || '';
       const val = parseInt(c.value) || 0;
       if (val > 0) {
-        if (LEAD_ACTION_TYPES.includes(actionType)) {
+        if (SITE_LEAD_ACTION_TYPES.includes(actionType)) {
           leadsCount += val;
           conversions += val;
           source = 'conversions_filtered';
-          console.log(`[LEAD-MATCH] conversions: action_type=${actionType}, value=${val}`);
+          console.log(`[SITE-LEAD] conversions: action_type=${actionType}, value=${val}`);
+        }
+        else if (MESSAGING_LEAD_ACTION_TYPES.includes(actionType)) {
+          conversions += val;
+          source = 'conversions_filtered';
+          console.log(`[MESSAGING-LEAD] conversions: action_type=${actionType}, value=${val}`);
         }
         else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
           purchasesCount += val;
