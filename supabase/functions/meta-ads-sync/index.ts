@@ -334,22 +334,15 @@ const CONVERSION_ACTION_TYPES = [
   'messaging_conversation_started_7d',
   'onsite_conversion.messaging_conversation_started_7d',
   
-  // E-commerce - compras
+  // E-commerce - compras - APENAS 'purchase' principal
+  // NÃO incluir omni_purchase, offsite_conversion, etc. pois são DUPLICATAS do mesmo evento
   'purchase',
-  'omni_purchase',
-  'offsite_conversion.fb_pixel_purchase',
-  'onsite_web_app_purchase',
-  'web_app_in_store_purchase',
 ];
 
 // Tipos de action_values que representam RECEITA REAL (para ROAS)
-// Apenas purchase/compra - NÃO incluir checkout, view_content, etc.
+// Apenas 'purchase' principal - outros tipos são duplicatas
 const REVENUE_ACTION_TYPES = [
   'purchase',
-  'omni_purchase',
-  'offsite_conversion.fb_pixel_purchase',
-  'onsite_web_app_purchase',
-  'web_app_in_store_purchase',
 ];
 
 function extractConversions(row: any): { conversions: number; costPerResult: number; conversionValue: number; source: string } {
