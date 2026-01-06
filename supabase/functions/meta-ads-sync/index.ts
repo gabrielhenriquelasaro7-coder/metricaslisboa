@@ -320,17 +320,24 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 
 // ===========================================================================================
 // TIPOS DE CONVERSÃO/LEAD ACEITOS (conforme especificado pelo usuário)
-// Hierarquia de prioridade:
-// 1. lead - Lead formulário
-// 2. onsite_conversion.lead_grouped - Lead no site
-// 3. contact_website - Contato no site
-// 4. messaging_conversation_started_7d - Conversa por mensagem iniciadas
+// IMPORTANTE: Incluir TODAS as variações dos action_types que a Meta API retorna
+// A Meta API pode retornar com ou sem prefixo "onsite_conversion."
 // ===========================================================================================
 const CONVERSION_ACTION_TYPES = [
-  'lead',                              // Lead formulário
-  'onsite_conversion.lead_grouped',    // Lead no site (lead_grouped)
-  'contact_website',                   // Contato no site
-  'messaging_conversation_started_7d', // Conversa por mensagem iniciadas
+  // Lead formulário
+  'lead',
+  'onsite_conversion.lead_grouped',
+  
+  // Contato no site
+  'contact_website',
+  
+  // Conversa por mensagem iniciadas - TODAS as variações
+  'messaging_conversation_started_7d',
+  'onsite_conversion.messaging_conversation_started_7d',
+  
+  // Outras variações de mensagem que podem aparecer
+  'onsite_conversion.messaging_first_reply',
+  'onsite_conversion.total_messaging_connection',
 ];
 
 function extractConversions(row: any): { conversions: number; costPerResult: number; conversionValue: number; source: string } {
