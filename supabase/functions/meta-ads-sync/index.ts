@@ -25,9 +25,15 @@ const TRACKED_FIELDS_CAMPAIGN = ['status', 'daily_budget', 'lifetime_budget', 'o
 const TRACKED_FIELDS_ADSET = ['status', 'daily_budget', 'lifetime_budget'];
 const TRACKED_FIELDS_AD = ['status'];
 
+// HIERARQUIA DE PRIORIDADE DE LEADS - 4 NÍVEIS EXATOS
+// Prioridade 1: lead
 const LEAD_PRIORITY_1 = ['lead', 'offsite_conversion.fb_pixel_lead', 'on_facebook_lead'];
-const LEAD_PRIORITY_2 = ['lead_on_website', 'contact', 'offsite_conversion.fb_pixel_contact', 'contact_on_website', 'onsite_conversion.lead_grouped'];
-const LEAD_PRIORITY_3 = ['onsite_conversion.messaging_conversation_started_7d', 'onsite_conversion.messaging_first_reply'];
+// Prioridade 2: lead_on_website
+const LEAD_PRIORITY_2 = ['onsite_conversion.lead_grouped', 'lead_on_website', 'offsite_conversion.fb_pixel_lead_grouped'];
+// Prioridade 3: contact_on_website
+const LEAD_PRIORITY_3 = ['contact_total', 'contact', 'offsite_conversion.fb_pixel_contact', 'contact_on_website'];
+// Prioridade 4: messaging_conversation_started
+const LEAD_PRIORITY_4 = ['onsite_conversion.messaging_conversation_started_7d', 'messaging_conversation_started_7d', 'onsite_conversion.messaging_first_reply'];
 const PURCHASE_ACTION_TYPES = ['purchase', 'offsite_conversion.fb_pixel_purchase', 'omni_purchase'];
 const REGISTRATION_ACTION_TYPES = ['complete_registration', 'offsite_conversion.fb_pixel_complete_registration'];
 const MESSAGING_ACTION_TYPES = ['onsite_conversion.messaging_conversation_started_7d', 'onsite_conversion.messaging_first_reply', 'onsite_conversion.total_messaging_connection'];
@@ -216,15 +222,69 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
   return dailyInsights;
 }
 
-function extractConversions(insights: any): { conversions: number; conversionValue: number } {
+function extractConversions(insights: any): { conversions: number; conversionValue: number; leadSource: string | null } {
   let leads = 0, purchases = 0, registrations = 0, conversionValue = 0;
+  let leadSource: string | null = null;
+  
   if (insights?.actions) {
-    let p1 = 0, p2 = 0, p3 = 0;
-    for (const a of insights.actions) { const v = parseInt(a.value) || 0; if (LEAD_PRIORITY_1.includes(a.action_type) && v > p1) p1 = v; if (LEAD_PRIORITY_2.includes(a.action_type) && v > p2 && p1 === 0) p2 = v; if (LEAD_PRIORITY_3.includes(a.action_type) && v > p3 && p1 === 0 && p2 === 0) p3 = v; if (PURCHASE_ACTION_TYPES.includes(a.action_type) && v > purchases) purchases = v; if (REGISTRATION_ACTION_TYPES.includes(a.action_type) && v > registrations) registrations = v; }
-    leads = p1 || p2 || p3;
+    let p1 = 0, p2 = 0, p3 = 0, p4 = 0;
+    
+    // Hierarquia de 4 níveis para leads
+    for (const a of insights.actions) {
+      const v = parseInt(a.value) || 0;
+      
+      // Prioridade 1: lead
+      if (LEAD_PRIORITY_1.includes(a.action_type) && v > p1) {
+        p1 = v;
+      }
+      // Prioridade 2: lead_on_website (só se P1 = 0)
+      if (LEAD_PRIORITY_2.includes(a.action_type) && v > p2 && p1 === 0) {
+        p2 = v;
+      }
+      // Prioridade 3: contact_on_website (só se P1 e P2 = 0)
+      if (LEAD_PRIORITY_3.includes(a.action_type) && v > p3 && p1 === 0 && p2 === 0) {
+        p3 = v;
+      }
+      // Prioridade 4: messaging_conversation_started (só se P1, P2 e P3 = 0)
+      if (LEAD_PRIORITY_4.includes(a.action_type) && v > p4 && p1 === 0 && p2 === 0 && p3 === 0) {
+        p4 = v;
+      }
+      
+      // Purchases e registrations
+      if (PURCHASE_ACTION_TYPES.includes(a.action_type) && v > purchases) {
+        purchases = v;
+      }
+      if (REGISTRATION_ACTION_TYPES.includes(a.action_type) && v > registrations) {
+        registrations = v;
+      }
+    }
+    
+    // Determinar source e valor
+    if (p1 > 0) {
+      leads = p1;
+      leadSource = 'lead';
+    } else if (p2 > 0) {
+      leads = p2;
+      leadSource = 'lead_on_website';
+    } else if (p3 > 0) {
+      leads = p3;
+      leadSource = 'contact_on_website';
+    } else if (p4 > 0) {
+      leads = p4;
+      leadSource = 'messaging_conversation_started';
+    }
   }
-  if (insights?.action_values) for (const av of insights.action_values) if (VALUE_ACTION_TYPES.includes(av.action_type)) { const v = parseFloat(av.value) || 0; if (v > conversionValue) conversionValue = v; }
-  return { conversions: leads + purchases + registrations, conversionValue };
+  
+  if (insights?.action_values) {
+    for (const av of insights.action_values) {
+      if (VALUE_ACTION_TYPES.includes(av.action_type)) {
+        const v = parseFloat(av.value) || 0;
+        if (v > conversionValue) conversionValue = v;
+      }
+    }
+  }
+  
+  return { conversions: leads + purchases + registrations, conversionValue, leadSource };
 }
 
 function extractMessagingReplies(insights: any): number {
