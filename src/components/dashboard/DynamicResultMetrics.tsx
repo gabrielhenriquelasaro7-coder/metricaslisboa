@@ -35,6 +35,8 @@ interface DynamicResultMetricsProps {
     totalReach?: number;
     totalMessages?: number;
     totalProfileVisits?: number;
+    totalLeadsConversions?: number;
+    totalSalesConversions?: number;
   };
   changes: Record<string, number> | null;
   sparklineData: Record<string, number[]>;
@@ -52,14 +54,15 @@ const RESULT_ICONS: Record<string, LucideIcon> = {
 };
 
 // Mapeamento de qual campo do banco usar para cada tipo de métrica
-const METRIC_DATA_SOURCE: Record<string, 'conversions' | 'messages' | 'profile_visits'> = {
-  leads: 'messages', // Leads geralmente vêm de messaging_replies (formulários, mensagens)
+// Agora usa os campos separados por objetivo de campanha
+const METRIC_DATA_SOURCE: Record<string, 'leads' | 'purchases' | 'messages' | 'profile_visits' | 'conversions'> = {
+  leads: 'leads', // OUTCOME_LEADS conversions
+  purchases: 'purchases', // OUTCOME_SALES conversions
   messages: 'messages',
-  purchases: 'conversions',
-  registrations: 'conversions',
+  registrations: 'leads', // Similar to leads
   store_visits: 'profile_visits',
-  appointments: 'conversions',
-  conversions: 'conversions',
+  appointments: 'leads',
+  conversions: 'conversions', // All conversions combined
 };
 
 const COST_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
@@ -92,6 +95,10 @@ export function DynamicResultMetrics({
   const getMetricValue = (metricKey: string): number => {
     const dataSource = METRIC_DATA_SOURCE[metricKey] || 'conversions';
     switch (dataSource) {
+      case 'leads':
+        return metrics.totalLeadsConversions || 0;
+      case 'purchases':
+        return metrics.totalSalesConversions || 0;
       case 'messages':
         return metrics.totalMessages || 0;
       case 'profile_visits':
@@ -106,6 +113,10 @@ export function DynamicResultMetrics({
   const getSparklineData = (metricKey: string): number[] => {
     const dataSource = METRIC_DATA_SOURCE[metricKey] || 'conversions';
     switch (dataSource) {
+      case 'leads':
+        return sparklineData.leads || [];
+      case 'purchases':
+        return sparklineData.purchases || [];
       case 'messages':
         return sparklineData.messages || [];
       case 'profile_visits':

@@ -14,6 +14,9 @@ export interface DailyMetric {
   conversion_value: number;
   messaging_replies: number;
   profile_visits: number;
+  // Conversions by campaign objective
+  leads_conversions: number; // OUTCOME_LEADS
+  sales_conversions: number; // OUTCOME_SALES
   ctr: number;
   cpm: number;
   cpc: number;
@@ -207,6 +210,8 @@ function aggregateDaily(rows: any[]): DailyMetric[] {
         conversion_value: 0,
         messaging_replies: 0,
         profile_visits: 0,
+        leads_conversions: 0,
+        sales_conversions: 0,
         ctr: 0,
         cpm: 0,
         cpc: 0,
@@ -224,6 +229,15 @@ function aggregateDaily(rows: any[]): DailyMetric[] {
     agg.conversion_value += Number(row.conversion_value) || 0;
     agg.messaging_replies += Number(row.messaging_replies) || 0;
     agg.profile_visits += Number(row.profile_visits) || 0;
+    
+    // Aggregate conversions by campaign objective
+    const objective = row.campaign_objective || '';
+    const convValue = Number(row.conversions) || 0;
+    if (objective === 'OUTCOME_LEADS' || objective.includes('LEAD')) {
+      agg.leads_conversions += convValue;
+    } else if (objective === 'OUTCOME_SALES' || objective.includes('SALES') || objective.includes('PURCHASE')) {
+      agg.sales_conversions += convValue;
+    }
   }
   
   // Calculate derived metrics
@@ -252,13 +266,15 @@ function calculateTotals(data: DailyMetric[]): DailyMetric {
       conversion_value: acc.conversion_value + d.conversion_value,
       messaging_replies: acc.messaging_replies + d.messaging_replies,
       profile_visits: acc.profile_visits + d.profile_visits,
+      leads_conversions: acc.leads_conversions + d.leads_conversions,
+      sales_conversions: acc.sales_conversions + d.sales_conversions,
       ctr: 0,
       cpm: 0,
       cpc: 0,
       roas: 0,
       cpa: 0,
     }),
-    { date: '', spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, messaging_replies: 0, profile_visits: 0, ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0 }
+    { date: '', spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, messaging_replies: 0, profile_visits: 0, leads_conversions: 0, sales_conversions: 0, ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0 }
   );
   
   // Calculate derived
@@ -306,7 +322,7 @@ export function useDailyMetrics(
       while (true) {
         const { data, error } = await supabase
           .from('ads_daily_metrics')
-          .select('date, spend, impressions, clicks, reach, conversions, conversion_value')
+          .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits, campaign_objective')
           .eq('project_id', projectId)
           .gte('date', since)
           .lte('date', until)
@@ -342,7 +358,7 @@ export function useDailyMetrics(
         while (true) {
           const { data, error } = await supabase
             .from('ads_daily_metrics')
-            .select('date, spend, impressions, clicks, reach, conversions, conversion_value')
+            .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits, campaign_objective')
             .eq('project_id', projectId)
             .gte('date', previousDates.since)
             .lte('date', previousDates.until)
