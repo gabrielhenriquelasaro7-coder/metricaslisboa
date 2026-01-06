@@ -333,6 +333,23 @@ const CONVERSION_ACTION_TYPES = [
   // Conversa por mensagem iniciadas - APENAS o tipo principal
   'messaging_conversation_started_7d',
   'onsite_conversion.messaging_conversation_started_7d',
+  
+  // E-commerce - compras
+  'purchase',
+  'omni_purchase',
+  'offsite_conversion.fb_pixel_purchase',
+  'onsite_web_app_purchase',
+  'web_app_in_store_purchase',
+];
+
+// Tipos de action_values que representam RECEITA REAL (para ROAS)
+// Apenas purchase/compra - NÃO incluir checkout, view_content, etc.
+const REVENUE_ACTION_TYPES = [
+  'purchase',
+  'omni_purchase',
+  'offsite_conversion.fb_pixel_purchase',
+  'onsite_web_app_purchase',
+  'web_app_in_store_purchase',
 ];
 
 function extractConversions(row: any): { conversions: number; costPerResult: number; conversionValue: number; source: string } {
@@ -399,9 +416,19 @@ function extractConversions(row: any): { conversions: number; costPerResult: num
   }
 
   // Valor de conversão (para ROAS) - via action_values
+  // IMPORTANTE: Só somar valores de RECEITA REAL (purchase), não checkout/view_content
   if (Array.isArray(row.action_values)) {
     for (const av of row.action_values) {
-      conversionValue += parseFloat(av.value) || 0;
+      const actionType = av.action_type || '';
+      // Só contar como receita se for tipo de purchase/compra
+      const isRevenueAction = REVENUE_ACTION_TYPES.includes(actionType);
+      if (isRevenueAction) {
+        const val = parseFloat(av.value) || 0;
+        if (val > 0) {
+          conversionValue += val;
+          console.log(`[REVENUE] action_type=${actionType}, value=${val}`);
+        }
+      }
     }
   }
 
