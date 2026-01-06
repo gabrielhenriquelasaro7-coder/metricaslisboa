@@ -26,46 +26,31 @@ const TRACKED_FIELDS_ADSET = ['status', 'daily_budget', 'lifetime_budget'];
 const TRACKED_FIELDS_AD = ['status'];
 
 // ===========================================================================================
-// PRINCÍPIO FUNDAMENTAL: Este sistema é um ESPELHO do Gerenciador de Anúncios
-// Usamos o campo "actions" para extrair conversões baseadas no objetivo da campanha
-// O Gerenciador filtra as conversões pelo action_type correspondente ao objetivo
+// PRINCÍPIO ABSOLUTO: Este sistema é um ESPELHO EXATO do Gerenciador de Anúncios
+// 
+// O sistema DEVE usar EXCLUSIVAMENTE o campo "results" retornado pela API de Insights
+// Este campo já representa o número correto baseado no objetivo da campanha, com:
+// - Deduplicação aplicada pela Meta
+// - Atribuição correta
+// - Janela de conversão configurada
+//
+// É EXPRESSAMENTE PROIBIDO:
+// - Somar o array "conversions"
+// - Somar ou filtrar manualmente o array "actions"
+// - Inferir conversões a partir de pixel, CAPI ou eventos
+// - Criar lógica baseada em objective para recalcular números
+//
+// Se "results" for nulo ou zero, o sistema DEVE exibir zero, exatamente como o Gerenciador.
 // ===========================================================================================
 
-// Action types para LEADS (campanha de geração de leads)
-const LEAD_ACTION_TYPES = [
-  'lead',
-  'offsite_conversion.fb_pixel_lead',
-  'onsite_conversion.lead_grouped',
-  'leadgen_grouped',
-  'omni_lead_grouped'
-];
-
-// Action types para PURCHASES/ECOMMERCE
-const PURCHASE_ACTION_TYPES = [
-  'purchase',
-  'offsite_conversion.fb_pixel_purchase',
-  'omni_purchase'
-];
-
-// Action types para MENSAGENS
+// Action types para métricas AUXILIARES (NÃO para conversions/results)
 const MESSAGING_ACTION_TYPES = [
   'onsite_conversion.messaging_conversation_started_7d', 
   'onsite_conversion.messaging_first_reply', 
   'onsite_conversion.total_messaging_connection'
 ];
 
-// Action types para VISITAS AO PERFIL
 const PROFILE_VISIT_ACTION_TYPES = ['onsite_conversion.profile_view', 'ig_profile_visit', 'profile_visit', 'page_engagement', 'post_engagement'];
-
-// Mapeamento de objetivos para action_types
-const OBJECTIVE_ACTION_MAP: Record<string, string[]> = {
-  'OUTCOME_LEADS': LEAD_ACTION_TYPES,
-  'LEAD_GENERATION': LEAD_ACTION_TYPES,
-  'OUTCOME_SALES': PURCHASE_ACTION_TYPES,
-  'CONVERSIONS': [...LEAD_ACTION_TYPES, ...PURCHASE_ACTION_TYPES],
-  'OUTCOME_ENGAGEMENT': MESSAGING_ACTION_TYPES,
-  'MESSAGES': MESSAGING_ACTION_TYPES,
-};
 
 function delay(ms: number): Promise<void> { return new Promise(resolve => setTimeout(resolve, ms)); }
 
@@ -237,9 +222,14 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 async function fetchDailyInsights(adAccountId: string, token: string, since: string, until: string): Promise<Map<string, Map<string, any>>> {
   const dailyInsights = new Map<string, Map<string, any>>();
   
-  // IMPORTANTE: Incluímos 'conversions' direto da API - é o campo oficial que o Gerenciador usa
-  // 'actions' é mantido para métricas auxiliares (messaging, profile_visits) mas NÃO para conversions
-  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,conversions,actions,action_values';
+  // ===========================================================================================
+  // CAMPO "results" - O ÚNICO campo que deve ser usado para conversions/leads/resultados
+  // Este é o campo oficial que o Gerenciador de Anúncios usa para exibir "Resultados"
+  // 
+  // "actions" é mantido APENAS para métricas auxiliares (messaging, profile_visits)
+  // "cost_per_result" é o custo por resultado oficial da Meta
+  // ===========================================================================================
+  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,results,cost_per_result,action_values,actions';
   
   const timeRange = JSON.stringify({ since, until });
   let url = `https://graph.facebook.com/v19.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&access_token=${token}`;
@@ -265,66 +255,51 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 }
 
 // ===========================================================================================
-// EXTRAÇÃO DE CONVERSÕES - BASEADA NO OBJETIVO DA CAMPANHA
+// EXTRAÇÃO DE RESULTADOS - CAMPO "results" OFICIAL DA META
 // ===========================================================================================
-// O Gerenciador de Anúncios mostra apenas conversões do tipo correspondente ao objetivo.
-// Para campanhas de LEADS, mostra apenas action_type = 'lead' ou similares.
-// Para campanhas de VENDAS, mostra apenas action_type = 'purchase'.
+// Este sistema é um ESPELHO do Gerenciador de Anúncios.
+// Usamos EXCLUSIVAMENTE o campo "results" retornado pela API.
+// 
+// O campo "results" já contém:
+// - O número correto de conversões baseado no objetivo da campanha
+// - Deduplicação aplicada pela Meta
+// - Atribuição correta
+// - Janela de conversão configurada
+//
+// NÃO calculamos, não somamos, não filtramos. Apenas espelhamos.
 // ===========================================================================================
-function extractConversions(insights: any, campaignObjective?: string | null): { conversions: number; conversionValue: number } {
+function extractResults(insights: any): { conversions: number; conversionValue: number; costPerResult: number } {
   let conversions = 0;
   let conversionValue = 0;
+  let costPerResult = 0;
   
-  // Determinar quais action_types contar baseado no objetivo
-  const targetActionTypes = campaignObjective && OBJECTIVE_ACTION_MAP[campaignObjective] 
-    ? OBJECTIVE_ACTION_MAP[campaignObjective] 
-    : null;
-  
-  // ESTRATÉGIA: 
-  // 1. Se temos um objetivo mapeado, buscamos no campo "actions" pelos tipos específicos
-  // 2. Isso replica exatamente o que o Gerenciador mostra como "Resultados"
-  
-  if (insights?.actions && targetActionTypes) {
-    for (const action of insights.actions) {
-      if (targetActionTypes.includes(action.action_type)) {
-        conversions += parseInt(action.value) || 0;
-      }
-    }
-    console.log(`[CONVERSIONS] Objective: ${campaignObjective}, Found ${conversions} from actions (types: ${targetActionTypes.join(', ')})`);
-  } else if (insights?.actions) {
-    // Fallback: Se não temos objetivo mapeado, procuramos pelos tipos de lead mais comuns
-    // Isso cobre casos onde o objetivo não está na nossa lista
-    for (const action of insights.actions) {
-      if (LEAD_ACTION_TYPES.includes(action.action_type)) {
-        conversions += parseInt(action.value) || 0;
-      }
-    }
-    if (conversions === 0) {
-      // Se ainda zero, tentar purchase
-      for (const action of insights.actions) {
-        if (PURCHASE_ACTION_TYPES.includes(action.action_type)) {
-          conversions += parseInt(action.value) || 0;
-        }
-      }
+  // CAMPO PRINCIPAL: "results" - número oficial de resultados da Meta
+  // Este é o ÚNICO campo que deve ser usado para exibir conversions/leads/resultados
+  if (insights?.results && Array.isArray(insights.results)) {
+    for (const result of insights.results) {
+      conversions += parseInt(result.value) || 0;
     }
   }
   
-  // VALOR DE CONVERSÃO: Usar "action_values" filtrado pelo mesmo action_type
-  if (insights?.action_values && targetActionTypes) {
-    for (const av of insights.action_values) {
-      if (targetActionTypes.includes(av.action_type)) {
-        conversionValue += parseFloat(av.value) || 0;
-      }
-    }
-  } else if (insights?.action_values) {
-    // Fallback: pegar o maior valor
-    for (const av of insights.action_values) {
-      const v = parseFloat(av.value) || 0;
-      if (v > conversionValue) conversionValue = v;
+  // CUSTO POR RESULTADO: "cost_per_result" - campo oficial da Meta
+  if (insights?.cost_per_result && Array.isArray(insights.cost_per_result)) {
+    for (const cpr of insights.cost_per_result) {
+      const v = parseFloat(cpr.value) || 0;
+      if (v > costPerResult) costPerResult = v; // Pegar o maior se houver múltiplos
     }
   }
   
-  return { conversions, conversionValue };
+  // VALOR DE CONVERSÃO: "action_values" - somar todos os valores
+  // Este campo é usado para calcular ROAS
+  if (insights?.action_values && Array.isArray(insights.action_values)) {
+    for (const av of insights.action_values) {
+      conversionValue += parseFloat(av.value) || 0;
+    }
+  }
+  
+  console.log(`[RESULTS] results=${conversions}, cost_per_result=${costPerResult.toFixed(2)}, conversion_value=${conversionValue.toFixed(2)}`);
+  
+  return { conversions, conversionValue, costPerResult };
 }
 
 // Extrair messaging replies - métricas auxiliares (não afeta conversions)
@@ -455,9 +430,11 @@ Deno.serve(async (req) => {
         const adset = adsetId ? adsetMap.get(adsetId) : null;
         const campaign = campaignId ? campaignMap.get(campaignId) : null;
         
-        // EXTRAIR CONVERSÕES BASEADO NO OBJETIVO DA CAMPANHA
-        const campaignObjective = campaign?.objective || null;
-        const { conversions, conversionValue } = extractConversions(insights, campaignObjective);
+        // ===========================================================================================
+        // EXTRAÇÃO DE RESULTADOS - USANDO EXCLUSIVAMENTE O CAMPO "results" DA API
+        // Não calculamos, não somamos actions, não filtramos. Apenas espelhamos a Meta.
+        // ===========================================================================================
+        const { conversions, conversionValue, costPerResult } = extractResults(insights);
         const messagingReplies = extractMessagingReplies(insights);
         const profileVisits = extractProfileVisits(insights);
         
@@ -469,7 +446,8 @@ Deno.serve(async (req) => {
         const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
         const cpc = clicks > 0 ? spend / clicks : 0;
         const frequency = reach > 0 ? impressions / reach : 0;
-        const cpa = conversions > 0 ? spend / conversions : 0;
+        // CPA: Usar o cost_per_result oficial da Meta, ou calcular se não disponível
+        const cpa = costPerResult > 0 ? costPerResult : (conversions > 0 ? spend / conversions : 0);
         const roas = spend > 0 && conversionValue > 0 ? conversionValue / spend : 0;
         
         const creativeData = ad?.creative?.id ? creativeDataMap.get(ad.creative.id) : null;
