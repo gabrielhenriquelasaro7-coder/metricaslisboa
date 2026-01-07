@@ -960,6 +960,13 @@ Deno.serve(async (req) => {
     const adsetMap = new Map(adsets.map(a => [extractId(a.id), a]));
     const adMap = new Map(ads.map(a => [extractId(a.id), a]));
     
+    // Debug: Log sample of ads data to verify creative info is being fetched
+    if (ads.length > 0) {
+      const sampleAd = ads[0];
+      console.log(`[DEBUG] Sample ad from API - id: ${sampleAd.id}, has_creative: ${!!sampleAd.creative}, creative_id: ${sampleAd.creative?.id}, has_body: ${!!sampleAd.creative?.body}, has_title: ${!!sampleAd.creative?.title}`);
+    }
+    console.log(`[DEBUG] adMap size: ${adMap.size}, creativeDataMap size: ${creativeDataMap.size}`);
+    
     const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
     const dailyRecords: any[] = [];
     
@@ -1120,11 +1127,25 @@ Deno.serve(async (req) => {
       // Ad aggregation
       if (!adMetrics.has(r.ad_id)) {
         const ad = adMap.get(r.ad_id);
+        
+        // Debug: Log if ad is found and has creative data
+        if (!ad) {
+          console.log(`[DEBUG] Ad NOT found in adMap for id: ${r.ad_id}`);
+        } else if (!ad.creative) {
+          console.log(`[DEBUG] Ad found but NO creative: ${r.ad_id}`);
+        }
+        
         const creativeData = ad?.creative?.id ? creativeDataMap.get(ad.creative.id) : null;
         const cachedData = cachedCreativeMap.get(r.ad_id);
         const { primaryText, headline, cta } = extractAdCopy(ad, creativeData);
         const { imageUrl, videoUrl } = extractCreativeImage(ad, creativeData, adImageMap, videoThumbnailMap);
         const cachedUrl = immediateCache.get(r.ad_id) || cachedData?.cached_url || null;
+        
+        // Debug: Log extraction results for first few ads
+        if (adMetrics.size < 3) {
+          console.log(`[DEBUG-EXTRACT] ad_id: ${r.ad_id}, headline: ${headline}, primaryText: ${primaryText?.substring(0, 30)}, cta: ${cta}, imageUrl: ${imageUrl ? 'YES' : 'NO'}, cachedUrl: ${cachedUrl ? 'YES' : 'NO'}`);
+        }
+        
         adMetrics.set(r.ad_id, { 
           ...initMetric(r.ad_id, r.ad_name, { status: ad?.status }), 
           campaign_id: r.campaign_id, 

@@ -592,12 +592,14 @@ export default function AdDetail() {
                 icon={Target} 
                 tooltip="Custo Por Clique: Valor médio pago por cada clique"
               />
-              <MetricCard 
-                title="Receita" 
-                value={formatCurrency(adMetricsTotals.conversion_value)} 
-                icon={TrendingUp} 
-                tooltip="Receita gerada por este anúncio"
-              />
+              {isEcommerce && (
+                <MetricCard 
+                  title="Receita" 
+                  value={formatCurrency(adMetricsTotals.conversion_value)} 
+                  icon={TrendingUp} 
+                  tooltip="Receita gerada por este anúncio"
+                />
+              )}
             </div>
 
             {/* Performance Chart */}
