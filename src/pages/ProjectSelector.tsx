@@ -135,7 +135,8 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   return (
     <div 
       className={cn(
-        "v4-cockpit-card eb-luz group p-5 cursor-pointer",
+        "v4-cockpit-card group p-5 cursor-pointer transition-all duration-300",
+        "hover:border-red-600/40 hover:shadow-[0_0_30px_rgba(220,38,38,0.15)] hover:-translate-y-1",
         project.archived && 'opacity-50'
       )}
       onClick={() => onSelect(project)}
@@ -783,53 +784,58 @@ export default function ProjectSelector() {
 
       {/* Main Content */}
       <div className="relative" style={{ zIndex: 10 }}>
-        {/* UNIFIED TOP BAR */}
-        <header className="sticky top-0 z-50 w-full bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/10">
-          <div className="w-full px-6 py-3">
+        {/* UNIFIED TOP BAR - V4 Identity */}
+        <header className="sticky top-0 z-50 w-full bg-gradient-to-r from-[#0a0a0a] via-[#150808] to-[#0a0a0a] border-b border-red-900/30 shadow-[0_4px_30px_rgba(220,38,38,0.08)]">
+          <div className="w-full px-6 py-4">
             <div className="flex items-center justify-between gap-6">
               
               {/* LEFT: Logo + Title */}
               <div className="flex items-center gap-4 shrink-0">
-                <img src={v4LogoIcon} alt="V4" className="h-8 w-auto" />
+                <img src={v4LogoIcon} alt="V4" className="h-10 w-auto" />
+                <div className="h-8 w-px bg-red-900/40" />
                 <div className="hidden lg:block">
-                  <h1 className="text-base font-bold text-white leading-none">MetaAds Manager</h1>
-                  <span className="text-[9px] text-white/30 uppercase tracking-widest">V4 Company</span>
+                  <h1 className="text-lg font-bold text-white leading-none">MetaAds Manager</h1>
+                  <span className="text-[10px] text-red-500/60 uppercase tracking-widest">V4 Company</span>
                 </div>
               </div>
 
               {/* CENTER: Stats */}
-              <div className="hidden md:flex items-center gap-6 border-l border-r border-white/10 px-8">
-                <div className="flex items-center gap-2">
+              <div className="hidden lg:flex items-center gap-3">
+                <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10">
+                  <Briefcase className="w-4 h-4 text-red-500" />
                   <span className="text-xl font-black text-white">{healthCounts.total}</span>
-                  <span className="text-[10px] text-white/40 uppercase">Total</span>
+                  <span className="text-xs text-white/40 uppercase">Total</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-4 py-2 bg-emerald-950/30 rounded-xl border border-emerald-800/30">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
                   <span className="text-xl font-black text-emerald-400">{healthCounts.safe}</span>
-                  <span className="text-[10px] text-emerald-400/60 uppercase">Safe</span>
+                  <span className="text-xs text-emerald-500/50 uppercase">Safe</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-4 py-2 bg-amber-950/30 rounded-xl border border-amber-800/30">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
                   <span className="text-xl font-black text-amber-400">{healthCounts.care}</span>
-                  <span className="text-[10px] text-amber-400/60 uppercase">Care</span>
+                  <span className="text-xs text-amber-500/50 uppercase">Care</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-4 py-2 bg-red-950/30 rounded-xl border border-red-800/30">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
                   <span className="text-xl font-black text-red-400">{healthCounts.danger}</span>
-                  <span className="text-[10px] text-red-400/60 uppercase">Danger</span>
+                  <span className="text-xs text-red-500/50 uppercase">Danger</span>
                 </div>
               </div>
 
               {/* CENTER-RIGHT: Search + Filter */}
-              <div className="flex items-center gap-2 flex-1 max-w-md">
+              <div className="flex items-center gap-3 flex-1 max-w-md">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                   <Input
                     placeholder="Buscar projeto..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="v4-cockpit-input pl-10 w-full h-9 text-sm"
+                    className="pl-10 w-full h-10 bg-white/5 border-white/10 text-white rounded-xl focus:border-red-600/50 focus:ring-red-600/20"
                   />
                 </div>
                 <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
-                  <SelectTrigger className="w-28 h-9 v4-cockpit-select text-white/70 text-xs">
+                  <SelectTrigger className="w-32 h-10 bg-white/5 border-white/10 text-white rounded-xl">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#0f0f0f] border-white/10">
@@ -844,17 +850,17 @@ export default function ProjectSelector() {
               {/* RIGHT: Tabs + Actions */}
               <div className="flex items-center gap-4 shrink-0">
                 {/* Platform Tabs */}
-                <div className="flex items-center bg-white/5 rounded-lg p-0.5">
+                <div className="flex items-center bg-black/40 rounded-xl p-1 border border-white/5">
                   <button 
                     onClick={() => setActiveTab('meta-ads')}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                      "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
                       activeTab === 'meta-ads' 
-                        ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' 
-                        : 'text-white/50 hover:text-white'
+                        ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-[0_0_20px_rgba(220,38,38,0.4)]' 
+                        : 'text-white/50 hover:text-white hover:bg-white/5'
                     )}
                   >
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
                     </svg>
                     Meta Ads
@@ -862,8 +868,8 @@ export default function ProjectSelector() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white/25 cursor-not-allowed">
-                          <Lock className="w-3.5 h-3.5" />
+                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white/25 cursor-not-allowed">
+                          <Lock className="w-4 h-4" />
                           Google
                         </div>
                       </TooltipTrigger>
@@ -875,32 +881,32 @@ export default function ProjectSelector() {
                   <button 
                     onClick={() => setActiveTab('profile')}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                      "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
                       activeTab === 'profile' 
                         ? 'bg-white/10 text-white' 
-                        : 'text-white/50 hover:text-white'
+                        : 'text-white/50 hover:text-white hover:bg-white/5'
                     )}
                   >
-                    <User className="w-3.5 h-3.5" />
+                    <User className="w-4 h-4" />
                     Perfil
                   </button>
                 </div>
 
                 {/* Divider */}
-                <div className="w-px h-6 bg-white/10" />
+                <div className="w-px h-8 bg-red-900/30" />
 
                 {/* User Actions */}
                 <div className="flex items-center gap-1">
                   <button 
                     onClick={() => navigate('/admin')}
-                    className="flex items-center gap-1.5 px-2 py-1.5 rounded text-xs text-white/50 hover:text-white hover:bg-white/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/50 hover:text-red-400 hover:bg-red-950/30 transition-all duration-300"
                   >
                     <Shield className="w-4 h-4" />
                     <span className="hidden xl:inline">Admin</span>
                   </button>
                   <button 
                     onClick={handleLogout} 
-                    className="flex items-center gap-1.5 px-2 py-1.5 rounded text-xs text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/50 hover:text-red-400 hover:bg-red-950/30 transition-all duration-300"
                   >
                     <LogOut className="w-4 h-4" />
                     <span className="hidden xl:inline">Sair</span>
