@@ -695,8 +695,44 @@ function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | nul
 
 function extractCreativeImage(ad: any, creativeData?: any, adImageMap?: Map<string, string>, videoThumbnailMap?: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
   let imageUrl: string | null = null, videoUrl: string | null = null;
-  if (creativeData) { if (creativeData.image_url) imageUrl = creativeData.image_url; if (!imageUrl && creativeData.thumbnail_url) imageUrl = creativeData.thumbnail_url; const s = creativeData.object_story_spec; if (s?.link_data) { if (!imageUrl && s.link_data.image_url) imageUrl = s.link_data.image_url; if (!imageUrl && s.link_data.picture) imageUrl = s.link_data.picture; } if (s?.video_data) { if (s.video_data.video_id && videoThumbnailMap?.has(s.video_data.video_id)) imageUrl = videoThumbnailMap.get(s.video_data.video_id)!; if (s.video_data.image_url) { videoUrl = s.video_data.image_url; if (!imageUrl) imageUrl = s.video_data.image_url; } } }
-  const c = ad?.creative; if (c) { if (!imageUrl && c.image_hash && adImageMap?.has(c.image_hash)) imageUrl = adImageMap.get(c.image_hash)!; if (!imageUrl && c.image_url) imageUrl = c.image_url; if (!imageUrl && c.thumbnail_url) imageUrl = c.thumbnail_url; const videoId = c.object_story_spec?.video_data?.video_id; if (videoId && videoThumbnailMap?.has(videoId) && !imageUrl) imageUrl = videoThumbnailMap.get(videoId)!; }
+  
+  // PRIORIDADE 1: Imagem HD do adImageMap (via image_hash) - SEMPRE preferida
+  const c = ad?.creative;
+  if (c?.image_hash && adImageMap?.has(c.image_hash)) {
+    imageUrl = adImageMap.get(c.image_hash)!;
+    console.log(`[CREATIVE] HD image from adImageMap for hash ${c.image_hash}`);
+  }
+  
+  // PRIORIDADE 2: Dados do criativo (creativeData)
+  if (!imageUrl && creativeData) {
+    if (creativeData.image_url) imageUrl = creativeData.image_url;
+    if (!imageUrl && creativeData.thumbnail_url) imageUrl = creativeData.thumbnail_url;
+    const s = creativeData.object_story_spec;
+    if (s?.link_data) {
+      if (!imageUrl && s.link_data.image_url) imageUrl = s.link_data.image_url;
+      if (!imageUrl && s.link_data.picture) imageUrl = s.link_data.picture;
+    }
+    if (s?.video_data) {
+      if (s.video_data.video_id && videoThumbnailMap?.has(s.video_data.video_id)) {
+        imageUrl = videoThumbnailMap.get(s.video_data.video_id)!;
+      }
+      if (s.video_data.image_url) {
+        videoUrl = s.video_data.image_url;
+        if (!imageUrl) imageUrl = s.video_data.image_url;
+      }
+    }
+  }
+  
+  // PRIORIDADE 3: Dados diretos do anúncio
+  if (c) {
+    if (!imageUrl && c.image_url) imageUrl = c.image_url;
+    if (!imageUrl && c.thumbnail_url) imageUrl = c.thumbnail_url;
+    const videoId = c.object_story_spec?.video_data?.video_id;
+    if (videoId && videoThumbnailMap?.has(videoId) && !imageUrl) {
+      imageUrl = videoThumbnailMap.get(videoId)!;
+    }
+  }
+  
   return { imageUrl, videoUrl };
 }
 
@@ -869,6 +905,19 @@ Deno.serve(async (req) => {
       for (let i = 0; i < dailyRecords.length; i += 500) {
         const batch = dailyRecords.slice(i, i + 500);
         await supabase.from('ads_daily_metrics').upsert(batch, { onConflict: 'project_id,ad_id,date' });
+      }
+    }
+    
+    // Update cached_creative_thumbnail for all ads with cached images (even if no new insights)
+    if (immediateCache.size > 0) {
+      console.log(`[CACHE] Updating ${immediateCache.size} cached thumbnails in ads_daily_metrics`);
+      for (const [adId, cachedUrl] of immediateCache) {
+        // Update all records for this ad_id in this project
+        await supabase.from('ads_daily_metrics')
+          .update({ cached_creative_thumbnail: cachedUrl })
+          .eq('project_id', project_id)
+          .eq('ad_id', adId)
+          .is('cached_creative_thumbnail', null);
       }
     }
     
