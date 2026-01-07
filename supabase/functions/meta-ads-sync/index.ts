@@ -403,7 +403,16 @@ const REVENUE_ACTION_TYPES = [
 // 3. conversions (fallback legado)
 // ===========================================================================================
 
-function extractConversions(row: any): { 
+// Objetivos de campanha que são TRÁFEGO - não contam leads como conversão!
+// Campanhas de tráfego têm objetivo de cliques, não conversões.
+const TRAFFIC_OBJECTIVES = [
+  'OUTCOME_TRAFFIC',
+  'LINK_CLICKS',
+  'TRAFFIC',
+  'POST_ENGAGEMENT', // Engajamento de post também não é lead
+];
+
+function extractConversions(row: any, campaignObjective?: string): { 
   conversions: number; 
   costPerResult: number; 
   conversionValue: number; 
@@ -411,6 +420,23 @@ function extractConversions(row: any): {
   leadsCount: number;
   purchasesCount: number;
 } {
+  // Se é campanha de TRÁFEGO, não conta leads/conversões!
+  // Campanhas de tráfego retornam messaging_conversation_started_7d como "resultado"
+  // mas isso é apenas porque pessoas que clicaram também mandaram mensagem - não é o objetivo!
+  const isTrafficCampaign = campaignObjective && TRAFFIC_OBJECTIVES.includes(campaignObjective.toUpperCase());
+  
+  if (isTrafficCampaign) {
+    console.log(`[CONVERSIONS] Campanha de TRÁFEGO (${campaignObjective}) - zerando leads/conversões`);
+    return {
+      conversions: 0,
+      costPerResult: 0,
+      conversionValue: 0,
+      source: 'traffic_campaign',
+      leadsCount: 0,
+      purchasesCount: 0,
+    };
+  }
+  
   let conversions = 0;
   let costPerResult = 0;
   let conversionValue = 0;
@@ -767,8 +793,10 @@ Deno.serve(async (req) => {
         // ===========================================================================================
         // EXTRAÇÃO COM FALLBACK HIERÁRQUICO: results → actions → conversions
         // Agora usa o campo "results" da API que é EXATAMENTE o que aparece no Gerenciador!
+        // IMPORTANTE: Campanhas de TRÁFEGO não contam leads - mesmo que a API retorne!
         // ===========================================================================================
-        const { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount } = extractConversions(insights);
+        const campaignObjective = campaign?.objective || null;
+        const { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount } = extractConversions(insights, campaignObjective);
         const messagingReplies = extractMessagingReplies(insights);
         const profileVisits = extractProfileVisits(insights);
         
