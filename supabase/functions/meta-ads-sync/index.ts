@@ -15,6 +15,7 @@ interface SyncRequest {
   retry_count?: number;
   light_sync?: boolean;
   skip_image_cache?: boolean;
+  syncOnly?: 'campaigns' | 'adsets' | 'ads' | 'creatives'; // Sync specific entity type only
 }
 
 const BASE_DELAY_MS = 200;
@@ -1028,13 +1029,13 @@ Deno.serve(async (req) => {
     const metaAccessToken = Deno.env.get('META_ACCESS_TOKEN');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body: SyncRequest = await req.json();
-    const { project_id, ad_account_id, access_token, date_preset, time_range, retry_count = 0, light_sync = false, skip_image_cache = false } = body;
+    const { project_id, ad_account_id, access_token, date_preset, time_range, retry_count = 0, light_sync = false, skip_image_cache = false, syncOnly } = body;
     
     let since: string, until: string;
     if (time_range) { since = time_range.since; until = time_range.until; }
     else { const today = new Date(); until = today.toISOString().split('T')[0]; const daysMap: Record<string, number> = { yesterday: 1, today: 0, last_7d: 7, last_14d: 14, last_30d: 30, last_90d: 90 }; const days = daysMap[date_preset || 'last_90d'] || 90; const sinceDate = new Date(today); sinceDate.setDate(sinceDate.getDate() - days); since = sinceDate.toISOString().split('T')[0]; }
     
-    console.log(`[SYNC] Project: ${project_id}, Range: ${since} to ${until}, light_sync: ${light_sync}, skip_cache: ${skip_image_cache}`);
+    console.log(`[SYNC] Project: ${project_id}, Range: ${since} to ${until}, light_sync: ${light_sync}, skip_cache: ${skip_image_cache}, syncOnly: ${syncOnly || 'all'}`);
     const token = access_token || metaAccessToken;
     if (!token) throw new Error('No Meta access token available');
     

@@ -14,7 +14,11 @@ import {
   Database,
   Activity,
   AlertTriangle,
-  Loader2
+  Loader2,
+  Megaphone,
+  Layers,
+  FileText,
+  Image as ImageIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import SyncHistoryChart from './SyncHistoryChart';
@@ -40,12 +44,14 @@ interface ImportMonth {
   completed_at: string | null;
 }
 
+type SyncType = 'all' | 'campaigns' | 'adsets' | 'ads' | 'creatives';
+
 export default function ProjectAdminTab({ projectId, projectName }: ProjectAdminTabProps) {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [recentLogs, setRecentLogs] = useState<SyncLog[]>([]);
   const [importMonths, setImportMonths] = useState<ImportMonth[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  const [syncingType, setSyncingType] = useState<SyncType | null>(null);
 
   useEffect(() => {
     // Reset state when projectId changes
@@ -97,16 +103,31 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
     fetchData();
   }, [projectId]);
 
-  const handleManualSync = async () => {
-    setSyncing(true);
+  const handleSync = async (type: SyncType) => {
+    setSyncingType(type);
     try {
+      const body: Record<string, unknown> = { projectId };
+      
+      // Add specific sync type options
+      if (type !== 'all') {
+        body.syncOnly = type;
+      }
+      
       const { error } = await supabase.functions.invoke('meta-ads-sync', {
-        body: { projectId }
+        body
       });
       
       if (error) throw error;
       
-      toast.success('Sincronização iniciada com sucesso');
+      const typeLabels: Record<SyncType, string> = {
+        all: 'Completa',
+        campaigns: 'Campanhas',
+        adsets: 'Conjuntos',
+        ads: 'Anúncios',
+        creatives: 'Criativos'
+      };
+      
+      toast.success(`Sincronização de ${typeLabels[type]} iniciada`);
       
       // Refresh data after a delay
       setTimeout(async () => {
@@ -119,12 +140,25 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
         if (data?.last_sync_at) {
           setLastSync(new Date(data.last_sync_at));
         }
-        setSyncing(false);
+        
+        // Refresh logs
+        const { data: logsData } = await supabase
+          .from('sync_logs')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (logsData) {
+          setRecentLogs(logsData);
+        }
+        
+        setSyncingType(null);
       }, 5000);
     } catch (error) {
       console.error('Erro na sincronização:', error);
       toast.error('Erro ao iniciar sincronização');
-      setSyncing(false);
+      setSyncingType(null);
     }
   };
 
@@ -205,22 +239,27 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
         </Card>
       </div>
 
-      {/* Sync Button */}
+      {/* Sync Buttons */}
       <Card className="glass-card">
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <CardHeader>
+          <CardTitle className="text-lg">Sincronização Manual</CardTitle>
+          <CardDescription>Sincronize dados específicos ou tudo de uma vez</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Full Sync */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
             <div>
-              <h3 className="font-semibold">Sincronização Manual</h3>
+              <h4 className="font-medium">Sincronização Completa</h4>
               <p className="text-sm text-muted-foreground">
-                Force uma sincronização imediata dos dados do Meta Ads
+                Sincroniza campanhas, conjuntos, anúncios e criativos
               </p>
             </div>
             <Button 
-              onClick={handleManualSync} 
-              disabled={syncing}
+              onClick={() => handleSync('all')} 
+              disabled={syncingType !== null}
               className="w-full sm:w-auto"
             >
-              {syncing ? (
+              {syncingType === 'all' ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Sincronizando...
@@ -228,9 +267,80 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
               ) : (
                 <>
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  Sincronizar Agora
+                  Sincronizar Tudo
                 </>
               )}
+            </Button>
+          </div>
+          
+          {/* Individual Sync Buttons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Button
+              variant="outline"
+              onClick={() => handleSync('campaigns')}
+              disabled={syncingType !== null}
+              className="justify-start h-auto py-3"
+            >
+              {syncingType === 'campaigns' ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Megaphone className="w-4 h-4 mr-2" />
+              )}
+              <div className="text-left">
+                <div className="font-medium">Campanhas</div>
+                <div className="text-xs text-muted-foreground">Sincronizar só campanhas</div>
+              </div>
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => handleSync('adsets')}
+              disabled={syncingType !== null}
+              className="justify-start h-auto py-3"
+            >
+              {syncingType === 'adsets' ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Layers className="w-4 h-4 mr-2" />
+              )}
+              <div className="text-left">
+                <div className="font-medium">Conjuntos</div>
+                <div className="text-xs text-muted-foreground">Sincronizar só ad sets</div>
+              </div>
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => handleSync('ads')}
+              disabled={syncingType !== null}
+              className="justify-start h-auto py-3"
+            >
+              {syncingType === 'ads' ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
+              )}
+              <div className="text-left">
+                <div className="font-medium">Anúncios</div>
+                <div className="text-xs text-muted-foreground">Sincronizar só anúncios</div>
+              </div>
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => handleSync('creatives')}
+              disabled={syncingType !== null}
+              className="justify-start h-auto py-3"
+            >
+              {syncingType === 'creatives' ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <ImageIcon className="w-4 h-4 mr-2" />
+              )}
+              <div className="text-left">
+                <div className="font-medium">Criativos</div>
+                <div className="text-xs text-muted-foreground">Sincronizar só criativos</div>
+              </div>
             </Button>
           </div>
         </CardContent>
