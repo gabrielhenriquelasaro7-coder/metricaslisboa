@@ -231,12 +231,67 @@ export default function AdSetDetail() {
           }
         }
 
+        // First try to get ads from ads table
         const { data: adsData } = await supabase
           .from('ads')
           .select('*')
           .eq('ad_set_id', adSetId)
           .order('spend', { ascending: false });
-        setAds((adsData as Ad[]) || []);
+        
+        if (adsData && adsData.length > 0) {
+          setAds((adsData as Ad[]) || []);
+        } else {
+          // Fallback: aggregate ads from ads_daily_metrics
+          const { data: metricsAds } = await supabase
+            .from('ads_daily_metrics')
+            .select('ad_id, ad_name, ad_status, spend, impressions, clicks, conversions, conversion_value, ctr, cpm, cpc, roas, cpa, creative_thumbnail, cached_creative_thumbnail')
+            .eq('adset_id', adSetId);
+          
+          if (metricsAds && metricsAds.length > 0) {
+            // Group and aggregate by ad_id
+            const adMap = new Map<string, Ad>();
+            metricsAds.forEach(m => {
+              const existing = adMap.get(m.ad_id);
+              if (existing) {
+                existing.spend += m.spend || 0;
+                existing.impressions += m.impressions || 0;
+                existing.clicks += m.clicks || 0;
+                existing.conversions += m.conversions || 0;
+              } else {
+                adMap.set(m.ad_id, {
+                  id: m.ad_id,
+                  name: m.ad_name,
+                  status: m.ad_status || 'ACTIVE',
+                  spend: m.spend || 0,
+                  impressions: m.impressions || 0,
+                  clicks: m.clicks || 0,
+                  ctr: 0,
+                  cpm: 0,
+                  cpc: 0,
+                  conversions: m.conversions || 0,
+                  roas: 0,
+                  cpa: 0,
+                  creative_thumbnail: m.cached_creative_thumbnail || m.creative_thumbnail || null,
+                  creative_image_url: null,
+                  creative_video_url: null,
+                  headline: null,
+                });
+              }
+            });
+            // Calculate derived metrics
+            const aggregatedAds = Array.from(adMap.values()).map(ad => ({
+              ...ad,
+              ctr: ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0,
+              cpm: ad.impressions > 0 ? (ad.spend / ad.impressions) * 1000 : 0,
+              cpc: ad.clicks > 0 ? ad.spend / ad.clicks : 0,
+              roas: ad.spend > 0 ? (ad.conversions * 100) / ad.spend : 0, // Approximation
+              cpa: ad.conversions > 0 ? ad.spend / ad.conversions : 0,
+            }));
+            setAds(aggregatedAds.sort((a, b) => b.spend - a.spend));
+          } else {
+            setAds([]);
+          }
+        }
       } catch (error) {
         console.error('Error:', error);
       } finally {
