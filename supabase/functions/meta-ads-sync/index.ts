@@ -1174,8 +1174,19 @@ Deno.serve(async (req) => {
       });
     });
 
-    const adsetRecords = Array.from(adsetMetrics.values()).map(calculateDerived);
-    const adRecords = Array.from(adMetrics.values()).map(calculateDerived);
+    // Remove 'objective' field from adset records (ad_sets table doesn't have this column)
+    const adsetRecords = Array.from(adsetMetrics.values()).map(m => {
+      const record = calculateDerived(m);
+      delete record.objective;
+      return record;
+    });
+    
+    // Remove 'objective' field from ad records (ads table doesn't have this column)
+    const adRecords = Array.from(adMetrics.values()).map(m => {
+      const record = calculateDerived(m);
+      delete record.objective;
+      return record;
+    });
     
     // Log sample ad with creative data
     if (adRecords.length > 0) {
