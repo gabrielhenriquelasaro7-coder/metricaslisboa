@@ -74,7 +74,15 @@ async function simpleFetch(url: string, options?: RequestInit, timeoutMs = 30000
 async function fetchWithRetry(url: string, entityName: string): Promise<any> {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const data = await simpleFetch(url);
-    if (!data.error) return data;
+    if (!data.error) {
+      // Log if empty data
+      if ((!data.data || data.data.length === 0) && entityName !== 'ADIMAGES') {
+        console.log(`[${entityName}] Empty response - no data returned`);
+      }
+      return data;
+    }
+    // Log any error
+    console.log(`[${entityName}] API Error: ${JSON.stringify(data.error).substring(0, 300)}`);
     if (isTokenExpiredError(data)) return data;
     if (isRateLimitError(data) && attempt < MAX_RETRIES) {
       const waitTime = VALIDATION_RETRY_DELAYS[attempt] || 30000;
@@ -181,32 +189,69 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 
   console.log(`[ENTITIES] Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}`);
   
-  // DEBUG: Verificar se os ads têm creative data
-  const adsWithCreative = ads.filter(a => a.creative?.id);
-  const adsWithCreativeBody = ads.filter(a => a.creative?.body);
-  const adsWithCreativeSpec = ads.filter(a => a.creative?.object_story_spec);
-  console.log(`[DEBUG-ADS] Ads with creative.id: ${adsWithCreative.length}, with body: ${adsWithCreativeBody.length}, with object_story_spec: ${adsWithCreativeSpec.length}`);
-  
-  // Log sample ad creative data
-  if (ads.length > 0 && ads[0].creative) {
-    const c = ads[0].creative;
-    console.log(`[DEBUG-ADS-SAMPLE] First ad creative: id=${c.id}, body=${c.body?.substring(0,50) || 'null'}, title=${c.title || 'null'}, cta=${c.call_to_action_type || 'null'}`);
-    if (c.object_story_spec) {
-      const s = c.object_story_spec;
-      console.log(`[DEBUG-ADS-SAMPLE] object_story_spec: link_data=${!!s.link_data}, video_data=${!!s.video_data}`);
-      if (s.link_data) console.log(`[DEBUG-ADS-SAMPLE] link_data.message=${s.link_data.message?.substring(0,50) || 'null'}, name=${s.link_data.name || 'null'}`);
-      if (s.video_data) console.log(`[DEBUG-ADS-SAMPLE] video_data.message=${s.video_data.message?.substring(0,50) || 'null'}, title=${s.video_data.title || 'null'}`);
-    }
-  } else {
-    console.log(`[DEBUG-ADS-SAMPLE] No ads or no creative in first ad`);
-  }
-  
   const adImageMap = new Map<string, string>(), videoThumbnailMap = new Map<string, string>(), creativeDataMap = new Map<string, any>(), adPreviewMap = new Map<string, string>(), immediateCache = new Map<string, string>();
   
   if (lightSync) return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache };
 
-  // Fetch HD images
-  const imageHashes = ads.filter(a => a.creative?.image_hash).map(a => a.creative.image_hash);
+  // ========== NOVA ABORDAGEM: Buscar TODOS os creatives via endpoint /adcreatives ==========
+  // A query nested creative{...} não está retornando os dados completos na API v21.0
+  // Buscamos diretamente da conta de anúncios
+  console.log(`[CREATIVES] Fetching all creatives via /adcreatives endpoint...`);
+  
+  const allCreatives: any[] = [];
+  let creativesUrl: string | null = `https://graph.facebook.com/v21.0/${adAccountId}/adcreatives?fields=id,name,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec&limit=500&access_token=${token}`;
+  
+  while (creativesUrl) {
+    const creativeData = await fetchWithRetry(creativesUrl, 'ADCREATIVES');
+    if (isTokenExpiredError(creativeData)) {
+      console.log(`[CREATIVES] Token expired during creative fetch`);
+      break;
+    }
+    if (creativeData.data) {
+      allCreatives.push(...creativeData.data);
+    }
+    creativesUrl = creativeData.paging?.next || null;
+  }
+  
+  console.log(`[CREATIVES] Fetched ${allCreatives.length} creatives from account`);
+  
+  // Mapear creatives por ID
+  for (const creative of allCreatives) {
+    if (creative.id) {
+      creativeDataMap.set(creative.id, creative);
+    }
+  }
+  
+  // Log sample creative
+  if (allCreatives.length > 0) {
+    const c = allCreatives[0];
+    console.log(`[CREATIVES] Sample: id=${c.id}, body=${c.body?.substring(0,50) || 'null'}, title=${c.title || 'null'}, cta=${c.call_to_action_type || 'null'}`);
+    if (c.object_story_spec) {
+      const s = c.object_story_spec;
+      console.log(`[CREATIVES] object_story_spec: link_data=${!!s.link_data}, video_data=${!!s.video_data}`);
+      if (s.link_data) console.log(`[CREATIVES] link_data.message=${s.link_data.message?.substring(0,50) || 'null'}, name=${s.link_data.name || 'null'}`);
+      if (s.video_data) console.log(`[CREATIVES] video_data.message=${s.video_data.message?.substring(0,50) || 'null'}, title=${s.video_data.title || 'null'}`);
+    }
+  }
+  
+  // Mapear creatives para ads baseado no creative.id que veio na query de ads
+  const adsWithCreativeId = ads.filter(a => a.creative?.id);
+  const adsMatchedWithCreative = adsWithCreativeId.filter(a => creativeDataMap.has(a.creative.id));
+  console.log(`[CREATIVES] Ads with creative.id: ${adsWithCreativeId.length}, matched in creativeDataMap: ${adsMatchedWithCreative.length}`);
+
+  // Fetch HD images - agora usando os hashes do creativeDataMap
+  const allImageHashes = new Set<string>();
+  for (const creative of allCreatives) {
+    if (creative.image_hash) allImageHashes.add(creative.image_hash);
+    if (creative.object_story_spec?.link_data?.image_hash) allImageHashes.add(creative.object_story_spec.link_data.image_hash);
+    if (creative.object_story_spec?.video_data?.image_hash) allImageHashes.add(creative.object_story_spec.video_data.image_hash);
+  }
+  for (const ad of ads) {
+    if (ad.creative?.image_hash) allImageHashes.add(ad.creative.image_hash);
+  }
+  
+  const imageHashes = Array.from(allImageHashes);
+  console.log(`[IMAGES] Fetching ${imageHashes.length} unique image hashes`);
   for (let i = 0; i < imageHashes.length; i += 50) {
     const batch = imageHashes.slice(i, i + 50);
     const imageUrl = `https://graph.facebook.com/v21.0/${adAccountId}/adimages?hashes=${encodeURIComponent(JSON.stringify(batch))}&fields=hash,url&access_token=${token}`;
@@ -214,10 +259,25 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
     if (imageData.data) for (const img of imageData.data) if (img.hash && img.url) adImageMap.set(img.hash, img.url);
   }
 
-  // Fetch video thumbnails (batch API)
-  const videoIdsToFetch = ads.filter(a => a.creative?.object_story_spec?.video_data?.video_id && !cachedCreativeMap.has(a.id)).map(a => a.creative.object_story_spec.video_data.video_id);
-  for (let i = 0; i < videoIdsToFetch.length; i += 50) {
-    const batch = videoIdsToFetch.slice(i, i + 50);
+  // Fetch video thumbnails - agora usando creatives já carregados via /adcreatives
+  const videoIdsToFetch = new Set<string>();
+  for (const creative of allCreatives) {
+    if (creative.object_story_spec?.video_data?.video_id) {
+      videoIdsToFetch.add(creative.object_story_spec.video_data.video_id);
+    }
+  }
+  // Também do ad diretamente se tiver
+  for (const ad of ads) {
+    if (ad.creative?.object_story_spec?.video_data?.video_id) {
+      videoIdsToFetch.add(ad.creative.object_story_spec.video_data.video_id);
+    }
+  }
+  
+  const videoIds = Array.from(videoIdsToFetch);
+  console.log(`[VIDEOS] Fetching ${videoIds.length} video thumbnails`);
+  
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const batch = videoIds.slice(i, i + 50);
     const batchRequests = batch.map(videoId => ({ method: 'GET', relative_url: `${videoId}?fields=id,picture,thumbnails{uri,height,width}` }));
     try {
       const response = await fetch(`https://graph.facebook.com/v21.0/?access_token=${token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch: batchRequests }) });
@@ -227,52 +287,8 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
       }
     } catch {}
   }
-
-  // Fetch creatives (batch API) - SEMPRE buscar todos os creatives, ignorando cache
-  // O cache anterior só tinha imagens, não tinha headline/primary_text/cta
-  const creativeIdsToFetch = ads.filter(a => a.creative?.id).map(a => a.creative.id);
-  const uniqueCreativeIds = [...new Set(creativeIdsToFetch)]; // Remove duplicates
-  console.log(`[DEBUG-CREATIVE] creativeIdsToFetch count: ${uniqueCreativeIds.length}, sample: ${uniqueCreativeIds.slice(0, 3).join(',')}`);
   
-  for (let i = 0; i < uniqueCreativeIds.length; i += 50) {
-    const batch = uniqueCreativeIds.slice(i, i + 50);
-    const batchRequests = batch.map(creativeId => ({ method: 'GET', relative_url: `${creativeId}?fields=id,thumbnail_url,image_url,image_hash,object_story_spec,body,title,call_to_action_type` }));
-    try {
-      const response = await fetch(`https://graph.facebook.com/v21.0/?access_token=${token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch: batchRequests }) });
-      console.log(`[DEBUG-CREATIVE] Batch response status: ${response.status}`);
-      if (response.ok) { 
-        const results = await response.json(); 
-        console.log(`[DEBUG-CREATIVE] Batch results count: ${results.length}`);
-        for (let j = 0; j < results.length; j++) {
-          if (results[j].code === 200 && results[j].body) { 
-            try { 
-              const parsed = JSON.parse(results[j].body);
-              creativeDataMap.set(batch[j], parsed); 
-              // Log first creative to see what fields are available
-              if (j === 0 && i === 0) {
-                console.log(`[DEBUG-CREATIVE] Sample creative data: id=${parsed.id}, body=${parsed.body?.substring(0,50) || 'null'}, title=${parsed.title || 'null'}, cta=${parsed.call_to_action_type || 'null'}, has_object_story_spec=${!!parsed.object_story_spec}`);
-                if (parsed.object_story_spec) {
-                  const spec = parsed.object_story_spec;
-                  console.log(`[DEBUG-CREATIVE] object_story_spec: has_link_data=${!!spec.link_data}, has_video_data=${!!spec.video_data}`);
-                  if (spec.link_data) {
-                    console.log(`[DEBUG-CREATIVE] link_data: message=${spec.link_data.message?.substring(0,50) || 'null'}, name=${spec.link_data.name || 'null'}`);
-                  }
-                  if (spec.video_data) {
-                    console.log(`[DEBUG-CREATIVE] video_data: message=${spec.video_data.message?.substring(0,50) || 'null'}, title=${spec.video_data.title || 'null'}`);
-                  }
-                }
-              }
-            } catch {} 
-          } else {
-            console.log(`[DEBUG-CREATIVE] Failed result ${j}: code=${results[j].code}, error=${results[j].body?.substring(0,100)}`);
-          }
-        }
-      }
-    } catch (e) {
-      console.log(`[DEBUG-CREATIVE] Batch fetch error: ${e}`);
-    }
-  }
-  console.log(`[DEBUG-CREATIVE] Final creativeDataMap size: ${creativeDataMap.size}`);
+  console.log(`[CREATIVES] Final creativeDataMap size: ${creativeDataMap.size}, adImageMap: ${adImageMap.size}, videoThumbnailMap: ${videoThumbnailMap.size}`);
 
   // Immediate image caching - prioritize HD sources
   if (!skipImageCache && supabase && projectId) {
