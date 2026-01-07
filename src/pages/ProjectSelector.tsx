@@ -135,95 +135,84 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   return (
     <div 
       className={cn(
-        "v4-project-card group p-5",
-        project.archived && 'opacity-50 grayscale-[30%]'
+        "v4-cockpit-card group p-5 cursor-pointer",
+        project.archived && 'opacity-50'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Content */}
-      <div className="relative z-10">
-        {/* Header Row */}
-        <div className="flex items-start gap-4 mb-4">
-          {/* Avatar */}
-          <div className={cn(
-            "relative w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden",
-            "bg-black/40 border border-white/10",
-            "transition-all duration-500 group-hover:border-red-600/40",
-            "group-hover:shadow-[0_0_20px_rgba(220,38,38,0.3)]"
-          )}>
-            {project.avatar_url ? (
-              <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
-            ) : (
-              <Icon className="w-7 h-7 text-white/60 group-hover:text-red-500 transition-colors duration-300" />
-            )}
+      {/* Header Row */}
+      <div className="flex items-start gap-4 mb-4">
+        {/* Avatar */}
+        <div className={cn(
+          "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden",
+          "bg-white/5 border border-white/10"
+        )}>
+          {project.avatar_url ? (
+            <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
+          ) : (
+            <Icon className="w-6 h-6 text-white/40" />
+          )}
+        </div>
+        
+        {/* Title & Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <h3 className="font-semibold text-white truncate" title={project.name}>
+              {project.name}
+            </h3>
+            {/* Health indicator dot */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={cn(
+                    "w-2 h-2 rounded-full flex-shrink-0",
+                    healthDotColor
+                  )} />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs bg-[#0f0f0f] border-white/10">
+                  Health: {healthOption.label}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           
-          {/* Title & Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1.5">
-              <h3 className="font-bold text-lg text-white group-hover:text-red-400 transition-colors duration-300 truncate" title={project.name}>
-                {project.name}
-              </h3>
-              {/* Health indicator dot */}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className={cn(
-                      "w-2.5 h-2.5 rounded-full flex-shrink-0 transition-all duration-300",
-                      healthDotColor,
-                      "group-hover:scale-125 group-hover:shadow-[0_0_8px_currentColor]"
-                    )} />
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs bg-black/90 border-white/10">
-                    Health: {healthOption.label}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={cn(
-                "inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium uppercase tracking-wider",
-                "bg-red-600/10 border border-red-600/20 text-red-400",
-                "group-hover:bg-red-600/20 group-hover:border-red-600/40 transition-colors duration-300"
-              )}>
-                <Icon className="w-3 h-3" />
-                {model?.label}
-              </span>
-              <span className="text-xs text-white/40 font-mono bg-white/5 px-2 py-1 rounded">
-                {project.ad_account_id.replace('act_', '')}
-              </span>
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-white/5 text-white/50 border border-white/10">
+              <Icon className="w-3 h-3" />
+              {model?.label}
+            </span>
+            <span className="text-[10px] text-white/30 font-mono">
+              {project.ad_account_id.replace('act_', '')}
+            </span>
           </div>
         </div>
+      </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-white/10 group-hover:border-red-600/20 transition-colors duration-300">
-          {/* Sync Status */}
-          <div className={cn(
-            "flex items-center gap-1.5 text-xs transition-colors duration-300",
-            lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
-              ? "text-emerald-500" 
-              : "text-white/40"
-          )}>
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca'}</span>
-          </div>
-          
-          {/* Actions */}
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(project);
-              }}
-              className="v4-btn h-8 px-3 text-xs"
-            >
-              ACESSAR
-              <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform duration-300" />
-            </Button>
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-3 border-t border-white/5">
+        {/* Sync Status */}
+        <div className={cn(
+          "flex items-center gap-1.5 text-xs",
+          lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
+            ? "text-emerald-400" 
+            : "text-white/30"
+        )}>
+          <RefreshCw className="w-3 h-3" />
+          <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca'}</span>
+        </div>
+        
+        {/* Actions */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(project);
+            }}
+            className="v4-ghost-btn text-xs py-1.5 px-3 flex items-center gap-1"
+          >
+            Acessar
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -259,7 +248,6 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
         </div>
       </div>
     </div>
@@ -788,125 +776,114 @@ export default function ProjectSelector() {
   };
 
   return (
-    <div className="min-h-screen v4-cyber-bg">
-      {/* V4 Cyber-Industrial Laser X Background */}
-      <div className="v4-laser-x" />
-      
-      {/* Top-left ambient glow */}
-      <div className="v4-ambient-glow" />
-      
-      {/* Center intersection glow */}
-      <div className="v4-laser-center-glow" />
-      
-      {/* Vignette effect */}
-      <div className="v4-vignette" />
+    <div className="min-h-screen v4-cockpit-bg">
+      {/* V4 Ambient Light Effects */}
+      <div className="v4-ambient-light top-left" />
+      <div className="v4-ambient-light bottom-right" />
+      <div className="v4-ambient-light center" />
 
       {/* Main Content */}
       <div className="relative" style={{ zIndex: 10 }}>
-        {/* Header - V4 Industrial */}
-        <header className="container mx-auto px-6 pt-8 pb-4">
-          <div className="flex items-center justify-between">
+        {/* Header */}
+        <header className="w-full px-8 pt-6 pb-4">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
             {/* Logo */}
-            <div className="flex items-center gap-4 group">
-              <div className="relative">
-                <div className="absolute inset-0 bg-red-600/40 blur-xl rounded-full opacity-60 group-hover:opacity-100 transition-opacity" />
-                <img 
-                  src={v4LogoIcon} 
-                  alt="V4 Company" 
-                  className="relative h-14 w-auto rounded-xl"
-                  style={{ filter: 'drop-shadow(0 0 25px rgba(220, 38, 38, 0.8))' }}
-                />
-              </div>
+            <div className="flex items-center gap-4">
+              <img 
+                src={v4LogoIcon} 
+                alt="V4 Company" 
+                className="h-10 w-auto"
+              />
               <div className="flex flex-col">
-                <h1 className="text-2xl font-bold text-white v4-glow-text">
-                  METAADS MANAGER
+                <h1 className="text-xl font-bold text-white tracking-tight">
+                  MetaAds <span className="text-white/60 font-normal">Manager</span>
                 </h1>
-                <span className="text-xs text-white/40 tracking-[0.2em] uppercase">by V4 Company</span>
+                <span className="text-[10px] text-white/30 tracking-widest uppercase">by V4 Company</span>
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <button 
                 onClick={() => navigate('/admin')}
-                className="v4-btn-secondary rounded-lg gap-2 flex items-center"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/5 transition-all"
               >
                 <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">ADMIN</span>
+                <span className="hidden sm:inline">Admin</span>
               </button>
               <button 
                 onClick={handleLogout} 
-                className="v4-btn-secondary rounded-lg gap-2 flex items-center"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/5 transition-all"
               >
                 <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">SAIR</span>
+                <span className="hidden sm:inline">Sair</span>
               </button>
             </div>
           </div>
         </header>
 
         {/* Section Title */}
-        <div className="container mx-auto px-6 py-4">
-          <div className="max-w-4xl mx-auto text-center mb-2">
-            <h2 className="text-3xl font-bold text-white v4-glow-text mb-2 tracking-wide">
-              SEUS PROJETOS
+        <div className="w-full px-8 py-6">
+          <div className="max-w-7xl mx-auto text-center">
+            <h2 className="text-3xl font-bold text-white mb-2">
+              Seus Projetos
             </h2>
-            <p className="text-white/40 text-sm tracking-wider">
+            <p className="text-white/40 text-sm">
               Gerencie e monitore suas campanhas de anúncios
             </p>
           </div>
         </div>
 
-        {/* Summary Cards - V4 Industrial Glass */}
-        <div className="container mx-auto px-6 py-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+        {/* Summary Cards - Cockpit Stats */}
+        <div className="w-full px-8 py-4">
+          <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">
             {/* Total */}
-            <div className="v4-stat-card group">
-              <div className="relative flex items-center justify-between">
+            <div className="v4-cockpit-stat group">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-white/40 font-medium uppercase tracking-wider">TOTAL CLIENTES</p>
-                  <p className="text-3xl font-bold text-white mt-2 group-hover:text-red-400 transition-colors">{healthCounts.total}</p>
+                  <p className="text-[11px] text-white/40 font-medium uppercase tracking-wider mb-1">Total de Clientes</p>
+                  <p className="text-3xl font-bold text-white">{healthCounts.total}</p>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-red-600/10 border border-red-600/20 flex items-center justify-center group-hover:bg-red-600/20 group-hover:scale-110 transition-all">
-                  <FolderKanban className="w-6 h-6 text-red-500" />
+                <div className="w-11 h-11 rounded-xl bg-white/5 flex items-center justify-center">
+                  <FolderKanban className="w-5 h-5 text-white/40" />
                 </div>
               </div>
             </div>
             
             {/* Safe */}
-            <div className="v4-stat-card group">
-              <div className="relative flex items-center justify-between">
+            <div className="v4-cockpit-stat">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-white/40 font-medium uppercase tracking-wider">SAFE</p>
-                  <p className="text-3xl font-bold text-emerald-400 mt-2">{healthCounts.safe}</p>
+                  <p className="text-[11px] text-white/40 font-medium uppercase tracking-wider mb-1">Safe</p>
+                  <p className="text-3xl font-bold text-emerald-400">{healthCounts.safe}</p>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-600/10 border border-emerald-600/20 flex items-center justify-center group-hover:bg-emerald-600/20 group-hover:scale-110 transition-all">
-                  <ShieldCheck className="w-6 h-6 text-emerald-400" />
+                <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
                 </div>
               </div>
             </div>
             
             {/* Care */}
-            <div className="v4-stat-card group">
-              <div className="relative flex items-center justify-between">
+            <div className="v4-cockpit-stat">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-white/40 font-medium uppercase tracking-wider">CARE</p>
-                  <p className="text-3xl font-bold text-amber-400 mt-2">{healthCounts.care}</p>
+                  <p className="text-[11px] text-white/40 font-medium uppercase tracking-wider mb-1">Care</p>
+                  <p className="text-3xl font-bold text-amber-400">{healthCounts.care}</p>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-amber-600/10 border border-amber-600/20 flex items-center justify-center group-hover:bg-amber-600/20 group-hover:scale-110 transition-all">
-                  <AlertTriangle className="w-6 h-6 text-amber-400" />
+                <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
                 </div>
               </div>
             </div>
             
             {/* Danger */}
-            <div className="v4-stat-card group">
-              <div className="relative flex items-center justify-between">
+            <div className="v4-cockpit-stat">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-white/40 font-medium uppercase tracking-wider">DANGER</p>
-                  <p className="text-3xl font-bold text-red-400 mt-2">{healthCounts.danger}</p>
+                  <p className="text-[11px] text-white/40 font-medium uppercase tracking-wider mb-1">Danger</p>
+                  <p className="text-3xl font-bold text-red-400">{healthCounts.danger}</p>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-red-600/10 border border-red-600/20 flex items-center justify-center group-hover:bg-red-600/20 group-hover:scale-110 transition-all">
-                  <AlertCircle className="w-6 h-6 text-red-400" />
+                <div className="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
                 </div>
               </div>
             </div>
@@ -914,73 +891,81 @@ export default function ProjectSelector() {
         </div>
 
         {/* Main Content */}
-        <main className="container mx-auto px-6 pb-8">
+        <main className="w-full px-8 pb-8">
           <div className="max-w-7xl mx-auto">
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              {/* Controls Bar - V4 Industrial Glass */}
-              <div className="v4-glass p-4 mb-6">
-                <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {/* Controls Bar - Cockpit Glass */}
+              <div className="v4-cockpit-card p-4 mb-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   {/* Left side - Search and filters */}
                   <div className="flex flex-wrap items-center gap-3">
                     {/* Search Input */}
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                       <Input
                         placeholder="Buscar por nome ou account..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 w-64 h-10 bg-black/40 border-white/10 rounded-lg text-white placeholder:text-white/30 focus:border-red-600/50"
+                        className="v4-cockpit-input pl-10 w-64 h-10"
                       />
                     </div>
                     
                     {/* Status Filter */}
                     <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
-                      <SelectTrigger className="w-40 h-10 bg-black/40 border-white/10 text-white">
+                      <SelectTrigger className="w-40 h-10 v4-cockpit-select text-white/70">
                         <SelectValue placeholder="Todos os Status" />
                       </SelectTrigger>
-                      <SelectContent className="bg-black/95 border-white/10 backdrop-blur-xl">
-                        <SelectItem value="all" className="text-white/80 focus:bg-red-600/10 focus:text-red-400">Todos os Status</SelectItem>
-                        <SelectItem value="safe" className="text-white/80 focus:bg-red-600/10 focus:text-red-400">Safe</SelectItem>
-                        <SelectItem value="care" className="text-white/80 focus:bg-red-600/10 focus:text-red-400">Care</SelectItem>
-                        <SelectItem value="danger" className="text-white/80 focus:bg-red-600/10 focus:text-red-400">Danger</SelectItem>
+                      <SelectContent className="bg-[#0f0f0f] border-white/10">
+                        <SelectItem value="all" className="text-white/70 focus:bg-white/5 focus:text-white">Todos os Status</SelectItem>
+                        <SelectItem value="safe" className="text-white/70 focus:bg-white/5 focus:text-white">Safe</SelectItem>
+                        <SelectItem value="care" className="text-white/70 focus:bg-white/5 focus:text-white">Care</SelectItem>
+                        <SelectItem value="danger" className="text-white/70 focus:bg-white/5 focus:text-white">Danger</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Right side - Tabs and actions */}
-                  <div className="flex items-center gap-3">
-                    <div className="v4-tabs">
-                      <button 
-                        onClick={() => setActiveTab('meta-ads')}
-                        className={cn("v4-tab flex items-center gap-2", activeTab === 'meta-ads' && 'active')}
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
-                        </svg>
-                        META ADS
-                      </button>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="v4-tab flex items-center gap-2 opacity-40 cursor-not-allowed">
-                              <Lock className="w-4 h-4" />
-                              GOOGLE ADS
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent className="bg-black/90 border-white/10">
-                            <p>Em breve</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <button 
-                        onClick={() => setActiveTab('profile')}
-                        className={cn("v4-tab flex items-center gap-2", activeTab === 'profile' && 'active')}
-                      >
-                        <User className="w-4 h-4" />
-                        PERFIL
-                      </button>
-                    </div>
+                  {/* Right side - Tabs */}
+                  <div className="flex items-center gap-2 bg-black/30 rounded-lg p-1">
+                    <button 
+                      onClick={() => setActiveTab('meta-ads')}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                        activeTab === 'meta-ads' 
+                          ? 'bg-blue-600/20 text-blue-400' 
+                          : 'text-white/50 hover:text-white/80'
+                      )}
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+                      </svg>
+                      Meta Ads
+                    </button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white/25 cursor-not-allowed">
+                            <Lock className="w-4 h-4" />
+                            Google Ads
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-[#0f0f0f] border-white/10">
+                          <p>Em breve</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <button 
+                      onClick={() => setActiveTab('profile')}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                        activeTab === 'profile' 
+                          ? 'bg-white/10 text-white' 
+                          : 'text-white/50 hover:text-white/80'
+                      )}
+                    >
+                      <User className="w-4 h-4" />
+                      Perfil
+                    </button>
                   </div>
                 </div>
               </div>
@@ -989,24 +974,24 @@ export default function ProjectSelector() {
             {activeTab === 'meta-ads' && (
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                     <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
                     </svg>
                     {showArchived ? 'Meta Ads - Arquivados' : 'Meta Ads - Clientes'}
                   </h2>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-white/40">
                     Total de {showArchived ? archivedMetaProjects.length : metaAdsProjects.length} clientes Meta Ads
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   {/* View Mode Toggle */}
-                  <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50">
+                  <div className="flex items-center bg-black/30 rounded-lg p-1">
                     <button
                       onClick={() => setViewMode('grid')}
                       className={cn(
-                        "p-1.5 rounded-md transition-all",
-                        viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                        "p-2 rounded-md transition-all",
+                        viewMode === 'grid' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/70'
                       )}
                     >
                       <LayoutGrid className="w-4 h-4" />
@@ -1014,8 +999,8 @@ export default function ProjectSelector() {
                     <button
                       onClick={() => setViewMode('list')}
                       className={cn(
-                        "p-1.5 rounded-md transition-all",
-                        viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                        "p-2 rounded-md transition-all",
+                        viewMode === 'list' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/70'
                       )}
                     >
                       <List className="w-4 h-4" />
@@ -1023,40 +1008,36 @@ export default function ProjectSelector() {
                   </div>
 
                   {!isGuest && (
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    <button
                       onClick={() => {
                         setInviteProjectId(undefined);
                         setInviteProjectName(undefined);
                         setInviteDialogOpen(true);
                       }}
-                      className="border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all gap-2"
+                      className="v4-ghost-btn flex items-center gap-2"
                     >
                       <UserPlus className="w-4 h-4" />
                       Convidar Cliente
-                    </Button>
+                    </button>
                   )}
 
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <button
                     onClick={() => setShowArchived(!showArchived)}
                     className={cn(
-                      "border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all",
-                      showArchived && 'bg-primary/10 border-primary/50'
+                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-all",
+                      showArchived && 'bg-white/5 border-white/20'
                     )}
                   >
-                    <Archive className="w-4 h-4 mr-2" />
+                    <Archive className="w-4 h-4" />
                     {showArchived ? 'Ativos' : 'Arquivados'}
-                  </Button>
+                  </button>
                   
                   <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button className="gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 shadow-lg shadow-blue-600/30">
+                      <button className="v4-primary-btn flex items-center gap-2">
                         <Plus className="w-4 h-4" />
                         Novo Cliente Meta
-                      </Button>
+                      </button>
                     </DialogTrigger>
                       <DialogContent className="sm:max-w-2xl max-h-[90vh]">
                         <DialogHeader>
