@@ -388,7 +388,45 @@ const REVENUE_ACTION_TYPES = [
   'omni_purchase',
 ];
 
-function extractConversions(row: any): { 
+// ===========================================================================================
+// DETECÇÃO DO TIPO DE CONVERSÃO BASEADO NO OBJETIVO DA CAMPANHA
+// 
+// O objetivo da campanha determina qual tipo de lead é o PRINCIPAL:
+// - OUTCOME_ENGAGEMENT ou [MENSAGEM] no nome → priorizar mensagens
+// - OUTCOME_LEADS ou [TRAFEGO] + leads no site → priorizar formulários/contatos
+// - OUTCOME_TRAFFIC sem mensagem → priorizar formulários/contatos
+// ===========================================================================================
+function detectPrimaryLeadType(campaignObjective: string | null, campaignName: string | null): 'message' | 'form_contact' | 'auto' {
+  const objective = (campaignObjective || '').toUpperCase();
+  const name = (campaignName || '').toUpperCase();
+  
+  // Campanhas de ENGAJAMENTO/MENSAGEM → priorizar mensagens
+  if (objective.includes('ENGAGEMENT') || name.includes('[MENSAGEM]') || name.includes('WHATSAPP')) {
+    return 'message';
+  }
+  
+  // Campanhas de TRÁFEGO com indicação de leads/grupo → priorizar formulários
+  if (objective.includes('TRAFFIC') || objective.includes('LEADS')) {
+    if (name.includes('[GRUPO VIP]') || name.includes('LEAD') && !name.includes('[MENSAGEM]')) {
+      return 'form_contact';
+    }
+  }
+  
+  // Campanhas de LEADS → priorizar formulários/contatos
+  if (objective.includes('LEADS')) {
+    return 'form_contact';
+  }
+  
+  // Campanhas de AWARENESS → priorizar formulários/contatos (conversões secundárias)
+  if (objective.includes('AWARENESS')) {
+    return 'form_contact';
+  }
+  
+  // Default: usar lógica automática (maior valor)
+  return 'auto';
+}
+
+function extractConversions(row: any, campaignObjective?: string, campaignName?: string): { 
   conversions: number; 
   costPerResult: number; 
   conversionValue: number; 
@@ -402,16 +440,19 @@ function extractConversions(row: any): {
   let source = 'none';
   let leadsCount = 0;
   let purchasesCount = 0;
+  
+  // Detectar qual tipo de lead é o PRINCIPAL baseado no objetivo da campanha
+  const primaryLeadType = detectPrimaryLeadType(campaignObjective || null, campaignName || null);
 
   // ===========================================================================================
-  // ESTRATÉGIA CORRIGIDA: Leads = formulários + contatos no site + mensagens iniciadas
+  // ESTRATÉGIA CORRIGIDA: Usar APENAS o tipo de lead definido pelo objetivo da campanha
   // 
   // O Gerenciador de Anúncios mostra como "Resultados" diferentes tipos dependendo do objetivo:
   // - Campanhas de formulário: lead / onsite_conversion.lead_grouped
   // - Campanhas de cadastro/contato: contact, complete_registration
   // - Campanhas de mensagem: messaging_conversation_started_7d
   // 
-  // TODOS devem ser contados como "leads" no dashboard!
+  // NÃO somar tipos diferentes - usar apenas o tipo PRINCIPAL!
   // ===========================================================================================
   
   // FONTE 1: Campo "actions" - eventos filtrados por action_type
@@ -476,34 +517,48 @@ function extractConversions(row: any): {
     const actualMessageLeads = messagePrefixed > 0 ? messagePrefixed : messageLeadValue;
     
     // ===========================================================================================
-    // REGRA CRÍTICA: Usar APENAS o tipo DOMINANTE de lead para evitar somar conversões secundárias
+    // REGRA CRÍTICA: Usar APENAS o tipo de lead definido pelo OBJETIVO DA CAMPANHA
     // 
-    // Exemplo: Uma campanha de "Leads no site" pode ter:
-    //   - lead/contact: 87 (objetivo principal)
-    //   - messaging_conversation_started_7d: 4 (conversão secundária)
-    // 
-    // NÃO devemos somar 87+4=91. Devemos usar apenas o maior: 87
+    // - primaryLeadType = 'message' → usar apenas mensagens (ignorar form/contact)
+    // - primaryLeadType = 'form_contact' → usar form ou contact (ignorar mensagens)
+    // - primaryLeadType = 'auto' → usar o maior valor (fallback)
     // ===========================================================================================
     
-    // Identificar o tipo dominante (maior valor) e usar apenas ele
-    const leadTypes = [
-      { type: 'form', value: actualFormLeads },
-      { type: 'contact', value: contactLeadValue },
-      { type: 'message', value: actualMessageLeads },
-    ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
+    const formContactTotal = Math.max(actualFormLeads, contactLeadValue);
     
-    if (leadTypes.length > 0) {
-      // Usar apenas o tipo dominante (maior valor)
-      const dominant = leadTypes[0];
-      leadsCount = dominant.value;
+    if (primaryLeadType === 'message') {
+      // Campanha de MENSAGEM: usar APENAS mensagens
+      leadsCount = actualMessageLeads;
       source = 'actions';
+      console.log(`[LEADS-BY-OBJECTIVE] type=message (campaign objective), value=${leadsCount}`);
+      if (formContactTotal > 0) {
+        console.log(`[LEADS-SECONDARY-IGNORED] form_contact=${formContactTotal} (campaign is MESSAGE type)`);
+      }
+    } else if (primaryLeadType === 'form_contact') {
+      // Campanha de LEADS/TRÁFEGO: usar APENAS formulários/contatos
+      leadsCount = formContactTotal;
+      source = 'actions';
+      console.log(`[LEADS-BY-OBJECTIVE] type=form_contact (campaign objective), value=${leadsCount}`);
+      if (actualMessageLeads > 0) {
+        console.log(`[LEADS-SECONDARY-IGNORED] message=${actualMessageLeads} (campaign is FORM/CONTACT type)`);
+      }
+    } else {
+      // AUTO: usar o maior valor (comportamento legado)
+      const leadTypes = [
+        { type: 'form', value: actualFormLeads },
+        { type: 'contact', value: contactLeadValue },
+        { type: 'message', value: actualMessageLeads },
+      ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
       
-      console.log(`[LEADS-DOMINANT] type=${dominant.type}, value=${dominant.value}`);
-      
-      // Se houver tipos secundários, logar mas NÃO somar
-      if (leadTypes.length > 1) {
-        const secondary = leadTypes.slice(1).map(t => `${t.type}=${t.value}`).join(', ');
-        console.log(`[LEADS-SECONDARY-IGNORED] ${secondary} (not summed)`);
+      if (leadTypes.length > 0) {
+        const dominant = leadTypes[0];
+        leadsCount = dominant.value;
+        source = 'actions';
+        console.log(`[LEADS-AUTO-DOMINANT] type=${dominant.type}, value=${dominant.value}`);
+        if (leadTypes.length > 1) {
+          const secondary = leadTypes.slice(1).map(t => `${t.type}=${t.value}`).join(', ');
+          console.log(`[LEADS-SECONDARY-IGNORED] ${secondary} (auto mode, not summed)`);
+        }
       }
     }
     
@@ -549,20 +604,39 @@ function extractConversions(row: any): {
     // PURCHASES: usar APENAS UM - omni_purchase tem prioridade
     purchasesCount = omniPurchaseConv > 0 ? omniPurchaseConv : purchaseConv;
     
-    // Usar apenas o tipo DOMINANTE de lead (mesmo princípio do campo actions)
-    const leadTypesConv = [
-      { type: 'form', value: actualFormLeads },
-      { type: 'contact', value: contactLeadConv },
-      { type: 'message', value: actualMessageLeads },
-    ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
+    // Usar apenas o tipo definido pelo OBJETIVO DA CAMPANHA (mesmo princípio)
+    const formContactTotalConv = Math.max(actualFormLeads, contactLeadConv);
     
-    if (leadTypesConv.length > 0) {
-      leadsCount = leadTypesConv[0].value;
+    if (primaryLeadType === 'message') {
+      leadsCount = actualMessageLeads;
       source = 'conversions_filtered';
-      console.log(`[LEADS-DOMINANT] conversions: type=${leadTypesConv[0].type}, value=${leadsCount}`);
-      if (leadTypesConv.length > 1) {
-        const secondary = leadTypesConv.slice(1).map(t => `${t.type}=${t.value}`).join(', ');
-        console.log(`[LEADS-SECONDARY-IGNORED] conversions: ${secondary} (not summed)`);
+      console.log(`[LEADS-BY-OBJECTIVE] conversions: type=message, value=${leadsCount}`);
+      if (formContactTotalConv > 0) {
+        console.log(`[LEADS-SECONDARY-IGNORED] conversions: form_contact=${formContactTotalConv} (campaign is MESSAGE type)`);
+      }
+    } else if (primaryLeadType === 'form_contact') {
+      leadsCount = formContactTotalConv;
+      source = 'conversions_filtered';
+      console.log(`[LEADS-BY-OBJECTIVE] conversions: type=form_contact, value=${leadsCount}`);
+      if (actualMessageLeads > 0) {
+        console.log(`[LEADS-SECONDARY-IGNORED] conversions: message=${actualMessageLeads} (campaign is FORM/CONTACT type)`);
+      }
+    } else {
+      // AUTO: usar o maior valor
+      const leadTypesConv = [
+        { type: 'form', value: actualFormLeads },
+        { type: 'contact', value: contactLeadConv },
+        { type: 'message', value: actualMessageLeads },
+      ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
+      
+      if (leadTypesConv.length > 0) {
+        leadsCount = leadTypesConv[0].value;
+        source = 'conversions_filtered';
+        console.log(`[LEADS-AUTO-DOMINANT] conversions: type=${leadTypesConv[0].type}, value=${leadsCount}`);
+        if (leadTypesConv.length > 1) {
+          const secondary = leadTypesConv.slice(1).map(t => `${t.type}=${t.value}`).join(', ');
+          console.log(`[LEADS-SECONDARY-IGNORED] conversions: ${secondary} (auto mode, not summed)`);
+        }
       }
     }
     
@@ -744,9 +818,11 @@ Deno.serve(async (req) => {
         
         // ===========================================================================================
         // EXTRAÇÃO COM FALLBACK HIERÁRQUICO: results → actions → 0
-        // AGORA COM SEPARAÇÃO DE LEADS E PURCHASES
+        // AGORA COM SEPARAÇÃO DE LEADS E PURCHASES + FILTRO POR OBJETIVO DA CAMPANHA
         // ===========================================================================================
-        const { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount } = extractConversions(insights);
+        const campaignObjective = campaign?.objective || insights.campaign_objective || null;
+        const campaignName = insights.campaign_name || campaign?.name || null;
+        const { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount } = extractConversions(insights, campaignObjective, campaignName);
         const messagingReplies = extractMessagingReplies(insights);
         const profileVisits = extractProfileVisits(insights);
         
