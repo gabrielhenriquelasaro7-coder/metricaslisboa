@@ -99,27 +99,51 @@ async function fetchWithRetry(url: string, entityName: string): Promise<any> {
   return { error: { message: 'Max retries exceeded' } };
 }
 
-async function cacheCreativeImage(supabase: any, projectId: string, adId: string, imageUrl: string | null): Promise<string | null> {
+async function cacheCreativeImage(supabase: any, projectId: string, adId: string, imageUrl: string | null, forceRefresh = false): Promise<string | null> {
   if (!imageUrl) return null;
   try {
     const fileName = `${projectId}/${adId}.jpg`;
-    const { data: existingFile } = await supabase.storage.from('creative-images').list(projectId, { limit: 1, search: `${adId}.jpg` });
-    if (existingFile?.length > 0) {
-      const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
-      if (publicUrlData?.publicUrl) return publicUrlData.publicUrl;
+    
+    // Check existing file - skip if already cached and has good size (unless force refresh)
+    if (!forceRefresh) {
+      const { data: existingFile } = await supabase.storage.from('creative-images').list(projectId, { limit: 1, search: `${adId}.jpg` });
+      if (existingFile?.length > 0) {
+        // Check file size - if it's too small, re-cache
+        const fileSize = existingFile[0]?.metadata?.size || 0;
+        if (fileSize > 10000) { // 10KB minimum for HD image
+          const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
+          if (publicUrlData?.publicUrl) return publicUrlData.publicUrl;
+        }
+        console.log(`[CACHE] Existing file too small (${fileSize} bytes), re-caching: ${adId}`);
+      }
     }
+    
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
     const response = await fetch(imageUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'image/*' }, signal: controller.signal });
     clearTimeout(timeoutId);
     if (!response.ok) return null;
+    
     const imageBuffer = await response.arrayBuffer();
-    if (imageBuffer.byteLength < 1024) return null;
+    // Minimum 10KB for HD image - reject small thumbnails
+    if (imageBuffer.byteLength < 10000) {
+      console.log(`[CACHE] Image too small (${imageBuffer.byteLength} bytes), skipping: ${adId}`);
+      return null;
+    }
+    
     const { error: uploadError } = await supabase.storage.from('creative-images').upload(fileName, imageBuffer, { contentType: response.headers.get('content-type') || 'image/jpeg', upsert: true });
-    if (uploadError) return null;
+    if (uploadError) {
+      console.log(`[CACHE] Upload error for ${adId}: ${uploadError.message}`);
+      return null;
+    }
+    
     const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
+    console.log(`[CACHE] Cached HD image (${imageBuffer.byteLength} bytes): ${adId}`);
     return publicUrlData?.publicUrl || null;
-  } catch { return null; }
+  } catch (e) { 
+    console.log(`[CACHE] Error caching ${adId}: ${e}`);
+    return null; 
+  }
 }
 
 async function fetchEntities(adAccountId: string, token: string, supabase?: any, projectId?: string, lightSync = false, skipImageCache = false): Promise<{
@@ -146,7 +170,10 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   url = `https://graph.facebook.com/v21.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) { const data = await fetchWithRetry(url, 'ADSETS'); if (isTokenExpiredError(data)) return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) adsets.push(...data.data); url = data.paging?.next || null; }
   
-  const adsFields = lightSync ? 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}' : 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,picture},video_data{message,title,call_to_action,video_id,image_hash}}}';
+  // Fetch ads with full creative fields - include image_url for direct HD access
+  const adsFields = lightSync 
+    ? 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}' 
+    : 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,picture,image_url},video_data{message,title,call_to_action,video_id,image_hash,image_url}}}';
   url = `https://graph.facebook.com/v21.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) { const data = await fetchWithRetry(url, 'ADS'); if (isTokenExpiredError(data)) return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) ads.push(...data.data); url = data.paging?.next || null; }
 
@@ -179,36 +206,84 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
     } catch {}
   }
 
-  // Fetch creatives (batch API)
+  // Fetch creatives (batch API) - include image_url for HD access
   const creativeIdsToFetch = ads.filter(a => a.creative?.id && !cachedCreativeMap.has(a.id)).map(a => a.creative.id);
   for (let i = 0; i < creativeIdsToFetch.length; i += 50) {
     const batch = creativeIdsToFetch.slice(i, i + 50);
-    const batchRequests = batch.map(creativeId => ({ method: 'GET', relative_url: `${creativeId}?fields=id,thumbnail_url,object_story_spec,body,title,call_to_action_type` }));
+    const batchRequests = batch.map(creativeId => ({ method: 'GET', relative_url: `${creativeId}?fields=id,thumbnail_url,image_url,image_hash,object_story_spec,body,title,call_to_action_type` }));
     try {
       const response = await fetch(`https://graph.facebook.com/v21.0/?access_token=${token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch: batchRequests }) });
       if (response.ok) { const results = await response.json(); for (let j = 0; j < results.length; j++) if (results[j].code === 200 && results[j].body) { try { creativeDataMap.set(batch[j], JSON.parse(results[j].body)); } catch {} } }
     } catch {}
   }
 
-  // Immediate image caching
+  // Immediate image caching - prioritize HD sources
   if (!skipImageCache && supabase && projectId) {
-    const adsNeedingCache: Array<{ adId: string; imageUrl: string }> = [];
+    const adsNeedingCache: Array<{ adId: string; imageUrl: string; isHD: boolean }> = [];
     for (const ad of ads) {
       const adId = String(ad.id);
-      if (cachedCreativeMap.has(adId) && cachedCreativeMap.get(adId)?.cached_url) { immediateCache.set(adId, cachedCreativeMap.get(adId).cached_url); continue; }
-      let freshImageUrl = ad.creative?.image_hash && adImageMap.has(ad.creative.image_hash) ? adImageMap.get(ad.creative.image_hash)! : null;
-      if (!freshImageUrl && ad.creative?.id && creativeDataMap.has(ad.creative.id)) freshImageUrl = creativeDataMap.get(ad.creative.id)?.thumbnail_url;
-      if (!freshImageUrl) { const videoId = ad.creative?.object_story_spec?.video_data?.video_id; if (videoId && videoThumbnailMap.has(videoId)) freshImageUrl = videoThumbnailMap.get(videoId)!; }
-      if (!freshImageUrl && ad.creative?.thumbnail_url) freshImageUrl = ad.creative.thumbnail_url;
-      if (freshImageUrl) adsNeedingCache.push({ adId, imageUrl: freshImageUrl });
+      const cached = cachedCreativeMap.get(adId);
+      
+      // Check if we have a good cached image (>10KB indicates HD)
+      if (cached?.cached_url) {
+        immediateCache.set(adId, cached.cached_url);
+        continue;
+      }
+      
+      // Priority order for HD images:
+      // 1. image_hash → adImageMap (verified HD from Meta)
+      // 2. creative.image_url (direct HD URL)
+      // 3. creativeData.image_url
+      // 4. link_data.image_url or link_data.picture
+      // 5. video thumbnail HD
+      // 6. thumbnail_url as last resort
+      
+      let freshImageUrl: string | null = null;
+      let isHD = false;
+      
+      // Priority: 1. image_hash HD, 2. creative.image_url, 3. creativeData, 4. link_data, 5. video thumbnail, 6. thumbnail_url
+      if (ad.creative?.image_hash && adImageMap.has(ad.creative.image_hash)) { freshImageUrl = adImageMap.get(ad.creative.image_hash)!; isHD = true; }
+      if (!freshImageUrl && ad.creative?.image_url) { freshImageUrl = ad.creative.image_url; isHD = true; }
+      if (!freshImageUrl && ad.creative?.id && creativeDataMap.has(ad.creative.id)) {
+        const cd = creativeDataMap.get(ad.creative.id);
+        if (cd.image_url) { freshImageUrl = cd.image_url; isHD = true; }
+        else if (cd.image_hash && adImageMap.has(cd.image_hash)) { freshImageUrl = adImageMap.get(cd.image_hash)!; isHD = true; }
+        if (!freshImageUrl && cd.object_story_spec?.link_data) {
+          const ld = cd.object_story_spec.link_data;
+          if (ld.image_url) { freshImageUrl = ld.image_url; isHD = true; }
+          else if (ld.picture) { freshImageUrl = ld.picture; isHD = false; }
+        }
+      }
+      if (!freshImageUrl) { const videoId = ad.creative?.object_story_spec?.video_data?.video_id; if (videoId && videoThumbnailMap.has(videoId)) { freshImageUrl = videoThumbnailMap.get(videoId)!; isHD = true; } }
+      if (!freshImageUrl && ad.creative?.thumbnail_url) { freshImageUrl = ad.creative.thumbnail_url; isHD = false; }
+      
+      if (freshImageUrl) adsNeedingCache.push({ adId, imageUrl: freshImageUrl, isHD });
     }
-    for (let i = 0; i < adsNeedingCache.length; i += 10) {
-      const batch = adsNeedingCache.slice(i, i + 10);
-      const results = await Promise.all(batch.map(async ({ adId, imageUrl }) => ({ adId, cachedUrl: await cacheCreativeImage(supabase, projectId, adId, imageUrl) })));
+    // Process in batches, prioritizing HD images
+    const hdAds = adsNeedingCache.filter(a => a.isHD);
+    const lowResAds = adsNeedingCache.filter(a => !a.isHD);
+    console.log(`[CACHE] Processing ${hdAds.length} HD images, ${lowResAds.length} low-res fallbacks`);
+    
+    // Cache HD images first
+    for (let i = 0; i < hdAds.length; i += 10) {
+      const batch = hdAds.slice(i, i + 10);
+      const results = await Promise.all(batch.map(async ({ adId, imageUrl }) => ({ adId, cachedUrl: await cacheCreativeImage(supabase, projectId, adId, imageUrl, false) })));
       for (const { adId, cachedUrl } of results) if (cachedUrl) immediateCache.set(adId, cachedUrl);
-      if (i + 10 < adsNeedingCache.length) await delay(50);
+      if (i + 10 < hdAds.length) await delay(50);
     }
-    console.log(`[CACHE] Cached ${immediateCache.size} images`);
+    
+    // Cache low-res only if no HD was cached
+    for (let i = 0; i < lowResAds.length; i += 10) {
+      const batch = lowResAds.slice(i, i + 10);
+      const results = await Promise.all(batch.map(async ({ adId, imageUrl }) => {
+        if (immediateCache.has(adId)) return { adId, cachedUrl: immediateCache.get(adId) };
+        return { adId, cachedUrl: await cacheCreativeImage(supabase, projectId, adId, imageUrl, false) };
+      }));
+      for (const { adId, cachedUrl } of results) if (cachedUrl) immediateCache.set(adId, cachedUrl);
+      if (i + 10 < lowResAds.length) await delay(50);
+    }
+    
+    console.log(`[CACHE] Cached ${immediateCache.size} images total`);
   }
 
   return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache };
