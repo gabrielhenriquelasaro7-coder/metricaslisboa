@@ -874,3 +874,254 @@
   background: hsl(var(--primary) / 0.35);
   color: hsl(var(--foreground));
 }
+
+/* ===== V4 INDUSTRIAL GLASS DESIGN SYSTEM ===== */
+
+/* Industrial Glass Container - Core component */
+.v4-glass {
+  @apply relative overflow-hidden rounded-xl;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.v4-glass::before {
+  content: '';
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.8), transparent);
+}
+
+.v4-glass::after {
+  content: '';
+  position: absolute;
+  top: -64px;
+  left: -64px;
+  width: 128px;
+  height: 128px;
+  background: rgba(220, 38, 38, 0.1);
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.v4-glass:hover {
+  border-color: rgba(220, 38, 38, 0.5);
+  box-shadow: 0 0 30px rgba(220, 38, 38, 0.15);
+}
+
+/* V4 Industrial Card - Enhanced version */
+.v4-card {
+  @apply relative overflow-hidden rounded-xl p-6;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.v4-card::before {
+  content: '';
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.8), transparent);
+}
+
+.v4-card::after {
+  content: '';
+  position: absolute;
+  top: -64px;
+  left: -64px;
+  width: 128px;
+  height: 128px;
+  background: rgba(220, 38, 38, 0.1);
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.v4-card:hover {
+  border-color: rgba(220, 38, 38, 0.5);
+  box-shadow: 0 0 25px rgba(220, 38, 38, 0.2);
+}
+
+/* V4 Industrial Button */
+.v4-btn {
+  @apply relative px-4 py-2 font-medium uppercase tracking-wider text-sm;
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgb(220, 38, 38);
+  color: rgb(239, 68, 68);
+  box-shadow: 0 0 15px rgba(220, 38, 38, 0.2);
+  transition: all 0.3s ease;
+}
+
+.v4-btn:hover {
+  background: rgb(220, 38, 38);
+  color: white;
+  box-shadow: 0 0 25px rgba(220, 38, 38, 0.4);
+}
+
+/* V4 Secondary Button */
+.v4-btn-secondary {
+  @apply relative px-4 py-2 font-medium uppercase tracking-wider text-sm;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+}
+
+.v4-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: white;
+}
+
+/* V4 Stat Card */
+.v4-stat-card {
+  @apply relative overflow-hidden rounded-xl p-5;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s ease;
+}
+
+.v4-stat-card::before {
+  content: '';
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.6), transparent);
+}
+
+.v4-stat-card:hover {
+  border-color: rgba(220, 38, 38, 0.4);
+  transform: translateY(-2px);
+}
+
+/* V4 Input styling */
+.v4-input {
+  @apply w-full px-4 py-3 rounded-lg;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.v4-input:focus {
+  outline: none;
+  border-color: rgba(220, 38, 38, 0.6);
+  box-shadow: 0 0 20px rgba(220, 38, 38, 0.15);
+}
+
+.v4-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* V4 Industrial Background */
+.v4-bg {
+  background: #000000;
+  position: relative;
+}
+
+.v4-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at 20% 30%, rgba(220, 38, 38, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(220, 38, 38, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* V4 Red Glow Text */
+.v4-glow-text {
+  text-shadow: 0 0 20px rgba(220, 38, 38, 0.5), 0 0 40px rgba(220, 38, 38, 0.3);
+}
+
+/* V4 Badge */
+.v4-badge {
+  @apply inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium uppercase tracking-wider;
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: rgb(248, 113, 113);
+}
+
+/* V4 Tab styling */
+.v4-tabs {
+  @apply flex gap-1 p-1 rounded-lg;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.v4-tab {
+  @apply px-4 py-2 rounded-md text-sm font-medium transition-all;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.v4-tab:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.v4-tab.active {
+  background: rgba(220, 38, 38, 0.2);
+  color: rgb(248, 113, 113);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+/* V4 Project Card */
+.v4-project-card {
+  @apply relative overflow-hidden rounded-xl cursor-pointer;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.v4-project-card::before {
+  content: '';
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.7), transparent);
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.v4-project-card::after {
+  content: '';
+  position: absolute;
+  top: -80px;
+  left: -80px;
+  width: 160px;
+  height: 160px;
+  background: rgba(220, 38, 38, 0.08);
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+  transition: all 0.4s ease;
+}
+
+.v4-project-card:hover {
+  border-color: rgba(220, 38, 38, 0.5);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(220, 38, 38, 0.15);
+}
+
+.v4-project-card:hover::before {
+  opacity: 1;
+}
+
+.v4-project-card:hover::after {
+  background: rgba(220, 38, 38, 0.12);
+}
