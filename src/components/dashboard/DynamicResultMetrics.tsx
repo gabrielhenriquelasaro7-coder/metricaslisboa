@@ -178,28 +178,29 @@ export function DynamicResultMetrics({
   // Build all metrics for a unified grid (same as predefined models)
   const allCards: JSX.Element[] = [];
 
-  // 1. Multiple result metrics - each gets its own card with correct data source
-  resultMetrics.forEach((metricKey, index) => {
-    const Icon = RESULT_ICONS[metricKey] || Target;
-    const label = resultMetricsLabels[metricKey] || metricKey;
-    const value = getMetricValue(metricKey);
-    const sparkline = getSparklineData(metricKey);
-    
-    allCards.push(
-      <SparklineCard
-        key={`result-${metricKey}`}
-        title={label}
-        value={value.toLocaleString('pt-BR')}
-        change={changes?.conversions}
-        changeLabel="vs anterior"
-        icon={Icon}
-        sparklineData={sparkline}
-        sparklineColor="hsl(var(--chart-1))"
-        className={index === 0 ? "border-l-4 border-l-chart-1" : ""}
-        tooltip="Pequenas diferenças de ±1-2 resultados em relação ao Gerenciador são normais devido ao timing de atribuição do Meta."
-      />
-    );
-  });
+  // 1. Single "Leads" card showing the TOTAL of all result metrics combined
+  // User wants ONE card that sums everything, not separate cards for each type
+  const totalResults = getTotalResults();
+  
+  // Use the first metric's sparkline or fallback to conversions
+  const primarySparkline = resultMetrics.length > 0 
+    ? getSparklineData(resultMetrics[0]) 
+    : sparklineData.conversions || [];
+  
+  allCards.push(
+    <SparklineCard
+      key="result-total"
+      title="Leads"
+      value={totalResults.toLocaleString('pt-BR')}
+      change={changes?.conversions}
+      changeLabel="vs anterior"
+      icon={Users}
+      sparklineData={primarySparkline.length > 0 ? primarySparkline : (sparklineData.conversions || [])}
+      sparklineColor="hsl(var(--chart-1))"
+      className="border-l-4 border-l-chart-1"
+      tooltip="Total de resultados (formulários + mensagens)"
+    />
+  );
 
   // 2. Cost metrics
   if (config.cost_metrics && config.cost_metrics.length > 0) {
