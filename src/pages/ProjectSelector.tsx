@@ -135,7 +135,7 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   return (
     <div 
       className={cn(
-        "v4-cockpit-card group p-5 cursor-pointer",
+        "v4-cockpit-card eb-luz group p-5 cursor-pointer",
         project.archived && 'opacity-50'
       )}
       onClick={() => onSelect(project)}
@@ -777,10 +777,8 @@ export default function ProjectSelector() {
 
   return (
     <div className="min-h-screen v4-cockpit-bg">
-      {/* V4 Ambient Light Effects */}
-      <div className="v4-ambient-light top-left" />
-      <div className="v4-ambient-light bottom-right" />
-      <div className="v4-ambient-light center" />
+      {/* V4 Ambient Light Effect */}
+      <div className="v4-ambient-light" />
 
       {/* Main Content */}
       <div className="relative" style={{ zIndex: 10 }}>

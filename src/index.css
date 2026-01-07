@@ -877,58 +877,58 @@
 
 /* ===== V4 COCKPIT DESIGN SYSTEM ===== */
 
-/* V4 Cockpit Background - Carbon Black with Tech Lines */
+/* V4 Cockpit Background - Carbon Black */
 .v4-cockpit-bg {
   background: #080808;
   position: relative;
   min-height: 100vh;
 }
 
-/* Tech Lines / Circuit Board texture */
-.v4-cockpit-bg::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: 
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 80px 80px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Ambient red glow lights */
+/* V4 Ambient Light - Intense Red Glow */
 .v4-ambient-light {
   position: fixed;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(224, 14, 14, 0.12) 0%, transparent 70%);
-  filter: blur(150px);
+  inset: 0;
   pointer-events: none;
   z-index: 0;
+  background: 
+    radial-gradient(ellipse 120% 100% at 15% 5%, rgba(224, 14, 14, 0.25) 0%, transparent 50%),
+    radial-gradient(ellipse 100% 90% at 85% 95%, rgba(224, 14, 14, 0.22) 0%, transparent 45%),
+    radial-gradient(ellipse 80% 70% at 50% 50%, rgba(224, 14, 14, 0.18) 0%, transparent 40%),
+    radial-gradient(ellipse 150% 120% at 50% 110%, rgba(224, 14, 14, 0.15) 0%, transparent 55%);
 }
 
-.v4-ambient-light.top-left {
-  top: -200px;
-  left: -100px;
-  width: 800px;
-  height: 800px;
+/* V4 Card Glow Effect - eb-luz */
+.eb-luz {
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
 }
 
-.v4-ambient-light.bottom-right {
-  bottom: -300px;
-  right: -200px;
-  width: 900px;
-  height: 900px;
-  opacity: 0.8;
+.eb-luz:before {
+  background: linear-gradient(to right, transparent, #E00E0E, transparent);
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  z-index: 90;
+  width: 100%;
+  box-shadow: 0 0 10px rgba(224, 14, 14, 0.5);
 }
 
-.v4-ambient-light.center {
-  top: 30%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 1200px;
-  height: 600px;
-  opacity: 0.6;
+.eb-luz:after {
+  background: linear-gradient(to right, transparent, #E00E0E, transparent);
+  content: "";
+  z-index: 90;
+  position: absolute;
+  display: block;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  box-shadow: 0 0 8px rgba(224, 14, 14, 0.3);
 }
 
 /* Cockpit Glass Card */
