@@ -735,17 +735,31 @@ function extractConversions(row: any, campaignObjective?: string): {
   }
 
   // Valor de conversão (para ROAS) - via action_values
+  // IMPORTANTE: A Meta pode retornar tanto 'purchase' quanto 'omni_purchase' para o MESMO evento!
+  // omni_purchase é mais abrangente (inclui compras de todas as plataformas), então tem prioridade.
+  // NÃO SOMAR ambos - usar apenas UM deles para evitar duplicação!
   if (Array.isArray(row.action_values)) {
+    let purchaseValue = 0;
+    let omniPurchaseValue = 0;
+    
     for (const av of row.action_values) {
       const actionType = av.action_type || '';
-      const isRevenueAction = REVENUE_ACTION_TYPES.includes(actionType);
-      if (isRevenueAction) {
-        const val = parseFloat(av.value) || 0;
-        if (val > 0) {
-          conversionValue += val;
-          console.log(`[REVENUE] action_type=${actionType}, value=${val}`);
-        }
+      const val = parseFloat(av.value) || 0;
+      
+      if (actionType === 'omni_purchase' && val > 0) {
+        omniPurchaseValue = val;
+        console.log(`[REVENUE] omni_purchase=${val}`);
+      } else if (actionType === 'purchase' && val > 0) {
+        purchaseValue = val;
+        console.log(`[REVENUE] purchase=${val}`);
       }
+    }
+    
+    // Priorizar omni_purchase (mais abrangente), senão usar purchase
+    conversionValue = omniPurchaseValue > 0 ? omniPurchaseValue : purchaseValue;
+    
+    if (conversionValue > 0) {
+      console.log(`[REVENUE-FINAL] conversionValue=${conversionValue} (source=${omniPurchaseValue > 0 ? 'omni_purchase' : 'purchase'})`);
     }
   }
 
