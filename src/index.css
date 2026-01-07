@@ -875,7 +875,106 @@
   color: hsl(var(--foreground));
 }
 
-/* ===== V4 INDUSTRIAL GLASS DESIGN SYSTEM ===== */
+/* ===== V4 CYBER-INDUSTRIAL DESIGN SYSTEM ===== */
+
+/* V4 Cyber-Industrial Background with Carbon Fiber texture */
+.v4-cyber-bg {
+  background: #0a0a0a;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Carbon fiber / micro-grid texture */
+.v4-cyber-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 255, 255, 0.015) 2px,
+      rgba(255, 255, 255, 0.015) 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 255, 255, 0.015) 2px,
+      rgba(255, 255, 255, 0.015) 4px
+    );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Crossed Laser Beams - X pattern */
+.v4-laser-x {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  overflow: hidden;
+}
+
+.v4-laser-x::before,
+.v4-laser-x::after {
+  content: '';
+  position: absolute;
+  width: 200%;
+  height: 2px;
+  left: -50%;
+  top: 50%;
+  background: linear-gradient(to right, transparent 0%, #E00E0E 50%, transparent 100%);
+  filter: drop-shadow(0 0 15px #E00E0E) drop-shadow(0 0 30px #E00E0E);
+  opacity: 0.8;
+}
+
+.v4-laser-x::before {
+  transform: rotate(-25deg);
+  transform-origin: center center;
+}
+
+.v4-laser-x::after {
+  transform: rotate(25deg);
+  transform-origin: center center;
+}
+
+/* Center intersection glow */
+.v4-laser-center-glow {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(ellipse at center, rgba(224, 14, 14, 0.12) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 3;
+  filter: blur(40px);
+}
+
+/* Top-left ambient light */
+.v4-ambient-glow {
+  position: fixed;
+  top: -200px;
+  left: -200px;
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(ellipse at center, rgba(224, 14, 14, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 2;
+  filter: blur(80px);
+}
+
+/* Vignette effect */
+.v4-vignette {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.7) 100%);
+  pointer-events: none;
+  z-index: 4;
+}
 
 /* Industrial Glass Container - Core component */
 .v4-glass {

@@ -788,29 +788,21 @@ export default function ProjectSelector() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-black">
-      {/* V4 Industrial Background */}
-      <div className="fixed inset-0 bg-black pointer-events-none" />
+    <div className="min-h-screen v4-cyber-bg">
+      {/* V4 Cyber-Industrial Laser X Background */}
+      <div className="v4-laser-x" />
       
-      {/* Red ambient glow */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-red-600/8 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-red-600/5 rounded-full blur-[100px]" />
-      </div>
+      {/* Top-left ambient glow */}
+      <div className="v4-ambient-glow" />
       
-      {/* Grid pattern */}
-      <div className="fixed inset-0 pointer-events-none opacity-20"
-        style={{
-          backgroundImage: 'radial-gradient(circle at center, rgba(220, 38, 38, 0.15) 1px, transparent 1px)',
-          backgroundSize: '50px 50px'
-        }}
-      />
-
-      {/* Vignette */}
-      <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.5) 100%)' }} />
+      {/* Center intersection glow */}
+      <div className="v4-laser-center-glow" />
+      
+      {/* Vignette effect */}
+      <div className="v4-vignette" />
 
       {/* Main Content */}
-      <div className="relative z-10">
+      <div className="relative" style={{ zIndex: 10 }}>
         {/* Header - V4 Industrial */}
         <header className="container mx-auto px-6 pt-8 pb-4">
           <div className="flex items-center justify-between">
