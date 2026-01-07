@@ -891,11 +891,12 @@
   pointer-events: none;
   z-index: 0;
   background: 
-    radial-gradient(ellipse 130% 110% at 10% 0%, rgba(224, 14, 14, 0.45) 0%, transparent 55%),
-    radial-gradient(ellipse 120% 100% at 90% 100%, rgba(224, 14, 14, 0.40) 0%, transparent 50%),
-    radial-gradient(ellipse 100% 90% at 50% 50%, rgba(224, 14, 14, 0.30) 0%, transparent 45%),
-    radial-gradient(ellipse 180% 150% at 50% 120%, rgba(224, 14, 14, 0.35) 0%, transparent 60%),
-    radial-gradient(ellipse 80% 60% at 30% 70%, rgba(224, 14, 14, 0.25) 0%, transparent 40%);
+    radial-gradient(ellipse 150% 130% at 0% 0%, rgba(224, 14, 14, 0.65) 0%, transparent 50%),
+    radial-gradient(ellipse 140% 120% at 100% 100%, rgba(224, 14, 14, 0.60) 0%, transparent 45%),
+    radial-gradient(ellipse 120% 100% at 50% 50%, rgba(224, 14, 14, 0.45) 0%, transparent 50%),
+    radial-gradient(ellipse 200% 180% at 50% 130%, rgba(224, 14, 14, 0.55) 0%, transparent 55%),
+    radial-gradient(ellipse 100% 80% at 20% 80%, rgba(224, 14, 14, 0.40) 0%, transparent 40%),
+    radial-gradient(ellipse 100% 80% at 80% 20%, rgba(224, 14, 14, 0.35) 0%, transparent 40%);
 }
 
 /* V4 Card Glow Effect - eb-luz */
