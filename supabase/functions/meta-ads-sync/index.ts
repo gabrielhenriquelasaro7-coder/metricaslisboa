@@ -163,9 +163,43 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
     ? 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}' 
     : 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,picture,image_url},video_data{message,title,call_to_action,video_id,image_hash,image_url}}}';
   url = `https://graph.facebook.com/v21.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
-  while (url) { const data = await fetchWithRetry(url, 'ADS'); if (isTokenExpiredError(data)) return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) ads.push(...data.data); url = data.paging?.next || null; }
+  console.log(`[DEBUG-ADS-QUERY] Fields: ${adsFields.substring(0, 200)}`);
+  while (url) { 
+    const data = await fetchWithRetry(url, 'ADS'); 
+    if (isTokenExpiredError(data)) return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; 
+    if (data.data) {
+      // Log first ad raw structure to see what's coming
+      if (ads.length === 0 && data.data.length > 0) {
+        const firstAd = data.data[0];
+        console.log(`[DEBUG-ADS-RAW] First ad keys: ${Object.keys(firstAd).join(',')}`);
+        console.log(`[DEBUG-ADS-RAW] First ad creative: ${JSON.stringify(firstAd.creative)?.substring(0, 500) || 'undefined'}`);
+      }
+      ads.push(...data.data); 
+    }
+    url = data.paging?.next || null; 
+  }
 
   console.log(`[ENTITIES] Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}`);
+  
+  // DEBUG: Verificar se os ads têm creative data
+  const adsWithCreative = ads.filter(a => a.creative?.id);
+  const adsWithCreativeBody = ads.filter(a => a.creative?.body);
+  const adsWithCreativeSpec = ads.filter(a => a.creative?.object_story_spec);
+  console.log(`[DEBUG-ADS] Ads with creative.id: ${adsWithCreative.length}, with body: ${adsWithCreativeBody.length}, with object_story_spec: ${adsWithCreativeSpec.length}`);
+  
+  // Log sample ad creative data
+  if (ads.length > 0 && ads[0].creative) {
+    const c = ads[0].creative;
+    console.log(`[DEBUG-ADS-SAMPLE] First ad creative: id=${c.id}, body=${c.body?.substring(0,50) || 'null'}, title=${c.title || 'null'}, cta=${c.call_to_action_type || 'null'}`);
+    if (c.object_story_spec) {
+      const s = c.object_story_spec;
+      console.log(`[DEBUG-ADS-SAMPLE] object_story_spec: link_data=${!!s.link_data}, video_data=${!!s.video_data}`);
+      if (s.link_data) console.log(`[DEBUG-ADS-SAMPLE] link_data.message=${s.link_data.message?.substring(0,50) || 'null'}, name=${s.link_data.name || 'null'}`);
+      if (s.video_data) console.log(`[DEBUG-ADS-SAMPLE] video_data.message=${s.video_data.message?.substring(0,50) || 'null'}, title=${s.video_data.title || 'null'}`);
+    }
+  } else {
+    console.log(`[DEBUG-ADS-SAMPLE] No ads or no creative in first ad`);
+  }
   
   const adImageMap = new Map<string, string>(), videoThumbnailMap = new Map<string, string>(), creativeDataMap = new Map<string, any>(), adPreviewMap = new Map<string, string>(), immediateCache = new Map<string, string>();
   
