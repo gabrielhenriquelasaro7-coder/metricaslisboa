@@ -418,13 +418,33 @@ function extractConversions(row: any): {
   // ===========================================================================================
   // FONTE 1 (PRIORITÁRIA): Campo "results" da API Meta
   // 
-  // Este campo contém EXATAMENTE o que aparece como "Resultados" no Gerenciador!
-  // Não precisamos inferir nada - a Meta já retorna apenas a conversão principal.
+  // Este campo pode conter action_type OU indicator (estrutura varia por campanha).
+  // IMPORTANTE: Ignoramos resultados de engajamento como profile_visit_view, video_view, etc.
+  // Só queremos leads e purchases reais!
   // ===========================================================================================
+  const ENGAGEMENT_INDICATORS = [
+    'profile_visit_view', 'video_view', 'post_engagement', 'page_engagement',
+    'landing_page_view', 'link_click', 'post_reaction', 'comment', 'share'
+  ];
+  
   if (Array.isArray(row.results) && row.results.length > 0) {
     for (const result of row.results) {
-      const actionType = result.action_type || '';
-      const val = parseInt(result.value) || 0;
+      // Campo pode ser action_type ou indicator
+      const actionType = result.action_type || result.indicator || '';
+      
+      // Pegar valor diretamente ou dentro de values[]
+      let val = 0;
+      if (result.value !== undefined) {
+        val = parseInt(result.value) || 0;
+      } else if (Array.isArray(result.values) && result.values.length > 0) {
+        val = parseInt(result.values[0]?.value) || 0;
+      }
+      
+      // IGNORAR resultados de engajamento - não são conversões reais
+      if (ENGAGEMENT_INDICATORS.includes(actionType)) {
+        console.log(`[RESULTS] IGNORANDO engagement: indicator=${actionType}, value=${val}`);
+        continue;
+      }
       
       if (val > 0) {
         console.log(`[RESULTS] action_type=${actionType}, value=${val}`);
@@ -434,22 +454,30 @@ function extractConversions(row: any): {
           purchasesCount += val;
         } else if (ALL_LEAD_ACTION_TYPES.includes(actionType) || MESSAGE_LEAD_ACTION_TYPES.includes(actionType)) {
           leadsCount += val;
-        } else {
-          // Outros tipos de resultado (engagement, etc) - contar como conversão genérica
-          leadsCount += val;
         }
+        // NÃO contamos mais tipos desconhecidos como leads!
       }
     }
     
-    conversions = leadsCount + purchasesCount;
-    source = 'results';
-    
-    // Obter cost_per_result oficial
-    if (Array.isArray(row.cost_per_result) && row.cost_per_result.length > 0) {
-      costPerResult = parseFloat(row.cost_per_result[0]?.value) || 0;
+    // Só marca como source='results' se encontrou algo válido
+    if (leadsCount > 0 || purchasesCount > 0) {
+      conversions = leadsCount + purchasesCount;
+      source = 'results';
+      
+      // Obter cost_per_result oficial
+      if (Array.isArray(row.cost_per_result) && row.cost_per_result.length > 0) {
+        const cpr = row.cost_per_result[0];
+        if (cpr.value !== undefined) {
+          costPerResult = parseFloat(cpr.value) || 0;
+        } else if (Array.isArray(cpr.values) && cpr.values.length > 0) {
+          costPerResult = parseFloat(cpr.values[0]?.value) || 0;
+        }
+      }
+      
+      console.log(`[RESULTS-FINAL] leads=${leadsCount}, purchases=${purchasesCount}, total=${conversions}, cpa=${costPerResult}`);
+    } else {
+      console.log(`[RESULTS] Nenhuma conversão válida encontrada no campo results, usando fallback`);
     }
-    
-    console.log(`[RESULTS-FINAL] leads=${leadsCount}, purchases=${purchasesCount}, total=${conversions}, cpa=${costPerResult}`);
   }
   
   // ===========================================================================================
