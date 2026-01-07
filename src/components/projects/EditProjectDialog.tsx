@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, BusinessModel, Project } from '@/hooks/useProjects';
-import { Loader2, Settings2, Lock } from 'lucide-react';
+import { Loader2, Settings2, Lock, Users, ShoppingCart, Store, GraduationCap } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { z } from 'zod';
 import { MetricConfigPanel, type MetricConfigData } from './MetricConfigPanel';
@@ -24,11 +24,11 @@ const projectSchema = z.object({
 });
 
 const businessModels: { value: BusinessModel; label: string; description: string; icon?: React.ReactNode }[] = [
-  { value: 'inside_sales', label: 'Inside Sales', description: 'Geração de leads e vendas internas' },
-  { value: 'ecommerce', label: 'E-commerce', description: 'Vendas online com foco em ROAS' },
-  { value: 'infoproduto', label: 'Infoproduto', description: 'Cursos/mentorias - leads e vendas' },
-  { value: 'pdv', label: 'PDV', description: 'Tráfego para loja física' },
-  { value: 'custom', label: 'Personalizado', description: 'Configure suas próprias métricas', icon: <Settings2 className="w-4 h-4" /> },
+  { value: 'inside_sales', label: 'Inside Sales', description: 'Leads e vendas internas', icon: <Users className="w-4 h-4" /> },
+  { value: 'ecommerce', label: 'E-commerce', description: 'Vendas online', icon: <ShoppingCart className="w-4 h-4" /> },
+  { value: 'pdv', label: 'PDV', description: 'Loja física', icon: <Store className="w-4 h-4" /> },
+  { value: 'infoproduto', label: 'Infoproduto', description: 'Cursos e mentorias', icon: <GraduationCap className="w-4 h-4" /> },
+  { value: 'custom', label: 'Personalizado', description: 'Configure suas métricas', icon: <Settings2 className="w-4 h-4" /> },
 ];
 
 const timezones = [
