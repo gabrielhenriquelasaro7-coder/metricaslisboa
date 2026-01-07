@@ -422,6 +422,10 @@ function extractConversions(row: any): {
   let messageLeadValue = 0;  // messaging_conversation_started_7d
   let messagePrefixed = 0;   // onsite_conversion.messaging_conversation_started_7d
   
+  // PURCHASES: separar purchase e omni_purchase para evitar duplicação
+  let purchaseValue = 0;      // purchase (pixel padrão)
+  let omniPurchaseValue = 0;  // omni_purchase (consolidado - PRIORIDADE)
+  
   if (Array.isArray(row.actions) && row.actions.length > 0) {
     for (const action of row.actions) {
       const actionType = action.action_type || '';
@@ -447,12 +451,22 @@ function extractConversions(row: any): {
         } else if (actionType === 'onsite_conversion.messaging_conversation_started_7d') {
           messagePrefixed = val;
         }
-        // PURCHASES
-        else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
-          purchasesCount += val;
-          console.log(`[PURCHASE] action_type=${actionType}, value=${val}`);
+        // PURCHASES - capturar separadamente para não duplicar
+        else if (actionType === 'purchase') {
+          purchaseValue = val;
+          console.log(`[PURCHASE-PIXEL] action_type=purchase, value=${val}`);
+        } else if (actionType === 'omni_purchase') {
+          omniPurchaseValue = val;
+          console.log(`[PURCHASE-OMNI] action_type=omni_purchase, value=${val}`);
         }
       }
+    }
+    
+    // PURCHASES: usar APENAS UM - omni_purchase tem prioridade (é o consolidado)
+    // Se omni_purchase existe, usar ele; senão usar purchase
+    purchasesCount = omniPurchaseValue > 0 ? omniPurchaseValue : purchaseValue;
+    if (purchasesCount > 0) {
+      console.log(`[PURCHASE-FINAL] value=${purchasesCount} (omni=${omniPurchaseValue}, pixel=${purchaseValue})`);
     }
     
     // LEADS DE FORMULÁRIO META: usar apenas UM dos tipos (evitar duplicação)
@@ -488,6 +502,8 @@ function extractConversions(row: any): {
     let contactLeadConv = 0;
     let messageLeadConv = 0;
     let messagePrefixedConv = 0;
+    let purchaseConv = 0;
+    let omniPurchaseConv = 0;
     
     for (const c of row.conversions) {
       const actionType = c.action_type || '';
@@ -503,14 +519,19 @@ function extractConversions(row: any): {
           messageLeadConv = val;
         } else if (actionType === 'onsite_conversion.messaging_conversation_started_7d') {
           messagePrefixedConv = val;
-        } else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
-          purchasesCount += val;
+        } else if (actionType === 'purchase') {
+          purchaseConv = val;
+        } else if (actionType === 'omni_purchase') {
+          omniPurchaseConv = val;
         }
       }
     }
     
     const actualFormLeads = formLeadConv > 0 ? formLeadConv : formLeadGroupedConv;
     const actualMessageLeads = messagePrefixedConv > 0 ? messagePrefixedConv : messageLeadConv;
+    
+    // PURCHASES: usar APENAS UM - omni_purchase tem prioridade
+    purchasesCount = omniPurchaseConv > 0 ? omniPurchaseConv : purchaseConv;
     
     leadsCount = actualFormLeads + contactLeadConv + actualMessageLeads;
     conversions = leadsCount + purchasesCount;
@@ -520,6 +541,7 @@ function extractConversions(row: any): {
       if (actualFormLeads > 0) console.log(`[FORM-LEAD] conversions: value=${actualFormLeads}`);
       if (contactLeadConv > 0) console.log(`[CONTACT-LEAD] conversions: value=${contactLeadConv}`);
       if (actualMessageLeads > 0) console.log(`[MESSAGE-LEAD] conversions: value=${actualMessageLeads}`);
+      if (purchasesCount > 0) console.log(`[PURCHASE-FINAL] conversions: value=${purchasesCount} (omni=${omniPurchaseConv}, pixel=${purchaseConv})`);
     }
   }
 

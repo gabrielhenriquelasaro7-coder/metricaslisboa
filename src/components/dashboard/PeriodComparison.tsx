@@ -14,6 +14,7 @@ interface Metrics {
   totalClicks: number;
   totalConversions: number;
   totalConversionValue: number;
+  totalSalesConversions?: number; // Purchases (for infoproduto)
   ctr: number;
   cpm: number;
   cpc: number;
@@ -257,12 +258,21 @@ export default function PeriodComparison({
         }
       );
     } else if (businessModel === 'infoproduto') {
+      // Para infoproduto, "Vendas" = purchases (totalSalesConversions)
+      // Se não tiver totalSalesConversions, fallback para totalConversions
+      const currentSales = currentMetrics.totalSalesConversions ?? currentMetrics.totalConversions;
+      const previousSales = previousMetrics.totalSalesConversions ?? previousMetrics.totalConversions;
+      
+      // CPA de vendas = spend / sales
+      const currentCpaSales = currentSales > 0 ? currentMetrics.totalSpend / currentSales : 0;
+      const previousCpaSales = previousSales > 0 ? previousMetrics.totalSpend / previousSales : 0;
+      
       items.push(
         {
           label: 'Vendas',
-          current: formatNumber(currentMetrics.totalConversions),
-          previous: formatNumber(previousMetrics.totalConversions),
-          change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
+          current: formatNumber(currentSales),
+          previous: formatNumber(previousSales),
+          change: calculateChange(currentSales, previousSales),
           isInverse: false,
         },
         {
@@ -281,9 +291,9 @@ export default function PeriodComparison({
         },
         {
           label: 'CPA',
-          current: formatCurrencyValue(currentMetrics.cpa),
-          previous: formatCurrencyValue(previousMetrics.cpa),
-          change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
+          current: formatCurrencyValue(currentCpaSales),
+          previous: formatCurrencyValue(previousCpaSales),
+          change: calculateChange(currentCpaSales, previousCpaSales),
           isInverse: true,
         }
       );
@@ -356,11 +366,13 @@ export default function PeriodComparison({
         { label: 'Custo/Visita', value: formatCurrencyValue(currentMetrics.cpa) }
       );
     } else if (businessModel === 'infoproduto') {
+      const sales = currentMetrics.totalSalesConversions ?? currentMetrics.totalConversions;
+      const cpaSales = sales > 0 ? currentMetrics.totalSpend / sales : 0;
       currentOnlyItems.push(
-        { label: 'Vendas', value: formatNumber(currentMetrics.totalConversions) },
+        { label: 'Vendas', value: formatNumber(sales) },
         { label: 'Receita', value: formatCurrencyValue(currentMetrics.totalConversionValue) },
         { label: 'ROAS', value: `${currentMetrics.roas.toFixed(2)}x` },
-        { label: 'CPA', value: formatCurrencyValue(currentMetrics.cpa) }
+        { label: 'CPA', value: formatCurrencyValue(cpaSales) }
       );
     } else if (businessModel === 'custom') {
       currentOnlyItems.push(
