@@ -196,14 +196,47 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 
   // Fetch creatives (batch API) - include image_url for HD access
   const creativeIdsToFetch = ads.filter(a => a.creative?.id && !cachedCreativeMap.has(a.id)).map(a => a.creative.id);
+  console.log(`[DEBUG-CREATIVE] creativeIdsToFetch count: ${creativeIdsToFetch.length}, sample: ${creativeIdsToFetch.slice(0, 3).join(',')}`);
+  
   for (let i = 0; i < creativeIdsToFetch.length; i += 50) {
     const batch = creativeIdsToFetch.slice(i, i + 50);
     const batchRequests = batch.map(creativeId => ({ method: 'GET', relative_url: `${creativeId}?fields=id,thumbnail_url,image_url,image_hash,object_story_spec,body,title,call_to_action_type` }));
     try {
       const response = await fetch(`https://graph.facebook.com/v21.0/?access_token=${token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch: batchRequests }) });
-      if (response.ok) { const results = await response.json(); for (let j = 0; j < results.length; j++) if (results[j].code === 200 && results[j].body) { try { creativeDataMap.set(batch[j], JSON.parse(results[j].body)); } catch {} } }
-    } catch {}
+      console.log(`[DEBUG-CREATIVE] Batch response status: ${response.status}`);
+      if (response.ok) { 
+        const results = await response.json(); 
+        console.log(`[DEBUG-CREATIVE] Batch results count: ${results.length}`);
+        for (let j = 0; j < results.length; j++) {
+          if (results[j].code === 200 && results[j].body) { 
+            try { 
+              const parsed = JSON.parse(results[j].body);
+              creativeDataMap.set(batch[j], parsed); 
+              // Log first creative to see what fields are available
+              if (j === 0 && i === 0) {
+                console.log(`[DEBUG-CREATIVE] Sample creative data: id=${parsed.id}, body=${parsed.body?.substring(0,50) || 'null'}, title=${parsed.title || 'null'}, cta=${parsed.call_to_action_type || 'null'}, has_object_story_spec=${!!parsed.object_story_spec}`);
+                if (parsed.object_story_spec) {
+                  const spec = parsed.object_story_spec;
+                  console.log(`[DEBUG-CREATIVE] object_story_spec: has_link_data=${!!spec.link_data}, has_video_data=${!!spec.video_data}`);
+                  if (spec.link_data) {
+                    console.log(`[DEBUG-CREATIVE] link_data: message=${spec.link_data.message?.substring(0,50) || 'null'}, name=${spec.link_data.name || 'null'}`);
+                  }
+                  if (spec.video_data) {
+                    console.log(`[DEBUG-CREATIVE] video_data: message=${spec.video_data.message?.substring(0,50) || 'null'}, title=${spec.video_data.title || 'null'}`);
+                  }
+                }
+              }
+            } catch {} 
+          } else {
+            console.log(`[DEBUG-CREATIVE] Failed result ${j}: code=${results[j].code}, error=${results[j].body?.substring(0,100)}`);
+          }
+        }
+      }
+    } catch (e) {
+      console.log(`[DEBUG-CREATIVE] Batch fetch error: ${e}`);
+    }
   }
+  console.log(`[DEBUG-CREATIVE] Final creativeDataMap size: ${creativeDataMap.size}`);
 
   // Immediate image caching - prioritize HD sources
   if (!skipImageCache && supabase && projectId) {
