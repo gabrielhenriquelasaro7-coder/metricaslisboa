@@ -8,6 +8,7 @@ interface SparklineCardProps {
   value: string | number;
   change?: number;
   changeLabel?: string;
+  previousValue?: string | number;
   icon?: LucideIcon;
   trend?: 'up' | 'down' | 'neutral';
   sparklineData?: number[];
@@ -54,6 +55,7 @@ export default function SparklineCard({
   value,
   change,
   changeLabel,
+  previousValue,
   icon: Icon,
   trend,
   sparklineData = [],
@@ -129,6 +131,11 @@ export default function SparklineCard({
           <p className="text-2xl font-bold mt-1 text-foreground group-hover:text-primary transition-colors duration-500">
             {value}
           </p>
+          {previousValue !== undefined && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Anterior: {previousValue}
+            </p>
+          )}
         </div>
         {Icon && (
           <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 ml-3 group-hover:from-primary/30 group-hover:to-primary/10 transition-all duration-500 overflow-hidden">
