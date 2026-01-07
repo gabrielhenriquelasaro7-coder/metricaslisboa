@@ -228,7 +228,7 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
   // website_ctr = CTR de cliques no link (útil para diagnóstico)
   // ===========================================================================================
   // Campos que DEVEM ser retornados - incluindo actions para capturar leads
-  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values,conversions,cost_per_action_type,website_ctr,inline_link_clicks,outbound_clicks';
+  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,results,cost_per_result,actions,action_values,conversions,cost_per_action_type,website_ctr,inline_link_clicks,outbound_clicks';
   
   const timeRange = JSON.stringify({ since, until });
   // IMPORTANTE: Adicionando action_breakdowns para garantir que actions seja retornado
@@ -389,44 +389,18 @@ const REVENUE_ACTION_TYPES = [
 ];
 
 // ===========================================================================================
-// DETECÇÃO DO TIPO DE CONVERSÃO BASEADO NO OBJETIVO DA CAMPANHA
+// EXTRAÇÃO DE CONVERSÕES - USANDO O CAMPO "results" DA API META
 // 
-// O objetivo da campanha determina qual tipo de lead é o PRINCIPAL:
-// - OUTCOME_ENGAGEMENT ou [MENSAGEM] no nome → priorizar mensagens
-// - OUTCOME_LEADS ou [TRAFEGO] + leads no site → priorizar formulários/contatos
-// - OUTCOME_TRAFFIC sem mensagem → priorizar formulários/contatos
+// O campo "results" é EXATAMENTE o que aparece como "Resultados" no Gerenciador de Anúncios!
+// Ele já contém apenas a conversão principal configurada na campanha.
+// 
+// Ordem de prioridade:
+// 1. results (campo oficial do Gerenciador - USA APENAS ESTE!)
+// 2. actions (fallback se results não existir)
+// 3. conversions (fallback legado)
 // ===========================================================================================
-function detectPrimaryLeadType(campaignObjective: string | null, campaignName: string | null): 'message' | 'form_contact' | 'auto' {
-  const objective = (campaignObjective || '').toUpperCase();
-  const name = (campaignName || '').toUpperCase();
-  
-  // Campanhas de ENGAJAMENTO/MENSAGEM → priorizar mensagens
-  if (objective.includes('ENGAGEMENT') || name.includes('[MENSAGEM]') || name.includes('WHATSAPP')) {
-    return 'message';
-  }
-  
-  // Campanhas de TRÁFEGO com indicação de leads/grupo → priorizar formulários
-  if (objective.includes('TRAFFIC') || objective.includes('LEADS')) {
-    if (name.includes('[GRUPO VIP]') || name.includes('LEAD') && !name.includes('[MENSAGEM]')) {
-      return 'form_contact';
-    }
-  }
-  
-  // Campanhas de LEADS → priorizar formulários/contatos
-  if (objective.includes('LEADS')) {
-    return 'form_contact';
-  }
-  
-  // Campanhas de AWARENESS → priorizar formulários/contatos (conversões secundárias)
-  if (objective.includes('AWARENESS')) {
-    return 'form_contact';
-  }
-  
-  // Default: usar lógica automática (maior valor)
-  return 'auto';
-}
 
-function extractConversions(row: any, campaignObjective?: string, campaignName?: string): { 
+function extractConversions(row: any): { 
   conversions: number; 
   costPerResult: number; 
   conversionValue: number; 
@@ -440,133 +414,95 @@ function extractConversions(row: any, campaignObjective?: string, campaignName?:
   let source = 'none';
   let leadsCount = 0;
   let purchasesCount = 0;
-  
-  // Detectar qual tipo de lead é o PRINCIPAL baseado no objetivo da campanha
-  const primaryLeadType = detectPrimaryLeadType(campaignObjective || null, campaignName || null);
 
   // ===========================================================================================
-  // ESTRATÉGIA CORRIGIDA: Usar APENAS o tipo de lead definido pelo objetivo da campanha
+  // FONTE 1 (PRIORITÁRIA): Campo "results" da API Meta
   // 
-  // O Gerenciador de Anúncios mostra como "Resultados" diferentes tipos dependendo do objetivo:
-  // - Campanhas de formulário: lead / onsite_conversion.lead_grouped
-  // - Campanhas de cadastro/contato: contact, complete_registration
-  // - Campanhas de mensagem: messaging_conversation_started_7d
-  // 
-  // NÃO somar tipos diferentes - usar apenas o tipo PRINCIPAL!
+  // Este campo contém EXATAMENTE o que aparece como "Resultados" no Gerenciador!
+  // Não precisamos inferir nada - a Meta já retorna apenas a conversão principal.
   // ===========================================================================================
+  if (Array.isArray(row.results) && row.results.length > 0) {
+    for (const result of row.results) {
+      const actionType = result.action_type || '';
+      const val = parseInt(result.value) || 0;
+      
+      if (val > 0) {
+        console.log(`[RESULTS] action_type=${actionType}, value=${val}`);
+        
+        // Classificar como lead ou purchase
+        if (PURCHASE_ACTION_TYPES.includes(actionType)) {
+          purchasesCount += val;
+        } else if (ALL_LEAD_ACTION_TYPES.includes(actionType) || MESSAGE_LEAD_ACTION_TYPES.includes(actionType)) {
+          leadsCount += val;
+        } else {
+          // Outros tipos de resultado (engagement, etc) - contar como conversão genérica
+          leadsCount += val;
+        }
+      }
+    }
+    
+    conversions = leadsCount + purchasesCount;
+    source = 'results';
+    
+    // Obter cost_per_result oficial
+    if (Array.isArray(row.cost_per_result) && row.cost_per_result.length > 0) {
+      costPerResult = parseFloat(row.cost_per_result[0]?.value) || 0;
+    }
+    
+    console.log(`[RESULTS-FINAL] leads=${leadsCount}, purchases=${purchasesCount}, total=${conversions}, cpa=${costPerResult}`);
+  }
   
-  // FONTE 1: Campo "actions" - eventos filtrados por action_type
-  // Coletamos todos os tipos separadamente para evitar duplicação
-  let formLeadValue = 0;     // lead
-  let formLeadGrouped = 0;   // onsite_conversion.lead_grouped
-  let contactLeadValue = 0;  // contact_total, contact, complete_registration, etc.
-  let messageLeadValue = 0;  // messaging_conversation_started_7d
-  let messagePrefixed = 0;   // onsite_conversion.messaging_conversation_started_7d
-  
-  // PURCHASES: separar purchase e omni_purchase para evitar duplicação
-  let purchaseValue = 0;      // purchase (pixel padrão)
-  let omniPurchaseValue = 0;  // omni_purchase (consolidado - PRIORIDADE)
-  
-  if (Array.isArray(row.actions) && row.actions.length > 0) {
+  // ===========================================================================================
+  // FONTE 2 (FALLBACK): Campo "actions" - só usado se "results" não retornou dados
+  // 
+  // Aqui usamos a lógica do maior valor para escolher o tipo dominante de lead.
+  // ===========================================================================================
+  if (conversions === 0 && Array.isArray(row.actions) && row.actions.length > 0) {
+    let formLeadValue = 0;
+    let formLeadGrouped = 0;
+    let contactLeadValue = 0;
+    let messageLeadValue = 0;
+    let messagePrefixed = 0;
+    let purchaseValue = 0;
+    let omniPurchaseValue = 0;
+    
     for (const action of row.actions) {
       const actionType = action.action_type || '';
       const val = parseInt(action.value) || 0;
       if (val > 0) {
-        // LEADS DE FORMULÁRIO META
-        if (actionType === 'lead') {
-          formLeadValue = val;
-        } else if (actionType === 'onsite_conversion.lead_grouped') {
-          formLeadGrouped = val;
-        }
-        // CONTATOS NO SITE (cadastros, formulários de contato)
-        else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType)) {
-          // Evitar duplicação: pegar o maior valor entre os tipos de contato
-          if (val > contactLeadValue) {
-            contactLeadValue = val;
-            console.log(`[CONTACT-LEAD] action_type=${actionType}, value=${val}`);
-          }
-        }
-        // LEADS DE MENSAGEM (WhatsApp/Messenger/DM)
-        else if (actionType === 'messaging_conversation_started_7d') {
-          messageLeadValue = val;
-        } else if (actionType === 'onsite_conversion.messaging_conversation_started_7d') {
-          messagePrefixed = val;
-        }
-        // PURCHASES - capturar separadamente para não duplicar
-        else if (actionType === 'purchase') {
-          purchaseValue = val;
-          console.log(`[PURCHASE-PIXEL] action_type=purchase, value=${val}`);
-        } else if (actionType === 'omni_purchase') {
-          omniPurchaseValue = val;
-          console.log(`[PURCHASE-OMNI] action_type=omni_purchase, value=${val}`);
-        }
+        if (actionType === 'lead') formLeadValue = val;
+        else if (actionType === 'onsite_conversion.lead_grouped') formLeadGrouped = val;
+        else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType) && val > contactLeadValue) contactLeadValue = val;
+        else if (actionType === 'messaging_conversation_started_7d') messageLeadValue = val;
+        else if (actionType === 'onsite_conversion.messaging_conversation_started_7d') messagePrefixed = val;
+        else if (actionType === 'purchase') purchaseValue = val;
+        else if (actionType === 'omni_purchase') omniPurchaseValue = val;
       }
     }
     
-    // PURCHASES: usar APENAS UM - omni_purchase tem prioridade (é o consolidado)
-    // Se omni_purchase existe, usar ele; senão usar purchase
     purchasesCount = omniPurchaseValue > 0 ? omniPurchaseValue : purchaseValue;
-    if (purchasesCount > 0) {
-      console.log(`[PURCHASE-FINAL] value=${purchasesCount} (omni=${omniPurchaseValue}, pixel=${purchaseValue})`);
-    }
-    
-    // LEADS DE FORMULÁRIO META: usar apenas UM dos tipos (evitar duplicação)
     const actualFormLeads = formLeadValue > 0 ? formLeadValue : formLeadGrouped;
-    
-    // LEADS DE MENSAGEM: usar apenas UM dos tipos (evitar duplicação)
     const actualMessageLeads = messagePrefixed > 0 ? messagePrefixed : messageLeadValue;
     
-    // ===========================================================================================
-    // REGRA CRÍTICA: Usar APENAS o tipo de lead definido pelo OBJETIVO DA CAMPANHA
-    // 
-    // - primaryLeadType = 'message' → usar apenas mensagens (ignorar form/contact)
-    // - primaryLeadType = 'form_contact' → usar form ou contact (ignorar mensagens)
-    // - primaryLeadType = 'auto' → usar o maior valor (fallback)
-    // ===========================================================================================
+    // Usar o MAIOR valor entre os tipos (fallback simples)
+    const leadTypes = [
+      { type: 'form', value: actualFormLeads },
+      { type: 'contact', value: contactLeadValue },
+      { type: 'message', value: actualMessageLeads },
+    ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
     
-    const formContactTotal = Math.max(actualFormLeads, contactLeadValue);
-    
-    if (primaryLeadType === 'message') {
-      // Campanha de MENSAGEM: usar APENAS mensagens
-      leadsCount = actualMessageLeads;
+    if (leadTypes.length > 0) {
+      leadsCount = leadTypes[0].value;
       source = 'actions';
-      console.log(`[LEADS-BY-OBJECTIVE] type=message (campaign objective), value=${leadsCount}`);
-      if (formContactTotal > 0) {
-        console.log(`[LEADS-SECONDARY-IGNORED] form_contact=${formContactTotal} (campaign is MESSAGE type)`);
-      }
-    } else if (primaryLeadType === 'form_contact') {
-      // Campanha de LEADS/TRÁFEGO: usar APENAS formulários/contatos
-      leadsCount = formContactTotal;
-      source = 'actions';
-      console.log(`[LEADS-BY-OBJECTIVE] type=form_contact (campaign objective), value=${leadsCount}`);
-      if (actualMessageLeads > 0) {
-        console.log(`[LEADS-SECONDARY-IGNORED] message=${actualMessageLeads} (campaign is FORM/CONTACT type)`);
-      }
-    } else {
-      // AUTO: usar o maior valor (comportamento legado)
-      const leadTypes = [
-        { type: 'form', value: actualFormLeads },
-        { type: 'contact', value: contactLeadValue },
-        { type: 'message', value: actualMessageLeads },
-      ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
-      
-      if (leadTypes.length > 0) {
-        const dominant = leadTypes[0];
-        leadsCount = dominant.value;
-        source = 'actions';
-        console.log(`[LEADS-AUTO-DOMINANT] type=${dominant.type}, value=${dominant.value}`);
-        if (leadTypes.length > 1) {
-          const secondary = leadTypes.slice(1).map(t => `${t.type}=${t.value}`).join(', ');
-          console.log(`[LEADS-SECONDARY-IGNORED] ${secondary} (auto mode, not summed)`);
-        }
-      }
+      console.log(`[ACTIONS-FALLBACK] type=${leadTypes[0].type}, value=${leadsCount}`);
     }
     
-    // CONVERSIONS = leads + purchases
     conversions = leadsCount + purchasesCount;
   }
 
-  // FONTE 2: Campo "conversions" - fallback se não veio de actions
+  // ===========================================================================================
+  // FONTE 3 (FALLBACK LEGADO): Campo "conversions" - usado se actions também não teve dados
+  // ===========================================================================================
   if (conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
     let formLeadConv = 0;
     let formLeadGroupedConv = 0;
@@ -580,71 +516,33 @@ function extractConversions(row: any, campaignObjective?: string, campaignName?:
       const actionType = c.action_type || '';
       const val = parseInt(c.value) || 0;
       if (val > 0) {
-        if (actionType === 'lead') {
-          formLeadConv = val;
-        } else if (actionType === 'onsite_conversion.lead_grouped') {
-          formLeadGroupedConv = val;
-        } else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType)) {
-          if (val > contactLeadConv) contactLeadConv = val;
-        } else if (actionType === 'messaging_conversation_started_7d') {
-          messageLeadConv = val;
-        } else if (actionType === 'onsite_conversion.messaging_conversation_started_7d') {
-          messagePrefixedConv = val;
-        } else if (actionType === 'purchase') {
-          purchaseConv = val;
-        } else if (actionType === 'omni_purchase') {
-          omniPurchaseConv = val;
-        }
+        if (actionType === 'lead') formLeadConv = val;
+        else if (actionType === 'onsite_conversion.lead_grouped') formLeadGroupedConv = val;
+        else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType) && val > contactLeadConv) contactLeadConv = val;
+        else if (actionType === 'messaging_conversation_started_7d') messageLeadConv = val;
+        else if (actionType === 'onsite_conversion.messaging_conversation_started_7d') messagePrefixedConv = val;
+        else if (actionType === 'purchase') purchaseConv = val;
+        else if (actionType === 'omni_purchase') omniPurchaseConv = val;
       }
     }
     
+    purchasesCount = omniPurchaseConv > 0 ? omniPurchaseConv : purchaseConv;
     const actualFormLeads = formLeadConv > 0 ? formLeadConv : formLeadGroupedConv;
     const actualMessageLeads = messagePrefixedConv > 0 ? messagePrefixedConv : messageLeadConv;
     
-    // PURCHASES: usar APENAS UM - omni_purchase tem prioridade
-    purchasesCount = omniPurchaseConv > 0 ? omniPurchaseConv : purchaseConv;
+    const leadTypesConv = [
+      { type: 'form', value: actualFormLeads },
+      { type: 'contact', value: contactLeadConv },
+      { type: 'message', value: actualMessageLeads },
+    ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
     
-    // Usar apenas o tipo definido pelo OBJETIVO DA CAMPANHA (mesmo princípio)
-    const formContactTotalConv = Math.max(actualFormLeads, contactLeadConv);
-    
-    if (primaryLeadType === 'message') {
-      leadsCount = actualMessageLeads;
-      source = 'conversions_filtered';
-      console.log(`[LEADS-BY-OBJECTIVE] conversions: type=message, value=${leadsCount}`);
-      if (formContactTotalConv > 0) {
-        console.log(`[LEADS-SECONDARY-IGNORED] conversions: form_contact=${formContactTotalConv} (campaign is MESSAGE type)`);
-      }
-    } else if (primaryLeadType === 'form_contact') {
-      leadsCount = formContactTotalConv;
-      source = 'conversions_filtered';
-      console.log(`[LEADS-BY-OBJECTIVE] conversions: type=form_contact, value=${leadsCount}`);
-      if (actualMessageLeads > 0) {
-        console.log(`[LEADS-SECONDARY-IGNORED] conversions: message=${actualMessageLeads} (campaign is FORM/CONTACT type)`);
-      }
-    } else {
-      // AUTO: usar o maior valor
-      const leadTypesConv = [
-        { type: 'form', value: actualFormLeads },
-        { type: 'contact', value: contactLeadConv },
-        { type: 'message', value: actualMessageLeads },
-      ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
-      
-      if (leadTypesConv.length > 0) {
-        leadsCount = leadTypesConv[0].value;
-        source = 'conversions_filtered';
-        console.log(`[LEADS-AUTO-DOMINANT] conversions: type=${leadTypesConv[0].type}, value=${leadsCount}`);
-        if (leadTypesConv.length > 1) {
-          const secondary = leadTypesConv.slice(1).map(t => `${t.type}=${t.value}`).join(', ');
-          console.log(`[LEADS-SECONDARY-IGNORED] conversions: ${secondary} (auto mode, not summed)`);
-        }
-      }
+    if (leadTypesConv.length > 0) {
+      leadsCount = leadTypesConv[0].value;
+      source = 'conversions_legacy';
+      console.log(`[CONVERSIONS-FALLBACK] type=${leadTypesConv[0].type}, value=${leadsCount}`);
     }
     
     conversions = leadsCount + purchasesCount;
-    
-    if (purchasesCount > 0) {
-      console.log(`[PURCHASE-FINAL] conversions: value=${purchasesCount} (omni=${omniPurchaseConv}, pixel=${purchaseConv})`);
-    }
   }
 
   // CPA: Buscar no cost_per_action_type apenas para os tipos que queremos
@@ -817,12 +715,10 @@ Deno.serve(async (req) => {
         const campaign = campaignId ? campaignMap.get(campaignId) : null;
         
         // ===========================================================================================
-        // EXTRAÇÃO COM FALLBACK HIERÁRQUICO: results → actions → 0
-        // AGORA COM SEPARAÇÃO DE LEADS E PURCHASES + FILTRO POR OBJETIVO DA CAMPANHA
+        // EXTRAÇÃO COM FALLBACK HIERÁRQUICO: results → actions → conversions
+        // Agora usa o campo "results" da API que é EXATAMENTE o que aparece no Gerenciador!
         // ===========================================================================================
-        const campaignObjective = campaign?.objective || insights.campaign_objective || null;
-        const campaignName = insights.campaign_name || campaign?.name || null;
-        const { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount } = extractConversions(insights, campaignObjective, campaignName);
+        const { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount } = extractConversions(insights);
         const messagingReplies = extractMessagingReplies(insights);
         const profileVisits = extractProfileVisits(insights);
         
