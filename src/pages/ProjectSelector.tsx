@@ -135,120 +135,153 @@ function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchi
   return (
     <div 
       className={cn(
-        "v4-cockpit-card group p-5 cursor-pointer transition-all duration-300",
-        "hover:border-red-600/40 hover:shadow-[0_0_30px_rgba(220,38,38,0.15)] hover:-translate-y-1",
-        project.archived && 'opacity-50'
+        "group relative overflow-hidden rounded-xl transition-all duration-500 cursor-pointer",
+        "bg-gradient-to-br from-card via-card to-card/90",
+        "border-2 border-primary/20 hover:border-primary/60",
+        "hover:-translate-y-2",
+        "shadow-[0_4px_20px_-5px_hsl(var(--primary)/0.15)]",
+        "hover:shadow-[0_20px_50px_-12px_hsl(var(--primary)/0.4)]",
+        project.archived && 'opacity-50 grayscale-[30%]'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Header Row */}
-      <div className="flex items-start gap-4 mb-4">
-        {/* Avatar */}
-        <div className={cn(
-          "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden",
-          "bg-white/5 border border-white/10"
-        )}>
-          {project.avatar_url ? (
-            <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
-          ) : (
-            <Icon className="w-6 h-6 text-white/40" />
-          )}
-        </div>
-        
-        {/* Title & Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5">
-            <h3 className="font-semibold text-white truncate" title={project.name}>
-              {project.name}
-            </h3>
-            {/* Health indicator dot */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className={cn(
-                    "w-2 h-2 rounded-full flex-shrink-0",
-                    healthDotColor
-                  )} />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs bg-[#0f0f0f] border-white/10">
-                  Health: {healthOption.label}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+      {/* Animated corner accents */}
+      <div className="absolute top-0 left-0 w-8 h-[2px] bg-gradient-to-r from-primary to-transparent" />
+      <div className="absolute top-0 left-0 h-8 w-[2px] bg-gradient-to-b from-primary to-transparent" />
+      <div className="absolute bottom-0 right-0 w-8 h-[2px] bg-gradient-to-l from-primary to-transparent" />
+      <div className="absolute bottom-0 right-0 h-8 w-[2px] bg-gradient-to-t from-primary to-transparent" />
+      
+      {/* Glowing border effect on hover */}
+      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
+        <div className="absolute inset-[-2px] rounded-xl bg-gradient-to-r from-primary via-primary/50 to-primary" style={{ filter: 'blur(4px)', opacity: 0.6 }} />
+      </div>
+      
+      {/* Top accent line with animation */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent group-hover:w-2/3 transition-all duration-500" />
+      
+      {/* Subtle inner glow */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-primary/5 opacity-50 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+      {/* Content */}
+      <div className="relative p-5 bg-gradient-to-br from-card/95 via-card to-card/90 rounded-xl backdrop-blur-sm">
+        {/* Header Row */}
+        <div className="flex items-start gap-4 mb-4">
+          {/* Avatar with glow on hover */}
+          <div className={cn(
+            "relative w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden",
+            "bg-secondary/80 border border-border/50",
+            "transition-all duration-500 group-hover:scale-110 group-hover:border-primary/30",
+            "group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+          )}>
+            {project.avatar_url ? (
+              <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
+            ) : (
+              <Icon className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+            )}
           </div>
           
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-white/5 text-white/50 border border-white/10">
-              <Icon className="w-3 h-3" />
-              {model?.label}
-            </span>
-            <span className="text-[10px] text-white/30 font-mono">
-              {project.ad_account_id.replace('act_', '')}
-            </span>
+          {/* Title & Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300 truncate" title={project.name}>
+                {project.name}
+              </h3>
+              {/* Health indicator dot with glow */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className={cn(
+                      "w-2.5 h-2.5 rounded-full flex-shrink-0 transition-all duration-300",
+                      healthDotColor,
+                      "group-hover:scale-125 group-hover:shadow-[0_0_8px_currentColor]"
+                    )} />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    Health: {healthOption.label}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={cn(
+                "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium",
+                "bg-secondary/80 text-muted-foreground",
+                "group-hover:bg-primary/10 group-hover:text-primary/90 transition-colors duration-300"
+              )}>
+                <Icon className="w-3 h-3" />
+                {model?.label}
+              </span>
+              <span className="text-xs text-muted-foreground font-mono bg-secondary/50 px-2 py-1 rounded-md group-hover:bg-secondary/80 transition-colors duration-300">
+                {project.ad_account_id.replace('act_', '')}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-3 border-t border-white/5">
-        {/* Sync Status */}
-        <div className={cn(
-          "flex items-center gap-1.5 text-xs",
-          lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
-            ? "text-emerald-400" 
-            : "text-white/30"
-        )}>
-          <RefreshCw className="w-3 h-3" />
-          <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca'}</span>
-        </div>
-        
-        {/* Actions */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(project);
-            }}
-            className="v4-ghost-btn text-xs py-1.5 px-3 flex items-center gap-1"
-          >
-            Acessar
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-3 border-t border-border/30 group-hover:border-primary/20 transition-colors duration-300">
+          {/* Sync Status */}
+          <div className={cn(
+            "flex items-center gap-1.5 text-xs transition-colors duration-300",
+            lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
+              ? "text-emerald-500" 
+              : "text-muted-foreground group-hover:text-muted-foreground/80"
+          )}>
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca'}</span>
+          </div>
+          
+          {/* Actions */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(project);
+              }}
+              className="text-primary hover:bg-primary/15 hover:text-primary gap-1 h-8 px-3 text-xs font-semibold transition-all duration-300"
+            >
+              Acessar
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+            </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-white/40 hover:text-red-400 hover:bg-white/5 transition-colors duration-300">
+                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary/80 hover:text-primary transition-colors duration-300">
                   <MoreVertical className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44 bg-black/90 border-white/10 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer text-white/80 hover:text-red-400 focus:text-red-400 focus:bg-red-600/10">
+              <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer">
                   <Pencil className="w-4 h-4" />
                   Editar
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer text-white/80 hover:text-red-400 focus:text-red-400 focus:bg-red-600/10">
+                <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer">
                   <RefreshCw className="w-4 h-4" />
                   Re-sincronizar
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuSeparator />
                 {project.archived ? (
-                  <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer text-white/80 hover:text-red-400 focus:text-red-400 focus:bg-red-600/10">
+                  <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer">
                     <ArchiveRestore className="w-4 h-4" />
                     Restaurar
                   </DropdownMenuItem>
                 ) : (
-                  <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer text-white/80 hover:text-red-400 focus:text-red-400 focus:bg-red-600/10">
+                  <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer">
                     <Archive className="w-4 h-4" />
                     Arquivar
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuSeparator className="bg-white/10" />
-                <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-400 focus:text-red-500 focus:bg-red-600/10">
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
                   <Trash2 className="w-4 h-4" />
                   Excluir
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
         </div>
       </div>
     </div>
@@ -275,62 +308,65 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
   return (
     <div 
       className={cn(
-        "group relative flex items-center gap-4 overflow-hidden rounded-lg transition-all duration-400 cursor-pointer p-4",
-        "bg-black/40 backdrop-blur-xl",
-        "border border-white/10 hover:border-red-600/50",
-        "hover:shadow-[0_0_30px_rgba(220,38,38,0.15)]",
+        "group relative flex items-center gap-4 overflow-hidden rounded-lg transition-all duration-500 cursor-pointer",
+        "bg-gradient-to-r from-card via-card to-card/90",
+        "border-2 border-primary/15 hover:border-primary/50 p-4",
+        "shadow-[0_2px_15px_-5px_hsl(var(--primary)/0.15)]",
+        "hover:shadow-[0_8px_30px_-10px_hsl(var(--primary)/0.35)]",
+        "hover:bg-primary/5",
         project.archived && 'opacity-50'
       )}
       onClick={() => onSelect(project)}
     >
-      {/* Left red accent bar */}
-      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-red-600/60 via-red-600 to-red-600/60 group-hover:shadow-[0_0_10px_rgba(220,38,38,0.5)] transition-all duration-500" />
+      {/* Left accent bar - always visible */}
+      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-primary/60 via-primary to-primary/60 group-hover:shadow-[0_0_10px_hsl(var(--primary)/0.5)] transition-all duration-500" />
 
-      {/* Avatar */}
+      {/* Avatar with glow */}
       <div className={cn(
         "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden ml-2",
-        "bg-black/40 border border-white/10",
-        "transition-all duration-500 group-hover:border-red-600/40 group-hover:shadow-[0_0_15px_rgba(220,38,38,0.3)]"
+        "bg-secondary border border-primary/20 hover:border-primary/40",
+        "transition-all duration-500 group-hover:border-primary/40 group-hover:shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
       )}>
         {project.avatar_url ? (
           <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
         ) : (
-          <Icon className="w-5 h-5 text-white/60 group-hover:text-red-500 transition-colors duration-300" />
+          <Icon className="w-5 h-5 text-primary/60 group-hover:text-primary transition-colors duration-300" />
         )}
       </div>
       
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-semibold text-white group-hover:text-red-400 transition-colors duration-300 truncate">
+          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors duration-300 truncate">
             {project.name}
           </h3>
+          {/* Health indicator dot with glow */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className={cn(
                   "w-2 h-2 rounded-full flex-shrink-0 transition-all duration-300",
                   healthDotColor,
-                  "shadow-[0_0_4px_currentColor] group-hover:scale-125"
+                  "shadow-[0_0_4px_currentColor] group-hover:scale-125 group-hover:shadow-[0_0_8px_currentColor]"
                 )} />
               </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs bg-black/90 border-white/10">
+              <TooltipContent side="top" className="text-xs">
                 Health: {healthOption.label}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
-        <div className="flex items-center gap-3 text-xs">
-          <span className="inline-flex items-center gap-1 bg-red-600/10 text-red-400 px-2 py-0.5 rounded border border-red-600/20">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1 bg-primary/10 text-primary/80 px-2 py-0.5 rounded group-hover:bg-primary/15 transition-colors duration-300">
             <Icon className="w-3 h-3" />
             {model?.label}
           </span>
-          <span className="font-mono text-white/30">{project.ad_account_id.replace('act_', '')}</span>
+          <span className="font-mono text-primary/50">{project.ad_account_id.replace('act_', '')}</span>
           <div className={cn(
             "flex items-center gap-1 transition-colors duration-300",
             lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
               ? "text-emerald-500" 
-              : "text-white/40"
+              : "text-muted-foreground"
           )}>
             <RefreshCw className="w-3 h-3" />
             <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca'}</span>
@@ -347,41 +383,41 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
             e.stopPropagation();
             onSelect(project);
           }}
-          className="v4-btn h-8 px-3 text-xs"
+          className="text-primary hover:bg-primary/15 hover:text-primary gap-1 h-8 px-3 text-xs font-semibold transition-all duration-300"
         >
-          ACESSAR
-          <ChevronRight className="w-4 h-4 ml-1" />
+          Acessar
+          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
         </Button>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-white/40 hover:text-red-400 hover:bg-white/5">
+            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors duration-300">
               <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44 bg-black/90 border-white/10 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer text-white/80 hover:text-red-400 focus:text-red-400 focus:bg-red-600/10">
+          <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer">
               <Pencil className="w-4 h-4" />
               Editar
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer text-white/80 hover:text-red-400 focus:text-red-400 focus:bg-red-600/10">
+            <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer">
               <RefreshCw className="w-4 h-4" />
               Re-sincronizar
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-white/10" />
+            <DropdownMenuSeparator />
             {project.archived ? (
-              <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer text-white/80 hover:text-red-400 focus:text-red-400 focus:bg-red-600/10">
+              <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer">
                 <ArchiveRestore className="w-4 h-4" />
                 Restaurar
               </DropdownMenuItem>
             ) : (
-              <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer text-white/80 hover:text-red-400 focus:text-red-400 focus:bg-red-600/10">
+              <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer">
                 <Archive className="w-4 h-4" />
                 Arquivar
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator className="bg-white/10" />
-            <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-400 focus:text-red-500 focus:bg-red-600/10">
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
               <Trash2 className="w-4 h-4" />
               Excluir
             </DropdownMenuItem>
@@ -777,174 +813,236 @@ export default function ProjectSelector() {
   };
 
   return (
-    <div className="min-h-screen v4-cockpit-bg">
-      {/* V4 Visual Effects */}
-      <div className="v4-ambient-light" />
-      <div className="v4-vignette" />
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Gradient Background - same as Auth, stronger red */}
+      <div className="fixed inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#2a0a0a] to-[#5c1010] pointer-events-none" />
+      
+      {/* Secondary gradient overlay for depth */}
+      <div className="fixed inset-0 bg-gradient-to-tl from-red-800/40 via-transparent to-transparent pointer-events-none" />
+
+      {/* Floating Particles - same as Auth */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        {particles.map((p) => (
+          <Particle key={p.id} {...p} />
+        ))}
+      </div>
+
+      {/* Subtle vignette effect */}
+      <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.3) 100%)' }} />
 
       {/* Main Content */}
-      <div className="relative" style={{ zIndex: 10 }}>
-        {/* V4 INDUSTRIAL TOP BAR */}
-        <header className="sticky top-0 z-50 w-full bg-black border-b border-[#E00E0E]/30">
-          {/* Red LED line at top */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#E00E0E] to-transparent" />
-          
-          <div className="w-full px-6 py-4">
-            <div className="flex items-center justify-between gap-6">
-              
-              {/* LEFT: Logo + Title */}
-              <div className="flex items-center gap-4 shrink-0">
-                <img src={v4LogoIcon} alt="V4" className="h-10 w-auto" />
-                <div className="h-8 w-px bg-[#E00E0E]/30" />
-                <div className="hidden lg:block">
-                  <h1 className="text-lg font-bold text-white leading-none uppercase tracking-wide">METAADS</h1>
-                  <span className="text-[10px] text-[#E00E0E] uppercase tracking-[0.3em]">V4 COMPANY</span>
-                </div>
+      <div className="relative z-10">
+        {/* Header Section - Premium Design */}
+        <header className="container mx-auto px-6 pt-8 pb-4">
+          <div className="flex items-center justify-between">
+            {/* Logo with Enhanced Glow */}
+            <div className="flex items-center gap-4 group">
+              <div className="relative">
+                {/* Glow effect behind logo */}
+                <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full opacity-60 group-hover:opacity-100 transition-opacity" />
+                <img 
+                  src={v4LogoIcon} 
+                  alt="V4 Company" 
+                  className="relative h-14 w-auto rounded-xl animate-float"
+                  style={{ filter: 'drop-shadow(0 0 25px rgba(255, 0, 0, 0.7)) saturate(2.5) brightness(1.3) contrast(1.1)' }}
+                />
               </div>
-
-              {/* CENTER: Stats - Industrial Style */}
-              <div className="hidden lg:flex items-center gap-2">
-                <div className="v4-industrial-glass flex items-center gap-2 px-4 py-2">
-                  <Briefcase className="w-4 h-4 text-[#E00E0E]" />
-                  <span className="text-xl font-black text-white">{healthCounts.total}</span>
-                  <span className="text-xs text-white/50 uppercase tracking-wider">TOTAL</span>
-                </div>
-                <div className="v4-industrial-glass flex items-center gap-2 px-4 py-2 !border-emerald-600/30">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                  <span className="text-xl font-black text-emerald-400">{healthCounts.safe}</span>
-                  <span className="text-xs text-emerald-500/60 uppercase tracking-wider">SAFE</span>
-                </div>
-                <div className="v4-industrial-glass flex items-center gap-2 px-4 py-2 !border-amber-600/30">
-                  <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
-                  <span className="text-xl font-black text-amber-400">{healthCounts.care}</span>
-                  <span className="text-xs text-amber-500/60 uppercase tracking-wider">CARE</span>
-                </div>
-                <div className="v4-industrial-glass flex items-center gap-2 px-4 py-2 !border-red-600/30">
-                  <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-                  <span className="text-xl font-black text-red-400">{healthCounts.danger}</span>
-                  <span className="text-xs text-red-500/60 uppercase tracking-wider">DANGER</span>
-                </div>
+              <div className="flex flex-col">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text text-transparent">
+                  MetaAds Manager
+                </h1>
+                <span className="text-xs text-muted-foreground tracking-wider">by V4 Company</span>
               </div>
-
-              {/* CENTER-RIGHT: Search + Filter */}
-              <div className="flex items-center gap-3 flex-1 max-w-md">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                  <Input
-                    placeholder="BUSCAR PROJETO..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="v4-cockpit-input pl-10 w-full h-10 uppercase tracking-wider text-sm"
-                  />
-                </div>
-                <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
-                  <SelectTrigger className="w-32 h-10 v4-cockpit-input uppercase tracking-wider text-sm">
-                    <SelectValue placeholder="STATUS" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-black border-[#E00E0E]/30">
-                    <SelectItem value="all" className="text-white/70 focus:bg-[#E00E0E]/10 focus:text-white uppercase">TODOS</SelectItem>
-                    <SelectItem value="safe" className="text-emerald-400 focus:bg-emerald-600/10 focus:text-emerald-300 uppercase">SAFE</SelectItem>
-                    <SelectItem value="care" className="text-amber-400 focus:bg-amber-600/10 focus:text-amber-300 uppercase">CARE</SelectItem>
-                    <SelectItem value="danger" className="text-red-400 focus:bg-red-600/10 focus:text-red-300 uppercase">DANGER</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* RIGHT: Tabs + Actions */}
-              <div className="flex items-center gap-4 shrink-0">
-                {/* Platform Tabs */}
-                <div className="flex items-center bg-black/60 rounded-lg p-1 border border-[#E00E0E]/20">
-                  <button 
-                    onClick={() => setActiveTab('meta-ads')}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold uppercase tracking-wider transition-all duration-300",
-                      activeTab === 'meta-ads' 
-                        ? 'bg-[#E00E0E] text-white shadow-[0_0_20px_rgba(224,14,14,0.5)]' 
-                        : 'text-white/50 hover:text-white hover:bg-white/5'
-                    )}
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
-                    </svg>
-                    META
-                  </button>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white/25 cursor-not-allowed uppercase tracking-wider">
-                          <Lock className="w-4 h-4" />
-                          GOOGLE
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-black border-[#E00E0E]/30">
-                        <p className="uppercase text-xs tracking-wider">EM BREVE</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <button 
-                    onClick={() => setActiveTab('profile')}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold uppercase tracking-wider transition-all duration-300",
-                      activeTab === 'profile' 
-                        ? 'bg-white/10 text-white' 
-                        : 'text-white/50 hover:text-white hover:bg-white/5'
-                    )}
-                  >
-                    <User className="w-4 h-4" />
-                    PERFIL
-                  </button>
-                </div>
-
-                {/* Divider */}
-                <div className="w-px h-8 bg-[#E00E0E]/30" />
-
-                {/* User Actions */}
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => navigate('/admin')}
-                    className="flex items-center gap-2 px-3 py-2 rounded text-sm uppercase tracking-wider text-white/50 hover:text-[#E00E0E] hover:bg-[#E00E0E]/10 transition-all duration-300"
-                  >
-                    <Shield className="w-4 h-4" />
-                    <span className="hidden xl:inline">ADMIN</span>
-                  </button>
-                  <button 
-                    onClick={handleLogout} 
-                    className="flex items-center gap-2 px-3 py-2 rounded text-sm uppercase tracking-wider text-white/50 hover:text-[#E00E0E] hover:bg-[#E00E0E]/10 transition-all duration-300"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span className="hidden xl:inline">SAIR</span>
-                  </button>
-                </div>
-              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate('/admin')}
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10 gap-2 rounded-xl transition-all hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+              >
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={handleLogout} 
+                className="text-muted-foreground hover:text-foreground hover:bg-card/50 gap-2 rounded-xl transition-all"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Sair</span>
+              </Button>
             </div>
           </div>
         </header>
 
-        {/* PROJECTS GRID */}
-        <div className="flex-1 max-w-7xl mx-auto px-6 py-8 w-full">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        {/* Section Title */}
+        <div className="container mx-auto px-6 py-4">
+          <div className="max-w-4xl mx-auto text-center mb-2">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground via-primary/80 to-foreground bg-clip-text text-transparent mb-2">
+              Seus Projetos
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Gerencie e monitore suas campanhas de anúncios
+            </p>
+          </div>
+        </div>
+
+        {/* Summary Cards - Enhanced Glass Effect */}
+        <div className="container mx-auto px-6 py-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            {/* Total */}
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-primary/40 hover:shadow-[0_4px_30px_hsl(var(--primary)/0.15)]">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total de Clientes</p>
+                  <p className="text-3xl font-bold text-foreground mt-2 group-hover:text-primary transition-colors">{healthCounts.total}</p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 transition-all">
+                  <FolderKanban className="w-6 h-6 text-primary" />
+                </div>
+              </div>
+            </div>
+            
+            {/* Safe */}
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-emerald-500/40 hover:shadow-[0_4px_30px_hsl(150,80%,42%,0.15)]">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Safe</p>
+                  <p className="text-3xl font-bold text-emerald-400 mt-2">{healthCounts.safe}</p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 group-hover:scale-110 transition-all">
+                  <ShieldCheck className="w-6 h-6 text-emerald-400" />
+                </div>
+              </div>
+            </div>
+            
+            {/* Care */}
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-amber-500/40 hover:shadow-[0_4px_30px_hsl(38,95%,50%,0.15)]">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Care</p>
+                  <p className="text-3xl font-bold text-amber-400 mt-2">{healthCounts.care}</p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 group-hover:scale-110 transition-all">
+                  <AlertTriangle className="w-6 h-6 text-amber-400" />
+                </div>
+              </div>
+            </div>
+            
+            {/* Danger */}
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-red-500/40 hover:shadow-[0_4px_30px_hsl(0,80%,55%,0.15)]">
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Danger</p>
+                  <p className="text-3xl font-bold text-red-400 mt-2">{healthCounts.danger}</p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 group-hover:scale-110 transition-all">
+                  <AlertCircle className="w-6 h-6 text-red-400" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <main className="container mx-auto px-6 pb-8">
+          <div className="max-w-7xl mx-auto">
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              {/* Controls Bar - Glass effect */}
+              <div className="glass-card p-4 mb-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                {/* Left side - Search and filters */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome ou account..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 w-64 h-10 bg-background border-border/50 rounded-lg"
+                    />
+                  </div>
+                  
+                  {/* Status Filter */}
+                  <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
+                    <SelectTrigger className="w-40 h-10 bg-background border-border/50">
+                      <SelectValue placeholder="Todos os Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os Status</SelectItem>
+                      <SelectItem value="safe">Safe</SelectItem>
+                      <SelectItem value="care">Care</SelectItem>
+                      <SelectItem value="danger">Danger</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Right side - Tabs and actions */}
+                <div className="flex items-center gap-3">
+                  <TabsList className="rounded-xl h-10 bg-secondary/50 p-1">
+                    <TabsTrigger 
+                      value="meta-ads" 
+                      className="gap-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+                      </svg>
+                      Meta Ads
+                    </TabsTrigger>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="gap-2 px-4 py-2 rounded-lg flex items-center text-muted-foreground opacity-50 cursor-not-allowed">
+                            <Lock className="w-4 h-4" />
+                            Google Ads
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Em breve</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TabsTrigger 
+                      value="profile" 
+                      className="gap-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+                    >
+                      <User className="w-4 h-4" />
+                      Perfil
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+              </div>
+            </div>
+
             {/* Meta Ads Section Header */}
             {activeTab === 'meta-ads' && (
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
                     <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
                     </svg>
                     {showArchived ? 'Meta Ads - Arquivados' : 'Meta Ads - Clientes'}
                   </h2>
-                  <p className="text-sm text-white/40">
+                  <p className="text-sm text-muted-foreground">
                     Total de {showArchived ? archivedMetaProjects.length : metaAdsProjects.length} clientes Meta Ads
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   {/* View Mode Toggle */}
-                  <div className="flex items-center bg-black/30 rounded-lg p-1">
+                  <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50">
                     <button
                       onClick={() => setViewMode('grid')}
                       className={cn(
-                        "p-2 rounded-md transition-all",
-                        viewMode === 'grid' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/70'
+                        "p-1.5 rounded-md transition-all",
+                        viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
                       )}
                     >
                       <LayoutGrid className="w-4 h-4" />
@@ -952,8 +1050,8 @@ export default function ProjectSelector() {
                     <button
                       onClick={() => setViewMode('list')}
                       className={cn(
-                        "p-2 rounded-md transition-all",
-                        viewMode === 'list' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/70'
+                        "p-1.5 rounded-md transition-all",
+                        viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
                       )}
                     >
                       <List className="w-4 h-4" />
@@ -961,36 +1059,40 @@ export default function ProjectSelector() {
                   </div>
 
                   {!isGuest && (
-                    <button
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
                         setInviteProjectId(undefined);
                         setInviteProjectName(undefined);
                         setInviteDialogOpen(true);
                       }}
-                      className="v4-ghost-btn flex items-center gap-2"
+                      className="border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all gap-2"
                     >
                       <UserPlus className="w-4 h-4" />
                       Convidar Cliente
-                    </button>
+                    </Button>
                   )}
 
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => setShowArchived(!showArchived)}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-all",
-                      showArchived && 'bg-white/5 border-white/20'
+                      "border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all",
+                      showArchived && 'bg-primary/10 border-primary/50'
                     )}
                   >
-                    <Archive className="w-4 h-4" />
+                    <Archive className="w-4 h-4 mr-2" />
                     {showArchived ? 'Ativos' : 'Arquivados'}
-                  </button>
+                  </Button>
                   
                   <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                     <DialogTrigger asChild>
-                      <button className="v4-primary-btn flex items-center gap-2">
+                      <Button className="gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 shadow-lg shadow-blue-600/30">
                         <Plus className="w-4 h-4" />
                         Novo Cliente Meta
-                      </button>
+                      </Button>
                     </DialogTrigger>
                       <DialogContent className="sm:max-w-2xl max-h-[90vh]">
                         <DialogHeader>
@@ -1455,7 +1557,8 @@ export default function ProjectSelector() {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
+      </main>
+      </div>{/* Close div.relative.z-10 */}
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

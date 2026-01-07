@@ -6,94 +6,174 @@
 
 @layer base {
   :root {
-    /* V4 INDUSTRIAL DARK - Pure Black Foundation */
-    --background: 0 0% 0%;
-    --foreground: 0 0% 100%;
+    --background: 220 15% 6%;
+    --foreground: 0 0% 98%;
 
-    --card: 0 0% 3%;
-    --card-foreground: 0 0% 100%;
+    --card: 220 15% 9%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 2%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 220 15% 9%;
+    --popover-foreground: 0 0% 98%;
 
-    /* V4 Red Primary - #E00E0E */
-    --primary: 0 90% 47%;
+    /* V4 Red Primary */
+    --primary: 0 85% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 6%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 220 15% 14%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 50%;
+    --muted: 220 12% 18%;
+    --muted-foreground: 220 8% 55%;
 
-    /* Red Accent - Industrial */
-    --accent: 0 90% 47%;
+    /* Red Accent */
+    --accent: 0 75% 50%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 90% 47%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
 
-    --success: 142 76% 36%;
+    --success: 150 80% 42%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 0%;
+    --warning: 38 95% 50%;
+    --warning-foreground: 220 15% 10%;
 
-    --border: 0 0% 12%;
-    --input: 0 0% 6%;
-    --ring: 0 90% 47%;
+    --border: 220 15% 18%;
+    --input: 220 15% 14%;
+    --ring: 0 85% 55%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    /* V4 Color tokens - Industrial */
-    --v4-red: 0 90% 47%;
-    --v4-red-light: 0 85% 55%;
-    --v4-red-dark: 0 90% 35%;
-    --v4-red-glow: 0 100% 50%;
+    /* V4 Color tokens */
+    --v4-red: 0 85% 55%;
+    --v4-red-light: 0 85% 65%;
+    --v4-red-dark: 0 85% 45%;
+    --v4-crimson: 348 85% 50%;
 
-    /* Industrial gradients */
-    --gradient-primary: linear-gradient(135deg, #E00E0E 0%, #B30B0B 100%);
-    --gradient-card: linear-gradient(180deg, rgba(10,10,10,0.9) 0%, rgba(0,0,0,0.95) 100%);
-    --gradient-glow: radial-gradient(ellipse at center, rgba(224, 14, 14, 0.15) 0%, transparent 70%);
+    /* Custom semantic tokens - V4 Futuristic Theme */
+    --gradient-primary: linear-gradient(135deg, hsl(0, 85%, 55%) 0%, hsl(348, 85%, 50%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(220, 15%, 11%) 0%, hsl(220, 15%, 7%) 100%);
+    --gradient-glow: radial-gradient(ellipse at center, hsl(0, 85%, 55%, 0.12) 0%, transparent 70%);
+    --gradient-hero: linear-gradient(135deg, hsl(220, 15%, 8%) 0%, hsl(220, 20%, 5%) 100%);
+    --gradient-glass: linear-gradient(135deg, hsl(0, 85%, 55%, 0.08) 0%, hsl(220, 15%, 12%, 0.5) 100%);
     
-    /* Industrial shadows */
-    --shadow-glow: 0 0 40px rgba(224, 14, 14, 0.3);
-    --shadow-glow-sm: 0 0 20px rgba(224, 14, 14, 0.2);
-    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.8);
-    --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.9), 0 0 40px rgba(224, 14, 14, 0.1);
-    --shadow-deep: 0 25px 50px -12px rgba(0, 0, 0, 0.95);
+    --shadow-glow: 0 0 60px hsl(0, 85%, 55%, 0.25);
+    --shadow-glow-sm: 0 0 30px hsl(0, 85%, 55%, 0.2);
+    --shadow-card: 0 4px 24px hsl(0, 0%, 0%, 0.5);
+    --shadow-elevated: 0 8px 40px hsl(0, 0%, 0%, 0.6), 0 0 60px hsl(0, 85%, 55%, 0.1);
+    --shadow-deep: 0 25px 50px -12px hsl(0, 0%, 0%, 0.7);
 
-    /* Sidebar - Industrial */
-    --sidebar-background: 0 0% 2%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 0 90% 47%;
+    --sidebar-background: 220 18% 5%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 0 85% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 6%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 10%;
-    --sidebar-ring: 0 90% 47%;
+    --sidebar-accent: 220 15% 12%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 220 15% 14%;
+    --sidebar-ring: 0 85% 55%;
     
-    --sidebar-gradient-start: 0 90% 47%;
-    --sidebar-gradient-end: 0 85% 40%;
-    --sidebar-gradient-accent: 0 90% 50%;
-    --sidebar-glow: 0 90% 47%;
+    /* Sidebar gradients */
+    --sidebar-gradient-start: 0 85% 55%;
+    --sidebar-gradient-end: 348 85% 50%;
+    --sidebar-gradient-accent: 20 90% 55%;
+    --sidebar-glow: 0 85% 55%;
 
-    /* Metrics - Industrial */
-    --metric-positive: 142 76% 36%;
-    --metric-negative: 0 90% 47%;
-    --metric-neutral: 0 0% 50%;
-    --metric-warning: 38 92% 50%;
+    /* Metrics colors */
+    --metric-positive: 150 80% 42%;
+    --metric-negative: 0 80% 55%;
+    --metric-neutral: 220 10% 60%;
+    --metric-warning: 38 95% 50%;
 
-    /* Chart colors - V4 Industrial (red-focused) */
-    --chart-1: 0 90% 47%;
-    --chart-2: 0 80% 40%;
-    --chart-3: 142 76% 36%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 0 0% 60%;
+    /* Chart colors - V4 palette */
+    --chart-1: 0 85% 55%;
+    --chart-2: 348 85% 50%;
+    --chart-3: 150 80% 42%;
+    --chart-4: 38 95% 50%;
+    --chart-5: 200 80% 50%;
 
     /* Undefined state */
-    --undefined: 0 0% 30%;
-    --undefined-foreground: 0 0% 60%;
+    --undefined: 220 10% 40%;
+    --undefined-foreground: 220 10% 70%;
+  }
+
+  .light {
+    --background: 220 15% 97%;
+    --foreground: 220 15% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 10%;
+
+    --primary: 0 85% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 94%;
+    --secondary-foreground: 220 15% 10%;
+
+    --muted: 220 10% 92%;
+    --muted-foreground: 220 8% 45%;
+
+    --accent: 0 75% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 150 80% 35%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 45%;
+    --warning-foreground: 220 15% 10%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 94%;
+    --ring: 0 85% 50%;
+
+    /* V4 Color tokens - Light */
+    --v4-red: 0 85% 50%;
+    --v4-red-light: 0 85% 60%;
+    --v4-red-dark: 0 85% 40%;
+    --v4-crimson: 348 85% 45%;
+
+    /* Custom semantic tokens - Light Theme */
+    --gradient-primary: linear-gradient(135deg, hsl(0, 85%, 50%) 0%, hsl(348, 85%, 45%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(220, 10%, 98%) 100%);
+    --gradient-glow: radial-gradient(ellipse at center, hsl(0, 85%, 50%, 0.1) 0%, transparent 70%);
+    --gradient-hero: linear-gradient(135deg, hsl(220, 10%, 98%) 0%, hsl(220, 15%, 95%) 100%);
+    
+    --shadow-glow: 0 0 60px hsl(0, 85%, 50%, 0.15);
+    --shadow-glow-sm: 0 0 30px hsl(0, 85%, 50%, 0.12);
+    --shadow-card: 0 4px 24px hsl(0, 0%, 0%, 0.08);
+    --shadow-elevated: 0 8px 32px hsl(0, 0%, 0%, 0.12);
+    --shadow-deep: 0 25px 50px -12px hsl(0, 0%, 0%, 0.15);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 15% 10%;
+    --sidebar-primary: 0 85% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 96%;
+    --sidebar-accent-foreground: 220 15% 10%;
+    --sidebar-border: 220 15% 92%;
+    --sidebar-ring: 0 85% 50%;
+
+    /* Metrics colors - Light */
+    --metric-positive: 150 80% 35%;
+    --metric-negative: 0 72% 50%;
+    --metric-neutral: 220 10% 50%;
+    --metric-warning: 38 92% 45%;
+
+    /* Chart colors - Light */
+    --chart-1: 0 85% 50%;
+    --chart-2: 348 85% 45%;
+    --chart-3: 150 80% 35%;
+    --chart-4: 38 92% 45%;
+    --chart-5: 200 75% 45%;
+
+    /* Undefined state */
+    --undefined: 220 10% 60%;
+    --undefined-foreground: 220 10% 40%;
   }
 }
 
@@ -793,466 +873,4 @@
 ::selection {
   background: hsl(var(--primary) / 0.35);
   color: hsl(var(--foreground));
-}
-
-/* ===== V4 INDUSTRIAL DARK DESIGN SYSTEM ===== */
-
-/* V4 Industrial Background - Pure Black */
-.v4-cockpit-bg {
-  background: #000000;
-  position: relative;
-  min-height: 100vh;
-}
-
-/* Subtle technical noise texture */
-.v4-cockpit-bg::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  opacity: 0.02;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* V4 Ambient Light - Subtle Industrial Red Glow */
-.v4-ambient-light {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 2;
-  background: 
-    radial-gradient(ellipse 80% 60% at 0% 0%, rgba(224, 14, 14, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse 80% 60% at 100% 100%, rgba(224, 14, 14, 0.08) 0%, transparent 50%);
-}
-
-/* Dark vignette - mission critical cockpit effect */
-.v4-vignette {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 3;
-  background: radial-gradient(ellipse 85% 75% at 50% 50%, transparent 40%, rgba(0, 0, 0, 0.6) 100%);
-}
-
-/* ===== V4 INDUSTRIAL GLASS CONTAINER ===== */
-/* Core component pattern for all cards/panels */
-.v4-industrial-glass {
-  @apply relative overflow-hidden rounded-xl;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(224, 14, 14, 0.3);
-  transition: all 0.3s ease;
-}
-
-.v4-industrial-glass::before {
-  content: '';
-  position: absolute;
-  inset-x: 0;
-  top: 0;
-  height: 1px;
-  background: linear-gradient(to right, transparent, #E00E0E, transparent);
-}
-
-.v4-industrial-glass::after {
-  content: '';
-  position: absolute;
-  top: -80px;
-  left: -80px;
-  width: 160px;
-  height: 160px;
-  background: rgba(224, 14, 14, 0.1);
-  border-radius: 50%;
-  filter: blur(60px);
-  pointer-events: none;
-}
-
-.v4-industrial-glass:hover {
-  border-color: #E00E0E;
-  box-shadow: 0 0 25px rgba(224, 14, 14, 0.2);
-}
-
-/* V4 Cockpit Card - Enhanced Industrial */
-.v4-cockpit-card {
-  @apply relative overflow-hidden rounded-xl;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(224, 14, 14, 0.25);
-  transition: all 0.3s ease;
-}
-
-.v4-cockpit-card::before {
-  content: '';
-  position: absolute;
-  inset-x: 0;
-  top: 0;
-  height: 1px;
-  background: linear-gradient(to right, transparent, rgba(224, 14, 14, 0.8), transparent);
-}
-
-.v4-cockpit-card::after {
-  content: '';
-  position: absolute;
-  top: -60px;
-  left: -60px;
-  width: 120px;
-  height: 120px;
-  background: rgba(224, 14, 14, 0.08);
-  border-radius: 50%;
-  filter: blur(50px);
-  pointer-events: none;
-}
-
-.v4-cockpit-card:hover {
-  border-color: rgba(224, 14, 14, 0.6);
-  box-shadow: 0 0 30px rgba(224, 14, 14, 0.15);
-}
-
-/* Cockpit Stat Card */
-.v4-cockpit-stat {
-  background: rgba(15, 15, 15, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 1.25rem;
-  transition: all 0.3s ease;
-}
-
-.v4-cockpit-stat:hover {
-  border-color: rgba(224, 14, 14, 0.25);
-  transform: translateY(-2px);
-}
-
-/* ===== V4 INDUSTRIAL BUTTONS ===== */
-
-/* V4 Primary Action Button - Aggressive CTA */
-.v4-ghost-btn {
-  @apply relative uppercase tracking-wider font-semibold text-sm;
-  background: rgba(224, 14, 14, 0.1);
-  border: 1px solid #E00E0E;
-  color: #E00E0E;
-  padding: 0.625rem 1.25rem;
-  border-radius: 6px;
-  transition: all 0.3s ease;
-}
-
-.v4-ghost-btn:hover {
-  background: #E00E0E;
-  color: white;
-  box-shadow: 0 0 25px rgba(224, 14, 14, 0.5);
-}
-
-/* V4 Primary Red Button */
-.v4-primary-btn {
-  @apply relative uppercase tracking-wider font-semibold text-sm;
-  background: #E00E0E;
-  border: 1px solid #E00E0E;
-  color: white;
-  padding: 0.625rem 1.25rem;
-  border-radius: 6px;
-  box-shadow: 0 0 20px rgba(224, 14, 14, 0.3);
-  transition: all 0.3s ease;
-}
-
-.v4-primary-btn:hover {
-  background: #B30B0B;
-  box-shadow: 0 0 30px rgba(224, 14, 14, 0.5);
-}
-
-/* V4 Secondary Button */
-.v4-secondary-btn {
-  @apply relative uppercase tracking-wider font-semibold text-sm;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.8);
-  padding: 0.625rem 1.25rem;
-  border-radius: 6px;
-  transition: all 0.3s ease;
-}
-
-.v4-secondary-btn:hover {
-  border-color: rgba(255, 255, 255, 0.4);
-  color: white;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-/* ===== V4 INDUSTRIAL INPUTS ===== */
-
-/* V4 Cockpit Input */
-.v4-cockpit-input {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(224, 14, 14, 0.2);
-  border-radius: 6px;
-  color: white;
-  padding: 0.625rem 1rem;
-  transition: all 0.3s ease;
-}
-
-.v4-cockpit-input:focus {
-  outline: none;
-  border-color: #E00E0E;
-  box-shadow: 0 0 15px rgba(224, 14, 14, 0.2);
-}
-
-.v4-cockpit-input::placeholder {
-  color: rgba(255, 255, 255, 0.35);
-}
-
-/* V4 Cockpit Select */
-.v4-cockpit-select {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(224, 14, 14, 0.2);
-  border-radius: 6px;
-}
-
-/* Industrial Glass Container - Core component */
-.v4-glass {
-  @apply relative overflow-hidden rounded-xl;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(16px) saturate(1.5);
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-}
-
-.v4-glass::before {
-  content: '';
-  position: absolute;
-  inset-x: 0;
-  top: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.8), transparent);
-}
-
-.v4-glass::after {
-  content: '';
-  position: absolute;
-  top: -64px;
-  left: -64px;
-  width: 128px;
-  height: 128px;
-  background: rgba(220, 38, 38, 0.1);
-  border-radius: 50%;
-  filter: blur(60px);
-  pointer-events: none;
-}
-
-.v4-glass:hover {
-  border-color: rgba(220, 38, 38, 0.5);
-  box-shadow: 0 0 30px rgba(220, 38, 38, 0.15);
-}
-
-/* V4 Industrial Card - Enhanced version */
-.v4-card {
-  @apply relative overflow-hidden rounded-xl p-6;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(16px) saturate(1.5);
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-}
-
-.v4-card::before {
-  content: '';
-  position: absolute;
-  inset-x: 0;
-  top: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.8), transparent);
-}
-
-.v4-card::after {
-  content: '';
-  position: absolute;
-  top: -64px;
-  left: -64px;
-  width: 128px;
-  height: 128px;
-  background: rgba(220, 38, 38, 0.1);
-  border-radius: 50%;
-  filter: blur(60px);
-  pointer-events: none;
-}
-
-.v4-card:hover {
-  border-color: rgba(220, 38, 38, 0.5);
-  box-shadow: 0 0 25px rgba(220, 38, 38, 0.2);
-}
-
-/* V4 Industrial Button */
-.v4-btn {
-  @apply relative px-4 py-2 font-medium uppercase tracking-wider text-sm;
-  background: rgba(220, 38, 38, 0.1);
-  border: 1px solid rgb(220, 38, 38);
-  color: rgb(239, 68, 68);
-  box-shadow: 0 0 15px rgba(220, 38, 38, 0.2);
-  transition: all 0.3s ease;
-}
-
-.v4-btn:hover {
-  background: rgb(220, 38, 38);
-  color: white;
-  box-shadow: 0 0 25px rgba(220, 38, 38, 0.4);
-}
-
-/* V4 Secondary Button */
-.v4-btn-secondary {
-  @apply relative px-4 py-2 font-medium uppercase tracking-wider text-sm;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.8);
-  transition: all 0.3s ease;
-}
-
-.v4-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: white;
-}
-
-/* V4 Stat Card */
-.v4-stat-card {
-  @apply relative overflow-hidden rounded-xl p-5;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.3s ease;
-}
-
-.v4-stat-card::before {
-  content: '';
-  position: absolute;
-  inset-x: 0;
-  top: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.6), transparent);
-}
-
-.v4-stat-card:hover {
-  border-color: rgba(220, 38, 38, 0.4);
-  transform: translateY(-2px);
-}
-
-/* V4 Input styling */
-.v4-input {
-  @apply w-full px-4 py-3 rounded-lg;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
-  transition: all 0.3s ease;
-}
-
-.v4-input:focus {
-  outline: none;
-  border-color: rgba(220, 38, 38, 0.6);
-  box-shadow: 0 0 20px rgba(220, 38, 38, 0.15);
-}
-
-.v4-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
-}
-
-/* V4 Industrial Background */
-.v4-bg {
-  background: #000000;
-  position: relative;
-}
-
-.v4-bg::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: 
-    radial-gradient(ellipse at 20% 30%, rgba(220, 38, 38, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, rgba(220, 38, 38, 0.05) 0%, transparent 50%);
-  pointer-events: none;
-}
-
-/* V4 Red Glow Text */
-.v4-glow-text {
-  text-shadow: 0 0 20px rgba(220, 38, 38, 0.5), 0 0 40px rgba(220, 38, 38, 0.3);
-}
-
-/* V4 Badge */
-.v4-badge {
-  @apply inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium uppercase tracking-wider;
-  background: rgba(220, 38, 38, 0.15);
-  border: 1px solid rgba(220, 38, 38, 0.3);
-  color: rgb(248, 113, 113);
-}
-
-/* V4 Tab styling */
-.v4-tabs {
-  @apply flex gap-1 p-1 rounded-lg;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.v4-tab {
-  @apply px-4 py-2 rounded-md text-sm font-medium transition-all;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.v4-tab:hover {
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.v4-tab.active {
-  background: rgba(220, 38, 38, 0.2);
-  color: rgb(248, 113, 113);
-  border: 1px solid rgba(220, 38, 38, 0.3);
-}
-
-/* V4 Project Card */
-.v4-project-card {
-  @apply relative overflow-hidden rounded-xl cursor-pointer;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(16px) saturate(1.5);
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.v4-project-card::before {
-  content: '';
-  position: absolute;
-  inset-x: 0;
-  top: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.7), transparent);
-  opacity: 0.6;
-  transition: opacity 0.3s ease;
-}
-
-.v4-project-card::after {
-  content: '';
-  position: absolute;
-  top: -80px;
-  left: -80px;
-  width: 160px;
-  height: 160px;
-  background: rgba(220, 38, 38, 0.08);
-  border-radius: 50%;
-  filter: blur(60px);
-  pointer-events: none;
-  transition: all 0.4s ease;
-}
-
-.v4-project-card:hover {
-  border-color: rgba(220, 38, 38, 0.5);
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(220, 38, 38, 0.15);
-}
-
-.v4-project-card:hover::before {
-  opacity: 1;
-}
-
-.v4-project-card:hover::after {
-  background: rgba(220, 38, 38, 0.12);
 }
