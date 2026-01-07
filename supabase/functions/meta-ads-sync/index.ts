@@ -568,6 +568,12 @@ function extractConversions(row: any, campaignObjective?: string): {
   ];
   
   if (Array.isArray(row.results) && row.results.length > 0) {
+    // Coletar valores de cada tipo de purchase separadamente para evitar duplicação
+    let omniPurchaseCount = 0;
+    let purchaseCount = 0;
+    let pixelPurchaseCount = 0;
+    let otherPurchaseCount = 0;
+    
     for (const result of row.results) {
       // Campo pode ser action_type ou indicator
       let actionType = result.action_type || result.indicator || '';
@@ -598,13 +604,37 @@ function extractConversions(row: any, campaignObjective?: string): {
         console.log(`[RESULTS] action_type=${actionType}, value=${val}`);
         
         // Classificar como lead ou purchase
-        if (PURCHASE_ACTION_TYPES.includes(actionType)) {
-          purchasesCount += val;
+        // IMPORTANTE: Para purchases, coletar separadamente para priorizar depois (evitar duplicação)
+        if (actionType === 'omni_purchase') {
+          omniPurchaseCount = val;
+        } else if (actionType === 'purchase') {
+          purchaseCount = val;
+        } else if (actionType === 'offsite_conversion.fb_pixel_purchase') {
+          pixelPurchaseCount = val;
+        } else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
+          // Outros tipos de purchase (onsite_web_purchase, etc) - pegar o maior
+          if (val > otherPurchaseCount) otherPurchaseCount = val;
         } else if (ALL_LEAD_ACTION_TYPES.includes(actionType) || MESSAGE_LEAD_ACTION_TYPES.includes(actionType)) {
           leadsCount += val;
         }
         // NÃO contamos mais tipos desconhecidos como leads!
       }
+    }
+    
+    // Priorizar: omni_purchase > purchase > pixel_purchase > outros
+    // NÃO SOMAR - usar apenas o mais abrangente!
+    if (omniPurchaseCount > 0) {
+      purchasesCount = omniPurchaseCount;
+      console.log(`[RESULTS-PURCHASES] Usando omni_purchase=${omniPurchaseCount}`);
+    } else if (purchaseCount > 0) {
+      purchasesCount = purchaseCount;
+      console.log(`[RESULTS-PURCHASES] Usando purchase=${purchaseCount}`);
+    } else if (pixelPurchaseCount > 0) {
+      purchasesCount = pixelPurchaseCount;
+      console.log(`[RESULTS-PURCHASES] Usando pixel_purchase=${pixelPurchaseCount}`);
+    } else if (otherPurchaseCount > 0) {
+      purchasesCount = otherPurchaseCount;
+      console.log(`[RESULTS-PURCHASES] Usando other_purchase=${otherPurchaseCount}`);
     }
     
     // Só marca como source='results' se encontrou algo válido
