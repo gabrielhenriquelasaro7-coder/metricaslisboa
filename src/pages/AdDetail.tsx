@@ -477,7 +477,7 @@ export default function AdDetail() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Compras</p>
-                        <p className="text-2xl font-bold">{ad.conversions}</p>
+                        <p className="text-2xl font-bold">{adMetricsTotals.conversions}</p>
                       </div>
                     </div>
                   </div>
@@ -490,9 +490,9 @@ export default function AdDetail() {
                         <p className="text-xs text-muted-foreground">ROAS</p>
                         <p className={cn(
                           "text-2xl font-bold",
-                          ad.roas >= 5 ? 'text-metric-positive' : ad.roas >= 3 ? 'text-metric-warning' : 'text-metric-negative'
+                          adMetricsTotals.roas >= 5 ? 'text-metric-positive' : adMetricsTotals.roas >= 3 ? 'text-metric-warning' : 'text-metric-negative'
                         )}>
-                          {ad.roas.toFixed(2)}x
+                          {adMetricsTotals.roas.toFixed(2)}x
                         </p>
                       </div>
                     </div>
@@ -504,7 +504,7 @@ export default function AdDetail() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">CPA</p>
-                        <p className="text-2xl font-bold">{formatCurrency(ad.cpa)}</p>
+                        <p className="text-2xl font-bold">{formatCurrency(adMetricsTotals.cpa)}</p>
                       </div>
                     </div>
                   </div>
@@ -518,7 +518,7 @@ export default function AdDetail() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Leads</p>
-                        <p className="text-2xl font-bold">{ad.conversions}</p>
+                        <p className="text-2xl font-bold">{adMetricsTotals.conversions}</p>
                       </div>
                     </div>
                   </div>
@@ -529,7 +529,7 @@ export default function AdDetail() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">CPL</p>
-                        <p className="text-2xl font-bold">{formatCurrency(ad.cpa)}</p>
+                        <p className="text-2xl font-bold">{formatCurrency(adMetricsTotals.cpa)}</p>
                       </div>
                     </div>
                   </div>
@@ -540,7 +540,7 @@ export default function AdDetail() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Taxa Conversão</p>
-                        <p className="text-2xl font-bold">{ad.impressions > 0 ? ((ad.conversions / ad.impressions) * 100).toFixed(3) : 0}%</p>
+                        <p className="text-2xl font-bold">{adMetricsTotals.impressions > 0 ? ((adMetricsTotals.conversions / adMetricsTotals.impressions) * 100).toFixed(3) : 0}%</p>
                       </div>
                     </div>
                   </div>
@@ -552,49 +552,49 @@ export default function AdDetail() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <MetricCard 
                 title="CTR" 
-                value={`${ad.ctr.toFixed(2)}%`} 
+                value={`${adMetricsTotals.ctr.toFixed(2)}%`} 
                 icon={Percent} 
                 tooltip="Click-Through Rate: Taxa de cliques"
               />
               <MetricCard 
                 title="Impressões" 
-                value={formatNumber(ad.impressions)} 
+                value={formatNumber(adMetricsTotals.impressions)} 
                 icon={Eye} 
                 tooltip="Número total de vezes que este anúncio foi exibido"
               />
               <MetricCard 
                 title="Gasto" 
-                value={formatCurrency(ad.spend)} 
+                value={formatCurrency(adMetricsTotals.spend)} 
                 icon={DollarSign} 
                 tooltip="Total investido neste anúncio"
               />
               <MetricCard 
                 title="CPM" 
-                value={formatCurrency(ad.cpm)} 
+                value={formatCurrency(adMetricsTotals.cpm)} 
                 icon={BarChart3} 
                 tooltip="Custo por Mil: Custo para cada 1.000 impressões"
               />
               <MetricCard 
                 title="Alcance" 
-                value={formatNumber(ad.reach)} 
+                value={formatNumber(adMetricsTotals.reach)} 
                 icon={Users} 
                 tooltip="Número de pessoas únicas que viram este anúncio"
               />
               <MetricCard 
                 title="Cliques" 
-                value={formatNumber(ad.clicks)} 
+                value={formatNumber(adMetricsTotals.clicks)} 
                 icon={MousePointerClick} 
                 tooltip="Total de cliques neste anúncio"
               />
               <MetricCard 
                 title="CPC" 
-                value={formatCurrency(ad.cpc)} 
+                value={formatCurrency(adMetricsTotals.cpc)} 
                 icon={Target} 
                 tooltip="Custo Por Clique: Valor médio pago por cada clique"
               />
               <MetricCard 
                 title="Receita" 
-                value={formatCurrency(ad.conversion_value)} 
+                value={formatCurrency(adMetricsTotals.conversion_value)} 
                 icon={TrendingUp} 
                 tooltip="Receita gerada por este anúncio"
               />
