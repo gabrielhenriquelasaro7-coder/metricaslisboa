@@ -141,7 +141,16 @@ export default function AdDetail() {
     if (!adId) return;
     setLoading(true);
     try {
-      // First try from ads table
+      // Always get the freshest thumbnail from ads_daily_metrics first (most recently synced)
+      const { data: latestMetric } = await supabase
+        .from('ads_daily_metrics')
+        .select('creative_thumbnail, cached_creative_thumbnail, creative_id')
+        .eq('ad_id', adId)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      // Get main ad data from ads table
       const { data: adData } = await supabase
         .from('ads')
         .select('*')
@@ -151,7 +160,16 @@ export default function AdDetail() {
       if (adData) {
         // Set project_id FIRST so charts can start loading
         setProjectId(adData.project_id);
-        setAd(adData as Ad);
+        
+        // Merge freshest thumbnail from daily metrics if available
+        const freshThumbnail = latestMetric?.cached_creative_thumbnail || latestMetric?.creative_thumbnail;
+        setAd({
+          ...adData,
+          // Prioritize: cached_image_url > fresh daily thumbnail > existing thumbnails
+          cached_image_url: adData.cached_image_url || latestMetric?.cached_creative_thumbnail || null,
+          creative_thumbnail: freshThumbnail || adData.creative_thumbnail,
+          creative_image_url: adData.creative_image_url || freshThumbnail || null,
+        } as Ad);
         
         const { data: adSetData } = await supabase
           .from('ad_sets')
@@ -166,17 +184,19 @@ export default function AdDetail() {
           .eq('id', adData.campaign_id)
           .maybeSingle();
         if (campaignData) setCampaign(campaignData);
-      } else {
+      } else if (latestMetric) {
         // Fallback: get ad info from ads_daily_metrics
         const { data: metricsData } = await supabase
           .from('ads_daily_metrics')
-          .select('ad_id, ad_name, ad_status, adset_id, adset_name, campaign_id, campaign_name, project_id, creative_thumbnail, cached_creative_thumbnail')
+          .select('ad_id, ad_name, ad_status, adset_id, adset_name, campaign_id, campaign_name, project_id, creative_thumbnail, cached_creative_thumbnail, creative_id')
           .eq('ad_id', adId)
+          .order('date', { ascending: false })
           .limit(1)
           .maybeSingle();
         
         if (metricsData) {
           setProjectId(metricsData.project_id);
+          const thumbnail = metricsData.cached_creative_thumbnail || metricsData.creative_thumbnail || null;
           setAd({
             id: metricsData.ad_id,
             ad_set_id: metricsData.adset_id,
@@ -196,9 +216,9 @@ export default function AdDetail() {
             conversion_value: 0,
             roas: 0,
             cpa: 0,
-            creative_id: null,
-            creative_thumbnail: metricsData.cached_creative_thumbnail || metricsData.creative_thumbnail || null,
-            creative_image_url: null,
+            creative_id: metricsData.creative_id || null,
+            creative_thumbnail: thumbnail,
+            creative_image_url: thumbnail,
             creative_video_url: null,
             cached_image_url: metricsData.cached_creative_thumbnail || null,
             headline: null,

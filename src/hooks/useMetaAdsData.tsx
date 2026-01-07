@@ -383,11 +383,14 @@ export function useMetaAdsData() {
 
         // Ad aggregation
         if (!adAgg.has(row.ad_id)) {
+          const thumbnail = row.cached_creative_thumbnail || row.creative_thumbnail;
           adAgg.set(row.ad_id, {
             id: row.ad_id, project_id: selectedProject.id, campaign_id: row.campaign_id,
             ad_set_id: row.adset_id, name: row.ad_name, status: row.ad_status,
             creative_id: row.creative_id, 
-            creative_thumbnail: row.cached_creative_thumbnail || row.creative_thumbnail,
+            creative_thumbnail: thumbnail,
+            creative_image_url: thumbnail, // Use same URL for image
+            cached_image_url: row.cached_creative_thumbnail || null,
             spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0,
           });
         }
