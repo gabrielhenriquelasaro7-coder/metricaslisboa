@@ -194,12 +194,14 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
     } catch {}
   }
 
-  // Fetch creatives (batch API) - include image_url for HD access
-  const creativeIdsToFetch = ads.filter(a => a.creative?.id && !cachedCreativeMap.has(a.id)).map(a => a.creative.id);
-  console.log(`[DEBUG-CREATIVE] creativeIdsToFetch count: ${creativeIdsToFetch.length}, sample: ${creativeIdsToFetch.slice(0, 3).join(',')}`);
+  // Fetch creatives (batch API) - SEMPRE buscar todos os creatives, ignorando cache
+  // O cache anterior só tinha imagens, não tinha headline/primary_text/cta
+  const creativeIdsToFetch = ads.filter(a => a.creative?.id).map(a => a.creative.id);
+  const uniqueCreativeIds = [...new Set(creativeIdsToFetch)]; // Remove duplicates
+  console.log(`[DEBUG-CREATIVE] creativeIdsToFetch count: ${uniqueCreativeIds.length}, sample: ${uniqueCreativeIds.slice(0, 3).join(',')}`);
   
-  for (let i = 0; i < creativeIdsToFetch.length; i += 50) {
-    const batch = creativeIdsToFetch.slice(i, i + 50);
+  for (let i = 0; i < uniqueCreativeIds.length; i += 50) {
+    const batch = uniqueCreativeIds.slice(i, i + 50);
     const batchRequests = batch.map(creativeId => ({ method: 'GET', relative_url: `${creativeId}?fields=id,thumbnail_url,image_url,image_hash,object_story_spec,body,title,call_to_action_type` }));
     try {
       const response = await fetch(`https://graph.facebook.com/v21.0/?access_token=${token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch: batchRequests }) });
