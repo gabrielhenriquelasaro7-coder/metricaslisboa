@@ -330,10 +330,13 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 // TODOS são considerados "leads/conversões" para o dashboard!
 // ===========================================================================================
 
-// Tipos que contam como LEADS DE FORMULÁRIO (formulários de lead no site)
+// Tipos que contam como LEADS DE FORMULÁRIO (formulários de lead no site ou pixel)
+// offsite_conversion.fb_pixel_lead = Lead capturado pelo pixel do Facebook no site
 const FORM_LEAD_ACTION_TYPES = [
   'lead',
   'onsite_conversion.lead_grouped',
+  'offsite_conversion.fb_pixel_lead',  // Pixel lead
+  'fb_pixel_lead',                     // Normalizado sem prefixo
 ];
 
 // Tipos que contam como CONTATO NO SITE (objetivo de cadastro/contato)
@@ -421,10 +424,21 @@ function extractConversions(row: any): {
   // Este campo pode conter action_type OU indicator (estrutura varia por campanha).
   // IMPORTANTE: Ignoramos resultados de engajamento como profile_visit_view, video_view, etc.
   // Só queremos leads e purchases reais!
+  // 
+  // *** CAMPANHAS DE TRÁFEGO NÃO TÊM LEADS! ***
+  // Elas retornam landing_page_view, link_click, etc - NÃO são conversões!
   // ===========================================================================================
   const ENGAGEMENT_INDICATORS = [
+    // Engajamento de página/post
     'profile_visit_view', 'video_view', 'post_engagement', 'page_engagement',
-    'landing_page_view', 'link_click', 'post_reaction', 'comment', 'share'
+    'post_reaction', 'comment', 'share', 'page_like', 'post_like',
+    // Cliques e visualizações - NÃO SÃO LEADS!
+    'landing_page_view', 'link_click', 'outbound_click',
+    // Tráfego - objetivo de cliques, não conversão
+    'onsite_web_view_content', 'view_content',
+    // Vídeo
+    'video_view', 'thruplay', 'video_p25_watched_actions', 'video_p50_watched_actions',
+    'video_p75_watched_actions', 'video_p95_watched_actions', 'video_p100_watched_actions',
   ];
   
   if (Array.isArray(row.results) && row.results.length > 0) {
