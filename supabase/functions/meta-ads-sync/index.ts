@@ -1202,9 +1202,23 @@ Deno.serve(async (req) => {
     await detectAndSendAnomalyAlerts(supabase, project_id, allChanges, campaignMetrics, existingCampaigns || []);
 
     // Upsert entities
-    if (campaignRecords.length > 0) await supabase.from('campaigns').upsert(campaignRecords, { onConflict: 'id' });
-    if (adsetRecords.length > 0) await supabase.from('ad_sets').upsert(adsetRecords, { onConflict: 'id' });
-    if (adRecords.length > 0) await supabase.from('ads').upsert(adRecords, { onConflict: 'id' });
+    console.log(`[UPSERT] Starting entity upserts - campaigns: ${campaignRecords.length}, adsets: ${adsetRecords.length}, ads: ${adRecords.length}`);
+    
+    if (campaignRecords.length > 0) {
+      const { error: campError } = await supabase.from('campaigns').upsert(campaignRecords, { onConflict: 'id' });
+      if (campError) console.error(`[UPSERT] Campaign error:`, campError);
+    }
+    if (adsetRecords.length > 0) {
+      const { error: adsetError } = await supabase.from('ad_sets').upsert(adsetRecords, { onConflict: 'id' });
+      if (adsetError) console.error(`[UPSERT] Adset error:`, adsetError);
+    }
+    if (adRecords.length > 0) {
+      // Log sample ad record for debugging
+      console.log(`[UPSERT] Sample ad record:`, JSON.stringify(adRecords[0]));
+      const { error: adsError } = await supabase.from('ads').upsert(adRecords, { onConflict: 'id' });
+      if (adsError) console.error(`[UPSERT] Ads error:`, adsError);
+      else console.log(`[UPSERT] Ads upserted successfully: ${adRecords.length}`);
+    }
 
     // Update project sync time
     await supabase.from('projects').update({ last_sync_at: new Date().toISOString(), webhook_status: 'active' }).eq('id', project_id);
