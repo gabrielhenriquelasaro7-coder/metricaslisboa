@@ -320,44 +320,59 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 
 // ===========================================================================================
 // TIPOS DE CONVERSÃO SEPARADOS POR CATEGORIA
-// IMPORTANTE: Separar leads, mensagens e vendas para cada modelo de negócio
 // 
 // *** REGRA CRÍTICA DO GERENCIADOR DE ANÚNCIOS: ***
-// O campo "Resultados" no Gerenciador mostra:
-// - Para campanhas de FORMULÁRIO: lead + onsite_conversion.lead_grouped
-// - Para campanhas de MENSAGEM: messaging_conversation_started_7d
+// O campo "Resultados" no Gerenciador pode mostrar diferentes tipos dependendo do objetivo:
+// - Campanhas de LEAD: lead, contact, complete_registration
+// - Campanhas de MENSAGEM: messaging_conversation_started_7d
+// - Campanhas de VENDAS: purchase
 // 
-// AMBOS são considerados "leads" para o dashboard - não são categorias separadas!
+// TODOS são considerados "leads/conversões" para o dashboard!
 // ===========================================================================================
 
-// Tipos que contam como LEADS DE FORMULÁRIO (formulários de lead)
+// Tipos que contam como LEADS DE FORMULÁRIO (formulários de lead no site)
 const FORM_LEAD_ACTION_TYPES = [
   'lead',
   'onsite_conversion.lead_grouped',
 ];
 
+// Tipos que contam como CONTATO NO SITE (objetivo de cadastro/contato)
+// Estes SÃO o "Resultado" para campanhas de CADASTRO/LEADS que não usam formulário Meta
+const CONTACT_LEAD_ACTION_TYPES = [
+  'contact_total',
+  'contact_website', 
+  'contact',
+  'omni_complete_registration',
+  'complete_registration',
+  'submit_application',
+  'submit_application_total',
+];
+
 // Tipos que contam como LEADS DE MENSAGEM (WhatsApp, Messenger, DM)
-// IMPORTANTE: Para campanhas de mensagem, "messaging_conversation_started_7d" É O LEAD!
-// No Gerenciador, esse é o valor que aparece em "Resultados"
+// APENAS messaging_conversation_started_7d - é o "Resultado" oficial para campanhas de mensagem
 const MESSAGE_LEAD_ACTION_TYPES = [
   'messaging_conversation_started_7d',
   'onsite_conversion.messaging_conversation_started_7d',
 ];
 
-// Tipos AUXILIARES de mensagem (para campo messaging_replies, não para leads)
+// Tipos AUXILIARES de mensagem (NÃO são o resultado principal - evitar duplicação)
 const MESSAGING_AUXILIARY_TYPES = [
   'onsite_conversion.messaging_first_reply',
   'onsite_conversion.total_messaging_connection',
+  'messaging_first_reply',
+  'total_messaging_connection',
 ];
 
 // Tipos que contam como VENDAS/COMPRAS (receita)
 const PURCHASE_ACTION_TYPES = [
   'purchase',
+  'omni_purchase',
 ];
 
-// Todos os tipos de LEADS (formulário + mensagem) - é isso que o Gerenciador chama de "Resultados"
+// Todos os tipos de LEADS (formulário + contato + mensagem)
 const ALL_LEAD_ACTION_TYPES = [
   ...FORM_LEAD_ACTION_TYPES,
+  ...CONTACT_LEAD_ACTION_TYPES,
   ...MESSAGE_LEAD_ACTION_TYPES,
 ];
 
@@ -370,6 +385,7 @@ const CONVERSION_ACTION_TYPES = [
 // Tipos de action_values que representam RECEITA REAL (para ROAS)
 const REVENUE_ACTION_TYPES = [
   'purchase',
+  'omni_purchase',
 ];
 
 function extractConversions(row: any): { 
@@ -388,19 +404,21 @@ function extractConversions(row: any): {
   let purchasesCount = 0;
 
   // ===========================================================================================
-  // ESTRATÉGIA CORRIGIDA: Leads = formulários + mensagens iniciadas
+  // ESTRATÉGIA CORRIGIDA: Leads = formulários + contatos no site + mensagens iniciadas
   // 
-  // O Gerenciador de Anúncios mostra como "Resultados":
-  // - Para campanhas de formulário: lead / onsite_conversion.lead_grouped
-  // - Para campanhas de mensagem: messaging_conversation_started_7d
+  // O Gerenciador de Anúncios mostra como "Resultados" diferentes tipos dependendo do objetivo:
+  // - Campanhas de formulário: lead / onsite_conversion.lead_grouped
+  // - Campanhas de cadastro/contato: contact, complete_registration
+  // - Campanhas de mensagem: messaging_conversation_started_7d
   // 
-  // AMBOS devem ser contados como "leads" no dashboard!
+  // TODOS devem ser contados como "leads" no dashboard!
   // ===========================================================================================
   
   // FONTE 1: Campo "actions" - eventos filtrados por action_type
   // Coletamos todos os tipos separadamente para evitar duplicação
   let formLeadValue = 0;     // lead
   let formLeadGrouped = 0;   // onsite_conversion.lead_grouped
+  let contactLeadValue = 0;  // contact_total, contact, complete_registration, etc.
   let messageLeadValue = 0;  // messaging_conversation_started_7d
   let messagePrefixed = 0;   // onsite_conversion.messaging_conversation_started_7d
   
@@ -409,11 +427,19 @@ function extractConversions(row: any): {
       const actionType = action.action_type || '';
       const val = parseInt(action.value) || 0;
       if (val > 0) {
-        // LEADS DE FORMULÁRIO
+        // LEADS DE FORMULÁRIO META
         if (actionType === 'lead') {
           formLeadValue = val;
         } else if (actionType === 'onsite_conversion.lead_grouped') {
           formLeadGrouped = val;
+        }
+        // CONTATOS NO SITE (cadastros, formulários de contato)
+        else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType)) {
+          // Evitar duplicação: pegar o maior valor entre os tipos de contato
+          if (val > contactLeadValue) {
+            contactLeadValue = val;
+            console.log(`[CONTACT-LEAD] action_type=${actionType}, value=${val}`);
+          }
         }
         // LEADS DE MENSAGEM (WhatsApp/Messenger/DM)
         else if (actionType === 'messaging_conversation_started_7d') {
@@ -429,20 +455,22 @@ function extractConversions(row: any): {
       }
     }
     
-    // LEADS DE FORMULÁRIO: usar apenas UM dos tipos (evitar duplicação)
-    // Meta retorna 'lead' e 'lead_grouped' com mesmos valores
+    // LEADS DE FORMULÁRIO META: usar apenas UM dos tipos (evitar duplicação)
     const actualFormLeads = formLeadValue > 0 ? formLeadValue : formLeadGrouped;
     
     // LEADS DE MENSAGEM: usar apenas UM dos tipos (evitar duplicação)
-    // Priorizamos o prefixado, fallback para o simples
     const actualMessageLeads = messagePrefixed > 0 ? messagePrefixed : messageLeadValue;
     
-    // TOTAL DE LEADS = formulários + mensagens
-    leadsCount = actualFormLeads + actualMessageLeads;
+    // TOTAL DE LEADS = formulários META + contatos no site + mensagens
+    leadsCount = actualFormLeads + contactLeadValue + actualMessageLeads;
     
     if (actualFormLeads > 0) {
       source = 'actions';
       console.log(`[FORM-LEAD] value=${actualFormLeads}`);
+    }
+    if (contactLeadValue > 0) {
+      source = 'actions';
+      console.log(`[CONTACT-LEAD-TOTAL] value=${contactLeadValue}`);
     }
     if (actualMessageLeads > 0) {
       source = 'actions';
@@ -457,6 +485,7 @@ function extractConversions(row: any): {
   if (conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
     let formLeadConv = 0;
     let formLeadGroupedConv = 0;
+    let contactLeadConv = 0;
     let messageLeadConv = 0;
     let messagePrefixedConv = 0;
     
@@ -468,6 +497,8 @@ function extractConversions(row: any): {
           formLeadConv = val;
         } else if (actionType === 'onsite_conversion.lead_grouped') {
           formLeadGroupedConv = val;
+        } else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType)) {
+          if (val > contactLeadConv) contactLeadConv = val;
         } else if (actionType === 'messaging_conversation_started_7d') {
           messageLeadConv = val;
         } else if (actionType === 'onsite_conversion.messaging_conversation_started_7d') {
@@ -481,12 +512,13 @@ function extractConversions(row: any): {
     const actualFormLeads = formLeadConv > 0 ? formLeadConv : formLeadGroupedConv;
     const actualMessageLeads = messagePrefixedConv > 0 ? messagePrefixedConv : messageLeadConv;
     
-    leadsCount = actualFormLeads + actualMessageLeads;
+    leadsCount = actualFormLeads + contactLeadConv + actualMessageLeads;
     conversions = leadsCount + purchasesCount;
     
     if (leadsCount > 0 || purchasesCount > 0) {
       source = 'conversions_filtered';
       if (actualFormLeads > 0) console.log(`[FORM-LEAD] conversions: value=${actualFormLeads}`);
+      if (contactLeadConv > 0) console.log(`[CONTACT-LEAD] conversions: value=${contactLeadConv}`);
       if (actualMessageLeads > 0) console.log(`[MESSAGE-LEAD] conversions: value=${actualMessageLeads}`);
     }
   }
