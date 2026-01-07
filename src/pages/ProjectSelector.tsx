@@ -820,46 +820,52 @@ export default function ProjectSelector() {
           </div>
         </header>
 
-        {/* Hero Section - Stats Dashboard */}
-        <div className="w-full bg-gradient-to-b from-black/40 to-transparent py-10">
-          <div className="max-w-6xl mx-auto px-6">
-            {/* Title Row */}
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8">
-              <div>
-                <p className="text-xs text-red-500 font-semibold uppercase tracking-widest mb-2">Dashboard</p>
-                <h2 className="text-3xl md:text-4xl font-bold text-white">
-                  Seus Projetos
-                </h2>
+        {/* Hero Header with large stats cards */}
+        <div className="w-full py-8 px-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Title */}
+            <div className="mb-6">
+              <p className="text-xs text-red-500 font-bold uppercase tracking-[0.3em] mb-2">// DASHBOARD</p>
+              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
+                Seus Projetos
+              </h2>
+            </div>
+            
+            {/* Big Stats Cards Row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {/* Total Card */}
+              <div className="v4-cockpit-card eb-luz p-6 text-center">
+                <FolderKanban className="w-8 h-8 text-white/30 mx-auto mb-3" />
+                <p className="text-5xl font-black text-white mb-1">{healthCounts.total}</p>
+                <p className="text-xs text-white/50 uppercase tracking-widest">Total Clientes</p>
               </div>
               
-              {/* Quick Stats Row */}
-              <div className="flex items-center gap-6">
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-white">{healthCounts.total}</p>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Total</p>
-                </div>
-                <div className="w-px h-10 bg-white/10" />
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-emerald-400">{healthCounts.safe}</p>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Safe</p>
-                </div>
-                <div className="w-px h-10 bg-white/10" />
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-amber-400">{healthCounts.care}</p>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Care</p>
-                </div>
-                <div className="w-px h-10 bg-white/10" />
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-red-400">{healthCounts.danger}</p>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Danger</p>
-                </div>
+              {/* Safe Card */}
+              <div className="v4-cockpit-card eb-luz p-6 text-center border-emerald-500/20">
+                <ShieldCheck className="w-8 h-8 text-emerald-400 mx-auto mb-3" />
+                <p className="text-5xl font-black text-emerald-400 mb-1">{healthCounts.safe}</p>
+                <p className="text-xs text-white/50 uppercase tracking-widest">Safe</p>
+              </div>
+              
+              {/* Care Card */}
+              <div className="v4-cockpit-card eb-luz p-6 text-center border-amber-500/20">
+                <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-3" />
+                <p className="text-5xl font-black text-amber-400 mb-1">{healthCounts.care}</p>
+                <p className="text-xs text-white/50 uppercase tracking-widest">Care</p>
+              </div>
+              
+              {/* Danger Card */}
+              <div className="v4-cockpit-card eb-luz p-6 text-center border-red-500/20">
+                <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
+                <p className="text-5xl font-black text-red-400 mb-1">{healthCounts.danger}</p>
+                <p className="text-xs text-white/50 uppercase tracking-widest">Danger</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="max-w-6xl mx-auto px-6 pb-8">
+        <div className="max-w-7xl mx-auto px-6 pb-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Controls Bar */}
             <div className="v4-cockpit-card eb-luz p-4 mb-6">
