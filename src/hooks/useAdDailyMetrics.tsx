@@ -21,10 +21,26 @@ export interface AdDailyMetric {
 
 interface UseAdDailyMetricsResult {
   dailyData: AdDailyMetric[];
-  totals: AdDailyMetric | null;
+  totals: AdDailyMetric;
   loading: boolean;
   error: Error | null;
 }
+
+const defaultTotals: AdDailyMetric = {
+  date: '',
+  spend: 0,
+  impressions: 0,
+  clicks: 0,
+  reach: 0,
+  conversions: 0,
+  conversion_value: 0,
+  profile_visits: 0,
+  ctr: 0,
+  cpm: 0,
+  cpc: 0,
+  roas: 0,
+  cpa: 0,
+};
 
 export function useAdDailyMetrics(
   adId: string | undefined,
@@ -110,8 +126,8 @@ export function useAdDailyMetrics(
   }, [rawData]);
 
   // Calculate totals from daily data
-  const totals = useMemo(() => {
-    if (!dailyData.length) return null;
+  const totals = useMemo((): AdDailyMetric => {
+    if (!dailyData.length) return defaultTotals;
     
     const sum = dailyData.reduce((acc, d) => ({
       date: '',
@@ -127,7 +143,7 @@ export function useAdDailyMetrics(
       cpc: 0,
       roas: 0,
       cpa: 0,
-    }), { date: '', spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, profile_visits: 0, ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0 });
+    }), { ...defaultTotals });
     
     // Calculate derived metrics
     sum.ctr = sum.impressions > 0 ? (sum.clicks / sum.impressions) * 100 : 0;
