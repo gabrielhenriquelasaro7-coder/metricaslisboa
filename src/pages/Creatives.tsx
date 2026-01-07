@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { CreativeImage } from '@/components/ui/creative-image';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { DateRange } from 'react-day-picker';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
@@ -464,8 +465,6 @@ export default function Creatives() {
                     const statusBadge = getStatusBadge(ad.status);
                     const ticket = ad.conversions > 0 ? ad.conversion_value / ad.conversions : 0;
                     const cpa = ad.conversions > 0 ? ad.spend / ad.conversions : 0;
-                    // Prefer cached URL (permanent, never expires), fallback to Facebook URLs
-                    const imageUrl = ad.cached_image_url || cleanImageUrl(ad.creative_image_url) || cleanImageUrl(ad.creative_thumbnail);
 
                     return (
                       <tr 
@@ -477,21 +476,16 @@ export default function Creatives() {
                           <div className="flex items-center gap-3 min-w-0">
                             {/* Creative Thumbnail */}
                             <div className="w-12 h-12 rounded-lg bg-secondary/50 flex-shrink-0 overflow-hidden border border-border/50">
-                              {imageUrl ? (
-                                <img 
-                                  src={imageUrl}
-                                  alt={ad.name}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    target.nextElementSibling?.classList.remove('hidden');
-                                  }}
-                                />
-                              ) : null}
-                              <div className={cn("w-full h-full flex items-center justify-center", imageUrl && "hidden")}>
-                                <ImageOff className="w-5 h-5 text-muted-foreground/50" />
-                              </div>
+                              <CreativeImage
+                                projectId={selectedProject?.id}
+                                adId={ad.id}
+                                cachedImageUrl={ad.cached_image_url}
+                                creativeImageUrl={ad.creative_image_url}
+                                creativeThumbnail={ad.creative_thumbnail}
+                                alt={ad.name}
+                                className="w-full h-full object-cover"
+                                fallbackClassName="bg-secondary/50"
+                              />
                             </div>
                             <div className="min-w-0">
                               <p className="font-medium truncate max-w-[200px]">{ad.name}</p>
