@@ -553,41 +553,75 @@ export default function Dashboard() {
               )}
 
               {/* Inside Sales Metrics */}
-              {isInsideSales && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <SparklineCard
-                    title="Leads"
-                    value={formatNumber(metrics.totalLeadsConversions || 0)}
-                    change={changes?.conversions}
-                    changeLabel="vs anterior"
-                    icon={Users}
-                    sparklineData={sparklineData.leads}
-                    className="border-l-4 border-l-chart-1"
-                    tooltip="Leads de formulário (leads_count) - sem mensagens ou outras conversões."
-                  />
-                  <SparklineCard
-                    title="CPL"
-                    value={formatCurrency(metrics.totalLeadsConversions > 0 ? metrics.totalSpend / metrics.totalLeadsConversions : 0)}
-                    change={changes?.cpa}
-                    changeLabel="vs anterior"
-                    icon={Receipt}
-                    sparklineData={sparklineData.cpl}
-                    invertTrend
-                  />
-                  <SparklineCard
-                    title="Taxa de Conversão"
-                    value={`${metrics.totalClicks > 0 ? ((metrics.totalLeadsConversions / metrics.totalClicks) * 100).toFixed(2) : 0}%`}
-                    icon={Activity}
-                  />
-                  <SparklineCard
-                    title="Alcance"
-                    value={formatNumber(metrics.totalReach)}
-                    change={changes?.reach}
-                    changeLabel="vs anterior"
-                    icon={Eye}
-                  />
-                </div>
-              )}
+              {/* Hierarquia: leads_count > messaging_replies > conversions (fallback inteligente) */}
+              {isInsideSales && (() => {
+                // Determinar qual métrica usar baseado nos dados disponíveis
+                const hasLeadsCount = (metrics.totalLeadsConversions || 0) > 0;
+                const hasMessaging = (metrics.totalMessages || 0) > 0;
+                
+                // Se tem leads_count, usar leads_count (formulários)
+                // Se não tem leads_count mas tem mensagens, usar mensagens
+                // Se não tem nenhum, usar conversions como fallback
+                const primaryValue = hasLeadsCount 
+                  ? metrics.totalLeadsConversions 
+                  : hasMessaging 
+                    ? metrics.totalMessages 
+                    : metrics.totalConversions;
+                
+                const primaryLabel = hasLeadsCount 
+                  ? "Leads" 
+                  : hasMessaging 
+                    ? "Mensagens" 
+                    : "Conversões";
+                
+                const primaryTooltip = hasLeadsCount 
+                  ? "Leads de formulário (leads_count)" 
+                  : hasMessaging 
+                    ? "Conversas iniciadas via Messenger/WhatsApp" 
+                    : "Total de conversões reportadas pelo Meta";
+                
+                const primaryIcon = hasLeadsCount ? Users : hasMessaging ? Phone : Target;
+                const primarySparkline = hasLeadsCount ? sparklineData.leads : hasMessaging ? sparklineData.messages : sparklineData.conversions;
+                
+                const cpl = primaryValue > 0 ? metrics.totalSpend / primaryValue : 0;
+                const convRate = metrics.totalClicks > 0 ? (primaryValue / metrics.totalClicks) * 100 : 0;
+                
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <SparklineCard
+                      title={primaryLabel}
+                      value={formatNumber(primaryValue || 0)}
+                      change={changes?.conversions}
+                      changeLabel="vs anterior"
+                      icon={primaryIcon}
+                      sparklineData={primarySparkline}
+                      className="border-l-4 border-l-chart-1"
+                      tooltip={primaryTooltip}
+                    />
+                    <SparklineCard
+                      title={hasLeadsCount ? "CPL" : hasMessaging ? "CPM (Mensagem)" : "CPA"}
+                      value={formatCurrency(cpl)}
+                      change={changes?.cpa}
+                      changeLabel="vs anterior"
+                      icon={Receipt}
+                      sparklineData={sparklineData.cpl}
+                      invertTrend
+                    />
+                    <SparklineCard
+                      title="Taxa de Conversão"
+                      value={`${convRate.toFixed(2)}%`}
+                      icon={Activity}
+                    />
+                    <SparklineCard
+                      title="Alcance"
+                      value={formatNumber(metrics.totalReach)}
+                      change={changes?.reach}
+                      changeLabel="vs anterior"
+                      icon={Eye}
+                    />
+                  </div>
+                );
+              })()}
 
               {/* Infoproduto Metrics - Vendas + Receita + ROAS + CPA */}
               {isInfoproduto && (
