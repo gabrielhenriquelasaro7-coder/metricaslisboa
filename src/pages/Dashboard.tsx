@@ -555,23 +555,12 @@ export default function Dashboard() {
               )}
 
               {/* Inside Sales Metrics */}
-              {/* Um único card de "Leads" que soma todas as conversões (leads_count + messaging_replies) */}
+              {/* Card de Leads usa totalConversions (campo conversions da API) para bater com PeriodComparison */}
               {isInsideSales && (() => {
-                const leadsCount = metrics.totalLeadsConversions || 0;
-                const messagingCount = metrics.totalMessages || 0;
-                
-                // Soma visual de todos os tipos de resultado como "Leads"
-                // Se não tiver nenhum, usa conversions como fallback
-                const totalLeads = (leadsCount + messagingCount) > 0 
-                  ? leadsCount + messagingCount 
-                  : metrics.totalConversions;
-                
-                // Valor do período anterior
-                const prevLeadsCount = previousMetrics?.totalLeadsConversions || 0;
-                const prevMessagingCount = previousMetrics?.totalMessages || 0;
-                const previousTotalLeads = (prevLeadsCount + prevMessagingCount) > 0 
-                  ? prevLeadsCount + prevMessagingCount 
-                  : previousMetrics?.totalConversions || 0;
+                // Usa totalConversions diretamente (campo conversions da API do Meta)
+                // Isso garante que o valor bata com o PeriodComparison
+                const totalLeads = metrics.totalConversions;
+                const previousTotalLeads = previousMetrics?.totalConversions || 0;
                 
                 const cpl = totalLeads > 0 ? metrics.totalSpend / totalLeads : 0;
                 const previousCpl = previousTotalLeads > 0 && previousMetrics?.totalSpend 
