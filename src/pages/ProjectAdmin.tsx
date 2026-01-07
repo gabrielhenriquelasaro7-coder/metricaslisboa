@@ -74,11 +74,14 @@ export default function ProjectAdmin() {
   }, [id]);
 
   const handleSync = async (type: SyncType) => {
-    if (!id) return;
+    if (!id || !project) return;
     
     setSyncingType(type);
     try {
-      const body: Record<string, unknown> = { projectId: id };
+      const body: Record<string, unknown> = { 
+        project_id: id,
+        ad_account_id: project.ad_account_id
+      };
       
       if (type !== 'all') {
         body.syncOnly = type;
