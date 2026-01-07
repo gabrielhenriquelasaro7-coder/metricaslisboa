@@ -475,20 +475,36 @@ function extractConversions(row: any): {
     // LEADS DE MENSAGEM: usar apenas UM dos tipos (evitar duplicação)
     const actualMessageLeads = messagePrefixed > 0 ? messagePrefixed : messageLeadValue;
     
-    // TOTAL DE LEADS = formulários META + contatos no site + mensagens
-    leadsCount = actualFormLeads + contactLeadValue + actualMessageLeads;
+    // ===========================================================================================
+    // REGRA CRÍTICA: Usar APENAS o tipo DOMINANTE de lead para evitar somar conversões secundárias
+    // 
+    // Exemplo: Uma campanha de "Leads no site" pode ter:
+    //   - lead/contact: 87 (objetivo principal)
+    //   - messaging_conversation_started_7d: 4 (conversão secundária)
+    // 
+    // NÃO devemos somar 87+4=91. Devemos usar apenas o maior: 87
+    // ===========================================================================================
     
-    if (actualFormLeads > 0) {
+    // Identificar o tipo dominante (maior valor) e usar apenas ele
+    const leadTypes = [
+      { type: 'form', value: actualFormLeads },
+      { type: 'contact', value: contactLeadValue },
+      { type: 'message', value: actualMessageLeads },
+    ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
+    
+    if (leadTypes.length > 0) {
+      // Usar apenas o tipo dominante (maior valor)
+      const dominant = leadTypes[0];
+      leadsCount = dominant.value;
       source = 'actions';
-      console.log(`[FORM-LEAD] value=${actualFormLeads}`);
-    }
-    if (contactLeadValue > 0) {
-      source = 'actions';
-      console.log(`[CONTACT-LEAD-TOTAL] value=${contactLeadValue}`);
-    }
-    if (actualMessageLeads > 0) {
-      source = 'actions';
-      console.log(`[MESSAGE-LEAD] value=${actualMessageLeads}`);
+      
+      console.log(`[LEADS-DOMINANT] type=${dominant.type}, value=${dominant.value}`);
+      
+      // Se houver tipos secundários, logar mas NÃO somar
+      if (leadTypes.length > 1) {
+        const secondary = leadTypes.slice(1).map(t => `${t.type}=${t.value}`).join(', ');
+        console.log(`[LEADS-SECONDARY-IGNORED] ${secondary} (not summed)`);
+      }
     }
     
     // CONVERSIONS = leads + purchases
@@ -533,15 +549,27 @@ function extractConversions(row: any): {
     // PURCHASES: usar APENAS UM - omni_purchase tem prioridade
     purchasesCount = omniPurchaseConv > 0 ? omniPurchaseConv : purchaseConv;
     
-    leadsCount = actualFormLeads + contactLeadConv + actualMessageLeads;
+    // Usar apenas o tipo DOMINANTE de lead (mesmo princípio do campo actions)
+    const leadTypesConv = [
+      { type: 'form', value: actualFormLeads },
+      { type: 'contact', value: contactLeadConv },
+      { type: 'message', value: actualMessageLeads },
+    ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
+    
+    if (leadTypesConv.length > 0) {
+      leadsCount = leadTypesConv[0].value;
+      source = 'conversions_filtered';
+      console.log(`[LEADS-DOMINANT] conversions: type=${leadTypesConv[0].type}, value=${leadsCount}`);
+      if (leadTypesConv.length > 1) {
+        const secondary = leadTypesConv.slice(1).map(t => `${t.type}=${t.value}`).join(', ');
+        console.log(`[LEADS-SECONDARY-IGNORED] conversions: ${secondary} (not summed)`);
+      }
+    }
+    
     conversions = leadsCount + purchasesCount;
     
-    if (leadsCount > 0 || purchasesCount > 0) {
-      source = 'conversions_filtered';
-      if (actualFormLeads > 0) console.log(`[FORM-LEAD] conversions: value=${actualFormLeads}`);
-      if (contactLeadConv > 0) console.log(`[CONTACT-LEAD] conversions: value=${contactLeadConv}`);
-      if (actualMessageLeads > 0) console.log(`[MESSAGE-LEAD] conversions: value=${actualMessageLeads}`);
-      if (purchasesCount > 0) console.log(`[PURCHASE-FINAL] conversions: value=${purchasesCount} (omni=${omniPurchaseConv}, pixel=${purchaseConv})`);
+    if (purchasesCount > 0) {
+      console.log(`[PURCHASE-FINAL] conversions: value=${purchasesCount} (omni=${omniPurchaseConv}, pixel=${purchaseConv})`);
     }
   }
 
