@@ -784,42 +784,45 @@ export default function ProjectSelector() {
 
       {/* Main Content */}
       <div className="relative" style={{ zIndex: 10 }}>
-        {/* UNIFIED TOP BAR - V4 Identity */}
-        <header className="sticky top-0 z-50 w-full bg-gradient-to-r from-[#0a0a0a] via-[#150808] to-[#0a0a0a] border-b border-red-900/30 shadow-[0_4px_30px_rgba(220,38,38,0.08)]">
+        {/* V4 INDUSTRIAL TOP BAR */}
+        <header className="sticky top-0 z-50 w-full bg-black border-b border-[#E00E0E]/30">
+          {/* Red LED line at top */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#E00E0E] to-transparent" />
+          
           <div className="w-full px-6 py-4">
             <div className="flex items-center justify-between gap-6">
               
               {/* LEFT: Logo + Title */}
               <div className="flex items-center gap-4 shrink-0">
                 <img src={v4LogoIcon} alt="V4" className="h-10 w-auto" />
-                <div className="h-8 w-px bg-red-900/40" />
+                <div className="h-8 w-px bg-[#E00E0E]/30" />
                 <div className="hidden lg:block">
-                  <h1 className="text-lg font-bold text-white leading-none">MetaAds Manager</h1>
-                  <span className="text-[10px] text-red-500/60 uppercase tracking-widest">V4 Company</span>
+                  <h1 className="text-lg font-bold text-white leading-none uppercase tracking-wide">METAADS</h1>
+                  <span className="text-[10px] text-[#E00E0E] uppercase tracking-[0.3em]">V4 COMPANY</span>
                 </div>
               </div>
 
-              {/* CENTER: Stats */}
-              <div className="hidden lg:flex items-center gap-3">
-                <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10">
-                  <Briefcase className="w-4 h-4 text-red-500" />
+              {/* CENTER: Stats - Industrial Style */}
+              <div className="hidden lg:flex items-center gap-2">
+                <div className="v4-industrial-glass flex items-center gap-2 px-4 py-2">
+                  <Briefcase className="w-4 h-4 text-[#E00E0E]" />
                   <span className="text-xl font-black text-white">{healthCounts.total}</span>
-                  <span className="text-xs text-white/40 uppercase">Total</span>
+                  <span className="text-xs text-white/50 uppercase tracking-wider">TOTAL</span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-emerald-950/30 rounded-xl border border-emerald-800/30">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                <div className="v4-industrial-glass flex items-center gap-2 px-4 py-2 !border-emerald-600/30">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                   <span className="text-xl font-black text-emerald-400">{healthCounts.safe}</span>
-                  <span className="text-xs text-emerald-500/50 uppercase">Safe</span>
+                  <span className="text-xs text-emerald-500/60 uppercase tracking-wider">SAFE</span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-amber-950/30 rounded-xl border border-amber-800/30">
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
+                <div className="v4-industrial-glass flex items-center gap-2 px-4 py-2 !border-amber-600/30">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
                   <span className="text-xl font-black text-amber-400">{healthCounts.care}</span>
-                  <span className="text-xs text-amber-500/50 uppercase">Care</span>
+                  <span className="text-xs text-amber-500/60 uppercase tracking-wider">CARE</span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-red-950/30 rounded-xl border border-red-800/30">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                <div className="v4-industrial-glass flex items-center gap-2 px-4 py-2 !border-red-600/30">
+                  <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
                   <span className="text-xl font-black text-red-400">{healthCounts.danger}</span>
-                  <span className="text-xs text-red-500/50 uppercase">Danger</span>
+                  <span className="text-xs text-red-500/60 uppercase tracking-wider">DANGER</span>
                 </div>
               </div>
 
@@ -828,21 +831,21 @@ export default function ProjectSelector() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                   <Input
-                    placeholder="Buscar projeto..."
+                    placeholder="BUSCAR PROJETO..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-full h-10 bg-white/5 border-white/10 text-white rounded-xl focus:border-red-600/50 focus:ring-red-600/20"
+                    className="v4-cockpit-input pl-10 w-full h-10 uppercase tracking-wider text-sm"
                   />
                 </div>
                 <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
-                  <SelectTrigger className="w-32 h-10 bg-white/5 border-white/10 text-white rounded-xl">
-                    <SelectValue placeholder="Status" />
+                  <SelectTrigger className="w-32 h-10 v4-cockpit-input uppercase tracking-wider text-sm">
+                    <SelectValue placeholder="STATUS" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#0f0f0f] border-white/10">
-                    <SelectItem value="all" className="text-white/70 focus:bg-white/5 focus:text-white">Todos</SelectItem>
-                    <SelectItem value="safe" className="text-white/70 focus:bg-white/5 focus:text-white">Safe</SelectItem>
-                    <SelectItem value="care" className="text-white/70 focus:bg-white/5 focus:text-white">Care</SelectItem>
-                    <SelectItem value="danger" className="text-white/70 focus:bg-white/5 focus:text-white">Danger</SelectItem>
+                  <SelectContent className="bg-black border-[#E00E0E]/30">
+                    <SelectItem value="all" className="text-white/70 focus:bg-[#E00E0E]/10 focus:text-white uppercase">TODOS</SelectItem>
+                    <SelectItem value="safe" className="text-emerald-400 focus:bg-emerald-600/10 focus:text-emerald-300 uppercase">SAFE</SelectItem>
+                    <SelectItem value="care" className="text-amber-400 focus:bg-amber-600/10 focus:text-amber-300 uppercase">CARE</SelectItem>
+                    <SelectItem value="danger" className="text-red-400 focus:bg-red-600/10 focus:text-red-300 uppercase">DANGER</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -850,66 +853,66 @@ export default function ProjectSelector() {
               {/* RIGHT: Tabs + Actions */}
               <div className="flex items-center gap-4 shrink-0">
                 {/* Platform Tabs */}
-                <div className="flex items-center bg-black/40 rounded-xl p-1 border border-white/5">
+                <div className="flex items-center bg-black/60 rounded-lg p-1 border border-[#E00E0E]/20">
                   <button 
                     onClick={() => setActiveTab('meta-ads')}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
+                      "flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold uppercase tracking-wider transition-all duration-300",
                       activeTab === 'meta-ads' 
-                        ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-[0_0_20px_rgba(220,38,38,0.4)]' 
+                        ? 'bg-[#E00E0E] text-white shadow-[0_0_20px_rgba(224,14,14,0.5)]' 
                         : 'text-white/50 hover:text-white hover:bg-white/5'
                     )}
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
                     </svg>
-                    Meta Ads
+                    META
                   </button>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white/25 cursor-not-allowed">
+                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white/25 cursor-not-allowed uppercase tracking-wider">
                           <Lock className="w-4 h-4" />
-                          Google
+                          GOOGLE
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent className="bg-[#0f0f0f] border-white/10">
-                        <p>Em breve</p>
+                      <TooltipContent className="bg-black border-[#E00E0E]/30">
+                        <p className="uppercase text-xs tracking-wider">EM BREVE</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                   <button 
                     onClick={() => setActiveTab('profile')}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
+                      "flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold uppercase tracking-wider transition-all duration-300",
                       activeTab === 'profile' 
                         ? 'bg-white/10 text-white' 
                         : 'text-white/50 hover:text-white hover:bg-white/5'
                     )}
                   >
                     <User className="w-4 h-4" />
-                    Perfil
+                    PERFIL
                   </button>
                 </div>
 
                 {/* Divider */}
-                <div className="w-px h-8 bg-red-900/30" />
+                <div className="w-px h-8 bg-[#E00E0E]/30" />
 
                 {/* User Actions */}
                 <div className="flex items-center gap-1">
                   <button 
                     onClick={() => navigate('/admin')}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/50 hover:text-red-400 hover:bg-red-950/30 transition-all duration-300"
+                    className="flex items-center gap-2 px-3 py-2 rounded text-sm uppercase tracking-wider text-white/50 hover:text-[#E00E0E] hover:bg-[#E00E0E]/10 transition-all duration-300"
                   >
                     <Shield className="w-4 h-4" />
-                    <span className="hidden xl:inline">Admin</span>
+                    <span className="hidden xl:inline">ADMIN</span>
                   </button>
                   <button 
                     onClick={handleLogout} 
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/50 hover:text-red-400 hover:bg-red-950/30 transition-all duration-300"
+                    className="flex items-center gap-2 px-3 py-2 rounded text-sm uppercase tracking-wider text-white/50 hover:text-[#E00E0E] hover:bg-[#E00E0E]/10 transition-all duration-300"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span className="hidden xl:inline">Sair</span>
+                    <span className="hidden xl:inline">SAIR</span>
                   </button>
                 </div>
               </div>
