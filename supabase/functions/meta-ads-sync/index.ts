@@ -1163,6 +1163,8 @@ Deno.serve(async (req) => {
     };
 
     // Prepare records for upsert
+    console.log(`[AGGREGATE] Building records - campaigns: ${campaignMetrics.size}, adsets: ${adsetMetrics.size}, ads: ${adMetrics.size}`);
+    
     const campaignRecords = Array.from(campaignMetrics.values()).map(m => {
       const campaign = campaignMap.get(m.id);
       return calculateDerived({
@@ -1174,6 +1176,12 @@ Deno.serve(async (req) => {
 
     const adsetRecords = Array.from(adsetMetrics.values()).map(calculateDerived);
     const adRecords = Array.from(adMetrics.values()).map(calculateDerived);
+    
+    // Log sample ad with creative data
+    if (adRecords.length > 0) {
+      const sample = adRecords[0];
+      console.log(`[CREATIVE] Sample ad creative data - headline: ${sample.headline}, primary_text: ${sample.primary_text?.substring(0, 50)}, cta: ${sample.cta}, image: ${sample.creative_image_url ? 'YES' : 'NO'}`);
+    }
 
     // Detect changes
     const { data: existingCampaigns } = await supabase.from('campaigns').select('*').eq('project_id', project_id);
