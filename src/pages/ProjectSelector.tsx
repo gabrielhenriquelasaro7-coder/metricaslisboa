@@ -783,88 +783,53 @@ export default function ProjectSelector() {
 
       {/* Main Content */}
       <div className="relative" style={{ zIndex: 10 }}>
-        {/* Header */}
-        <header className="w-full border-b border-white/5 bg-black/30 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <img 
-                src={v4LogoIcon} 
-                alt="V4 Company" 
-                className="h-9 w-auto"
-              />
-              <div className="hidden sm:flex flex-col">
-                <h1 className="text-lg font-bold text-white tracking-tight leading-tight">
-                  MetaAds Manager
-                </h1>
-                <span className="text-[9px] text-white/30 tracking-[0.2em] uppercase">V4 Company</span>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => navigate('/admin')}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-white/50 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
-              </button>
-              <button 
-                onClick={handleLogout} 
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-white/50 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Sair</span>
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* TOP BAR - Controls */}
-        <div className="sticky top-0 z-40 w-full bg-black/80 backdrop-blur-xl border-b border-white/5">
-          <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between gap-4">
-              {/* Left - Title + Stats */}
-              <div className="flex items-center gap-8">
-                <h1 className="text-xl font-bold text-white">Projetos</h1>
-                
-                <div className="hidden md:flex items-center gap-4">
-                  <div className="flex items-center gap-2 text-white/60">
-                    <span className="text-lg font-bold text-white">{healthCounts.total}</span>
-                    <span className="text-xs uppercase">Total</span>
-                  </div>
-                  <div className="w-px h-4 bg-white/10" />
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <span className="text-lg font-bold">{healthCounts.safe}</span>
-                    <span className="text-xs uppercase">Safe</span>
-                  </div>
-                  <div className="w-px h-4 bg-white/10" />
-                  <div className="flex items-center gap-2 text-amber-400">
-                    <span className="text-lg font-bold">{healthCounts.care}</span>
-                    <span className="text-xs uppercase">Care</span>
-                  </div>
-                  <div className="w-px h-4 bg-white/10" />
-                  <div className="flex items-center gap-2 text-red-400">
-                    <span className="text-lg font-bold">{healthCounts.danger}</span>
-                    <span className="text-xs uppercase">Danger</span>
-                  </div>
+        {/* UNIFIED TOP BAR */}
+        <header className="sticky top-0 z-50 w-full bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/10">
+          <div className="w-full px-6 py-3">
+            <div className="flex items-center justify-between gap-6">
+              
+              {/* LEFT: Logo + Title */}
+              <div className="flex items-center gap-4 shrink-0">
+                <img src={v4LogoIcon} alt="V4" className="h-8 w-auto" />
+                <div className="hidden lg:block">
+                  <h1 className="text-base font-bold text-white leading-none">MetaAds Manager</h1>
+                  <span className="text-[9px] text-white/30 uppercase tracking-widest">V4 Company</span>
                 </div>
               </div>
-              
-              {/* Center - Search + Filter */}
-              <div className="flex items-center gap-3">
-                <div className="relative">
+
+              {/* CENTER: Stats */}
+              <div className="hidden md:flex items-center gap-6 border-l border-r border-white/10 px-8">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-black text-white">{healthCounts.total}</span>
+                  <span className="text-[10px] text-white/40 uppercase">Total</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-black text-emerald-400">{healthCounts.safe}</span>
+                  <span className="text-[10px] text-emerald-400/60 uppercase">Safe</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-black text-amber-400">{healthCounts.care}</span>
+                  <span className="text-[10px] text-amber-400/60 uppercase">Care</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-black text-red-400">{healthCounts.danger}</span>
+                  <span className="text-[10px] text-red-400/60 uppercase">Danger</span>
+                </div>
+              </div>
+
+              {/* CENTER-RIGHT: Search + Filter */}
+              <div className="flex items-center gap-2 flex-1 max-w-md">
+                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                   <Input
                     placeholder="Buscar projeto..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="v4-cockpit-input pl-10 w-56 h-9"
+                    className="v4-cockpit-input pl-10 w-full h-9 text-sm"
                   />
                 </div>
-                
                 <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
-                  <SelectTrigger className="w-32 h-9 v4-cockpit-select text-white/70">
+                  <SelectTrigger className="w-28 h-9 v4-cockpit-select text-white/70 text-xs">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#0f0f0f] border-white/10">
@@ -876,51 +841,75 @@ export default function ProjectSelector() {
                 </Select>
               </div>
 
-              {/* Right - Tabs */}
-              <div className="flex items-center gap-1 bg-black/40 rounded-lg p-1">
-                <button 
-                  onClick={() => setActiveTab('meta-ads')}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium transition-all",
-                    activeTab === 'meta-ads' 
-                      ? 'bg-red-600/20 text-red-400' 
-                      : 'text-white/50 hover:text-white/80'
-                  )}
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
-                  </svg>
-                  Meta Ads
-                </button>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium text-white/25 cursor-not-allowed">
-                        <Lock className="w-4 h-4" />
-                        Google
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-[#0f0f0f] border-white/10">
-                      <p>Em breve</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <button 
-                  onClick={() => setActiveTab('profile')}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium transition-all",
-                    activeTab === 'profile' 
-                      ? 'bg-white/10 text-white' 
-                      : 'text-white/50 hover:text-white/80'
-                  )}
-                >
-                  <User className="w-4 h-4" />
-                  Perfil
-                </button>
+              {/* RIGHT: Tabs + Actions */}
+              <div className="flex items-center gap-4 shrink-0">
+                {/* Platform Tabs */}
+                <div className="flex items-center bg-white/5 rounded-lg p-0.5">
+                  <button 
+                    onClick={() => setActiveTab('meta-ads')}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                      activeTab === 'meta-ads' 
+                        ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' 
+                        : 'text-white/50 hover:text-white'
+                    )}
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+                    </svg>
+                    Meta Ads
+                  </button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white/25 cursor-not-allowed">
+                          <Lock className="w-3.5 h-3.5" />
+                          Google
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-[#0f0f0f] border-white/10">
+                        <p>Em breve</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <button 
+                    onClick={() => setActiveTab('profile')}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                      activeTab === 'profile' 
+                        ? 'bg-white/10 text-white' 
+                        : 'text-white/50 hover:text-white'
+                    )}
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    Perfil
+                  </button>
+                </div>
+
+                {/* Divider */}
+                <div className="w-px h-6 bg-white/10" />
+
+                {/* User Actions */}
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => navigate('/admin')}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded text-xs text-white/50 hover:text-white hover:bg-white/5 transition-all"
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span className="hidden xl:inline">Admin</span>
+                  </button>
+                  <button 
+                    onClick={handleLogout} 
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded text-xs text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="hidden xl:inline">Sair</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </header>
 
         {/* PROJECTS GRID */}
         <div className="flex-1 max-w-7xl mx-auto px-6 py-8 w-full">
