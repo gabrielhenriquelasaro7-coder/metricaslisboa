@@ -573,7 +573,6 @@ export default function Dashboard() {
                     <SparklineCard
                       title="Leads"
                       value={formatNumber(totalLeads)}
-                      previousValue={previousTotalLeads > 0 ? formatNumber(previousTotalLeads) : undefined}
                       change={changes?.conversions}
                       changeLabel="vs anterior"
                       icon={Users}
@@ -584,7 +583,6 @@ export default function Dashboard() {
                     <SparklineCard
                       title="CPL"
                       value={formatCurrency(cpl)}
-                      previousValue={previousCpl > 0 ? formatCurrency(previousCpl) : undefined}
                       change={changes?.cpa}
                       changeLabel="vs anterior"
                       icon={Receipt}
