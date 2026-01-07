@@ -192,6 +192,14 @@ export default function PeriodComparison({
 
     // Add business-model specific metrics
     if (businessModel === 'ecommerce') {
+      // Para ecommerce, "Compras" = purchases (totalSalesConversions)
+      const currentPurchases = currentMetrics.totalSalesConversions ?? currentMetrics.totalConversions;
+      const previousPurchases = previousMetrics.totalSalesConversions ?? previousMetrics.totalConversions;
+      
+      // CPA de compras = spend / purchases
+      const currentCpaPurchases = currentPurchases > 0 ? currentMetrics.totalSpend / currentPurchases : 0;
+      const previousCpaPurchases = previousPurchases > 0 ? previousMetrics.totalSpend / previousPurchases : 0;
+      
       items.push(
         {
           label: 'ROAS',
@@ -202,9 +210,9 @@ export default function PeriodComparison({
         },
         {
           label: 'Compras',
-          current: formatNumber(currentMetrics.totalConversions),
-          previous: formatNumber(previousMetrics.totalConversions),
-          change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
+          current: formatNumber(currentPurchases),
+          previous: formatNumber(previousPurchases),
+          change: calculateChange(currentPurchases, previousPurchases),
           isInverse: false,
         },
         {
@@ -216,9 +224,9 @@ export default function PeriodComparison({
         },
         {
           label: 'CPA',
-          current: formatCurrencyValue(currentMetrics.cpa),
-          previous: formatCurrencyValue(previousMetrics.cpa),
-          change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
+          current: formatCurrencyValue(currentCpaPurchases),
+          previous: formatCurrencyValue(previousCpaPurchases),
+          change: calculateChange(currentCpaPurchases, previousCpaPurchases),
           isInverse: true,
         }
       );
@@ -349,11 +357,13 @@ export default function PeriodComparison({
 
     // Add business-model specific
     if (businessModel === 'ecommerce') {
+      const purchases = currentMetrics.totalSalesConversions ?? currentMetrics.totalConversions;
+      const cpaPurchases = purchases > 0 ? currentMetrics.totalSpend / purchases : 0;
       currentOnlyItems.push(
         { label: 'ROAS', value: `${currentMetrics.roas.toFixed(2)}x` },
-        { label: 'Compras', value: formatNumber(currentMetrics.totalConversions) },
+        { label: 'Compras', value: formatNumber(purchases) },
         { label: 'Receita', value: formatCurrencyValue(currentMetrics.totalConversionValue) },
-        { label: 'CPA', value: formatCurrencyValue(currentMetrics.cpa) }
+        { label: 'CPA', value: formatCurrencyValue(cpaPurchases) }
       );
     } else if (businessModel === 'inside_sales') {
       currentOnlyItems.push(
