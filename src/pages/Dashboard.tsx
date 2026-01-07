@@ -557,17 +557,17 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <SparklineCard
                     title="Leads"
-                    value={formatNumber(metrics.totalConversions)}
+                    value={formatNumber(metrics.totalLeadsConversions || 0)}
                     change={changes?.conversions}
                     changeLabel="vs anterior"
                     icon={Users}
-                    sparklineData={sparklineData.conversions}
+                    sparklineData={sparklineData.leads}
                     className="border-l-4 border-l-chart-1"
-                    tooltip="Pequenas diferenças de ±1-2 leads em relação ao Gerenciador são normais devido ao timing de atribuição do Meta."
+                    tooltip="Leads de formulário (leads_count) - sem mensagens ou outras conversões."
                   />
                   <SparklineCard
                     title="CPL"
-                    value={formatCurrency(metrics.cpa)}
+                    value={formatCurrency(metrics.totalLeadsConversions > 0 ? metrics.totalSpend / metrics.totalLeadsConversions : 0)}
                     change={changes?.cpa}
                     changeLabel="vs anterior"
                     icon={Receipt}
@@ -576,7 +576,7 @@ export default function Dashboard() {
                   />
                   <SparklineCard
                     title="Taxa de Conversão"
-                    value={`${metrics.totalClicks > 0 ? ((metrics.totalConversions / metrics.totalClicks) * 100).toFixed(2) : 0}%`}
+                    value={`${metrics.totalClicks > 0 ? ((metrics.totalLeadsConversions / metrics.totalClicks) * 100).toFixed(2) : 0}%`}
                     icon={Activity}
                   />
                   <SparklineCard
