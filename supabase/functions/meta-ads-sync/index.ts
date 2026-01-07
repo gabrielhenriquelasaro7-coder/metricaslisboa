@@ -251,7 +251,8 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   console.log(`[CREATIVES] Fetching all creatives via /adcreatives endpoint...`);
   
   const allCreatives: any[] = [];
-  let creativesUrl: string | null = `https://graph.facebook.com/v21.0/${adAccountId}/adcreatives?fields=id,name,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec&limit=500&access_token=${token}`;
+  // Buscar campos adicionais: effective_object_story_id, asset_feed_spec para mais dados de copy
+  let creativesUrl: string | null = `https://graph.facebook.com/v21.0/${adAccountId}/adcreatives?fields=id,name,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec,effective_object_story_id,asset_feed_spec&limit=500&access_token=${token}`;
   
   while (creativesUrl) {
     const creativeData = await fetchWithRetry(creativesUrl, 'ADCREATIVES');
@@ -274,16 +275,21 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
     }
   }
   
-  // Log sample creative
-  if (allCreatives.length > 0) {
-    const c = allCreatives[0];
-    console.log(`[CREATIVES] Sample: id=${c.id}, body=${c.body?.substring(0,50) || 'null'}, title=${c.title || 'null'}, cta=${c.call_to_action_type || 'null'}`);
+  // Log detalhado dos primeiros 3 creatives para debug
+  let logCount = 0;
+  for (const c of allCreatives) {
+    if (logCount >= 3) break;
+    console.log(`[CREATIVES-DEBUG] id=${c.id}, body=${c.body?.substring(0,30) || 'NULL'}, title=${c.title || 'NULL'}, cta=${c.call_to_action_type || 'NULL'}`);
     if (c.object_story_spec) {
       const s = c.object_story_spec;
-      console.log(`[CREATIVES] object_story_spec: link_data=${!!s.link_data}, video_data=${!!s.video_data}`);
-      if (s.link_data) console.log(`[CREATIVES] link_data.message=${s.link_data.message?.substring(0,50) || 'null'}, name=${s.link_data.name || 'null'}`);
-      if (s.video_data) console.log(`[CREATIVES] video_data.message=${s.video_data.message?.substring(0,50) || 'null'}, title=${s.video_data.title || 'null'}`);
+      console.log(`[CREATIVES-DEBUG] object_story_spec: link_data=${!!s.link_data}, video_data=${!!s.video_data}`);
+      if (s.link_data) console.log(`[CREATIVES-DEBUG] link_data.message=${s.link_data.message?.substring(0,50) || 'NULL'}, name=${s.link_data.name || 'NULL'}, cta_type=${s.link_data.call_to_action?.type || 'NULL'}`);
+      if (s.video_data) console.log(`[CREATIVES-DEBUG] video_data.message=${s.video_data.message?.substring(0,50) || 'NULL'}, title=${s.video_data.title || 'NULL'}, cta_type=${s.video_data.call_to_action?.type || 'NULL'}`);
     }
+    if (c.asset_feed_spec) {
+      console.log(`[CREATIVES-DEBUG] asset_feed_spec: bodies=${c.asset_feed_spec.bodies?.length || 0}, titles=${c.asset_feed_spec.titles?.length || 0}`);
+    }
+    logCount++;
   }
   
   // Mapear creatives para ads baseado no creative.id que veio na query de ads (agora com fix aplicado)
@@ -969,8 +975,57 @@ function extractProfileVisits(insights: any): number {
 
 function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | null; headline: string | null; cta: string | null } {
   let primaryText: string | null = null, headline: string | null = null, cta: string | null = null;
-  if (creativeData) { primaryText = creativeData.body || null; headline = creativeData.title || null; cta = creativeData.call_to_action_type || null; const s = creativeData.object_story_spec; if (s?.link_data) { if (!primaryText && s.link_data.message) primaryText = s.link_data.message; if (!headline && s.link_data.name) headline = s.link_data.name; if (!cta && s.link_data.call_to_action?.type) cta = s.link_data.call_to_action.type; } if (s?.video_data) { if (!primaryText && s.video_data.message) primaryText = s.video_data.message; if (!headline && s.video_data.title) headline = s.video_data.title; if (!cta && s.video_data.call_to_action?.type) cta = s.video_data.call_to_action.type; } }
-  const c = ad?.creative; if (c) { if (!primaryText && c.body) primaryText = c.body; if (!headline && c.title) headline = c.title; if (!cta && c.call_to_action_type) cta = c.call_to_action_type; const s = c.object_story_spec; if (s?.link_data) { if (!primaryText && s.link_data.message) primaryText = s.link_data.message; if (!headline && s.link_data.name) headline = s.link_data.name; if (!cta && s.link_data.call_to_action?.type) cta = s.link_data.call_to_action.type; } if (s?.video_data) { if (!primaryText && s.video_data.message) primaryText = s.video_data.message; if (!headline && s.video_data.title) headline = s.video_data.title; if (!cta && s.video_data.call_to_action?.type) cta = s.video_data.call_to_action.type; } }
+  
+  // FONTE 1: creativeData (do endpoint /adcreatives)
+  if (creativeData) { 
+    primaryText = creativeData.body || null; 
+    headline = creativeData.title || null; 
+    cta = creativeData.call_to_action_type || null; 
+    
+    // object_story_spec - link_data (imagens)
+    const s = creativeData.object_story_spec; 
+    if (s?.link_data) { 
+      if (!primaryText && s.link_data.message) primaryText = s.link_data.message; 
+      if (!headline && s.link_data.name) headline = s.link_data.name; 
+      if (!cta && s.link_data.call_to_action?.type) cta = s.link_data.call_to_action.type; 
+    } 
+    
+    // object_story_spec - video_data (vídeos)
+    if (s?.video_data) { 
+      if (!primaryText && s.video_data.message) primaryText = s.video_data.message; 
+      if (!headline && s.video_data.title) headline = s.video_data.title; 
+      if (!cta && s.video_data.call_to_action?.type) cta = s.video_data.call_to_action.type; 
+    }
+    
+    // asset_feed_spec - para anúncios dinâmicos/catálogo
+    if (creativeData.asset_feed_spec) {
+      const afs = creativeData.asset_feed_spec;
+      if (!primaryText && afs.bodies?.length > 0) primaryText = afs.bodies[0].text;
+      if (!headline && afs.titles?.length > 0) headline = afs.titles[0].text;
+      if (!cta && afs.call_to_action_types?.length > 0) cta = afs.call_to_action_types[0];
+    }
+  }
+  
+  // FONTE 2: ad.creative (da query de ads)
+  const c = ad?.creative; 
+  if (c) { 
+    if (!primaryText && c.body) primaryText = c.body; 
+    if (!headline && c.title) headline = c.title; 
+    if (!cta && c.call_to_action_type) cta = c.call_to_action_type; 
+    
+    const s = c.object_story_spec; 
+    if (s?.link_data) { 
+      if (!primaryText && s.link_data.message) primaryText = s.link_data.message; 
+      if (!headline && s.link_data.name) headline = s.link_data.name; 
+      if (!cta && s.link_data.call_to_action?.type) cta = s.link_data.call_to_action.type; 
+    } 
+    if (s?.video_data) { 
+      if (!primaryText && s.video_data.message) primaryText = s.video_data.message; 
+      if (!headline && s.video_data.title) headline = s.video_data.title; 
+      if (!cta && s.video_data.call_to_action?.type) cta = s.video_data.call_to_action.type; 
+    }
+  }
+  
   return { primaryText, headline, cta };
 }
 
@@ -1279,8 +1334,13 @@ Deno.serve(async (req) => {
         const cachedUrl = immediateCache.get(r.ad_id) || cachedData?.cached_url || null;
         
         // Debug: Log extraction results for first few ads
-        if (adMetrics.size < 3) {
-          console.log(`[DEBUG-EXTRACT] ad_id: ${r.ad_id}, headline: ${headline}, primaryText: ${primaryText?.substring(0, 30)}, cta: ${cta}, imageUrl: ${imageUrl ? 'YES' : 'NO'}, cachedUrl: ${cachedUrl ? 'YES' : 'NO'}`);
+        if (adMetrics.size < 5) {
+          const hasCreativeData = !!creativeData;
+          const hasObjectStorySpec = !!(creativeData?.object_story_spec || ad?.creative?.object_story_spec);
+          console.log(`[AD-COPY-DEBUG] ad_id: ${r.ad_id}`);
+          console.log(`[AD-COPY-DEBUG] creativeData found: ${hasCreativeData}, creative_id: ${ad?.creative?.id}`);
+          console.log(`[AD-COPY-DEBUG] hasObjectStorySpec: ${hasObjectStorySpec}`);
+          console.log(`[AD-COPY-DEBUG] RESULT - headline: ${headline || 'NULL'}, text: ${primaryText?.substring(0, 50) || 'NULL'}, cta: ${cta || 'NULL'}`);
         }
         
         adMetrics.set(r.ad_id, { 
