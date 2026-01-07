@@ -524,12 +524,12 @@ export default function Dashboard() {
                   />
                   <SparklineCard
                     title="Compras"
-                    value={formatNumber(metrics.totalConversions)}
+                    value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)}
                     change={changes?.conversions}
                     changeLabel="vs anterior"
                     icon={ShoppingCart}
-                    sparklineData={sparklineData.conversions}
-                    tooltip="Pequenas diferenças de ±1-2 conversões em relação ao Gerenciador são normais devido ao timing de atribuição do Meta."
+                    sparklineData={sparklineData.purchases.length > 0 ? sparklineData.purchases : sparklineData.conversions}
+                    tooltip="Total de compras via pixel (OUTCOME_SALES)"
                   />
                   <SparklineCard
                     title="Receita"
