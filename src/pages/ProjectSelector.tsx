@@ -820,126 +820,111 @@ export default function ProjectSelector() {
           </div>
         </header>
 
-        {/* Hero Header with large stats cards */}
-        <div className="w-full py-8 px-6">
-          <div className="max-w-7xl mx-auto">
-            {/* Title */}
-            <div className="mb-6">
-              <p className="text-xs text-red-500 font-bold uppercase tracking-[0.3em] mb-2">// DASHBOARD</p>
-              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
-                Seus Projetos
-              </h2>
-            </div>
-            
-            {/* Big Stats Cards Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              {/* Total Card */}
-              <div className="v4-cockpit-card eb-luz p-6 text-center">
-                <FolderKanban className="w-8 h-8 text-white/30 mx-auto mb-3" />
-                <p className="text-5xl font-black text-white mb-1">{healthCounts.total}</p>
-                <p className="text-xs text-white/50 uppercase tracking-widest">Total Clientes</p>
+        {/* TOP BAR - Controls */}
+        <div className="sticky top-0 z-40 w-full bg-black/80 backdrop-blur-xl border-b border-white/5">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between gap-4">
+              {/* Left - Title + Stats */}
+              <div className="flex items-center gap-8">
+                <h1 className="text-xl font-bold text-white">Projetos</h1>
+                
+                <div className="hidden md:flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-white/60">
+                    <span className="text-lg font-bold text-white">{healthCounts.total}</span>
+                    <span className="text-xs uppercase">Total</span>
+                  </div>
+                  <div className="w-px h-4 bg-white/10" />
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <span className="text-lg font-bold">{healthCounts.safe}</span>
+                    <span className="text-xs uppercase">Safe</span>
+                  </div>
+                  <div className="w-px h-4 bg-white/10" />
+                  <div className="flex items-center gap-2 text-amber-400">
+                    <span className="text-lg font-bold">{healthCounts.care}</span>
+                    <span className="text-xs uppercase">Care</span>
+                  </div>
+                  <div className="w-px h-4 bg-white/10" />
+                  <div className="flex items-center gap-2 text-red-400">
+                    <span className="text-lg font-bold">{healthCounts.danger}</span>
+                    <span className="text-xs uppercase">Danger</span>
+                  </div>
+                </div>
               </div>
               
-              {/* Safe Card */}
-              <div className="v4-cockpit-card eb-luz p-6 text-center border-emerald-500/20">
-                <ShieldCheck className="w-8 h-8 text-emerald-400 mx-auto mb-3" />
-                <p className="text-5xl font-black text-emerald-400 mb-1">{healthCounts.safe}</p>
-                <p className="text-xs text-white/50 uppercase tracking-widest">Safe</p>
+              {/* Center - Search + Filter */}
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <Input
+                    placeholder="Buscar projeto..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="v4-cockpit-input pl-10 w-56 h-9"
+                  />
+                </div>
+                
+                <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
+                  <SelectTrigger className="w-32 h-9 v4-cockpit-select text-white/70">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#0f0f0f] border-white/10">
+                    <SelectItem value="all" className="text-white/70 focus:bg-white/5 focus:text-white">Todos</SelectItem>
+                    <SelectItem value="safe" className="text-white/70 focus:bg-white/5 focus:text-white">Safe</SelectItem>
+                    <SelectItem value="care" className="text-white/70 focus:bg-white/5 focus:text-white">Care</SelectItem>
+                    <SelectItem value="danger" className="text-white/70 focus:bg-white/5 focus:text-white">Danger</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              
-              {/* Care Card */}
-              <div className="v4-cockpit-card eb-luz p-6 text-center border-amber-500/20">
-                <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-3" />
-                <p className="text-5xl font-black text-amber-400 mb-1">{healthCounts.care}</p>
-                <p className="text-xs text-white/50 uppercase tracking-widest">Care</p>
-              </div>
-              
-              {/* Danger Card */}
-              <div className="v4-cockpit-card eb-luz p-6 text-center border-red-500/20">
-                <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-                <p className="text-5xl font-black text-red-400 mb-1">{healthCounts.danger}</p>
-                <p className="text-xs text-white/50 uppercase tracking-widest">Danger</p>
+
+              {/* Right - Tabs */}
+              <div className="flex items-center gap-1 bg-black/40 rounded-lg p-1">
+                <button 
+                  onClick={() => setActiveTab('meta-ads')}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium transition-all",
+                    activeTab === 'meta-ads' 
+                      ? 'bg-red-600/20 text-red-400' 
+                      : 'text-white/50 hover:text-white/80'
+                  )}
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+                  </svg>
+                  Meta Ads
+                </button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium text-white/25 cursor-not-allowed">
+                        <Lock className="w-4 h-4" />
+                        Google
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-[#0f0f0f] border-white/10">
+                      <p>Em breve</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <button 
+                  onClick={() => setActiveTab('profile')}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium transition-all",
+                    activeTab === 'profile' 
+                      ? 'bg-white/10 text-white' 
+                      : 'text-white/50 hover:text-white/80'
+                  )}
+                >
+                  <User className="w-4 h-4" />
+                  Perfil
+                </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Main Content Area */}
-        <div className="max-w-7xl mx-auto px-6 pb-8">
+        {/* PROJECTS GRID */}
+        <div className="flex-1 max-w-7xl mx-auto px-6 py-8 w-full">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            {/* Controls Bar */}
-            <div className="v4-cockpit-card eb-luz p-4 mb-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                {/* Left side - Search and filters */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                    <Input
-                      placeholder="Buscar..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="v4-cockpit-input pl-10 w-48 h-9"
-                    />
-                  </div>
-                  
-                  <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
-                    <SelectTrigger className="w-36 h-9 v4-cockpit-select text-white/70">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#0f0f0f] border-white/10">
-                      <SelectItem value="all" className="text-white/70 focus:bg-white/5 focus:text-white">Todos</SelectItem>
-                      <SelectItem value="safe" className="text-white/70 focus:bg-white/5 focus:text-white">Safe</SelectItem>
-                      <SelectItem value="care" className="text-white/70 focus:bg-white/5 focus:text-white">Care</SelectItem>
-                      <SelectItem value="danger" className="text-white/70 focus:bg-white/5 focus:text-white">Danger</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Right side - Tabs */}
-                <div className="flex items-center gap-1 bg-black/40 rounded-lg p-1">
-                  <button 
-                    onClick={() => setActiveTab('meta-ads')}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-                      activeTab === 'meta-ads' 
-                        ? 'bg-blue-600/20 text-blue-400' 
-                        : 'text-white/50 hover:text-white/80'
-                    )}
-                  >
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
-                    </svg>
-                    Meta
-                  </button>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-white/25 cursor-not-allowed">
-                          <Lock className="w-3.5 h-3.5" />
-                          Google
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-[#0f0f0f] border-white/10">
-                        <p>Em breve</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <button 
-                    onClick={() => setActiveTab('profile')}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-                      activeTab === 'profile' 
-                        ? 'bg-white/10 text-white' 
-                        : 'text-white/50 hover:text-white/80'
-                    )}
-                  >
-                    <User className="w-3.5 h-3.5" />
-                    Perfil
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* Meta Ads Section Header */}
             {activeTab === 'meta-ads' && (
               <div className="flex items-center justify-between mb-6">
