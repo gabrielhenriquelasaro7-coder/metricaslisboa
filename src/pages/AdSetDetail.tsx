@@ -170,6 +170,7 @@ export default function AdSetDetail() {
       if (!adSetId) return;
       setLoading(true);
       try {
+        // First try to get from ad_sets table
         const { data: adSetData } = await supabase
           .from('ad_sets')
           .select('*')
@@ -186,6 +187,48 @@ export default function AdSetDetail() {
             .eq('id', adSetData.campaign_id)
             .maybeSingle();
           if (campaignData) setCampaign(campaignData as Campaign);
+        } else {
+          // Fallback: try to get ad set info from ads_daily_metrics
+          const { data: metricsData } = await supabase
+            .from('ads_daily_metrics')
+            .select('adset_id, adset_name, adset_status, campaign_id, campaign_name, campaign_objective, project_id')
+            .eq('adset_id', adSetId)
+            .limit(1)
+            .maybeSingle();
+          
+          if (metricsData) {
+            setProjectId(metricsData.project_id);
+            // Create a minimal AdSet object from metrics data
+            setAdSet({
+              id: metricsData.adset_id,
+              campaign_id: metricsData.campaign_id,
+              project_id: metricsData.project_id,
+              name: metricsData.adset_name,
+              status: metricsData.adset_status || 'ACTIVE',
+              daily_budget: null,
+              lifetime_budget: null,
+              targeting: null,
+              spend: 0,
+              impressions: 0,
+              clicks: 0,
+              ctr: 0,
+              cpm: 0,
+              cpc: 0,
+              reach: 0,
+              frequency: 0,
+              conversions: 0,
+              conversion_value: 0,
+              roas: 0,
+              cpa: 0,
+              synced_at: null,
+            });
+            setCampaign({
+              id: metricsData.campaign_id,
+              name: metricsData.campaign_name,
+              project_id: metricsData.project_id,
+              objective: metricsData.campaign_objective,
+            });
+          }
         }
 
         const { data: adsData } = await supabase
