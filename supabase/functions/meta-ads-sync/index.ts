@@ -321,18 +321,31 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 // ===========================================================================================
 // TIPOS DE CONVERSÃO SEPARADOS POR CATEGORIA
 // IMPORTANTE: Separar leads, mensagens e vendas para cada modelo de negócio
+// 
+// *** REGRA CRÍTICA DO GERENCIADOR DE ANÚNCIOS: ***
+// O campo "Resultados" no Gerenciador mostra:
+// - Para campanhas de FORMULÁRIO: lead + onsite_conversion.lead_grouped
+// - Para campanhas de MENSAGEM: messaging_conversation_started_7d
+// 
+// AMBOS são considerados "leads" para o dashboard - não são categorias separadas!
 // ===========================================================================================
 
-// Tipos que contam como LEADS NO SITE (formulários de lead)
-const SITE_LEAD_ACTION_TYPES = [
+// Tipos que contam como LEADS DE FORMULÁRIO (formulários de lead)
+const FORM_LEAD_ACTION_TYPES = [
   'lead',
   'onsite_conversion.lead_grouped',
 ];
 
-// Tipos que contam como MENSAGENS/CONVERSAS (WhatsApp, Messenger, DM)
-const MESSAGING_LEAD_ACTION_TYPES = [
+// Tipos que contam como LEADS DE MENSAGEM (WhatsApp, Messenger, DM)
+// IMPORTANTE: Para campanhas de mensagem, "messaging_conversation_started_7d" É O LEAD!
+// No Gerenciador, esse é o valor que aparece em "Resultados"
+const MESSAGE_LEAD_ACTION_TYPES = [
   'messaging_conversation_started_7d',
   'onsite_conversion.messaging_conversation_started_7d',
+];
+
+// Tipos AUXILIARES de mensagem (para campo messaging_replies, não para leads)
+const MESSAGING_AUXILIARY_TYPES = [
   'onsite_conversion.messaging_first_reply',
   'onsite_conversion.total_messaging_connection',
 ];
@@ -342,15 +355,19 @@ const PURCHASE_ACTION_TYPES = [
   'purchase',
 ];
 
-// Todos os tipos de conversão (leads no site + mensagens + vendas)
+// Todos os tipos de LEADS (formulário + mensagem) - é isso que o Gerenciador chama de "Resultados"
+const ALL_LEAD_ACTION_TYPES = [
+  ...FORM_LEAD_ACTION_TYPES,
+  ...MESSAGE_LEAD_ACTION_TYPES,
+];
+
+// Todos os tipos de conversão (leads + vendas)
 const CONVERSION_ACTION_TYPES = [
-  ...SITE_LEAD_ACTION_TYPES,
-  ...MESSAGING_LEAD_ACTION_TYPES,
+  ...ALL_LEAD_ACTION_TYPES,
   ...PURCHASE_ACTION_TYPES,
 ];
 
 // Tipos de action_values que representam RECEITA REAL (para ROAS)
-// Apenas 'purchase' principal - outros tipos são duplicatas
 const REVENUE_ACTION_TYPES = [
   'purchase',
 ];
@@ -371,106 +388,106 @@ function extractConversions(row: any): {
   let purchasesCount = 0;
 
   // ===========================================================================================
-  // ESTRATÉGIA: Extrair leads e purchases SEPARADAMENTE
-  // 1. Campo "actions" - fonte mais precisa com action_type
-  // 2. Campo "conversions" - fallback que TAMBÉM tem action_type para filtrar
+  // ESTRATÉGIA CORRIGIDA: Leads = formulários + mensagens iniciadas
+  // 
+  // O Gerenciador de Anúncios mostra como "Resultados":
+  // - Para campanhas de formulário: lead / onsite_conversion.lead_grouped
+  // - Para campanhas de mensagem: messaging_conversation_started_7d
+  // 
+  // AMBOS devem ser contados como "leads" no dashboard!
   // ===========================================================================================
   
   // FONTE 1: Campo "actions" - eventos filtrados por action_type
-  // IMPORTANTE: A Meta retorna AMBOS 'lead' e 'onsite_conversion.lead_grouped' com MESMOS valores
-  // Devemos usar apenas UM para evitar duplicação - priorizamos 'lead'
-  let hasLeadAction = false;
-  let hasLeadGroupedAction = false;
-  let leadValue = 0;
-  let leadGroupedValue = 0;
+  // Coletamos todos os tipos separadamente para evitar duplicação
+  let formLeadValue = 0;     // lead
+  let formLeadGrouped = 0;   // onsite_conversion.lead_grouped
+  let messageLeadValue = 0;  // messaging_conversation_started_7d
+  let messagePrefixed = 0;   // onsite_conversion.messaging_conversation_started_7d
   
   if (Array.isArray(row.actions) && row.actions.length > 0) {
-    // Primeiro passo: coletar valores de cada tipo
     for (const action of row.actions) {
       const actionType = action.action_type || '';
       const val = parseInt(action.value) || 0;
       if (val > 0) {
+        // LEADS DE FORMULÁRIO
         if (actionType === 'lead') {
-          hasLeadAction = true;
-          leadValue = val;
+          formLeadValue = val;
         } else if (actionType === 'onsite_conversion.lead_grouped') {
-          hasLeadGroupedAction = true;
-          leadGroupedValue = val;
+          formLeadGrouped = val;
         }
-        // Contar MENSAGENS como conversão também
-        else if (MESSAGING_LEAD_ACTION_TYPES.includes(actionType)) {
-          conversions += val;
-          source = 'actions';
-          console.log(`[MESSAGING-LEAD] action_type=${actionType}, value=${val}`);
+        // LEADS DE MENSAGEM (WhatsApp/Messenger/DM)
+        else if (actionType === 'messaging_conversation_started_7d') {
+          messageLeadValue = val;
+        } else if (actionType === 'onsite_conversion.messaging_conversation_started_7d') {
+          messagePrefixed = val;
         }
-        // Contar purchases separadamente
+        // PURCHASES
         else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
           purchasesCount += val;
-          conversions += val;
-          source = 'actions';
-          console.log(`[PURCHASE-MATCH] action_type=${actionType}, value=${val}`);
+          console.log(`[PURCHASE] action_type=${actionType}, value=${val}`);
         }
       }
     }
     
-    // Segundo passo: usar apenas UM dos tipos de lead (priorizar 'lead', fallback para 'lead_grouped')
-    if (hasLeadAction) {
-      leadsCount = leadValue;
-      conversions += leadValue;
+    // LEADS DE FORMULÁRIO: usar apenas UM dos tipos (evitar duplicação)
+    // Meta retorna 'lead' e 'lead_grouped' com mesmos valores
+    const actualFormLeads = formLeadValue > 0 ? formLeadValue : formLeadGrouped;
+    
+    // LEADS DE MENSAGEM: usar apenas UM dos tipos (evitar duplicação)
+    // Priorizamos o prefixado, fallback para o simples
+    const actualMessageLeads = messagePrefixed > 0 ? messagePrefixed : messageLeadValue;
+    
+    // TOTAL DE LEADS = formulários + mensagens
+    leadsCount = actualFormLeads + actualMessageLeads;
+    
+    if (actualFormLeads > 0) {
       source = 'actions';
-      console.log(`[SITE-LEAD] Usando 'lead' value=${leadValue}`);
-    } else if (hasLeadGroupedAction) {
-      leadsCount = leadGroupedValue;
-      conversions += leadGroupedValue;
-      source = 'actions';
-      console.log(`[SITE-LEAD] Usando 'lead_grouped' value=${leadGroupedValue}`);
+      console.log(`[FORM-LEAD] value=${actualFormLeads}`);
     }
+    if (actualMessageLeads > 0) {
+      source = 'actions';
+      console.log(`[MESSAGE-LEAD] value=${actualMessageLeads}`);
+    }
+    
+    // CONVERSIONS = leads + purchases
+    conversions = leadsCount + purchasesCount;
   }
 
   // FONTE 2: Campo "conversions" - fallback se não veio de actions
-  // Mesma lógica: evitar duplicação entre 'lead' e 'lead_grouped'
-  if (leadsCount === 0 && conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
-    let hasLeadConv = false;
-    let hasLeadGroupedConv = false;
-    let leadConvValue = 0;
-    let leadGroupedConvValue = 0;
+  if (conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
+    let formLeadConv = 0;
+    let formLeadGroupedConv = 0;
+    let messageLeadConv = 0;
+    let messagePrefixedConv = 0;
     
     for (const c of row.conversions) {
       const actionType = c.action_type || '';
       const val = parseInt(c.value) || 0;
       if (val > 0) {
         if (actionType === 'lead') {
-          hasLeadConv = true;
-          leadConvValue = val;
+          formLeadConv = val;
         } else if (actionType === 'onsite_conversion.lead_grouped') {
-          hasLeadGroupedConv = true;
-          leadGroupedConvValue = val;
-        }
-        else if (MESSAGING_LEAD_ACTION_TYPES.includes(actionType)) {
-          conversions += val;
-          source = 'conversions_filtered';
-          console.log(`[MESSAGING-LEAD] conversions: action_type=${actionType}, value=${val}`);
-        }
-        else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
+          formLeadGroupedConv = val;
+        } else if (actionType === 'messaging_conversation_started_7d') {
+          messageLeadConv = val;
+        } else if (actionType === 'onsite_conversion.messaging_conversation_started_7d') {
+          messagePrefixedConv = val;
+        } else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
           purchasesCount += val;
-          conversions += val;
-          source = 'conversions_filtered';
-          console.log(`[PURCHASE-MATCH] conversions: action_type=${actionType}, value=${val}`);
         }
       }
     }
     
-    // Usar apenas UM dos tipos de lead
-    if (hasLeadConv) {
-      leadsCount = leadConvValue;
-      conversions += leadConvValue;
+    const actualFormLeads = formLeadConv > 0 ? formLeadConv : formLeadGroupedConv;
+    const actualMessageLeads = messagePrefixedConv > 0 ? messagePrefixedConv : messageLeadConv;
+    
+    leadsCount = actualFormLeads + actualMessageLeads;
+    conversions = leadsCount + purchasesCount;
+    
+    if (leadsCount > 0 || purchasesCount > 0) {
       source = 'conversions_filtered';
-      console.log(`[SITE-LEAD] conversions: Usando 'lead' value=${leadConvValue}`);
-    } else if (hasLeadGroupedConv) {
-      leadsCount = leadGroupedConvValue;
-      conversions += leadGroupedConvValue;
-      source = 'conversions_filtered';
-      console.log(`[SITE-LEAD] conversions: Usando 'lead_grouped' value=${leadGroupedConvValue}`);
+      if (actualFormLeads > 0) console.log(`[FORM-LEAD] conversions: value=${actualFormLeads}`);
+      if (actualMessageLeads > 0) console.log(`[MESSAGE-LEAD] conversions: value=${actualMessageLeads}`);
     }
   }
 
@@ -493,11 +510,9 @@ function extractConversions(row: any): {
   }
 
   // Valor de conversão (para ROAS) - via action_values
-  // IMPORTANTE: Só somar valores de RECEITA REAL (purchase), não checkout/view_content
   if (Array.isArray(row.action_values)) {
     for (const av of row.action_values) {
       const actionType = av.action_type || '';
-      // Só contar como receita se for tipo de purchase/compra
       const isRevenueAction = REVENUE_ACTION_TYPES.includes(actionType);
       if (isRevenueAction) {
         const val = parseFloat(av.value) || 0;
