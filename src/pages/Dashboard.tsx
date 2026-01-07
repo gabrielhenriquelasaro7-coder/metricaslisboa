@@ -553,78 +553,34 @@ export default function Dashboard() {
               )}
 
               {/* Inside Sales Metrics */}
-              {/* Mostrar cards separados para cada tipo de conversão existente */}
+              {/* Um único card de "Leads" que soma todas as conversões (leads_count + messaging_replies) */}
               {isInsideSales && (() => {
-                const hasLeadsCount = (metrics.totalLeadsConversions || 0) > 0;
-                const hasMessaging = (metrics.totalMessages || 0) > 0;
+                const leadsCount = metrics.totalLeadsConversions || 0;
+                const messagingCount = metrics.totalMessages || 0;
                 
-                // Calcular total de resultados para CPL (soma de todas as conversões)
-                const totalResults = (hasLeadsCount ? metrics.totalLeadsConversions || 0 : 0) + 
-                                    (hasMessaging ? metrics.totalMessages || 0 : 0);
-                const effectiveTotal = totalResults > 0 ? totalResults : metrics.totalConversions;
+                // Soma visual de todos os tipos de resultado como "Leads"
+                // Se não tiver nenhum, usa conversions como fallback
+                const totalLeads = (leadsCount + messagingCount) > 0 
+                  ? leadsCount + messagingCount 
+                  : metrics.totalConversions;
                 
-                const cpl = effectiveTotal > 0 ? metrics.totalSpend / effectiveTotal : 0;
-                const convRate = metrics.totalClicks > 0 ? (effectiveTotal / metrics.totalClicks) * 100 : 0;
-                
-                // Construir array de cards de resultado dinamicamente
-                const resultCards: JSX.Element[] = [];
-                
-                // Se tem leads de formulário, mostrar card de Leads
-                if (hasLeadsCount) {
-                  resultCards.push(
-                    <SparklineCard
-                      key="leads"
-                      title="Leads"
-                      value={formatNumber(metrics.totalLeadsConversions || 0)}
-                      change={changes?.conversions}
-                      changeLabel="vs anterior"
-                      icon={Users}
-                      sparklineData={sparklineData.leads}
-                      className="border-l-4 border-l-chart-1"
-                      tooltip="Leads de formulário (leads_count)"
-                    />
-                  );
-                }
-                
-                // Se tem mensagens, mostrar card de Mensagens
-                if (hasMessaging) {
-                  resultCards.push(
-                    <SparklineCard
-                      key="messages"
-                      title="Mensagens"
-                      value={formatNumber(metrics.totalMessages || 0)}
-                      change={changes?.conversions}
-                      changeLabel="vs anterior"
-                      icon={Phone}
-                      sparklineData={sparklineData.messages}
-                      className={!hasLeadsCount ? "border-l-4 border-l-chart-1" : ""}
-                      tooltip="Conversas iniciadas via Messenger/WhatsApp"
-                    />
-                  );
-                }
-                
-                // Se não tem nem leads nem mensagens, mostrar conversions como fallback
-                if (!hasLeadsCount && !hasMessaging) {
-                  resultCards.push(
-                    <SparklineCard
-                      key="conversions"
-                      title="Conversões"
-                      value={formatNumber(metrics.totalConversions)}
-                      change={changes?.conversions}
-                      changeLabel="vs anterior"
-                      icon={Target}
-                      sparklineData={sparklineData.conversions}
-                      className="border-l-4 border-l-chart-1"
-                      tooltip="Total de conversões reportadas pelo Meta"
-                    />
-                  );
-                }
+                const cpl = totalLeads > 0 ? metrics.totalSpend / totalLeads : 0;
+                const convRate = metrics.totalClicks > 0 ? (totalLeads / metrics.totalClicks) * 100 : 0;
                 
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {resultCards}
                     <SparklineCard
-                      title={hasLeadsCount && hasMessaging ? "Custo/Resultado" : hasLeadsCount ? "CPL" : hasMessaging ? "CPM (Mensagem)" : "CPA"}
+                      title="Leads"
+                      value={formatNumber(totalLeads)}
+                      change={changes?.conversions}
+                      changeLabel="vs anterior"
+                      icon={Users}
+                      sparklineData={sparklineData.leads.length > 0 ? sparklineData.leads : sparklineData.conversions}
+                      className="border-l-4 border-l-chart-1"
+                      tooltip="Total de resultados (formulários + mensagens)"
+                    />
+                    <SparklineCard
+                      title="CPL"
                       value={formatCurrency(cpl)}
                       change={changes?.cpa}
                       changeLabel="vs anterior"
