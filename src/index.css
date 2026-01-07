@@ -919,12 +919,23 @@
   background: radial-gradient(ellipse 80% 70% at 50% 50%, transparent 30%, rgba(0, 0, 0, 0.7) 100%);
 }
 
-/* V4 Card Glow Effect - eb-luz */
+/* V4 Card Glow Effect - eb-luz with pulse animation */
 .eb-luz {
   overflow: hidden;
   position: relative;
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
+}
+
+@keyframes eb-luz-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(224, 14, 14, 0.5);
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 20px rgba(224, 14, 14, 0.8);
+  }
 }
 
 .eb-luz:before {
@@ -938,6 +949,7 @@
   z-index: 90;
   width: 100%;
   box-shadow: 0 0 10px rgba(224, 14, 14, 0.5);
+  animation: eb-luz-pulse 3s ease-in-out infinite;
 }
 
 .eb-luz:after {
@@ -951,6 +963,7 @@
   left: 0;
   width: 100%;
   box-shadow: 0 0 8px rgba(224, 14, 14, 0.3);
+  animation: eb-luz-pulse 3s ease-in-out infinite 0.5s;
 }
 
 /* Cockpit Glass Card */
