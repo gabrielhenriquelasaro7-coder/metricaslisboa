@@ -51,7 +51,8 @@ import {
   Settings2,
   Target,
   UserPlus,
-  Shield
+  Shield,
+  GraduationCap
 } from 'lucide-react';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -81,6 +82,7 @@ const businessModels: { value: BusinessModel; label: string; description: string
   { value: 'inside_sales', label: 'Inside Sales', description: 'Leads e vendas internas', icon: Users },
   { value: 'ecommerce', label: 'E-commerce', description: 'Vendas online', icon: TrendingUp },
   { value: 'pdv', label: 'PDV', description: 'Loja física', icon: Store },
+  { value: 'infoproduto', label: 'Infoproduto', description: 'Cursos e mentorias', icon: GraduationCap },
   { value: 'custom', label: 'Personalizado', description: 'Configure suas métricas', icon: Target },
 ];
 
