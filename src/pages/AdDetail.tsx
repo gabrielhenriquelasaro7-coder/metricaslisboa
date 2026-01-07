@@ -141,6 +141,7 @@ export default function AdDetail() {
     if (!adId) return;
     setLoading(true);
     try {
+      // First try from ads table
       const { data: adData } = await supabase
         .from('ads')
         .select('*')
@@ -165,6 +166,55 @@ export default function AdDetail() {
           .eq('id', adData.campaign_id)
           .maybeSingle();
         if (campaignData) setCampaign(campaignData);
+      } else {
+        // Fallback: get ad info from ads_daily_metrics
+        const { data: metricsData } = await supabase
+          .from('ads_daily_metrics')
+          .select('ad_id, ad_name, ad_status, adset_id, adset_name, campaign_id, campaign_name, project_id, creative_thumbnail, cached_creative_thumbnail')
+          .eq('ad_id', adId)
+          .limit(1)
+          .maybeSingle();
+        
+        if (metricsData) {
+          setProjectId(metricsData.project_id);
+          setAd({
+            id: metricsData.ad_id,
+            ad_set_id: metricsData.adset_id,
+            campaign_id: metricsData.campaign_id,
+            project_id: metricsData.project_id,
+            name: metricsData.ad_name,
+            status: metricsData.ad_status || 'ACTIVE',
+            spend: 0,
+            impressions: 0,
+            clicks: 0,
+            ctr: 0,
+            cpm: 0,
+            cpc: 0,
+            reach: 0,
+            frequency: 0,
+            conversions: 0,
+            conversion_value: 0,
+            roas: 0,
+            cpa: 0,
+            creative_id: null,
+            creative_thumbnail: metricsData.cached_creative_thumbnail || metricsData.creative_thumbnail || null,
+            creative_image_url: null,
+            creative_video_url: null,
+            cached_image_url: metricsData.cached_creative_thumbnail || null,
+            headline: null,
+            primary_text: null,
+            cta: null,
+            synced_at: null,
+          });
+          setAdSet({
+            id: metricsData.adset_id,
+            name: metricsData.adset_name,
+          });
+          setCampaign({
+            id: metricsData.campaign_id,
+            name: metricsData.campaign_name,
+          });
+        }
       }
     } catch (error) {
       console.error('Error:', error);
