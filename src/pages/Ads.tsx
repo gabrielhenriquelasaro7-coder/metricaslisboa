@@ -6,8 +6,9 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
+import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { DateRange } from 'react-day-picker';
-import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
+import { DatePresetKey } from '@/utils/dateUtils';
 import { 
   ImageIcon, 
   TrendingUp, 
@@ -57,17 +58,13 @@ interface AdSet {
 export default function Ads() {
   const { adSetId } = useParams<{ adSetId: string }>();
   const { projects } = useProjects();
+  const { selectedPreset, dateRange, setSelectedPreset, setDateRange } = usePeriodContext();
   const [adSet, setAdSet] = useState<AdSet | null>(null);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
-    return period ? datePeriodToDateRange(period) : undefined;
-  });
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
   const [dataDateRange, setDataDateRange] = useState<{ from: string; to: string } | null>(null);
   const [usingFallbackData, setUsingFallbackData] = useState(false);
   const selectedProject = projects.find(p => p.id === adSet?.project_id);
@@ -244,11 +241,11 @@ export default function Ads() {
   // Handle date range change
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
     setDateRange(newRange);
-  }, []);
+  }, [setDateRange]);
 
-  const handlePresetChange = useCallback((preset: DatePresetKey) => {
-    setSelectedPreset(preset);
-  }, []);
+  const handlePresetChange = useCallback((preset: string) => {
+    setSelectedPreset(preset as any);
+  }, [setSelectedPreset]);
 
   const filteredAds = ads
     .filter((a) => !filters.search || a.name.toLowerCase().includes(filters.search.toLowerCase()))

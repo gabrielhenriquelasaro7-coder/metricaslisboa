@@ -5,9 +5,9 @@ import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
+import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { DateRange } from 'react-day-picker';
 import { differenceInDays, format } from 'date-fns';
-import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { SkeletonMetricCard, SkeletonTableRow } from '@/components/ui/skeleton-card';
 import { 
   Megaphone, 
@@ -31,11 +31,7 @@ import StatusBadge from '@/components/campaigns/StatusBadge';
 
 export default function Campaigns() {
   const navigate = useNavigate();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
-    return period ? datePeriodToDateRange(period) : undefined;
-  });
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
+  const { selectedPreset, dateRange, setSelectedPreset, setDateRange } = usePeriodContext();
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
   const { campaigns, adSets, ads, loading, selectedProject, projectsLoading, loadMetricsByPeriod, usingFallbackData } = useMetaAdsData();
@@ -62,12 +58,12 @@ export default function Campaigns() {
   // Handle date range change - NO sync, just load from database
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
     setDateRange(newRange);
-  }, []);
+  }, [setDateRange]);
 
   // Handle preset change
-  const handlePresetChange = useCallback((preset: DatePresetKey) => {
-    setSelectedPreset(preset);
-  }, []);
+  const handlePresetChange = useCallback((preset: string) => {
+    setSelectedPreset(preset as any);
+  }, [setSelectedPreset]);
 
   // Business model
   const isEcommerce = selectedProject?.business_model === 'ecommerce';

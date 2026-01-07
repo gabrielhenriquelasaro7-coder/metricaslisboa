@@ -6,8 +6,9 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdvancedFilters, { FilterConfig, SortConfig } from '@/components/filters/AdvancedFilters';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
+import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { DateRange } from 'react-day-picker';
-import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange, calculateTimePeriods } from '@/utils/dateUtils';
+import { DatePresetKey } from '@/utils/dateUtils';
 import { 
   Layers, 
   TrendingUp, 
@@ -50,16 +51,12 @@ interface AdSet {
 export default function AdSets() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const { projects } = useProjects();
+  const { selectedPreset, dateRange, setSelectedPreset, setDateRange } = usePeriodContext();
   const [campaign, setCampaign] = useState<{ id: string; name: string; project_id: string } | null>(null);
   const [adSets, setAdSets] = useState<AdSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
-    return period ? datePeriodToDateRange(period) : undefined;
-  });
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
   const [dataDateRange, setDataDateRange] = useState<{ from: string; to: string } | null>(null);
   const [usingFallbackData, setUsingFallbackData] = useState(false);
   const selectedProject = projects.find(p => p.id === campaign?.project_id);
@@ -236,12 +233,12 @@ export default function AdSets() {
   // Handle date range change
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
     setDateRange(newRange);
-  }, []);
+  }, [setDateRange]);
 
   // Handle preset change - load data by period
-  const handlePresetChange = useCallback((preset: DatePresetKey) => {
-    setSelectedPreset(preset);
-  }, []);
+  const handlePresetChange = useCallback((preset: string) => {
+    setSelectedPreset(preset as any);
+  }, [setSelectedPreset]);
 
   const filteredAdSets = adSets
     .filter((a) => !filters.search || a.name.toLowerCase().includes(filters.search.toLowerCase()))

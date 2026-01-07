@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import SparklineCard from '@/components/dashboard/SparklineCard';
 import { DashboardSkeleton } from '@/components/skeletons';
@@ -18,6 +18,7 @@ import { useDailyMetrics } from '@/hooks/useDailyMetrics';
 import { useTour } from '@/hooks/useTour';
 import { useBalanceAlert } from '@/hooks/useBalanceAlert';
 import { useProfileVisitsMetrics } from '@/hooks/useProfileVisitsMetrics';
+import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { GuidedTour } from '@/components/tour/GuidedTour';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -57,11 +58,7 @@ import v4LogoFull from '@/assets/v4-logo-full.png';
 
 export default function Dashboard() {
   const { projects, loading: projectsLoading } = useProjects();
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
-    return period ? datePeriodToDateRange(period) : undefined;
-  });
+  const { selectedPreset, dateRange, setSelectedPreset, setDateRange } = usePeriodContext();
   const [showComparison, setShowComparison] = useState(true);
   const chartRef = useRef<HTMLDivElement>(null);
   
@@ -141,12 +138,12 @@ export default function Dashboard() {
   // Handle date range change - NO sync, just load from database
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
     setDateRange(newRange);
-  }, []);
+  }, [setDateRange]);
 
   // Handle preset change
-  const handlePresetChange = useCallback((preset: DatePresetKey) => {
-    setSelectedPreset(preset);
-  }, []);
+  const handlePresetChange = useCallback((preset: string) => {
+    setSelectedPreset(preset as any);
+  }, [setSelectedPreset]);
 
   // Manual sync
   const handleManualSync = useCallback(() => {
