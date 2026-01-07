@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,19 +25,7 @@ const TRACKED_FIELDS_CAMPAIGN = ['status', 'daily_budget', 'lifetime_budget', 'o
 const TRACKED_FIELDS_ADSET = ['status', 'daily_budget', 'lifetime_budget'];
 const TRACKED_FIELDS_AD = ['status'];
 
-// ===========================================================================================
-// PRINCÍPIO ABSOLUTO: Este sistema é um ESPELHO EXATO do Gerenciador de Anúncios
-// 
-// O número oficial de conversões SEMPRE vem do campo "results".
-// Se "results" não existir ou vier vazio → conversões = 0.
-// 
-// NUNCA usar "actions" ou "conversions" para o número principal.
-// O campo "actions" é usado APENAS para métricas auxiliares:
-//   - messaging_replies (conversas iniciadas)
-//   - profile_visits (visitas ao perfil)
-// ===========================================================================================
-
-// Action types para métricas AUXILIARES (não afetam conversions)
+// Conversions from "results" field, actions only for auxiliary metrics
 const MESSAGING_ACTION_TYPES = [
   'onsite_conversion.messaging_conversation_started_7d', 
   'onsite_conversion.messaging_first_reply', 
@@ -238,26 +226,58 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
       // 5. video thumbnail HD
       // 6. thumbnail_url as last resort
       
-      let freshImageUrl: string | null = null;
-      let isHD = false;
+      let hdImageUrl: string | null = null;
+      let fallbackUrl: string | null = null;
       
-      // Priority: 1. image_hash HD, 2. creative.image_url, 3. creativeData, 4. link_data, 5. video thumbnail, 6. thumbnail_url
-      if (ad.creative?.image_hash && adImageMap.has(ad.creative.image_hash)) { freshImageUrl = adImageMap.get(ad.creative.image_hash)!; isHD = true; }
-      if (!freshImageUrl && ad.creative?.image_url) { freshImageUrl = ad.creative.image_url; isHD = true; }
-      if (!freshImageUrl && ad.creative?.id && creativeDataMap.has(ad.creative.id)) {
+      // ========== PRIORIDADE ABSOLUTA: IMAGENS HD ==========
+      // Tentar TODAS as fontes HD antes de aceitar thumbnail
+      
+      // 1. image_hash → adImageMap (imagem HD verificada da Meta)
+      if (ad.creative?.image_hash && adImageMap.has(ad.creative.image_hash)) {
+        hdImageUrl = adImageMap.get(ad.creative.image_hash)!;
+      }
+      
+      // 2. creative.image_url (URL direta HD)
+      if (!hdImageUrl && ad.creative?.image_url) {
+        hdImageUrl = ad.creative.image_url;
+      }
+      
+      // 3. creativeData (dados completos do criativo)
+      if (!hdImageUrl && ad.creative?.id && creativeDataMap.has(ad.creative.id)) {
         const cd = creativeDataMap.get(ad.creative.id);
-        if (cd.image_url) { freshImageUrl = cd.image_url; isHD = true; }
-        else if (cd.image_hash && adImageMap.has(cd.image_hash)) { freshImageUrl = adImageMap.get(cd.image_hash)!; isHD = true; }
-        if (!freshImageUrl && cd.object_story_spec?.link_data) {
+        if (cd.image_url) hdImageUrl = cd.image_url;
+        else if (cd.image_hash && adImageMap.has(cd.image_hash)) hdImageUrl = adImageMap.get(cd.image_hash)!;
+        
+        // link_data tem imagens HD
+        if (!hdImageUrl && cd.object_story_spec?.link_data) {
           const ld = cd.object_story_spec.link_data;
-          if (ld.image_url) { freshImageUrl = ld.image_url; isHD = true; }
-          else if (ld.picture) { freshImageUrl = ld.picture; isHD = false; }
+          if (ld.image_url) hdImageUrl = ld.image_url;
+          else if (ld.picture && ld.picture.includes('scontent')) hdImageUrl = ld.picture; // scontent = HD
+          else if (ld.picture) fallbackUrl = ld.picture;
+        }
+        
+        // video_data também pode ter image_url HD
+        if (!hdImageUrl && cd.object_story_spec?.video_data) {
+          const vd = cd.object_story_spec.video_data;
+          if (vd.image_url) hdImageUrl = vd.image_url;
+          else if (vd.image_hash && adImageMap.has(vd.image_hash)) hdImageUrl = adImageMap.get(vd.image_hash)!;
         }
       }
-      if (!freshImageUrl) { const videoId = ad.creative?.object_story_spec?.video_data?.video_id; if (videoId && videoThumbnailMap.has(videoId)) { freshImageUrl = videoThumbnailMap.get(videoId)!; isHD = true; } }
-      if (!freshImageUrl && ad.creative?.thumbnail_url) { freshImageUrl = ad.creative.thumbnail_url; isHD = false; }
       
-      if (freshImageUrl) adsNeedingCache.push({ adId, imageUrl: freshImageUrl, isHD });
+      // 4. Video thumbnail HD (já buscado em alta resolução)
+      if (!hdImageUrl) {
+        const videoId = ad.creative?.object_story_spec?.video_data?.video_id;
+        if (videoId && videoThumbnailMap.has(videoId)) hdImageUrl = videoThumbnailMap.get(videoId)!;
+      }
+      
+      // 5. ÚLTIMO RECURSO: thumbnail_url (baixa qualidade)
+      if (!hdImageUrl && !fallbackUrl && ad.creative?.thumbnail_url) {
+        fallbackUrl = ad.creative.thumbnail_url;
+      }
+      
+      // Usar HD se disponível, senão fallback
+      const imageUrl = hdImageUrl || fallbackUrl;
+      if (imageUrl) adsNeedingCache.push({ adId, imageUrl, isHD: !!hdImageUrl });
     }
     // Process in batches, prioritizing HD images
     const hdAds = adsNeedingCache.filter(a => a.isHD);
