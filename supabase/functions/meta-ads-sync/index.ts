@@ -194,7 +194,58 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   
   if (lightSync) return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache };
 
-  // ========== NOVA ABORDAGEM: Buscar TODOS os creatives via endpoint /adcreatives ==========
+  // ========== FIX: Buscar creative_id para anúncios que não vieram com creative na resposta ==========
+  // A API do Meta nem sempre retorna o campo creative na query nested
+  // Para esses anúncios, fazemos uma chamada individual para pegar o creative
+  const adsWithoutCreative = ads.filter(a => !a.creative?.id);
+  console.log(`[CREATIVES-FIX] Ads without creative.id: ${adsWithoutCreative.length} of ${ads.length}`);
+  
+  if (adsWithoutCreative.length > 0 && adsWithoutCreative.length <= 100) {
+    // Para até 100 anúncios, buscar creative individualmente via batch API
+    const batchSize = 50;
+    for (let i = 0; i < adsWithoutCreative.length; i += batchSize) {
+      const batch = adsWithoutCreative.slice(i, i + batchSize);
+      const batchRequests = batch.map(ad => ({
+        method: 'GET',
+        relative_url: `${ad.id}?fields=creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec}`
+      }));
+      
+      try {
+        const response = await fetch(`https://graph.facebook.com/v21.0/?access_token=${token}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch: batchRequests })
+        });
+        
+        if (response.ok) {
+          const results = await response.json();
+          let fixedCount = 0;
+          for (let j = 0; j < results.length; j++) {
+            if (results[j].code === 200 && results[j].body) {
+              try {
+                const adData = JSON.parse(results[j].body);
+                if (adData.creative?.id) {
+                  // Encontrar o anúncio original e adicionar o creative
+                  const originalAd = ads.find(a => a.id === adData.id);
+                  if (originalAd) {
+                    originalAd.creative = adData.creative;
+                    fixedCount++;
+                  }
+                }
+              } catch {}
+            }
+          }
+          console.log(`[CREATIVES-FIX] Batch ${Math.floor(i/batchSize) + 1}: Fixed ${fixedCount} ads`);
+        }
+      } catch (e) {
+        console.log(`[CREATIVES-FIX] Batch error: ${e}`);
+      }
+      
+      await delay(200); // Rate limit protection
+    }
+  }
+
+  // ========== Buscar TODOS os creatives via endpoint /adcreatives ==========
   // A query nested creative{...} não está retornando os dados completos na API v21.0
   // Buscamos diretamente da conta de anúncios
   console.log(`[CREATIVES] Fetching all creatives via /adcreatives endpoint...`);
@@ -235,10 +286,10 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
     }
   }
   
-  // Mapear creatives para ads baseado no creative.id que veio na query de ads
+  // Mapear creatives para ads baseado no creative.id que veio na query de ads (agora com fix aplicado)
   const adsWithCreativeId = ads.filter(a => a.creative?.id);
   const adsMatchedWithCreative = adsWithCreativeId.filter(a => creativeDataMap.has(a.creative.id));
-  console.log(`[CREATIVES] Ads with creative.id: ${adsWithCreativeId.length}, matched in creativeDataMap: ${adsMatchedWithCreative.length}`);
+  console.log(`[CREATIVES] Ads with creative.id (after fix): ${adsWithCreativeId.length}, matched in creativeDataMap: ${adsMatchedWithCreative.length}`);
 
   // Fetch HD images - agora usando os hashes do creativeDataMap
   const allImageHashes = new Set<string>();
