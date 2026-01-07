@@ -430,7 +430,15 @@ function extractConversions(row: any): {
   if (Array.isArray(row.results) && row.results.length > 0) {
     for (const result of row.results) {
       // Campo pode ser action_type ou indicator
-      const actionType = result.action_type || result.indicator || '';
+      let actionType = result.action_type || result.indicator || '';
+      
+      // NORMALIZAR: Remover prefixo "conversions:" ou "actions:" que a API pode retornar
+      // Ex: "conversions:contact_website" -> "contact_website"
+      if (actionType.includes(':')) {
+        const parts = actionType.split(':');
+        actionType = parts[parts.length - 1]; // Pegar a parte depois do último ":"
+        console.log(`[RESULTS] Normalizado action_type: ${result.action_type || result.indicator} -> ${actionType}`);
+      }
       
       // Pegar valor diretamente ou dentro de values[]
       let val = 0;
