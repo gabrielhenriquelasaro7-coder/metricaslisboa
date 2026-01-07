@@ -245,6 +245,8 @@ export default function Dashboard() {
       totalReach: prev.reach,
       totalConversions: prev.conversions,
       totalConversionValue: prev.conversion_value,
+      totalMessages: prev.messaging_replies,
+      totalLeadsConversions: prev.leads_conversions,
       ctr: prev.ctr,
       cpm: prev.cpm,
       cpc: prev.cpc,
@@ -564,7 +566,17 @@ export default function Dashboard() {
                   ? leadsCount + messagingCount 
                   : metrics.totalConversions;
                 
+                // Valor do período anterior
+                const prevLeadsCount = previousMetrics?.totalLeadsConversions || 0;
+                const prevMessagingCount = previousMetrics?.totalMessages || 0;
+                const previousTotalLeads = (prevLeadsCount + prevMessagingCount) > 0 
+                  ? prevLeadsCount + prevMessagingCount 
+                  : previousMetrics?.totalConversions || 0;
+                
                 const cpl = totalLeads > 0 ? metrics.totalSpend / totalLeads : 0;
+                const previousCpl = previousTotalLeads > 0 && previousMetrics?.totalSpend 
+                  ? previousMetrics.totalSpend / previousTotalLeads 
+                  : 0;
                 const convRate = metrics.totalClicks > 0 ? (totalLeads / metrics.totalClicks) * 100 : 0;
                 
                 return (
@@ -572,6 +584,7 @@ export default function Dashboard() {
                     <SparklineCard
                       title="Leads"
                       value={formatNumber(totalLeads)}
+                      previousValue={previousTotalLeads > 0 ? formatNumber(previousTotalLeads) : undefined}
                       change={changes?.conversions}
                       changeLabel="vs anterior"
                       icon={Users}
@@ -582,6 +595,7 @@ export default function Dashboard() {
                     <SparklineCard
                       title="CPL"
                       value={formatCurrency(cpl)}
+                      previousValue={previousCpl > 0 ? formatCurrency(previousCpl) : undefined}
                       change={changes?.cpa}
                       changeLabel="vs anterior"
                       icon={Receipt}
@@ -698,7 +712,14 @@ export default function Dashboard() {
                     totalReach: metrics.totalReach,
                     totalMessages: metrics.totalMessages,
                     totalProfileVisits: metrics.totalProfileVisits,
+                    totalLeadsConversions: metrics.totalLeadsConversions,
                   }}
+                  previousMetrics={previousMetrics ? {
+                    totalConversions: previousMetrics.totalConversions,
+                    totalMessages: previousMetrics.totalMessages,
+                    totalLeadsConversions: previousMetrics.totalLeadsConversions,
+                    totalSpend: previousMetrics.totalSpend,
+                  } : null}
                   changes={changes}
                   sparklineData={sparklineData}
                   currency={selectedProject?.currency || 'BRL'}

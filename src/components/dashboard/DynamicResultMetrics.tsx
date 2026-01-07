@@ -38,6 +38,12 @@ interface DynamicResultMetricsProps {
     totalLeadsConversions?: number;
     totalSalesConversions?: number;
   };
+  previousMetrics?: {
+    totalConversions: number;
+    totalMessages?: number;
+    totalLeadsConversions?: number;
+    totalSpend?: number;
+  } | null;
   changes: Record<string, number> | null;
   sparklineData: Record<string, number[]>;
   currency: string;
@@ -81,6 +87,7 @@ const EFFICIENCY_CONFIG: Record<string, { label: string; icon: LucideIcon; forma
 export function DynamicResultMetrics({
   config,
   metrics,
+  previousMetrics,
   changes,
   sparklineData,
   currency
@@ -130,6 +137,16 @@ export function DynamicResultMetrics({
   // Calcular total de resultados para métricas de custo (soma de todas as métricas selecionadas)
   const getTotalResults = (): number => {
     return resultMetrics.reduce((sum, key) => sum + getMetricValue(key), 0);
+  };
+
+  // Calcular total do período anterior
+  const getPreviousTotalResults = (): number => {
+    if (!previousMetrics) return 0;
+    const prevLeads = previousMetrics.totalLeadsConversions || 0;
+    const prevMessages = previousMetrics.totalMessages || 0;
+    return (prevLeads + prevMessages) > 0 
+      ? prevLeads + prevMessages 
+      : previousMetrics.totalConversions || 0;
   };
   
   // Calcular métricas de custo usando o total de resultados
@@ -181,6 +198,7 @@ export function DynamicResultMetrics({
   // 1. Single "Leads" card showing the TOTAL of all result metrics combined
   // User wants ONE card that sums everything, not separate cards for each type
   const totalResults = getTotalResults();
+  const previousTotalResults = getPreviousTotalResults();
   
   // Use the first metric's sparkline or fallback to conversions
   const primarySparkline = resultMetrics.length > 0 
@@ -192,6 +210,7 @@ export function DynamicResultMetrics({
       key="result-total"
       title="Leads"
       value={totalResults.toLocaleString('pt-BR')}
+      previousValue={previousTotalResults > 0 ? previousTotalResults.toLocaleString('pt-BR') : undefined}
       change={changes?.conversions}
       changeLabel="vs anterior"
       icon={Users}
