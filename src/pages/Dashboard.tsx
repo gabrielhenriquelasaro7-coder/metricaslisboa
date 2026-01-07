@@ -553,53 +553,78 @@ export default function Dashboard() {
               )}
 
               {/* Inside Sales Metrics */}
-              {/* Hierarquia: leads_count > messaging_replies > conversions (fallback inteligente) */}
+              {/* Mostrar cards separados para cada tipo de conversão existente */}
               {isInsideSales && (() => {
-                // Determinar qual métrica usar baseado nos dados disponíveis
                 const hasLeadsCount = (metrics.totalLeadsConversions || 0) > 0;
                 const hasMessaging = (metrics.totalMessages || 0) > 0;
                 
-                // Se tem leads_count, usar leads_count (formulários)
-                // Se não tem leads_count mas tem mensagens, usar mensagens
-                // Se não tem nenhum, usar conversions como fallback
-                const primaryValue = hasLeadsCount 
-                  ? metrics.totalLeadsConversions 
-                  : hasMessaging 
-                    ? metrics.totalMessages 
-                    : metrics.totalConversions;
+                // Calcular total de resultados para CPL (soma de todas as conversões)
+                const totalResults = (hasLeadsCount ? metrics.totalLeadsConversions || 0 : 0) + 
+                                    (hasMessaging ? metrics.totalMessages || 0 : 0);
+                const effectiveTotal = totalResults > 0 ? totalResults : metrics.totalConversions;
                 
-                const primaryLabel = hasLeadsCount 
-                  ? "Leads" 
-                  : hasMessaging 
-                    ? "Mensagens" 
-                    : "Conversões";
+                const cpl = effectiveTotal > 0 ? metrics.totalSpend / effectiveTotal : 0;
+                const convRate = metrics.totalClicks > 0 ? (effectiveTotal / metrics.totalClicks) * 100 : 0;
                 
-                const primaryTooltip = hasLeadsCount 
-                  ? "Leads de formulário (leads_count)" 
-                  : hasMessaging 
-                    ? "Conversas iniciadas via Messenger/WhatsApp" 
-                    : "Total de conversões reportadas pelo Meta";
+                // Construir array de cards de resultado dinamicamente
+                const resultCards: JSX.Element[] = [];
                 
-                const primaryIcon = hasLeadsCount ? Users : hasMessaging ? Phone : Target;
-                const primarySparkline = hasLeadsCount ? sparklineData.leads : hasMessaging ? sparklineData.messages : sparklineData.conversions;
+                // Se tem leads de formulário, mostrar card de Leads
+                if (hasLeadsCount) {
+                  resultCards.push(
+                    <SparklineCard
+                      key="leads"
+                      title="Leads"
+                      value={formatNumber(metrics.totalLeadsConversions || 0)}
+                      change={changes?.conversions}
+                      changeLabel="vs anterior"
+                      icon={Users}
+                      sparklineData={sparklineData.leads}
+                      className="border-l-4 border-l-chart-1"
+                      tooltip="Leads de formulário (leads_count)"
+                    />
+                  );
+                }
                 
-                const cpl = primaryValue > 0 ? metrics.totalSpend / primaryValue : 0;
-                const convRate = metrics.totalClicks > 0 ? (primaryValue / metrics.totalClicks) * 100 : 0;
+                // Se tem mensagens, mostrar card de Mensagens
+                if (hasMessaging) {
+                  resultCards.push(
+                    <SparklineCard
+                      key="messages"
+                      title="Mensagens"
+                      value={formatNumber(metrics.totalMessages || 0)}
+                      change={changes?.conversions}
+                      changeLabel="vs anterior"
+                      icon={Phone}
+                      sparklineData={sparklineData.messages}
+                      className={!hasLeadsCount ? "border-l-4 border-l-chart-1" : ""}
+                      tooltip="Conversas iniciadas via Messenger/WhatsApp"
+                    />
+                  );
+                }
+                
+                // Se não tem nem leads nem mensagens, mostrar conversions como fallback
+                if (!hasLeadsCount && !hasMessaging) {
+                  resultCards.push(
+                    <SparklineCard
+                      key="conversions"
+                      title="Conversões"
+                      value={formatNumber(metrics.totalConversions)}
+                      change={changes?.conversions}
+                      changeLabel="vs anterior"
+                      icon={Target}
+                      sparklineData={sparklineData.conversions}
+                      className="border-l-4 border-l-chart-1"
+                      tooltip="Total de conversões reportadas pelo Meta"
+                    />
+                  );
+                }
                 
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {resultCards}
                     <SparklineCard
-                      title={primaryLabel}
-                      value={formatNumber(primaryValue || 0)}
-                      change={changes?.conversions}
-                      changeLabel="vs anterior"
-                      icon={primaryIcon}
-                      sparklineData={primarySparkline}
-                      className="border-l-4 border-l-chart-1"
-                      tooltip={primaryTooltip}
-                    />
-                    <SparklineCard
-                      title={hasLeadsCount ? "CPL" : hasMessaging ? "CPM (Mensagem)" : "CPA"}
+                      title={hasLeadsCount && hasMessaging ? "Custo/Resultado" : hasLeadsCount ? "CPL" : hasMessaging ? "CPM (Mensagem)" : "CPA"}
                       value={formatCurrency(cpl)}
                       change={changes?.cpa}
                       changeLabel="vs anterior"
