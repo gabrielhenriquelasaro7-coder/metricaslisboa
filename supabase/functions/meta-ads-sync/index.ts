@@ -465,6 +465,11 @@ const MESSAGING_AUXILIARY_TYPES = [
 const PURCHASE_ACTION_TYPES = [
   'purchase',
   'omni_purchase',
+  'offsite_conversion.fb_pixel_purchase',
+  'onsite_web_purchase',
+  'onsite_web_app_purchase',
+  'web_in_store_purchase',
+  'web_app_in_store_purchase',
 ];
 
 // Todos os tipos de LEADS (formulário + contato + mensagem)
