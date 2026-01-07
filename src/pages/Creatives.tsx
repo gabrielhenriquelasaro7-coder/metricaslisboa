@@ -465,7 +465,7 @@ export default function Creatives() {
                     const ticket = ad.conversions > 0 ? ad.conversion_value / ad.conversions : 0;
                     const cpa = ad.conversions > 0 ? ad.spend / ad.conversions : 0;
                     // Prefer cached URL (permanent, never expires), fallback to Facebook URLs
-                    const imageUrl = (ad as any).cached_image_url || cleanImageUrl(ad.creative_image_url) || cleanImageUrl(ad.creative_thumbnail);
+                    const imageUrl = ad.cached_image_url || cleanImageUrl(ad.creative_image_url) || cleanImageUrl(ad.creative_thumbnail);
 
                     return (
                       <tr 

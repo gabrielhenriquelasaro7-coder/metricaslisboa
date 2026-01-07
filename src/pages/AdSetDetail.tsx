@@ -97,6 +97,7 @@ interface Ad {
   creative_thumbnail: string | null;
   creative_image_url: string | null;
   creative_video_url: string | null;
+  cached_image_url?: string | null;
   headline: string | null;
 }
 
@@ -231,6 +232,26 @@ export default function AdSetDetail() {
           }
         }
 
+        // Fetch fresh thumbnails from ads_daily_metrics (these are updated on each sync)
+        const { data: freshThumbnails } = await supabase
+          .from('ads_daily_metrics')
+          .select('ad_id, creative_thumbnail, cached_creative_thumbnail')
+          .eq('adset_id', adSetId)
+          .order('date', { ascending: false });
+        
+        // Build map of latest thumbnails per ad_id
+        const thumbnailMap = new Map<string, { thumbnail: string | null; cached: string | null }>();
+        if (freshThumbnails) {
+          for (const t of freshThumbnails) {
+            if (!thumbnailMap.has(t.ad_id)) {
+              thumbnailMap.set(t.ad_id, { 
+                thumbnail: t.creative_thumbnail, 
+                cached: t.cached_creative_thumbnail 
+              });
+            }
+          }
+        }
+
         // First try to get ads from ads table
         const { data: adsData } = await supabase
           .from('ads')
@@ -239,7 +260,18 @@ export default function AdSetDetail() {
           .order('spend', { ascending: false });
         
         if (adsData && adsData.length > 0) {
-          setAds((adsData as Ad[]) || []);
+          // Merge fresh thumbnails from daily metrics
+          const adsWithFreshThumbnails = adsData.map(ad => {
+            const fresh = thumbnailMap.get(ad.id);
+            return {
+              ...ad,
+              // Prioritize: cached_image_url > fresh cached > fresh thumbnail > existing
+              cached_image_url: ad.cached_image_url || fresh?.cached || null,
+              creative_thumbnail: fresh?.cached || fresh?.thumbnail || ad.creative_thumbnail,
+              creative_image_url: ad.creative_image_url || fresh?.cached || fresh?.thumbnail || null,
+            };
+          });
+          setAds((adsWithFreshThumbnails as Ad[]) || []);
         } else {
           // Fallback: aggregate ads from ads_daily_metrics
           const { data: metricsAds } = await supabase
@@ -272,7 +304,7 @@ export default function AdSetDetail() {
                   roas: 0,
                   cpa: 0,
                   creative_thumbnail: m.cached_creative_thumbnail || m.creative_thumbnail || null,
-                  creative_image_url: null,
+                  creative_image_url: m.cached_creative_thumbnail || m.creative_thumbnail || null,
                   creative_video_url: null,
                   headline: null,
                 });
@@ -610,9 +642,9 @@ export default function AdSetDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {sortedAds.map((ad) => {
                 const hasVideo = ad.creative_video_url;
-                const hasImage = ad.creative_image_url || ad.creative_thumbnail || (ad as any).cached_image_url;
+                const hasImage = ad.creative_image_url || ad.creative_thumbnail || ad.cached_image_url;
                 // Prefer cached URL (permanent, never expires), then fallback to Facebook URLs
-                const creativeUrl = (ad as any).cached_image_url || cleanImageUrl(ad.creative_image_url || ad.creative_thumbnail) || '';
+                const creativeUrl = ad.cached_image_url || cleanImageUrl(ad.creative_image_url || ad.creative_thumbnail) || '';
                 
                 return (
                   <Link 
