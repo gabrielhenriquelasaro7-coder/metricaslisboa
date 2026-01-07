@@ -33,6 +33,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+// Build Storage URL for cached creative images
+const getStorageImageUrl = (projectId: string | undefined, adId: string): string | null => {
+  if (!projectId) return null;
+  const { data } = supabase.storage.from('creative-images').getPublicUrl(`${projectId}/${adId}.jpg`);
+  return data?.publicUrl || null;
+};
+
 // Helper to clean image URLs - removes stp resize parameters to get HD images
 const cleanImageUrl = (url: string | null): string | null => {
   if (!url) return null;
@@ -301,8 +308,9 @@ export default function AdDetail() {
 
   const hasVideo = ad?.creative_video_url;
   const hasImage = ad?.creative_image_url || ad?.creative_thumbnail || ad?.cached_image_url;
-  // Prefer cached URL (permanent, never expires), then fallback to Facebook URLs
-  const creativeUrl = ad?.cached_image_url || cleanImageUrl(ad?.creative_image_url || ad?.creative_thumbnail) || '';
+  // Try Storage URL first (permanent), then cached_image_url, then Facebook URLs
+  const storageUrl = ad?.id ? getStorageImageUrl(selectedProject?.id, ad.id) : null;
+  const creativeUrl = storageUrl || ad?.cached_image_url || cleanImageUrl(ad?.creative_image_url || ad?.creative_thumbnail) || '';
 
   if (loading) {
     return (
