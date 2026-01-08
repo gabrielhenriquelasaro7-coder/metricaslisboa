@@ -33,14 +33,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-// Limpa URL para HD - remove parâmetros de resize
-const cleanImageUrl = (url: string | null): string | null => {
-  if (!url) return null;
-  // Remove stp= e ur= que forçam imagem pequena
-  let clean = url.replace(/&stp=[^&]*/gi, '').replace(/&ur=[^&]*/gi, '');
-  // Limpa & ou ? no final
-  return clean.replace(/[&?]$/g, '');
-};
+// Retorna URL direto - sem modificar (Meta precisa dos params)
 import {
   Dialog,
   DialogContent,
@@ -275,8 +268,8 @@ export default function AdDetail() {
   const hasVideo = ad?.creative_video_url;
   const hasImage = ad?.creative_image_url || ad?.creative_thumbnail;
   
-  // URL da imagem em HD - usa só creative_image_url
-  const creativeUrl = cleanImageUrl(ad?.creative_image_url) || '';
+  // URL da imagem direto do banco
+  const creativeUrl = ad?.creative_image_url || ad?.creative_thumbnail || '';
   
   const handleImageError = () => {
     setImageError(true);
