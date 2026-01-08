@@ -348,13 +348,20 @@ serve(async (req) => {
     );
 
     // ========== MULTI-PERIOD ANALYSIS ==========
-    const today = new Date();
+    // Use string date comparison to avoid timezone issues
+    const formatDateString = (date: Date): string => {
+      return date.toISOString().split('T')[0];
+    };
     
-    // Filter data for each period
+    const today = new Date();
+    const todayStr = formatDateString(today);
+    
+    // Filter data for each period using string comparison
     const getDataForLastNDays = (n: number) => {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - n);
-      return sortedDates.filter((d: any) => new Date(d.date) >= cutoff);
+      const cutoffStr = formatDateString(cutoff);
+      return sortedDates.filter((d: any) => d.date >= cutoffStr && d.date <= todayStr);
     };
 
     const data7d = getDataForLastNDays(7);
@@ -362,6 +369,17 @@ serve(async (req) => {
     const data30d = getDataForLastNDays(30);
     const data90d = getDataForLastNDays(90);
     const data365d = sortedDates; // All available data up to 1 year
+    
+    console.log('[PREDICTIVE] Date filtering debug:', {
+      today: todayStr,
+      cutoff7d: formatDateString(new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)),
+      data7dCount: data7d.length,
+      data14dCount: data14d.length,
+      data30dCount: data30d.length,
+      data90dCount: data90d.length,
+      firstDate: sortedDates[0]?.date,
+      lastDate: sortedDates[sortedDates.length - 1]?.date,
+    });
 
     // Calculate statistics for each period
     const stats7d = calculatePeriodStats(data7d);
