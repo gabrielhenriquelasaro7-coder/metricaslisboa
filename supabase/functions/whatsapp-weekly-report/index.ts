@@ -173,28 +173,48 @@ function buildMessageFromTemplate(
   return result;
 }
 
-function isScheduledTime(reportTime: string): boolean {
+function isScheduledTime(reportTime: string, timezone: string = 'America/Sao_Paulo'): boolean {
   const now = new Date();
-  const [scheduledHour, scheduledMinute] = reportTime.split(':').map(Number);
   
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
+  // Get current time in the project's timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  });
+  
+  const parts = formatter.formatToParts(now);
+  const currentHour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+  const currentMinute = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+  
+  const [scheduledHour, scheduledMinute] = reportTime.split(':').map(Number);
   
   const scheduledTotalMinutes = scheduledHour * 60 + scheduledMinute;
   const currentTotalMinutes = currentHour * 60 + currentMinute;
   
   const diff = Math.abs(currentTotalMinutes - scheduledTotalMinutes);
   
+  console.log(`[WEEKLY-REPORT] Time check - Current: ${currentHour}:${currentMinute} (${timezone}), Scheduled: ${scheduledHour}:${scheduledMinute}, Diff: ${diff} minutes`);
+  
   return diff <= 5;
 }
 
-function alreadySentToday(lastSentAt: string | null): boolean {
+function alreadySentToday(lastSentAt: string | null, timezone: string = 'America/Sao_Paulo'): boolean {
   if (!lastSentAt) return false;
   
   const lastSent = new Date(lastSentAt);
   const now = new Date();
   
-  return lastSent.toDateString() === now.toDateString();
+  // Compare dates in the project's timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  
+  return formatter.format(lastSent) === formatter.format(now);
 }
 
 function getDefaultTemplate(businessModel: string | null): string {
@@ -273,14 +293,14 @@ Deno.serve(async (req) => {
     // Fetch configs from whatsapp_report_configs (NEW TABLE)
     let configsQuery = supabase
       .from('whatsapp_report_configs')
-      .select('*, whatsapp_manager_instances(instance_name, instance_status, token), projects(id, name, business_model)')
+      .select('*, whatsapp_manager_instances(instance_name, instance_status, token), projects(id, name, business_model, timezone)')
       .eq('report_enabled', true)
       .not('project_id', 'is', null);
 
     if (targetConfigId) {
       configsQuery = supabase
         .from('whatsapp_report_configs')
-        .select('*, whatsapp_manager_instances(instance_name, instance_status, token), projects(id, name, business_model)')
+        .select('*, whatsapp_manager_instances(instance_name, instance_status, token), projects(id, name, business_model, timezone)')
         .eq('id', targetConfigId);
     } else {
       configsQuery = configsQuery.eq('report_day_of_week', currentDayOfWeek);
@@ -316,12 +336,15 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Get project timezone (default to America/Sao_Paulo)
+        const timezone = project.timezone || 'America/Sao_Paulo';
+
         // Check if this is a manual trigger or if it's the scheduled time
         if (!targetConfigId) {
           const reportTime = config.report_time || '08:00';
           
           // Check if already sent today
-          if (alreadySentToday(config.last_report_sent_at) && !forceResend) {
+          if (alreadySentToday(config.last_report_sent_at, timezone) && !forceResend) {
             console.log(`[WEEKLY-REPORT] Already sent today for ${config.id}, skipping`);
             results.push({ 
               configId: config.id,
@@ -334,7 +357,7 @@ Deno.serve(async (req) => {
           }
 
           // Check if it's the right time
-          if (!isScheduledTime(reportTime)) {
+          if (!isScheduledTime(reportTime, timezone)) {
             console.log(`[WEEKLY-REPORT] Not scheduled time for ${config.id} (scheduled: ${reportTime})`);
             results.push({ 
               configId: config.id,
