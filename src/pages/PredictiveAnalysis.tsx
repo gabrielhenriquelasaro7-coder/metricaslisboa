@@ -251,10 +251,10 @@ export default function PredictiveAnalysis() {
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
                 <BarChart3 className="w-7 h-7 text-primary" />
-                Análise Preditiva
+                Projeções Futuras
               </h1>
               <p className="text-muted-foreground mt-1">
-                Previsões baseadas nos dados dos últimos 30 dias
+                Estimamos os resultados com base na tendência dos últimos 30 dias
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -295,47 +295,40 @@ export default function PredictiveAnalysis() {
             </div>
           </div>
 
-          {/* Explanation Card */}
-          <Card className="bg-gradient-to-r from-primary/5 to-transparent border-primary/20">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-4">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <HelpCircle className="w-5 h-5 text-primary" />
-                </div>
-                <div className="space-y-3">
-                  <h3 className="font-semibold">O que é a Análise Preditiva?</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Esta ferramenta analisa os dados de performance dos últimos 30 dias para projetar 
-                    resultados futuros. Use as metas personalizadas para acompanhar o progresso de cada 
-                    campanha em relação aos seus objetivos.
-                  </p>
-                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 text-sm">
-                    <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="font-medium text-foreground">Previsão 7 dias</p>
-                      <p className="text-muted-foreground text-xs">Estimativa de gasto baseada na média dos últimos 7 dias</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="font-medium text-foreground">{showCPL ? 'Leads Estimados' : 'Conversões Estimadas'}</p>
-                      <p className="text-muted-foreground text-xs">Projeção de {showCPL ? 'leads' : 'conversões'} para os próximos 7 e 30 dias</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="font-medium text-foreground">{showCPL ? 'CPL Médio' : 'ROAS Médio'}</p>
-                      <p className="text-muted-foreground text-xs">{showCPL ? 'Custo médio por lead nos últimos 7 dias' : 'Retorno sobre investimento nos últimos 7 dias'}</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="font-medium text-foreground">{showCPL ? 'Leads 30d' : 'Receita 30d'}</p>
-                      <p className="text-muted-foreground text-xs">Projeção de {showCPL ? 'leads' : 'receita'} e gasto para os próximos 30 dias</p>
-                    </div>
+          {/* Trend Context Card */}
+          {data && (
+            <Card className="bg-gradient-to-r from-primary/5 via-primary/3 to-transparent border-primary/20">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <TrendingUp className="w-5 h-5 text-primary" />
                   </div>
-                  {data && (
-                    <Badge variant="outline" className="mt-2">
-                      Modelo: {getBusinessModelLabel(data.project.businessModel)}
-                    </Badge>
-                  )}
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-semibold">Análise de Tendência</h3>
+                      <Badge variant={data.predictions.trends.confidenceLevel === 'alta' ? 'default' : data.predictions.trends.confidenceLevel === 'média' ? 'secondary' : 'outline'}>
+                        Confiança {data.predictions.trends.confidenceLevel}
+                      </Badge>
+                      <Badge variant="outline" className="capitalize">
+                        Tendência {data.predictions.trends.trendDirection}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {data.predictions.trends.trendDirection === 'crescente' && (
+                        <>A tendência indica um <strong className="text-metric-positive">crescimento de {Math.abs(data.predictions.trends.spendTrend).toFixed(1)}%</strong> no investimento. Projetamos que esse ritmo se mantenha, resultando em maior volume de resultados.</>
+                      )}
+                      {data.predictions.trends.trendDirection === 'decrescente' && (
+                        <>Observamos uma <strong className="text-metric-warning">redução de {Math.abs(data.predictions.trends.spendTrend).toFixed(1)}%</strong> no investimento. Isso pode impactar o volume de resultados nas próximas semanas.</>
+                      )}
+                      {data.predictions.trends.trendDirection === 'estável' && (
+                        <>O investimento está <strong className="text-foreground">estável</strong>. Projetamos que os resultados sigam o padrão atual, sem grandes variações.</>
+                      )}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {loading && !data && (
             <PredictiveSkeleton />
@@ -352,184 +345,250 @@ export default function PredictiveAnalysis() {
           {data && (
             <>
 
-              {/* Prediction Cards */}
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                {/* 7-Day Spend Prediction */}
+              {/* Scenario-Based Projections */}
+              <div className="grid gap-6 lg:grid-cols-3">
+                {/* 7-Day Projection */}
                 <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Previsão 7 dias
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="w-3 h-3 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Estimativa baseada na média dos últimos 7 dias</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </CardDescription>
-                    <CardTitle className="text-2xl">
-                      {formatCurrency(data.predictions.next7Days.estimatedSpend)}
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Calendar className="w-5 h-5 text-primary" />
+                      Próximos 7 Dias
                     </CardTitle>
+                    <CardDescription>Projetamos os seguintes cenários</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 text-sm">
-                      {getTrendIcon(data.predictions.trends.spendTrend)}
-                      <span className={cn(
-                        data.predictions.trends.spendTrend > 0 ? 'text-metric-positive' : 
-                        data.predictions.trends.spendTrend < 0 ? 'text-metric-negative' : 'text-muted-foreground'
-                      )}>
-                        {data.predictions.trends.spendTrend > 0 ? '+' : ''}
-                        {data.predictions.trends.spendTrend.toFixed(1)}% vs semana anterior
-                      </span>
+                  <CardContent className="space-y-4">
+                    {/* Realistic - Main */}
+                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium">Cenário Realista</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Investimento</p>
+                          <p className="text-xl font-bold">{formatCurrency(data.predictions.next7Days.scenarios?.realistic?.spend || data.predictions.next7Days.estimatedSpend)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">{showCPL ? 'Leads' : 'Conversões'}</p>
+                          <p className="text-xl font-bold">{formatNumber(data.predictions.next7Days.scenarios?.realistic?.conversions || data.predictions.next7Days.estimatedConversions)}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Pessimistic & Optimistic */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-lg bg-metric-warning/10 border border-metric-warning/20">
+                        <div className="flex items-center gap-1 mb-1">
+                          <TrendingDown className="w-3 h-3 text-metric-warning" />
+                          <span className="text-xs font-medium text-metric-warning">Pessimista</span>
+                        </div>
+                        <p className="text-sm font-semibold">{formatNumber(data.predictions.next7Days.scenarios?.pessimistic?.conversions || Math.round(data.predictions.next7Days.estimatedConversions * 0.7))} {showCPL ? 'leads' : 'conv.'}</p>
+                        <p className="text-xs text-muted-foreground">{formatCurrency(data.predictions.next7Days.scenarios?.pessimistic?.spend || data.predictions.next7Days.estimatedSpend * 0.8)}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-metric-positive/10 border border-metric-positive/20">
+                        <div className="flex items-center gap-1 mb-1">
+                          <TrendingUp className="w-3 h-3 text-metric-positive" />
+                          <span className="text-xs font-medium text-metric-positive">Otimista</span>
+                        </div>
+                        <p className="text-sm font-semibold">{formatNumber(data.predictions.next7Days.scenarios?.optimistic?.conversions || Math.round(data.predictions.next7Days.estimatedConversions * 1.3))} {showCPL ? 'leads' : 'conv.'}</p>
+                        <p className="text-xs text-muted-foreground">{formatCurrency(data.predictions.next7Days.scenarios?.optimistic?.spend || data.predictions.next7Days.estimatedSpend * 1.2)}</p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* 7-Day Conversions/Leads Prediction */}
+                {/* 30-Day Projection */}
                 <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="flex items-center gap-2">
-                      <Target className="w-4 h-4" />
-                      {showCPL ? 'Leads Estimados (7d)' : 'Conversões Estimadas (7d)'}
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="w-3 h-3 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Projeção para os próximos 7 dias</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </CardDescription>
-                    <CardTitle className="text-2xl">
-                      {formatNumber(data.predictions.next7Days.estimatedConversions)}
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Calendar className="w-5 h-5 text-primary" />
+                      Próximos 30 Dias
                     </CardTitle>
+                    <CardDescription>Estimamos com base na tendência atual</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="text-sm text-muted-foreground">
-                      ~{formatNumber(data.predictions.trends.avgDailyConversions)} {showCPL ? 'leads' : 'conversões'}/dia
+                  <CardContent className="space-y-4">
+                    {/* Realistic - Main */}
+                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium">Cenário Realista</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Investimento</p>
+                          <p className="text-xl font-bold">{formatCurrency(data.predictions.next30Days.scenarios?.realistic?.spend || data.predictions.next30Days.estimatedSpend)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">{showCPL ? 'Leads' : 'Conversões'}</p>
+                          <p className="text-xl font-bold">{formatNumber(data.predictions.next30Days.scenarios?.realistic?.conversions || data.predictions.next30Days.estimatedConversions)}</p>
+                        </div>
+                      </div>
+                      {showROAS && (
+                        <div className="mt-2 pt-2 border-t border-primary/20">
+                          <p className="text-xs text-muted-foreground">Receita Projetada</p>
+                          <p className="text-lg font-bold text-metric-positive">{formatCurrency(data.predictions.next30Days.scenarios?.realistic?.revenue || data.predictions.next30Days.estimatedRevenue)}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Pessimistic & Optimistic */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-lg bg-metric-warning/10 border border-metric-warning/20">
+                        <div className="flex items-center gap-1 mb-1">
+                          <TrendingDown className="w-3 h-3 text-metric-warning" />
+                          <span className="text-xs font-medium text-metric-warning">Pessimista</span>
+                        </div>
+                        <p className="text-sm font-semibold">{formatNumber(data.predictions.next30Days.scenarios?.pessimistic?.conversions || Math.round(data.predictions.next30Days.estimatedConversions * 0.7))} {showCPL ? 'leads' : 'conv.'}</p>
+                        <p className="text-xs text-muted-foreground">{formatCurrency(data.predictions.next30Days.scenarios?.pessimistic?.spend || data.predictions.next30Days.estimatedSpend * 0.8)}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-metric-positive/10 border border-metric-positive/20">
+                        <div className="flex items-center gap-1 mb-1">
+                          <TrendingUp className="w-3 h-3 text-metric-positive" />
+                          <span className="text-xs font-medium text-metric-positive">Otimista</span>
+                        </div>
+                        <p className="text-sm font-semibold">{formatNumber(data.predictions.next30Days.scenarios?.optimistic?.conversions || Math.round(data.predictions.next30Days.estimatedConversions * 1.3))} {showCPL ? 'leads' : 'conv.'}</p>
+                        <p className="text-xs text-muted-foreground">{formatCurrency(data.predictions.next30Days.scenarios?.optimistic?.spend || data.predictions.next30Days.estimatedSpend * 1.2)}</p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* CPL for Inside Sales and Custom */}
-                {showCPL && (
-                  <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardDescription className="flex items-center gap-2">
-                        <Target className="w-4 h-4" />
-                        CPL Médio
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Info className="w-3 h-3 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Custo por lead/conversão</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </CardDescription>
-                      <CardTitle className="text-2xl">
-                        {formatCurrency(data.predictions.trends.avgDailyCpl || 0)}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-sm text-muted-foreground">
-                        Meta recomendada: R$ 30 ou inferior
+                {/* End of Year Projection */}
+                <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow border-primary/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Zap className="w-5 h-5 text-primary" />
+                      Até Final de {new Date().getFullYear()}
+                    </CardTitle>
+                    <CardDescription>
+                      {data.predictions.endOfYear?.daysRemaining || Math.ceil((new Date(new Date().getFullYear(), 11, 31).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} dias restantes
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Realistic - Main */}
+                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium">Projeção Realista</span>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* ROAS for E-commerce/PDV only */}
-                {showROAS && (
-                  <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardDescription className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4" />
-                        ROAS Médio
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Info className="w-3 h-3 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Retorno sobre investimento em anúncios</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </CardDescription>
-                      <CardTitle className="text-2xl">
-                        {(data.predictions.trends.avgDailyRoas || 0).toFixed(2)}x
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-sm text-muted-foreground">
-                        Meta recomendada: 3x ou superior
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Investimento Total</p>
+                          <p className="text-xl font-bold">{formatCurrency(data.predictions.endOfYear?.scenarios?.realistic?.spend || data.predictions.next30Days.estimatedSpend * 4)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">{showCPL ? 'Leads Totais' : 'Conversões'}</p>
+                          <p className="text-xl font-bold">{formatNumber(data.predictions.endOfYear?.scenarios?.realistic?.conversions || data.predictions.next30Days.estimatedConversions * 4)}</p>
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* 30-Day Revenue Prediction - Only for Ecommerce/PDV */}
-                {showROAS && (
-                  <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardDescription className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4" />
-                        Receita Estimada (30d)
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Info className="w-3 h-3 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Projeção de receita para os próximos 30 dias</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </CardDescription>
-                      <CardTitle className="text-2xl">
-                        {formatCurrency(data.predictions.next30Days.estimatedRevenue)}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-sm text-muted-foreground">
-                        Gasto previsto: {formatCurrency(data.predictions.next30Days.estimatedSpend)}
+                      {showROAS && (
+                        <div className="mt-2 pt-2 border-t border-primary/20">
+                          <p className="text-xs text-muted-foreground">Receita Projetada</p>
+                          <p className="text-lg font-bold text-metric-positive">{formatCurrency(data.predictions.endOfYear?.scenarios?.realistic?.revenue || data.predictions.next30Days.estimatedRevenue * 4)}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Pessimistic & Optimistic */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-lg bg-metric-warning/10 border border-metric-warning/20">
+                        <div className="flex items-center gap-1 mb-1">
+                          <TrendingDown className="w-3 h-3 text-metric-warning" />
+                          <span className="text-xs font-medium text-metric-warning">Pessimista</span>
+                        </div>
+                        <p className="text-sm font-semibold">{formatNumber(data.predictions.endOfYear?.scenarios?.pessimistic?.conversions || Math.round(data.predictions.next30Days.estimatedConversions * 2.8))} {showCPL ? 'leads' : 'conv.'}</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* 30-Day Leads Prediction - For Inside Sales and Custom */}
-                {showCPL && (
-                  <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-2">
-                      <CardDescription className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4" />
-                        Leads Estimados (30d)
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Info className="w-3 h-3 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Projeção de leads para os próximos 30 dias</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </CardDescription>
-                      <CardTitle className="text-2xl">
-                        {formatNumber(data.predictions.next30Days.estimatedConversions)}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-sm text-muted-foreground">
-                        Gasto previsto: {formatCurrency(data.predictions.next30Days.estimatedSpend)}
+                      <div className="p-3 rounded-lg bg-metric-positive/10 border border-metric-positive/20">
+                        <div className="flex items-center gap-1 mb-1">
+                          <TrendingUp className="w-3 h-3 text-metric-positive" />
+                          <span className="text-xs font-medium text-metric-positive">Otimista</span>
+                        </div>
+                        <p className="text-sm font-semibold">{formatNumber(data.predictions.endOfYear?.scenarios?.optimistic?.conversions || Math.round(data.predictions.next30Days.estimatedConversions * 5.2))} {showCPL ? 'leads' : 'conv.'}</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
-              {/* Totals Summary - Adapted by business model */}
+              {/* Key Metrics Summary */}
+              <div className="grid gap-4 md:grid-cols-4">
+                <Card className="bg-gradient-to-br from-card to-card/80">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <DollarSign className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Média Diária</p>
+                        <p className="text-lg font-bold">{formatCurrency(data.predictions.trends.avgDailySpend)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-gradient-to-br from-card to-card/80">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-metric-positive/10">
+                        <Target className="w-5 h-5 text-metric-positive" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">{showCPL ? 'CPL Atual' : 'ROAS Atual'}</p>
+                        <p className="text-lg font-bold">
+                          {showCPL 
+                            ? formatCurrency(data.predictions.trends.avgDailyCpl || 0)
+                            : `${(data.predictions.trends.avgDailyRoas || 0).toFixed(2)}x`
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-gradient-to-br from-card to-card/80">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-blue-500/10">
+                        <BarChart3 className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">CTR Médio</p>
+                        <p className="text-lg font-bold">{(data.predictions.trends.avgCtr || 0).toFixed(2)}%</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-gradient-to-br from-card to-card/80">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "p-2 rounded-lg",
+                        data.predictions.trends.trendDirection === 'crescente' ? "bg-metric-positive/10" :
+                        data.predictions.trends.trendDirection === 'decrescente' ? "bg-metric-warning/10" : "bg-muted"
+                      )}>
+                        {data.predictions.trends.trendDirection === 'crescente' ? (
+                          <ArrowUp className="w-5 h-5 text-metric-positive" />
+                        ) : data.predictions.trends.trendDirection === 'decrescente' ? (
+                          <ArrowDown className="w-5 h-5 text-metric-warning" />
+                        ) : (
+                          <Minus className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Tendência</p>
+                        <p className="text-lg font-bold capitalize">{data.predictions.trends.trendDirection || 'estável'}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Historical Summary */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Resumo dos Últimos 30 Dias</CardTitle>
+                  <CardTitle className="text-lg">Dados Históricos (30 dias)</CardTitle>
+                  <CardDescription>Base utilizada para as projeções</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className={cn(
@@ -537,16 +596,16 @@ export default function PredictiveAnalysis() {
                     showROAS ? "grid-cols-2 md:grid-cols-5" : "grid-cols-2 md:grid-cols-4"
                   )}>
                     <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Gasto Total</p>
+                      <p className="text-sm text-muted-foreground">Total Investido</p>
                       <p className="text-xl font-semibold">{formatCurrency(data.totals.spend30Days)}</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">{showCPL ? 'Leads' : 'Conversões'}</p>
+                      <p className="text-sm text-muted-foreground">{showCPL ? 'Leads Gerados' : 'Conversões'}</p>
                       <p className="text-xl font-semibold">{formatNumber(data.totals.conversions30Days)}</p>
                     </div>
                     {showROAS && (
                       <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Receita</p>
+                        <p className="text-sm text-muted-foreground">Receita Gerada</p>
                         <p className="text-xl font-semibold">{formatCurrency(data.totals.revenue30Days)}</p>
                       </div>
                     )}

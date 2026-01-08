@@ -285,6 +285,7 @@ serve(async (req) => {
     // Calculate trends and predictions
     const last7Days = sortedDates.slice(-7);
     const previous7Days = sortedDates.slice(-14, -7);
+    const last14Days = sortedDates.slice(-14);
 
     const avgDailySpend7 = last7Days.reduce((sum: number, d: any) => sum + d.spend, 0) / Math.max(last7Days.length, 1);
     const avgDailySpendPrev7 = previous7Days.reduce((sum: number, d: any) => sum + d.spend, 0) / Math.max(previous7Days.length, 1);
@@ -292,6 +293,34 @@ serve(async (req) => {
     const avgDailyRevenue7 = last7Days.reduce((sum: number, d: any) => sum + d.conversion_value, 0) / Math.max(last7Days.length, 1);
     const avgDailyClicks7 = last7Days.reduce((sum: number, d: any) => sum + d.clicks, 0) / Math.max(last7Days.length, 1);
     const avgDailyImpressions7 = last7Days.reduce((sum: number, d: any) => sum + d.impressions, 0) / Math.max(last7Days.length, 1);
+
+    // Calculate Standard Deviation for scenario projections
+    const spendValues = last14Days.map((d: any) => d.spend);
+    const conversionValues = last14Days.map((d: any) => d.conversions);
+    const revenueValues = last14Days.map((d: any) => d.conversion_value);
+    
+    const calculateStdDev = (values: number[]) => {
+      if (values.length < 2) return 0;
+      const mean = values.reduce((a, b) => a + b, 0) / values.length;
+      const squareDiffs = values.map(v => Math.pow(v - mean, 2));
+      const avgSquareDiff = squareDiffs.reduce((a, b) => a + b, 0) / values.length;
+      return Math.sqrt(avgSquareDiff);
+    };
+
+    const stdDevSpend = calculateStdDev(spendValues);
+    const stdDevConversions = calculateStdDev(conversionValues);
+    const stdDevRevenue = calculateStdDev(revenueValues);
+
+    // Calculate trend direction (positive = growing, negative = declining)
+    const spendTrend = avgDailySpendPrev7 > 0 ? ((avgDailySpend7 - avgDailySpendPrev7) / avgDailySpendPrev7) * 100 : 0;
+    
+    // Determine growth factor based on trend
+    const trendFactor = 1 + (spendTrend / 100) * 0.3; // 30% of trend applied to projections
+
+    // Calculate days until end of year
+    const today = new Date();
+    const endOfYear = new Date(today.getFullYear(), 11, 31);
+    const daysUntilEndOfYear = Math.ceil((endOfYear.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
     // Calculate account balance days remaining
     if (accountBalance.balance > 0 && avgDailySpend7 > 0) {
@@ -338,7 +367,7 @@ serve(async (req) => {
       const currentSpend = campaign.spend || 0;
       
       let daysRemaining = null;
-      let budgetStatus = 'healthy';
+      let budgetStatus: 'healthy' | 'warning' | 'critical' = 'healthy';
       
       if (lifetimeBudget > 0 && avgDailySpend7 > 0) {
         const remainingBudget = lifetimeBudget - currentSpend;
@@ -360,26 +389,77 @@ serve(async (req) => {
       };
     }) || [];
 
+    // Build scenario-based predictions
+    // Pessimistic: -1 std dev, Realistic: mean with trend, Optimistic: +1 std dev + trend bonus
+    const buildScenario = (days: number, label: string) => {
+      const baseSpend = avgDailySpend7 * days;
+      const baseConversions = avgDailyConversions7 * days;
+      const baseRevenue = avgDailyRevenue7 * days;
+      
+      // Apply trend factor for longer projections (more impact over time)
+      const trendMultiplier = label === '7d' ? 1 : label === '30d' ? Math.pow(trendFactor, 0.5) : trendFactor;
+      
+      return {
+        pessimistic: {
+          spend: Math.max(0, baseSpend - stdDevSpend * days * 0.5),
+          conversions: Math.round(Math.max(0, baseConversions - stdDevConversions * days * 0.5)),
+          revenue: Math.max(0, baseRevenue - stdDevRevenue * days * 0.5),
+        },
+        realistic: {
+          spend: baseSpend * trendMultiplier,
+          conversions: Math.round(baseConversions * trendMultiplier),
+          revenue: baseRevenue * trendMultiplier,
+        },
+        optimistic: {
+          spend: (baseSpend + stdDevSpend * days * 0.3) * trendMultiplier,
+          conversions: Math.round((baseConversions + stdDevConversions * days * 0.5) * trendMultiplier),
+          revenue: (baseRevenue + stdDevRevenue * days * 0.5) * trendMultiplier,
+        },
+      };
+    };
+
+    const scenario7Days = buildScenario(7, '7d');
+    const scenario30Days = buildScenario(30, '30d');
+    const scenarioEndOfYear = buildScenario(daysUntilEndOfYear, 'eoy');
+
+    // Calculate confidence level based on data consistency
+    const coefficientOfVariation = avgDailySpend7 > 0 ? (stdDevSpend / avgDailySpend7) * 100 : 100;
+    const confidenceLevel = coefficientOfVariation < 20 ? 'alta' : coefficientOfVariation < 40 ? 'média' : 'baixa';
+
     // Build predictions
     const predictions = {
       next7Days: {
-        estimatedSpend: avgDailySpend7 * 7,
-        estimatedConversions: Math.round(avgDailyConversions7 * 7),
-        estimatedRevenue: avgDailyRevenue7 * 7,
+        estimatedSpend: scenario7Days.realistic.spend,
+        estimatedConversions: scenario7Days.realistic.conversions,
+        estimatedRevenue: scenario7Days.realistic.revenue,
+        scenarios: scenario7Days,
       },
       next30Days: {
-        estimatedSpend: avgDailySpend7 * 30,
-        estimatedConversions: Math.round(avgDailyConversions7 * 30),
-        estimatedRevenue: avgDailyRevenue7 * 30,
+        estimatedSpend: scenario30Days.realistic.spend,
+        estimatedConversions: scenario30Days.realistic.conversions,
+        estimatedRevenue: scenario30Days.realistic.revenue,
+        scenarios: scenario30Days,
+      },
+      endOfYear: {
+        daysRemaining: daysUntilEndOfYear,
+        estimatedSpend: scenarioEndOfYear.realistic.spend,
+        estimatedConversions: scenarioEndOfYear.realistic.conversions,
+        estimatedRevenue: scenarioEndOfYear.realistic.revenue,
+        scenarios: scenarioEndOfYear,
       },
       trends: {
-        spendTrend: avgDailySpendPrev7 > 0 ? ((avgDailySpend7 - avgDailySpendPrev7) / avgDailySpendPrev7) * 100 : 0,
+        spendTrend,
         avgDailySpend: avgDailySpend7,
         avgDailyConversions: avgDailyConversions7,
         avgDailyRevenue: avgDailyRevenue7,
         avgDailyCpl: avgDailyConversions7 > 0 ? avgDailySpend7 / avgDailyConversions7 : null,
         avgDailyRoas: avgDailySpend7 > 0 ? avgDailyRevenue7 / avgDailySpend7 : null,
         avgCtr: avgDailyImpressions7 > 0 ? (avgDailyClicks7 / avgDailyImpressions7) * 100 : null,
+        stdDevSpend,
+        stdDevConversions,
+        stdDevRevenue,
+        confidenceLevel,
+        trendDirection: spendTrend > 5 ? 'crescente' : spendTrend < -5 ? 'decrescente' : 'estável',
       }
     };
 

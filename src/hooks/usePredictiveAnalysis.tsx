@@ -43,16 +43,37 @@ export interface CampaignGoalProgress {
   cplStatus: 'success' | 'warning' | 'critical' | 'unknown';
 }
 
+export interface ScenarioData {
+  spend: number;
+  conversions: number;
+  revenue: number;
+}
+
+export interface Scenarios {
+  pessimistic: ScenarioData;
+  realistic: ScenarioData;
+  optimistic: ScenarioData;
+}
+
 export interface Predictions {
   next7Days: {
     estimatedSpend: number;
     estimatedConversions: number;
     estimatedRevenue: number;
+    scenarios: Scenarios;
   };
   next30Days: {
     estimatedSpend: number;
     estimatedConversions: number;
     estimatedRevenue: number;
+    scenarios: Scenarios;
+  };
+  endOfYear: {
+    daysRemaining: number;
+    estimatedSpend: number;
+    estimatedConversions: number;
+    estimatedRevenue: number;
+    scenarios: Scenarios;
   };
   trends: {
     spendTrend: number;
@@ -62,6 +83,11 @@ export interface Predictions {
     avgDailyCpl: number | null;
     avgDailyRoas: number | null;
     avgCtr: number | null;
+    stdDevSpend: number;
+    stdDevConversions: number;
+    stdDevRevenue: number;
+    confidenceLevel: 'alta' | 'média' | 'baixa';
+    trendDirection: 'crescente' | 'decrescente' | 'estável';
   };
 }
 
