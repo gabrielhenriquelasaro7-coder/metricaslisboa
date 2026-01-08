@@ -33,7 +33,8 @@ import {
   GraduationCap,
   TrendingUp,
   MessageSquare,
-  ExternalLink
+  ExternalLink,
+  UserPlus
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,6 +53,7 @@ import whatsappIcon from '@/assets/whatsapp-icon.png';
 import v4Logo from '@/assets/v4-logo-full.png';
 import metaIcon from '@/assets/meta-icon.png';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
+import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 
 const cargoOptions: { value: UserCargo; label: string }[] = [
   { value: 'gestor_trafego', label: 'Gestor de Tráfego' },
@@ -313,6 +315,7 @@ export default function ProjectSelector() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -777,106 +780,118 @@ export default function ProjectSelector() {
             {/* Actions */}
             <div className="flex items-center gap-3">
               {!isGuest && (
-                <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      className="h-10 px-5 bg-red-600 hover:bg-red-500 text-white font-medium rounded-xl shadow-lg shadow-red-600/20 gap-2 transition-all"
-                      style={{ fontFamily: 'Space Grotesk, sans-serif' }}
-                    >
-                      <Plus className="w-4 h-4" />
-                      Novo Cliente
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-2xl">
-                    <DialogHeader>
-                      <DialogTitle 
-                        className="text-white font-semibold"
+                <>
+                  <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        className="h-10 px-5 bg-red-600 hover:bg-red-500 text-white font-medium rounded-xl shadow-lg shadow-red-600/20 gap-2 transition-all"
                         style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                       >
+                        <Plus className="w-4 h-4" />
                         Novo Cliente
-                      </DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleCreateProject} className="space-y-4 mt-4">
-                      {/* Avatar */}
-                      <div className="flex justify-center">
-                        <div 
-                          onClick={() => avatarInputRef.current?.click()}
-                          className="w-16 h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-red-500/50 transition-all overflow-hidden"
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-2xl">
+                      <DialogHeader>
+                        <DialogTitle 
+                          className="text-white font-semibold"
+                          style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                         >
-                          {avatarPreview ? (
-                            <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <Camera className="w-5 h-5 text-white/30" />
-                          )}
+                          Novo Cliente
+                        </DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={handleCreateProject} className="space-y-4 mt-4">
+                        {/* Avatar */}
+                        <div className="flex justify-center">
+                          <div 
+                            onClick={() => avatarInputRef.current?.click()}
+                            className="w-16 h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-red-500/50 transition-all overflow-hidden"
+                          >
+                            {avatarPreview ? (
+                              <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <Camera className="w-5 h-5 text-white/30" />
+                            )}
+                          </div>
+                          <input
+                            ref={avatarInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleAvatarChange(e)}
+                          />
                         </div>
-                        <input
-                          ref={avatarInputRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => handleAvatarChange(e)}
-                        />
-                      </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-white/50 text-xs">Nome do Cliente</Label>
-                        <Input
-                          value={formData.name}
-                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                          placeholder="Ex: Empresa ABC"
-                          className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50"
-                        />
-                      </div>
+                        <div className="space-y-2">
+                          <Label className="text-white/50 text-xs">Nome do Cliente</Label>
+                          <Input
+                            value={formData.name}
+                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="Ex: Empresa ABC"
+                            className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50"
+                          />
+                        </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-white/50 text-xs">Account ID</Label>
-                        <Input
-                          value={formData.ad_account_id}
-                          onChange={(e) => setFormData(prev => ({ ...prev, ad_account_id: e.target.value }))}
-                          placeholder="act_123456789"
-                          className="bg-white/5 border-white/10 text-white font-mono rounded-xl focus:border-red-500/50"
-                        />
-                      </div>
+                        <div className="space-y-2">
+                          <Label className="text-white/50 text-xs">Account ID</Label>
+                          <Input
+                            value={formData.ad_account_id}
+                            onChange={(e) => setFormData(prev => ({ ...prev, ad_account_id: e.target.value }))}
+                            placeholder="act_123456789"
+                            className="bg-white/5 border-white/10 text-white font-mono rounded-xl focus:border-red-500/50"
+                          />
+                        </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-white/50 text-xs">Modelo de Negócio</Label>
-                        <Select
-                          value={formData.business_model}
-                          onValueChange={(val) => setFormData(prev => ({ ...prev, business_model: val as BusinessModel }))}
-                        >
-                          <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
-                            {businessModels.map(model => (
-                              <SelectItem key={model.value} value={model.value} className="text-white rounded-lg">
-                                {model.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                        <div className="space-y-2">
+                          <Label className="text-white/50 text-xs">Modelo de Negócio</Label>
+                          <Select
+                            value={formData.business_model}
+                            onValueChange={(val) => setFormData(prev => ({ ...prev, business_model: val as BusinessModel }))}
+                          >
+                            <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
+                              {businessModels.map(model => (
+                                <SelectItem key={model.value} value={model.value} className="text-white rounded-lg">
+                                  {model.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                      <div className="flex gap-3 pt-4">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setCreateDialogOpen(false)}
-                          className="flex-1 border-white/10 text-white/60 hover:text-white hover:bg-white/5 rounded-xl"
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          type="submit"
-                          disabled={isCreating}
-                          className="flex-1 bg-red-600 text-white hover:bg-red-500 rounded-xl font-medium"
-                        >
-                          {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar'}
-                        </Button>
-                      </div>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+                        <div className="flex gap-3 pt-4">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setCreateDialogOpen(false)}
+                            className="flex-1 border-white/10 text-white/60 hover:text-white hover:bg-white/5 rounded-xl"
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={isCreating}
+                            className="flex-1 bg-red-600 text-white hover:bg-red-500 rounded-xl font-medium"
+                          >
+                            {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar'}
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                  
+                  <Button
+                    onClick={() => setInviteDialogOpen(true)}
+                    variant="outline"
+                    className="h-10 px-4 border-white/10 text-white/70 hover:text-white hover:bg-white/5 rounded-xl transition-all gap-2"
+                    style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Convidar Cliente
+                  </Button>
+                </>
               )}
               
               <Button
@@ -1173,6 +1188,13 @@ export default function ProjectSelector() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Invite Guest Dialog */}
+      <InviteGuestDialog
+        open={inviteDialogOpen}
+        onOpenChange={setInviteDialogOpen}
+        onSuccess={refetch}
+      />
     </div>
   );
 }
