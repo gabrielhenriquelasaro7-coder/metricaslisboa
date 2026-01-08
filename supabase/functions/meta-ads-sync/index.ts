@@ -251,8 +251,10 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   console.log(`[CREATIVES] Fetching all creatives via /adcreatives endpoint...`);
   
   const allCreatives: any[] = [];
-  // Buscar campos adicionais: effective_object_story_id, asset_feed_spec para mais dados de copy
-  let creativesUrl: string | null = `https://graph.facebook.com/v22.0/${adAccountId}/adcreatives?fields=id,name,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec,effective_object_story_id,asset_feed_spec&limit=500&access_token=${token}`;
+  // Buscar TODOS campos possíveis de copy: body, title, call_to_action_type, object_story_spec (link_data/video_data/photo_data), asset_feed_spec
+  // IMPORTANTE: object_story_spec precisa incluir TODOS os sub-campos para pegar message, name, call_to_action
+  let creativesUrl: string | null = `https://graph.facebook.com/v22.0/${adAccountId}/adcreatives?fields=id,name,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,link_title,description,call_to_action,picture,image_url},video_data{message,title,call_to_action,video_id},photo_data{message,caption}},effective_object_story_id,asset_feed_spec{bodies,titles,descriptions,call_to_action_types,link_urls}&limit=500&access_token=${token}`;
+  console.log(`[CREATIVES] Fetching creatives with expanded fields for copy extraction...`);
   
   while (creativesUrl) {
     const creativeData = await fetchWithRetry(creativesUrl, 'ADCREATIVES');
@@ -975,19 +977,24 @@ function extractProfileVisits(insights: any): number {
 
 function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | null; headline: string | null; cta: string | null } {
   let primaryText: string | null = null, headline: string | null = null, cta: string | null = null;
+  const adId = ad?.id || 'unknown';
   
-  // FONTE 1: creativeData (do endpoint /adcreatives)
+  // FONTE 1: creativeData (do endpoint /adcreatives) - PRIORIDADE MÁXIMA
   if (creativeData) { 
-    primaryText = creativeData.body || null; 
-    headline = creativeData.title || null; 
-    cta = creativeData.call_to_action_type || null; 
+    // Campos diretos do creative
+    if (creativeData.body) primaryText = creativeData.body;
+    if (creativeData.title) headline = creativeData.title;
+    if (creativeData.call_to_action_type) cta = creativeData.call_to_action_type;
     
     // object_story_spec - link_data (imagens)
     const s = creativeData.object_story_spec; 
     if (s?.link_data) { 
       if (!primaryText && s.link_data.message) primaryText = s.link_data.message; 
       if (!headline && s.link_data.name) headline = s.link_data.name; 
+      if (!headline && s.link_data.link_title) headline = s.link_data.link_title;
       if (!cta && s.link_data.call_to_action?.type) cta = s.link_data.call_to_action.type; 
+      // Fallback: description pode ter headline
+      if (!headline && s.link_data.description) headline = s.link_data.description;
     } 
     
     // object_story_spec - video_data (vídeos)
@@ -997,16 +1004,29 @@ function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | nul
       if (!cta && s.video_data.call_to_action?.type) cta = s.video_data.call_to_action.type; 
     }
     
+    // object_story_spec - photo_data (para posts de foto)
+    if (s?.photo_data) {
+      if (!primaryText && s.photo_data.message) primaryText = s.photo_data.message;
+      if (!primaryText && s.photo_data.caption) primaryText = s.photo_data.caption;
+    }
+    
     // asset_feed_spec - para anúncios dinâmicos/catálogo
     if (creativeData.asset_feed_spec) {
       const afs = creativeData.asset_feed_spec;
       if (!primaryText && afs.bodies?.length > 0) primaryText = afs.bodies[0].text;
       if (!headline && afs.titles?.length > 0) headline = afs.titles[0].text;
       if (!cta && afs.call_to_action_types?.length > 0) cta = afs.call_to_action_types[0];
+      // Link URLs podem ter dados também
+      if (!headline && afs.link_urls?.length > 0 && afs.link_urls[0].display_url) {
+        headline = afs.link_urls[0].display_url;
+      }
     }
+    
+    // effective_object_story_id - nome do post original pode ser usado como fallback
+    if (!headline && creativeData.name) headline = creativeData.name;
   }
   
-  // FONTE 2: ad.creative (da query de ads)
+  // FONTE 2: ad.creative (da query de ads) - FALLBACK
   const c = ad?.creative; 
   if (c) { 
     if (!primaryText && c.body) primaryText = c.body; 
@@ -1017,14 +1037,23 @@ function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | nul
     if (s?.link_data) { 
       if (!primaryText && s.link_data.message) primaryText = s.link_data.message; 
       if (!headline && s.link_data.name) headline = s.link_data.name; 
-      if (!cta && s.link_data.call_to_action?.type) cta = s.link_data.call_to_action.type; 
+      if (!headline && s.link_data.link_title) headline = s.link_data.link_title;
+      if (!cta && s.link_data.call_to_action?.type) cta = s.link_data.call_to_action.type;
+      if (!headline && s.link_data.description) headline = s.link_data.description;
     } 
     if (s?.video_data) { 
       if (!primaryText && s.video_data.message) primaryText = s.video_data.message; 
       if (!headline && s.video_data.title) headline = s.video_data.title; 
       if (!cta && s.video_data.call_to_action?.type) cta = s.video_data.call_to_action.type; 
     }
+    if (s?.photo_data) {
+      if (!primaryText && s.photo_data.message) primaryText = s.photo_data.message;
+      if (!primaryText && s.photo_data.caption) primaryText = s.photo_data.caption;
+    }
   }
+  
+  // LOG: Debug para diagnóstico
+  console.log(`[COPY-EXTRACT] Ad ${adId}: headline=${headline?.substring(0,30) || 'NULL'}, text=${primaryText?.substring(0,30) || 'NULL'}, cta=${cta || 'NULL'}, hasCreativeData=${!!creativeData}, hasAdCreative=${!!c}`);
   
   return { primaryText, headline, cta };
 }
