@@ -765,16 +765,6 @@ export default function Dashboard() {
               currency={selectedProject?.currency || 'BRL'}
             />
 
-            {/* Leads Sync Card - Only for Inside Sales */}
-            {hasSelectedProject && isInsideSales && selectedProject && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <LeadsSyncCard
-                  projectId={selectedProject.id}
-                  facebookPageId={selectedProject.facebook_page_id}
-                  dateRange={dateRange?.from && dateRange?.to ? { from: dateRange.from, to: dateRange.to } : undefined}
-                />
-              </div>
-            )}
 
             {/* Top Campaigns */}
             <div className="glass-card p-6">
