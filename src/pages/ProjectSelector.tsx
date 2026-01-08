@@ -96,7 +96,7 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
   }[displayHealthScore];
 
   const dotColor = {
-    safe: 'bg-white/70',
+    safe: 'bg-emerald-500',
     care: 'bg-amber-500',
     danger: 'bg-red-500',
     undefined: 'bg-zinc-600',
@@ -249,7 +249,7 @@ function StatusGroup({ status, projects, defaultOpen = false, onSelect, onEdit, 
   if (projects.length === 0) return null;
 
   const config = {
-    safe: { label: 'Safe', color: 'text-white/70', bg: 'bg-white/5', indicator: 'bg-white/70' },
+    safe: { label: 'Safe', color: 'text-emerald-400', bg: 'bg-emerald-500/10', indicator: 'bg-emerald-500' },
     care: { label: 'Care', color: 'text-amber-400', bg: 'bg-amber-500/10', indicator: 'bg-amber-500' },
     danger: { label: 'Danger', color: 'text-red-400', bg: 'bg-red-500/10', indicator: 'bg-red-500' },
     undefined: { label: 'Sem Status', color: 'text-zinc-400', bg: 'bg-zinc-500/10', indicator: 'bg-zinc-500' },
@@ -649,7 +649,7 @@ export default function ProjectSelector() {
         
         {/* Top nav - Bigger and more prominent */}
         <div className="relative border-b border-white/10">
-          <div className="max-w-[1600px] mx-auto px-8 py-6">
+          <div className="max-w-[1600px] mx-auto px-8 py-5">
             <nav className="flex items-center justify-between">
               {/* Logo Section - Bigger */}
               <div className="flex items-center gap-6">
