@@ -115,34 +115,68 @@ export function ProjectReportConfigDialog({
   const [accountBalance, setAccountBalance] = useState<number | null>(null);
 
   // Form state
-  const [instanceId, setInstanceId] = useState<string | null>(existingConfig?.instance_id || null);
-  const [targetType, setTargetType] = useState<'phone' | 'group'>(existingConfig?.target_type as 'phone' | 'group' || 'phone');
-  const [phoneNumber, setPhoneNumber] = useState(existingConfig?.phone_number || '');
-  const [groupId, setGroupId] = useState<string | null>(existingConfig?.group_id || null);
-  const [groupName, setGroupName] = useState<string | null>(existingConfig?.group_name || null);
-  const [reportEnabled, setReportEnabled] = useState(existingConfig?.report_enabled ?? true);
-  const [reportDayOfWeek, setReportDayOfWeek] = useState(existingConfig?.report_day_of_week ?? 1);
-  const [reportTime, setReportTime] = useState(existingConfig?.report_time || '08:00');
-  const [reportPeriod, setReportPeriod] = useState(existingConfig?.report_period || 'last_7_days');
-  const [messageTemplate, setMessageTemplate] = useState(existingConfig?.message_template || '');
-  const [balanceAlertEnabled, setBalanceAlertEnabled] = useState(existingConfig?.balance_alert_enabled ?? false);
-  const [balanceAlertThreshold, setBalanceAlertThreshold] = useState(existingConfig?.balance_alert_threshold ?? 3);
+  const [instanceId, setInstanceId] = useState<string | null>(null);
+  const [targetType, setTargetType] = useState<'phone' | 'group'>('phone');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [groupId, setGroupId] = useState<string | null>(null);
+  const [groupName, setGroupName] = useState<string | null>(null);
+  const [reportEnabled, setReportEnabled] = useState(true);
+  const [reportDayOfWeek, setReportDayOfWeek] = useState(1);
+  const [reportTime, setReportTime] = useState('08:00');
+  const [reportPeriod, setReportPeriod] = useState('last_7_days');
+  const [messageTemplate, setMessageTemplate] = useState('');
+  const [balanceAlertEnabled, setBalanceAlertEnabled] = useState(false);
+  const [balanceAlertThreshold, setBalanceAlertThreshold] = useState(3);
 
   const [metricsEnabled, setMetricsEnabled] = useState<Record<string, boolean>>({
-    spend: existingConfig?.include_spend ?? true,
-    leads: existingConfig?.include_leads ?? true,
-    cpl: existingConfig?.include_cpl ?? true,
-    impressions: existingConfig?.include_impressions ?? true,
-    clicks: existingConfig?.include_clicks ?? true,
-    ctr: existingConfig?.include_ctr ?? true,
-    roas: existingConfig?.include_roas ?? true,
-    reach: existingConfig?.include_reach ?? true,
-    cpm: existingConfig?.include_cpm ?? true,
-    cpc: existingConfig?.include_cpc ?? true,
-    conversions: existingConfig?.include_conversions ?? true,
-    conversion_value: existingConfig?.include_conversion_value ?? true,
-    frequency: existingConfig?.include_frequency ?? true,
+    spend: true,
+    leads: true,
+    cpl: true,
+    impressions: true,
+    clicks: true,
+    ctr: true,
+    roas: true,
+    reach: true,
+    cpm: true,
+    cpc: true,
+    conversions: true,
+    conversion_value: true,
+    frequency: true,
   });
+
+  // Reset form state when project or existingConfig changes
+  useEffect(() => {
+    setInstanceId(existingConfig?.instance_id || null);
+    setTargetType(existingConfig?.target_type as 'phone' | 'group' || 'phone');
+    setPhoneNumber(existingConfig?.phone_number || '');
+    setGroupId(existingConfig?.group_id || null);
+    setGroupName(existingConfig?.group_name || null);
+    setReportEnabled(existingConfig?.report_enabled ?? true);
+    setReportDayOfWeek(existingConfig?.report_day_of_week ?? 1);
+    setReportTime(existingConfig?.report_time || '08:00');
+    setReportPeriod(existingConfig?.report_period || 'last_7_days');
+    setMessageTemplate(existingConfig?.message_template || '');
+    setBalanceAlertEnabled(existingConfig?.balance_alert_enabled ?? false);
+    setBalanceAlertThreshold(existingConfig?.balance_alert_threshold ?? 3);
+    setMetricsEnabled({
+      spend: existingConfig?.include_spend ?? true,
+      leads: existingConfig?.include_leads ?? true,
+      cpl: existingConfig?.include_cpl ?? true,
+      impressions: existingConfig?.include_impressions ?? true,
+      clicks: existingConfig?.include_clicks ?? true,
+      ctr: existingConfig?.include_ctr ?? true,
+      roas: existingConfig?.include_roas ?? true,
+      reach: existingConfig?.include_reach ?? true,
+      cpm: existingConfig?.include_cpm ?? true,
+      cpc: existingConfig?.include_cpc ?? true,
+      conversions: existingConfig?.include_conversions ?? true,
+      conversion_value: existingConfig?.include_conversion_value ?? true,
+      frequency: existingConfig?.include_frequency ?? true,
+    });
+    setGroups([]);
+    setShowPreview(false);
+    setEditingMessage(false);
+  }, [project.id, existingConfig]);
 
   const connectedInstances = instances.filter(i => i.instance_status === 'connected');
 
