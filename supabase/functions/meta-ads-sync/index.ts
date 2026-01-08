@@ -640,6 +640,18 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
         }
       }
       
+      // PRIORIDADE 4 (FALLBACK): Usar thumbnail_url da query de ads (temporária, mas melhor que nada)
+      // Remove parâmetros de baixa qualidade (p64x64) para tentar pegar versão melhor
+      if (!hdImageUrl && ad.creative?.thumbnail_url) {
+        let thumbUrl = ad.creative.thumbnail_url;
+        // Tentar remover parâmetros de baixa qualidade
+        if (thumbUrl.includes('stp=')) {
+          thumbUrl = thumbUrl.replace(/&?stp=[^&]+/, '');
+        }
+        hdImageUrl = thumbUrl;
+        source = 'thumbnail_fallback';
+      }
+      
       if (hdImageUrl) {
         adsNeedingCache.push({ adId, imageUrl: hdImageUrl, source });
       }
