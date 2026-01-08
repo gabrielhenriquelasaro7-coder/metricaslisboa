@@ -1059,15 +1059,9 @@ function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | nul
   return { primaryText, headline, cta };
 }
 
-// Limpa URL para HD - remove parâmetros de resize do Meta
+// Usa URL original sem modificação - melhor ter imagem pequena que nenhuma
 function cleanImageUrl(url: string | null): string | null {
-  if (!url) return null;
-  // Remove stp= que força imagem pequena (p64x64, etc)
-  let clean = url.replace(/&stp=[^&]*/gi, '');
-  // Remove ur= que também afeta tamanho
-  clean = clean.replace(/&ur=[^&]*/gi, '');
-  // Limpa & no final
-  return clean.replace(/&$/g, '');
+  return url;
 }
 
 function extractCreativeImage(ad: any, creativeData?: any, adImageMap?: Map<string, string>, videoThumbnailMap?: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
