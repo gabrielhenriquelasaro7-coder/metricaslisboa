@@ -96,6 +96,24 @@ async function fetchWithRetry(url: string, entityName: string): Promise<any> {
   return { error: { message: 'Max retries exceeded' } };
 }
 
+// Tenta limpar URL para HD removendo resize params
+function tryCleanUrlForHD(url: string): string {
+  // Remove stp= que força resize (p64x64, s120x120, etc)
+  let clean = url.replace(/[&?]stp=[^&]*/gi, '');
+  
+  // Remove tamanho em path
+  clean = clean.replace(/\/p\d+x\d+\//g, '/');
+  clean = clean.replace(/\/s\d+x\d+\//g, '/');
+  
+  // Corrige URL malformada
+  if (clean.includes('&') && !clean.includes('?')) {
+    clean = clean.replace('&', '?');
+  }
+  clean = clean.replace(/[&?]$/g, '');
+  
+  return clean;
+}
+
 async function cacheCreativeImage(supabase: any, projectId: string, adId: string, imageUrl: string | null, forceRefresh = false): Promise<string | null> {
   if (!imageUrl) return null;
   try {
@@ -105,38 +123,70 @@ async function cacheCreativeImage(supabase: any, projectId: string, adId: string
     if (!forceRefresh) {
       const { data: existingFile } = await supabase.storage.from('creative-images').list(projectId, { limit: 1, search: `${adId}.jpg` });
       if (existingFile?.length > 0) {
-        // Check file size - if it's too small, re-cache
         const fileSize = existingFile[0]?.metadata?.size || 0;
         if (fileSize > 10000) { // 10KB minimum for HD image
           const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
-          if (publicUrlData?.publicUrl) return publicUrlData.publicUrl;
+          if (publicUrlData?.publicUrl) {
+            console.log(`[CACHE] Using existing HD cache (${fileSize} bytes): ${adId}`);
+            return publicUrlData.publicUrl;
+          }
         }
         console.log(`[CACHE] Existing file too small (${fileSize} bytes), re-caching: ${adId}`);
       }
     }
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-    const response = await fetch(imageUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'image/*' }, signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!response.ok) return null;
+    // ESTRATÉGIA: Tentar URL limpa (HD) primeiro, depois original como fallback
+    const cleanedUrl = tryCleanUrlForHD(imageUrl);
+    const urlsToTry = cleanedUrl !== imageUrl ? [cleanedUrl, imageUrl] : [imageUrl];
     
-    const imageBuffer = await response.arrayBuffer();
-    // Minimum 10KB for HD image - reject small thumbnails
-    if (imageBuffer.byteLength < 10000) {
-      console.log(`[CACHE] Image too small (${imageBuffer.byteLength} bytes), skipping: ${adId}`);
-      return null;
+    for (const url of urlsToTry) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const response = await fetch(url, { 
+          headers: { 
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 
+            'Accept': 'image/*',
+            'Referer': 'https://www.facebook.com/'
+          }, 
+          signal: controller.signal 
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+          console.log(`[CACHE] Fetch failed (${response.status}) for ${adId}: ${url.substring(0, 60)}...`);
+          continue;
+        }
+        
+        const imageBuffer = await response.arrayBuffer();
+        
+        // Aceitar imagens maiores que 5KB (balancear entre qualidade e disponibilidade)
+        if (imageBuffer.byteLength < 5000) {
+          console.log(`[CACHE] Image too small (${imageBuffer.byteLength} bytes), trying next: ${adId}`);
+          continue;
+        }
+        
+        const { error: uploadError } = await supabase.storage.from('creative-images').upload(fileName, imageBuffer, { 
+          contentType: response.headers.get('content-type') || 'image/jpeg', 
+          upsert: true 
+        });
+        
+        if (uploadError) {
+          console.log(`[CACHE] Upload error for ${adId}: ${uploadError.message}`);
+          continue;
+        }
+        
+        const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
+        const isHD = imageBuffer.byteLength > 20000;
+        console.log(`[CACHE] Cached ${isHD ? 'HD' : 'SD'} image (${imageBuffer.byteLength} bytes): ${adId}`);
+        return publicUrlData?.publicUrl || null;
+      } catch (e) {
+        console.log(`[CACHE] Error trying URL for ${adId}: ${e}`);
+        continue;
+      }
     }
     
-    const { error: uploadError } = await supabase.storage.from('creative-images').upload(fileName, imageBuffer, { contentType: response.headers.get('content-type') || 'image/jpeg', upsert: true });
-    if (uploadError) {
-      console.log(`[CACHE] Upload error for ${adId}: ${uploadError.message}`);
-      return null;
-    }
-    
-    const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
-    console.log(`[CACHE] Cached HD image (${imageBuffer.byteLength} bytes): ${adId}`);
-    return publicUrlData?.publicUrl || null;
+    console.log(`[CACHE] All URLs failed for ${adId}`);
+    return null;
   } catch (e) { 
     console.log(`[CACHE] Error caching ${adId}: ${e}`);
     return null; 
@@ -1059,9 +1109,31 @@ function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | nul
   return { primaryText, headline, cta };
 }
 
-// Usa URL original sem modificação - melhor ter imagem pequena que nenhuma
+// Limpa URL removendo parâmetros de resize para obter imagem HD
 function cleanImageUrl(url: string | null): string | null {
-  return url;
+  if (!url) return null;
+  
+  // Remove stp= que força resize (p64x64, s120x120, etc)
+  let clean = url.replace(/[&?]stp=[^&]*/gi, '');
+  
+  // Remove parâmetros que afetam tamanho
+  clean = clean.replace(/[&?]_nc_cat=[^&]*/gi, '');
+  
+  // Remove tamanho em path (/p64x64/, /s120x120/)
+  clean = clean.replace(/\/p\d+x\d+\//g, '/');
+  clean = clean.replace(/\/s\d+x\d+\//g, '/');
+  
+  // Corrige URL malformada: se & antes de ?, troca primeiro & por ?
+  if (clean.includes('&') && !clean.includes('?')) {
+    clean = clean.replace('&', '?');
+  }
+  
+  // Remove & ou ? no final
+  clean = clean.replace(/[&?]$/g, '');
+  
+  console.log(`[URL-CLEAN] Original: ${url.substring(0, 80)}... => Clean: ${clean.substring(0, 80)}...`);
+  
+  return clean;
 }
 
 function extractCreativeImage(ad: any, creativeData?: any, adImageMap?: Map<string, string>, videoThumbnailMap?: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
