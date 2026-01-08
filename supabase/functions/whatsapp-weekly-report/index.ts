@@ -195,9 +195,10 @@ function isScheduledTime(reportTime: string, timezone: string = 'America/Sao_Pau
   
   const diff = Math.abs(currentTotalMinutes - scheduledTotalMinutes);
   
-  console.log(`[WEEKLY-REPORT] Time check - Current: ${currentHour}:${currentMinute} (${timezone}), Scheduled: ${scheduledHour}:${scheduledMinute}, Diff: ${diff} minutes`);
+  console.log(`[WEEKLY-REPORT] Time check - Current: ${currentHour}:${currentMinute.toString().padStart(2, '0')} (${timezone}), Scheduled: ${scheduledHour}:${scheduledMinute.toString().padStart(2, '0')}, Diff: ${diff} minutes`);
   
-  return diff <= 5;
+  // Only allow exact minute match or 1 minute after (for cron timing)
+  return diff <= 1;
 }
 
 function alreadySentForScheduledTime(lastSentAt: string | null, reportTime: string, timezone: string = 'America/Sao_Paulo'): boolean {
@@ -502,6 +503,8 @@ Deno.serve(async (req) => {
         const periodLabel = getPeriodLabel(period);
         const template = config.message_template || getDefaultTemplate(project.business_model);
 
+        console.log(`[WEEKLY-REPORT] Building message for project: ${project.name} (ID: ${projectId})`);
+
         const message = buildMessageFromTemplate(
           template,
           project.name,
@@ -509,6 +512,8 @@ Deno.serve(async (req) => {
           aggregated,
           configSettings
         );
+
+        console.log(`[WEEKLY-REPORT] Message preview (first 100 chars): ${message.substring(0, 100)}`);
 
         // Determine target type and destination
         const targetType = config.target_type || 'phone';
