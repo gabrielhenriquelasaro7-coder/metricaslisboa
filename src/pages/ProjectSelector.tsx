@@ -50,6 +50,8 @@ import {
 import { cn } from '@/lib/utils';
 import whatsappIcon from '@/assets/whatsapp-icon.png';
 import v4Logo from '@/assets/v4-logo-full.png';
+import metaIcon from '@/assets/meta-icon.png';
+import googleAdsIcon from '@/assets/google-ads-icon.png';
 
 const cargoOptions: { value: UserCargo; label: string }[] = [
   { value: 'gestor_trafego', label: 'Gestor de Tráfego' },
@@ -87,14 +89,14 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
   const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
 
   const statusColors = {
-    safe: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30',
+    safe: 'from-zinc-500/10 to-zinc-500/5 border-zinc-700/50',
     care: 'from-amber-500/20 to-amber-500/5 border-amber-500/30',
     danger: 'from-red-500/20 to-red-500/5 border-red-500/30',
     undefined: 'from-zinc-500/10 to-zinc-500/5 border-zinc-700/50',
   }[displayHealthScore];
 
   const dotColor = {
-    safe: 'bg-emerald-500',
+    safe: 'bg-white/70',
     care: 'bg-amber-500',
     danger: 'bg-red-500',
     undefined: 'bg-zinc-600',
@@ -247,7 +249,7 @@ function StatusGroup({ status, projects, defaultOpen = false, onSelect, onEdit, 
   if (projects.length === 0) return null;
 
   const config = {
-    safe: { label: 'Safe', color: 'text-emerald-400', bg: 'bg-emerald-500/10', indicator: 'bg-emerald-500' },
+    safe: { label: 'Safe', color: 'text-white/70', bg: 'bg-white/5', indicator: 'bg-white/70' },
     care: { label: 'Care', color: 'text-amber-400', bg: 'bg-amber-500/10', indicator: 'bg-amber-500' },
     danger: { label: 'Danger', color: 'text-red-400', bg: 'bg-red-500/10', indicator: 'bg-red-500' },
     undefined: { label: 'Sem Status', color: 'text-zinc-400', bg: 'bg-zinc-500/10', indicator: 'bg-zinc-500' },
@@ -641,37 +643,44 @@ export default function ProjectSelector() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-black to-zinc-950">
       {/* ==================== HEADER ==================== */}
-      <header className="relative">
+      <header className="relative bg-zinc-950">
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-red-600/5 to-transparent pointer-events-none" />
         
-        {/* Top nav */}
-        <div className="relative border-b border-white/5">
-          <div className="max-w-[1600px] mx-auto px-6 py-3">
+        {/* Top nav - Bigger and more prominent */}
+        <div className="relative border-b border-white/10">
+          <div className="max-w-[1600px] mx-auto px-8 py-4">
             <nav className="flex items-center justify-between">
-              {/* Logo */}
-              <div className="flex items-center gap-4">
-                <img src={v4Logo} alt="V4 Company" className="h-8 w-auto brightness-0 invert opacity-90" />
-                <div className="w-px h-6 bg-gradient-to-b from-transparent via-red-500/50 to-transparent" />
-                <span 
-                  className="text-lg font-semibold text-white/90"
-                  style={{ fontFamily: 'Space Grotesk, sans-serif' }}
-                >
-                  Ads Manager
-                </span>
+              {/* Logo Section - Bigger */}
+              <div className="flex items-center gap-5">
+                <img src={v4Logo} alt="V4 Company" className="h-10 w-auto brightness-0 invert opacity-95" />
+                <div className="w-px h-10 bg-gradient-to-b from-transparent via-red-500/60 to-transparent" />
+                <div className="flex flex-col">
+                  <span 
+                    className="text-2xl font-bold tracking-tight text-white"
+                    style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                  >
+                    ADS<span className="font-light text-white/70">MANAGER</span>
+                  </span>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/30" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    Painel de Controle
+                  </span>
+                </div>
               </div>
               
-              {/* Nav items */}
-              <div className="flex items-center gap-1">
-                <button className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600/20 border border-red-500/30 transition-all">
-                  Meta Ads
+              {/* Nav items with platform icons */}
+              <div className="flex items-center gap-2">
+                <button className="h-11 px-5 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-500 transition-all flex items-center gap-2.5 shadow-lg shadow-red-600/20">
+                  <img src={metaIcon} alt="" className="w-5 h-5" />
+                  META ADS
                 </button>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button className="px-4 py-2 rounded-lg text-sm font-medium text-white/40 hover:text-white/60 transition-all flex items-center gap-2">
+                      <button className="h-11 px-5 rounded-lg text-sm font-medium text-white/50 hover:text-white/70 hover:bg-white/5 transition-all flex items-center gap-2.5 border border-white/10">
+                        <img src={googleAdsIcon} alt="" className="w-5 h-5 opacity-50" />
                         <Lock className="w-3 h-3" />
-                        Google Ads
+                        GOOGLE ADS
                       </button>
                     </TooltipTrigger>
                     <TooltipContent className="bg-zinc-900 border-white/10">
@@ -681,66 +690,53 @@ export default function ProjectSelector() {
                 </TooltipProvider>
                 <button 
                   onClick={() => navigate('/whatsapp-manager')}
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all flex items-center gap-2"
+                  className="h-11 px-5 rounded-lg text-sm font-medium text-white/50 hover:text-white/70 hover:bg-white/5 transition-all flex items-center gap-2.5 border border-white/10"
                 >
-                  <MessageSquare className="w-4 h-4" />
-                  WhatsApp
+                  <img src={whatsappIcon} alt="" className="w-5 h-5 opacity-70" />
+                  WHATSAPP
                 </button>
                 <button 
                   onClick={() => setProfileDialogOpen(true)}
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all flex items-center gap-2"
+                  className="h-11 px-5 rounded-lg text-sm font-medium text-white/50 hover:text-white/70 hover:bg-white/5 transition-all flex items-center gap-2.5 border border-white/10"
                 >
                   <User className="w-4 h-4" />
-                  Perfil
+                  PERFIL
                 </button>
               </div>
             </nav>
           </div>
         </div>
         
-        {/* Stats bar */}
-        <div className="relative border-b border-white/5 bg-black/30 backdrop-blur-xl">
-          <div className="max-w-[1600px] mx-auto px-6 py-5">
+        {/* Stats bar - More compact */}
+        <div className="relative border-b border-white/5 bg-black/50 backdrop-blur-xl">
+          <div className="max-w-[1600px] mx-auto px-8 py-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-white/40 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  Painel de Controle
-                </p>
-                <h1 
-                  className="text-2xl font-semibold text-white"
-                  style={{ fontFamily: 'Space Grotesk, sans-serif' }}
-                >
-                  Seus Clientes
-                </h1>
+              {/* Stats */}
+              <div className="flex items-center gap-4 px-5 py-2.5 rounded-xl bg-white/[0.03] border border-white/5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-white/40 uppercase tracking-wider" style={{ fontFamily: 'Inter, sans-serif' }}>Clientes Ativos</span>
+                  <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    {healthCounts.total}
+                  </span>
+                </div>
               </div>
               
-              {/* Metrics */}
-              <div className="flex items-center gap-8">
-                <div className="text-center">
-                  <p className="text-3xl font-semibold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                    {healthCounts.total}
-                  </p>
-                  <p className="text-xs text-white/40 mt-0.5">Ativos</p>
+              {/* Health indicators */}
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-white/70" />
+                  <span className="text-sm font-medium text-white/40 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Safe</span>
+                  <span className="text-lg font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.safe}</span>
                 </div>
-                
-                <div className="w-px h-10 bg-white/10" />
-                
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/30" />
-                    <span className="text-xl font-medium text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.safe}</span>
-                    <span className="text-xs text-white/40">safe</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-lg shadow-amber-500/30" />
-                    <span className="text-xl font-medium text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.care}</span>
-                    <span className="text-xs text-white/40">care</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-lg shadow-red-500/30" />
-                    <span className="text-xl font-medium text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.danger}</span>
-                    <span className="text-xs text-white/40">danger</span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-amber-500" />
+                  <span className="text-sm font-medium text-white/40 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Care</span>
+                  <span className="text-lg font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.care}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-red-500" />
+                  <span className="text-sm font-medium text-white/40 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Danger</span>
+                  <span className="text-lg font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.danger}</span>
                 </div>
               </div>
             </div>
