@@ -1058,6 +1058,17 @@ function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | nul
   return { primaryText, headline, cta };
 }
 
+// Limpa URL para HD - remove parâmetros de resize do Meta
+function cleanImageUrl(url: string | null): string | null {
+  if (!url) return null;
+  // Remove stp= que força imagem pequena (p64x64, etc)
+  let clean = url.replace(/&stp=[^&]*/gi, '');
+  // Remove ur= que também afeta tamanho
+  clean = clean.replace(/&ur=[^&]*/gi, '');
+  // Limpa & no final
+  return clean.replace(/&$/g, '');
+}
+
 function extractCreativeImage(ad: any, creativeData?: any, adImageMap?: Map<string, string>, videoThumbnailMap?: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
   let imageUrl: string | null = null, videoUrl: string | null = null;
   const adId = ad?.id || 'unknown';
@@ -1080,22 +1091,22 @@ function extractCreativeImage(ad: any, creativeData?: any, adImageMap?: Map<stri
   // PRIORIDADE 3: Dados do criativo (creativeData)
   if (!imageUrl && creativeData) {
     if (creativeData.image_url) {
-      imageUrl = creativeData.image_url;
-      console.log(`[CREATIVE] Ad ${adId}: Using creativeData.image_url`);
+      imageUrl = cleanImageUrl(creativeData.image_url);
+      console.log(`[CREATIVE] Ad ${adId}: Using creativeData.image_url (cleaned)`);
     }
     if (!imageUrl && creativeData.thumbnail_url) {
-      imageUrl = creativeData.thumbnail_url;
-      console.log(`[CREATIVE] Ad ${adId}: Using creativeData.thumbnail_url`);
+      imageUrl = cleanImageUrl(creativeData.thumbnail_url);
+      console.log(`[CREATIVE] Ad ${adId}: Using creativeData.thumbnail_url (cleaned)`);
     }
     const s = creativeData.object_story_spec;
     if (s?.link_data) {
       if (!imageUrl && s.link_data.image_url) {
-        imageUrl = s.link_data.image_url;
-        console.log(`[CREATIVE] Ad ${adId}: Using link_data.image_url`);
+        imageUrl = cleanImageUrl(s.link_data.image_url);
+        console.log(`[CREATIVE] Ad ${adId}: Using link_data.image_url (cleaned)`);
       }
       if (!imageUrl && s.link_data.picture) {
-        imageUrl = s.link_data.picture;
-        console.log(`[CREATIVE] Ad ${adId}: Using link_data.picture`);
+        imageUrl = cleanImageUrl(s.link_data.picture);
+        console.log(`[CREATIVE] Ad ${adId}: Using link_data.picture (cleaned)`);
       }
     }
     if (s?.video_data) {
@@ -1106,8 +1117,8 @@ function extractCreativeImage(ad: any, creativeData?: any, adImageMap?: Map<stri
       if (s.video_data.image_url) {
         videoUrl = s.video_data.image_url;
         if (!imageUrl) {
-          imageUrl = s.video_data.image_url;
-          console.log(`[CREATIVE] Ad ${adId}: Using video_data.image_url`);
+          imageUrl = cleanImageUrl(s.video_data.image_url);
+          console.log(`[CREATIVE] Ad ${adId}: Using video_data.image_url (cleaned)`);
         }
       }
     }
@@ -1116,12 +1127,12 @@ function extractCreativeImage(ad: any, creativeData?: any, adImageMap?: Map<stri
   // PRIORIDADE 4: Dados diretos do anúncio creative
   if (!imageUrl && c) {
     if (c.image_url) {
-      imageUrl = c.image_url;
-      console.log(`[CREATIVE] Ad ${adId}: Using ad.creative.image_url`);
+      imageUrl = cleanImageUrl(c.image_url);
+      console.log(`[CREATIVE] Ad ${adId}: Using ad.creative.image_url (cleaned)`);
     }
     if (!imageUrl && c.thumbnail_url) {
-      imageUrl = c.thumbnail_url;
-      console.log(`[CREATIVE] Ad ${adId}: Using ad.creative.thumbnail_url`);
+      imageUrl = cleanImageUrl(c.thumbnail_url);
+      console.log(`[CREATIVE] Ad ${adId}: Using ad.creative.thumbnail_url (cleaned)`);
     }
     const videoId = c.object_story_spec?.video_data?.video_id;
     if (videoId && videoThumbnailMap?.has(videoId)) {
