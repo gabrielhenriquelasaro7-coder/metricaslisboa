@@ -31,6 +31,8 @@ export interface Project {
   avatar_url: string | null;
   google_customer_id: string | null;
   facebook_page_id: string | null;
+  account_balance: number | null;
+  account_balance_updated_at: string | null;
 }
 
 export interface CreateProjectData {
