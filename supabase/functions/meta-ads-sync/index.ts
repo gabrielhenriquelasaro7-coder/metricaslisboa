@@ -470,8 +470,40 @@ async function detectAndSendAnomalyAlerts(supabase: any, projectId: string, chan
 }
 
 // ===========================================================================================
-// MAIN HANDLER
+// BUSCAR SALDO DA CONTA META ADS
 // ===========================================================================================
+async function fetchAccountBalance(adAccountId: string, token: string): Promise<{
+  balance: number | null;
+  currency: string | null;
+  fundingSource: any | null;
+}> {
+  try {
+    // Buscar informações da conta incluindo saldo e funding_source_details
+    const url = `https://graph.facebook.com/v22.0/${adAccountId}?fields=balance,amount_spent,currency,funding_source_details,account_status&access_token=${token}`;
+    const data = await simpleFetch(url);
+    
+    if (data.error) {
+      console.log(`[BALANCE] Error fetching balance: ${JSON.stringify(data.error).substring(0, 200)}`);
+      return { balance: null, currency: null, fundingSource: null };
+    }
+    
+    // O balance retornado pela API está em centavos
+    const balanceInCents = parseInt(data.balance) || 0;
+    const balance = balanceInCents / 100;
+    const currency = data.currency || 'BRL';
+    
+    console.log(`[BALANCE] Account ${adAccountId}: ${balance} ${currency}`);
+    
+    return {
+      balance,
+      currency,
+      fundingSource: data.funding_source_details || null
+    };
+  } catch (error) {
+    console.error('[BALANCE] Error:', error);
+    return { balance: null, currency: null, fundingSource: null };
+  }
+}
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   const startTime = Date.now();
@@ -769,8 +801,24 @@ Deno.serve(async (req) => {
       if (adsError) console.error(`[UPSERT] Ads error:`, adsError);
     }
 
-    // Update project sync time
-    await supabase.from('projects').update({ last_sync_at: new Date().toISOString(), webhook_status: 'active' }).eq('id', project_id);
+    // ===========================================================================================
+    // BUSCAR E SALVAR SALDO DA CONTA
+    // ===========================================================================================
+    const accountBalanceData = await fetchAccountBalance(ad_account_id, token);
+    
+    // Update project sync time AND account balance
+    const projectUpdate: any = { 
+      last_sync_at: new Date().toISOString(), 
+      webhook_status: 'active' 
+    };
+    
+    if (accountBalanceData.balance !== null) {
+      projectUpdate.account_balance = accountBalanceData.balance;
+      projectUpdate.account_balance_updated_at = new Date().toISOString();
+      console.log(`[BALANCE] Updated project balance: ${accountBalanceData.balance}`);
+    }
+    
+    await supabase.from('projects').update(projectUpdate).eq('id', project_id);
 
     const duration = Date.now() - startTime;
     console.log(`[SYNC] Completed in ${duration}ms - Records: ${dailyRecords.length}, Creatives: ${creativeDataMap.size}`);
