@@ -286,6 +286,68 @@ export function useWhatsAppManager() {
     }
   };
 
+  const toggleConfigEnabled = async (projectId: string, enabled: boolean): Promise<boolean> => {
+    try {
+      const existingConfig = configs.find(c => c.project_id === projectId);
+      if (!existingConfig) {
+        toast.error('Configuração não encontrada');
+        return false;
+      }
+
+      const { error } = await supabase
+        .from('whatsapp_report_configs')
+        .update({ report_enabled: enabled })
+        .eq('id', existingConfig.id);
+
+      if (error) throw error;
+
+      setConfigs(prev => prev.map(c =>
+        c.project_id === projectId ? { ...c, report_enabled: enabled } : c
+      ));
+      
+      toast.success(enabled ? 'Relatório ativado' : 'Relatório desativado');
+      return true;
+    } catch (error) {
+      console.error('Erro ao atualizar config:', error);
+      toast.error('Erro ao atualizar configuração');
+      return false;
+    }
+  };
+
+  const resendReport = async (projectId: string): Promise<boolean> => {
+    try {
+      const existingConfig = configs.find(c => c.project_id === projectId);
+      if (!existingConfig) {
+        toast.error('Configuração não encontrada');
+        return false;
+      }
+
+      toast.loading('Enviando relatório...', { id: 'resend-report' });
+
+      const { data, error } = await supabase.functions.invoke('whatsapp-weekly-report', {
+        body: { 
+          targetConfigId: existingConfig.id,
+          forceResend: true
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.results?.[0]?.success && !data?.results?.[0]?.skipped) {
+        toast.success('Relatório enviado com sucesso!', { id: 'resend-report' });
+        await fetchConfigs();
+        return true;
+      } else {
+        const reason = data?.results?.[0]?.error || data?.results?.[0]?.reason || 'Erro desconhecido';
+        throw new Error(reason);
+      }
+    } catch (error: any) {
+      console.error('Erro ao reenviar relatório:', error);
+      toast.error(error.message || 'Erro ao enviar relatório', { id: 'resend-report' });
+      return false;
+    }
+  };
+
   const deleteConfig = async (projectId: string): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -329,5 +391,7 @@ export function useWhatsAppManager() {
     saveConfig,
     deleteConfig,
     getConfigForProject,
+    toggleConfigEnabled,
+    resendReport,
   };
 }
