@@ -1137,6 +1137,58 @@ Deno.serve(async (req) => {
     
     console.log(`[DEBUG] Maps - campaignMap: ${campaignMap.size}, adsetMap: ${adsetMap.size}, adMap: ${adMap.size}`);
     
+    // === FALLBACK: Cachear imagens de anúncios existentes no banco quando rate limit impediu buscar novos dados ===
+    if (ads.length === 0 && !skip_image_cache) {
+      console.log(`[CACHE-FALLBACK] No ads from API (rate limit?), checking existing ads for missing cache...`);
+      
+      // Buscar anúncios que têm imagem mas não têm cache
+      const { data: adsNeedingCache } = await supabase.from('ads')
+        .select('id, creative_thumbnail, creative_image_url')
+        .eq('project_id', project_id)
+        .is('cached_image_url', null)
+        .or('creative_thumbnail.not.is.null,creative_image_url.not.is.null')
+        .limit(50);
+      
+      if (adsNeedingCache && adsNeedingCache.length > 0) {
+        console.log(`[CACHE-FALLBACK] Found ${adsNeedingCache.length} ads without cache, processing...`);
+        
+        let cachedCount = 0;
+        for (let i = 0; i < adsNeedingCache.length; i += 10) {
+          const batch = adsNeedingCache.slice(i, i + 10);
+          const results = await Promise.all(batch.map(async (ad: any) => {
+            const urlsToTry: string[] = [];
+            
+            // Priorizar creative_image_url (HD) sobre thumbnail
+            if (ad.creative_image_url) {
+              urlsToTry.push(ad.creative_image_url);
+            }
+            if (ad.creative_thumbnail) {
+              // Tentar limpar parâmetros de baixa qualidade
+              if (ad.creative_thumbnail.includes('stp=')) {
+                urlsToTry.push(ad.creative_thumbnail.replace(/&?stp=[^&]+/, ''));
+              }
+              urlsToTry.push(ad.creative_thumbnail);
+            }
+            
+            const cachedUrl = await cacheCreativeImage(supabase, project_id, ad.id, urlsToTry, false);
+            return { adId: ad.id, cachedUrl };
+          }));
+          
+          // Atualizar os anúncios com as URLs cacheadas
+          for (const { adId, cachedUrl } of results) {
+            if (cachedUrl) {
+              await supabase.from('ads').update({ cached_image_url: cachedUrl }).eq('id', adId);
+              cachedCount++;
+            }
+          }
+          
+          if (i + 10 < adsNeedingCache.length) await delay(100);
+        }
+        
+        console.log(`[CACHE-FALLBACK] Cached ${cachedCount}/${adsNeedingCache.length} images from existing ads`);
+      }
+    }
+    
     const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
     
     const dailyRecords: any[] = [];
