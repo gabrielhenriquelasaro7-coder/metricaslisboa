@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
-import { useWhatsAppManager, type ReportConfig, type WhatsAppGroup } from '@/hooks/useWhatsAppManager';
+import { useWhatsAppManager } from '@/hooks/useWhatsAppManager';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +18,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { 
-  MessageSquare, 
   Plus, 
   Smartphone, 
   Settings2, 
@@ -28,13 +26,13 @@ import {
   Clock,
   Loader2,
   AlertTriangle,
-  Calendar
+  Calendar,
+  ArrowLeft
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { ManagerInstanceCard } from '@/components/whatsapp/ManagerInstanceCard';
 import { WhatsAppQRModal } from '@/components/whatsapp/WhatsAppQRModal';
 import { ProjectReportConfigDialog } from '@/components/whatsapp/ProjectReportConfigDialog';
+import whatsappIcon from '@/assets/whatsapp-icon.png';
 
 const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -154,8 +152,8 @@ export default function WhatsAppManager() {
 
   if (authLoading || loading) {
     return (
-      <DashboardLayout>
-        <div className="space-y-6 p-6">
+      <div className="min-h-screen bg-background">
+        <div className="max-w-5xl mx-auto p-6 space-y-6">
           <Skeleton className="h-8 w-64" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map(i => (
@@ -163,22 +161,31 @@ export default function WhatsAppManager() {
             ))}
           </div>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-8 p-6">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-5xl mx-auto p-6 space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-3">
-            <MessageSquare className="w-7 h-7 text-metric-positive" />
-            WhatsApp Manager
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Conecte seu WhatsApp e configure envios automáticos para todos os seus projetos
-          </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to="/projects">
+              <Button variant="ghost" size="icon" className="hover:bg-muted">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div className="flex items-center gap-3">
+              <img src={whatsappIcon} alt="WhatsApp" className="w-10 h-10" />
+              <div>
+                <h1 className="text-2xl font-bold">WhatsApp Manager</h1>
+                <p className="text-muted-foreground text-sm">
+                  Conecte seu WhatsApp e configure envios automáticos para todos os seus projetos
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Connections Section */}
@@ -198,6 +205,7 @@ export default function WhatsAppManager() {
                 onClick={() => setNewInstanceDialogOpen(true)}
                 disabled={!canCreateInstance || creating}
                 size="sm"
+                className="bg-[#25D366] hover:bg-[#20BD5A] text-white"
               >
                 {creating ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Criando...</>
@@ -282,7 +290,7 @@ export default function WhatsAppManager() {
                         <Badge 
                           variant={status === 'active' ? 'default' : 'secondary'}
                           className={
-                            status === 'active' ? 'bg-metric-positive/20 text-metric-positive border-metric-positive/30' :
+                            status === 'active' ? 'bg-[#25D366]/20 text-[#25D366] border-[#25D366]/30' :
                             status === 'disconnected' ? 'bg-metric-warning/20 text-metric-warning border-metric-warning/30' :
                             status === 'disabled' ? 'bg-muted text-muted-foreground' :
                             ''
@@ -326,7 +334,10 @@ export default function WhatsAppManager() {
       <Dialog open={newInstanceDialogOpen} onOpenChange={setNewInstanceDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova Conexão WhatsApp</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <img src={whatsappIcon} alt="WhatsApp" className="w-6 h-6" />
+              Nova Conexão WhatsApp
+            </DialogTitle>
             <DialogDescription>
               Digite um nome para identificar esta conexão
             </DialogDescription>
@@ -343,7 +354,11 @@ export default function WhatsAppManager() {
             <Button variant="outline" onClick={() => setNewInstanceDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleCreateInstance} disabled={creating}>
+            <Button 
+              onClick={handleCreateInstance} 
+              disabled={creating}
+              className="bg-[#25D366] hover:bg-[#20BD5A] text-white"
+            >
               {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar'}
             </Button>
           </DialogFooter>
@@ -375,6 +390,6 @@ export default function WhatsAppManager() {
           onListGroups={listGroups}
         />
       )}
-    </DashboardLayout>
+    </div>
   );
 }
