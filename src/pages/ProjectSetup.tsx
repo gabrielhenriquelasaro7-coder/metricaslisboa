@@ -24,7 +24,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import v4LogoIcon from '@/assets/v4-logo-icon.png';
+import v4LogoIcon from '@/assets/v4-logo-icon-small.png';
 
 // Metric definitions
 const RESULT_METRICS = [
