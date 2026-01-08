@@ -21,7 +21,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Save, Smartphone, Users, Calendar, Clock, Wallet, Eye, Edit3 } from 'lucide-react';
+import { Loader2, Save, Smartphone, Users, Calendar, Clock, Wallet, Eye, Edit3, Send, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import type { ManagerInstance, ReportConfig, WhatsAppGroup } from '@/hooks/useWhatsAppManager';
 import { WhatsAppGroupSelector } from './WhatsAppGroupSelector';
 
@@ -104,6 +106,8 @@ export function ProjectReportConfigDialog({
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [editingMessage, setEditingMessage] = useState(false);
+  const [testingReport, setTestingReport] = useState(false);
+  const [testingBalanceAlert, setTestingBalanceAlert] = useState(false);
 
   // Form state
   const [instanceId, setInstanceId] = useState<string | null>(existingConfig?.instance_id || null);
@@ -195,6 +199,85 @@ export function ProjectReportConfigDialog({
       setGroups(groupList);
     } finally {
       setLoadingGroups(false);
+    }
+  };
+
+  const getTargetNumber = () => {
+    if (targetType === 'phone') {
+      return phoneNumber.replace(/\D/g, '');
+    }
+    return groupId || '';
+  };
+
+  const handleTestReport = async () => {
+    if (!instanceId) return;
+    
+    const target = getTargetNumber();
+    if (!target) {
+      toast.error('Configure o número ou grupo de destino primeiro');
+      return;
+    }
+
+    setTestingReport(true);
+    try {
+      const instance = instances.find(i => i.id === instanceId);
+      if (!instance) throw new Error('Instância não encontrada');
+
+      const messageToSend = messageTemplate || previewMessage;
+
+      const { data, error } = await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          instanceId,
+          instanceName: instance.instance_name,
+          phone: targetType === 'phone' ? target : undefined,
+          groupId: targetType === 'group' ? target : undefined,
+          message: `🧪 *TESTE DE RELATÓRIO*\n\n${messageToSend}`,
+        }
+      });
+
+      if (error) throw error;
+      toast.success('Mensagem de teste enviada com sucesso!');
+    } catch (error: any) {
+      console.error('Error sending test report:', error);
+      toast.error('Erro ao enviar teste: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setTestingReport(false);
+    }
+  };
+
+  const handleTestBalanceAlert = async () => {
+    if (!instanceId) return;
+    
+    const target = getTargetNumber();
+    if (!target) {
+      toast.error('Configure o número ou grupo de destino primeiro');
+      return;
+    }
+
+    setTestingBalanceAlert(true);
+    try {
+      const instance = instances.find(i => i.id === instanceId);
+      if (!instance) throw new Error('Instância não encontrada');
+
+      const alertMessage = `⚠️ *TESTE DE ALERTA DE SALDO*\n\n🚨 *Atenção: Saldo Baixo!*\n\n📊 Projeto: ${project.name}\n💰 Saldo atual: R$ 150,00\n📅 Duração estimada: 2 dias\n\n_Este é um teste do sistema de alertas_`;
+
+      const { data, error } = await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          instanceId,
+          instanceName: instance.instance_name,
+          phone: targetType === 'phone' ? target : undefined,
+          groupId: targetType === 'group' ? target : undefined,
+          message: alertMessage,
+        }
+      });
+
+      if (error) throw error;
+      toast.success('Alerta de teste enviado com sucesso!');
+    } catch (error: any) {
+      console.error('Error sending test balance alert:', error);
+      toast.error('Erro ao enviar teste: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setTestingBalanceAlert(false);
     }
   };
 
@@ -446,62 +529,107 @@ export function ProjectReportConfigDialog({
                   <div className="flex items-center justify-between">
                     <Label className="flex items-center gap-2">
                       <Eye className="w-4 h-4" />
-                      Preview da Mensagem
+                      Mensagem do Relatório
                     </Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingMessage(!editingMessage)}
-                      className="gap-2"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      {editingMessage ? 'Ver Preview' : 'Editar'}
-                    </Button>
                   </div>
                   
-                  {editingMessage ? (
-                    <div className="space-y-2">
-                      <Textarea
-                        placeholder="Personalize a mensagem do relatório. Use *texto* para negrito e _texto_ para itálico."
-                        value={messageTemplate}
-                        onChange={(e) => setMessageTemplate(e.target.value)}
-                        rows={8}
-                        className="font-mono text-sm"
-                      />
+                  {/* Custom message editor - always visible */}
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="Personalize a mensagem do relatório. Use *texto* para negrito e _texto_ para itálico. Deixe vazio para usar o modelo automático com as métricas selecionadas."
+                      value={messageTemplate}
+                      onChange={(e) => setMessageTemplate(e.target.value)}
+                      rows={6}
+                      className="text-sm"
+                    />
+                    <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">
-                        💡 Deixe vazio para usar o modelo padrão com as métricas selecionadas
+                        💡 Deixe vazio para usar o modelo automático
                       </p>
                       {messageTemplate && (
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           onClick={() => setMessageTemplate('')}
+                          className="text-xs"
                         >
                           Restaurar padrão
                         </Button>
                       )}
                     </div>
-                  ) : (
-                    <div className="bg-[#0b141a] rounded-lg p-4 border border-border/50">
-                      <div className="bg-[#005c4b] rounded-lg p-3 max-w-[85%] ml-auto">
-                        <pre className="text-sm text-white whitespace-pre-wrap font-sans leading-relaxed">
-                          {previewMessage}
-                        </pre>
-                        <span className="text-[10px] text-white/60 float-right mt-1">
-                          {reportTime} ✓✓
-                        </span>
+                  </div>
+
+                  {/* Preview toggle */}
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPreview(!showPreview)}
+                      className="gap-2 w-full"
+                    >
+                      <Eye className="w-4 h-4" />
+                      {showPreview ? 'Ocultar Preview' : 'Ver Preview'}
+                    </Button>
+                    
+                    {showPreview && (
+                      <div className="bg-[#0b141a] rounded-lg p-4 border border-border/50">
+                        <div className="bg-[#005c4b] rounded-lg p-3 max-w-[85%] ml-auto">
+                          <pre className="text-sm text-white whitespace-pre-wrap font-sans leading-relaxed">
+                            {previewMessage}
+                          </pre>
+                          <span className="text-[10px] text-white/60 float-right mt-1">
+                            {reportTime} ✓✓
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+
+                  {/* Test buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTestReport}
+                      disabled={testingReport || !instanceId}
+                      className="flex-1 gap-2"
+                    >
+                      {testingReport ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                      Testar Relatório
+                    </Button>
+                    
+                    {balanceAlertEnabled && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleTestBalanceAlert}
+                        disabled={testingBalanceAlert || !instanceId}
+                        className="flex-1 gap-2"
+                      >
+                        {testingBalanceAlert ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4" />
+                        )}
+                        Testar Alerta Saldo
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </>
             )}
           </div>
         </div>
 
-        <DialogFooter className="pt-4 border-t">
+        <DialogFooter className="flex-shrink-0 pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
