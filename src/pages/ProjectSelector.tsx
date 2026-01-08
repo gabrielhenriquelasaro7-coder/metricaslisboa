@@ -10,14 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { SkeletonCard, SkeletonProfileCard } from '@/components/ui/skeleton-card';
+import { SkeletonCard } from '@/components/ui/skeleton-card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Plus, 
-  FolderKanban, 
   Users, 
   Store,
   Loader2,
@@ -29,37 +28,27 @@ import {
   ShieldCheck,
   AlertTriangle,
   AlertCircle,
-  Zap,
-  Clock,
-  TrendingUp,
   ChevronRight,
+  ChevronDown,
   MoreVertical,
   Pencil,
   ArchiveRestore,
-  Timer,
-  CheckCircle2,
   Camera,
-  ImagePlus,
   Lock,
   Mail,
   Briefcase,
   Save,
-  Sparkles,
-  LayoutGrid,
-  List,
   Search,
-  Settings2,
   Target,
-  UserPlus,
-  Shield,
   GraduationCap,
+  TrendingUp,
   MessageSquare
 } from 'lucide-react';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { formatDistanceToNow, addHours } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   DropdownMenu,
@@ -69,8 +58,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import v4LogoFull from '@/assets/v4-logo-full.png';
-import v4LogoIcon from '@/assets/v4-logo-icon.png';
+import whatsappIcon from '@/assets/whatsapp-icon.png';
 
 const cargoOptions: { value: UserCargo; label: string }[] = [
   { value: 'gestor_trafego', label: 'Gestor de Tráfego' },
@@ -89,294 +77,80 @@ const businessModels: { value: BusinessModel; label: string; description: string
 
 type ExtendedHealthScore = HealthScore | 'undefined';
 
-const healthScoreOptions: { value: ExtendedHealthScore; label: string; bgColor: string; textColor: string; borderColor: string; gradientFrom: string; gradientTo: string; glowColor: string; icon: typeof ShieldCheck }[] = [
-  { value: 'safe', label: 'Safe', bgColor: 'bg-emerald-500/20', textColor: 'text-emerald-400', borderColor: 'border-emerald-500/60', gradientFrom: 'from-emerald-500/10', gradientTo: 'to-teal-500/5', glowColor: 'shadow-emerald-500/20', icon: ShieldCheck },
-  { value: 'care', label: 'Care', bgColor: 'bg-amber-500/20', textColor: 'text-amber-400', borderColor: 'border-amber-500/60', gradientFrom: 'from-amber-500/10', gradientTo: 'to-orange-500/5', glowColor: 'shadow-amber-500/20', icon: AlertTriangle },
-  { value: 'danger', label: 'Danger', bgColor: 'bg-red-500/20', textColor: 'text-red-400', borderColor: 'border-red-500/60', gradientFrom: 'from-red-500/10', gradientTo: 'to-rose-500/5', glowColor: 'shadow-red-500/20', icon: AlertCircle },
-  { value: 'undefined', label: 'Indefinido', bgColor: 'bg-slate-500/20', textColor: 'text-slate-400', borderColor: 'border-slate-500/40', gradientFrom: 'from-slate-500/5', gradientTo: 'to-gray-500/5', glowColor: 'shadow-slate-500/10', icon: AlertCircle },
-];
-
-const businessModelColors: Record<BusinessModel, { bgColor: string; textColor: string; iconColor: string }> = {
-  inside_sales: { bgColor: 'bg-blue-500/15', textColor: 'text-blue-400', iconColor: 'text-blue-400' },
-  ecommerce: { bgColor: 'bg-emerald-500/15', textColor: 'text-emerald-400', iconColor: 'text-emerald-400' },
-  infoproduto: { bgColor: 'bg-orange-500/15', textColor: 'text-orange-400', iconColor: 'text-orange-400' },
-  pdv: { bgColor: 'bg-purple-500/15', textColor: 'text-purple-400', iconColor: 'text-purple-400' },
-  custom: { bgColor: 'bg-primary/15', textColor: 'text-primary', iconColor: 'text-primary' },
-};
-
-interface ProjectCardProps {
+// Industrial Client Card
+interface ClientCardProps {
   project: Project;
-  health?: ProjectHealth;
   onSelect: (project: Project) => void;
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
   onArchive: (project: Project) => void;
   onUnarchive: (project: Project) => void;
   onResync: (project: Project) => void;
+  onWhatsApp: (project: Project) => void;
 }
 
-function ProjectCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: Omit<ProjectCardProps, 'health'>) {
+function ClientCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync, onWhatsApp }: ClientCardProps) {
   const model = businessModels.find(m => m.value === project.business_model);
-  const Icon = model?.icon || Users;
-  const modelColors = businessModelColors[project.business_model];
-  
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
-  const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore) || healthScoreOptions[3];
-  
   const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
 
-  // Health indicator colors (small dot only)
-  const healthDotColor = {
-    safe: 'bg-emerald-500',
-    care: 'bg-amber-500',
-    danger: 'bg-red-500',
-    undefined: 'bg-slate-500',
+  const statusConfig = {
+    safe: { color: 'bg-emerald-500', border: 'border-emerald-500/30' },
+    care: { color: 'bg-amber-500', border: 'border-amber-500/30' },
+    danger: { color: 'bg-red-500', border: 'border-red-500/30' },
+    undefined: { color: 'bg-zinc-600', border: 'border-zinc-600/30' },
   }[displayHealthScore];
 
   return (
     <div 
       className={cn(
-        "group relative overflow-hidden rounded-xl transition-all duration-500 cursor-pointer",
-        "bg-gradient-to-br from-card via-card to-card/90",
-        "border-2 border-primary/20 hover:border-primary/60",
-        "hover:-translate-y-2",
-        "shadow-[0_4px_20px_-5px_hsl(var(--primary)/0.15)]",
-        "hover:shadow-[0_20px_50px_-12px_hsl(var(--primary)/0.4)]",
-        project.archived && 'opacity-50 grayscale-[30%]'
-      )}
-      onClick={() => onSelect(project)}
-    >
-      {/* Animated corner accents */}
-      <div className="absolute top-0 left-0 w-8 h-[2px] bg-gradient-to-r from-primary to-transparent" />
-      <div className="absolute top-0 left-0 h-8 w-[2px] bg-gradient-to-b from-primary to-transparent" />
-      <div className="absolute bottom-0 right-0 w-8 h-[2px] bg-gradient-to-l from-primary to-transparent" />
-      <div className="absolute bottom-0 right-0 h-8 w-[2px] bg-gradient-to-t from-primary to-transparent" />
-      
-      {/* Glowing border effect on hover */}
-      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
-        <div className="absolute inset-[-2px] rounded-xl bg-gradient-to-r from-primary via-primary/50 to-primary" style={{ filter: 'blur(4px)', opacity: 0.6 }} />
-      </div>
-      
-      {/* Top accent line with animation */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent group-hover:w-2/3 transition-all duration-500" />
-      
-      {/* Subtle inner glow */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-primary/5 opacity-50 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-      {/* Content */}
-      <div className="relative p-5 bg-gradient-to-br from-card/95 via-card to-card/90 rounded-xl backdrop-blur-sm">
-        {/* Header Row */}
-        <div className="flex items-start gap-4 mb-4">
-          {/* Avatar with glow on hover */}
-          <div className={cn(
-            "relative w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden",
-            "bg-secondary/80 border border-border/50",
-            "transition-all duration-500 group-hover:scale-110 group-hover:border-primary/30",
-            "group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
-          )}>
-            {project.avatar_url ? (
-              <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
-            ) : (
-              <Icon className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
-            )}
-          </div>
-          
-          {/* Title & Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1.5">
-              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300 truncate" title={project.name}>
-                {project.name}
-              </h3>
-              {/* Health indicator dot with glow */}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className={cn(
-                      "w-2.5 h-2.5 rounded-full flex-shrink-0 transition-all duration-300",
-                      healthDotColor,
-                      "group-hover:scale-125 group-hover:shadow-[0_0_8px_currentColor]"
-                    )} />
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs">
-                    Health: {healthOption.label}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={cn(
-                "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium",
-                "bg-secondary/80 text-muted-foreground",
-                "group-hover:bg-primary/10 group-hover:text-primary/90 transition-colors duration-300"
-              )}>
-                <Icon className="w-3 h-3" />
-                {model?.label}
-              </span>
-              <span className="text-xs text-muted-foreground font-mono bg-secondary/50 px-2 py-1 rounded-md group-hover:bg-secondary/80 transition-colors duration-300">
-                {project.ad_account_id.replace('act_', '')}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-border/30 group-hover:border-primary/20 transition-colors duration-300">
-          {/* Sync Status */}
-          <div className={cn(
-            "flex items-center gap-1.5 text-xs transition-colors duration-300",
-            lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
-              ? "text-emerald-500" 
-              : "text-muted-foreground group-hover:text-muted-foreground/80"
-          )}>
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca'}</span>
-          </div>
-          
-          {/* Actions */}
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(project);
-              }}
-              className="text-primary hover:bg-primary/15 hover:text-primary gap-1 h-8 px-3 text-xs font-semibold transition-all duration-300"
-            >
-              Acessar
-              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-secondary/80 hover:text-primary transition-colors duration-300">
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer">
-                  <Pencil className="w-4 h-4" />
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer">
-                  <RefreshCw className="w-4 h-4" />
-                  Re-sincronizar
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {project.archived ? (
-                  <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer">
-                    <ArchiveRestore className="w-4 h-4" />
-                    Restaurar
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer">
-                    <Archive className="w-4 h-4" />
-                    Arquivar
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
-                  <Trash2 className="w-4 h-4" />
-                  Excluir
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync }: Omit<ProjectCardProps, 'health'>) {
-  const model = businessModels.find(m => m.value === project.business_model);
-  const Icon = model?.icon || Users;
-  
-  const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
-  const healthOption = healthScoreOptions.find(h => h.value === displayHealthScore) || healthScoreOptions[3];
-  
-  const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
-
-  // Health indicator colors (small dot only)
-  const healthDotColor = {
-    safe: 'bg-emerald-500',
-    care: 'bg-amber-500',
-    danger: 'bg-red-500',
-    undefined: 'bg-slate-500',
-  }[displayHealthScore];
-
-  return (
-    <div 
-      className={cn(
-        "group relative flex items-center gap-4 overflow-hidden rounded-lg transition-all duration-500 cursor-pointer",
-        "bg-gradient-to-r from-card via-card to-card/90",
-        "border-2 border-primary/15 hover:border-primary/50 p-4",
-        "shadow-[0_2px_15px_-5px_hsl(var(--primary)/0.15)]",
-        "hover:shadow-[0_8px_30px_-10px_hsl(var(--primary)/0.35)]",
-        "hover:bg-primary/5",
+        "group bg-zinc-900/80 border rounded-lg p-4 transition-all duration-200",
+        "hover:bg-zinc-800/80 cursor-pointer",
+        statusConfig.border,
         project.archived && 'opacity-50'
       )}
-      onClick={() => onSelect(project)}
     >
-      {/* Left accent bar - always visible */}
-      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-primary/60 via-primary to-primary/60 group-hover:shadow-[0_0_10px_hsl(var(--primary)/0.5)] transition-all duration-500" />
-
-      {/* Avatar with glow */}
-      <div className={cn(
-        "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden ml-2",
-        "bg-secondary border border-primary/20 hover:border-primary/40",
-        "transition-all duration-500 group-hover:border-primary/40 group-hover:shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
-      )}>
-        {project.avatar_url ? (
-          <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
-        ) : (
-          <Icon className="w-5 h-5 text-primary/60 group-hover:text-primary transition-colors duration-300" />
-        )}
-      </div>
+      {/* Status indicator line */}
+      <div className={cn("absolute top-0 left-0 w-1 h-full rounded-l-lg", statusConfig.color)} />
       
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors duration-300 truncate">
-            {project.name}
-          </h3>
-          {/* Health indicator dot with glow */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className={cn(
-                  "w-2 h-2 rounded-full flex-shrink-0 transition-all duration-300",
-                  healthDotColor,
-                  "shadow-[0_0_4px_currentColor] group-hover:scale-125 group-hover:shadow-[0_0_8px_currentColor]"
-                )} />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                Health: {healthOption.label}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+      <div className="flex items-start gap-4">
+        {/* Avatar */}
+        <div className="w-10 h-10 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          {project.avatar_url ? (
+            <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-sm font-semibold text-zinc-400">{project.name.charAt(0).toUpperCase()}</span>
+          )}
         </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1 bg-primary/10 text-primary/80 px-2 py-0.5 rounded group-hover:bg-primary/15 transition-colors duration-300">
-            <Icon className="w-3 h-3" />
-            {model?.label}
-          </span>
-          <span className="font-mono text-primary/50">{project.ad_account_id.replace('act_', '')}</span>
-          <div className={cn(
-            "flex items-center gap-1 transition-colors duration-300",
-            lastSyncDate && (Date.now() - lastSyncDate.getTime() < 24 * 60 * 60 * 1000) 
-              ? "text-emerald-500" 
-              : "text-muted-foreground"
-          )}>
+        
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-semibold text-zinc-100 truncate">{project.name}</h3>
+            <div className={cn("w-2 h-2 rounded-full flex-shrink-0", statusConfig.color)} />
+          </div>
+          
+          <div className="flex items-center gap-3 text-xs text-zinc-500">
+            <span>{model?.label || 'N/A'}</span>
+            <span className="text-zinc-600">•</span>
+            <span className="font-mono">{project.ad_account_id.replace('act_', '')}</span>
+          </div>
+          
+          {/* Sync status */}
+          <div className="flex items-center gap-1.5 mt-2 text-xs text-zinc-500">
             <RefreshCw className="w-3 h-3" />
-            <span>{lastSyncDate ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR }) : 'Nunca'}</span>
+            <span>
+              {lastSyncDate 
+                ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR })
+                : 'Nunca sincronizado'
+              }
+            </span>
           </div>
         </div>
       </div>
       
       {/* Actions */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-zinc-800">
         <Button
           variant="ghost"
           size="sm"
@@ -384,41 +158,54 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
             e.stopPropagation();
             onSelect(project);
           }}
-          className="text-primary hover:bg-primary/15 hover:text-primary gap-1 h-8 px-3 text-xs font-semibold transition-all duration-300"
+          className="flex-1 h-8 text-xs font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 border border-zinc-700"
         >
           Acessar
-          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+          <ChevronRight className="w-3 h-3 ml-1" />
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onWhatsApp(project);
+          }}
+          className="flex-1 h-8 text-xs font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 border border-zinc-700 gap-1.5"
+        >
+          <img src={whatsappIcon} alt="WhatsApp" className="w-3.5 h-3.5" />
+          WhatsApp
         </Button>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors duration-300">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800">
               <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer">
+          <DropdownMenuContent align="end" className="w-40 bg-zinc-900 border-zinc-800" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
               <Pencil className="w-4 h-4" />
               Editar
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer">
+            <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
               <RefreshCw className="w-4 h-4" />
               Re-sincronizar
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="bg-zinc-800" />
             {project.archived ? (
-              <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer">
+              <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
                 <ArchiveRestore className="w-4 h-4" />
                 Restaurar
               </DropdownMenuItem>
             ) : (
-              <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer">
+              <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
                 <Archive className="w-4 h-4" />
                 Arquivar
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+            <DropdownMenuSeparator className="bg-zinc-800" />
+            <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-400 focus:text-red-400">
               <Trash2 className="w-4 h-4" />
               Excluir
             </DropdownMenuItem>
@@ -429,6 +216,81 @@ function ProjectListItem({ project, onSelect, onEdit, onDelete, onArchive, onUna
   );
 }
 
+// Collapsible Status Group
+interface StatusGroupProps {
+  status: ExtendedHealthScore;
+  projects: Project[];
+  defaultOpen?: boolean;
+  onSelect: (project: Project) => void;
+  onEdit: (project: Project) => void;
+  onDelete: (project: Project) => void;
+  onArchive: (project: Project) => void;
+  onUnarchive: (project: Project) => void;
+  onResync: (project: Project) => void;
+  onWhatsApp: (project: Project) => void;
+}
+
+function StatusGroup({ status, projects, defaultOpen = false, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync, onWhatsApp }: StatusGroupProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  
+  if (projects.length === 0) return null;
+
+  const config = {
+    safe: { label: 'SAFE', icon: ShieldCheck, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+    care: { label: 'CARE', icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' },
+    danger: { label: 'DANGER', icon: AlertCircle, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
+    undefined: { label: 'SEM STATUS', icon: AlertCircle, color: 'text-zinc-400', bg: 'bg-zinc-500/10', border: 'border-zinc-500/30' },
+  }[status];
+
+  const Icon = config.icon;
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-4">
+      <CollapsibleTrigger asChild>
+        <button className={cn(
+          "w-full flex items-center justify-between p-3 rounded-lg transition-colors",
+          "bg-zinc-900/50 border hover:bg-zinc-900/80",
+          config.border
+        )}>
+          <div className="flex items-center gap-3">
+            <div className={cn("p-1.5 rounded", config.bg)}>
+              <Icon className={cn("w-4 h-4", config.color)} />
+            </div>
+            <span className={cn("font-semibold text-sm tracking-wide", config.color)}>
+              {config.label}
+            </span>
+            <span className="text-xs text-zinc-500 font-medium">
+              ({projects.length})
+            </span>
+          </div>
+          <ChevronDown className={cn(
+            "w-4 h-4 text-zinc-500 transition-transform",
+            isOpen && "rotate-180"
+          )} />
+        </button>
+      </CollapsibleTrigger>
+      
+      <CollapsibleContent className="pt-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {projects.map(project => (
+            <ClientCard
+              key={project.id}
+              project={project}
+              onSelect={onSelect}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onArchive={onArchive}
+              onUnarchive={onUnarchive}
+              onResync={onResync}
+              onWhatsApp={onWhatsApp}
+            />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 export default function ProjectSelector() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { projects, loading: projectsLoading, createProject, updateProject, deleteProject, archiveProject, unarchiveProject, resyncProject, refetch } = useProjects();
@@ -436,30 +298,34 @@ export default function ProjectSelector() {
   const { profile, updateProfile, updatePassword, uploadAvatar: uploadProfileAvatar } = useProfile();
   const { isGuest } = useUserRole();
   const navigate = useNavigate();
+  
+  // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [activeTab, setActiveTab] = useState('meta-ads');
+  
+  // Filters
   const [showArchived, setShowArchived] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [healthFilter, setHealthFilter] = useState<ExtendedHealthScore | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Avatar states
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const editAvatarInputRef = useRef<HTMLInputElement>(null);
-  const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   
-  // Guest invite dialog state
+  // Guest invite
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteProjectId, setInviteProjectId] = useState<string | undefined>();
   const [inviteProjectName, setInviteProjectName] = useState<string | undefined>();
   
-  // Profile editing state
+  // Profile editing
   const [profileName, setProfileName] = useState('');
   const [profileCargo, setProfileCargo] = useState<UserCargo>(null);
   const [profileAvatarPreview, setProfileAvatarPreview] = useState<string | null>(null);
@@ -467,8 +333,8 @@ export default function ProjectSelector() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const profileAvatarInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize profile form data
   useEffect(() => {
     if (profile) {
       setProfileName(profile.full_name || '');
@@ -487,6 +353,7 @@ export default function ProjectSelector() {
     avatar_url: null,
     google_customer_id: '',
   });
+  
   const [editFormData, setEditFormData] = useState<{
     name: string;
     ad_account_id: string;
@@ -511,26 +378,31 @@ export default function ProjectSelector() {
     }
   }, [user, authLoading, navigate]);
 
+  // Filter projects
   const activeProjects = projects.filter(p => !p.archived);
   const archivedProjects = projects.filter(p => p.archived);
+  const displayProjects = showArchived ? archivedProjects : activeProjects;
   
-  // Filter projects by platform: Meta Ads (has ad_account_id), Google Ads (has google_customer_id)
-  const metaAdsProjects = activeProjects.filter(p => p.ad_account_id && !p.google_customer_id);
-  const googleAdsProjects = activeProjects.filter(p => p.google_customer_id);
-  const archivedMetaProjects = archivedProjects.filter(p => p.ad_account_id && !p.google_customer_id);
-  const archivedGoogleProjects = archivedProjects.filter(p => p.google_customer_id);
-  
-  // Filtered projects based on health score filter and search query
-  const filteredMetaProjects = (showArchived ? archivedMetaProjects : metaAdsProjects)
+  const filteredProjects = displayProjects
     .filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter)
-    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  const filteredGoogleProjects = (showArchived ? archivedGoogleProjects : googleAdsProjects)
-    .filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter)
-    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  const filteredActiveProjects = activeProjects
-    .filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter)
-    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  const filteredArchivedProjects = archivedProjects
+    .filter(p => 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.ad_account_id.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+  // Group by status
+  const safeProjects = filteredProjects.filter(p => p.health_score === 'safe');
+  const careProjects = filteredProjects.filter(p => p.health_score === 'care');
+  const dangerProjects = filteredProjects.filter(p => p.health_score === 'danger');
+  const undefinedProjects = filteredProjects.filter(p => !p.health_score);
+
+  // Health counts
+  const healthCounts = {
+    total: activeProjects.length,
+    safe: activeProjects.filter(p => p.health_score === 'safe').length,
+    care: activeProjects.filter(p => p.health_score === 'care').length,
+    danger: activeProjects.filter(p => p.health_score === 'danger').length,
+  };
 
   const handleSelectProject = (project: Project) => {
     localStorage.setItem('selectedProjectId', project.id);
@@ -568,7 +440,6 @@ export default function ProjectSelector() {
         });
         setAvatarPreview(null);
         
-        // If custom project, redirect to setup page
         if (formData.business_model === 'custom') {
           navigate(`/project-setup/${project.id}`);
         }
@@ -626,7 +497,6 @@ export default function ProjectSelector() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Preview
     const reader = new FileReader();
     reader.onloadend = () => {
       if (isEdit) {
@@ -637,7 +507,6 @@ export default function ProjectSelector() {
     };
     reader.readAsDataURL(file);
 
-    // Upload
     const url = await uploadAvatar(file, isEdit && selectedProject ? selectedProject.id : undefined);
     if (url) {
       if (isEdit) {
@@ -691,6 +560,10 @@ export default function ProjectSelector() {
     await resyncProject(project);
   };
 
+  const handleWhatsApp = (project: Project) => {
+    navigate('/whatsapp-manager');
+  };
+
   const handleProfileAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -714,6 +587,7 @@ export default function ProjectSelector() {
         full_name: profileName,
         cargo: profileCargo,
       });
+      toast.success('Perfil atualizado!');
     } catch (error) {
       console.error('Error updating profile:', error);
     } finally {
@@ -736,6 +610,7 @@ export default function ProjectSelector() {
       await updatePassword(newPassword);
       setNewPassword('');
       setConfirmPassword('');
+      toast.success('Senha alterada com sucesso!');
     } catch (error) {
       console.error('Error changing password:', error);
     } finally {
@@ -753,1023 +628,499 @@ export default function ProjectSelector() {
     }
   };
 
-  // Floating Particle Component - subtle, same as Auth
-  const Particle = ({ delay, duration, size, x, y }: { delay: number; duration: number; size: number; x: number; y: number }) => (
-    <div
-      className="absolute rounded-full bg-white/8 animate-float"
-      style={{
-        width: size,
-        height: size,
-        left: `${x}%`,
-        top: `${y}%`,
-        animationDelay: `${delay}s`,
-        animationDuration: `${duration}s`,
-        filter: 'blur(0.5px)',
-      }}
-    />
-  );
-
-  // Generate particles
-  const particles = Array.from({ length: 15 }, (_, i) => ({
-    id: i,
-    delay: Math.random() * 5,
-    duration: 4 + Math.random() * 4,
-    size: 4 + Math.random() * 6,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-  }));
-
   if (authLoading || projectsLoading) {
     return (
-      <div className="min-h-screen bg-background relative overflow-hidden">
-        {/* Background effects */}
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] animate-pulse-slow" />
-        </div>
-        
-        {/* Loading skeleton */}
-        <div className="relative z-10 container mx-auto px-6 pt-12">
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-20 h-20 rounded-2xl bg-muted/20 animate-pulse mb-4" />
-            <div className="h-6 w-48 bg-muted/20 rounded animate-pulse mb-2" />
-            <div className="h-4 w-32 bg-muted/10 rounded animate-pulse" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 max-w-6xl mx-auto">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        </div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-zinc-500 animate-spin" />
       </div>
     );
   }
 
-  // Count projects by health score
-  const healthCounts = {
-    total: activeProjects.length,
-    safe: activeProjects.filter(p => p.health_score === 'safe').length,
-    care: activeProjects.filter(p => p.health_score === 'care').length,
-    danger: activeProjects.filter(p => p.health_score === 'danger').length,
-  };
-
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Gradient Background - same as Auth, stronger red */}
-      <div className="fixed inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#2a0a0a] to-[#5c1010] pointer-events-none" />
-      
-      {/* Secondary gradient overlay for depth */}
-      <div className="fixed inset-0 bg-gradient-to-tl from-red-800/40 via-transparent to-transparent pointer-events-none" />
+    <div className="min-h-screen bg-black text-zinc-100">
+      {/* Header - 56px slim */}
+      <header className="h-14 border-b border-zinc-800 bg-black/95 backdrop-blur-sm sticky top-0 z-50">
+        <div className="h-full max-w-[1600px] mx-auto px-6 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center">
+              <span className="text-sm font-bold text-zinc-100">M</span>
+            </div>
+            <span className="text-sm font-semibold text-zinc-100 tracking-tight">MetaAds Manager</span>
+          </div>
+          
+          {/* Navigation */}
+          <nav className="flex items-center gap-1">
+            <button className="px-4 py-2 text-sm font-medium text-zinc-100 bg-zinc-800 rounded transition-colors">
+              Meta Ads
+            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button className="px-4 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-400 rounded transition-colors flex items-center gap-2">
+                    <Lock className="w-3 h-3" />
+                    Google Ads
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-zinc-800 border-zinc-700 text-zinc-300">
+                  Em breve
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <button 
+              onClick={() => navigate('/whatsapp-manager')}
+              className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 rounded transition-colors flex items-center gap-2"
+            >
+              <img src={whatsappIcon} alt="" className="w-4 h-4" />
+              WhatsApp
+            </button>
+            <button 
+              onClick={() => setProfileDialogOpen(true)}
+              className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 rounded transition-colors flex items-center gap-2"
+            >
+              <User className="w-4 h-4" />
+              Perfil
+            </button>
+          </nav>
+        </div>
+      </header>
 
-      {/* Floating Particles - same as Auth */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        {particles.map((p) => (
-          <Particle key={p.id} {...p} />
-        ))}
+      {/* Status Bar */}
+      <div className="border-b border-zinc-800/50 bg-zinc-900/30">
+        <div className="max-w-[1600px] mx-auto px-6 py-3">
+          <div className="flex items-center gap-8 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-500">Clientes Ativos</span>
+              <span className="font-semibold text-zinc-100">{healthCounts.total}</span>
+            </div>
+            <div className="w-px h-4 bg-zinc-800" />
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-zinc-500">Safe</span>
+              <span className="font-semibold text-emerald-400">{healthCounts.safe}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              <span className="text-zinc-500">Care</span>
+              <span className="font-semibold text-amber-400">{healthCounts.care}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-red-500" />
+              <span className="text-zinc-500">Danger</span>
+              <span className="font-semibold text-red-400">{healthCounts.danger}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Subtle vignette effect */}
-      <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.3) 100%)' }} />
-
-      {/* Main Content */}
-      <div className="relative z-10">
-        {/* Header Section - Premium Design */}
-        <header className="container mx-auto px-6 pt-8 pb-4">
-          <div className="flex items-center justify-between">
-            {/* Logo with Enhanced Glow */}
-            <div className="flex items-center gap-4 group">
+      {/* Actions Bar */}
+      <div className="border-b border-zinc-800/50 bg-black">
+        <div className="max-w-[1600px] mx-auto px-6 py-3">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left - Search & Filter */}
+            <div className="flex items-center gap-3">
               <div className="relative">
-                {/* Glow effect behind logo */}
-                <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full opacity-60 group-hover:opacity-100 transition-opacity" />
-                <img 
-                  src={v4LogoIcon} 
-                  alt="V4 Company" 
-                  className="relative h-14 w-auto rounded-xl animate-float"
-                  style={{ filter: 'drop-shadow(0 0 25px rgba(255, 0, 0, 0.7)) saturate(2.5) brightness(1.3) contrast(1.1)' }}
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Input
+                  placeholder="Buscar cliente ou account ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 w-72 h-9 bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 rounded"
                 />
               </div>
-              <div className="flex flex-col">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text text-transparent">
-                  MetaAds Manager
-                </h1>
-                <span className="text-xs text-muted-foreground tracking-wider">by V4 Company</span>
-              </div>
+              
+              <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
+                <SelectTrigger className="w-36 h-9 bg-zinc-900 border-zinc-800 text-zinc-300">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="all" className="text-zinc-300">Todos</SelectItem>
+                  <SelectItem value="safe" className="text-emerald-400">Safe</SelectItem>
+                  <SelectItem value="care" className="text-amber-400">Care</SelectItem>
+                  <SelectItem value="danger" className="text-red-400">Danger</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
+            {/* Right - Actions */}
             <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                onClick={() => navigate('/admin')}
-                className="text-muted-foreground hover:text-primary hover:bg-primary/10 gap-2 rounded-xl transition-all hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+              {!isGuest && (
+                <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="h-9 px-4 bg-zinc-100 text-zinc-900 hover:bg-zinc-200 font-medium gap-2">
+                      <Plus className="w-4 h-4" />
+                      Novo Cliente
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-lg bg-zinc-900 border-zinc-800">
+                    <DialogHeader>
+                      <DialogTitle className="text-zinc-100">Criar novo cliente</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateProject} className="space-y-4 mt-4">
+                      {/* Avatar */}
+                      <div className="flex justify-center">
+                        <div 
+                          onClick={() => avatarInputRef.current?.click()}
+                          className="w-16 h-16 rounded-lg bg-zinc-800 border-2 border-dashed border-zinc-700 flex items-center justify-center cursor-pointer hover:border-zinc-600 transition-colors overflow-hidden"
+                        >
+                          {avatarPreview ? (
+                            <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Camera className="w-5 h-5 text-zinc-500" />
+                          )}
+                        </div>
+                        <input
+                          ref={avatarInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleAvatarChange(e)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-zinc-400">Nome do Cliente *</Label>
+                        <Input
+                          value={formData.name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="Ex: Empresa ABC"
+                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-zinc-400">Account ID *</Label>
+                        <Input
+                          value={formData.ad_account_id}
+                          onChange={(e) => setFormData(prev => ({ ...prev, ad_account_id: e.target.value }))}
+                          placeholder="act_123456789"
+                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-zinc-400">Modelo de Negócio</Label>
+                        <Select
+                          value={formData.business_model}
+                          onValueChange={(val) => setFormData(prev => ({ ...prev, business_model: val as BusinessModel }))}
+                        >
+                          <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-zinc-800 border-zinc-700">
+                            {businessModels.map(model => (
+                              <SelectItem key={model.value} value={model.value} className="text-zinc-100">
+                                {model.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex gap-3 pt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setCreateDialogOpen(false)}
+                          className="flex-1 border-zinc-700 text-zinc-400 hover:text-zinc-100"
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={isCreating}
+                          className="flex-1 bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+                        >
+                          {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Cliente'}
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowArchived(!showArchived)}
+                className={cn(
+                  "h-9 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800",
+                  showArchived && 'bg-zinc-800 text-zinc-100'
+                )}
               >
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
-              </Button>
-              <Button 
-                variant="ghost" 
-                onClick={handleLogout} 
-                className="text-muted-foreground hover:text-foreground hover:bg-card/50 gap-2 rounded-xl transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Sair</span>
+                <Archive className="w-4 h-4 mr-2" />
+                Arquivados
               </Button>
             </div>
           </div>
-        </header>
+        </div>
+      </div>
 
-        {/* Section Title */}
-        <div className="container mx-auto px-6 py-4">
-          <div className="max-w-4xl mx-auto text-center mb-2">
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground via-primary/80 to-foreground bg-clip-text text-transparent mb-2">
-              Seus Projetos
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              Gerencie e monitore suas campanhas de anúncios
+      {/* Client List */}
+      <main className="max-w-[1600px] mx-auto px-6 py-6">
+        {filteredProjects.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="w-16 h-16 rounded-xl bg-zinc-900 flex items-center justify-center mx-auto mb-4">
+              <Users className="w-8 h-8 text-zinc-600" />
+            </div>
+            <h3 className="text-lg font-medium text-zinc-400 mb-2">
+              {searchQuery ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
+            </h3>
+            <p className="text-sm text-zinc-600">
+              {searchQuery ? 'Tente buscar por outro termo' : 'Clique em "Novo Cliente" para começar'}
             </p>
           </div>
-        </div>
-
-        {/* Summary Cards - Enhanced Glass Effect */}
-        <div className="container mx-auto px-6 py-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-            {/* Total */}
-            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-primary/40 hover:shadow-[0_4px_30px_hsl(var(--primary)/0.15)]">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total de Clientes</p>
-                  <p className="text-3xl font-bold text-foreground mt-2 group-hover:text-primary transition-colors">{healthCounts.total}</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 transition-all">
-                  <FolderKanban className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-            </div>
-            
-            {/* Safe */}
-            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-emerald-500/40 hover:shadow-[0_4px_30px_hsl(150,80%,42%,0.15)]">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Safe</p>
-                  <p className="text-3xl font-bold text-emerald-400 mt-2">{healthCounts.safe}</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 group-hover:scale-110 transition-all">
-                  <ShieldCheck className="w-6 h-6 text-emerald-400" />
-                </div>
-              </div>
-            </div>
-            
-            {/* Care */}
-            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-amber-500/40 hover:shadow-[0_4px_30px_hsl(38,95%,50%,0.15)]">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Care</p>
-                  <p className="text-3xl font-bold text-amber-400 mt-2">{healthCounts.care}</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 group-hover:scale-110 transition-all">
-                  <AlertTriangle className="w-6 h-6 text-amber-400" />
-                </div>
-              </div>
-            </div>
-            
-            {/* Danger */}
-            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/80 to-card/40 border border-border/30 backdrop-blur-xl p-5 transition-all duration-300 hover:border-red-500/40 hover:shadow-[0_4px_30px_hsl(0,80%,55%,0.15)]">
-              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Danger</p>
-                  <p className="text-3xl font-bold text-red-400 mt-2">{healthCounts.danger}</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 group-hover:scale-110 transition-all">
-                  <AlertCircle className="w-6 h-6 text-red-400" />
-                </div>
-              </div>
-            </div>
+        ) : (
+          <div className="space-y-2">
+            <StatusGroup
+              status="safe"
+              projects={safeProjects}
+              defaultOpen={true}
+              onSelect={handleSelectProject}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
+              onArchive={(p) => archiveProject(p.id)}
+              onUnarchive={(p) => unarchiveProject(p.id)}
+              onResync={handleResync}
+              onWhatsApp={handleWhatsApp}
+            />
+            <StatusGroup
+              status="care"
+              projects={careProjects}
+              defaultOpen={false}
+              onSelect={handleSelectProject}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
+              onArchive={(p) => archiveProject(p.id)}
+              onUnarchive={(p) => unarchiveProject(p.id)}
+              onResync={handleResync}
+              onWhatsApp={handleWhatsApp}
+            />
+            <StatusGroup
+              status="danger"
+              projects={dangerProjects}
+              defaultOpen={false}
+              onSelect={handleSelectProject}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
+              onArchive={(p) => archiveProject(p.id)}
+              onUnarchive={(p) => unarchiveProject(p.id)}
+              onResync={handleResync}
+              onWhatsApp={handleWhatsApp}
+            />
+            <StatusGroup
+              status="undefined"
+              projects={undefinedProjects}
+              defaultOpen={false}
+              onSelect={handleSelectProject}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
+              onArchive={(p) => archiveProject(p.id)}
+              onUnarchive={(p) => unarchiveProject(p.id)}
+              onResync={handleResync}
+              onWhatsApp={handleWhatsApp}
+            />
           </div>
-        </div>
-
-        {/* Main Content */}
-        <main className="container mx-auto px-6 pb-8">
-          <div className="max-w-7xl mx-auto">
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              {/* Controls Bar - Glass effect */}
-              <div className="glass-card p-4 mb-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                {/* Left side - Search and filters */}
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Search Input */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar por nome ou account..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 w-64 h-10 bg-background border-border/50 rounded-lg"
-                    />
-                  </div>
-                  
-                  {/* Status Filter */}
-                  <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
-                    <SelectTrigger className="w-40 h-10 bg-background border-border/50">
-                      <SelectValue placeholder="Todos os Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os Status</SelectItem>
-                      <SelectItem value="safe">Safe</SelectItem>
-                      <SelectItem value="care">Care</SelectItem>
-                      <SelectItem value="danger">Danger</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Right side - Tabs and actions */}
-                <div className="flex items-center gap-3">
-                  <TabsList className="rounded-xl h-10 bg-secondary/50 p-1">
-                    <TabsTrigger 
-                      value="meta-ads" 
-                      className="gap-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
-                    >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
-                      </svg>
-                      Meta Ads
-                    </TabsTrigger>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gap-2 px-4 py-2 rounded-lg flex items-center text-muted-foreground opacity-50 cursor-not-allowed">
-                            <Lock className="w-4 h-4" />
-                            Google Ads
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Em breve</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TabsTrigger 
-                      value="profile" 
-                      className="gap-2 px-4 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
-                    >
-                      <User className="w-4 h-4" />
-                      Perfil
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-              </div>
-            </div>
-
-            {/* Meta Ads Section Header */}
-            {activeTab === 'meta-ads' && (
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                    <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
-                    </svg>
-                    {showArchived ? 'Meta Ads - Arquivados' : 'Meta Ads - Clientes'}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Total de {showArchived ? archivedMetaProjects.length : metaAdsProjects.length} clientes Meta Ads
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* View Mode Toggle */}
-                  <div className="flex items-center border border-border/50 rounded-lg p-1 bg-card/50">
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={cn(
-                        "p-1.5 rounded-md transition-all",
-                        viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={cn(
-                        "p-1.5 rounded-md transition-all",
-                        viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      <List className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {!isGuest && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate('/whatsapp-manager')}
-                        className="border-border/50 hover:border-green-500/50 hover:bg-green-500/10 transition-all gap-2"
-                      >
-                        <MessageSquare className="w-4 h-4 text-green-500" />
-                        WhatsApp
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setInviteProjectId(undefined);
-                          setInviteProjectName(undefined);
-                          setInviteDialogOpen(true);
-                        }}
-                        className="border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all gap-2"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        Convidar Cliente
-                      </Button>
-                    </>
-                  )}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowArchived(!showArchived)}
-                    className={cn(
-                      "border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all",
-                      showArchived && 'bg-primary/10 border-primary/50'
-                    )}
-                  >
-                    <Archive className="w-4 h-4 mr-2" />
-                    {showArchived ? 'Ativos' : 'Arquivados'}
-                  </Button>
-                  
-                  <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 shadow-lg shadow-blue-600/30">
-                        <Plus className="w-4 h-4" />
-                        Novo Cliente Meta
-                      </Button>
-                    </DialogTrigger>
-                      <DialogContent className="sm:max-w-2xl max-h-[90vh]">
-                        <DialogHeader>
-                          <DialogTitle className="text-xl gradient-text flex items-center gap-2">
-                            <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
-                            </svg>
-                            Criar projeto Meta Ads
-                          </DialogTitle>
-                        </DialogHeader>
-                        <ScrollArea className="max-h-[70vh] pr-4">
-                        <form onSubmit={handleCreateProject} className="space-y-5 mt-4">
-                          {/* Avatar Upload */}
-                          <div className="flex justify-center">
-                            <div className="relative">
-                              <div 
-                                onClick={() => avatarInputRef.current?.click()}
-                                className={cn(
-                                  "w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer transition-all",
-                                  "hover:border-primary hover:bg-primary/5",
-                                  avatarPreview && "border-solid border-primary"
-                                )}
-                              >
-                                {avatarPreview ? (
-                                  <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
-                                ) : isUploadingAvatar ? (
-                                  <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
-                                ) : (
-                                  <div className="text-center">
-                                    <ImagePlus className="w-8 h-8 text-muted-foreground mx-auto" />
-                                    <span className="text-xs text-muted-foreground mt-1">Avatar</span>
-                                  </div>
-                                )}
-                              </div>
-                              <input
-                                ref={avatarInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handleAvatarChange(e, false)}
-                              />
-                              {avatarPreview && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setAvatarPreview(null);
-                                    setFormData(prev => ({ ...prev, avatar_url: null }));
-                                  }}
-                                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
-                                >
-                                  ×
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="name">Nome do projeto *</Label>
-                              <Input
-                                id="name"
-                                placeholder="Ex: Minha Loja"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                required
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="ad_account_id">ID da Conta Meta *</Label>
-                              <Input
-                                id="ad_account_id"
-                                placeholder="123456789"
-                                value={formData.ad_account_id}
-                                onChange={(e) => setFormData({ ...formData, ad_account_id: e.target.value.replace('act_', '') })}
-                                required
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Modelo de negócio</Label>
-                            <div className="grid grid-cols-2 gap-3">
-                              {businessModels.map((model) => {
-                                const ModelIcon = model.icon;
-                                return (
-                                  <button
-                                    key={model.value}
-                                    type="button"
-                                    onClick={() => {
-                                      setFormData({ ...formData, business_model: model.value });
-                                    }}
-                                    className={cn(
-                                      "p-3 rounded-xl border-2 text-left transition-all",
-                                      formData.business_model === model.value
-                                        ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                                        : 'border-border hover:border-primary/50'
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <ModelIcon className="w-5 h-5 text-primary" />
-                                      <p className="font-medium text-sm">{model.label}</p>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1">{model.description}</p>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            {formData.business_model === 'custom' && (
-                              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                                  <Sparkles className="w-4 h-4 text-primary" />
-                                  Após criar o projeto, você será redirecionado para configurar suas métricas personalizadas.
-                                </p>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Health Score do Cliente</Label>
-                            <div className="grid grid-cols-3 gap-3">
-                              {healthScoreOptions.filter(opt => opt.value !== 'undefined').map((option) => {
-                                const OptionIcon = option.icon;
-                                return (
-                                  <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, health_score: formData.health_score === option.value ? null : option.value as HealthScore })}
-                                    className={cn(
-                                      "p-3 rounded-xl border-2 text-center transition-all",
-                                      formData.health_score === option.value
-                                        ? `${option.borderColor} ${option.bgColor}`
-                                        : 'border-border hover:border-primary/50'
-                                    )}
-                                  >
-                                    <OptionIcon className={cn("w-5 h-5 mx-auto mb-1", option.textColor)} />
-                                    <p className={cn("font-medium text-sm", formData.health_score === option.value ? option.textColor : '')}>{option.label}</p>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Moeda</Label>
-                              <Select
-                                value={formData.currency}
-                                onValueChange={(value) => setFormData({ ...formData, currency: value })}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="BRL">Real (R$)</SelectItem>
-                                  <SelectItem value="USD">Dólar (US$)</SelectItem>
-                                  <SelectItem value="EUR">Euro (€)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Fuso horário</Label>
-                              <Select
-                                value={formData.timezone}
-                                onValueChange={(value) => setFormData({ ...formData, timezone: value })}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="America/Sao_Paulo">São Paulo</SelectItem>
-                                  <SelectItem value="America/New_York">New York</SelectItem>
-                                  <SelectItem value="Europe/London">Londres</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                            <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
-                              Cancelar
-                            </Button>
-                            <Button type="submit" disabled={isCreating} className="bg-gradient-to-r from-blue-600 to-blue-700">
-                              {isCreating ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Criando...
-                                </>
-                              ) : (
-                                <>
-                                  <Plus className="w-4 h-4 mr-2" />
-                                  Criar Projeto Meta
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </form>
-                        </ScrollArea>
-                      </DialogContent>
-                    </Dialog>
-                </div>
-              </div>
-            )}
-
-
-            {/* Meta Ads Tab Content */}
-            <TabsContent value="meta-ads" className="mt-0">
-              {filteredMetaProjects.length > 0 ? (
-                viewMode === 'grid' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-fade-in">
-                    {filteredMetaProjects.map((project) => (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        onSelect={handleSelectProject}
-                        onEdit={handleEditClick}
-                        onDelete={handleDeleteClick}
-                        onArchive={(p) => archiveProject(p.id)}
-                        onUnarchive={(p) => unarchiveProject(p.id)}
-                        onResync={handleResync}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-4 stagger-fade-in">
-                    {filteredMetaProjects.map((project) => (
-                      <ProjectListItem
-                        key={project.id}
-                        project={project}
-                        onSelect={handleSelectProject}
-                        onEdit={handleEditClick}
-                        onDelete={handleDeleteClick}
-                        onArchive={(p) => archiveProject(p.id)}
-                        onUnarchive={(p) => unarchiveProject(p.id)}
-                        onResync={handleResync}
-                      />
-                    ))}
-                  </div>
-                )
-              ) : (
-                <div className="text-center py-20 animate-fade-in">
-                  <div className="relative inline-block">
-                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-500/20 to-blue-700/20 flex items-center justify-center mx-auto mb-6 animate-float">
-                      <svg className="w-12 h-12 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
-                      </svg>
-                    </div>
-                    <div className="absolute inset-0 bg-blue-500/10 rounded-3xl blur-xl -z-10" />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-3 text-blue-400">
-                    {healthFilter !== 'all' 
-                      ? `Nenhum projeto ${healthFilter === 'safe' ? 'Safe' : healthFilter === 'care' ? 'Care' : 'Danger'}` 
-                      : showArchived 
-                        ? 'Nenhum projeto Meta Ads arquivado' 
-                        : 'Nenhum cliente Meta Ads ainda'}
-                  </h3>
-                  <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                    {healthFilter !== 'all'
-                      ? 'Tente remover o filtro para ver todos os projetos.'
-                      : showArchived 
-                        ? 'Projetos Meta Ads arquivados aparecerão aqui.' 
-                        : 'Adicione seu primeiro cliente Meta Ads para começar.'}
-                  </p>
-                  {!showArchived && (
-                    <Button onClick={() => setCreateDialogOpen(true)} className="bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 transition-all duration-300 hover:scale-105 px-8 py-6 text-lg">
-                      <Plus className="w-5 h-5 mr-2" />
-                      Criar Cliente Meta Ads
-                    </Button>
-                  )}
-                </div>
-              )}
-            </TabsContent>
-
-
-            {/* Profile Tab */}
-            <TabsContent value="profile" className="mt-0">
-              <div className="max-w-3xl mx-auto space-y-6">
-                {/* Profile Header with Avatar */}
-                <div className="glass-card p-8">
-                  <div className="flex items-start gap-6">
-                    {/* Avatar Upload */}
-                    <div className="relative">
-                      <div 
-                        onClick={() => profileAvatarInputRef.current?.click()}
-                        className={cn(
-                          "w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer transition-all overflow-hidden",
-                          "hover:border-primary hover:bg-primary/5",
-                          profileAvatarPreview && "border-solid border-primary"
-                        )}
-                      >
-                        {profileAvatarPreview ? (
-                          <img src={profileAvatarPreview} alt="Avatar" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="text-center">
-                            <Camera className="w-8 h-8 text-muted-foreground mx-auto" />
-                            <span className="text-xs text-muted-foreground">Foto</span>
-                          </div>
-                        )}
-                      </div>
-                      <input
-                        ref={profileAvatarInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleProfileAvatarChange}
-                      />
-                      <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center cursor-pointer hover:bg-primary/80 transition-colors" onClick={() => profileAvatarInputRef.current?.click()}>
-                        <Pencil className="w-3.5 h-3.5 text-white" />
-                      </div>
-                    </div>
-
-                    <div className="flex-1">
-                      <h2 className="text-2xl font-bold mb-1">{profileName || user?.email?.split('@')[0] || 'Usuário'}</h2>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Mail className="w-4 h-4" />
-                        <span>{user?.email}</span>
-                      </div>
-                      {profileCargo && (
-                        <div className="flex items-center gap-2 text-primary mt-1">
-                          <Briefcase className="w-4 h-4" />
-                          <span className="font-medium">{cargoOptions.find(c => c.value === profileCargo)?.label}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Profile Edit Form */}
-                <div className="glass-card p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <User className="w-5 h-5 text-primary" />
-                    Informações do Perfil
-                  </h3>
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="space-y-2">
-                      <Label>Nome Completo</Label>
-                      <Input
-                        value={profileName}
-                        onChange={(e) => setProfileName(e.target.value)}
-                        placeholder="Seu nome"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input
-                        value={user?.email || ''}
-                        disabled
-                        className="opacity-50"
-                      />
-                      <p className="text-xs text-muted-foreground">O email não pode ser alterado</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-6">
-                    <Label>Cargo</Label>
-                    <div className="grid grid-cols-4 gap-3">
-                      {cargoOptions.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => setProfileCargo(option.value)}
-                          className={cn(
-                            "p-3 rounded-xl border-2 text-center transition-all",
-                            profileCargo === option.value
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-border hover:border-primary/50'
-                          )}
-                        >
-                          <Briefcase className={cn("w-5 h-5 mx-auto mb-1", profileCargo === option.value ? 'text-primary' : 'text-muted-foreground')} />
-                          <p className="font-medium text-xs">{option.label}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Button 
-                    onClick={handleUpdateProfile} 
-                    disabled={isUpdatingProfile}
-                    className="bg-gradient-to-r from-primary to-red-700"
-                  >
-                    {isUpdatingProfile ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Salvar Alterações
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {/* Change Password */}
-                <div className="glass-card p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Lock className="w-5 h-5 text-primary" />
-                    Alterar Senha
-                  </h3>
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="space-y-2">
-                      <Label>Nova Senha</Label>
-                      <Input
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="••••••••"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Confirmar Senha</Label>
-                      <Input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="••••••••"
-                      />
-                    </div>
-                  </div>
-
-                  <Button 
-                    onClick={handleChangePassword} 
-                    disabled={isChangingPassword || !newPassword}
-                    variant="outline"
-                  >
-                    {isChangingPassword ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Alterando...
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-4 h-4 mr-2" />
-                        Alterar Senha
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {/* Stats */}
-                <div className="glass-card p-6">
-                  <h3 className="text-lg font-semibold mb-4">Resumo</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="p-4 rounded-xl bg-secondary/50 text-center">
-                      <p className="text-3xl font-bold text-primary">{activeProjects.length}</p>
-                      <p className="text-sm text-muted-foreground">Projetos Ativos</p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-secondary/50 text-center">
-                      <p className="text-3xl font-bold text-emerald-400">{activeProjects.filter(p => p.health_score === 'safe').length}</p>
-                      <p className="text-sm text-muted-foreground">Projetos Safe</p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-secondary/50 text-center">
-                      <p className="text-3xl font-bold text-red-400">{activeProjects.filter(p => p.health_score === 'danger').length}</p>
-                      <p className="text-sm text-muted-foreground">Projetos Danger</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
+        )}
       </main>
-      </div>{/* Close div.relative.z-10 */}
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-lg bg-zinc-900 border-zinc-800">
           <DialogHeader>
-            <DialogTitle className="text-xl">Editar Projeto</DialogTitle>
+            <DialogTitle className="text-zinc-100">Editar Cliente</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleUpdateProject} className="space-y-5 mt-4">
-            {/* Avatar Upload */}
+          <form onSubmit={handleUpdateProject} className="space-y-4 mt-4">
             <div className="flex justify-center">
-              <div className="relative">
-                <div 
-                  onClick={() => editAvatarInputRef.current?.click()}
-                  className={cn(
-                    "w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer transition-all",
-                    "hover:border-primary hover:bg-primary/5",
-                    editAvatarPreview && "border-solid border-primary"
-                  )}
-                >
-                  {editAvatarPreview ? (
-                    <img src={editAvatarPreview} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
-                  ) : isUploadingAvatar ? (
-                    <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
-                  ) : (
-                    <div className="text-center">
-                      <Camera className="w-8 h-8 text-muted-foreground mx-auto" />
-                      <span className="text-xs text-muted-foreground mt-1">Avatar</span>
-                    </div>
-                  )}
-                </div>
-                <input
-                  ref={editAvatarInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleAvatarChange(e, true)}
-                />
-                {editAvatarPreview && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditAvatarPreview(null);
-                      setEditFormData(prev => ({ ...prev, avatar_url: null }));
-                    }}
-                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
-                  >
-                    ×
-                  </button>
+              <div 
+                onClick={() => editAvatarInputRef.current?.click()}
+                className="w-16 h-16 rounded-lg bg-zinc-800 border-2 border-dashed border-zinc-700 flex items-center justify-center cursor-pointer hover:border-zinc-600 transition-colors overflow-hidden"
+              >
+                {editAvatarPreview ? (
+                  <img src={editAvatarPreview} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <Camera className="w-5 h-5 text-zinc-500" />
                 )}
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Nome do projeto *</Label>
-                <Input
-                  placeholder="Ex: Minha Loja"
-                  value={editFormData.name}
-                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>ID da Conta Meta</Label>
-                <Input
-                  value={editFormData.ad_account_id}
-                  onChange={(e) => setEditFormData({ ...editFormData, ad_account_id: e.target.value })}
-                  disabled
-                  className="opacity-50"
-                />
-              </div>
+              <input
+                ref={editAvatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleAvatarChange(e, true)}
+              />
             </div>
 
             <div className="space-y-2">
-              <Label>Health Score do Cliente</Label>
-              <div className="grid grid-cols-3 gap-3">
-                {healthScoreOptions.filter(opt => opt.value !== 'undefined').map((option) => {
-                  const OptionIcon = option.icon;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setEditFormData({ ...editFormData, health_score: editFormData.health_score === option.value ? null : option.value as HealthScore })}
-                      className={cn(
-                        "p-3 rounded-xl border-2 text-center transition-all",
-                        editFormData.health_score === option.value
-                          ? `${option.borderColor} ${option.bgColor}`
-                          : 'border-border hover:border-primary/50'
-                      )}
-                    >
-                      <OptionIcon className={cn("w-5 h-5 mx-auto mb-1", option.textColor)} />
-                      <p className={cn("font-medium text-sm", editFormData.health_score === option.value ? option.textColor : '')}>{option.label}</p>
-                    </button>
-                  );
-                })}
-              </div>
+              <Label className="text-zinc-400">Nome do Cliente</Label>
+              <Input
+                value={editFormData.name}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="bg-zinc-800 border-zinc-700 text-zinc-100"
+              />
             </div>
 
             <div className="space-y-2">
-              <Label>Modelo de negócio</Label>
-              <div className="grid grid-cols-3 gap-3">
-                {businessModels.map((model) => {
-                  const ModelIcon = model.icon;
-                  return (
-                    <button
-                      key={model.value}
-                      type="button"
-                      onClick={() => setEditFormData({ ...editFormData, business_model: model.value })}
-                      className={cn(
-                        "p-3 rounded-xl border-2 text-center transition-all",
-                        editFormData.business_model === model.value
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:border-primary/50'
-                      )}
-                    >
-                      <ModelIcon className="w-5 h-5 mx-auto mb-1 text-primary" />
-                      <p className="font-medium text-sm">{model.label}</p>
-                    </button>
-                  );
-                })}
-              </div>
+              <Label className="text-zinc-400">Health Score</Label>
+              <Select
+                value={editFormData.health_score || 'none'}
+                onValueChange={(val) => setEditFormData(prev => ({ ...prev, health_score: val === 'none' ? null : val as HealthScore }))}
+              >
+                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-800 border-zinc-700">
+                  <SelectItem value="none" className="text-zinc-400">Sem status</SelectItem>
+                  <SelectItem value="safe" className="text-emerald-400">Safe</SelectItem>
+                  <SelectItem value="care" className="text-amber-400">Care</SelectItem>
+                  <SelectItem value="danger" className="text-red-400">Danger</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Moeda</Label>
-                <Select
-                  value={editFormData.currency}
-                  onValueChange={(value) => setEditFormData({ ...editFormData, currency: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BRL">Real (R$)</SelectItem>
-                    <SelectItem value="USD">Dólar (US$)</SelectItem>
-                    <SelectItem value="EUR">Euro (€)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Fuso horário</Label>
-                <Select
-                  value={editFormData.timezone}
-                  onValueChange={(value) => setEditFormData({ ...editFormData, timezone: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="America/Sao_Paulo">São Paulo</SelectItem>
-                    <SelectItem value="America/New_York">New York</SelectItem>
-                    <SelectItem value="Europe/London">Londres</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-border">
-              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+            <div className="flex gap-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditDialogOpen(false)}
+                className="flex-1 border-zinc-700 text-zinc-400 hover:text-zinc-100"
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isUpdating} className="bg-gradient-to-r from-primary to-red-700">
-                {isUpdating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Salvar
-                  </>
-                )}
+              <Button
+                type="submit"
+                disabled={isUpdating}
+                className="flex-1 bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+              >
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar'}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-zinc-900 border-zinc-800">
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir projeto?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Todos os dados do projeto "{selectedProject?.name}" serão excluídos permanentemente.
+            <AlertDialogTitle className="text-zinc-100">Excluir Cliente</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              Tem certeza que deseja excluir "{selectedProject?.name}"? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="border-zinc-700 text-zinc-400 hover:text-zinc-100">Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
-              <Trash2 className="w-4 h-4 mr-2" />
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Profile Dialog */}
+      <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-zinc-900 border-zinc-800">
+          <DialogHeader>
+            <DialogTitle className="text-zinc-100">Meu Perfil</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 mt-4">
+            {/* Avatar */}
+            <div className="flex justify-center">
+              <div 
+                onClick={() => profileAvatarInputRef.current?.click()}
+                className="w-20 h-20 rounded-full bg-zinc-800 border-2 border-dashed border-zinc-700 flex items-center justify-center cursor-pointer hover:border-zinc-600 transition-colors overflow-hidden"
+              >
+                {profileAvatarPreview ? (
+                  <img src={profileAvatarPreview} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-8 h-8 text-zinc-500" />
+                )}
+              </div>
+              <input
+                ref={profileAvatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleProfileAvatarChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-zinc-400">Nome</Label>
+              <Input
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                className="bg-zinc-800 border-zinc-700 text-zinc-100"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-zinc-400">Cargo</Label>
+              <Select
+                value={profileCargo || 'none'}
+                onValueChange={(val) => setProfileCargo(val === 'none' ? null : val as UserCargo)}
+              >
+                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-800 border-zinc-700">
+                  <SelectItem value="none" className="text-zinc-400">Nenhum</SelectItem>
+                  {cargoOptions.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value} className="text-zinc-100">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              onClick={handleUpdateProfile}
+              disabled={isUpdatingProfile}
+              className="w-full bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+            >
+              {isUpdatingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Perfil'}
+            </Button>
+
+            <div className="border-t border-zinc-800 pt-4">
+              <Label className="text-zinc-400 text-sm">Alterar Senha</Label>
+              <div className="space-y-2 mt-2">
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Nova senha"
+                  className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                />
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirmar senha"
+                  className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                />
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={isChangingPassword || !newPassword}
+                  variant="outline"
+                  className="w-full border-zinc-700 text-zinc-400 hover:text-zinc-100"
+                >
+                  {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Alterar Senha'}
+                </Button>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Invite Guest Dialog */}
       <InviteGuestDialog
