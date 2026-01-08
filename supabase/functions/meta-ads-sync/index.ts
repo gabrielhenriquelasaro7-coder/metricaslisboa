@@ -13,7 +13,6 @@ interface SyncRequest {
   time_range?: { since: string; until: string };
   period_key?: string;
   retry_count?: number;
-  light_sync?: boolean;
   skip_image_cache?: boolean;
   syncOnly?: 'campaigns' | 'adsets' | 'ads' | 'creatives';
 }
@@ -172,7 +171,7 @@ async function cacheCreativeImage(supabase: any, projectId: string, adId: string
 // 4. NUNCA usar thumbnail_url, preview_shareable_link ou campos de prévia
 // ===========================================================================================
 
-async function fetchEntities(adAccountId: string, token: string, supabase?: any, projectId?: string, lightSync = false, skipImageCache = false): Promise<{
+async function fetchEntities(adAccountId: string, token: string, supabase?: any, projectId?: string, skipImageCache = false): Promise<{
   campaigns: any[]; adsets: any[]; ads: any[]; adImageMap: Map<string, string>; videoThumbnailMap: Map<string, string>;
   creativeDataMap: Map<string, any>; cachedCreativeMap: Map<string, any>; adPreviewMap: Map<string, string>;
   immediateCache: Map<string, string>; directImageUrls: Map<string, string>; tokenExpired?: boolean;
@@ -199,12 +198,11 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   
   // ===========================================================================================
   // QUERY DE ADS - CONFORME DOCUMENTAÇÃO
-  // Fields: id,name,creative{id,image_hash,object_story_spec,asset_feed_spec}
-  // NUNCA usar thumbnail_url ou preview_shareable_link
+  // Fields inclui thumbnail_url como fallback para imagens
   // ===========================================================================================
-  const adsFields = 'id,name,status,adset_id,campaign_id,creative{id,image_hash,object_story_spec,asset_feed_spec}';
+  const adsFields = 'id,name,status,adset_id,campaign_id,creative{id,image_hash,thumbnail_url,object_story_spec,asset_feed_spec}';
   url = `https://graph.facebook.com/v22.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
-  console.log(`[ADS-QUERY] Fetching ads with correct creative fields...`);
+  console.log(`[ADS-QUERY] Fetching ads with creative fields including thumbnail_url...`);
   
   while (url) {
     const data = await fetchWithRetry(url, 'ADS'); 
@@ -227,7 +225,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   
   const adImageMap = new Map<string, string>(), videoThumbnailMap = new Map<string, string>(), creativeDataMap = new Map<string, any>(), adPreviewMap = new Map<string, string>(), immediateCache = new Map<string, string>();
   
-  if (lightSync) return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache, directImageUrls: new Map() };
+  // SEMPRE buscar imagens HD - sem light_sync
 
   // ===========================================================================================
   // BUSCAR IMAGENS HD VIA /adimages COM url_1024
@@ -1088,17 +1086,17 @@ Deno.serve(async (req) => {
     const metaAccessToken = Deno.env.get('META_ACCESS_TOKEN');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body: SyncRequest = await req.json();
-    const { project_id, ad_account_id, access_token, date_preset, time_range, retry_count = 0, light_sync = false, skip_image_cache = false, syncOnly } = body;
+    const { project_id, ad_account_id, access_token, date_preset, time_range, retry_count = 0, skip_image_cache = false, syncOnly } = body;
     
     let since: string, until: string;
     if (time_range) { since = time_range.since; until = time_range.until; }
     else { const today = new Date(); until = today.toISOString().split('T')[0]; const daysMap: Record<string, number> = { yesterday: 1, today: 0, last_7d: 7, last_14d: 14, last_30d: 30, last_90d: 90 }; const days = daysMap[date_preset || 'last_90d'] || 90; const sinceDate = new Date(today); sinceDate.setDate(sinceDate.getDate() - days); since = sinceDate.toISOString().split('T')[0]; }
     
-    console.log(`[SYNC] Project: ${project_id}, Range: ${since} to ${until}, light_sync: ${light_sync}, skip_cache: ${skip_image_cache}`);
+    console.log(`[SYNC] Project: ${project_id}, Range: ${since} to ${until}, skip_cache: ${skip_image_cache}`);
     const token = access_token || metaAccessToken;
     if (!token) throw new Error('No Meta access token available');
     
-    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, immediateCache, directImageUrls, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id, light_sync, skip_image_cache);
+    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, immediateCache, directImageUrls, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id, skip_image_cache);
     if (tokenExpired) return new Response(JSON.stringify({ success: false, error: 'Token do Meta expirou.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     
     console.log(`[DEBUG] Entities fetched - campaigns: ${campaigns.length}, adsets: ${adsets.length}, ads: ${ads.length}`);

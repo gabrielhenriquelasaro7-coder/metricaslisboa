@@ -331,7 +331,6 @@ export function useProjects() {
         body: {
           project_id: project.id,
           ad_account_id: project.ad_account_id,
-          light_sync: false, // SEMPRE false para garantir extração HD de imagens e criativos
         },
       });
 

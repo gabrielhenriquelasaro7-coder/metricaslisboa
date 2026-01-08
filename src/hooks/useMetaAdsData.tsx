@@ -512,17 +512,16 @@ export function useMetaAdsData() {
       const body: Record<string, unknown> = {
         project_id: selectedProject.id,
         ad_account_id: selectedProject.ad_account_id,
-        light_sync: false, // SEMPRE false para garantir extração HD de imagens e criativos
       };
       
       if (timeRange) {
         body.time_range = timeRange;
         body.period_key = periodKey || 'custom';
-        console.log('Manual sync with time range:', timeRange, 'period:', periodKey, 'light_sync: false');
+        console.log('Manual sync with time range:', timeRange, 'period:', periodKey);
       } else {
         body.date_preset = 'last_30d';
         body.period_key = 'this_month';
-        console.log('Manual sync with default: this_month, light_sync: false');
+        console.log('Manual sync with default: this_month');
       }
       
       const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
