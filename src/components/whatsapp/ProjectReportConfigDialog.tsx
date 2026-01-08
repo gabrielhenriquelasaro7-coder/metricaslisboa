@@ -108,6 +108,9 @@ export function ProjectReportConfigDialog({
   const [editingMessage, setEditingMessage] = useState(false);
   const [testingReport, setTestingReport] = useState(false);
   const [testingBalanceAlert, setTestingBalanceAlert] = useState(false);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
+  const [realMetrics, setRealMetrics] = useState<Record<string, number | null>>({});
+  const [accountBalance, setAccountBalance] = useState<number | null>(null);
 
   // Form state
   const [instanceId, setInstanceId] = useState<string | null>(existingConfig?.instance_id || null);
@@ -145,7 +148,123 @@ export function ProjectReportConfigDialog({
     m.all || (m.models && m.models.includes(project.business_model))
   );
 
-  // Generate default template based on selected metrics
+  // Fetch real metrics from database
+  const fetchRealMetrics = useCallback(async () => {
+    setLoadingMetrics(true);
+    try {
+      // Calculate date range based on period
+      const now = new Date();
+      let startDate: Date;
+      let endDate = new Date(now);
+
+      switch (reportPeriod) {
+        case 'last_7_days':
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case 'last_14_days':
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - 14);
+          break;
+        case 'last_30_days':
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - 30);
+          break;
+        case 'this_week':
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - startDate.getDay());
+          break;
+        case 'last_week':
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - startDate.getDay() - 7);
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 6);
+          break;
+        case 'this_month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case 'last_month':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+          break;
+        default:
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - 7);
+      }
+
+      const startStr = startDate.toISOString().split('T')[0];
+      const endStr = endDate.toISOString().split('T')[0];
+
+      // Fetch metrics from ads_daily_metrics
+      const { data: metricsData, error: metricsError } = await supabase
+        .from('ads_daily_metrics')
+        .select('spend, leads_count, clicks, impressions, reach, conversion_value, conversions, frequency')
+        .eq('project_id', project.id)
+        .gte('date', startStr)
+        .lte('date', endStr);
+
+      if (metricsError) throw metricsError;
+
+      // Aggregate metrics
+      const aggregated = (metricsData || []).reduce((acc, row) => ({
+        spend: (acc.spend || 0) + (row.spend || 0),
+        leads: (acc.leads || 0) + (row.leads_count || 0),
+        clicks: (acc.clicks || 0) + (row.clicks || 0),
+        impressions: (acc.impressions || 0) + (row.impressions || 0),
+        reach: (acc.reach || 0) + (row.reach || 0),
+        conversion_value: (acc.conversion_value || 0) + (row.conversion_value || 0),
+        conversions: (acc.conversions || 0) + (row.conversions || 0),
+        frequency: row.frequency || acc.frequency || 0,
+      }), {} as Record<string, number>);
+
+      // Calculate derived metrics
+      const spend = aggregated.spend || 0;
+      const clicks = aggregated.clicks || 0;
+      const impressions = aggregated.impressions || 0;
+      const leads = aggregated.leads || 0;
+      const conversions = aggregated.conversions || 0;
+      const conversionValue = aggregated.conversion_value || 0;
+
+      setRealMetrics({
+        spend,
+        reach: aggregated.reach || 0,
+        impressions,
+        frequency: aggregated.frequency || 0,
+        clicks,
+        ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
+        cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
+        cpc: clicks > 0 ? spend / clicks : 0,
+        leads,
+        cpl: leads > 0 ? spend / leads : 0,
+        conversions,
+        conversion_value: conversionValue,
+        roas: spend > 0 ? conversionValue / spend : 0,
+      });
+
+      // Fetch account balance
+      const { data: projectData } = await supabase
+        .from('projects')
+        .select('account_balance')
+        .eq('id', project.id)
+        .single();
+
+      setAccountBalance(projectData?.account_balance || null);
+
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+    } finally {
+      setLoadingMetrics(false);
+    }
+  }, [project.id, reportPeriod]);
+
+  // Fetch metrics when dialog opens or period changes
+  useEffect(() => {
+    if (open) {
+      fetchRealMetrics();
+    }
+  }, [open, reportPeriod, fetchRealMetrics]);
+
+  // Generate template with real metrics
   const generateDefaultTemplate = useCallback(() => {
     const periodLabel = PERIOD_OPTIONS.find(p => p.value === reportPeriod)?.label || reportPeriod;
     const enabledMetricsList = availableMetrics.filter(m => metricsEnabled[m.id]);
@@ -153,39 +272,42 @@ export function ProjectReportConfigDialog({
     let msg = `📊 *Relatório ${project.name}*\n`;
     msg += `📅 Período: ${periodLabel}\n\n`;
     
-    // Sample metrics for template
-    const sampleMetrics: Record<string, string> = {
-      spend: '💰 Investimento: R$ 1.234,56',
-      reach: '👁️ Alcance: 45.678',
-      impressions: '📺 Impressões: 123.456',
-      frequency: '🔄 Frequência: 2,3',
-      clicks: '👆 Cliques: 3.456',
-      ctr: '📈 CTR: 2,80%',
-      cpm: '💵 CPM: R$ 10,00',
-      cpc: '💳 CPC: R$ 0,36',
-      leads: '🎯 Leads: 89',
-      cpl: '📊 CPL: R$ 13,87',
-      conversions: '🛒 Conversões: 45',
-      conversion_value: '💎 Valor: R$ 5.678,90',
-      roas: '🚀 ROAS: 4,6x',
+    const formatNumber = (n: number) => n.toLocaleString('pt-BR');
+    const formatCurrency = (n: number) => `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const formatPercent = (n: number) => `${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+
+    const metricsFormatted: Record<string, string> = {
+      spend: `💰 Investimento: ${formatCurrency(realMetrics.spend || 0)}`,
+      reach: `👁️ Alcance: ${formatNumber(realMetrics.reach || 0)}`,
+      impressions: `📺 Impressões: ${formatNumber(realMetrics.impressions || 0)}`,
+      frequency: `🔄 Frequência: ${(realMetrics.frequency || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`,
+      clicks: `👆 Cliques: ${formatNumber(realMetrics.clicks || 0)}`,
+      ctr: `📈 CTR: ${formatPercent(realMetrics.ctr || 0)}`,
+      cpm: `💵 CPM: ${formatCurrency(realMetrics.cpm || 0)}`,
+      cpc: `💳 CPC: ${formatCurrency(realMetrics.cpc || 0)}`,
+      leads: `🎯 Leads: ${formatNumber(realMetrics.leads || 0)}`,
+      cpl: `📊 CPL: ${formatCurrency(realMetrics.cpl || 0)}`,
+      conversions: `🛒 Conversões: ${formatNumber(realMetrics.conversions || 0)}`,
+      conversion_value: `💎 Valor: ${formatCurrency(realMetrics.conversion_value || 0)}`,
+      roas: `🚀 ROAS: ${(realMetrics.roas || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`,
     };
 
     enabledMetricsList.forEach(metric => {
-      if (sampleMetrics[metric.id]) {
-        msg += sampleMetrics[metric.id] + '\n';
+      if (metricsFormatted[metric.id]) {
+        msg += metricsFormatted[metric.id] + '\n';
       }
     });
 
     msg += '\n_Relatório automático via V4 Dashboard_';
     return msg;
-  }, [project.name, reportPeriod, metricsEnabled, availableMetrics]);
+  }, [project.name, reportPeriod, metricsEnabled, availableMetrics, realMetrics]);
 
-  // Initialize message template with default when dialog opens
+  // Initialize message template with real data when metrics load
   useEffect(() => {
-    if (open && !existingConfig?.message_template && !messageTemplate) {
+    if (open && !existingConfig?.message_template && Object.keys(realMetrics).length > 0) {
       setMessageTemplate(generateDefaultTemplate());
     }
-  }, [open]);
+  }, [open, realMetrics]);
 
   // The message that will be sent (what's in the textarea)
   const currentMessage = messageTemplate || generateDefaultTemplate();
@@ -265,7 +387,12 @@ export function ProjectReportConfigDialog({
       const instance = instances.find(i => i.id === instanceId);
       if (!instance) throw new Error('Instância não encontrada');
 
-      const alertMessage = `⚠️ *TESTE DE ALERTA DE SALDO*\n\n🚨 *Atenção: Saldo Baixo!*\n\n📊 Projeto: ${project.name}\n💰 Saldo atual: R$ 150,00\n📅 Duração estimada: 2 dias\n\n_Este é um teste do sistema de alertas_`;
+      const formatCurrency = (n: number) => `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const currentBalance = accountBalance || 0;
+      const dailySpend = realMetrics.spend ? realMetrics.spend / 7 : 0; // Estimate from last 7 days
+      const estimatedDays = dailySpend > 0 ? Math.floor(currentBalance / dailySpend) : 0;
+
+      const alertMessage = `⚠️ *TESTE DE ALERTA DE SALDO*\n\n🚨 *Atenção: Saldo Baixo!*\n\n📊 Projeto: ${project.name}\n💰 Saldo atual: ${formatCurrency(currentBalance)}\n📅 Duração estimada: ${estimatedDays} dias\n\n_Este é um teste do sistema de alertas_`;
 
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
