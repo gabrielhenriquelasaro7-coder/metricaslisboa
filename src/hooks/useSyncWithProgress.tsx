@@ -44,7 +44,7 @@ interface UseSyncWithProgressOptions {
   adAccountId: string;
   onSuccess?: () => void;
   onError?: (error: string) => void;
-  lightSync?: boolean; // Se true, pula fetch de criativos/imagens (mais rápido)
+  lightSync?: boolean; // Se true, pula fetch de criativos/imagens HD (mais rápido, mas sem HD)
 }
 
 const THROTTLE_MS = 10000; // 10 seconds minimum between syncs
@@ -60,6 +60,7 @@ const ALL_PERIODS = [
 ];
 
 export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError, lightSync = false }: UseSyncWithProgressOptions) {
+  // IMPORTANTE: lightSync=false é o padrão para garantir extração HD de imagens e criativos
   const [syncing, setSyncing] = useState(false);
   const [syncingAllPeriods, setSyncingAllPeriods] = useState(false);
   const [progress, setProgress] = useState<SyncProgress>({ step: 'idle', message: '' });
@@ -112,7 +113,7 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
           project_id: projectId,
           ad_account_id: adAccountId,
           time_range: timeRange,
-          light_sync: lightSync, // Sync mais rápido sem buscar criativos
+          light_sync: lightSync, // false = extração HD completa (padrão), true = sync rápido sem HD
         },
       });
 
