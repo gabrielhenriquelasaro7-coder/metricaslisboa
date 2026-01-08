@@ -271,7 +271,11 @@ export default function AdDetail() {
   // URL da imagem direto do banco
   const creativeUrl = ad?.creative_image_url || ad?.creative_thumbnail || '';
   
+  // Debug
+  console.log('[AdDetail] Image URL:', creativeUrl?.substring(0, 100));
+  
   const handleImageError = () => {
+    console.log('[AdDetail] Image failed to load:', creativeUrl?.substring(0, 100));
     setImageError(true);
   };
 
