@@ -272,8 +272,8 @@ export default function AdDetail() {
   const hasVideo = ad?.creative_video_url;
   const hasImage = ad?.creative_image_url || ad?.creative_thumbnail;
   
-  // URL da imagem em HD
-  const creativeUrl = cleanImageUrl(ad?.creative_image_url) || cleanImageUrl(ad?.creative_thumbnail) || '';
+  // URL da imagem em HD - usa só creative_image_url
+  const creativeUrl = cleanImageUrl(ad?.creative_image_url) || '';
   
   const handleImageError = () => {
     setImageError(true);
