@@ -45,6 +45,13 @@ interface OptimizationHistoryDialogProps {
 
 const FIELD_LABELS: Record<string, string> = {
   status: 'Status',
+  objective: 'Objetivo',
+  targeting: 'Público/Segmentação',
+  creative_image_url: 'Imagem do Criativo',
+  creative_video_url: 'Vídeo do Criativo',
+  headline: 'Título',
+  primary_text: 'Texto Principal',
+  cta: 'Botão de Ação (CTA)',
   daily_budget: 'Orçamento Diário',
   lifetime_budget: 'Orçamento Vitalício',
   spend: 'Gasto',
@@ -65,6 +72,9 @@ const CHANGE_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   status_change: { label: 'Status', color: 'bg-blue-500' },
   budget_change: { label: 'Orçamento', color: 'bg-purple-500' },
   metric_change: { label: 'Métrica', color: 'bg-amber-500' },
+  creative_change: { label: 'Criativo', color: 'bg-pink-500' },
+  targeting_change: { label: 'Público', color: 'bg-cyan-500' },
+  objective_change: { label: 'Objetivo', color: 'bg-indigo-500' },
   created: { label: 'Criado', color: 'bg-green-500' },
   paused: { label: 'Pausado', color: 'bg-gray-500' },
   activated: { label: 'Ativado', color: 'bg-emerald-500' },
