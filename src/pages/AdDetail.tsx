@@ -36,7 +36,10 @@ import { cn } from '@/lib/utils';
 // Limpa URL para HD - remove parâmetros de resize
 const cleanImageUrl = (url: string | null): string | null => {
   if (!url) return null;
-  return url.replace(/[&?]stp=[^&]*/gi, '').replace(/[&?]$/g, '');
+  // Remove stp= e ur= que forçam imagem pequena
+  let clean = url.replace(/&stp=[^&]*/gi, '').replace(/&ur=[^&]*/gi, '');
+  // Limpa & ou ? no final
+  return clean.replace(/[&?]$/g, '');
 };
 import {
   Dialog,
