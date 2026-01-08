@@ -649,15 +649,15 @@ export default function ProjectSelector() {
         
         {/* Top nav - Bigger and more prominent */}
         <div className="relative border-b border-white/10">
-          <div className="max-w-[1600px] mx-auto px-8 py-4">
+          <div className="max-w-[1600px] mx-auto px-8 py-6">
             <nav className="flex items-center justify-between">
               {/* Logo Section - Bigger */}
-              <div className="flex items-center gap-5">
-                <img src={v4Logo} alt="V4 Company" className="h-10 w-auto brightness-0 invert opacity-95" />
-                <div className="w-px h-10 bg-gradient-to-b from-transparent via-red-500/60 to-transparent" />
+              <div className="flex items-center gap-6">
+                <img src={v4Logo} alt="V4 Company" className="h-12 w-auto brightness-0 invert opacity-95" />
+                <div className="w-px h-12 bg-gradient-to-b from-transparent via-red-500/60 to-transparent" />
                 <div className="flex flex-col">
                   <span 
-                    className="text-2xl font-bold tracking-tight text-white"
+                    className="text-2xl font-bold tracking-tight text-white leading-tight"
                     style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                   >
                     ADS<span className="font-light text-white/70">MANAGER</span>
