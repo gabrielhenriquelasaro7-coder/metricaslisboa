@@ -53,10 +53,12 @@ const DAYS_OF_WEEK = [
   { value: 6, label: 'Sábado' },
 ];
 
-const TIME_OPTIONS = [
-  '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00',
-  '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
-];
+const HOUR_OPTIONS = Array.from({ length: 15 }, (_, i) => {
+  const hour = i + 6; // 06:00 to 20:00
+  return hour.toString().padStart(2, '0');
+});
+
+const MINUTE_OPTIONS = ['00', '15', '30', '45'];
 
 const PERIOD_OPTIONS = [
   { value: 'last_7_days', label: 'Últimos 7 dias' },
@@ -575,16 +577,35 @@ export function ProjectReportConfigDialog({
                         <Label className="flex items-center gap-2">
                           <Clock className="w-4 h-4" /> Horário
                         </Label>
-                        <Select value={reportTime} onValueChange={setReportTime}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {TIME_OPTIONS.map(time => (
-                              <SelectItem key={time} value={time}>{time}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Select 
+                            value={reportTime.split(':')[0]} 
+                            onValueChange={(h) => setReportTime(`${h}:${reportTime.split(':')[1] || '00'}`)}
+                          >
+                            <SelectTrigger className="w-20">
+                              <SelectValue placeholder="Hora" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {HOUR_OPTIONS.map(hour => (
+                                <SelectItem key={hour} value={hour}>{hour}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <span className="text-lg font-medium">:</span>
+                          <Select 
+                            value={reportTime.split(':')[1] || '00'} 
+                            onValueChange={(m) => setReportTime(`${reportTime.split(':')[0] || '08'}:${m}`)}
+                          >
+                            <SelectTrigger className="w-20">
+                              <SelectValue placeholder="Min" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {MINUTE_OPTIONS.map(min => (
+                                <SelectItem key={min} value={min}>{min}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
 
                       <div className="col-span-2 space-y-2">
