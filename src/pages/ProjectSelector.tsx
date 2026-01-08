@@ -52,7 +52,8 @@ import {
   Target,
   UserPlus,
   Shield,
-  GraduationCap
+  GraduationCap,
+  MessageSquare
 } from 'lucide-react';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -1059,19 +1060,30 @@ export default function ProjectSelector() {
                   </div>
 
                   {!isGuest && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setInviteProjectId(undefined);
-                        setInviteProjectName(undefined);
-                        setInviteDialogOpen(true);
-                      }}
-                      className="border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all gap-2"
-                    >
-                      <UserPlus className="w-4 h-4" />
-                      Convidar Cliente
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate('/whatsapp-manager')}
+                        className="border-border/50 hover:border-green-500/50 hover:bg-green-500/10 transition-all gap-2"
+                      >
+                        <MessageSquare className="w-4 h-4 text-green-500" />
+                        WhatsApp
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setInviteProjectId(undefined);
+                          setInviteProjectName(undefined);
+                          setInviteDialogOpen(true);
+                        }}
+                        className="border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all gap-2"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        Convidar Cliente
+                      </Button>
+                    </>
                   )}
 
                   <Button
