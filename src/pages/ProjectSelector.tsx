@@ -722,21 +722,21 @@ export default function ProjectSelector() {
               </div>
               
               {/* Health indicators */}
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm bg-white/70" />
-                  <span className="text-sm font-medium text-white/40 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Safe</span>
-                  <span className="text-lg font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.safe}</span>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-medium text-emerald-400 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Safe</span>
+                  <span className="text-sm font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.safe}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm bg-amber-500" />
-                  <span className="text-sm font-medium text-white/40 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Care</span>
-                  <span className="text-lg font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.care}</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-xs font-medium text-amber-400 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Care</span>
+                  <span className="text-sm font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.care}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm bg-red-500" />
-                  <span className="text-sm font-medium text-white/40 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Danger</span>
-                  <span className="text-lg font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.danger}</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="text-xs font-medium text-red-400 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Danger</span>
+                  <span className="text-sm font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.danger}</span>
                 </div>
               </div>
             </div>
