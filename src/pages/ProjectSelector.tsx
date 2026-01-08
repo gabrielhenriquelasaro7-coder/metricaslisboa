@@ -861,6 +861,43 @@ export default function ProjectSelector() {
                           </Select>
                         </div>
 
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label className="text-white/50 text-xs">Fuso Horário</Label>
+                            <Select
+                              value={formData.timezone}
+                              onValueChange={(val) => setFormData(prev => ({ ...prev, timezone: val }))}
+                            >
+                              <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
+                                <SelectItem value="America/Sao_Paulo" className="text-white rounded-lg">São Paulo (GMT-3)</SelectItem>
+                                <SelectItem value="America/New_York" className="text-white rounded-lg">New York (GMT-5)</SelectItem>
+                                <SelectItem value="Europe/London" className="text-white rounded-lg">Londres (GMT+0)</SelectItem>
+                                <SelectItem value="Europe/Lisbon" className="text-white rounded-lg">Lisboa (GMT+0)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-white/50 text-xs">Moeda</Label>
+                            <Select
+                              value={formData.currency}
+                              onValueChange={(val) => setFormData(prev => ({ ...prev, currency: val }))}
+                            >
+                              <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
+                                <SelectItem value="BRL" className="text-white rounded-lg">Real (R$)</SelectItem>
+                                <SelectItem value="USD" className="text-white rounded-lg">Dólar (US$)</SelectItem>
+                                <SelectItem value="EUR" className="text-white rounded-lg">Euro (€)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
                         <div className="flex gap-3 pt-4">
                           <Button
                             type="button"
