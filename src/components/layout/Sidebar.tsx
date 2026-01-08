@@ -428,19 +428,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </button>
             )}
 
-            {/* WhatsApp Manager - Global */}
-            {!roleLoading && !isGuest && (
-              <Link
-                to="/whatsapp-manager"
-                className={cn(
-                  'sidebar-item',
-                  location.pathname === '/whatsapp-manager' && 'active'
-                )}
-              >
-                <MessageSquare className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>WhatsApp</span>}
-              </Link>
-            )}
 
             {/* Tour Button - Only for guests */}
             {!roleLoading && isGuest && (
