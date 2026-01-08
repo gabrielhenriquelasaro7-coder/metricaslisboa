@@ -266,13 +266,14 @@ export default function AdDetail() {
     new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
   const hasVideo = ad?.creative_video_url;
-  const hasImage = ad?.creative_image_url || ad?.creative_thumbnail;
+  const hasImage = ad?.cached_image_url || ad?.creative_image_url || ad?.creative_thumbnail;
   
-  // URL da imagem direto do banco
-  const creativeUrl = ad?.creative_image_url || ad?.creative_thumbnail || '';
+  // Priorizar imagem cacheada no storage (nunca expira)
+  const creativeUrl = ad?.cached_image_url || ad?.creative_image_url || ad?.creative_thumbnail || '';
   
   // Debug
   console.log('[AdDetail] Image URL:', creativeUrl?.substring(0, 100));
+  console.log('[AdDetail] Cached URL:', ad?.cached_image_url?.substring(0, 50));
   
   const handleImageError = () => {
     console.log('[AdDetail] Image failed to load:', creativeUrl?.substring(0, 100));
