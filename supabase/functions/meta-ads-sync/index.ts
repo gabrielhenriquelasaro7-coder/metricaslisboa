@@ -298,27 +298,35 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   // ========== Buscar TODOS os creatives via endpoint /adcreatives ==========
   // A query nested creative{...} não está retornando os dados completos na API v21.0
   // Buscamos diretamente da conta de anúncios
-  console.log(`[CREATIVES] Fetching all creatives via /adcreatives endpoint...`);
+  console.log(`[CREATIVES] ========== FETCHING CREATIVES FROM /adcreatives ==========`);
   
   const allCreatives: any[] = [];
   // Buscar TODOS campos possíveis de copy: body, title, call_to_action_type, object_story_spec (link_data/video_data/photo_data), asset_feed_spec
   // IMPORTANTE: object_story_spec precisa incluir TODOS os sub-campos para pegar message, name, call_to_action
   let creativesUrl: string | null = `https://graph.facebook.com/v22.0/${adAccountId}/adcreatives?fields=id,name,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,link_title,description,call_to_action,picture,image_url},video_data{message,title,call_to_action,video_id},photo_data{message,caption}},effective_object_story_id,asset_feed_spec{bodies,titles,descriptions,call_to_action_types,link_urls}&limit=500&access_token=${token}`;
-  console.log(`[CREATIVES] Fetching creatives with expanded fields for copy extraction...`);
+  console.log(`[CREATIVES] URL: ${creativesUrl.substring(0, 150)}...`);
   
+  let creativesFetched = 0;
   while (creativesUrl) {
+    console.log(`[CREATIVES] Fetching page... (total so far: ${creativesFetched})`);
     const creativeData = await fetchWithRetry(creativesUrl, 'ADCREATIVES');
     if (isTokenExpiredError(creativeData)) {
       console.log(`[CREATIVES] Token expired during creative fetch`);
       break;
     }
+    if (creativeData.error) {
+      console.log(`[CREATIVES] API Error: ${JSON.stringify(creativeData.error).substring(0, 300)}`);
+      break;
+    }
     if (creativeData.data) {
       allCreatives.push(...creativeData.data);
+      creativesFetched += creativeData.data.length;
+      console.log(`[CREATIVES] Got ${creativeData.data.length} creatives (total: ${creativesFetched})`);
     }
     creativesUrl = creativeData.paging?.next || null;
   }
   
-  console.log(`[CREATIVES] Fetched ${allCreatives.length} creatives from account`);
+  console.log(`[CREATIVES] ========== FINISHED: ${allCreatives.length} creatives total ==========`);
   
   // Mapear creatives por ID
   for (const creative of allCreatives) {
