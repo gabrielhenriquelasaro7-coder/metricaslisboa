@@ -15,7 +15,7 @@ interface AggregatedMetrics {
   frequency: number;
 }
 
-interface SubscriptionConfig {
+interface ConfigSettings {
   includeSpend: boolean;
   includeReach: boolean;
   includeImpressions: boolean;
@@ -71,12 +71,10 @@ function getDateRangeForPeriod(period: string): { startDate: Date; endDate: Date
       startDate.setDate(startDate.getDate() - 30);
       break;
     case 'this_week':
-      // Start from Sunday of current week
       const dayOfWeek = now.getDay();
       startDate.setDate(startDate.getDate() - dayOfWeek);
       break;
     case 'last_week':
-      // Last week Sunday to Saturday
       const currentDay = now.getDay();
       startDate.setDate(startDate.getDate() - currentDay - 7);
       endDate.setDate(endDate.getDate() - currentDay - 1);
@@ -86,7 +84,7 @@ function getDateRangeForPeriod(period: string): { startDate: Date; endDate: Date
       break;
     case 'last_month':
       startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      endDate.setDate(0); // Last day of previous month
+      endDate.setDate(0);
       break;
     default:
       startDate.setDate(startDate.getDate() - 7);
@@ -115,9 +113,8 @@ function buildMessageFromTemplate(
   projectName: string,
   periodLabel: string,
   metrics: AggregatedMetrics,
-  config: SubscriptionConfig
+  config: ConfigSettings
 ): string {
-  // Calculate derived metrics
   const ctr = metrics.impressions > 0 ? (metrics.clicks / metrics.impressions) * 100 : 0;
   const cpm = metrics.impressions > 0 ? (metrics.spend / metrics.impressions) * 1000 : 0;
   const cpc = metrics.clicks > 0 ? metrics.spend / metrics.clicks : 0;
@@ -129,7 +126,6 @@ function buildMessageFromTemplate(
     .replace('{projeto}', projectName)
     .replace('{periodo}', periodLabel);
 
-  // Replace each metric variable - either with value or remove the line
   const replacements: { key: string; value: string; enabled: boolean }[] = [
     { key: 'investimento', value: `💰 Investimento: ${formatCurrency(metrics.spend)}`, enabled: config.includeSpend },
     { key: 'alcance', value: `👁️ Alcance: ${formatNumber(metrics.reach)}`, enabled: config.includeReach },
@@ -139,13 +135,11 @@ function buildMessageFromTemplate(
     { key: 'ctr', value: `📈 CTR: ${formatPercentage(ctr)}`, enabled: config.includeCtr },
     { key: 'cpm', value: `💵 CPM: ${formatCurrency(cpm)}`, enabled: config.includeCpm },
     { key: 'cpc', value: `💳 CPC: ${formatCurrency(cpc)}`, enabled: config.includeCpc },
-    // Inside Sales specific
     { key: 'leads', value: `🎯 Leads: ${metrics.conversions}`, enabled: config.includeLeads },
     { key: 'cpl', value: `📊 CPL: ${formatCurrency(cpl)}`, enabled: config.includeCpl },
-    // E-commerce specific
     { key: 'conversoes', value: `🛒 Conversões: ${metrics.conversions}`, enabled: config.includeConversions },
     { key: 'valor_conversao', value: `💎 Valor: ${formatCurrency(metrics.conversionValue)}`, enabled: config.includeConversionValue },
-    { key: 'cpa', value: `💳 CPA: ${formatCurrency(cpa)}`, enabled: config.includeConversions }, // CPA tied to conversions
+    { key: 'cpa', value: `💳 CPA: ${formatCurrency(cpa)}`, enabled: config.includeConversions },
     { key: 'roas', value: `🚀 ROAS: ${roas.toFixed(2)}x`, enabled: config.includeRoas && roas > 0 },
   ];
 
@@ -158,7 +152,6 @@ function buildMessageFromTemplate(
     }
   });
 
-  // Also handle legacy {metricas} placeholder if present
   if (result.includes('{metricas}')) {
     const metricLines: string[] = [];
     if (config.includeSpend) metricLines.push(`💰 Investimento: ${formatCurrency(metrics.spend)}`);
@@ -175,13 +168,11 @@ function buildMessageFromTemplate(
     result = result.replace('{metricas}', metricLines.join('\n'));
   }
 
-  // Clean up multiple empty lines
   result = result.replace(/\n{3,}/g, '\n\n');
 
   return result;
 }
 
-// Check if current time matches the scheduled time (with 5 minute tolerance)
 function isScheduledTime(reportTime: string): boolean {
   const now = new Date();
   const [scheduledHour, scheduledMinute] = reportTime.split(':').map(Number);
@@ -189,7 +180,6 @@ function isScheduledTime(reportTime: string): boolean {
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
   
-  // Check if within 5 minutes of scheduled time
   const scheduledTotalMinutes = scheduledHour * 60 + scheduledMinute;
   const currentTotalMinutes = currentHour * 60 + currentMinute;
   
@@ -198,315 +188,15 @@ function isScheduledTime(reportTime: string): boolean {
   return diff <= 5;
 }
 
-// Check if already sent today
 function alreadySentToday(lastSentAt: string | null): boolean {
   if (!lastSentAt) return false;
   
   const lastSent = new Date(lastSentAt);
   const now = new Date();
   
-  // Check if same day
   return lastSent.toDateString() === now.toDateString();
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    // Check if this is a manual trigger for a specific subscription
-    let targetSubscriptionId: string | null = null;
-    let forceResend = false;
-    try {
-      const body = await req.json();
-      targetSubscriptionId = body.subscriptionId || null;
-      forceResend = body.forceResend || false;
-    } catch {
-      // No body, will process all active subscriptions
-    }
-
-    const now = new Date();
-    const currentDayOfWeek = now.getDay();
-
-    console.log(`[WEEKLY-REPORT] Starting report generation at ${now.toISOString()}`);
-    console.log(`[WEEKLY-REPORT] Current day of week: ${currentDayOfWeek}`);
-
-    // Fetch subscriptions
-    let subscriptionsQuery = supabase
-      .from('whatsapp_subscriptions')
-      .select('*, whatsapp_instances(instance_name, instance_status, token)')
-      .eq('weekly_report_enabled', true)
-      .not('project_id', 'is', null);
-
-    if (targetSubscriptionId) {
-      subscriptionsQuery = supabase
-        .from('whatsapp_subscriptions')
-        .select('*, whatsapp_instances(instance_name, instance_status, token)')
-        .eq('id', targetSubscriptionId);
-    } else {
-      subscriptionsQuery = subscriptionsQuery.eq('report_day_of_week', currentDayOfWeek);
-    }
-
-    const { data: subscriptions, error: subError } = await subscriptionsQuery;
-
-    if (subError) {
-      console.error('[WEEKLY-REPORT] Error fetching subscriptions:', subError);
-      throw subError;
-    }
-
-    console.log(`[WEEKLY-REPORT] Found ${subscriptions?.length || 0} subscriptions for today`);
-
-    if (!subscriptions || subscriptions.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, message: 'No subscriptions to process' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const results: Array<{ subscriptionId: string; success: boolean; error?: string; skipped?: boolean; reason?: string }> = [];
-
-    for (const subscription of subscriptions) {
-      try {
-        console.log(`[WEEKLY-REPORT] Processing subscription ${subscription.id}`);
-
-        const projectId = subscription.project_id;
-        if (!projectId) {
-          console.log(`[WEEKLY-REPORT] No project_id for subscription ${subscription.id}`);
-          continue;
-        }
-
-        // Check if this is a manual trigger or if it's the scheduled time
-        if (!targetSubscriptionId) {
-          const reportTime = subscription.report_time || '08:00:00';
-          
-          // Check if already sent today
-          if (alreadySentToday(subscription.last_report_sent_at) && !forceResend) {
-            console.log(`[WEEKLY-REPORT] Already sent today for ${subscription.id}, skipping`);
-            results.push({ 
-              subscriptionId: subscription.id, 
-              success: true, 
-              skipped: true, 
-              reason: 'already_sent_today' 
-            });
-            continue;
-          }
-
-          // Check if it's the right time
-          if (!isScheduledTime(reportTime)) {
-            console.log(`[WEEKLY-REPORT] Not scheduled time for ${subscription.id} (scheduled: ${reportTime})`);
-            results.push({ 
-              subscriptionId: subscription.id, 
-              success: true, 
-              skipped: true, 
-              reason: 'not_scheduled_time' 
-            });
-            continue;
-          }
-        }
-
-        // Get project info
-        const { data: project } = await supabase
-          .from('projects')
-          .select('name, business_model')
-          .eq('id', projectId)
-          .single();
-
-        if (!project) {
-          console.log(`[WEEKLY-REPORT] Project not found for ${subscription.id}`);
-          continue;
-        }
-
-        // Check instance status if using a specific instance
-        const instanceData = subscription.whatsapp_instances;
-        if (subscription.instance_id && instanceData) {
-          if (instanceData.instance_status !== 'connected') {
-            console.log(`[WEEKLY-REPORT] Instance not connected for ${subscription.id}`);
-            results.push({
-              subscriptionId: subscription.id,
-              success: false,
-              error: 'WhatsApp instance is not connected',
-            });
-            continue;
-          }
-        }
-
-        // Get period configuration
-        const period = subscription.report_period || 'last_7_days';
-        const { startDate, endDate } = getDateRangeForPeriod(period);
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
-
-        console.log(`[WEEKLY-REPORT] Fetching metrics for period ${startDateStr} to ${endDateStr}`);
-
-        // Get metrics for the period
-        const { data: metricsData, error: metricsError } = await supabase
-          .from('ads_daily_metrics')
-          .select('spend, impressions, clicks, reach, conversions, conversion_value, frequency')
-          .eq('project_id', projectId)
-          .gte('date', startDateStr)
-          .lte('date', endDateStr);
-
-        if (metricsError) {
-          console.error(`[WEEKLY-REPORT] Error fetching metrics:`, metricsError);
-          continue;
-        }
-
-        console.log(`[WEEKLY-REPORT] Found ${metricsData?.length || 0} metric records`);
-
-        // Aggregate metrics
-        const aggregated: AggregatedMetrics = (metricsData || []).reduce(
-          (acc, row) => ({
-            spend: acc.spend + (Number(row.spend) || 0),
-            impressions: acc.impressions + (Number(row.impressions) || 0),
-            clicks: acc.clicks + (Number(row.clicks) || 0),
-            reach: acc.reach + (Number(row.reach) || 0),
-            conversions: acc.conversions + (Number(row.conversions) || 0),
-            conversionValue: acc.conversionValue + (Number(row.conversion_value) || 0),
-            frequency: acc.frequency + (Number(row.frequency) || 0),
-          }),
-          { spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversionValue: 0, frequency: 0 }
-        );
-
-        // Calculate average frequency
-        if (metricsData && metricsData.length > 0) {
-          aggregated.frequency = aggregated.frequency / metricsData.length;
-        }
-
-        console.log(`[WEEKLY-REPORT] Aggregated metrics:`, JSON.stringify(aggregated));
-
-        if (aggregated.spend === 0 && aggregated.impressions === 0) {
-          console.log(`[WEEKLY-REPORT] No data for subscription ${subscription.id}, skipping`);
-          results.push({ 
-            subscriptionId: subscription.id, 
-            success: true, 
-            skipped: true, 
-            reason: 'no_data' 
-          });
-          continue;
-        }
-
-        // Get metric config from subscription
-        const config: SubscriptionConfig = {
-          includeSpend: subscription.include_spend ?? true,
-          includeReach: subscription.include_reach ?? true,
-          includeImpressions: subscription.include_impressions ?? true,
-          includeFrequency: subscription.include_frequency ?? true,
-          includeClicks: subscription.include_clicks ?? true,
-          includeCtr: subscription.include_ctr ?? true,
-          includeCpm: subscription.include_cpm ?? true,
-          includeCpc: subscription.include_cpc ?? true,
-          includeConversions: subscription.include_conversions ?? true,
-          includeConversionValue: subscription.include_conversion_value ?? true,
-          includeLeads: subscription.include_leads ?? true,
-          includeCpl: subscription.include_cpl ?? true,
-          includeRoas: subscription.include_roas ?? true,
-        };
-
-        // Get period label
-        const periodLabel = getPeriodLabel(period);
-
-        // Use custom template or build default based on business model
-        const template = subscription.message_template || getDefaultTemplate(project.business_model);
-
-        // Build the message
-        const message = buildMessageFromTemplate(
-          template,
-          project.name,
-          periodLabel,
-          aggregated,
-          config
-        );
-
-        // Determine target type and destination
-        const targetType = subscription.target_type || 'phone';
-        const groupId = subscription.group_id;
-        const phoneNumber = subscription.phone_number;
-
-        console.log(`[WEEKLY-REPORT] Sending to ${targetType}: ${targetType === 'group' ? groupId : phoneNumber}`);
-
-        // Build request payload for whatsapp-send
-        const sendPayload: Record<string, unknown> = {
-          message,
-          subscriptionId: subscription.id,
-          messageType: 'weekly_report',
-          targetType,
-        };
-
-        // Add instance if configured
-        if (subscription.instance_id) {
-          sendPayload.instanceId = subscription.instance_id;
-        }
-
-        // Add destination based on target type
-        if (targetType === 'group' && groupId) {
-          sendPayload.groupId = groupId;
-        } else {
-          sendPayload.phone = phoneNumber;
-        }
-
-        // Send via whatsapp-send function
-        const sendResponse = await fetch(
-          `${SUPABASE_URL}/functions/v1/whatsapp-send`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            },
-            body: JSON.stringify(sendPayload),
-          }
-        );
-
-        const sendResult = await sendResponse.json();
-
-        if (sendResponse.ok && sendResult.success) {
-          await supabase
-            .from('whatsapp_subscriptions')
-            .update({ last_report_sent_at: new Date().toISOString() })
-            .eq('id', subscription.id);
-
-          results.push({ subscriptionId: subscription.id, success: true });
-          console.log(`[WEEKLY-REPORT] Successfully sent report for ${subscription.id}`);
-        } else {
-          results.push({
-            subscriptionId: subscription.id,
-            success: false,
-            error: sendResult.error || 'Unknown error',
-          });
-          console.error(`[WEEKLY-REPORT] Failed to send:`, sendResult.error);
-        }
-
-      } catch (error) {
-        console.error(`[WEEKLY-REPORT] Error processing subscription ${subscription.id}:`, error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        results.push({ subscriptionId: subscription.id, success: false, error: errorMessage });
-      }
-    }
-
-    console.log(`[WEEKLY-REPORT] Completed. Results:`, JSON.stringify(results));
-
-    return new Response(
-      JSON.stringify({ success: true, results }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error) {
-    console.error('[WEEKLY-REPORT] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-});
-
-// Default templates
 function getDefaultTemplate(businessModel: string | null): string {
   if (businessModel === 'ecommerce' || businessModel === 'pdv') {
     return `📊 *Relatório de Tráfego - {projeto}*
@@ -552,3 +242,290 @@ _Relatório gerado automaticamente_`;
 
 _Relatório gerado automaticamente_`;
 }
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    let targetConfigId: string | null = null;
+    let forceResend = false;
+    try {
+      const body = await req.json();
+      targetConfigId = body.configId || null;
+      forceResend = body.forceResend || false;
+    } catch {
+      // No body, will process all active configs
+    }
+
+    const now = new Date();
+    const currentDayOfWeek = now.getDay();
+
+    console.log(`[WEEKLY-REPORT] Starting report generation at ${now.toISOString()}`);
+    console.log(`[WEEKLY-REPORT] Current day of week: ${currentDayOfWeek}`);
+
+    // Fetch configs from whatsapp_report_configs (NEW TABLE)
+    let configsQuery = supabase
+      .from('whatsapp_report_configs')
+      .select('*, whatsapp_manager_instances(instance_name, instance_status, token), projects(id, name, business_model)')
+      .eq('report_enabled', true)
+      .not('project_id', 'is', null);
+
+    if (targetConfigId) {
+      configsQuery = supabase
+        .from('whatsapp_report_configs')
+        .select('*, whatsapp_manager_instances(instance_name, instance_status, token), projects(id, name, business_model)')
+        .eq('id', targetConfigId);
+    } else {
+      configsQuery = configsQuery.eq('report_day_of_week', currentDayOfWeek);
+    }
+
+    const { data: configs, error: configError } = await configsQuery;
+
+    if (configError) {
+      console.error('[WEEKLY-REPORT] Error fetching configs:', configError);
+      throw configError;
+    }
+
+    console.log(`[WEEKLY-REPORT] Found ${configs?.length || 0} configs for today`);
+
+    if (!configs || configs.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, message: 'No configs to process' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const results: Array<{ configId: string; projectId: string; success: boolean; error?: string; skipped?: boolean; reason?: string }> = [];
+
+    for (const config of configs) {
+      try {
+        console.log(`[WEEKLY-REPORT] Processing config ${config.id}`);
+
+        const projectId = config.project_id;
+        const project = config.projects;
+        
+        if (!project || !projectId) {
+          console.log(`[WEEKLY-REPORT] No project for config ${config.id}`);
+          continue;
+        }
+
+        // Check if this is a manual trigger or if it's the scheduled time
+        if (!targetConfigId) {
+          const reportTime = config.report_time || '08:00';
+          
+          // Check if already sent today
+          if (alreadySentToday(config.last_report_sent_at) && !forceResend) {
+            console.log(`[WEEKLY-REPORT] Already sent today for ${config.id}, skipping`);
+            results.push({ 
+              configId: config.id,
+              projectId,
+              success: true, 
+              skipped: true, 
+              reason: 'already_sent_today' 
+            });
+            continue;
+          }
+
+          // Check if it's the right time
+          if (!isScheduledTime(reportTime)) {
+            console.log(`[WEEKLY-REPORT] Not scheduled time for ${config.id} (scheduled: ${reportTime})`);
+            results.push({ 
+              configId: config.id,
+              projectId,
+              success: true, 
+              skipped: true, 
+              reason: 'not_scheduled_time' 
+            });
+            continue;
+          }
+        }
+
+        // Check instance status
+        const instanceData = config.whatsapp_manager_instances;
+        if (config.instance_id && instanceData) {
+          if (instanceData.instance_status !== 'connected') {
+            console.log(`[WEEKLY-REPORT] Instance not connected for ${config.id}`);
+            results.push({
+              configId: config.id,
+              projectId,
+              success: false,
+              error: 'WhatsApp instance is not connected',
+            });
+            continue;
+          }
+        }
+
+        // Get period configuration
+        const period = config.report_period || 'last_7_days';
+        const { startDate, endDate } = getDateRangeForPeriod(period);
+        const startDateStr = startDate.toISOString().split('T')[0];
+        const endDateStr = endDate.toISOString().split('T')[0];
+
+        console.log(`[WEEKLY-REPORT] Fetching metrics for period ${startDateStr} to ${endDateStr}`);
+
+        // Get metrics for the period
+        const { data: metricsData, error: metricsError } = await supabase
+          .from('ads_daily_metrics')
+          .select('spend, impressions, clicks, reach, conversions, conversion_value, frequency')
+          .eq('project_id', projectId)
+          .gte('date', startDateStr)
+          .lte('date', endDateStr);
+
+        if (metricsError) {
+          console.error(`[WEEKLY-REPORT] Error fetching metrics:`, metricsError);
+          continue;
+        }
+
+        console.log(`[WEEKLY-REPORT] Found ${metricsData?.length || 0} metric records`);
+
+        // Aggregate metrics
+        const aggregated: AggregatedMetrics = (metricsData || []).reduce(
+          (acc, row) => ({
+            spend: acc.spend + (Number(row.spend) || 0),
+            impressions: acc.impressions + (Number(row.impressions) || 0),
+            clicks: acc.clicks + (Number(row.clicks) || 0),
+            reach: acc.reach + (Number(row.reach) || 0),
+            conversions: acc.conversions + (Number(row.conversions) || 0),
+            conversionValue: acc.conversionValue + (Number(row.conversion_value) || 0),
+            frequency: acc.frequency + (Number(row.frequency) || 0),
+          }),
+          { spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversionValue: 0, frequency: 0 }
+        );
+
+        if (metricsData && metricsData.length > 0) {
+          aggregated.frequency = aggregated.frequency / metricsData.length;
+        }
+
+        console.log(`[WEEKLY-REPORT] Aggregated metrics:`, JSON.stringify(aggregated));
+
+        if (aggregated.spend === 0 && aggregated.impressions === 0) {
+          console.log(`[WEEKLY-REPORT] No data for config ${config.id}, skipping`);
+          results.push({ 
+            configId: config.id,
+            projectId,
+            success: true, 
+            skipped: true, 
+            reason: 'no_data' 
+          });
+          continue;
+        }
+
+        // Get metric config from config
+        const configSettings: ConfigSettings = {
+          includeSpend: config.include_spend ?? true,
+          includeReach: config.include_reach ?? true,
+          includeImpressions: config.include_impressions ?? true,
+          includeFrequency: config.include_frequency ?? true,
+          includeClicks: config.include_clicks ?? true,
+          includeCtr: config.include_ctr ?? true,
+          includeCpm: config.include_cpm ?? true,
+          includeCpc: config.include_cpc ?? true,
+          includeConversions: config.include_conversions ?? true,
+          includeConversionValue: config.include_conversion_value ?? true,
+          includeLeads: config.include_leads ?? true,
+          includeCpl: config.include_cpl ?? true,
+          includeRoas: config.include_roas ?? true,
+        };
+
+        const periodLabel = getPeriodLabel(period);
+        const template = config.message_template || getDefaultTemplate(project.business_model);
+
+        const message = buildMessageFromTemplate(
+          template,
+          project.name,
+          periodLabel,
+          aggregated,
+          configSettings
+        );
+
+        // Determine target type and destination
+        const targetType = config.target_type || 'phone';
+        const groupId = config.group_id;
+        const phoneNumber = config.phone_number;
+
+        console.log(`[WEEKLY-REPORT] Sending to ${targetType}: ${targetType === 'group' ? groupId : phoneNumber}`);
+
+        // Build request payload for whatsapp-send
+        // We need to get the token from the manager instance
+        const sendPayload: Record<string, unknown> = {
+          message,
+          configId: config.id,
+          messageType: 'weekly_report',
+          targetType,
+        };
+
+        if (config.instance_id) {
+          sendPayload.instanceId = config.instance_id;
+          sendPayload.useManagerInstance = true;
+        }
+
+        if (targetType === 'group' && groupId) {
+          sendPayload.groupId = groupId;
+        } else {
+          sendPayload.phone = phoneNumber;
+        }
+
+        // Send via whatsapp-send function
+        const sendResponse = await fetch(
+          `${SUPABASE_URL}/functions/v1/whatsapp-send`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+            body: JSON.stringify(sendPayload),
+          }
+        );
+
+        const sendResult = await sendResponse.json();
+
+        if (sendResponse.ok && sendResult.success) {
+          // Update last_report_sent_at on the new table
+          await supabase
+            .from('whatsapp_report_configs')
+            .update({ last_report_sent_at: new Date().toISOString() })
+            .eq('id', config.id);
+
+          results.push({ configId: config.id, projectId, success: true });
+          console.log(`[WEEKLY-REPORT] Successfully sent report for ${config.id}`);
+        } else {
+          results.push({
+            configId: config.id,
+            projectId,
+            success: false,
+            error: sendResult.error || 'Unknown error',
+          });
+          console.error(`[WEEKLY-REPORT] Failed to send:`, sendResult.error);
+        }
+
+      } catch (error) {
+        console.error(`[WEEKLY-REPORT] Error processing config ${config.id}:`, error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        results.push({ configId: config.id, projectId: config.project_id, success: false, error: errorMessage });
+      }
+    }
+
+    console.log(`[WEEKLY-REPORT] Completed. Results:`, JSON.stringify(results));
+
+    return new Response(
+      JSON.stringify({ success: true, results }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('[WEEKLY-REPORT] Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

@@ -13,7 +13,6 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-// Check if already sent today
 function alreadySentToday(lastSentAt: string | null): boolean {
   if (!lastSentAt) return false;
   
@@ -23,7 +22,6 @@ function alreadySentToday(lastSentAt: string | null): boolean {
   return lastSent.toDateString() === now.toDateString();
 }
 
-// Generate balance alert message
 function generateBalanceAlertMessage(
   projectName: string,
   balance: number,
@@ -62,7 +60,6 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Check for manual trigger for specific project
     let targetProjectId: string | null = null;
     let forceResend = false;
     try {
@@ -75,52 +72,52 @@ Deno.serve(async (req) => {
 
     console.log(`[BALANCE-ALERT] Starting balance check at ${new Date().toISOString()}`);
 
-    // Fetch subscriptions with balance alerts enabled
-    let subscriptionsQuery = supabase
-      .from('whatsapp_subscriptions')
-      .select('*, whatsapp_instances(instance_name, instance_status, token), projects(id, name, account_balance, account_balance_updated_at)')
+    // Fetch configs from whatsapp_report_configs (NEW TABLE) with balance alerts enabled
+    let configsQuery = supabase
+      .from('whatsapp_report_configs')
+      .select('*, whatsapp_manager_instances(instance_name, instance_status, token), projects(id, name, account_balance, account_balance_updated_at)')
       .eq('balance_alert_enabled', true)
       .not('project_id', 'is', null);
 
     if (targetProjectId) {
-      subscriptionsQuery = subscriptionsQuery.eq('project_id', targetProjectId);
+      configsQuery = configsQuery.eq('project_id', targetProjectId);
     }
 
-    const { data: subscriptions, error: subError } = await subscriptionsQuery;
+    const { data: configs, error: configError } = await configsQuery;
 
-    if (subError) {
-      console.error('[BALANCE-ALERT] Error fetching subscriptions:', subError);
-      throw subError;
+    if (configError) {
+      console.error('[BALANCE-ALERT] Error fetching configs:', configError);
+      throw configError;
     }
 
-    console.log(`[BALANCE-ALERT] Found ${subscriptions?.length || 0} subscriptions with balance alerts enabled`);
+    console.log(`[BALANCE-ALERT] Found ${configs?.length || 0} configs with balance alerts enabled`);
 
-    if (!subscriptions || subscriptions.length === 0) {
+    if (!configs || configs.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, message: 'No balance alert subscriptions found' }),
+        JSON.stringify({ success: true, message: 'No balance alert configs found' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const results: Array<{ subscriptionId: string; projectId: string; success: boolean; error?: string; skipped?: boolean; reason?: string }> = [];
+    const results: Array<{ configId: string; projectId: string; success: boolean; error?: string; skipped?: boolean; reason?: string }> = [];
 
-    for (const subscription of subscriptions) {
+    for (const config of configs) {
       try {
-        const projectId = subscription.project_id;
-        const project = subscription.projects;
+        const projectId = config.project_id;
+        const project = config.projects;
         
         if (!project || !projectId) {
-          console.log(`[BALANCE-ALERT] No project for subscription ${subscription.id}`);
+          console.log(`[BALANCE-ALERT] No project for config ${config.id}`);
           continue;
         }
 
         console.log(`[BALANCE-ALERT] Processing project ${project.name} (${projectId})`);
 
         // Check if already sent today
-        if (!forceResend && alreadySentToday(subscription.last_balance_alert_at)) {
+        if (!forceResend && alreadySentToday(config.last_balance_alert_at)) {
           console.log(`[BALANCE-ALERT] Already sent today for ${project.name}, skipping`);
           results.push({
-            subscriptionId: subscription.id,
+            configId: config.id,
             projectId,
             success: true,
             skipped: true,
@@ -133,7 +130,7 @@ Deno.serve(async (req) => {
         if (!project.account_balance || project.account_balance <= 0) {
           console.log(`[BALANCE-ALERT] No balance data for ${project.name}`);
           results.push({
-            subscriptionId: subscription.id,
+            configId: config.id,
             projectId,
             success: true,
             skipped: true,
@@ -162,7 +159,7 @@ Deno.serve(async (req) => {
         if (!metricsData || metricsData.length === 0) {
           console.log(`[BALANCE-ALERT] No spend data for ${project.name}`);
           results.push({
-            subscriptionId: subscription.id,
+            configId: config.id,
             projectId,
             success: true,
             skipped: true,
@@ -179,7 +176,7 @@ Deno.serve(async (req) => {
         if (avgDailySpend === 0) {
           console.log(`[BALANCE-ALERT] Zero average spend for ${project.name}`);
           results.push({
-            subscriptionId: subscription.id,
+            configId: config.id,
             projectId,
             success: true,
             skipped: true,
@@ -189,7 +186,7 @@ Deno.serve(async (req) => {
         }
 
         const daysRemaining = Math.floor(project.account_balance / avgDailySpend);
-        const threshold = subscription.balance_alert_threshold || 3;
+        const threshold = config.balance_alert_threshold || 3;
 
         console.log(`[BALANCE-ALERT] ${project.name}: Balance=${formatCurrency(project.account_balance)}, AvgSpend=${formatCurrency(avgDailySpend)}, Days=${daysRemaining}, Threshold=${threshold}`);
 
@@ -197,7 +194,7 @@ Deno.serve(async (req) => {
         if (daysRemaining > threshold) {
           console.log(`[BALANCE-ALERT] ${project.name}: Balance OK (${daysRemaining} days > ${threshold} threshold)`);
           results.push({
-            subscriptionId: subscription.id,
+            configId: config.id,
             projectId,
             success: true,
             skipped: true,
@@ -206,13 +203,13 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Check instance status if using a specific instance
-        const instanceData = subscription.whatsapp_instances;
-        if (subscription.instance_id && instanceData) {
+        // Check instance status
+        const instanceData = config.whatsapp_manager_instances;
+        if (config.instance_id && instanceData) {
           if (instanceData.instance_status !== 'connected') {
             console.log(`[BALANCE-ALERT] Instance not connected for ${project.name}`);
             results.push({
-              subscriptionId: subscription.id,
+              configId: config.id,
               projectId,
               success: false,
               error: 'WhatsApp instance is not connected',
@@ -230,22 +227,23 @@ Deno.serve(async (req) => {
         );
 
         // Determine target type and destination
-        const targetType = subscription.target_type || 'phone';
-        const groupId = subscription.group_id;
-        const phoneNumber = subscription.phone_number;
+        const targetType = config.target_type || 'phone';
+        const groupId = config.group_id;
+        const phoneNumber = config.phone_number;
 
         console.log(`[BALANCE-ALERT] Sending alert to ${targetType}: ${targetType === 'group' ? groupId : phoneNumber}`);
 
         // Build request payload for whatsapp-send
         const sendPayload: Record<string, unknown> = {
           message,
-          subscriptionId: subscription.id,
+          configId: config.id,
           messageType: 'balance_alert',
           targetType,
         };
 
-        if (subscription.instance_id) {
-          sendPayload.instanceId = subscription.instance_id;
+        if (config.instance_id) {
+          sendPayload.instanceId = config.instance_id;
+          sendPayload.useManagerInstance = true;
         }
 
         if (targetType === 'group' && groupId) {
@@ -270,17 +268,17 @@ Deno.serve(async (req) => {
         const sendResult = await sendResponse.json();
 
         if (sendResponse.ok && sendResult.success) {
-          // Update last_balance_alert_at
+          // Update last_balance_alert_at on the new table
           await supabase
-            .from('whatsapp_subscriptions')
+            .from('whatsapp_report_configs')
             .update({ last_balance_alert_at: new Date().toISOString() })
-            .eq('id', subscription.id);
+            .eq('id', config.id);
 
-          results.push({ subscriptionId: subscription.id, projectId, success: true });
+          results.push({ configId: config.id, projectId, success: true });
           console.log(`[BALANCE-ALERT] Successfully sent alert for ${project.name}`);
         } else {
           results.push({
-            subscriptionId: subscription.id,
+            configId: config.id,
             projectId,
             success: false,
             error: sendResult.error || 'Unknown error',
@@ -289,11 +287,11 @@ Deno.serve(async (req) => {
         }
 
       } catch (error) {
-        console.error(`[BALANCE-ALERT] Error processing subscription ${subscription.id}:`, error);
+        console.error(`[BALANCE-ALERT] Error processing config ${config.id}:`, error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         results.push({ 
-          subscriptionId: subscription.id, 
-          projectId: subscription.project_id, 
+          configId: config.id, 
+          projectId: config.project_id, 
           success: false, 
           error: errorMessage 
         });

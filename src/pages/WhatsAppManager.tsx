@@ -33,6 +33,7 @@ import { ManagerInstanceCard } from '@/components/whatsapp/ManagerInstanceCard';
 import { WhatsAppQRModal } from '@/components/whatsapp/WhatsAppQRModal';
 import { ProjectReportConfigDialog } from '@/components/whatsapp/ProjectReportConfigDialog';
 import whatsappIcon from '@/assets/whatsapp-icon.png';
+import v4Logo from '@/assets/v4-logo-full.png';
 
 const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -153,8 +154,14 @@ export default function WhatsAppManager() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
+        {/* Header fixo */}
+        <header className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur">
+          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-4">
+            <Skeleton className="w-10 h-10 rounded-lg" />
+            <Skeleton className="h-8 w-48" />
+          </div>
+        </header>
         <div className="max-w-5xl mx-auto p-6 space-y-6">
-          <Skeleton className="h-8 w-64" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map(i => (
               <Skeleton key={i} className="h-32" />
@@ -167,25 +174,44 @@ export default function WhatsAppManager() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+      {/* Header fixo com logo V4 */}
+      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/projects">
-              <Button variant="ghost" size="icon" className="hover:bg-muted">
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
+            <Link 
+              to="/projects"
+              className="flex items-center gap-3 group transition-all duration-300 hover:opacity-80"
+            >
+              <img 
+                src={v4Logo} 
+                alt="V4 Company" 
+                className="h-10 w-auto"
+              />
             </Link>
+            <div className="w-px h-8 bg-border/50" />
             <div className="flex items-center gap-3">
-              <img src={whatsappIcon} alt="WhatsApp" className="w-10 h-10" />
-              <div>
-                <h1 className="text-2xl font-bold">WhatsApp Manager</h1>
-                <p className="text-muted-foreground text-sm">
-                  Conecte seu WhatsApp e configure envios automáticos para todos os seus projetos
-                </p>
-              </div>
+              <img src={whatsappIcon} alt="WhatsApp" className="w-8 h-8" />
+              <span className="text-lg font-semibold text-foreground">WhatsApp Manager</span>
             </div>
           </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => navigate('/projects')}
+            className="gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar para Projetos
+          </Button>
+        </div>
+      </header>
+
+      <div className="max-w-5xl mx-auto p-6 space-y-8">
+        {/* Page Header */}
+        <div>
+          <p className="text-muted-foreground">
+            Conecte seu WhatsApp e configure envios automáticos de relatórios para todos os seus projetos
+          </p>
         </div>
 
         {/* Connections Section */}
