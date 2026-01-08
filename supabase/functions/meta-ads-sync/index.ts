@@ -351,6 +351,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   console.log(`[CREATIVES] Final creativeDataMap size: ${creativeDataMap.size}, adImageMap: ${adImageMap.size}, videoThumbnailMap: ${videoThumbnailMap.size}`);
 
   // Immediate image caching - prioritize HD sources
+  console.log(`[CACHE-CHECK] skipImageCache=${skipImageCache}, supabase=${!!supabase}, projectId=${projectId}, ads.length=${ads.length}`);
   if (!skipImageCache && supabase && projectId) {
     const adsNeedingCache: Array<{ adId: string; imageUrl: string; isHD: boolean }> = [];
     for (const ad of ads) {
