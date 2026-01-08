@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
-import v4LogoIcon from '@/assets/v4-logo-icon.png';
+import v4LogoIcon from '@/assets/v4-logo-icon-small.png';
 
 const emailSchema = z.string().email('E-mail inválido');
 const passwordSchema = z.string().min(6, 'Mínimo de 6 caracteres');

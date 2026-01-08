@@ -12,7 +12,7 @@ import {
   Users,
   FileText
 } from 'lucide-react';
-import v4LogoIcon from '@/assets/v4-logo-icon.png';
+import v4LogoIcon from '@/assets/v4-logo-icon-small.png';
 
 const features = [
   {
