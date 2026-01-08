@@ -456,17 +456,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           {/* Admin & Settings at bottom - Hidden for guests, hidden while loading role */}
           {!roleLoading && !isGuest && (
             <div className="space-y-1 mt-2 mb-2">
-              {/* WhatsApp */}
-              <Link
-                to="/whatsapp"
-                className={cn(
-                  'sidebar-item',
-                  location.pathname === '/whatsapp' && 'active'
-                )}
-              >
-                <MessageSquare className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>WhatsApp</span>}
-              </Link>
 
               {/* Admin - vai para página dedicada do projeto se houver projeto selecionado */}
               <Link
