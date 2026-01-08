@@ -852,11 +852,16 @@ export default function WhatsApp() {
 
       if (error) throw error;
 
-      if (data.success) {
+      // Check individual results, not just top-level success
+      const result = data.results?.[0];
+      if (result?.success && !result?.skipped) {
         toast.success('Relatório de teste enviado!');
         await fetchMessageLogs();
+      } else if (result?.skipped) {
+        toast.warning(`Relatório não enviado: ${result.reason === 'no_data' ? 'Sem dados no período' : result.reason}`);
       } else {
-        toast.error('Erro ao enviar relatório de teste');
+        console.error('WhatsApp report error:', result?.error);
+        toast.error(result?.error || 'Erro ao enviar relatório de teste');
       }
     } catch (error: any) {
       console.error('Error sending test report:', error);

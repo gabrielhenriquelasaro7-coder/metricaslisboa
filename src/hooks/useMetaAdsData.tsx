@@ -443,6 +443,8 @@ export function useMetaAdsData() {
       });
       
       // Calculate derived metrics for ads - enriching with creative data from ads table
+      // IMPORTANT: Prioritize ads_daily_metrics data (agg) over ads table (creative) 
+      // because for new projects, ads table may be empty but ads_daily_metrics has thumbnails
       const calcAdMetrics = (agg: any) => {
         const creative = creativeMap.get(agg.id);
         return {
@@ -456,10 +458,10 @@ export function useMetaAdsData() {
           synced_at: new Date().toISOString(),
           daily_budget: null, lifetime_budget: null, targeting: null,
           created_time: null, updated_time: null,
-          // Enrich with creative data from ads table
-          creative_image_url: creative?.creative_image_url || creative?.cached_image_url || agg.creative_thumbnail || null,
+          // Prioritize: 1) agg (ads_daily_metrics), 2) creative (ads table), 3) null
+          creative_image_url: agg.creative_image_url || agg.creative_thumbnail || creative?.creative_image_url || creative?.cached_image_url || null,
           creative_video_url: creative?.creative_video_url || null,
-          cached_image_url: creative?.cached_image_url || null,
+          cached_image_url: agg.cached_image_url || creative?.cached_image_url || null,
           creative_thumbnail: agg.creative_thumbnail || creative?.creative_thumbnail || null,
           headline: creative?.headline || null,
           primary_text: creative?.primary_text || null,
