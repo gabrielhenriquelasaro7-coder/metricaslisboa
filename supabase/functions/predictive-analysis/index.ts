@@ -68,54 +68,59 @@ serve(async (req) => {
           const metaData = await metaResponse.json();
           console.log('[PREDICTIVE] Meta account data:', JSON.stringify(metaData));
           
-          // Check for funding source details (for prepaid/PIX accounts)
+          // Check for funding source details
           let fundingType = null;
           let autoReloadEnabled = false;
           let autoReloadThreshold = null;
           let balanceValue = 0;
           
-          // PRIORITY: Extract balance from funding_source_details.display_string
-          // This is the CORRECT balance shown in Meta Ads Manager
-          // Example: "Saldo disponível (R$2.003,11 BRL)"
-          if (metaData.funding_source_details?.display_string) {
-            const displayString = metaData.funding_source_details.display_string;
-            console.log('[PREDICTIVE] display_string:', displayString);
-            
-            // Extract value from formats like "R$2.003,11" or "R$2,003.11" or "$2,003.11"
-            const match = displayString.match(/[\$R\€]?\s*([\d.,]+)/);
-            if (match) {
-              let valueStr = match[1];
-              // Handle Brazilian format (1.234,56) vs US format (1,234.56)
-              // If has both . and , check which comes last
-              if (valueStr.includes('.') && valueStr.includes(',')) {
-                if (valueStr.lastIndexOf(',') > valueStr.lastIndexOf('.')) {
-                  // Brazilian format: 1.234,56 -> remove dots, replace comma with dot
-                  valueStr = valueStr.replace(/\./g, '').replace(',', '.');
-                } else {
-                  // US format: 1,234.56 -> remove commas
-                  valueStr = valueStr.replace(/,/g, '');
-                }
-              } else if (valueStr.includes(',') && !valueStr.includes('.')) {
-                // Only comma, assume Brazilian decimal: 234,56 -> 234.56
-                valueStr = valueStr.replace(',', '.');
-              } else if (valueStr.includes('.') && !valueStr.includes(',')) {
-                // Only dot - could be decimal or thousands separator
-                // If only one dot and 2 digits after, it's decimal
-                const parts = valueStr.split('.');
-                if (parts.length === 2 && parts[1].length <= 2) {
-                  // It's a decimal like 234.56
-                  // keep as is
-                } else {
-                  // It's thousands like 2.003 -> 2003
-                  valueStr = valueStr.replace(/\./g, '');
-                }
-              }
-              balanceValue = parseFloat(valueStr) || 0;
-              console.log('[PREDICTIVE] Parsed balance from display_string:', balanceValue);
-            }
-            
+          // PRIORITY: Use the 'balance' field from Meta API (it's in cents for prepaid accounts)
+          // The balance field is the CORRECT source, NOT the display_string which may contain card info
+          if (metaData.balance !== undefined && metaData.balance !== null) {
+            const rawBalance = typeof metaData.balance === 'string' 
+              ? parseFloat(metaData.balance) 
+              : metaData.balance;
+            // Balance is in cents (e.g., 33841 = R$338.41)
+            balanceValue = rawBalance / 100;
+            console.log('[PREDICTIVE] Balance from API (cents converted):', balanceValue);
+          }
+          
+          // Check funding source details for type and auto-reload settings
+          if (metaData.funding_source_details) {
             const fsd = metaData.funding_source_details;
             fundingType = fsd.type || null;
+            
+            // For PREPAID (type=1) accounts, the display_string may show "Saldo disponível (R$X.XXX,XX BRL)"
+            // Try to extract balance from display_string ONLY if it contains "Saldo" (prepaid balance)
+            if (fsd.display_string && fsd.display_string.toLowerCase().includes('saldo')) {
+              console.log('[PREDICTIVE] display_string:', fsd.display_string);
+              
+              // Extract value from formats like "R$2.003,11" or "R$2,003.11"
+              const match = fsd.display_string.match(/R\$\s*([\d.,]+)/);
+              if (match) {
+                let valueStr = match[1];
+                // Handle Brazilian format (1.234,56) vs US format (1,234.56)
+                if (valueStr.includes('.') && valueStr.includes(',')) {
+                  if (valueStr.lastIndexOf(',') > valueStr.lastIndexOf('.')) {
+                    // Brazilian format: 1.234,56 -> remove dots, replace comma with dot
+                    valueStr = valueStr.replace(/\./g, '').replace(',', '.');
+                  } else {
+                    // US format: 1,234.56 -> remove commas
+                    valueStr = valueStr.replace(/,/g, '');
+                  }
+                } else if (valueStr.includes(',') && !valueStr.includes('.')) {
+                  // Only comma, assume Brazilian decimal: 234,56 -> 234.56
+                  valueStr = valueStr.replace(',', '.');
+                }
+                const parsedFromDisplay = parseFloat(valueStr) || 0;
+                // Only use display_string value if it's higher than the balance field
+                // This handles cases where balance field shows remaining credit but display shows total
+                if (parsedFromDisplay > balanceValue) {
+                  balanceValue = parsedFromDisplay;
+                  console.log('[PREDICTIVE] Using higher balance from display_string:', balanceValue);
+                }
+              }
+            }
             
             // Check if auto-reload is configured
             if (fsd.coupon && fsd.coupon.auto_reload_enabled) {
@@ -124,14 +129,9 @@ serve(async (req) => {
                 ? parseFloat(fsd.coupon.auto_reload_threshold_amount) / 100 
                 : null;
             }
-          } else if (metaData.balance !== undefined && metaData.balance !== null) {
-            // Fallback: use balance field (in cents)
-            const rawBalance = typeof metaData.balance === 'string' 
-              ? parseFloat(metaData.balance) 
-              : metaData.balance;
-            balanceValue = rawBalance / 100;
-            console.log('[PREDICTIVE] Using fallback balance from cents:', balanceValue);
           }
+          
+          console.log('[PREDICTIVE] Final balance value:', balanceValue);
           
           accountBalance = {
             balance: balanceValue,
