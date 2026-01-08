@@ -169,6 +169,25 @@ function AdCard({ ad, projectId, isEcommerce, formatCurrency, formatNumber }: Ad
     setImageError(false);
   }, [ad.id]);
   
+  // Debug log
+  useEffect(() => {
+    console.log('[AdCard Debug]', {
+      adId: ad.id,
+      adName: ad.name,
+      hasImage,
+      hasVideo,
+      creative_image_url: ad.creative_image_url,
+      creative_thumbnail: ad.creative_thumbnail,
+      cached_image_url: ad.cached_image_url,
+      cleanedCreativeUrl,
+      cleanedThumbnail,
+      imageUrls,
+      currentUrl,
+      currentImageIndex,
+      imageError
+    });
+  }, [ad.id, imageUrls, currentUrl, currentImageIndex, imageError]);
+  
   return (
     <Link 
       to={`/ad/${ad.id}`}
