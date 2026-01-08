@@ -127,6 +127,143 @@ const TRAFFIC_OBJECTIVES = [
   'OUTCOME_AWARENESS',
 ];
 
+// AdCard component with fallback image loading
+interface AdCardProps {
+  ad: Ad;
+  projectId: string | undefined;
+  isEcommerce: boolean;
+  formatCurrency: (n: number) => string;
+  formatNumber: (n: number) => string;
+}
+
+function AdCard({ ad, projectId, isEcommerce, formatCurrency, formatNumber }: AdCardProps) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageError, setImageError] = useState(false);
+  
+  const hasVideo = ad.creative_video_url;
+  const hasImage = ad.creative_image_url || ad.creative_thumbnail || ad.cached_image_url;
+  
+  // Build list of URLs to try in priority order
+  const imageUrls: string[] = [];
+  const storageUrl = getStorageImageUrl(projectId, ad.id);
+  if (storageUrl) imageUrls.push(storageUrl);
+  if (ad.cached_image_url) imageUrls.push(ad.cached_image_url);
+  const cleanedCreativeUrl = cleanImageUrl(ad.creative_image_url);
+  if (cleanedCreativeUrl) imageUrls.push(cleanedCreativeUrl);
+  const cleanedThumbnail = cleanImageUrl(ad.creative_thumbnail);
+  if (cleanedThumbnail) imageUrls.push(cleanedThumbnail);
+  
+  const currentUrl = imageUrls[currentImageIndex] || '';
+  
+  const handleImageError = () => {
+    if (currentImageIndex < imageUrls.length - 1) {
+      setCurrentImageIndex(prev => prev + 1);
+    } else {
+      setImageError(true);
+    }
+  };
+  
+  // Reset on ad change
+  useEffect(() => {
+    setCurrentImageIndex(0);
+    setImageError(false);
+  }, [ad.id]);
+  
+  return (
+    <Link 
+      to={`/ad/${ad.id}`}
+      className="glass-card-hover group block overflow-hidden"
+    >
+      {/* Creative Preview */}
+      <div className="aspect-square bg-muted relative overflow-hidden">
+        {hasVideo ? (
+          <div className="relative w-full h-full">
+            <video 
+              src={ad.creative_video_url || ''} 
+              className="w-full h-full object-cover"
+              muted
+              poster={cleanImageUrl(ad.creative_thumbnail) || undefined}
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
+                <Play className="w-6 h-6 text-foreground ml-1" />
+              </div>
+            </div>
+          </div>
+        ) : hasImage && !imageError && currentUrl ? (
+          <img 
+            src={currentUrl} 
+            alt={ad.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={handleImageError}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <ImageIcon className="w-16 h-16 text-muted-foreground/30" />
+          </div>
+        )}
+        
+        {/* Status Badge Overlay */}
+        <div className="absolute top-3 left-3">
+          <Badge 
+            variant="secondary" 
+            className={cn(
+              "text-xs shadow-lg",
+              ad.status === 'ACTIVE' && 'bg-metric-positive text-white',
+              ad.status === 'PAUSED' && 'bg-metric-warning text-white'
+            )}
+          >
+            {ad.status === 'ACTIVE' ? 'Ativo' : 'Pausado'}
+          </Badge>
+        </div>
+        
+        {/* View Detail Overlay */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+          <div className="bg-white/90 rounded-full p-3">
+            <ExternalLink className="w-5 h-5 text-foreground" />
+          </div>
+        </div>
+      </div>
+      
+      {/* Content */}
+      <div className="p-4">
+        <h4 className="font-semibold truncate mb-1 group-hover:text-primary transition-colors">
+          {ad.name}
+        </h4>
+        {ad.headline && (
+          <p className="text-sm text-muted-foreground truncate mb-3">{ad.headline}</p>
+        )}
+        
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-muted/50 rounded-lg p-2.5">
+            <p className="text-xs text-muted-foreground">Gasto</p>
+            <p className="font-semibold text-sm">{formatCurrency(ad.spend)}</p>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-2.5">
+            <p className="text-xs text-muted-foreground">Conversões</p>
+            <p className="font-semibold text-sm">{formatNumber(ad.conversions)}</p>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-2.5">
+            <p className="text-xs text-muted-foreground">CTR</p>
+            <p className="font-semibold text-sm">{ad.ctr.toFixed(2)}%</p>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-2.5">
+            <p className="text-xs text-muted-foreground">{isEcommerce ? 'ROAS' : 'CPL'}</p>
+            <p className={cn(
+              "font-semibold text-sm",
+              isEcommerce && ad.roas >= 5 && 'text-metric-positive',
+              isEcommerce && ad.roas < 3 && 'text-metric-negative'
+            )}>
+              {isEcommerce ? `${ad.roas.toFixed(2)}x` : formatCurrency(ad.cpa)}
+            </p>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function AdSetDetail() {
   const { adSetId } = useParams<{ adSetId: string }>();
   const { projects } = useProjects();
@@ -647,113 +784,16 @@ export default function AdSetDetail() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {sortedAds.map((ad) => {
-                const hasVideo = ad.creative_video_url;
-                const hasImage = ad.creative_image_url || ad.creative_thumbnail || ad.cached_image_url;
-                // Try Storage URL first (permanent), then cached_image_url, then Facebook URLs
-                const storageUrl = getStorageImageUrl(adSet?.project_id, ad.id);
-                const creativeUrl = storageUrl || ad.cached_image_url || cleanImageUrl(ad.creative_image_url || ad.creative_thumbnail) || '';
-                
-                return (
-                  <Link 
-                    key={ad.id} 
-                    to={`/ad/${ad.id}`}
-                    className="glass-card-hover group block overflow-hidden"
-                  >
-                    {/* Creative Preview */}
-                    <div className="aspect-square bg-muted relative overflow-hidden">
-                      {hasVideo ? (
-                        <div className="relative w-full h-full">
-                          <video 
-                            src={ad.creative_video_url || ''} 
-                            className="w-full h-full object-cover"
-                            muted
-                            poster={cleanImageUrl(ad.creative_thumbnail) || undefined}
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                            <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
-                              <Play className="w-6 h-6 text-foreground ml-1" />
-                            </div>
-                          </div>
-                        </div>
-                      ) : hasImage ? (
-                        <img 
-                          src={creativeUrl} 
-                          alt={ad.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            if (target.nextElementSibling) {
-                              target.nextElementSibling.classList.remove('hidden');
-                            }
-                          }}
-                        />
-                      ) : null}
-                      <div className={cn("w-full h-full flex items-center justify-center", hasImage && "hidden")}>
-                        <ImageIcon className="w-16 h-16 text-muted-foreground/30" />
-                      </div>
-                      
-                      {/* Status Badge Overlay */}
-                      <div className="absolute top-3 left-3">
-                        <Badge 
-                          variant="secondary" 
-                          className={cn(
-                            "text-xs shadow-lg",
-                            ad.status === 'ACTIVE' && 'bg-metric-positive text-white',
-                            ad.status === 'PAUSED' && 'bg-metric-warning text-white'
-                          )}
-                        >
-                          {ad.status === 'ACTIVE' ? 'Ativo' : 'Pausado'}
-                        </Badge>
-                      </div>
-                      
-                      {/* View Detail Overlay */}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <div className="bg-white/90 rounded-full p-3">
-                          <ExternalLink className="w-5 h-5 text-foreground" />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="p-4">
-                      <h4 className="font-semibold truncate mb-1 group-hover:text-primary transition-colors">
-                        {ad.name}
-                      </h4>
-                      {ad.headline && (
-                        <p className="text-sm text-muted-foreground truncate mb-3">{ad.headline}</p>
-                      )}
-                      
-                      {/* Metrics Grid */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-muted/50 rounded-lg p-2.5">
-                          <p className="text-xs text-muted-foreground">Gasto</p>
-                          <p className="font-semibold text-sm">{formatCurrency(ad.spend)}</p>
-                        </div>
-                        <div className="bg-muted/50 rounded-lg p-2.5">
-                          <p className="text-xs text-muted-foreground">Conversões</p>
-                          <p className="font-semibold text-sm">{formatNumber(ad.conversions)}</p>
-                        </div>
-                        <div className="bg-muted/50 rounded-lg p-2.5">
-                          <p className="text-xs text-muted-foreground">CTR</p>
-                          <p className="font-semibold text-sm">{ad.ctr.toFixed(2)}%</p>
-                        </div>
-                        <div className="bg-muted/50 rounded-lg p-2.5">
-                          <p className="text-xs text-muted-foreground">{isEcommerce ? 'ROAS' : 'CPL'}</p>
-                          <p className={cn(
-                            "font-semibold text-sm",
-                            isEcommerce && ad.roas >= 5 && 'text-metric-positive',
-                            isEcommerce && ad.roas < 3 && 'text-metric-negative'
-                          )}>
-                            {isEcommerce ? `${ad.roas.toFixed(2)}x` : formatCurrency(ad.cpa)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+              {sortedAds.map((ad) => (
+                <AdCard 
+                  key={ad.id}
+                  ad={ad}
+                  projectId={adSet?.project_id}
+                  isEcommerce={isEcommerce}
+                  formatCurrency={formatCurrency}
+                  formatNumber={formatNumber}
+                />
+              ))}
             </div>
           )}
         </div>
