@@ -165,12 +165,43 @@ Deno.serve(async (req) => {
 
     // CONNECT
     if (action === 'connect') {
+      // First check if instance exists on Evolution, if not recreate it
+      const checkRes = await fetch(`${evolutionApiUrl}/instance/connectionState/${instance.instance_name}`, {
+        method: 'GET',
+        headers: { 'apikey': evolutionApiKey! }
+      });
+      
+      // If instance doesn't exist, recreate it
+      if (!checkRes.ok || checkRes.status === 404) {
+        console.log('Instance not found on Evolution, recreating...');
+        
+        const recreateRes = await fetch(`${evolutionApiUrl}/instance/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': evolutionApiKey!
+          },
+          body: JSON.stringify({
+            instanceName: instance.instance_name,
+            qrcode: true,
+            integration: 'WHATSAPP-BAILEYS'
+          })
+        });
+
+        if (!recreateRes.ok) {
+          const recreateError = await recreateRes.json();
+          console.error('Failed to recreate instance:', recreateError);
+        }
+      }
+
+      // Now try to connect
       const connectRes = await fetch(`${evolutionApiUrl}/instance/connect/${instance.instance_name}`, {
         method: 'GET',
         headers: { 'apikey': evolutionApiKey! }
       });
 
       const connectData = await connectRes.json();
+      console.log('Connect response:', JSON.stringify(connectData));
 
       if (connectData.base64) {
         const expiresAt = new Date(Date.now() + 45000).toISOString();
@@ -187,6 +218,28 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ 
           success: true, 
           qrCode: connectData.base64,
+          expiresAt 
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Check if code is in qrcode field (some versions use this)
+      if (connectData.qrcode?.base64) {
+        const expiresAt = new Date(Date.now() + 45000).toISOString();
+        
+        await supabase
+          .from('whatsapp_manager_instances')
+          .update({ 
+            qr_code: connectData.qrcode.base64, 
+            qr_code_expires_at: expiresAt,
+            instance_status: 'connecting'
+          })
+          .eq('id', instanceId);
+
+        return new Response(JSON.stringify({ 
+          success: true, 
+          qrCode: connectData.qrcode.base64,
           expiresAt 
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -213,7 +266,9 @@ Deno.serve(async (req) => {
         });
       }
 
-      throw new Error('Não foi possível obter QR Code');
+      // If we still don't have QR, return helpful error
+      console.error('No QR code in response:', connectData);
+      throw new Error('Aguarde alguns segundos e tente novamente. A instância está sendo preparada.');
     }
 
     // STATUS
