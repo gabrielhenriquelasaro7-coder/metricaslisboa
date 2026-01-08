@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,12 +35,35 @@ interface AccountBalanceCardProps {
   currency?: string;
 }
 
-export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalanceCardProps) {
-  const [data, setData] = useState<AccountBalanceData | null>(null);
-  const [loading, setLoading] = useState(false);
+// Cache to persist balance data across period changes
+const balanceCache = new Map<string, { data: AccountBalanceData; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-  const fetchBalance = useCallback(async () => {
+export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalanceCardProps) {
+  const [data, setData] = useState<AccountBalanceData | null>(() => {
+    // Initialize from cache if available
+    if (projectId) {
+      const cached = balanceCache.get(projectId);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.data;
+      }
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(false);
+  const hasFetched = useRef(false);
+
+  const fetchBalance = useCallback(async (force = false) => {
     if (!projectId) return;
+    
+    // Check cache first (unless forced)
+    if (!force) {
+      const cached = balanceCache.get(projectId);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        setData(cached.data);
+        return;
+      }
+    }
     
     setLoading(true);
     try {
@@ -51,7 +74,7 @@ export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalan
       if (error) throw error;
 
       if (result?.accountBalance) {
-        setData({
+        const newData: AccountBalanceData = {
           balance: result.accountBalance.balance || 0,
           currency: result.accountBalance.currency || currency,
           lastUpdated: result.accountBalance.lastUpdated,
@@ -61,7 +84,10 @@ export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalan
           autoReloadEnabled: result.accountBalance.autoReloadEnabled || false,
           fundingType: result.accountBalance.fundingType || null,
           accountStatus: result.accountBalance.accountStatus || null,
-        });
+        };
+        setData(newData);
+        // Save to cache
+        balanceCache.set(projectId, { data: newData, timestamp: Date.now() });
       }
     } catch (err) {
       console.error('Error fetching balance:', err);
@@ -71,8 +97,13 @@ export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalan
   }, [projectId, currency]);
 
   useEffect(() => {
-    fetchBalance();
-  }, [fetchBalance]);
+    // Only fetch on first mount or when projectId changes
+    if (!hasFetched.current || !balanceCache.has(projectId || '')) {
+      hasFetched.current = true;
+      fetchBalance();
+    }
+  }, [projectId]); // Remove fetchBalance from deps to avoid re-fetching on period change
+
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -212,7 +243,7 @@ export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalan
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={fetchBalance}
+              onClick={() => fetchBalance(true)}
               disabled={loading}
             >
               <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
