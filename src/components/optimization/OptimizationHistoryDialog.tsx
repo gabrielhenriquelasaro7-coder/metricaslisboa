@@ -307,13 +307,14 @@ export function OptimizationHistoryDialog({
                           const EntityIcon = ENTITY_TYPE_LABELS[record.entity_type]?.icon || Target;
                           const changeType = CHANGE_TYPE_LABELS[record.change_type];
                           
-                          return (
+                            return (
                             <div 
                               key={record.id}
                               className="bg-card border rounded-lg p-3 hover:bg-muted/50 transition-colors"
                             >
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <div className="flex flex-col gap-2">
+                                {/* Top row: Entity info */}
+                                <div className="flex items-start gap-3">
                                   <div className={cn(
                                     "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
                                     record.entity_type === 'campaign' && "bg-blue-500/10 text-blue-500",
@@ -340,28 +341,31 @@ export function OptimizationHistoryDialog({
                                   </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-2 text-sm shrink-0">
-                                  <span className="text-muted-foreground">
-                                    {formatValue(record.old_value, record.field_changed)}
-                                  </span>
-                                  <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                                  <span className="font-medium">
-                                    {formatValue(record.new_value, record.field_changed)}
-                                  </span>
-                                  {getChangeIcon(record)}
-                                  {record.change_percentage !== null && (
-                                    <span className={cn(
-                                      "text-xs font-medium",
-                                      record.change_percentage > 0 ? "text-metric-positive" : "text-metric-negative"
-                                    )}>
-                                      {record.change_percentage > 0 ? '+' : ''}{record.change_percentage.toFixed(1)}%
+                                {/* Bottom row: Values */}
+                                <div className="flex items-center justify-between pl-11">
+                                  <div className="flex items-center gap-2 text-sm flex-wrap">
+                                    <span className="text-muted-foreground whitespace-nowrap">
+                                      {formatValue(record.old_value, record.field_changed)}
                                     </span>
-                                  )}
+                                    <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                                    <span className="font-medium whitespace-nowrap">
+                                      {formatValue(record.new_value, record.field_changed)}
+                                    </span>
+                                    {getChangeIcon(record)}
+                                    {record.change_percentage !== null && (
+                                      <span className={cn(
+                                        "text-xs font-medium whitespace-nowrap",
+                                        record.change_percentage > 0 ? "text-metric-positive" : "text-metric-negative"
+                                      )}>
+                                        {record.change_percentage > 0 ? '+' : ''}{record.change_percentage.toFixed(1)}%
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground whitespace-nowrap">
+                                    {new Date(record.detected_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
                                 </div>
                               </div>
-                              <p className="text-xs text-muted-foreground mt-2 pl-11">
-                                {new Date(record.detected_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                              </p>
                             </div>
                           );
                         })}
