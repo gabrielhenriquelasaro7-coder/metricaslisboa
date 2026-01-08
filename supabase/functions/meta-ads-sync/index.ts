@@ -92,8 +92,13 @@ async function fetchWithRetry(url: string, entityName: string): Promise<any> {
   return { error: { message: 'Max retries exceeded' } };
 }
 
-async function cacheCreativeImage(supabase: any, projectId: string, adId: string, imageUrl: string | null, forceRefresh = false): Promise<string | null> {
-  if (!imageUrl) return null;
+async function cacheCreativeImage(supabase: any, projectId: string, adId: string, imageUrls: string | string[] | null, forceRefresh = false): Promise<string | null> {
+  if (!imageUrls) return null;
+  
+  // Aceitar array de URLs para tentar em ordem
+  const urlsToTry = Array.isArray(imageUrls) ? imageUrls.filter(Boolean) : [imageUrls];
+  if (urlsToTry.length === 0) return null;
+  
   try {
     const fileName = `${projectId}/${adId}.jpg`;
     
@@ -112,48 +117,57 @@ async function cacheCreativeImage(supabase: any, projectId: string, adId: string
       }
     }
     
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const response = await fetch(imageUrl, { 
-        headers: { 
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 
-          'Accept': 'image/*',
-          'Referer': 'https://www.facebook.com/'
-        }, 
-        signal: controller.signal 
-      });
-      clearTimeout(timeoutId);
-      if (!response.ok) {
-        console.log(`[CACHE] Fetch failed (${response.status}) for ${adId}`);
-        return null;
+    // Tentar cada URL até ter sucesso
+    for (let urlIdx = 0; urlIdx < urlsToTry.length; urlIdx++) {
+      const imageUrl = urlsToTry[urlIdx];
+      
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const response = await fetch(imageUrl, { 
+          headers: { 
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 
+            'Accept': 'image/*',
+            'Referer': 'https://www.facebook.com/'
+          }, 
+          signal: controller.signal 
+        });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          console.log(`[CACHE] Fetch failed (${response.status}) for ${adId} - URL ${urlIdx + 1}/${urlsToTry.length}`);
+          continue; // Tentar próxima URL
+        }
+        
+        const imageBuffer = await response.arrayBuffer();
+        
+        if (imageBuffer.byteLength < 5000) {
+          console.log(`[CACHE] Image too small (${imageBuffer.byteLength} bytes) for ${adId} - URL ${urlIdx + 1}/${urlsToTry.length}`);
+          continue; // Tentar próxima URL
+        }
+        
+        const { error: uploadError } = await supabase.storage.from('creative-images').upload(fileName, imageBuffer, { 
+          contentType: response.headers.get('content-type') || 'image/jpeg', 
+          upsert: true 
+        });
+        
+        if (uploadError) {
+          console.log(`[CACHE] Upload error for ${adId}: ${uploadError.message}`);
+          return null;
+        }
+        
+        const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
+        const isHD = imageBuffer.byteLength > 20000;
+        console.log(`[CACHE] Cached ${isHD ? 'HD' : 'SD'} image (${imageBuffer.byteLength} bytes) from URL ${urlIdx + 1}: ${adId}`);
+        return publicUrlData?.publicUrl || null;
+      } catch (e) {
+        console.log(`[CACHE] Error for ${adId} URL ${urlIdx + 1}: ${e}`);
+        continue; // Tentar próxima URL
       }
-      
-      const imageBuffer = await response.arrayBuffer();
-      
-      if (imageBuffer.byteLength < 5000) {
-        console.log(`[CACHE] Image too small (${imageBuffer.byteLength} bytes): ${adId}`);
-        return null;
-      }
-      
-      const { error: uploadError } = await supabase.storage.from('creative-images').upload(fileName, imageBuffer, { 
-        contentType: response.headers.get('content-type') || 'image/jpeg', 
-        upsert: true 
-      });
-      
-      if (uploadError) {
-        console.log(`[CACHE] Upload error for ${adId}: ${uploadError.message}`);
-        return null;
-      }
-      
-      const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
-      const isHD = imageBuffer.byteLength > 20000;
-      console.log(`[CACHE] Cached ${isHD ? 'HD' : 'SD'} image (${imageBuffer.byteLength} bytes): ${adId}`);
-      return publicUrlData?.publicUrl || null;
-    } catch (e) {
-      console.log(`[CACHE] Error for ${adId}: ${e}`);
-      return null;
     }
+    
+    console.log(`[CACHE] All ${urlsToTry.length} URLs failed for ${adId}`);
+    return null;
   } catch (e) { 
     console.log(`[CACHE] Error caching ${adId}: ${e}`);
     return null; 
@@ -581,10 +595,11 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 
   // ===========================================================================================
   // CACHE DE IMAGENS HD
-  // Prioridade: 1) image_hash via /adimages, 2) directImageUrls, 3) video thumbnail
+  // Prioridade: 1) image_hash via /adimages, 2) directImageUrls, 3) video thumbnail, 4) thumbnail_url
+  // NOVA LÓGICA: Passa TODAS as URLs para a função de cache tentar em ordem
   // ===========================================================================================
   if (!skipImageCache && supabase && projectId) {
-    const adsNeedingCache: Array<{ adId: string; imageUrl: string; source: string }> = [];
+    const adsNeedingCache: Array<{ adId: string; imageUrls: string[]; primarySource: string }> = [];
     
     for (const ad of ads) {
       const adId = String(ad.id);
@@ -595,77 +610,92 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
         continue;
       }
       
-      let hdImageUrl: string | null = null;
-      let source = '';
+      // Coletar TODAS as URLs possíveis para tentar em ordem
+      const candidateUrls: string[] = [];
+      let primarySource = '';
       
       // PRIORIDADE 1: image_hash via /adimages (url_1024)
       const imageHash = ad.creative?.image_hash;
       if (imageHash && adImageMap.has(imageHash)) {
-        hdImageUrl = adImageMap.get(imageHash)!;
-        source = 'adimages_hash';
+        candidateUrls.push(adImageMap.get(imageHash)!);
+        if (!primarySource) primarySource = 'adimages_hash';
       }
       
       // Também verificar hashes em object_story_spec
-      if (!hdImageUrl) {
-        const oss = ad.creative?.object_story_spec;
-        const ossHashes = [
-          oss?.link_data?.image_hash,
-          oss?.photo_data?.image_hash,
-          oss?.video_data?.image_hash
-        ].filter(Boolean);
-        
-        for (const h of ossHashes) {
-          if (h && adImageMap.has(h)) {
-            hdImageUrl = adImageMap.get(h)!;
-            source = 'adimages_oss_hash';
-            break;
+      const oss = ad.creative?.object_story_spec;
+      const ossHashes = [
+        oss?.link_data?.image_hash,
+        oss?.photo_data?.image_hash,
+        oss?.video_data?.image_hash
+      ].filter(Boolean);
+      
+      for (const h of ossHashes) {
+        if (h && adImageMap.has(h)) {
+          const url = adImageMap.get(h)!;
+          if (!candidateUrls.includes(url)) {
+            candidateUrls.push(url);
+            if (!primarySource) primarySource = 'adimages_oss_hash';
           }
         }
       }
       
       // PRIORIDADE 2: directImageUrls (de object_story_spec ou /adcreatives)
-      if (!hdImageUrl && directImageUrls.has(adId)) {
-        hdImageUrl = directImageUrls.get(adId)!;
-        source = 'direct_url';
+      if (directImageUrls.has(adId)) {
+        const url = directImageUrls.get(adId)!;
+        if (!candidateUrls.includes(url)) {
+          candidateUrls.push(url);
+          if (!primarySource) primarySource = 'direct_url';
+        }
       }
       
       // PRIORIDADE 3: Para vídeos, usar thumbnail HD
-      if (!hdImageUrl) {
-        const videoId = ad.creative?.object_story_spec?.video_data?.video_id;
-        if (videoId && videoThumbnailMap.has(videoId)) {
-          hdImageUrl = videoThumbnailMap.get(videoId)!;
-          source = 'video_thumbnail';
+      const videoId = oss?.video_data?.video_id;
+      if (videoId && videoThumbnailMap.has(videoId)) {
+        const url = videoThumbnailMap.get(videoId)!;
+        if (!candidateUrls.includes(url)) {
+          candidateUrls.push(url);
+          if (!primarySource) primarySource = 'video_thumbnail';
         }
       }
       
-      // PRIORIDADE 4 (FALLBACK): Usar thumbnail_url da query de ads (temporária, mas melhor que nada)
-      // Remove parâmetros de baixa qualidade (p64x64) para tentar pegar versão melhor
-      if (!hdImageUrl && ad.creative?.thumbnail_url) {
+      // PRIORIDADE 4 (FALLBACK): thumbnail_url da query de ads
+      // Versão original E versão sem parâmetros de baixa qualidade
+      if (ad.creative?.thumbnail_url) {
         let thumbUrl = ad.creative.thumbnail_url;
-        // Tentar remover parâmetros de baixa qualidade
+        
+        // Tentar versão sem parâmetros de baixa qualidade primeiro
         if (thumbUrl.includes('stp=')) {
-          thumbUrl = thumbUrl.replace(/&?stp=[^&]+/, '');
+          const cleanUrl = thumbUrl.replace(/&?stp=[^&]+/, '');
+          if (!candidateUrls.includes(cleanUrl)) {
+            candidateUrls.push(cleanUrl);
+            if (!primarySource) primarySource = 'thumbnail_clean';
+          }
         }
-        hdImageUrl = thumbUrl;
-        source = 'thumbnail_fallback';
+        
+        // Adicionar versão original também como último recurso
+        if (!candidateUrls.includes(thumbUrl)) {
+          candidateUrls.push(thumbUrl);
+          if (!primarySource) primarySource = 'thumbnail_original';
+        }
       }
       
-      if (hdImageUrl) {
-        adsNeedingCache.push({ adId, imageUrl: hdImageUrl, source });
+      if (candidateUrls.length > 0) {
+        adsNeedingCache.push({ adId, imageUrls: candidateUrls, primarySource });
       }
     }
     
     // Log de fontes usadas
     const sources = adsNeedingCache.reduce((acc, x) => {
-      acc[x.source] = (acc[x.source] || 0) + 1;
+      acc[x.primarySource] = (acc[x.primarySource] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
+    const totalUrls = adsNeedingCache.reduce((acc, x) => acc + x.imageUrls.length, 0);
     console.log(`[CACHE] Image sources: ${JSON.stringify(sources)}`);
-    console.log(`[CACHE] Processing ${adsNeedingCache.length} HD images for caching...`);
+    console.log(`[CACHE] Processing ${adsNeedingCache.length} ads with ${totalUrls} total URLs...`);
     
     for (let i = 0; i < adsNeedingCache.length; i += 10) {
       const batch = adsNeedingCache.slice(i, i + 10);
-      const results = await Promise.all(batch.map(async ({ adId, imageUrl }) => ({ adId, cachedUrl: await cacheCreativeImage(supabase, projectId, adId, imageUrl, false) })));
+      const results = await Promise.all(batch.map(async ({ adId, imageUrls }) => ({ adId, cachedUrl: await cacheCreativeImage(supabase, projectId, adId, imageUrls, false) })));
       for (const { adId, cachedUrl } of results) if (cachedUrl) immediateCache.set(adId, cachedUrl);
       if (i + 10 < adsNeedingCache.length) await delay(50);
     }
