@@ -134,8 +134,7 @@ Deno.serve(async (req) => {
     const { since, until } = getMonthDateRange(year, month);
     console.log(`[MONTH-IMPORT] Date range: ${since} to ${until}`);
     
-    // Call meta-ads-sync with light_sync=true for faster historical imports
-    // light_sync skips HD images, video thumbnails, and image caching
+    // Call meta-ads-sync - SEMPRE busca imagens HD
     const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
       method: 'POST',
       headers: {
@@ -146,8 +145,7 @@ Deno.serve(async (req) => {
         project_id,
         ad_account_id: project.ad_account_id,
         time_range: { since, until },
-        light_sync: true, // FAST MODE: Skip images/creatives for historical import
-        skip_image_cache: true, // Skip downloading images to storage
+        skip_image_cache: true, // Skip downloading images to storage for historical import
       }),
     });
     
