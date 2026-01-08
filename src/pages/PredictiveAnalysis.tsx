@@ -304,159 +304,26 @@ export default function PredictiveAnalysis() {
                     <TrendingUp className="w-5 h-5 text-primary" />
                   </div>
                   <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <h3 className="font-semibold">Análise Multi-Período</h3>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Badge variant={data.predictions.trends.confidenceLevel === 'alta' ? 'default' : data.predictions.trends.confidenceLevel === 'média' ? 'secondary' : 'outline'}>
-                            Confiança {data.predictions.trends.confidenceLevel} ({data.predictions.trends.confidenceScore || 0}%)
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs max-w-xs">Score baseado em: disponibilidade de dados, consistência entre períodos, volatilidade e volume de conversões</p>
-                        </TooltipContent>
-                      </Tooltip>
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-semibold">Análise de Tendência</h3>
+                      <Badge variant={data.predictions.trends.confidenceLevel === 'alta' ? 'default' : data.predictions.trends.confidenceLevel === 'média' ? 'secondary' : 'outline'}>
+                        Confiança {data.predictions.trends.confidenceLevel}
+                      </Badge>
                       <Badge variant="outline" className="capitalize">
                         Tendência {data.predictions.trends.trendDirection}
                       </Badge>
-                      {data.predictions.periodAnalysis?.dataQuality?.consistencyScore === 'divergent' && (
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge variant="destructive" className="text-xs">
-                              <AlertTriangle className="w-3 h-3 mr-1" />
-                              Divergência
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">Períodos de 7d, 14d e 30d apontam direções diferentes - cenário instável</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
                     </div>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       {data.predictions.trends.trendDirection === 'crescente' && (
-                        <>Comparando os últimos 7 dias com a média de 30 dias, identificamos um <strong className="text-metric-positive">crescimento de {Math.abs(data.predictions.trends.spendTrend).toFixed(1)}%</strong> no investimento. Projetamos que esse momentum positivo continue.</>
+                        <>A tendência indica um <strong className="text-metric-positive">crescimento de {Math.abs(data.predictions.trends.spendTrend).toFixed(1)}%</strong> no investimento. Projetamos que esse ritmo se mantenha, resultando em maior volume de resultados.</>
                       )}
                       {data.predictions.trends.trendDirection === 'decrescente' && (
-                        <>Comparando os últimos 7 dias com a média de 30 dias, observamos uma <strong className="text-metric-warning">redução de {Math.abs(data.predictions.trends.spendTrend).toFixed(1)}%</strong> no investimento. Estimamos impacto nos resultados das próximas semanas.</>
+                        <>Observamos uma <strong className="text-metric-warning">redução de {Math.abs(data.predictions.trends.spendTrend).toFixed(1)}%</strong> no investimento. Isso pode impactar o volume de resultados nas próximas semanas.</>
                       )}
                       {data.predictions.trends.trendDirection === 'estável' && (
-                        <>O investimento está <strong className="text-foreground">estável</strong> comparando 7 dias vs 30 dias. Projetamos que os resultados sigam o padrão atual.</>
+                        <>O investimento está <strong className="text-foreground">estável</strong>. Projetamos que os resultados sigam o padrão atual, sem grandes variações.</>
                       )}
                     </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Period Analysis Table */}
-          {data?.predictions.periodAnalysis && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <BarChart3 className="w-5 h-5 text-primary" />
-                  Análise por Período
-                </CardTitle>
-                <CardDescription>
-                  Comparamos múltiplos períodos para projeções mais precisas
-                  {data.predictions.periodAnalysis.dataQuality?.totalDaysAvailable && (
-                    <span className="ml-2 text-xs">({data.predictions.periodAnalysis.dataQuality.totalDaysAvailable} dias de dados disponíveis)</span>
-                  )}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-2 px-2 font-medium">Período</th>
-                        <th className="text-right py-2 px-2 font-medium">Gasto/dia</th>
-                        <th className="text-right py-2 px-2 font-medium">{showCPL ? 'Leads/dia' : 'Conv./dia'}</th>
-                        <th className="text-right py-2 px-2 font-medium">{showCPL ? 'CPL' : 'ROAS'}</th>
-                        <th className="text-right py-2 px-2 font-medium">Tendência</th>
-                        <th className="text-center py-2 px-2 font-medium">
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <span className="flex items-center gap-1 justify-center">
-                                Peso
-                                <Info className="w-3 h-3" />
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-xs">Peso aplicado na projeção final. Maior peso = maior influência.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(['7d', '14d', '30d', '90d'] as const).map((periodKey) => {
-                        const period = data.predictions.periodAnalysis?.periods[periodKey];
-                        const weights = data.predictions.periodAnalysis?.appliedWeights;
-                        const weightKey = `w${periodKey}` as keyof typeof weights;
-                        const weight = weights?.[weightKey] || 0;
-                        
-                        if (!period || period.daysWithData === 0) return null;
-                        
-                        return (
-                          <tr key={periodKey} className="border-b last:border-0 hover:bg-muted/50">
-                            <td className="py-2 px-2 font-medium">{period.label}</td>
-                            <td className="text-right py-2 px-2">{formatCurrency(period.avgDailySpend)}</td>
-                            <td className="text-right py-2 px-2">{period.avgDailyConversions.toFixed(1)}</td>
-                            <td className="text-right py-2 px-2">
-                              {showCPL 
-                                ? (period.cpl ? formatCurrency(period.cpl) : '-')
-                                : (period.roas ? `${period.roas.toFixed(2)}x` : '-')
-                              }
-                            </td>
-                            <td className="text-right py-2 px-2">
-                              <span className={cn(
-                                "flex items-center justify-end gap-1",
-                                period.trend > 5 && "text-metric-positive",
-                                period.trend < -5 && "text-metric-warning"
-                              )}>
-                                {period.trend > 5 ? <ArrowUp className="w-3 h-3" /> : period.trend < -5 ? <ArrowDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
-                                {period.trend > 0 ? '+' : ''}{period.trend.toFixed(1)}%
-                              </span>
-                            </td>
-                            <td className="text-center py-2 px-2">
-                              <div className="flex items-center justify-center gap-1">
-                                <div 
-                                  className="h-2 bg-primary rounded-full" 
-                                  style={{ width: `${Math.max(8, weight * 100)}px` }}
-                                />
-                                <span className="text-xs text-muted-foreground">{(weight * 100).toFixed(0)}%</span>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                
-                {/* Weighted Average Summary */}
-                <div className="mt-4 p-3 rounded-lg bg-muted/50 flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Média Ponderada Diária:</span>
-                  </div>
-                  <div className="flex gap-4 text-sm">
-                    <span>
-                      <span className="text-muted-foreground">Gasto:</span>{' '}
-                      <strong>{formatCurrency(data.predictions.periodAnalysis.weightedDailyAverage?.spend || 0)}</strong>
-                    </span>
-                    <span>
-                      <span className="text-muted-foreground">{showCPL ? 'Leads' : 'Conv.'}:</span>{' '}
-                      <strong>{(data.predictions.periodAnalysis.weightedDailyAverage?.conversions || 0).toFixed(1)}</strong>
-                    </span>
-                    {showROAS && (
-                      <span>
-                        <span className="text-muted-foreground">Receita:</span>{' '}
-                        <strong>{formatCurrency(data.predictions.periodAnalysis.weightedDailyAverage?.revenue || 0)}</strong>
-                      </span>
-                    )}
                   </div>
                 </div>
               </CardContent>

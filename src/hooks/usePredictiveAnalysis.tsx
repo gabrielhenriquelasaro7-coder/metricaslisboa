@@ -55,44 +55,6 @@ export interface Scenarios {
   optimistic: ScenarioData;
 }
 
-export interface PeriodData {
-  label: string;
-  daysWithData: number;
-  avgDailySpend: number;
-  avgDailyConversions: number;
-  avgDailyRevenue: number;
-  trend: number;
-  cpl: number | null;
-  roas: number | null;
-  cv: number;
-}
-
-export interface PeriodAnalysis {
-  periods: {
-    '7d': PeriodData;
-    '14d': PeriodData;
-    '30d': PeriodData;
-    '90d': PeriodData;
-  };
-  appliedWeights: {
-    w7d: number;
-    w14d: number;
-    w30d: number;
-    w90d: number;
-    w365d: number;
-  };
-  weightedDailyAverage: {
-    spend: number;
-    conversions: number;
-    revenue: number;
-  };
-  dataQuality: {
-    totalDaysAvailable: number;
-    hasEnoughData: boolean;
-    consistencyScore: 'consistent' | 'divergent';
-  };
-}
-
 export interface Predictions {
   next7Days: {
     estimatedSpend: number;
@@ -125,10 +87,8 @@ export interface Predictions {
     stdDevConversions: number;
     stdDevRevenue: number;
     confidenceLevel: 'alta' | 'média' | 'baixa';
-    confidenceScore: number;
     trendDirection: 'crescente' | 'decrescente' | 'estável';
   };
-  periodAnalysis: PeriodAnalysis;
 }
 
 export interface Totals {
