@@ -48,9 +48,10 @@ serve(async (req) => {
       lastUpdated: project.account_balance_updated_at,
       daysOfSpendRemaining: null as number | null,
       status: 'unknown' as 'healthy' | 'warning' | 'critical' | 'unknown',
-      fundingType: null as string | null,
+      fundingType: null as number | null,
       autoReloadEnabled: false,
       autoReloadThreshold: null as number | null,
+      accountStatus: null as number | null,
     };
 
     if (metaAccessToken && project.ad_account_id) {
@@ -166,6 +167,7 @@ serve(async (req) => {
             fundingType,
             autoReloadEnabled,
             autoReloadThreshold,
+            accountStatus: accountStatus, // 1=Active, 2=Disabled, 3=Unsettled, etc.
           };
 
           // Update project with new balance
