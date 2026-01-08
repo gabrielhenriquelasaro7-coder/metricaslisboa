@@ -58,7 +58,7 @@ const HOUR_OPTIONS = Array.from({ length: 15 }, (_, i) => {
   return hour.toString().padStart(2, '0');
 });
 
-const MINUTE_OPTIONS = ['00', '15', '30', '45'];
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
 
 const PERIOD_OPTIONS = [
   { value: 'last_7_days', label: 'Últimos 7 dias' },
