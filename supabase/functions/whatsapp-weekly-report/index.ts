@@ -348,6 +348,8 @@ Deno.serve(async (req) => {
         const projectId = config.project_id;
         const project = config.projects;
         
+        console.log(`[WEEKLY-REPORT] Config ${config.id} -> Project ID: ${projectId}, Project Name: ${project?.name}`);
+        
         if (!project || !projectId) {
           console.log(`[WEEKLY-REPORT] No project for config ${config.id}`);
           continue;
