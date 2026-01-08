@@ -105,7 +105,9 @@ export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalan
       case 2: return { label: 'Cupom Facebook', icon: CircleDollarSign };
       case 3: return { label: 'Saldo Pré-pago (PIX)', icon: Banknote };
       case 4: return { label: 'PayPal', icon: Wallet };
-      default: return { label: 'Método de pagamento', icon: Wallet };
+      case 5: return { label: 'Transferência Bancária', icon: Banknote };
+      case 20: return { label: 'Linha de Crédito / Ad Credits', icon: CircleDollarSign };
+      default: return null;
     }
   };
 
@@ -133,7 +135,7 @@ export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalan
   if (!projectId) return null;
 
   const fundingInfo = getFundingTypeInfo(data?.fundingType ?? null);
-  const FundingIcon = fundingInfo.icon;
+  const FundingIcon = fundingInfo?.icon ?? Wallet;
   const accountStatusInfo = getAccountStatusInfo(data?.accountStatus ?? null);
   const StatusIcon = accountStatusInfo?.icon;
 
@@ -174,7 +176,7 @@ export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalan
           
           <div className="flex flex-wrap items-center gap-2">
             {/* Funding Type Badge */}
-            {data?.fundingType && (
+            {data?.fundingType && fundingInfo && (
               <Badge variant="outline" className="text-xs gap-1">
                 <FundingIcon className="w-3 h-3" />
                 {fundingInfo.label}

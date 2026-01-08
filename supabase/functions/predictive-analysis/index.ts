@@ -95,16 +95,23 @@ serve(async (req) => {
             const fsd = metaData.funding_source_details;
             fundingType = fsd.type || null;
             
+            // Funding source types from Meta API:
             // type 1 = Credit Card (postpaid)
             // type 2 = Facebook Coupon
             // type 3 = Direct Debit (prepaid/PIX)
             // type 4 = PayPal
+            // type 5 = Bank Transfer
+            // type 20 = Business Credit Line / Ad Credits (prepaid-like)
             console.log('[PREDICTIVE] Funding type:', fundingType, 'display_string:', fsd.display_string);
             
-            // For PREPAID accounts (type=3), extract balance from display_string
-            if (fundingType === 3 && fsd.display_string) {
-              // display_string for prepaid: "Saldo disponível (R$2.003,11 BRL)"
-              if (fsd.display_string.toLowerCase().includes('saldo')) {
+            // For PREPAID-like accounts (type=3, 5, 20), extract balance from display_string
+            const isPrepaidLike = fundingType === 3 || fundingType === 5 || fundingType === 20 || fundingType === 2;
+            
+            if (isPrepaidLike && fsd.display_string) {
+              // display_string for prepaid: "Saldo disponível (R$2.003,11 BRL)" or similar
+              if (fsd.display_string.toLowerCase().includes('saldo') || 
+                  fsd.display_string.toLowerCase().includes('available') ||
+                  fsd.display_string.toLowerCase().includes('crédito')) {
                 const match = fsd.display_string.match(/R\$\s*([\d.,]+)/);
                 if (match) {
                   let valueStr = match[1];
@@ -119,7 +126,7 @@ serve(async (req) => {
                     valueStr = valueStr.replace(',', '.');
                   }
                   balanceValue = parseFloat(valueStr) || 0;
-                  console.log('[PREDICTIVE] Prepaid balance from display_string:', balanceValue);
+                  console.log('[PREDICTIVE] Prepaid-like balance from display_string:', balanceValue);
                 }
               }
             }
@@ -141,7 +148,24 @@ serve(async (req) => {
               }
             }
             
+            // For PayPal (type=4), try to get from balance field if display_string not helpful
+            if (fundingType === 4 && balanceValue === 0 && metaData.balance) {
+              const rawBalance = typeof metaData.balance === 'string' 
+                ? parseFloat(metaData.balance) 
+                : metaData.balance;
+              balanceValue = rawBalance / 100;
+              console.log('[PREDICTIVE] PayPal balance from API:', balanceValue);
+            }
+            
             // Check if auto-reload is configured (for prepaid/coupon accounts)
+            if (fsd.coupons && Array.isArray(fsd.coupons)) {
+              // Check coupons array for any active coupons
+              const activeCoupons = fsd.coupons.filter((c: any) => c.amount > 0);
+              if (activeCoupons.length > 0) {
+                console.log('[PREDICTIVE] Active coupons found:', activeCoupons.length);
+              }
+            }
+            
             if (fsd.coupon && fsd.coupon.auto_reload_enabled) {
               autoReloadEnabled = true;
               autoReloadThreshold = fsd.coupon.auto_reload_threshold_amount 
@@ -154,6 +178,16 @@ serve(async (req) => {
           let status: 'healthy' | 'warning' | 'critical' | 'unknown' = 'unknown';
           if (isAccountBlocked) {
             status = 'critical';
+          } else if (accountStatus === 1) {
+            // Account is active
+            if (balanceValue > 0) {
+              status = 'healthy';
+            } else {
+              status = 'warning';
+            }
+          } else if (accountStatus === 7 || accountStatus === 9) {
+            // Pending review or grace period
+            status = 'warning';
           }
           
           console.log('[PREDICTIVE] Final balance value:', balanceValue, 'status:', status);
