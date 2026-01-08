@@ -246,7 +246,7 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
             project_id: projectId,
             ad_account_id: adAccountId,
             time_range: { since, until },
-            light_sync: true, // Sync todos os períodos usa light mode
+            light_sync: false, // SEMPRE false para garantir extração HD de imagens e criativos
           },
         });
         
