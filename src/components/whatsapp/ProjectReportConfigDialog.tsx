@@ -358,7 +358,7 @@ export function ProjectReportConfigDialog({
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
           instanceId,
-          instanceName: instance.instance_name,
+          targetType,
           phone: targetType === 'phone' ? target : undefined,
           groupId: targetType === 'group' ? target : undefined,
           message: `🧪 *TESTE DE RELATÓRIO*\n\n${messageToSend}`,
@@ -399,7 +399,7 @@ export function ProjectReportConfigDialog({
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
           instanceId,
-          instanceName: instance.instance_name,
+          targetType,
           phone: targetType === 'phone' ? target : undefined,
           groupId: targetType === 'group' ? target : undefined,
           message: alertMessage,
