@@ -61,7 +61,7 @@ serve(async (req) => {
         
         // Fetch account info including funding source details
         const metaResponse = await fetch(
-          `https://graph.facebook.com/v21.0/${adAccountId}?fields=balance,amount_spent,currency,funding_source_details,account_status,spend_cap&access_token=${metaAccessToken}`
+          `https://graph.facebook.com/v22.0/${adAccountId}?fields=balance,amount_spent,currency,funding_source_details,account_status,spend_cap&access_token=${metaAccessToken}`
         );
         
         if (metaResponse.ok) {

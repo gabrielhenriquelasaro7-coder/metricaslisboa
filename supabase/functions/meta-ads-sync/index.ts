@@ -160,18 +160,18 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 
   const effectiveStatusFilter = encodeURIComponent('["ACTIVE","PAUSED","ARCHIVED","PENDING_REVIEW","DISAPPROVED","PREAPPROVED","PENDING_BILLING_INFO","CAMPAIGN_PAUSED","ADSET_PAUSED","IN_PROCESS","WITH_ISSUES"]');
   
-  // API v21.0 - Versão atualizada
-  let url = `https://graph.facebook.com/v21.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
+  // API v22.0 - Versão mais recente (Janeiro 2025)
+  let url = `https://graph.facebook.com/v22.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) { const data = await fetchWithRetry(url, 'CAMPAIGNS'); if (isTokenExpiredError(data)) return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) campaigns.push(...data.data); url = data.paging?.next || null; }
   
-  url = `https://graph.facebook.com/v21.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
+  url = `https://graph.facebook.com/v22.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) { const data = await fetchWithRetry(url, 'ADSETS'); if (isTokenExpiredError(data)) return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) adsets.push(...data.data); url = data.paging?.next || null; }
   
   // Fetch ads with full creative fields - include image_url for direct HD access
   const adsFields = lightSync 
     ? 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}' 
     : 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,picture,image_url},video_data{message,title,call_to_action,video_id,image_hash,image_url}}}';
-  url = `https://graph.facebook.com/v21.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
+  url = `https://graph.facebook.com/v22.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   console.log(`[DEBUG-ADS-QUERY] Fields: ${adsFields.substring(0, 200)}`);
   while (url) { 
     const data = await fetchWithRetry(url, 'ADS'); 
@@ -211,7 +211,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
       }));
       
       try {
-        const response = await fetch(`https://graph.facebook.com/v21.0/?access_token=${token}`, {
+        const response = await fetch(`https://graph.facebook.com/v22.0/?access_token=${token}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ batch: batchRequests })
@@ -252,7 +252,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   
   const allCreatives: any[] = [];
   // Buscar campos adicionais: effective_object_story_id, asset_feed_spec para mais dados de copy
-  let creativesUrl: string | null = `https://graph.facebook.com/v21.0/${adAccountId}/adcreatives?fields=id,name,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec,effective_object_story_id,asset_feed_spec&limit=500&access_token=${token}`;
+  let creativesUrl: string | null = `https://graph.facebook.com/v22.0/${adAccountId}/adcreatives?fields=id,name,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec,effective_object_story_id,asset_feed_spec&limit=500&access_token=${token}`;
   
   while (creativesUrl) {
     const creativeData = await fetchWithRetry(creativesUrl, 'ADCREATIVES');
@@ -312,7 +312,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   console.log(`[IMAGES] Fetching ${imageHashes.length} unique image hashes`);
   for (let i = 0; i < imageHashes.length; i += 50) {
     const batch = imageHashes.slice(i, i + 50);
-    const imageUrl = `https://graph.facebook.com/v21.0/${adAccountId}/adimages?hashes=${encodeURIComponent(JSON.stringify(batch))}&fields=hash,url&access_token=${token}`;
+    const imageUrl = `https://graph.facebook.com/v22.0/${adAccountId}/adimages?hashes=${encodeURIComponent(JSON.stringify(batch))}&fields=hash,url&access_token=${token}`;
     const imageData = await fetchWithRetry(imageUrl, 'ADIMAGES');
     if (imageData.data) for (const img of imageData.data) if (img.hash && img.url) adImageMap.set(img.hash, img.url);
   }
@@ -338,7 +338,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
     const batch = videoIds.slice(i, i + 50);
     const batchRequests = batch.map(videoId => ({ method: 'GET', relative_url: `${videoId}?fields=id,picture,thumbnails{uri,height,width}` }));
     try {
-      const response = await fetch(`https://graph.facebook.com/v21.0/?access_token=${token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch: batchRequests }) });
+      const response = await fetch(`https://graph.facebook.com/v22.0/?access_token=${token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch: batchRequests }) });
       if (response.ok) {
         const results = await response.json();
         for (let j = 0; j < results.length; j++) if (results[j].code === 200 && results[j].body) { try { const d = JSON.parse(results[j].body); let thumb = d.picture; if (d.thumbnails?.data?.length) { const sorted = d.thumbnails.data.sort((a: any, b: any) => (b.height || 0) - (a.height || 0)); if (sorted[0]?.uri) thumb = sorted[0].uri; } if (thumb) videoThumbnailMap.set(batch[j], thumb); } catch {} }
@@ -470,7 +470,7 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
   
   const timeRange = JSON.stringify({ since, until });
   // IMPORTANTE: Adicionando action_breakdowns para garantir que actions seja retornado
-  let url = `https://graph.facebook.com/v21.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&action_breakdowns=action_type&access_token=${token}`;
+  let url = `https://graph.facebook.com/v22.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&action_breakdowns=action_type&access_token=${token}`;
   
   let totalRows = 0;
   let firstRowLogged = false;
@@ -1031,42 +1031,81 @@ function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | nul
 
 function extractCreativeImage(ad: any, creativeData?: any, adImageMap?: Map<string, string>, videoThumbnailMap?: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
   let imageUrl: string | null = null, videoUrl: string | null = null;
+  const adId = ad?.id || 'unknown';
   
   // PRIORIDADE 1: Imagem HD do adImageMap (via image_hash) - SEMPRE preferida
   const c = ad?.creative;
   if (c?.image_hash && adImageMap?.has(c.image_hash)) {
     imageUrl = adImageMap.get(c.image_hash)!;
-    console.log(`[CREATIVE] HD image from adImageMap for hash ${c.image_hash}`);
+    console.log(`[CREATIVE] Ad ${adId}: HD image from adImageMap hash=${c.image_hash}`);
+    return { imageUrl, videoUrl };
   }
   
-  // PRIORIDADE 2: Dados do criativo (creativeData)
+  // PRIORIDADE 2: creativeData image_hash
+  if (!imageUrl && creativeData?.image_hash && adImageMap?.has(creativeData.image_hash)) {
+    imageUrl = adImageMap.get(creativeData.image_hash)!;
+    console.log(`[CREATIVE] Ad ${adId}: HD image from creativeData.image_hash`);
+    return { imageUrl, videoUrl };
+  }
+  
+  // PRIORIDADE 3: Dados do criativo (creativeData)
   if (!imageUrl && creativeData) {
-    if (creativeData.image_url) imageUrl = creativeData.image_url;
-    if (!imageUrl && creativeData.thumbnail_url) imageUrl = creativeData.thumbnail_url;
+    if (creativeData.image_url) {
+      imageUrl = creativeData.image_url;
+      console.log(`[CREATIVE] Ad ${adId}: Using creativeData.image_url`);
+    }
+    if (!imageUrl && creativeData.thumbnail_url) {
+      imageUrl = creativeData.thumbnail_url;
+      console.log(`[CREATIVE] Ad ${adId}: Using creativeData.thumbnail_url`);
+    }
     const s = creativeData.object_story_spec;
     if (s?.link_data) {
-      if (!imageUrl && s.link_data.image_url) imageUrl = s.link_data.image_url;
-      if (!imageUrl && s.link_data.picture) imageUrl = s.link_data.picture;
+      if (!imageUrl && s.link_data.image_url) {
+        imageUrl = s.link_data.image_url;
+        console.log(`[CREATIVE] Ad ${adId}: Using link_data.image_url`);
+      }
+      if (!imageUrl && s.link_data.picture) {
+        imageUrl = s.link_data.picture;
+        console.log(`[CREATIVE] Ad ${adId}: Using link_data.picture`);
+      }
     }
     if (s?.video_data) {
       if (s.video_data.video_id && videoThumbnailMap?.has(s.video_data.video_id)) {
         imageUrl = videoThumbnailMap.get(s.video_data.video_id)!;
+        console.log(`[CREATIVE] Ad ${adId}: Using video thumbnail for video_id=${s.video_data.video_id}`);
       }
       if (s.video_data.image_url) {
         videoUrl = s.video_data.image_url;
-        if (!imageUrl) imageUrl = s.video_data.image_url;
+        if (!imageUrl) {
+          imageUrl = s.video_data.image_url;
+          console.log(`[CREATIVE] Ad ${adId}: Using video_data.image_url`);
+        }
       }
     }
   }
   
-  // PRIORIDADE 3: Dados diretos do anúncio
-  if (c) {
-    if (!imageUrl && c.image_url) imageUrl = c.image_url;
-    if (!imageUrl && c.thumbnail_url) imageUrl = c.thumbnail_url;
-    const videoId = c.object_story_spec?.video_data?.video_id;
-    if (videoId && videoThumbnailMap?.has(videoId) && !imageUrl) {
-      imageUrl = videoThumbnailMap.get(videoId)!;
+  // PRIORIDADE 4: Dados diretos do anúncio creative
+  if (!imageUrl && c) {
+    if (c.image_url) {
+      imageUrl = c.image_url;
+      console.log(`[CREATIVE] Ad ${adId}: Using ad.creative.image_url`);
     }
+    if (!imageUrl && c.thumbnail_url) {
+      imageUrl = c.thumbnail_url;
+      console.log(`[CREATIVE] Ad ${adId}: Using ad.creative.thumbnail_url`);
+    }
+    const videoId = c.object_story_spec?.video_data?.video_id;
+    if (videoId && videoThumbnailMap?.has(videoId)) {
+      imageUrl = videoThumbnailMap.get(videoId)!;
+      console.log(`[CREATIVE] Ad ${adId}: Using video thumbnail from ad.creative`);
+    }
+  }
+  
+  // Log se não encontrou nada
+  if (!imageUrl) {
+    const hasCreative = !!c;
+    const hasCreativeData = !!creativeData;
+    console.log(`[CREATIVE] Ad ${adId}: NO IMAGE FOUND. hasCreative=${hasCreative}, hasCreativeData=${hasCreativeData}, creative.id=${c?.id || 'null'}`);
   }
   
   return { imageUrl, videoUrl };
