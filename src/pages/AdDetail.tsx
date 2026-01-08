@@ -33,48 +33,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-// Build Storage URL for cached creative images
-const getStorageImageUrl = (projectId: string | undefined, adId: string): string | null => {
-  if (!projectId) return null;
-  const { data } = supabase.storage.from('creative-images').getPublicUrl(`${projectId}/${adId}.jpg`);
-  return data?.publicUrl || null;
-};
-
-// Helper to clean image URLs - removes stp resize parameters to get HD images
-const cleanImageUrl = (url: string | null): string | null => {
-  if (!url) return null;
-  
-  // AGGRESSIVE CLEANING: Remove ALL stp parameters (including complex ones like c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6)
-  let clean = url;
-  
-  // Remove stp= parameter completely (handles all variations)
-  clean = clean.replace(/[&?]stp=[^&]*/gi, '');
-  
-  // Remove size parameters in path
-  clean = clean.replace(/\/p\d+x\d+\//g, '/');
-  clean = clean.replace(/\/s\d+x\d+\//g, '/');
-  
-  // Remove width/height query params
-  clean = clean.replace(/[&?]width=\d+/gi, '');
-  clean = clean.replace(/[&?]height=\d+/gi, '');
-  
-  // Remove ur= parameter (often forces small size)
-  clean = clean.replace(/[&?]ur=[^&]*/gi, '');
-  
-  // Convert thumbnail indicators to full-size
-  clean = clean.replace('_t.', '_n.');
-  clean = clean.replace('_s.', '_n.');
-  
-  // Fix malformed URL
-  if (clean.includes('&') && !clean.includes('?')) {
-    clean = clean.replace('&', '?');
-  }
-  
-  // Clean trailing ? or &
-  clean = clean.replace(/[&?]$/g, '');
-  
-  return clean;
-};
+// URL simples - sem transformações
 import {
   Dialog,
   DialogContent,
@@ -130,7 +89,6 @@ export default function AdDetail() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
@@ -308,59 +266,14 @@ export default function AdDetail() {
     new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
   const hasVideo = ad?.creative_video_url;
-  const hasImage = ad?.creative_image_url || ad?.creative_thumbnail || ad?.cached_image_url;
+  const hasImage = ad?.creative_image_url || ad?.creative_thumbnail;
   
-  // Build list of URLs to try in priority order - PRIORIZE a URL limpa do Meta
-  const imageUrls: string[] = [];
+  // URL da imagem - SIMPLES: usa direto do banco
+  const creativeUrl = ad?.creative_image_url || ad?.creative_thumbnail || '';
   
-  // 1. Primeiro tentar a URL limpa do creative_image_url (sem resize)
-  const cleanedCreativeUrl = cleanImageUrl(ad?.creative_image_url);
-  if (cleanedCreativeUrl) imageUrls.push(cleanedCreativeUrl);
-  
-  // 2. URL limpa do thumbnail
-  const cleanedThumbnail = cleanImageUrl(ad?.creative_thumbnail);
-  if (cleanedThumbnail && cleanedThumbnail !== cleanedCreativeUrl) imageUrls.push(cleanedThumbnail);
-  
-  // 3. cached_image_url do banco
-  if (ad?.cached_image_url) imageUrls.push(ad.cached_image_url);
-  
-  // 4. Storage URL como último fallback
-  const storageUrl = ad?.id ? getStorageImageUrl(selectedProject?.id, ad.id) : null;
-  if (storageUrl) imageUrls.push(storageUrl);
-  
-  const creativeUrl = imageUrls[currentImageIndex] || '';
-  
-  // Debug log
-  useEffect(() => {
-    if (ad?.id) {
-      console.log('[AdDetail Image Debug]', {
-        adId: ad.id,
-        originalUrl: ad.creative_image_url?.substring(0, 100),
-        cleanedUrl: cleanedCreativeUrl?.substring(0, 100),
-        imageUrls: imageUrls.map(u => u.substring(0, 80)),
-        currentIndex: currentImageIndex,
-        currentUrl: creativeUrl?.substring(0, 80),
-        imageError
-      });
-    }
-  }, [ad?.id, currentImageIndex, imageError, creativeUrl]);
-  
-  // Handle image error - try next URL
   const handleImageError = () => {
-    console.log(`[AdDetail] Image error at index ${currentImageIndex}, trying next...`);
-    if (currentImageIndex < imageUrls.length - 1) {
-      setCurrentImageIndex(prev => prev + 1);
-    } else {
-      console.log('[AdDetail] All image URLs failed');
-      setImageError(true);
-    }
+    setImageError(true);
   };
-  
-  // Reset image state when ad changes
-  useEffect(() => {
-    setCurrentImageIndex(0);
-    setImageError(false);
-  }, [ad?.id]);
 
   if (loading) {
     return (
