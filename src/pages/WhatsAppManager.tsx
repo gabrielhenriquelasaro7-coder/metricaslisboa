@@ -291,28 +291,28 @@ export default function WhatsAppManager() {
                   return (
                     <div
                       key={project.id}
-                      className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between gap-4 p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
                     >
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium truncate">{project.name}</h4>
-                          {config && (
-                            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                              <Smartphone className="w-3 h-3" />
-                              <span>{instance?.display_name || 'Sem conexão'}</span>
-                              {config.report_enabled && (
-                                <>
-                                  <span>•</span>
-                                  <Calendar className="w-3 h-3" />
-                                  <span>
-                                    {DAYS_OF_WEEK[config.report_day_of_week]} {config.report_time}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium truncate">{project.name}</h4>
+                        {config && (
+                          <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                            <Smartphone className="w-3 h-3" />
+                            <span>{instance?.display_name || 'Sem conexão'}</span>
+                            {config.report_enabled && (
+                              <>
+                                <span>•</span>
+                                <Calendar className="w-3 h-3" />
+                                <span>
+                                  {DAYS_OF_WEEK[config.report_day_of_week]} {config.report_time}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
 
+                      <div className="flex items-center gap-3 flex-shrink-0">
                         <Badge 
                           variant={status === 'active' ? 'default' : 'secondary'}
                           className={
@@ -327,17 +327,17 @@ export default function WhatsAppManager() {
                           {status === 'disabled' && <><XCircle className="w-3 h-3 mr-1" /> Desativado</>}
                           {status === 'not_configured' && <><Clock className="w-3 h-3 mr-1" /> Não configurado</>}
                         </Badge>
-                      </div>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenConfig(project)}
-                        disabled={instances.filter(i => i.instance_status === 'connected').length === 0}
-                      >
-                        <Settings2 className="w-4 h-4 mr-2" />
-                        Configurar
-                      </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenConfig(project)}
+                          disabled={instances.filter(i => i.instance_status === 'connected').length === 0}
+                        >
+                          <Settings2 className="w-4 h-4 mr-2" />
+                          Configurar
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
