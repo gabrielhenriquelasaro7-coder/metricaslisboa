@@ -32,7 +32,8 @@ import {
   Target,
   GraduationCap,
   TrendingUp,
-  MessageSquare
+  MessageSquare,
+  ExternalLink
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,7 +68,7 @@ const businessModels: { value: BusinessModel; label: string; description: string
 
 type ExtendedHealthScore = HealthScore | 'undefined';
 
-// Industrial Client Card - Dense and Solid
+// Refined Client Card
 interface ClientCardProps {
   project: Project;
   showWhatsApp: boolean;
@@ -85,67 +86,92 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
   const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
 
+  const statusColors = {
+    safe: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30',
+    care: 'from-amber-500/20 to-amber-500/5 border-amber-500/30',
+    danger: 'from-red-500/20 to-red-500/5 border-red-500/30',
+    undefined: 'from-zinc-500/10 to-zinc-500/5 border-zinc-700/50',
+  }[displayHealthScore];
+
+  const dotColor = {
+    safe: 'bg-emerald-500',
+    care: 'bg-amber-500',
+    danger: 'bg-red-500',
+    undefined: 'bg-zinc-600',
+  }[displayHealthScore];
+
   return (
     <div className={cn(
-      "group relative bg-black border border-zinc-800 transition-all duration-200",
-      "hover:border-red-900/50",
+      "group relative overflow-hidden rounded-xl transition-all duration-300",
+      "bg-gradient-to-br border backdrop-blur-sm",
+      "hover:scale-[1.02] hover:shadow-2xl hover:shadow-black/50",
+      statusColors,
       project.archived && 'opacity-40'
     )}>
-      {/* Top red accent line */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-red-600" />
+      {/* Subtle glow effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
       
-      <div className="p-4">
-        {/* Header row */}
-        <div className="flex items-start justify-between mb-3">
+      <div className="relative p-5">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             {/* Avatar */}
-            <div className="w-10 h-10 bg-zinc-900 border border-zinc-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="w-11 h-11 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shadow-lg">
               {project.avatar_url ? (
                 <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-sm font-bold text-white">{project.name.charAt(0).toUpperCase()}</span>
+                <span className="text-base font-semibold text-white/90" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  {project.name.charAt(0).toUpperCase()}
+                </span>
               )}
             </div>
             
-            {/* Name and status */}
-            <div>
-              <h3 className="font-bold text-white text-sm uppercase tracking-wide">{project.name}</h3>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px] font-mono text-zinc-500 uppercase">{model?.label || 'N/A'}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 
+                  className="font-semibold text-white truncate"
+                  style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                >
+                  {project.name}
+                </h3>
+                <div className={cn("w-2 h-2 rounded-full flex-shrink-0 shadow-lg", dotColor)} />
               </div>
+              <p className="text-xs text-white/50 mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
+                {model?.label || 'Sem categoria'}
+              </p>
             </div>
           </div>
           
           {/* Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <button className="p-1 text-zinc-600 hover:text-white transition-colors">
+              <button className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition-all">
                 <MoreVertical className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40 bg-black border-zinc-800" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-900">
+            <DropdownMenuContent align="end" className="w-44 bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer text-white/70 hover:text-white hover:bg-white/5 rounded-lg">
                 <Pencil className="w-4 h-4" />
                 Editar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-900">
+              <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer text-white/70 hover:text-white hover:bg-white/5 rounded-lg">
                 <RefreshCw className="w-4 h-4" />
-                Re-sincronizar
+                Sincronizar
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-zinc-800" />
+              <DropdownMenuSeparator className="bg-white/10" />
               {project.archived ? (
-                <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-900">
+                <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer text-white/70 hover:text-white hover:bg-white/5 rounded-lg">
                   <ArchiveRestore className="w-4 h-4" />
                   Restaurar
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-900">
+                <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer text-white/70 hover:text-white hover:bg-white/5 rounded-lg">
                   <Archive className="w-4 h-4" />
                   Arquivar
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator className="bg-zinc-800" />
-              <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-500 focus:text-red-500 hover:bg-zinc-900">
+              <DropdownMenuSeparator className="bg-white/10" />
+              <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-400 focus:text-red-400 hover:bg-red-500/10 rounded-lg">
                 <Trash2 className="w-4 h-4" />
                 Excluir
               </DropdownMenuItem>
@@ -153,22 +179,20 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
           </DropdownMenu>
         </div>
         
-        {/* Technical info */}
-        <div className="border-t border-zinc-900 pt-3 mb-3">
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
-            <div>
-              <span className="text-zinc-600 uppercase tracking-wider">Account ID</span>
-              <p className="font-mono text-zinc-400 mt-0.5">{project.ad_account_id.replace('act_', '')}</p>
-            </div>
-            <div>
-              <span className="text-zinc-600 uppercase tracking-wider">Última Sync</span>
-              <p className="text-zinc-400 mt-0.5">
-                {lastSyncDate 
-                  ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR })
-                  : 'Nunca'
-                }
-              </p>
-            </div>
+        {/* Info */}
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-white/40">Account ID</span>
+            <span className="font-mono text-white/60">{project.ad_account_id.replace('act_', '')}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-white/40">Última sync</span>
+            <span className="text-white/60">
+              {lastSyncDate 
+                ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR })
+                : 'Nunca'
+              }
+            </span>
           </div>
         </div>
         
@@ -179,10 +203,11 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
               e.stopPropagation();
               onSelect(project);
             }}
-            className="flex-1 h-8 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-1"
+            className="flex-1 h-9 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-600/20"
+            style={{ fontFamily: 'Space Grotesk, sans-serif' }}
           >
             Acessar
-            <ChevronRight className="w-3 h-3" />
+            <ExternalLink className="w-3.5 h-3.5" />
           </button>
           
           {showWhatsApp && (
@@ -191,10 +216,9 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
                 e.stopPropagation();
                 onWhatsApp(project);
               }}
-              className="h-8 px-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+              className="h-9 px-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-sm transition-all flex items-center gap-2"
             >
-              <img src={whatsappIcon} alt="" className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">WhatsApp</span>
+              <img src={whatsappIcon} alt="" className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -203,7 +227,7 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
   );
 }
 
-// Status Group with industrial style
+// Status Group
 interface StatusGroupProps {
   status: ExtendedHealthScore;
   projects: Project[];
@@ -223,36 +247,38 @@ function StatusGroup({ status, projects, defaultOpen = false, onSelect, onEdit, 
   if (projects.length === 0) return null;
 
   const config = {
-    safe: { label: 'SAFE', color: 'text-white', indicator: 'bg-emerald-500' },
-    care: { label: 'CARE', color: 'text-white', indicator: 'bg-amber-500' },
-    danger: { label: 'DANGER', color: 'text-white', indicator: 'bg-red-500' },
-    undefined: { label: 'SEM STATUS', color: 'text-zinc-500', indicator: 'bg-zinc-600' },
+    safe: { label: 'Safe', color: 'text-emerald-400', bg: 'bg-emerald-500/10', indicator: 'bg-emerald-500' },
+    care: { label: 'Care', color: 'text-amber-400', bg: 'bg-amber-500/10', indicator: 'bg-amber-500' },
+    danger: { label: 'Danger', color: 'text-red-400', bg: 'bg-red-500/10', indicator: 'bg-red-500' },
+    undefined: { label: 'Sem Status', color: 'text-zinc-400', bg: 'bg-zinc-500/10', indicator: 'bg-zinc-500' },
   }[status];
 
-  // Show WhatsApp for care and danger only
   const showWhatsApp = status === 'care' || status === 'danger';
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-4">
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-6">
       <CollapsibleTrigger asChild>
-        <button className="w-full flex items-center gap-3 py-3 px-4 bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-900 transition-colors">
-          <div className={cn("w-3 h-3 rounded-sm", config.indicator)} />
-          <span className={cn("font-bold text-sm uppercase tracking-widest", config.color)}>
+        <button className="w-full flex items-center gap-3 py-3 px-4 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/5 transition-all group">
+          <div className={cn("w-2.5 h-2.5 rounded-full", config.indicator)} />
+          <span 
+            className={cn("font-medium text-sm", config.color)}
+            style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+          >
             {config.label}
           </span>
-          <span className="text-sm font-mono text-zinc-600">
-            [{projects.length}]
+          <span className="text-sm text-white/30 font-medium">
+            {projects.length} {projects.length === 1 ? 'cliente' : 'clientes'}
           </span>
           <div className="flex-1" />
           <ChevronDown className={cn(
-            "w-4 h-4 text-zinc-600 transition-transform",
+            "w-4 h-4 text-white/30 transition-transform duration-200",
             isOpen && "rotate-180"
           )} />
         </button>
       </CollapsibleTrigger>
       
-      <CollapsibleContent className="pt-2">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+      <CollapsibleContent className="pt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {projects.map(project => (
             <ClientCard
               key={project.id}
@@ -607,95 +633,113 @@ export default function ProjectSelector() {
   if (authLoading || projectsLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
+        <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* ==================== HEADER DOMINANTE ==================== */}
-      <header className="relative border-b-2 border-red-600">
-        {/* Top bar with navigation */}
-        <div className="bg-black border-b border-zinc-900">
-          <div className="max-w-[1800px] mx-auto px-6 py-2">
-            <nav className="flex items-center justify-end gap-1">
-              <button className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-white bg-red-600 transition-colors">
-                Meta Ads
-              </button>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-2">
-                      <Lock className="w-3 h-3" />
-                      Google Ads
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-black border-zinc-800 text-zinc-400">
-                    Em breve
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <button 
-                onClick={() => navigate('/whatsapp-manager')}
-                className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors flex items-center gap-2"
-              >
-                <MessageSquare className="w-3 h-3" />
-                WhatsApp
-              </button>
-              <button 
-                onClick={() => setProfileDialogOpen(true)}
-                className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors flex items-center gap-2"
-              >
-                <User className="w-3 h-3" />
-                Perfil
-              </button>
+    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-black to-zinc-950">
+      {/* ==================== HEADER ==================== */}
+      <header className="relative">
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-red-600/5 to-transparent pointer-events-none" />
+        
+        {/* Top nav */}
+        <div className="relative border-b border-white/5">
+          <div className="max-w-[1600px] mx-auto px-6 py-3">
+            <nav className="flex items-center justify-between">
+              {/* Logo */}
+              <div className="flex items-center gap-4">
+                <img src={v4Logo} alt="V4 Company" className="h-8 w-auto brightness-0 invert opacity-90" />
+                <div className="w-px h-6 bg-gradient-to-b from-transparent via-red-500/50 to-transparent" />
+                <span 
+                  className="text-lg font-semibold text-white/90"
+                  style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                >
+                  Ads Manager
+                </span>
+              </div>
+              
+              {/* Nav items */}
+              <div className="flex items-center gap-1">
+                <button className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600/20 border border-red-500/30 transition-all">
+                  Meta Ads
+                </button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button className="px-4 py-2 rounded-lg text-sm font-medium text-white/40 hover:text-white/60 transition-all flex items-center gap-2">
+                        <Lock className="w-3 h-3" />
+                        Google Ads
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-zinc-900 border-white/10">
+                      <p className="text-sm">Em breve</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <button 
+                  onClick={() => navigate('/whatsapp-manager')}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all flex items-center gap-2"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  WhatsApp
+                </button>
+                <button 
+                  onClick={() => setProfileDialogOpen(true)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all flex items-center gap-2"
+                >
+                  <User className="w-4 h-4" />
+                  Perfil
+                </button>
+              </div>
             </nav>
           </div>
         </div>
         
-        {/* Main header content */}
-        <div className="bg-black">
-          <div className="max-w-[1800px] mx-auto px-6 py-6">
+        {/* Stats bar */}
+        <div className="relative border-b border-white/5 bg-black/30 backdrop-blur-xl">
+          <div className="max-w-[1600px] mx-auto px-6 py-5">
             <div className="flex items-center justify-between">
-              {/* Logo and product name */}
-              <div className="flex items-center gap-4">
-                <img src={v4Logo} alt="V4 Company" className="h-10 w-auto brightness-0 invert" />
-                <div className="w-px h-10 bg-red-600" />
-                <div>
-                  <h1 className="text-2xl font-black uppercase tracking-tight text-white">
-                    Ads <span className="text-red-600">Manager</span>
-                  </h1>
-                  <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-600">
-                    Painel de Controle
-                  </p>
-                </div>
+              <div>
+                <p className="text-xs text-white/40 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  Painel de Controle
+                </p>
+                <h1 
+                  className="text-2xl font-semibold text-white"
+                  style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                >
+                  Seus Clientes
+                </h1>
               </div>
               
-              {/* Global Metrics */}
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900/50 border border-zinc-800">
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Clientes Ativos</span>
-                  <span className="text-xl font-black text-white">{healthCounts.total}</span>
+              {/* Metrics */}
+              <div className="flex items-center gap-8">
+                <div className="text-center">
+                  <p className="text-3xl font-semibold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    {healthCounts.total}
+                  </p>
+                  <p className="text-xs text-white/40 mt-0.5">Ativos</p>
                 </div>
                 
-                <div className="h-10 w-px bg-zinc-800" />
+                <div className="w-px h-10 bg-white/10" />
                 
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-emerald-500" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Safe</span>
-                    <span className="text-lg font-black text-white">{healthCounts.safe}</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/30" />
+                    <span className="text-xl font-medium text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.safe}</span>
+                    <span className="text-xs text-white/40">safe</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-amber-500" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Care</span>
-                    <span className="text-lg font-black text-white">{healthCounts.care}</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-lg shadow-amber-500/30" />
+                    <span className="text-xl font-medium text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.care}</span>
+                    <span className="text-xs text-white/40">care</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-500" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Danger</span>
-                    <span className="text-lg font-black text-white">{healthCounts.danger}</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-lg shadow-red-500/30" />
+                    <span className="text-xl font-medium text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.danger}</span>
+                    <span className="text-xs text-white/40">danger</span>
                   </div>
                 </div>
               </div>
@@ -705,59 +749,68 @@ export default function ProjectSelector() {
       </header>
 
       {/* ==================== ACTIONS BAR ==================== */}
-      <div className="bg-zinc-950 border-b border-zinc-900">
-        <div className="max-w-[1800px] mx-auto px-6 py-4">
+      <div className="sticky top-0 z-40 bg-black/80 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-[1600px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between gap-4">
-            {/* Left - Search & Filter */}
+            {/* Search & Filter */}
             <div className="flex items-center gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                 <Input
-                  placeholder="Buscar cliente ou account ID..."
+                  placeholder="Buscar cliente..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 w-80 h-10 bg-black border-zinc-800 text-white placeholder:text-zinc-700 focus:border-red-600 focus:ring-red-600/20"
+                  className="pl-10 w-72 h-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-red-500/50 focus:ring-red-500/20 rounded-xl"
+                  style={{ fontFamily: 'Inter, sans-serif' }}
                 />
               </div>
               
               <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
-                <SelectTrigger className="w-40 h-10 bg-black border-zinc-800 text-zinc-400 focus:border-red-600">
+                <SelectTrigger className="w-36 h-10 bg-white/5 border-white/10 text-white/70 rounded-xl focus:border-red-500/50">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-black border-zinc-800">
-                  <SelectItem value="all" className="text-zinc-400">Todos os status</SelectItem>
-                  <SelectItem value="safe" className="text-emerald-500">Safe</SelectItem>
-                  <SelectItem value="care" className="text-amber-500">Care</SelectItem>
-                  <SelectItem value="danger" className="text-red-500">Danger</SelectItem>
+                <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
+                  <SelectItem value="all" className="text-white/70 rounded-lg">Todos</SelectItem>
+                  <SelectItem value="safe" className="text-emerald-400 rounded-lg">Safe</SelectItem>
+                  <SelectItem value="care" className="text-amber-400 rounded-lg">Care</SelectItem>
+                  <SelectItem value="danger" className="text-red-400 rounded-lg">Danger</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
-            {/* Right - Actions */}
+            {/* Actions */}
             <div className="flex items-center gap-3">
               {!isGuest && (
                 <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="h-10 px-5 bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-wider text-xs gap-2">
+                    <Button 
+                      className="h-10 px-5 bg-red-600 hover:bg-red-500 text-white font-medium rounded-xl shadow-lg shadow-red-600/20 gap-2 transition-all"
+                      style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                    >
                       <Plus className="w-4 h-4" />
                       Novo Cliente
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-lg bg-black border-zinc-800">
+                  <DialogContent className="sm:max-w-md bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-2xl">
                     <DialogHeader>
-                      <DialogTitle className="text-white font-bold uppercase tracking-wide">Criar novo cliente</DialogTitle>
+                      <DialogTitle 
+                        className="text-white font-semibold"
+                        style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                      >
+                        Novo Cliente
+                      </DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleCreateProject} className="space-y-4 mt-4">
                       {/* Avatar */}
                       <div className="flex justify-center">
                         <div 
                           onClick={() => avatarInputRef.current?.click()}
-                          className="w-16 h-16 bg-zinc-900 border-2 border-dashed border-zinc-800 flex items-center justify-center cursor-pointer hover:border-red-600 transition-colors overflow-hidden"
+                          className="w-16 h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-red-500/50 transition-all overflow-hidden"
                         >
                           {avatarPreview ? (
                             <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <Camera className="w-5 h-5 text-zinc-600" />
+                            <Camera className="w-5 h-5 text-white/30" />
                           )}
                         </div>
                         <input
@@ -770,37 +823,37 @@ export default function ProjectSelector() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-zinc-500 text-xs uppercase tracking-wider">Nome do Cliente *</Label>
+                        <Label className="text-white/50 text-xs">Nome do Cliente</Label>
                         <Input
                           value={formData.name}
                           onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="Ex: Empresa ABC"
-                          className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600"
+                          className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-zinc-500 text-xs uppercase tracking-wider">Account ID *</Label>
+                        <Label className="text-white/50 text-xs">Account ID</Label>
                         <Input
                           value={formData.ad_account_id}
                           onChange={(e) => setFormData(prev => ({ ...prev, ad_account_id: e.target.value }))}
                           placeholder="act_123456789"
-                          className="bg-zinc-900 border-zinc-800 text-white font-mono focus:border-red-600"
+                          className="bg-white/5 border-white/10 text-white font-mono rounded-xl focus:border-red-500/50"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-zinc-500 text-xs uppercase tracking-wider">Modelo de Negócio</Label>
+                        <Label className="text-white/50 text-xs">Modelo de Negócio</Label>
                         <Select
                           value={formData.business_model}
                           onValueChange={(val) => setFormData(prev => ({ ...prev, business_model: val as BusinessModel }))}
                         >
-                          <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600">
+                          <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-black border-zinc-800">
+                          <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
                             {businessModels.map(model => (
-                              <SelectItem key={model.value} value={model.value} className="text-white">
+                              <SelectItem key={model.value} value={model.value} className="text-white rounded-lg">
                                 {model.label}
                               </SelectItem>
                             ))}
@@ -813,16 +866,16 @@ export default function ProjectSelector() {
                           type="button"
                           variant="outline"
                           onClick={() => setCreateDialogOpen(false)}
-                          className="flex-1 border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-900"
+                          className="flex-1 border-white/10 text-white/60 hover:text-white hover:bg-white/5 rounded-xl"
                         >
                           Cancelar
                         </Button>
                         <Button
                           type="submit"
                           disabled={isCreating}
-                          className="flex-1 bg-red-600 text-white hover:bg-red-700 font-bold uppercase"
+                          className="flex-1 bg-red-600 text-white hover:bg-red-500 rounded-xl font-medium"
                         >
-                          {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Cliente'}
+                          {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar'}
                         </Button>
                       </div>
                     </form>
@@ -834,8 +887,8 @@ export default function ProjectSelector() {
                 variant="outline"
                 onClick={() => setShowArchived(!showArchived)}
                 className={cn(
-                  "h-10 border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-900 font-bold uppercase tracking-wider text-xs",
-                  showArchived && 'bg-zinc-900 text-white border-red-600/50'
+                  "h-10 border-white/10 text-white/50 hover:text-white hover:bg-white/5 rounded-xl transition-all",
+                  showArchived && 'bg-white/10 text-white border-red-500/30'
                 )}
               >
                 <Archive className="w-4 h-4 mr-2" />
@@ -847,21 +900,24 @@ export default function ProjectSelector() {
       </div>
 
       {/* ==================== CLIENT LIST ==================== */}
-      <main className="max-w-[1800px] mx-auto px-6 py-6">
+      <main className="max-w-[1600px] mx-auto px-6 py-8">
         {filteredProjects.length === 0 ? (
-          <div className="text-center py-24 border border-zinc-900">
-            <div className="w-20 h-20 bg-zinc-950 border border-zinc-800 flex items-center justify-center mx-auto mb-4">
-              <Users className="w-10 h-10 text-zinc-700" />
+          <div className="text-center py-24">
+            <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+              <Users className="w-10 h-10 text-white/20" />
             </div>
-            <h3 className="text-lg font-bold uppercase tracking-wide text-zinc-500 mb-2">
+            <h3 
+              className="text-lg font-medium text-white/60 mb-2"
+              style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+            >
               {searchQuery ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
             </h3>
-            <p className="text-sm text-zinc-700 uppercase tracking-wider">
+            <p className="text-sm text-white/30">
               {searchQuery ? 'Tente buscar por outro termo' : 'Clique em "Novo Cliente" para começar'}
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div>
             <StatusGroup
               status="safe"
               projects={safeProjects}
@@ -918,20 +974,22 @@ export default function ProjectSelector() {
       
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg bg-black border-zinc-800">
+        <DialogContent className="sm:max-w-md bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-white font-bold uppercase tracking-wide">Editar Cliente</DialogTitle>
+            <DialogTitle className="text-white font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+              Editar Cliente
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdateProject} className="space-y-4 mt-4">
             <div className="flex justify-center">
               <div 
                 onClick={() => editAvatarInputRef.current?.click()}
-                className="w-16 h-16 bg-zinc-900 border-2 border-dashed border-zinc-800 flex items-center justify-center cursor-pointer hover:border-red-600 transition-colors overflow-hidden"
+                className="w-16 h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-red-500/50 transition-all overflow-hidden"
               >
                 {editAvatarPreview ? (
                   <img src={editAvatarPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <Camera className="w-5 h-5 text-zinc-600" />
+                  <Camera className="w-5 h-5 text-white/30" />
                 )}
               </div>
               <input
@@ -944,28 +1002,28 @@ export default function ProjectSelector() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-zinc-500 text-xs uppercase tracking-wider">Nome do Cliente</Label>
+              <Label className="text-white/50 text-xs">Nome do Cliente</Label>
               <Input
                 value={editFormData.name}
                 onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600"
+                className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-zinc-500 text-xs uppercase tracking-wider">Health Score</Label>
+              <Label className="text-white/50 text-xs">Health Score</Label>
               <Select
                 value={editFormData.health_score || 'none'}
                 onValueChange={(val) => setEditFormData(prev => ({ ...prev, health_score: val === 'none' ? null : val as HealthScore }))}
               >
-                <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600">
+                <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-black border-zinc-800">
-                  <SelectItem value="none" className="text-zinc-500">Sem status</SelectItem>
-                  <SelectItem value="safe" className="text-emerald-500">Safe</SelectItem>
-                  <SelectItem value="care" className="text-amber-500">Care</SelectItem>
-                  <SelectItem value="danger" className="text-red-500">Danger</SelectItem>
+                <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
+                  <SelectItem value="none" className="text-white/50 rounded-lg">Sem status</SelectItem>
+                  <SelectItem value="safe" className="text-emerald-400 rounded-lg">Safe</SelectItem>
+                  <SelectItem value="care" className="text-amber-400 rounded-lg">Care</SelectItem>
+                  <SelectItem value="danger" className="text-red-400 rounded-lg">Danger</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -975,14 +1033,14 @@ export default function ProjectSelector() {
                 type="button"
                 variant="outline"
                 onClick={() => setEditDialogOpen(false)}
-                className="flex-1 border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-900"
+                className="flex-1 border-white/10 text-white/60 hover:text-white hover:bg-white/5 rounded-xl"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={isUpdating}
-                className="flex-1 bg-red-600 text-white hover:bg-red-700 font-bold uppercase"
+                className="flex-1 bg-red-600 text-white hover:bg-red-500 rounded-xl font-medium"
               >
                 {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar'}
               </Button>
@@ -993,16 +1051,20 @@ export default function ProjectSelector() {
 
       {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-black border-zinc-800">
+        <AlertDialogContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white font-bold uppercase">Excluir Cliente</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-500">
+            <AlertDialogTitle className="text-white font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+              Excluir Cliente
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-white/50">
               Tem certeza que deseja excluir "{selectedProject?.name}"? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-900">Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 font-bold uppercase">
+            <AlertDialogCancel className="border-white/10 text-white/60 hover:text-white hover:bg-white/5 rounded-xl">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-500 rounded-xl font-medium">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1011,21 +1073,23 @@ export default function ProjectSelector() {
 
       {/* Profile Dialog */}
       <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-black border-zinc-800">
+        <DialogContent className="sm:max-w-md bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-white font-bold uppercase tracking-wide">Meu Perfil</DialogTitle>
+            <DialogTitle className="text-white font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+              Meu Perfil
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-6 mt-4">
             {/* Avatar */}
             <div className="flex justify-center">
               <div 
                 onClick={() => profileAvatarInputRef.current?.click()}
-                className="w-20 h-20 rounded-full bg-zinc-900 border-2 border-dashed border-zinc-800 flex items-center justify-center cursor-pointer hover:border-red-600 transition-colors overflow-hidden"
+                className="w-20 h-20 rounded-full bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-red-500/50 transition-all overflow-hidden"
               >
                 {profileAvatarPreview ? (
                   <img src={profileAvatarPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-8 h-8 text-zinc-600" />
+                  <User className="w-8 h-8 text-white/30" />
                 )}
               </div>
               <input
@@ -1038,27 +1102,27 @@ export default function ProjectSelector() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-zinc-500 text-xs uppercase tracking-wider">Nome</Label>
+              <Label className="text-white/50 text-xs">Nome</Label>
               <Input
                 value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
-                className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600"
+                className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-zinc-500 text-xs uppercase tracking-wider">Cargo</Label>
+              <Label className="text-white/50 text-xs">Cargo</Label>
               <Select
                 value={profileCargo || 'none'}
                 onValueChange={(val) => setProfileCargo(val === 'none' ? null : val as UserCargo)}
               >
-                <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600">
+                <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
-                <SelectContent className="bg-black border-zinc-800">
-                  <SelectItem value="none" className="text-zinc-500">Nenhum</SelectItem>
+                <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
+                  <SelectItem value="none" className="text-white/50 rounded-lg">Nenhum</SelectItem>
                   {cargoOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-white">
+                    <SelectItem key={opt.value} value={opt.value} className="text-white rounded-lg">
                       {opt.label}
                     </SelectItem>
                   ))}
@@ -1069,33 +1133,33 @@ export default function ProjectSelector() {
             <Button
               onClick={handleUpdateProfile}
               disabled={isUpdatingProfile}
-              className="w-full bg-red-600 text-white hover:bg-red-700 font-bold uppercase"
+              className="w-full bg-red-600 text-white hover:bg-red-500 rounded-xl font-medium"
             >
               {isUpdatingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Perfil'}
             </Button>
 
-            <div className="border-t border-zinc-800 pt-4">
-              <Label className="text-zinc-500 text-xs uppercase tracking-wider">Alterar Senha</Label>
+            <div className="border-t border-white/10 pt-4">
+              <Label className="text-white/50 text-xs">Alterar Senha</Label>
               <div className="space-y-2 mt-2">
                 <Input
                   type="password"
                   placeholder="Nova senha"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="bg-zinc-900 border-zinc-800 text-white placeholder:text-zinc-700 focus:border-red-600"
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl focus:border-red-500/50"
                 />
                 <Input
                   type="password"
                   placeholder="Confirmar senha"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="bg-zinc-900 border-zinc-800 text-white placeholder:text-zinc-700 focus:border-red-600"
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl focus:border-red-500/50"
                 />
                 <Button
                   onClick={handleChangePassword}
                   disabled={isChangingPassword || !newPassword}
                   variant="outline"
-                  className="w-full border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-900"
+                  className="w-full border-white/10 text-white/60 hover:text-white hover:bg-white/5 rounded-xl"
                 >
                   {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Alterar Senha'}
                 </Button>
@@ -1105,7 +1169,7 @@ export default function ProjectSelector() {
             <Button
               variant="outline"
               onClick={handleLogout}
-              className="w-full border-red-600/50 text-red-500 hover:bg-red-600/10 hover:text-red-400"
+              className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-xl"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Sair
