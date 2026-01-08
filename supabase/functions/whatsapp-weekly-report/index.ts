@@ -219,15 +219,15 @@ function alreadySentForScheduledTime(lastSentAt: string | null, reportTime: stri
     return false;
   }
   
-  // Same day - check if last sent was within the last 10 minutes (to prevent multiple sends from cron)
+  // Same day - check if last sent was within the last 2 minutes (to prevent multiple sends from cron)
   const timeDiffMs = now.getTime() - lastSent.getTime();
   const timeDiffMinutes = timeDiffMs / (1000 * 60);
   
   console.log(`[WEEKLY-REPORT] Already sent check - Last sent: ${lastSent.toISOString()}, Time diff: ${timeDiffMinutes.toFixed(1)} minutes ago`);
   
-  // Block if sent within the last 10 minutes (cron runs every minute, this prevents duplicates)
-  if (timeDiffMinutes < 10) {
-    console.log(`[WEEKLY-REPORT] Blocking - sent ${timeDiffMinutes.toFixed(1)} minutes ago (< 10 min threshold)`);
+  // Block if sent within the last 2 minutes (cron runs every minute, this prevents duplicates)
+  if (timeDiffMinutes < 2) {
+    console.log(`[WEEKLY-REPORT] Blocking - sent ${timeDiffMinutes.toFixed(1)} minutes ago (< 2 min threshold)`);
     return true;
   }
   
