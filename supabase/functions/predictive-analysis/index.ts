@@ -74,55 +74,73 @@ serve(async (req) => {
           let autoReloadThreshold = null;
           let balanceValue = 0;
           
-          // PRIORITY: Use the 'balance' field from Meta API (it's in cents for prepaid accounts)
-          // The balance field is the CORRECT source, NOT the display_string which may contain card info
-          if (metaData.balance !== undefined && metaData.balance !== null) {
-            const rawBalance = typeof metaData.balance === 'string' 
-              ? parseFloat(metaData.balance) 
-              : metaData.balance;
-            // Balance is in cents (e.g., 33841 = R$338.41)
-            balanceValue = rawBalance / 100;
-            console.log('[PREDICTIVE] Balance from API (cents converted):', balanceValue);
-          }
+          // Account status mapping:
+          // 1 = ACTIVE - Account is active
+          // 2 = DISABLED - Account is disabled
+          // 3 = UNSETTLED - Account has payment issues / no balance
+          // 7 = PENDING_REVIEW - Account is pending review
+          // 9 = IN_GRACE_PERIOD - Account is in grace period
+          // 100 = PENDING_CLOSURE - Account is pending closure
+          // 101 = CLOSED - Account is closed
+          // 201 = ANY_ACTIVE - Any active status
+          // 202 = ANY_CLOSED - Any closed status
+          const accountStatus = metaData.account_status;
+          const isAccountBlocked = accountStatus === 3 || accountStatus === 2;
           
-          // Check funding source details for type and auto-reload settings
+          console.log('[PREDICTIVE] Account status:', accountStatus, 'isBlocked:', isAccountBlocked);
+          
+          // Get funding source type
           if (metaData.funding_source_details) {
             const fsd = metaData.funding_source_details;
             fundingType = fsd.type || null;
             
-            // For PREPAID (type=1) accounts, the display_string may show "Saldo disponível (R$X.XXX,XX BRL)"
-            // Try to extract balance from display_string ONLY if it contains "Saldo" (prepaid balance)
-            if (fsd.display_string && fsd.display_string.toLowerCase().includes('saldo')) {
-              console.log('[PREDICTIVE] display_string:', fsd.display_string);
-              
-              // Extract value from formats like "R$2.003,11" or "R$2,003.11"
-              const match = fsd.display_string.match(/R\$\s*([\d.,]+)/);
-              if (match) {
-                let valueStr = match[1];
-                // Handle Brazilian format (1.234,56) vs US format (1,234.56)
-                if (valueStr.includes('.') && valueStr.includes(',')) {
-                  if (valueStr.lastIndexOf(',') > valueStr.lastIndexOf('.')) {
-                    // Brazilian format: 1.234,56 -> remove dots, replace comma with dot
-                    valueStr = valueStr.replace(/\./g, '').replace(',', '.');
-                  } else {
-                    // US format: 1,234.56 -> remove commas
-                    valueStr = valueStr.replace(/,/g, '');
+            // type 1 = Credit Card (postpaid)
+            // type 2 = Facebook Coupon
+            // type 3 = Direct Debit (prepaid/PIX)
+            // type 4 = PayPal
+            console.log('[PREDICTIVE] Funding type:', fundingType, 'display_string:', fsd.display_string);
+            
+            // For PREPAID accounts (type=3), extract balance from display_string
+            if (fundingType === 3 && fsd.display_string) {
+              // display_string for prepaid: "Saldo disponível (R$2.003,11 BRL)"
+              if (fsd.display_string.toLowerCase().includes('saldo')) {
+                const match = fsd.display_string.match(/R\$\s*([\d.,]+)/);
+                if (match) {
+                  let valueStr = match[1];
+                  // Handle Brazilian format (1.234,56)
+                  if (valueStr.includes('.') && valueStr.includes(',')) {
+                    if (valueStr.lastIndexOf(',') > valueStr.lastIndexOf('.')) {
+                      valueStr = valueStr.replace(/\./g, '').replace(',', '.');
+                    } else {
+                      valueStr = valueStr.replace(/,/g, '');
+                    }
+                  } else if (valueStr.includes(',') && !valueStr.includes('.')) {
+                    valueStr = valueStr.replace(',', '.');
                   }
-                } else if (valueStr.includes(',') && !valueStr.includes('.')) {
-                  // Only comma, assume Brazilian decimal: 234,56 -> 234.56
-                  valueStr = valueStr.replace(',', '.');
-                }
-                const parsedFromDisplay = parseFloat(valueStr) || 0;
-                // Only use display_string value if it's higher than the balance field
-                // This handles cases where balance field shows remaining credit but display shows total
-                if (parsedFromDisplay > balanceValue) {
-                  balanceValue = parsedFromDisplay;
-                  console.log('[PREDICTIVE] Using higher balance from display_string:', balanceValue);
+                  balanceValue = parseFloat(valueStr) || 0;
+                  console.log('[PREDICTIVE] Prepaid balance from display_string:', balanceValue);
                 }
               }
             }
             
-            // Check if auto-reload is configured
+            // For CREDIT CARD accounts (type=1), the 'balance' field shows available credit
+            // But if account_status is 3 (UNSETTLED), the account has no effective balance
+            if (fundingType === 1) {
+              if (isAccountBlocked) {
+                // Account is blocked/unsettled - effective balance is 0
+                balanceValue = 0;
+                console.log('[PREDICTIVE] Credit card account is blocked, setting balance to 0');
+              } else if (metaData.balance !== undefined && metaData.balance !== null) {
+                // Account is active, use balance field (in cents)
+                const rawBalance = typeof metaData.balance === 'string' 
+                  ? parseFloat(metaData.balance) 
+                  : metaData.balance;
+                balanceValue = rawBalance / 100;
+                console.log('[PREDICTIVE] Credit card available balance (cents):', balanceValue);
+              }
+            }
+            
+            // Check if auto-reload is configured (for prepaid/coupon accounts)
             if (fsd.coupon && fsd.coupon.auto_reload_enabled) {
               autoReloadEnabled = true;
               autoReloadThreshold = fsd.coupon.auto_reload_threshold_amount 
@@ -131,14 +149,20 @@ serve(async (req) => {
             }
           }
           
-          console.log('[PREDICTIVE] Final balance value:', balanceValue);
+          // Determine status based on account_status and balance
+          let status: 'healthy' | 'warning' | 'critical' | 'unknown' = 'unknown';
+          if (isAccountBlocked) {
+            status = 'critical';
+          }
+          
+          console.log('[PREDICTIVE] Final balance value:', balanceValue, 'status:', status);
           
           accountBalance = {
             balance: balanceValue,
             currency: metaData.currency || project.currency,
             lastUpdated: new Date().toISOString(),
             daysOfSpendRemaining: null,
-            status: 'unknown',
+            status,
             fundingType,
             autoReloadEnabled,
             autoReloadThreshold,
