@@ -145,19 +145,15 @@ export function ProjectReportConfigDialog({
     m.all || (m.models && m.models.includes(project.business_model))
   );
 
-  // Generate preview message
-  const previewMessage = useMemo(() => {
+  // Generate default template based on selected metrics
+  const generateDefaultTemplate = useCallback(() => {
     const periodLabel = PERIOD_OPTIONS.find(p => p.value === reportPeriod)?.label || reportPeriod;
     const enabledMetricsList = availableMetrics.filter(m => metricsEnabled[m.id]);
     
-    if (messageTemplate) {
-      return messageTemplate;
-    }
-
     let msg = `📊 *Relatório ${project.name}*\n`;
     msg += `📅 Período: ${periodLabel}\n\n`;
     
-    // Sample metrics for preview
+    // Sample metrics for template
     const sampleMetrics: Record<string, string> = {
       spend: '💰 Investimento: R$ 1.234,56',
       reach: '👁️ Alcance: 45.678',
@@ -182,7 +178,17 @@ export function ProjectReportConfigDialog({
 
     msg += '\n_Relatório automático via V4 Dashboard_';
     return msg;
-  }, [project.name, reportPeriod, metricsEnabled, availableMetrics, messageTemplate]);
+  }, [project.name, reportPeriod, metricsEnabled, availableMetrics]);
+
+  // Initialize message template with default when dialog opens
+  useEffect(() => {
+    if (open && !existingConfig?.message_template && !messageTemplate) {
+      setMessageTemplate(generateDefaultTemplate());
+    }
+  }, [open]);
+
+  // The message that will be sent (what's in the textarea)
+  const currentMessage = messageTemplate || generateDefaultTemplate();
 
   // Load groups when instance changes
   useEffect(() => {
@@ -223,7 +229,7 @@ export function ProjectReportConfigDialog({
       const instance = instances.find(i => i.id === instanceId);
       if (!instance) throw new Error('Instância não encontrada');
 
-      const messageToSend = messageTemplate || previewMessage;
+      const messageToSend = currentMessage;
 
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
@@ -524,43 +530,37 @@ export function ProjectReportConfigDialog({
                   )}
                 </div>
 
-                {/* Message Preview & Editor */}
+                {/* Message Editor */}
                 <div className="space-y-3 pt-4 border-t">
                   <div className="flex items-center justify-between">
                     <Label className="flex items-center gap-2">
-                      <Eye className="w-4 h-4" />
+                      <Edit3 className="w-4 h-4" />
                       Mensagem do Relatório
                     </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setMessageTemplate(generateDefaultTemplate())}
+                      className="text-xs gap-1"
+                    >
+                      🔄 Gerar novo modelo
+                    </Button>
                   </div>
                   
-                  {/* Custom message editor - always visible */}
-                  <div className="space-y-2">
-                    <Textarea
-                      placeholder="Personalize a mensagem do relatório. Use *texto* para negrito e _texto_ para itálico. Deixe vazio para usar o modelo automático com as métricas selecionadas."
-                      value={messageTemplate}
-                      onChange={(e) => setMessageTemplate(e.target.value)}
-                      rows={6}
-                      className="text-sm"
-                    />
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-muted-foreground">
-                        💡 Deixe vazio para usar o modelo automático
-                      </p>
-                      {messageTemplate && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setMessageTemplate('')}
-                          className="text-xs"
-                        >
-                          Restaurar padrão
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                  {/* Message textarea - pre-filled with template */}
+                  <Textarea
+                    placeholder="Edite a mensagem do relatório..."
+                    value={messageTemplate}
+                    onChange={(e) => setMessageTemplate(e.target.value)}
+                    rows={10}
+                    className="text-sm font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    💡 Use *texto* para <strong>negrito</strong> e _texto_ para <em>itálico</em>
+                  </p>
 
-                  {/* Preview toggle */}
+                  {/* Preview WhatsApp style */}
                   <div className="space-y-2">
                     <Button
                       type="button"
@@ -570,14 +570,14 @@ export function ProjectReportConfigDialog({
                       className="gap-2 w-full"
                     >
                       <Eye className="w-4 h-4" />
-                      {showPreview ? 'Ocultar Preview' : 'Ver Preview'}
+                      {showPreview ? 'Ocultar Preview' : 'Ver Preview no WhatsApp'}
                     </Button>
                     
                     {showPreview && (
                       <div className="bg-[#0b141a] rounded-lg p-4 border border-border/50">
                         <div className="bg-[#005c4b] rounded-lg p-3 max-w-[85%] ml-auto">
                           <pre className="text-sm text-white whitespace-pre-wrap font-sans leading-relaxed">
-                            {previewMessage}
+                            {currentMessage}
                           </pre>
                           <span className="text-[10px] text-white/60 float-right mt-1">
                             {reportTime} ✓✓
