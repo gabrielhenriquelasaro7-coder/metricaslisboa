@@ -290,6 +290,8 @@ serve(async (req) => {
     const oneYearAgo = new Date();
     oneYearAgo.setDate(oneYearAgo.getDate() - 365);
     
+    console.log('[PREDICTIVE] Fetching data for project:', projectId, 'since:', oneYearAgo.toISOString().split('T')[0]);
+    
     const { data: allMetrics, error: metricsError } = await supabase
       .from('ads_daily_metrics')
       .select('date, spend, impressions, clicks, conversions, conversion_value, reach, campaign_id, campaign_name')
@@ -298,6 +300,8 @@ serve(async (req) => {
       .order('date', { ascending: true });
 
     if (metricsError) throw metricsError;
+    
+    console.log('[PREDICTIVE] Raw metrics count:', allMetrics?.length || 0);
 
     // Fetch campaign budgets
     const { data: campaigns, error: campaignsError } = await supabase
