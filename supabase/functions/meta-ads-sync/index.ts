@@ -22,9 +22,10 @@ const BASE_DELAY_MS = 200;
 const MAX_RETRIES = 3;
 const VALIDATION_RETRY_DELAYS = [5000, 10000, 20000];
 
-const TRACKED_FIELDS_CAMPAIGN = ['status', 'daily_budget', 'lifetime_budget', 'objective'];
-const TRACKED_FIELDS_ADSET = ['status', 'daily_budget', 'lifetime_budget'];
-const TRACKED_FIELDS_AD = ['status'];
+// Track strategic changes only (no budget changes)
+const TRACKED_FIELDS_CAMPAIGN = ['status', 'objective'];
+const TRACKED_FIELDS_ADSET = ['status', 'targeting'];
+const TRACKED_FIELDS_AD = ['status', 'creative_image_url', 'creative_video_url', 'headline', 'primary_text', 'cta'];
 
 const MESSAGING_ACTION_TYPES = [
   'onsite_conversion.messaging_conversation_started_7d', 
