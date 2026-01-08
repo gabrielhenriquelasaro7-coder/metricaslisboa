@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -21,8 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Save, Smartphone, Users, Calendar, Clock, Wallet } from 'lucide-react';
+import { Loader2, Save, Smartphone, Users, Calendar, Clock, Wallet, Eye, Edit3 } from 'lucide-react';
 import type { ManagerInstance, ReportConfig, WhatsAppGroup } from '@/hooks/useWhatsAppManager';
 import { WhatsAppGroupSelector } from './WhatsAppGroupSelector';
 
@@ -103,6 +102,8 @@ export function ProjectReportConfigDialog({
   const [saving, setSaving] = useState(false);
   const [groups, setGroups] = useState<WhatsAppGroup[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [editingMessage, setEditingMessage] = useState(false);
 
   // Form state
   const [instanceId, setInstanceId] = useState<string | null>(existingConfig?.instance_id || null);
@@ -139,6 +140,45 @@ export function ProjectReportConfigDialog({
   const availableMetrics = METRICS_CONFIG.filter(m => 
     m.all || (m.models && m.models.includes(project.business_model))
   );
+
+  // Generate preview message
+  const previewMessage = useMemo(() => {
+    const periodLabel = PERIOD_OPTIONS.find(p => p.value === reportPeriod)?.label || reportPeriod;
+    const enabledMetricsList = availableMetrics.filter(m => metricsEnabled[m.id]);
+    
+    if (messageTemplate) {
+      return messageTemplate;
+    }
+
+    let msg = `📊 *Relatório ${project.name}*\n`;
+    msg += `📅 Período: ${periodLabel}\n\n`;
+    
+    // Sample metrics for preview
+    const sampleMetrics: Record<string, string> = {
+      spend: '💰 Investimento: R$ 1.234,56',
+      reach: '👁️ Alcance: 45.678',
+      impressions: '📺 Impressões: 123.456',
+      frequency: '🔄 Frequência: 2,3',
+      clicks: '👆 Cliques: 3.456',
+      ctr: '📈 CTR: 2,80%',
+      cpm: '💵 CPM: R$ 10,00',
+      cpc: '💳 CPC: R$ 0,36',
+      leads: '🎯 Leads: 89',
+      cpl: '📊 CPL: R$ 13,87',
+      conversions: '🛒 Conversões: 45',
+      conversion_value: '💎 Valor: R$ 5.678,90',
+      roas: '🚀 ROAS: 4,6x',
+    };
+
+    enabledMetricsList.forEach(metric => {
+      if (sampleMetrics[metric.id]) {
+        msg += sampleMetrics[metric.id] + '\n';
+      }
+    });
+
+    msg += '\n_Relatório automático via V4 Dashboard_';
+    return msg;
+  }, [project.name, reportPeriod, metricsEnabled, availableMetrics, messageTemplate]);
 
   // Load groups when instance changes
   useEffect(() => {
@@ -203,15 +243,15 @@ export function ProjectReportConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Configurar Relatório - {project.name}</DialogTitle>
           <DialogDescription>
             Configure o envio automático de relatórios para este projeto
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 overflow-y-auto pr-2 -mr-2">
           <div className="space-y-6 py-4">
             {/* WhatsApp Selection */}
             <div className="space-y-3">
@@ -401,20 +441,65 @@ export function ProjectReportConfigDialog({
                   )}
                 </div>
 
-                {/* Custom Template */}
-                <div className="space-y-2 pt-4 border-t">
-                  <Label>Modelo de Mensagem (opcional)</Label>
-                  <Textarea
-                    placeholder="Deixe vazio para usar o modelo padrão"
-                    value={messageTemplate}
-                    onChange={(e) => setMessageTemplate(e.target.value)}
-                    rows={4}
-                  />
+                {/* Message Preview & Editor */}
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      Preview da Mensagem
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingMessage(!editingMessage)}
+                      className="gap-2"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      {editingMessage ? 'Ver Preview' : 'Editar'}
+                    </Button>
+                  </div>
+                  
+                  {editingMessage ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        placeholder="Personalize a mensagem do relatório. Use *texto* para negrito e _texto_ para itálico."
+                        value={messageTemplate}
+                        onChange={(e) => setMessageTemplate(e.target.value)}
+                        rows={8}
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        💡 Deixe vazio para usar o modelo padrão com as métricas selecionadas
+                      </p>
+                      {messageTemplate && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setMessageTemplate('')}
+                        >
+                          Restaurar padrão
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-[#0b141a] rounded-lg p-4 border border-border/50">
+                      <div className="bg-[#005c4b] rounded-lg p-3 max-w-[85%] ml-auto">
+                        <pre className="text-sm text-white whitespace-pre-wrap font-sans leading-relaxed">
+                          {previewMessage}
+                        </pre>
+                        <span className="text-[10px] text-white/60 float-right mt-1">
+                          {reportTime} ✓✓
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
