@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
       // No body provided, use defaults
     }
 
-    const { periods, group = 'all', skip_cache = false, project_ids, light_sync = true } = requestBody;
+    const { periods, group = 'all', skip_cache = false, project_ids, light_sync = false } = requestBody;
 
     // Determine which periods to sync
     const periodsToSync = periods || PERIOD_GROUPS[group] || PERIOD_GROUPS.all;

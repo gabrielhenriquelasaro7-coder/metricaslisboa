@@ -59,7 +59,7 @@ const ALL_PERIODS = [
   { key: 'last_90d', days: 90 },
 ];
 
-export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError, lightSync = true }: UseSyncWithProgressOptions) {
+export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError, lightSync = false }: UseSyncWithProgressOptions) {
   const [syncing, setSyncing] = useState(false);
   const [syncingAllPeriods, setSyncingAllPeriods] = useState(false);
   const [progress, setProgress] = useState<SyncProgress>({ step: 'idle', message: '' });
