@@ -410,34 +410,6 @@ export default function Dashboard() {
               />
             </div>
 
-            {/* Account Balance Card */}
-            {hasSelectedProject && selectedProject && (
-              <div className="glass-card p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-full bg-primary/10">
-                      <Banknote className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground font-medium">Saldo da Conta Meta Ads</p>
-                      <p className="text-2xl font-bold">
-                        {selectedProject.account_balance !== null 
-                          ? formatCurrency(selectedProject.account_balance)
-                          : 'Não disponível'
-                        }
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {selectedProject.account_balance_updated_at 
-                          ? `Atualizado: ${new Date(selectedProject.account_balance_updated_at).toLocaleString('pt-BR')}`
-                          : 'Saldo não sincronizado via API'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Period Comparison */}
             {showComparison && hasSelectedProject && (
               <PeriodComparison
@@ -784,6 +756,16 @@ export default function Dashboard() {
               currency={selectedProject?.currency || 'BRL'}
             />
 
+            {/* Leads Sync Card - Only for Inside Sales */}
+            {hasSelectedProject && isInsideSales && selectedProject && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <LeadsSyncCard
+                  projectId={selectedProject.id}
+                  facebookPageId={selectedProject.facebook_page_id}
+                  dateRange={dateRange?.from && dateRange?.to ? { from: dateRange.from, to: dateRange.to } : undefined}
+                />
+              </div>
+            )}
 
             {/* Top Campaigns */}
             <div className="glass-card p-6">

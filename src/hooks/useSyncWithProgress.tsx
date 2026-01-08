@@ -44,6 +44,7 @@ interface UseSyncWithProgressOptions {
   adAccountId: string;
   onSuccess?: () => void;
   onError?: (error: string) => void;
+  lightSync?: boolean; // Se true, pula fetch de criativos/imagens (mais rápido)
 }
 
 const THROTTLE_MS = 10000; // 10 seconds minimum between syncs
@@ -58,7 +59,7 @@ const ALL_PERIODS = [
   { key: 'last_90d', days: 90 },
 ];
 
-export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError }: UseSyncWithProgressOptions) {
+export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError, lightSync = false }: UseSyncWithProgressOptions) {
   const [syncing, setSyncing] = useState(false);
   const [syncingAllPeriods, setSyncingAllPeriods] = useState(false);
   const [progress, setProgress] = useState<SyncProgress>({ step: 'idle', message: '' });
@@ -111,6 +112,7 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
           project_id: projectId,
           ad_account_id: adAccountId,
           time_range: timeRange,
+          light_sync: lightSync, // Sync mais rápido sem buscar criativos
         },
       });
 
@@ -203,7 +205,7 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
         setProgress({ step: 'idle', message: '' });
       }, 3000);
     }
-  }, [projectId, adAccountId, onSuccess, onError, syncingAllPeriods]);
+  }, [projectId, adAccountId, onSuccess, onError, syncingAllPeriods, lightSync]);
 
   // Sync all periods (7, 14, 30, 60, 90 days)
   const syncAllPeriods = useCallback(async () => {
@@ -243,6 +245,7 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
             project_id: projectId,
             ad_account_id: adAccountId,
             time_range: { since, until },
+            light_sync: true, // Sync todos os períodos usa light mode
           },
         });
         
