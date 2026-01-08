@@ -1767,6 +1767,48 @@ export type Database = {
           },
         ]
       }
+      whatsapp_manager_instances: {
+        Row: {
+          created_at: string | null
+          display_name: string | null
+          id: string
+          instance_name: string
+          instance_status: string | null
+          phone_connected: string | null
+          qr_code: string | null
+          qr_code_expires_at: string | null
+          token: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          instance_name: string
+          instance_status?: string | null
+          phone_connected?: string | null
+          qr_code?: string | null
+          qr_code_expires_at?: string | null
+          token?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          instance_name?: string
+          instance_status?: string | null
+          phone_connected?: string | null
+          qr_code?: string | null
+          qr_code_expires_at?: string | null
+          token?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_messages_log: {
         Row: {
           content: string | null
@@ -1801,6 +1843,126 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_report_configs: {
+        Row: {
+          balance_alert_enabled: boolean | null
+          balance_alert_threshold: number | null
+          created_at: string | null
+          group_id: string | null
+          group_name: string | null
+          id: string
+          include_clicks: boolean | null
+          include_conversion_value: boolean | null
+          include_conversions: boolean | null
+          include_cpc: boolean | null
+          include_cpl: boolean | null
+          include_cpm: boolean | null
+          include_ctr: boolean | null
+          include_frequency: boolean | null
+          include_impressions: boolean | null
+          include_leads: boolean | null
+          include_reach: boolean | null
+          include_roas: boolean | null
+          include_spend: boolean | null
+          instance_id: string | null
+          last_balance_alert_at: string | null
+          last_report_sent_at: string | null
+          message_template: string | null
+          phone_number: string | null
+          project_id: string | null
+          report_day_of_week: number | null
+          report_enabled: boolean | null
+          report_period: string | null
+          report_time: string | null
+          target_type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          balance_alert_enabled?: boolean | null
+          balance_alert_threshold?: number | null
+          created_at?: string | null
+          group_id?: string | null
+          group_name?: string | null
+          id?: string
+          include_clicks?: boolean | null
+          include_conversion_value?: boolean | null
+          include_conversions?: boolean | null
+          include_cpc?: boolean | null
+          include_cpl?: boolean | null
+          include_cpm?: boolean | null
+          include_ctr?: boolean | null
+          include_frequency?: boolean | null
+          include_impressions?: boolean | null
+          include_leads?: boolean | null
+          include_reach?: boolean | null
+          include_roas?: boolean | null
+          include_spend?: boolean | null
+          instance_id?: string | null
+          last_balance_alert_at?: string | null
+          last_report_sent_at?: string | null
+          message_template?: string | null
+          phone_number?: string | null
+          project_id?: string | null
+          report_day_of_week?: number | null
+          report_enabled?: boolean | null
+          report_period?: string | null
+          report_time?: string | null
+          target_type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          balance_alert_enabled?: boolean | null
+          balance_alert_threshold?: number | null
+          created_at?: string | null
+          group_id?: string | null
+          group_name?: string | null
+          id?: string
+          include_clicks?: boolean | null
+          include_conversion_value?: boolean | null
+          include_conversions?: boolean | null
+          include_cpc?: boolean | null
+          include_cpl?: boolean | null
+          include_cpm?: boolean | null
+          include_ctr?: boolean | null
+          include_frequency?: boolean | null
+          include_impressions?: boolean | null
+          include_leads?: boolean | null
+          include_reach?: boolean | null
+          include_roas?: boolean | null
+          include_spend?: boolean | null
+          instance_id?: string | null
+          last_balance_alert_at?: string | null
+          last_report_sent_at?: string | null
+          message_template?: string | null
+          phone_number?: string | null
+          project_id?: string | null
+          report_day_of_week?: number | null
+          report_enabled?: boolean | null
+          report_period?: string | null
+          report_time?: string | null
+          target_type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_report_configs_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_manager_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_report_configs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]

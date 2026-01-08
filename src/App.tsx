@@ -28,6 +28,7 @@ import Admin from "./pages/Admin";
 import ProjectAdmin from "./pages/ProjectAdmin";
 import AIAssistant from "./pages/AIAssistant";
 import WhatsApp from "./pages/WhatsApp";
+import WhatsAppManager from "./pages/WhatsAppManager";
 import ChangePassword from "./pages/ChangePassword";
 import GuestOnboarding from "./pages/GuestOnboarding";
 import GoogleCampaigns from "./pages/GoogleCampaigns";
@@ -70,6 +71,7 @@ function AnimatedRoutes() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="/whatsapp" element={<WhatsApp />} />
+          <Route path="/whatsapp-manager" element={<WhatsAppManager />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/guest-onboarding" element={<GuestOnboarding />} />
           <Route path="/google-campaigns" element={<GoogleCampaigns />} />
