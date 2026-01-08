@@ -33,7 +33,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-// URL simples - sem transformações
+// Limpa URL para HD - remove parâmetros de resize
+const cleanImageUrl = (url: string | null): string | null => {
+  if (!url) return null;
+  return url.replace(/[&?]stp=[^&]*/gi, '').replace(/[&?]$/g, '');
+};
 import {
   Dialog,
   DialogContent,
@@ -268,8 +272,8 @@ export default function AdDetail() {
   const hasVideo = ad?.creative_video_url;
   const hasImage = ad?.creative_image_url || ad?.creative_thumbnail;
   
-  // URL da imagem - SIMPLES: usa direto do banco
-  const creativeUrl = ad?.creative_image_url || ad?.creative_thumbnail || '';
+  // URL da imagem em HD
+  const creativeUrl = cleanImageUrl(ad?.creative_image_url) || cleanImageUrl(ad?.creative_thumbnail) || '';
   
   const handleImageError = () => {
     setImageError(true);
