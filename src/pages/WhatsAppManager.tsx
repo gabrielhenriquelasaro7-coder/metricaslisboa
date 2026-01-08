@@ -27,7 +27,10 @@ import {
   Loader2,
   AlertTriangle,
   Calendar,
-  ArrowLeft
+  ArrowLeft,
+  Send,
+  Power,
+  PowerOff
 } from 'lucide-react';
 import { ManagerInstanceCard } from '@/components/whatsapp/ManagerInstanceCard';
 import { WhatsAppQRModal } from '@/components/whatsapp/WhatsAppQRModal';
@@ -59,7 +62,13 @@ export default function WhatsAppManager() {
     saveConfig,
     deleteConfig,
     getConfigForProject,
+    toggleConfigEnabled,
+    resendReport,
   } = useWhatsAppManager();
+
+  // Loading states for actions
+  const [resendingProjectId, setResendingProjectId] = useState<string | null>(null);
+  const [togglingProjectId, setTogglingProjectId] = useState<string | null>(null);
 
   // QR Modal state
   const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -136,6 +145,18 @@ export default function WhatsAppManager() {
   const handleOpenConfig = (project: { id: string; name: string; business_model: string }) => {
     setSelectedProject(project);
     setConfigDialogOpen(true);
+  };
+
+  const handleResendReport = async (projectId: string) => {
+    setResendingProjectId(projectId);
+    await resendReport(projectId);
+    setResendingProjectId(null);
+  };
+
+  const handleToggleConfig = async (projectId: string, currentEnabled: boolean) => {
+    setTogglingProjectId(projectId);
+    await toggleConfigEnabled(projectId, !currentEnabled);
+    setTogglingProjectId(null);
   };
 
   const getProjectConfigStatus = (projectId: string) => {
@@ -312,32 +333,73 @@ export default function WhatsAppManager() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <Badge 
-                          variant={status === 'active' ? 'default' : 'secondary'}
-                          className={
-                            status === 'active' ? 'bg-[#25D366]/20 text-[#25D366] border-[#25D366]/30' :
-                            status === 'disconnected' ? 'bg-metric-warning/20 text-metric-warning border-metric-warning/30' :
-                            status === 'disabled' ? 'bg-muted text-muted-foreground' :
-                            ''
-                          }
-                        >
-                          {status === 'active' && <><CheckCircle2 className="w-3 h-3 mr-1" /> Ativo</>}
-                          {status === 'disconnected' && <><AlertTriangle className="w-3 h-3 mr-1" /> Desconectado</>}
-                          {status === 'disabled' && <><XCircle className="w-3 h-3 mr-1" /> Desativado</>}
-                          {status === 'not_configured' && <><Clock className="w-3 h-3 mr-1" /> Não configurado</>}
-                        </Badge>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Badge 
+                            variant={status === 'active' ? 'default' : 'secondary'}
+                            className={
+                              status === 'active' ? 'bg-[#25D366]/20 text-[#25D366] border-[#25D366]/30' :
+                              status === 'disconnected' ? 'bg-metric-warning/20 text-metric-warning border-metric-warning/30' :
+                              status === 'disabled' ? 'bg-muted text-muted-foreground' :
+                              ''
+                            }
+                          >
+                            {status === 'active' && <><CheckCircle2 className="w-3 h-3 mr-1" /> Ativo</>}
+                            {status === 'disconnected' && <><AlertTriangle className="w-3 h-3 mr-1" /> Desconectado</>}
+                            {status === 'disabled' && <><XCircle className="w-3 h-3 mr-1" /> Desativado</>}
+                            {status === 'not_configured' && <><Clock className="w-3 h-3 mr-1" /> Não configurado</>}
+                          </Badge>
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenConfig(project)}
-                          disabled={instances.filter(i => i.instance_status === 'connected').length === 0}
-                        >
-                          <Settings2 className="w-4 h-4 mr-2" />
-                          Configurar
-                        </Button>
-                      </div>
+                          {/* Toggle Enable/Disable Button */}
+                          {config && status !== 'not_configured' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleToggleConfig(project.id, config.report_enabled)}
+                              disabled={togglingProjectId === project.id}
+                              className={config.report_enabled 
+                                ? 'text-metric-warning hover:bg-metric-warning/10' 
+                                : 'text-[#25D366] hover:bg-[#25D366]/10'
+                              }
+                              title={config.report_enabled ? 'Desativar relatório' : 'Ativar relatório'}
+                            >
+                              {togglingProjectId === project.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : config.report_enabled ? (
+                                <PowerOff className="w-4 h-4" />
+                              ) : (
+                                <Power className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
+
+                          {/* Resend Report Button */}
+                          {config && status === 'active' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleResendReport(project.id)}
+                              disabled={resendingProjectId === project.id}
+                              className="text-[#25D366] hover:bg-[#25D366]/10"
+                              title="Reenviar relatório agora"
+                            >
+                              {resendingProjectId === project.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Send className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenConfig(project)}
+                            disabled={instances.filter(i => i.instance_status === 'connected').length === 0}
+                          >
+                            <Settings2 className="w-4 h-4 mr-2" />
+                            Configurar
+                          </Button>
+                        </div>
                     </div>
                   );
                 })}
