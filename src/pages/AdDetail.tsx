@@ -310,23 +310,48 @@ export default function AdDetail() {
   const hasVideo = ad?.creative_video_url;
   const hasImage = ad?.creative_image_url || ad?.creative_thumbnail || ad?.cached_image_url;
   
-  // Build list of URLs to try in priority order (like CreativeImage component)
+  // Build list of URLs to try in priority order - PRIORIZE a URL limpa do Meta
   const imageUrls: string[] = [];
-  const storageUrl = ad?.id ? getStorageImageUrl(selectedProject?.id, ad.id) : null;
-  if (storageUrl) imageUrls.push(storageUrl);
-  if (ad?.cached_image_url) imageUrls.push(ad.cached_image_url);
+  
+  // 1. Primeiro tentar a URL limpa do creative_image_url (sem resize)
   const cleanedCreativeUrl = cleanImageUrl(ad?.creative_image_url);
   if (cleanedCreativeUrl) imageUrls.push(cleanedCreativeUrl);
+  
+  // 2. URL limpa do thumbnail
   const cleanedThumbnail = cleanImageUrl(ad?.creative_thumbnail);
-  if (cleanedThumbnail) imageUrls.push(cleanedThumbnail);
+  if (cleanedThumbnail && cleanedThumbnail !== cleanedCreativeUrl) imageUrls.push(cleanedThumbnail);
+  
+  // 3. cached_image_url do banco
+  if (ad?.cached_image_url) imageUrls.push(ad.cached_image_url);
+  
+  // 4. Storage URL como último fallback
+  const storageUrl = ad?.id ? getStorageImageUrl(selectedProject?.id, ad.id) : null;
+  if (storageUrl) imageUrls.push(storageUrl);
   
   const creativeUrl = imageUrls[currentImageIndex] || '';
   
+  // Debug log
+  useEffect(() => {
+    if (ad?.id) {
+      console.log('[AdDetail Image Debug]', {
+        adId: ad.id,
+        originalUrl: ad.creative_image_url?.substring(0, 100),
+        cleanedUrl: cleanedCreativeUrl?.substring(0, 100),
+        imageUrls: imageUrls.map(u => u.substring(0, 80)),
+        currentIndex: currentImageIndex,
+        currentUrl: creativeUrl?.substring(0, 80),
+        imageError
+      });
+    }
+  }, [ad?.id, currentImageIndex, imageError, creativeUrl]);
+  
   // Handle image error - try next URL
   const handleImageError = () => {
+    console.log(`[AdDetail] Image error at index ${currentImageIndex}, trying next...`);
     if (currentImageIndex < imageUrls.length - 1) {
       setCurrentImageIndex(prev => prev + 1);
     } else {
+      console.log('[AdDetail] All image URLs failed');
       setImageError(true);
     }
   };
