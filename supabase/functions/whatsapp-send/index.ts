@@ -58,18 +58,32 @@ Deno.serve(async (req) => {
     if (instanceId) {
       console.log(`[WHATSAPP-SEND] Using instance ${instanceId}`);
       
-      const { data: instance, error: instanceError } = await supabase
+      // First try whatsapp_instances table
+      let { data: instance, error: instanceError } = await supabase
         .from('whatsapp_instances')
         .select('instance_name, instance_status, token')
         .eq('id', instanceId)
         .single();
 
+      // If not found, try whatsapp_manager_instances table
       if (instanceError || !instance) {
-        console.error('[WHATSAPP-SEND] Instance not found:', instanceError);
-        return new Response(
-          JSON.stringify({ error: 'Instance not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.log('[WHATSAPP-SEND] Not found in whatsapp_instances, trying whatsapp_manager_instances...');
+        
+        const { data: managerInstance, error: managerError } = await supabase
+          .from('whatsapp_manager_instances')
+          .select('instance_name, instance_status, token')
+          .eq('id', instanceId)
+          .single();
+
+        if (managerError || !managerInstance) {
+          console.error('[WHATSAPP-SEND] Instance not found in either table:', managerError || instanceError);
+          return new Response(
+            JSON.stringify({ error: 'Instance not found' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        instance = managerInstance;
       }
 
       if (instance.instance_status !== 'connected') {
