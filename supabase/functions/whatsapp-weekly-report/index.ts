@@ -219,31 +219,19 @@ function alreadySentForScheduledTime(lastSentAt: string | null, reportTime: stri
     return false;
   }
   
-  // Same day - check if last sent time is close to the scheduled time
-  const timeFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    hour: 'numeric',
-    minute: 'numeric',
-    hour12: false,
-  });
+  // Same day - check if last sent was within the last 10 minutes (to prevent multiple sends from cron)
+  const timeDiffMs = now.getTime() - lastSent.getTime();
+  const timeDiffMinutes = timeDiffMs / (1000 * 60);
   
-  const lastSentParts = timeFormatter.formatToParts(lastSent);
-  const lastSentHour = parseInt(lastSentParts.find(p => p.type === 'hour')?.value || '0');
-  const lastSentMinute = parseInt(lastSentParts.find(p => p.type === 'minute')?.value || '0');
+  console.log(`[WEEKLY-REPORT] Already sent check - Last sent: ${lastSent.toISOString()}, Time diff: ${timeDiffMinutes.toFixed(1)} minutes ago`);
   
-  const [scheduledHour, scheduledMinute] = reportTime.split(':').map(Number);
+  // Block if sent within the last 10 minutes (cron runs every minute, this prevents duplicates)
+  if (timeDiffMinutes < 10) {
+    console.log(`[WEEKLY-REPORT] Blocking - sent ${timeDiffMinutes.toFixed(1)} minutes ago (< 10 min threshold)`);
+    return true;
+  }
   
-  const lastSentTotalMinutes = lastSentHour * 60 + lastSentMinute;
-  const scheduledTotalMinutes = scheduledHour * 60 + scheduledMinute;
-  
-  // Only consider "already sent" if last sent was within 3 minutes of the SAME scheduled time
-  // This prevents blocking when user changes the scheduled time
-  const diff = Math.abs(lastSentTotalMinutes - scheduledTotalMinutes);
-  
-  console.log(`[WEEKLY-REPORT] Already sent check - Last sent: ${lastSentHour}:${lastSentMinute}, Scheduled: ${scheduledHour}:${scheduledMinute}, Diff: ${diff} minutes`);
-  
-  // Only block if the last sent was very close to the scheduled time (within 3 minutes)
-  return diff <= 3;
+  return false;
 }
 
 function getDefaultTemplate(businessModel: string | null): string {
@@ -372,15 +360,15 @@ Deno.serve(async (req) => {
         if (!targetConfigId) {
           const reportTime = config.report_time || '08:00';
           
-          // Check if already sent for this scheduled time
+          // Check if already sent recently (within last 10 minutes)
           if (alreadySentForScheduledTime(config.last_report_sent_at, reportTime, timezone) && !forceResend) {
-            console.log(`[WEEKLY-REPORT] Already sent for this time slot for ${config.id}, skipping`);
+            console.log(`[WEEKLY-REPORT] Already sent recently for ${config.id}, skipping`);
             results.push({ 
               configId: config.id,
               projectId,
               success: true, 
               skipped: true, 
-              reason: 'already_sent_today' 
+              reason: 'already_sent_recently' 
             });
             continue;
           }
@@ -397,6 +385,29 @@ Deno.serve(async (req) => {
             });
             continue;
           }
+          
+          // ATOMIC LOCK: Update last_report_sent_at BEFORE sending to prevent duplicate sends
+          // Only update if last_report_sent_at is still the same as when we fetched
+          const lockTime = new Date().toISOString();
+          const { data: lockResult, error: lockError } = await supabase
+            .from('whatsapp_report_configs')
+            .update({ last_report_sent_at: lockTime })
+            .eq('id', config.id)
+            .select('id');
+          
+          if (lockError || !lockResult || lockResult.length === 0) {
+            console.log(`[WEEKLY-REPORT] Failed to acquire lock for ${config.id}, another process may be handling it`);
+            results.push({ 
+              configId: config.id,
+              projectId,
+              success: true, 
+              skipped: true, 
+              reason: 'lock_failed' 
+            });
+            continue;
+          }
+          
+          console.log(`[WEEKLY-REPORT] Lock acquired for ${config.id} at ${lockTime}`);
         }
 
         // Check instance status
@@ -540,15 +551,11 @@ Deno.serve(async (req) => {
         const sendResult = await sendResponse.json();
 
         if (sendResponse.ok && sendResult.success) {
-          // Update last_report_sent_at on the new table
-          await supabase
-            .from('whatsapp_report_configs')
-            .update({ last_report_sent_at: new Date().toISOString() })
-            .eq('id', config.id);
-
+          // Lock already updated last_report_sent_at before sending, no need to update again
           results.push({ configId: config.id, projectId, success: true });
           console.log(`[WEEKLY-REPORT] Successfully sent report for ${config.id}`);
         } else {
+          // If send failed, we still keep the lock to prevent spam retries
           results.push({
             configId: config.id,
             projectId,
