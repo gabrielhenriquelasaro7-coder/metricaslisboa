@@ -15,7 +15,7 @@ interface SyncRequest {
   retry_count?: number;
   light_sync?: boolean;
   skip_image_cache?: boolean;
-  syncOnly?: 'campaigns' | 'adsets' | 'ads' | 'creatives'; // Sync specific entity type only
+  syncOnly?: 'campaigns' | 'adsets' | 'ads' | 'creatives';
 }
 
 const BASE_DELAY_MS = 200;
@@ -26,7 +26,6 @@ const TRACKED_FIELDS_CAMPAIGN = ['status', 'daily_budget', 'lifetime_budget', 'o
 const TRACKED_FIELDS_ADSET = ['status', 'daily_budget', 'lifetime_budget'];
 const TRACKED_FIELDS_AD = ['status'];
 
-// Conversions from "results" field, actions only for auxiliary metrics
 const MESSAGING_ACTION_TYPES = [
   'onsite_conversion.messaging_conversation_started_7d', 
   'onsite_conversion.messaging_first_reply', 
@@ -76,13 +75,11 @@ async function fetchWithRetry(url: string, entityName: string): Promise<any> {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const data = await simpleFetch(url);
     if (!data.error) {
-      // Log if empty data
       if ((!data.data || data.data.length === 0) && entityName !== 'ADIMAGES') {
         console.log(`[${entityName}] Empty response - no data returned`);
       }
       return data;
     }
-    // Log any error
     console.log(`[${entityName}] API Error: ${JSON.stringify(data.error).substring(0, 300)}`);
     if (isTokenExpiredError(data)) return data;
     if (isRateLimitError(data) && attempt < MAX_RETRIES) {
@@ -96,35 +93,16 @@ async function fetchWithRetry(url: string, entityName: string): Promise<any> {
   return { error: { message: 'Max retries exceeded' } };
 }
 
-// Tenta limpar URL para HD removendo resize params
-function tryCleanUrlForHD(url: string): string {
-  // Remove stp= que força resize (p64x64, s120x120, etc)
-  let clean = url.replace(/[&?]stp=[^&]*/gi, '');
-  
-  // Remove tamanho em path
-  clean = clean.replace(/\/p\d+x\d+\//g, '/');
-  clean = clean.replace(/\/s\d+x\d+\//g, '/');
-  
-  // Corrige URL malformada
-  if (clean.includes('&') && !clean.includes('?')) {
-    clean = clean.replace('&', '?');
-  }
-  clean = clean.replace(/[&?]$/g, '');
-  
-  return clean;
-}
-
 async function cacheCreativeImage(supabase: any, projectId: string, adId: string, imageUrl: string | null, forceRefresh = false): Promise<string | null> {
   if (!imageUrl) return null;
   try {
     const fileName = `${projectId}/${adId}.jpg`;
     
-    // Check existing file - skip if already cached and has good size (unless force refresh)
     if (!forceRefresh) {
       const { data: existingFile } = await supabase.storage.from('creative-images').list(projectId, { limit: 1, search: `${adId}.jpg` });
       if (existingFile?.length > 0) {
         const fileSize = existingFile[0]?.metadata?.size || 0;
-        if (fileSize > 10000) { // 10KB minimum for HD image
+        if (fileSize > 10000) {
           const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
           if (publicUrlData?.publicUrl) {
             console.log(`[CACHE] Using existing HD cache (${fileSize} bytes): ${adId}`);
@@ -135,63 +113,64 @@ async function cacheCreativeImage(supabase: any, projectId: string, adId: string
       }
     }
     
-    // ESTRATÉGIA: Tentar URL limpa (HD) primeiro, depois original como fallback
-    const cleanedUrl = tryCleanUrlForHD(imageUrl);
-    const urlsToTry = cleanedUrl !== imageUrl ? [cleanedUrl, imageUrl] : [imageUrl];
-    
-    for (const url of urlsToTry) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-        const response = await fetch(url, { 
-          headers: { 
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 
-            'Accept': 'image/*',
-            'Referer': 'https://www.facebook.com/'
-          }, 
-          signal: controller.signal 
-        });
-        clearTimeout(timeoutId);
-        if (!response.ok) {
-          console.log(`[CACHE] Fetch failed (${response.status}) for ${adId}: ${url.substring(0, 60)}...`);
-          continue;
-        }
-        
-        const imageBuffer = await response.arrayBuffer();
-        
-        // Aceitar imagens maiores que 5KB (balancear entre qualidade e disponibilidade)
-        if (imageBuffer.byteLength < 5000) {
-          console.log(`[CACHE] Image too small (${imageBuffer.byteLength} bytes), trying next: ${adId}`);
-          continue;
-        }
-        
-        const { error: uploadError } = await supabase.storage.from('creative-images').upload(fileName, imageBuffer, { 
-          contentType: response.headers.get('content-type') || 'image/jpeg', 
-          upsert: true 
-        });
-        
-        if (uploadError) {
-          console.log(`[CACHE] Upload error for ${adId}: ${uploadError.message}`);
-          continue;
-        }
-        
-        const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
-        const isHD = imageBuffer.byteLength > 20000;
-        console.log(`[CACHE] Cached ${isHD ? 'HD' : 'SD'} image (${imageBuffer.byteLength} bytes): ${adId}`);
-        return publicUrlData?.publicUrl || null;
-      } catch (e) {
-        console.log(`[CACHE] Error trying URL for ${adId}: ${e}`);
-        continue;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(imageUrl, { 
+        headers: { 
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 
+          'Accept': 'image/*',
+          'Referer': 'https://www.facebook.com/'
+        }, 
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) {
+        console.log(`[CACHE] Fetch failed (${response.status}) for ${adId}`);
+        return null;
       }
+      
+      const imageBuffer = await response.arrayBuffer();
+      
+      if (imageBuffer.byteLength < 5000) {
+        console.log(`[CACHE] Image too small (${imageBuffer.byteLength} bytes): ${adId}`);
+        return null;
+      }
+      
+      const { error: uploadError } = await supabase.storage.from('creative-images').upload(fileName, imageBuffer, { 
+        contentType: response.headers.get('content-type') || 'image/jpeg', 
+        upsert: true 
+      });
+      
+      if (uploadError) {
+        console.log(`[CACHE] Upload error for ${adId}: ${uploadError.message}`);
+        return null;
+      }
+      
+      const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
+      const isHD = imageBuffer.byteLength > 20000;
+      console.log(`[CACHE] Cached ${isHD ? 'HD' : 'SD'} image (${imageBuffer.byteLength} bytes): ${adId}`);
+      return publicUrlData?.publicUrl || null;
+    } catch (e) {
+      console.log(`[CACHE] Error for ${adId}: ${e}`);
+      return null;
     }
-    
-    console.log(`[CACHE] All URLs failed for ${adId}`);
-    return null;
   } catch (e) { 
     console.log(`[CACHE] Error caching ${adId}: ${e}`);
     return null; 
   }
 }
+
+// ===========================================================================================
+// FLUXO CORRETO DE EXTRAÇÃO DE CRIATIVOS (CONFORME DOCUMENTAÇÃO META)
+// 
+// 1. Buscar ads com: creative{id,image_hash,object_story_spec,asset_feed_spec}
+// 2. Extrair texto:
+//    - PRIORIDADE: asset_feed_spec (bodies[].text, titles[].text, descriptions[].text)
+//    - FALLBACK: object_story_spec.link_data (message, name, description)
+// 3. Extrair imagem HD via /adimages com fields=hash,url,url_1024
+// 4. NUNCA usar thumbnail_url, preview_shareable_link ou campos de prévia
+// ===========================================================================================
 
 async function fetchEntities(adAccountId: string, token: string, supabase?: any, projectId?: string, lightSync = false, skipImageCache = false): Promise<{
   campaigns: any[]; adsets: any[]; ads: any[]; adImageMap: Map<string, string>; videoThumbnailMap: Map<string, string>;
@@ -210,27 +189,34 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 
   const effectiveStatusFilter = encodeURIComponent('["ACTIVE","PAUSED","ARCHIVED","PENDING_REVIEW","DISAPPROVED","PREAPPROVED","PENDING_BILLING_INFO","CAMPAIGN_PAUSED","ADSET_PAUSED","IN_PROCESS","WITH_ISSUES"]');
   
-  // API v22.0 - Versão mais recente (Janeiro 2025)
+  // Campaigns - v22.0
   let url = `https://graph.facebook.com/v22.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) { const data = await fetchWithRetry(url, 'CAMPAIGNS'); if (isTokenExpiredError(data)) return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) campaigns.push(...data.data); url = data.paging?.next || null; }
   
+  // Adsets - v22.0
   url = `https://graph.facebook.com/v22.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) { const data = await fetchWithRetry(url, 'ADSETS'); if (isTokenExpiredError(data)) return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) adsets.push(...data.data); url = data.paging?.next || null; }
   
-  // Fetch ads - sempre usar query simples para garantir que retorna dados
-  // Os dados completos de creative virão do endpoint /adcreatives separado
-  const adsFields = 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url}';
+  // ===========================================================================================
+  // QUERY DE ADS - CONFORME DOCUMENTAÇÃO
+  // Fields: id,name,creative{id,image_hash,object_story_spec,asset_feed_spec}
+  // NUNCA usar thumbnail_url ou preview_shareable_link
+  // ===========================================================================================
+  const adsFields = 'id,name,status,adset_id,campaign_id,creative{id,image_hash,object_story_spec,asset_feed_spec}';
   url = `https://graph.facebook.com/v22.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
-  console.log(`[DEBUG-ADS-QUERY] URL: ${url.substring(0, 150)}...`);
+  console.log(`[ADS-QUERY] Fetching ads with correct creative fields...`);
+  
   while (url) {
     const data = await fetchWithRetry(url, 'ADS'); 
     if (isTokenExpiredError(data)) return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; 
     if (data.data) {
-      // Log first ad raw structure to see what's coming
       if (ads.length === 0 && data.data.length > 0) {
         const firstAd = data.data[0];
-        console.log(`[DEBUG-ADS-RAW] First ad keys: ${Object.keys(firstAd).join(',')}`);
-        console.log(`[DEBUG-ADS-RAW] First ad creative: ${JSON.stringify(firstAd.creative)?.substring(0, 500) || 'undefined'}`);
+        console.log(`[ADS-RAW] First ad id: ${firstAd.id}`);
+        console.log(`[ADS-RAW] creative.id: ${firstAd.creative?.id || 'NULL'}`);
+        console.log(`[ADS-RAW] creative.image_hash: ${firstAd.creative?.image_hash || 'NULL'}`);
+        console.log(`[ADS-RAW] has object_story_spec: ${!!firstAd.creative?.object_story_spec}`);
+        console.log(`[ADS-RAW] has asset_feed_spec: ${!!firstAd.creative?.asset_feed_spec}`);
       }
       ads.push(...data.data); 
     }
@@ -243,151 +229,54 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   
   if (lightSync) return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache };
 
-  // ========== FIX: Buscar creative_id para anúncios que não vieram com creative na resposta ==========
-  // A API do Meta nem sempre retorna o campo creative na query nested
-  // Para esses anúncios, fazemos uma chamada individual para pegar o creative
-  const adsWithoutCreative = ads.filter(a => !a.creative?.id);
-  console.log(`[CREATIVES-FIX] Ads without creative.id: ${adsWithoutCreative.length} of ${ads.length}`);
-  
-  if (adsWithoutCreative.length > 0 && adsWithoutCreative.length <= 100) {
-    // Para até 100 anúncios, buscar creative individualmente via batch API
-    const batchSize = 50;
-    for (let i = 0; i < adsWithoutCreative.length; i += batchSize) {
-      const batch = adsWithoutCreative.slice(i, i + batchSize);
-      const batchRequests = batch.map(ad => ({
-        method: 'GET',
-        relative_url: `${ad.id}?fields=creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec}`
-      }));
-      
-      try {
-        const response = await fetch(`https://graph.facebook.com/v22.0/?access_token=${token}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ batch: batchRequests })
-        });
-        
-        if (response.ok) {
-          const results = await response.json();
-          let fixedCount = 0;
-          for (let j = 0; j < results.length; j++) {
-            if (results[j].code === 200 && results[j].body) {
-              try {
-                const adData = JSON.parse(results[j].body);
-                if (adData.creative?.id) {
-                  // Encontrar o anúncio original e adicionar o creative
-                  const originalAd = ads.find(a => a.id === adData.id);
-                  if (originalAd) {
-                    originalAd.creative = adData.creative;
-                    fixedCount++;
-                  }
-                }
-              } catch {}
-            }
-          }
-          console.log(`[CREATIVES-FIX] Batch ${Math.floor(i/batchSize) + 1}: Fixed ${fixedCount} ads`);
-        }
-      } catch (e) {
-        console.log(`[CREATIVES-FIX] Batch error: ${e}`);
-      }
-      
-      await delay(200); // Rate limit protection
-    }
-  }
-
-  // ========== Buscar TODOS os creatives via endpoint /adcreatives ==========
-  // A query nested creative{...} não está retornando os dados completos na API v21.0
-  // Buscamos diretamente da conta de anúncios
-  console.log(`[CREATIVES] ========== FETCHING CREATIVES FROM /adcreatives ==========`);
-  
-  const allCreatives: any[] = [];
-  // Buscar TODOS campos possíveis de copy: body, title, call_to_action_type, object_story_spec (link_data/video_data/photo_data), asset_feed_spec
-  // IMPORTANTE: object_story_spec precisa incluir TODOS os sub-campos para pegar message, name, call_to_action
-  let creativesUrl: string | null = `https://graph.facebook.com/v22.0/${adAccountId}/adcreatives?fields=id,name,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,link_title,description,call_to_action,picture,image_url},video_data{message,title,call_to_action,video_id},photo_data{message,caption}},effective_object_story_id,asset_feed_spec{bodies,titles,descriptions,call_to_action_types,link_urls}&limit=500&access_token=${token}`;
-  console.log(`[CREATIVES] URL: ${creativesUrl.substring(0, 150)}...`);
-  
-  let creativesFetched = 0;
-  while (creativesUrl) {
-    console.log(`[CREATIVES] Fetching page... (total so far: ${creativesFetched})`);
-    const creativeData = await fetchWithRetry(creativesUrl, 'ADCREATIVES');
-    if (isTokenExpiredError(creativeData)) {
-      console.log(`[CREATIVES] Token expired during creative fetch`);
-      break;
-    }
-    if (creativeData.error) {
-      console.log(`[CREATIVES] API Error: ${JSON.stringify(creativeData.error).substring(0, 300)}`);
-      break;
-    }
-    if (creativeData.data) {
-      allCreatives.push(...creativeData.data);
-      creativesFetched += creativeData.data.length;
-      console.log(`[CREATIVES] Got ${creativeData.data.length} creatives (total: ${creativesFetched})`);
-    }
-    creativesUrl = creativeData.paging?.next || null;
-  }
-  
-  console.log(`[CREATIVES] ========== FINISHED: ${allCreatives.length} creatives total ==========`);
-  
-  // Mapear creatives por ID
-  for (const creative of allCreatives) {
-    if (creative.id) {
-      creativeDataMap.set(creative.id, creative);
-    }
-  }
-  
-  // Log detalhado dos primeiros 3 creatives para debug
-  let logCount = 0;
-  for (const c of allCreatives) {
-    if (logCount >= 3) break;
-    console.log(`[CREATIVES-DEBUG] id=${c.id}, body=${c.body?.substring(0,30) || 'NULL'}, title=${c.title || 'NULL'}, cta=${c.call_to_action_type || 'NULL'}`);
-    if (c.object_story_spec) {
-      const s = c.object_story_spec;
-      console.log(`[CREATIVES-DEBUG] object_story_spec: link_data=${!!s.link_data}, video_data=${!!s.video_data}`);
-      if (s.link_data) console.log(`[CREATIVES-DEBUG] link_data.message=${s.link_data.message?.substring(0,50) || 'NULL'}, name=${s.link_data.name || 'NULL'}, cta_type=${s.link_data.call_to_action?.type || 'NULL'}`);
-      if (s.video_data) console.log(`[CREATIVES-DEBUG] video_data.message=${s.video_data.message?.substring(0,50) || 'NULL'}, title=${s.video_data.title || 'NULL'}, cta_type=${s.video_data.call_to_action?.type || 'NULL'}`);
-    }
-    if (c.asset_feed_spec) {
-      console.log(`[CREATIVES-DEBUG] asset_feed_spec: bodies=${c.asset_feed_spec.bodies?.length || 0}, titles=${c.asset_feed_spec.titles?.length || 0}`);
-    }
-    logCount++;
-  }
-  
-  // Mapear creatives para ads baseado no creative.id que veio na query de ads (agora com fix aplicado)
-  const adsWithCreativeId = ads.filter(a => a.creative?.id);
-  const adsMatchedWithCreative = adsWithCreativeId.filter(a => creativeDataMap.has(a.creative.id));
-  console.log(`[CREATIVES] Ads with creative.id (after fix): ${adsWithCreativeId.length}, matched in creativeDataMap: ${adsMatchedWithCreative.length}`);
-
-  // Fetch HD images - agora usando os hashes do creativeDataMap
+  // ===========================================================================================
+  // BUSCAR IMAGENS HD VIA /adimages COM url_1024
+  // REGRA: Imagem HD SÓ pode ser obtida via image_hash + endpoint /adimages
+  // ===========================================================================================
   const allImageHashes = new Set<string>();
-  for (const creative of allCreatives) {
-    if (creative.image_hash) allImageHashes.add(creative.image_hash);
-    if (creative.object_story_spec?.link_data?.image_hash) allImageHashes.add(creative.object_story_spec.link_data.image_hash);
-    if (creative.object_story_spec?.video_data?.image_hash) allImageHashes.add(creative.object_story_spec.video_data.image_hash);
-  }
   for (const ad of ads) {
     if (ad.creative?.image_hash) allImageHashes.add(ad.creative.image_hash);
+    // Também pegar hashes de object_story_spec se disponíveis
+    const oss = ad.creative?.object_story_spec;
+    if (oss?.link_data?.image_hash) allImageHashes.add(oss.link_data.image_hash);
+    if (oss?.video_data?.image_hash) allImageHashes.add(oss.video_data.image_hash);
+    if (oss?.photo_data?.image_hash) allImageHashes.add(oss.photo_data.image_hash);
   }
   
   const imageHashes = Array.from(allImageHashes);
-  console.log(`[IMAGES] Fetching ${imageHashes.length} unique image hashes`);
+  console.log(`[ADIMAGES] Fetching ${imageHashes.length} unique image hashes with url_1024...`);
+  
   for (let i = 0; i < imageHashes.length; i += 50) {
     const batch = imageHashes.slice(i, i + 50);
-    const imageUrl = `https://graph.facebook.com/v22.0/${adAccountId}/adimages?hashes=${encodeURIComponent(JSON.stringify(batch))}&fields=hash,url&access_token=${token}`;
+    // IMPORTANTE: Usar fields=hash,url,url_1024 para pegar imagem HD
+    const imageUrl = `https://graph.facebook.com/v22.0/${adAccountId}/adimages?hashes=${encodeURIComponent(JSON.stringify(batch))}&fields=hash,url,url_1024&access_token=${token}`;
     const imageData = await fetchWithRetry(imageUrl, 'ADIMAGES');
-    if (imageData.data) for (const img of imageData.data) if (img.hash && img.url) adImageMap.set(img.hash, img.url);
+    if (imageData.data) {
+      for (const img of imageData.data) {
+        if (img.hash) {
+          // PRIORIDADE: url_1024 (HD) > url (fallback)
+          const hdUrl = img.url_1024 || img.url;
+          if (hdUrl) {
+            adImageMap.set(img.hash, hdUrl);
+            // Log para debug do primeiro hash
+            if (adImageMap.size <= 3) {
+              console.log(`[ADIMAGES-DEBUG] hash: ${img.hash}, url_1024: ${img.url_1024 ? 'YES' : 'NO'}, url: ${img.url ? 'YES' : 'NO'}`);
+            }
+          }
+        }
+      }
+    }
+    if (i + 50 < imageHashes.length) await delay(100);
   }
+  console.log(`[ADIMAGES] Fetched ${adImageMap.size} HD images`);
 
-  // Fetch video thumbnails - agora usando creatives já carregados via /adcreatives
+  // ===========================================================================================
+  // BUSCAR VIDEO THUMBNAILS (para anúncios de vídeo)
+  // ===========================================================================================
   const videoIdsToFetch = new Set<string>();
-  for (const creative of allCreatives) {
-    if (creative.object_story_spec?.video_data?.video_id) {
-      videoIdsToFetch.add(creative.object_story_spec.video_data.video_id);
-    }
-  }
-  // Também do ad diretamente se tiver
   for (const ad of ads) {
-    if (ad.creative?.object_story_spec?.video_data?.video_id) {
-      videoIdsToFetch.add(ad.creative.object_story_spec.video_data.video_id);
-    }
+    const videoId = ad.creative?.object_story_spec?.video_data?.video_id;
+    if (videoId) videoIdsToFetch.add(videoId);
   }
   
   const videoIds = Array.from(videoIdsToFetch);
@@ -400,110 +289,125 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
       const response = await fetch(`https://graph.facebook.com/v22.0/?access_token=${token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ batch: batchRequests }) });
       if (response.ok) {
         const results = await response.json();
-        for (let j = 0; j < results.length; j++) if (results[j].code === 200 && results[j].body) { try { const d = JSON.parse(results[j].body); let thumb = d.picture; if (d.thumbnails?.data?.length) { const sorted = d.thumbnails.data.sort((a: any, b: any) => (b.height || 0) - (a.height || 0)); if (sorted[0]?.uri) thumb = sorted[0].uri; } if (thumb) videoThumbnailMap.set(batch[j], thumb); } catch {} }
+        for (let j = 0; j < results.length; j++) {
+          if (results[j].code === 200 && results[j].body) {
+            try {
+              const d = JSON.parse(results[j].body);
+              let thumb = d.picture;
+              // Pegar maior thumbnail disponível
+              if (d.thumbnails?.data?.length) {
+                const sorted = d.thumbnails.data.sort((a: any, b: any) => (b.height || 0) - (a.height || 0));
+                if (sorted[0]?.uri) thumb = sorted[0].uri;
+              }
+              if (thumb) videoThumbnailMap.set(batch[j], thumb);
+            } catch {}
+          }
+        }
       }
     } catch {}
   }
-  
-  console.log(`[CREATIVES] Final creativeDataMap size: ${creativeDataMap.size}, adImageMap: ${adImageMap.size}, videoThumbnailMap: ${videoThumbnailMap.size}`);
+  console.log(`[VIDEOS] Fetched ${videoThumbnailMap.size} video thumbnails`);
 
-  // Immediate image caching - prioritize HD sources
-  console.log(`[CACHE-CHECK] skipImageCache=${skipImageCache}, supabase=${!!supabase}, projectId=${projectId}, ads.length=${ads.length}`);
+  // ===========================================================================================
+  // MAPEAR DADOS DE CREATIVE PARA CADA ANÚNCIO
+  // O creativeDataMap armazena os dados já extraídos da query de ads
+  // ===========================================================================================
+  for (const ad of ads) {
+    if (ad.creative?.id) {
+      creativeDataMap.set(ad.creative.id, ad.creative);
+    }
+  }
+  console.log(`[CREATIVES] Mapped ${creativeDataMap.size} creatives from ads query`);
+
+  // ===========================================================================================
+  // LOG OBRIGATÓRIO - DEBUG DO PRIMEIRO ANÚNCIO
+  // ===========================================================================================
+  if (ads.length > 0) {
+    const firstAd = ads[0];
+    const creative = firstAd.creative;
+    const imageHash = creative?.image_hash;
+    const hdUrl = imageHash ? adImageMap.get(imageHash) : null;
+    
+    // Extrair texto seguindo prioridade
+    let primaryText: string | null = null;
+    let headline: string | null = null;
+    let description: string | null = null;
+    
+    // PRIORIDADE 1: asset_feed_spec
+    if (creative?.asset_feed_spec) {
+      const afs = creative.asset_feed_spec;
+      if (afs.bodies?.length > 0) primaryText = afs.bodies[0].text;
+      if (afs.titles?.length > 0) headline = afs.titles[0].text;
+      if (afs.descriptions?.length > 0) description = afs.descriptions[0].text;
+    }
+    
+    // FALLBACK: object_story_spec.link_data
+    if (!primaryText || !headline) {
+      const oss = creative?.object_story_spec;
+      if (oss?.link_data) {
+        if (!primaryText && oss.link_data.message) primaryText = oss.link_data.message;
+        if (!headline && oss.link_data.name) headline = oss.link_data.name;
+        if (!description && oss.link_data.description) description = oss.link_data.description;
+      }
+      if (oss?.video_data) {
+        if (!primaryText && oss.video_data.message) primaryText = oss.video_data.message;
+        if (!headline && oss.video_data.title) headline = oss.video_data.title;
+      }
+    }
+    
+    console.log(`[CREATIVE-DEBUG] ========== PRIMEIRO ANÚNCIO ==========`);
+    console.log(`[CREATIVE-DEBUG] ad_id: ${firstAd.id}`);
+    console.log(`[CREATIVE-DEBUG] image_hash: ${imageHash || 'NULL'}`);
+    console.log(`[CREATIVE-DEBUG] url_1024: ${hdUrl?.substring(0, 80) || 'NULL'}`);
+    console.log(`[CREATIVE-DEBUG] primary_text: ${primaryText?.substring(0, 80) || 'NULL'}`);
+    console.log(`[CREATIVE-DEBUG] headline: ${headline || 'NULL'}`);
+    console.log(`[CREATIVE-DEBUG] description: ${description || 'NULL'}`);
+    console.log(`[CREATIVE-DEBUG] ===========================================`);
+  }
+
+  // ===========================================================================================
+  // CACHE DE IMAGENS HD
+  // ===========================================================================================
   if (!skipImageCache && supabase && projectId) {
-    const adsNeedingCache: Array<{ adId: string; imageUrl: string; isHD: boolean }> = [];
+    const adsNeedingCache: Array<{ adId: string; imageUrl: string }> = [];
+    
     for (const ad of ads) {
       const adId = String(ad.id);
       const cached = cachedCreativeMap.get(adId);
       
-      // Check if we have a good cached image (>10KB indicates HD)
       if (cached?.cached_url) {
         immediateCache.set(adId, cached.cached_url);
         continue;
       }
       
-      // Priority order for HD images:
-      // 1. image_hash → adImageMap (verified HD from Meta)
-      // 2. creative.image_url (direct HD URL)
-      // 3. creativeData.image_url
-      // 4. link_data.image_url or link_data.picture
-      // 5. video thumbnail HD
-      // 6. thumbnail_url as last resort
-      
+      // ÚNICA FONTE DE IMAGEM HD: adImageMap via image_hash
       let hdImageUrl: string | null = null;
-      let fallbackUrl: string | null = null;
       
-      // ========== PRIORIDADE ABSOLUTA: IMAGENS HD ==========
-      // Tentar TODAS as fontes HD antes de aceitar thumbnail
-      
-      // 1. image_hash → adImageMap (imagem HD verificada da Meta)
-      if (ad.creative?.image_hash && adImageMap.has(ad.creative.image_hash)) {
-        hdImageUrl = adImageMap.get(ad.creative.image_hash)!;
+      const imageHash = ad.creative?.image_hash;
+      if (imageHash && adImageMap.has(imageHash)) {
+        hdImageUrl = adImageMap.get(imageHash)!;
       }
       
-      // 2. creative.image_url (URL direta HD)
-      if (!hdImageUrl && ad.creative?.image_url) {
-        hdImageUrl = ad.creative.image_url;
-      }
-      
-      // 3. creativeData (dados completos do criativo)
-      if (!hdImageUrl && ad.creative?.id && creativeDataMap.has(ad.creative.id)) {
-        const cd = creativeDataMap.get(ad.creative.id);
-        if (cd.image_url) hdImageUrl = cd.image_url;
-        else if (cd.image_hash && adImageMap.has(cd.image_hash)) hdImageUrl = adImageMap.get(cd.image_hash)!;
-        
-        // link_data tem imagens HD
-        if (!hdImageUrl && cd.object_story_spec?.link_data) {
-          const ld = cd.object_story_spec.link_data;
-          if (ld.image_url) hdImageUrl = ld.image_url;
-          else if (ld.picture && ld.picture.includes('scontent')) hdImageUrl = ld.picture; // scontent = HD
-          else if (ld.picture) fallbackUrl = ld.picture;
-        }
-        
-        // video_data também pode ter image_url HD
-        if (!hdImageUrl && cd.object_story_spec?.video_data) {
-          const vd = cd.object_story_spec.video_data;
-          if (vd.image_url) hdImageUrl = vd.image_url;
-          else if (vd.image_hash && adImageMap.has(vd.image_hash)) hdImageUrl = adImageMap.get(vd.image_hash)!;
-        }
-      }
-      
-      // 4. Video thumbnail HD (já buscado em alta resolução)
+      // Para vídeos, usar thumbnail HD
       if (!hdImageUrl) {
         const videoId = ad.creative?.object_story_spec?.video_data?.video_id;
-        if (videoId && videoThumbnailMap.has(videoId)) hdImageUrl = videoThumbnailMap.get(videoId)!;
+        if (videoId && videoThumbnailMap.has(videoId)) {
+          hdImageUrl = videoThumbnailMap.get(videoId)!;
+        }
       }
       
-      // 5. ÚLTIMO RECURSO: thumbnail_url (baixa qualidade)
-      if (!hdImageUrl && !fallbackUrl && ad.creative?.thumbnail_url) {
-        fallbackUrl = ad.creative.thumbnail_url;
+      if (hdImageUrl) {
+        adsNeedingCache.push({ adId, imageUrl: hdImageUrl });
       }
-      
-      // Usar HD se disponível, senão fallback
-      const imageUrl = hdImageUrl || fallbackUrl;
-      if (imageUrl) adsNeedingCache.push({ adId, imageUrl, isHD: !!hdImageUrl });
     }
-    // Process in batches, prioritizing HD images
-    const hdAds = adsNeedingCache.filter(a => a.isHD);
-    const lowResAds = adsNeedingCache.filter(a => !a.isHD);
-    console.log(`[CACHE] Processing ${hdAds.length} HD images, ${lowResAds.length} low-res fallbacks`);
     
-    // Cache HD images first
-    for (let i = 0; i < hdAds.length; i += 10) {
-      const batch = hdAds.slice(i, i + 10);
+    console.log(`[CACHE] Processing ${adsNeedingCache.length} HD images for caching...`);
+    
+    for (let i = 0; i < adsNeedingCache.length; i += 10) {
+      const batch = adsNeedingCache.slice(i, i + 10);
       const results = await Promise.all(batch.map(async ({ adId, imageUrl }) => ({ adId, cachedUrl: await cacheCreativeImage(supabase, projectId, adId, imageUrl, false) })));
       for (const { adId, cachedUrl } of results) if (cachedUrl) immediateCache.set(adId, cachedUrl);
-      if (i + 10 < hdAds.length) await delay(50);
-    }
-    
-    // Cache low-res only if no HD was cached
-    for (let i = 0; i < lowResAds.length; i += 10) {
-      const batch = lowResAds.slice(i, i + 10);
-      const results = await Promise.all(batch.map(async ({ adId, imageUrl }) => {
-        if (immediateCache.has(adId)) return { adId, cachedUrl: immediateCache.get(adId) };
-        return { adId, cachedUrl: await cacheCreativeImage(supabase, projectId, adId, imageUrl, false) };
-      }));
-      for (const { adId, cachedUrl } of results) if (cachedUrl) immediateCache.set(adId, cachedUrl);
-      if (i + 10 < lowResAds.length) await delay(50);
+      if (i + 10 < adsNeedingCache.length) await delay(50);
     }
     
     console.log(`[CACHE] Cached ${immediateCache.size} images total`);
@@ -515,21 +419,9 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 async function fetchDailyInsights(adAccountId: string, token: string, since: string, until: string): Promise<Map<string, Map<string, any>>> {
   const dailyInsights = new Map<string, Map<string, any>>();
   
-  // ===========================================================================================
-  // FONTE DE VERDADE - Campos oficiais do Gerenciador de Anúncios
-  // 
-  // results = número oficial de resultados (igual ao Gerenciador)
-  // cost_per_result = CPA oficial da Meta
-  // action_values = valor de conversão (para ROAS)
-  // actions = métricas auxiliares (messaging, profile visits, leads, etc)
-  // conversions = campo legado que às vezes tem dados quando results não tem
-  // website_ctr = CTR de cliques no link (útil para diagnóstico)
-  // ===========================================================================================
-  // Campos que DEVEM ser retornados - incluindo actions para capturar leads
   const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,results,cost_per_result,actions,action_values,conversions,cost_per_action_type,website_ctr,inline_link_clicks,outbound_clicks';
   
   const timeRange = JSON.stringify({ since, until });
-  // IMPORTANTE: Adicionando action_breakdowns para garantir que actions seja retornado
   let url = `https://graph.facebook.com/v22.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&action_breakdowns=action_type&access_token=${token}`;
   
   let totalRows = 0;
@@ -539,51 +431,14 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
     const data = await fetchWithRetry(url, 'INSIGHTS');
     if (data.data) {
       for (const row of data.data) {
-        // DEBUG: Log detalhado do primeiro registro (OBRIGATÓRIO para validação)
         if (!firstRowLogged) {
-          console.log(`[INSIGHTS] === SAMPLE ROW (primeira linha) ===`);
-          console.log(`[INSIGHTS] KEYS: ${Object.keys(row).join(', ')}`);
-          console.log(`[INSIGHTS] FULL results array: ${JSON.stringify(row.results)}`);
-          console.log(`[INSIGHTS] FULL cost_per_result array: ${JSON.stringify(row.cost_per_result)}`);
+          console.log(`[INSIGHTS] === SAMPLE ROW ===`);
           console.log(`[INSIGHTS] spend: ${row.spend}, impressions: ${row.impressions}, clicks: ${row.clicks}`);
-          
-          // Log detalhado de results para debug
           if (row.results) {
             for (const r of row.results) {
-              console.log(`[INSIGHTS] results item: action_type=${r.action_type}, value=${r.value}, indicator=${r.indicator}`);
+              console.log(`[INSIGHTS] results: action_type=${r.action_type}, value=${r.value}`);
             }
           }
-          
-          // Log COMPLETO de actions para debug (CRÍTICO para diagnóstico)
-          if (row.actions && row.actions.length > 0) {
-            console.log(`[INSIGHTS] TOTAL actions count: ${row.actions.length}`);
-            for (const action of row.actions) {
-              console.log(`[INSIGHTS] action: type=${action.action_type}, value=${action.value}`);
-            }
-          } else {
-            console.log(`[INSIGHTS] actions array is EMPTY or UNDEFINED`);
-          }
-          
-          // Log de action_values
-          if (row.action_values && row.action_values.length > 0) {
-            console.log(`[INSIGHTS] action_values count: ${row.action_values.length}`);
-            for (const av of row.action_values.slice(0, 5)) {
-              console.log(`[INSIGHTS] action_value: type=${av.action_type}, value=${av.value}`);
-            }
-          }
-          
-          // Log DETALHADO de conversions (campo legado) - ver todos os action_types
-          if (row.conversions && row.conversions.length > 0) {
-            console.log(`[INSIGHTS] TOTAL conversions count: ${row.conversions.length}`);
-            for (const c of row.conversions) {
-              console.log(`[INSIGHTS] conversion: type=${c.action_type}, value=${c.value}`);
-            }
-          } else {
-            console.log(`[INSIGHTS] conversions field is EMPTY or UNDEFINED`);
-          }
-          console.log(`[INSIGHTS] cost_per_conversion field: ${JSON.stringify(row.cost_per_conversion)}`);
-          console.log(`[INSIGHTS] inline_link_clicks: ${row.inline_link_clicks}, outbound_clicks: ${JSON.stringify(row.outbound_clicks)}`);
-          
           firstRowLogged = true;
         }
         
@@ -604,116 +459,16 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
   return dailyInsights;
 }
 
-// ===========================================================================================
-// EXTRAÇÃO DE CONVERSÕES - FALLBACK HIERÁRQUICO
-// ===========================================================================================
-// 
-// Ordem de prioridade (usa o PRIMEIRO que tiver valor > 0):
-// 1. results (campo oficial do Gerenciador)
-// 2. actions (filtrado por tipos de conversão)
-// 3. 0 (se nada existir)
-// 
-// Uma vez detectada a fonte, usar APENAS ela para consistência.
-// ===========================================================================================
+// Tipos de conversão
+const FORM_LEAD_ACTION_TYPES = ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead', 'fb_pixel_lead'];
+const CONTACT_LEAD_ACTION_TYPES = ['contact_total', 'contact_website', 'contact', 'omni_complete_registration', 'complete_registration', 'submit_application', 'submit_application_total'];
+const MESSAGE_LEAD_ACTION_TYPES = ['messaging_conversation_started_7d', 'onsite_conversion.messaging_conversation_started_7d'];
+const PURCHASE_ACTION_TYPES = ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'onsite_web_purchase', 'onsite_web_app_purchase', 'web_in_store_purchase', 'web_app_in_store_purchase'];
+const ALL_LEAD_ACTION_TYPES = [...FORM_LEAD_ACTION_TYPES, ...CONTACT_LEAD_ACTION_TYPES, ...MESSAGE_LEAD_ACTION_TYPES];
+const CONVERSION_ACTION_TYPES = [...ALL_LEAD_ACTION_TYPES, ...PURCHASE_ACTION_TYPES];
+const TRAFFIC_OBJECTIVES = ['OUTCOME_TRAFFIC', 'LINK_CLICKS', 'TRAFFIC', 'POST_ENGAGEMENT'];
 
-// ===========================================================================================
-// TIPOS DE CONVERSÃO SEPARADOS POR CATEGORIA
-// 
-// *** REGRA CRÍTICA DO GERENCIADOR DE ANÚNCIOS: ***
-// O campo "Resultados" no Gerenciador pode mostrar diferentes tipos dependendo do objetivo:
-// - Campanhas de LEAD: lead, contact, complete_registration
-// - Campanhas de MENSAGEM: messaging_conversation_started_7d
-// - Campanhas de VENDAS: purchase
-// 
-// TODOS são considerados "leads/conversões" para o dashboard!
-// ===========================================================================================
-
-// Tipos que contam como LEADS DE FORMULÁRIO (formulários de lead no site ou pixel)
-// offsite_conversion.fb_pixel_lead = Lead capturado pelo pixel do Facebook no site
-const FORM_LEAD_ACTION_TYPES = [
-  'lead',
-  'onsite_conversion.lead_grouped',
-  'offsite_conversion.fb_pixel_lead',  // Pixel lead
-  'fb_pixel_lead',                     // Normalizado sem prefixo
-];
-
-// Tipos que contam como CONTATO NO SITE (objetivo de cadastro/contato)
-// Estes SÃO o "Resultado" para campanhas de CADASTRO/LEADS que não usam formulário Meta
-const CONTACT_LEAD_ACTION_TYPES = [
-  'contact_total',
-  'contact_website', 
-  'contact',
-  'omni_complete_registration',
-  'complete_registration',
-  'submit_application',
-  'submit_application_total',
-];
-
-// Tipos que contam como LEADS DE MENSAGEM (WhatsApp, Messenger, DM)
-// APENAS messaging_conversation_started_7d - é o "Resultado" oficial para campanhas de mensagem
-const MESSAGE_LEAD_ACTION_TYPES = [
-  'messaging_conversation_started_7d',
-  'onsite_conversion.messaging_conversation_started_7d',
-];
-
-// Tipos AUXILIARES de mensagem (NÃO são o resultado principal - evitar duplicação)
-const MESSAGING_AUXILIARY_TYPES = [
-  'onsite_conversion.messaging_first_reply',
-  'onsite_conversion.total_messaging_connection',
-  'messaging_first_reply',
-  'total_messaging_connection',
-];
-
-// Tipos que contam como VENDAS/COMPRAS (receita)
-const PURCHASE_ACTION_TYPES = [
-  'purchase',
-  'omni_purchase',
-  'offsite_conversion.fb_pixel_purchase',
-  'onsite_web_purchase',
-  'onsite_web_app_purchase',
-  'web_in_store_purchase',
-  'web_app_in_store_purchase',
-];
-
-// Todos os tipos de LEADS (formulário + contato + mensagem)
-const ALL_LEAD_ACTION_TYPES = [
-  ...FORM_LEAD_ACTION_TYPES,
-  ...CONTACT_LEAD_ACTION_TYPES,
-  ...MESSAGE_LEAD_ACTION_TYPES,
-];
-
-// Todos os tipos de conversão (leads + vendas)
-const CONVERSION_ACTION_TYPES = [
-  ...ALL_LEAD_ACTION_TYPES,
-  ...PURCHASE_ACTION_TYPES,
-];
-
-// Tipos de action_values que representam RECEITA REAL (para ROAS)
-const REVENUE_ACTION_TYPES = [
-  'purchase',
-  'omni_purchase',
-];
-
-// ===========================================================================================
-// EXTRAÇÃO DE CONVERSÕES - USANDO O CAMPO "results" DA API META
-// 
-// O campo "results" é EXATAMENTE o que aparece como "Resultados" no Gerenciador de Anúncios!
-// Ele já contém apenas a conversão principal configurada na campanha.
-// 
-// Ordem de prioridade:
-// 1. results (campo oficial do Gerenciador - USA APENAS ESTE!)
-// 2. actions (fallback se results não existir)
-// 3. conversions (fallback legado)
-// ===========================================================================================
-
-// Objetivos de campanha que são TRÁFEGO - não contam leads como conversão!
-// Campanhas de tráfego têm objetivo de cliques, não conversões.
-const TRAFFIC_OBJECTIVES = [
-  'OUTCOME_TRAFFIC',
-  'LINK_CLICKS',
-  'TRAFFIC',
-  'POST_ENGAGEMENT', // Engajamento de post também não é lead
-];
+const ENGAGEMENT_INDICATORS = ['post_engagement', 'page_engagement', 'post_reaction', 'post_interaction_gross', 'page_like', 'post_like', 'post_share', 'post_comment', 'link_click', 'video_view', 'landing_page_view'];
 
 function extractConversions(row: any, campaignObjective?: string): { 
   conversions: number; 
@@ -723,21 +478,10 @@ function extractConversions(row: any, campaignObjective?: string): {
   leadsCount: number;
   purchasesCount: number;
 } {
-  // Se é campanha de TRÁFEGO, não conta leads/conversões!
-  // Campanhas de tráfego retornam messaging_conversation_started_7d como "resultado"
-  // mas isso é apenas porque pessoas que clicaram também mandaram mensagem - não é o objetivo!
   const isTrafficCampaign = campaignObjective && TRAFFIC_OBJECTIVES.includes(campaignObjective.toUpperCase());
   
   if (isTrafficCampaign) {
-    console.log(`[CONVERSIONS] Campanha de TRÁFEGO (${campaignObjective}) - zerando leads/conversões`);
-    return {
-      conversions: 0,
-      costPerResult: 0,
-      conversionValue: 0,
-      source: 'traffic_campaign',
-      leadsCount: 0,
-      purchasesCount: 0,
-    };
+    return { conversions: 0, costPerResult: 0, conversionValue: 0, source: 'traffic_campaign', leadsCount: 0, purchasesCount: 0 };
   }
   
   let conversions = 0;
@@ -747,269 +491,128 @@ function extractConversions(row: any, campaignObjective?: string): {
   let leadsCount = 0;
   let purchasesCount = 0;
 
-  // ===========================================================================================
-  // FONTE 1 (PRIORITÁRIA): Campo "results" da API Meta
-  // 
-  // Este campo pode conter action_type OU indicator (estrutura varia por campanha).
-  // IMPORTANTE: Ignoramos resultados de engajamento como profile_visit_view, video_view, etc.
-  // Só queremos leads e purchases reais!
-  // 
-  // *** CAMPANHAS DE TRÁFEGO NÃO TÊM LEADS! ***
-  // Elas retornam landing_page_view, link_click, etc - NÃO são conversões!
-  // ===========================================================================================
-  const ENGAGEMENT_INDICATORS = [
-    // Engajamento de página/post
-    'profile_visit_view', 'video_view', 'post_engagement', 'page_engagement',
-    'post_reaction', 'comment', 'share', 'page_like', 'post_like',
-    // Cliques e visualizações - NÃO SÃO LEADS!
-    'landing_page_view', 'link_click', 'outbound_click',
-    // Tráfego - objetivo de cliques, não conversão
-    'onsite_web_view_content', 'view_content',
-    // Vídeo
-    'video_view', 'thruplay', 'video_p25_watched_actions', 'video_p50_watched_actions',
-    'video_p75_watched_actions', 'video_p95_watched_actions', 'video_p100_watched_actions',
-  ];
-  
+  // FONTE 1: Campo "results"
   if (Array.isArray(row.results) && row.results.length > 0) {
-    // Coletar valores de cada tipo de purchase separadamente para evitar duplicação
-    let omniPurchaseCount = 0;
-    let purchaseCount = 0;
-    let pixelPurchaseCount = 0;
-    let otherPurchaseCount = 0;
+    let omniPurchaseCount = 0, purchaseCount = 0, pixelPurchaseCount = 0, otherPurchaseCount = 0;
     
     for (const result of row.results) {
-      // Campo pode ser action_type ou indicator
       let actionType = result.action_type || result.indicator || '';
+      if (actionType.startsWith('actions:')) actionType = actionType.replace('actions:', '');
       
-      // NORMALIZAR: Remover prefixo "conversions:" ou "actions:" que a API pode retornar
-      // Ex: "conversions:contact_website" -> "contact_website"
-      if (actionType.includes(':')) {
-        const parts = actionType.split(':');
-        actionType = parts[parts.length - 1]; // Pegar a parte depois do último ":"
-        console.log(`[RESULTS] Normalizado action_type: ${result.action_type || result.indicator} -> ${actionType}`);
-      }
+      const val = parseInt(result.value || result.values?.[0]?.value) || 0;
       
-      // Pegar valor diretamente ou dentro de values[]
-      let val = 0;
-      if (result.value !== undefined) {
-        val = parseInt(result.value) || 0;
-      } else if (Array.isArray(result.values) && result.values.length > 0) {
-        val = parseInt(result.values[0]?.value) || 0;
-      }
-      
-      // IGNORAR resultados de engajamento - não são conversões reais
-      if (ENGAGEMENT_INDICATORS.includes(actionType)) {
-        console.log(`[RESULTS] IGNORANDO engagement: indicator=${actionType}, value=${val}`);
-        continue;
-      }
+      if (ENGAGEMENT_INDICATORS.includes(actionType)) continue;
       
       if (val > 0) {
-        console.log(`[RESULTS] action_type=${actionType}, value=${val}`);
-        
-        // Classificar como lead ou purchase
-        // IMPORTANTE: Para purchases, coletar separadamente para priorizar depois (evitar duplicação)
-        if (actionType === 'omni_purchase') {
-          omniPurchaseCount = val;
-        } else if (actionType === 'purchase') {
-          purchaseCount = val;
-        } else if (actionType === 'offsite_conversion.fb_pixel_purchase') {
-          pixelPurchaseCount = val;
-        } else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
-          // Outros tipos de purchase (onsite_web_purchase, etc) - pegar o maior
+        if (actionType === 'omni_purchase') omniPurchaseCount = val;
+        else if (actionType === 'purchase') purchaseCount = val;
+        else if (actionType === 'offsite_conversion.fb_pixel_purchase') pixelPurchaseCount = val;
+        else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
           if (val > otherPurchaseCount) otherPurchaseCount = val;
         } else if (ALL_LEAD_ACTION_TYPES.includes(actionType) || MESSAGE_LEAD_ACTION_TYPES.includes(actionType)) {
           leadsCount += val;
         }
-        // NÃO contamos mais tipos desconhecidos como leads!
       }
     }
     
-    // Priorizar: omni_purchase > purchase > pixel_purchase > outros
-    // NÃO SOMAR - usar apenas o mais abrangente!
-    if (omniPurchaseCount > 0) {
-      purchasesCount = omniPurchaseCount;
-      console.log(`[RESULTS-PURCHASES] Usando omni_purchase=${omniPurchaseCount}`);
-    } else if (purchaseCount > 0) {
-      purchasesCount = purchaseCount;
-      console.log(`[RESULTS-PURCHASES] Usando purchase=${purchaseCount}`);
-    } else if (pixelPurchaseCount > 0) {
-      purchasesCount = pixelPurchaseCount;
-      console.log(`[RESULTS-PURCHASES] Usando pixel_purchase=${pixelPurchaseCount}`);
-    } else if (otherPurchaseCount > 0) {
-      purchasesCount = otherPurchaseCount;
-      console.log(`[RESULTS-PURCHASES] Usando other_purchase=${otherPurchaseCount}`);
-    }
+    if (omniPurchaseCount > 0) purchasesCount = omniPurchaseCount;
+    else if (purchaseCount > 0) purchasesCount = purchaseCount;
+    else if (pixelPurchaseCount > 0) purchasesCount = pixelPurchaseCount;
+    else if (otherPurchaseCount > 0) purchasesCount = otherPurchaseCount;
     
-    // Só marca como source='results' se encontrou algo válido
     if (leadsCount > 0 || purchasesCount > 0) {
       conversions = leadsCount + purchasesCount;
       source = 'results';
       
-      // Obter cost_per_result oficial
       if (Array.isArray(row.cost_per_result) && row.cost_per_result.length > 0) {
         const cpr = row.cost_per_result[0];
-        if (cpr.value !== undefined) {
-          costPerResult = parseFloat(cpr.value) || 0;
-        } else if (Array.isArray(cpr.values) && cpr.values.length > 0) {
-          costPerResult = parseFloat(cpr.values[0]?.value) || 0;
-        }
+        if (cpr.value !== undefined) costPerResult = parseFloat(cpr.value) || 0;
+        else if (Array.isArray(cpr.values) && cpr.values.length > 0) costPerResult = parseFloat(cpr.values[0]?.value) || 0;
       }
-      
-      console.log(`[RESULTS-FINAL] leads=${leadsCount}, purchases=${purchasesCount}, total=${conversions}, cpa=${costPerResult}`);
-    } else {
-      console.log(`[RESULTS] Nenhuma conversão válida encontrada no campo results, usando fallback`);
     }
   }
   
-  // ===========================================================================================
-  // FONTE 2 (FALLBACK): Campo "actions" - só usado se "results" não retornou dados
-  // 
-  // Aqui usamos a lógica do maior valor para escolher o tipo dominante de lead.
-  // ===========================================================================================
+  // FONTE 2: Campo "actions" (fallback)
   if (conversions === 0 && Array.isArray(row.actions) && row.actions.length > 0) {
-    let formLeadValue = 0;
-    let formLeadGrouped = 0;
-    let contactLeadValue = 0;
-    let messageLeadValue = 0;
-    let messagePrefixed = 0;
-    let purchaseValue = 0;
-    let omniPurchaseValue = 0;
+    let formLeadValue = 0, contactLeadValue = 0, messageLeadValue = 0, purchaseValue = 0, omniPurchaseValue = 0;
     
     for (const action of row.actions) {
       const actionType = action.action_type || '';
       const val = parseInt(action.value) || 0;
       if (val > 0) {
-        if (actionType === 'lead') formLeadValue = val;
-        else if (actionType === 'onsite_conversion.lead_grouped') formLeadGrouped = val;
+        if (actionType === 'lead' || actionType === 'onsite_conversion.lead_grouped') formLeadValue = val;
         else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType) && val > contactLeadValue) contactLeadValue = val;
-        else if (actionType === 'messaging_conversation_started_7d') messageLeadValue = val;
-        else if (actionType === 'onsite_conversion.messaging_conversation_started_7d') messagePrefixed = val;
+        else if (actionType === 'messaging_conversation_started_7d' || actionType === 'onsite_conversion.messaging_conversation_started_7d') messageLeadValue = val;
         else if (actionType === 'purchase') purchaseValue = val;
         else if (actionType === 'omni_purchase') omniPurchaseValue = val;
       }
     }
     
     purchasesCount = omniPurchaseValue > 0 ? omniPurchaseValue : purchaseValue;
-    const actualFormLeads = formLeadValue > 0 ? formLeadValue : formLeadGrouped;
-    const actualMessageLeads = messagePrefixed > 0 ? messagePrefixed : messageLeadValue;
-    
-    // Usar o MAIOR valor entre os tipos (fallback simples)
-    const leadTypes = [
-      { type: 'form', value: actualFormLeads },
-      { type: 'contact', value: contactLeadValue },
-      { type: 'message', value: actualMessageLeads },
-    ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
-    
-    if (leadTypes.length > 0) {
-      leadsCount = leadTypes[0].value;
+    const maxLead = Math.max(formLeadValue, contactLeadValue, messageLeadValue);
+    if (maxLead > 0) {
+      leadsCount = maxLead;
       source = 'actions';
-      console.log(`[ACTIONS-FALLBACK] type=${leadTypes[0].type}, value=${leadsCount}`);
     }
-    
     conversions = leadsCount + purchasesCount;
   }
 
-  // ===========================================================================================
-  // FONTE 3 (FALLBACK LEGADO): Campo "conversions" - usado se actions também não teve dados
-  // ===========================================================================================
+  // FONTE 3: Campo "conversions" (fallback legado)
   if (conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
-    let formLeadConv = 0;
-    let formLeadGroupedConv = 0;
-    let contactLeadConv = 0;
-    let messageLeadConv = 0;
-    let messagePrefixedConv = 0;
-    let purchaseConv = 0;
-    let omniPurchaseConv = 0;
+    let formLeadConv = 0, contactLeadConv = 0, messageLeadConv = 0, purchaseConv = 0, omniPurchaseConv = 0;
     
     for (const c of row.conversions) {
       const actionType = c.action_type || '';
       const val = parseInt(c.value) || 0;
       if (val > 0) {
-        if (actionType === 'lead') formLeadConv = val;
-        else if (actionType === 'onsite_conversion.lead_grouped') formLeadGroupedConv = val;
+        if (actionType === 'lead' || actionType === 'onsite_conversion.lead_grouped') formLeadConv = val;
         else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType) && val > contactLeadConv) contactLeadConv = val;
-        else if (actionType === 'messaging_conversation_started_7d') messageLeadConv = val;
-        else if (actionType === 'onsite_conversion.messaging_conversation_started_7d') messagePrefixedConv = val;
+        else if (actionType === 'messaging_conversation_started_7d' || actionType === 'onsite_conversion.messaging_conversation_started_7d') messageLeadConv = val;
         else if (actionType === 'purchase') purchaseConv = val;
         else if (actionType === 'omni_purchase') omniPurchaseConv = val;
       }
     }
     
     purchasesCount = omniPurchaseConv > 0 ? omniPurchaseConv : purchaseConv;
-    const actualFormLeads = formLeadConv > 0 ? formLeadConv : formLeadGroupedConv;
-    const actualMessageLeads = messagePrefixedConv > 0 ? messagePrefixedConv : messageLeadConv;
-    
-    const leadTypesConv = [
-      { type: 'form', value: actualFormLeads },
-      { type: 'contact', value: contactLeadConv },
-      { type: 'message', value: actualMessageLeads },
-    ].filter(t => t.value > 0).sort((a, b) => b.value - a.value);
-    
-    if (leadTypesConv.length > 0) {
-      leadsCount = leadTypesConv[0].value;
+    const maxLeadConv = Math.max(formLeadConv, contactLeadConv, messageLeadConv);
+    if (maxLeadConv > 0) {
+      leadsCount = maxLeadConv;
       source = 'conversions_legacy';
-      console.log(`[CONVERSIONS-FALLBACK] type=${leadTypesConv[0].type}, value=${leadsCount}`);
     }
-    
     conversions = leadsCount + purchasesCount;
   }
 
-  // CPA: Buscar no cost_per_action_type apenas para os tipos que queremos
+  // CPA
   if (conversions > 0 && Array.isArray(row.cost_per_action_type) && row.cost_per_action_type.length > 0) {
     for (const cpa of row.cost_per_action_type) {
       const actionType = cpa.action_type || '';
-      const isConversionAction = CONVERSION_ACTION_TYPES.includes(actionType);
-      if (isConversionAction && cpa.value) {
+      if (CONVERSION_ACTION_TYPES.includes(actionType) && cpa.value) {
         costPerResult = parseFloat(cpa.value) || 0;
         break;
       }
     }
   }
   
-  // Se não veio CPA mas tem conversões, calcular
   if (costPerResult === 0 && conversions > 0) {
     const spend = parseFloat(row.spend) || 0;
     costPerResult = spend / conversions;
   }
 
-  // Valor de conversão (para ROAS) - via action_values
-  // IMPORTANTE: A Meta pode retornar tanto 'purchase' quanto 'omni_purchase' para o MESMO evento!
-  // omni_purchase é mais abrangente (inclui compras de todas as plataformas), então tem prioridade.
-  // NÃO SOMAR ambos - usar apenas UM deles para evitar duplicação!
+  // Valor de conversão (ROAS)
   if (Array.isArray(row.action_values)) {
-    let purchaseValue = 0;
-    let omniPurchaseValue = 0;
-    
+    let purchaseValue = 0, omniPurchaseValue = 0;
     for (const av of row.action_values) {
       const actionType = av.action_type || '';
       const val = parseFloat(av.value) || 0;
-      
-      if (actionType === 'omni_purchase' && val > 0) {
-        omniPurchaseValue = val;
-        console.log(`[REVENUE] omni_purchase=${val}`);
-      } else if (actionType === 'purchase' && val > 0) {
-        purchaseValue = val;
-        console.log(`[REVENUE] purchase=${val}`);
-      }
+      if (actionType === 'omni_purchase' && val > 0) omniPurchaseValue = val;
+      else if (actionType === 'purchase' && val > 0) purchaseValue = val;
     }
-    
-    // Priorizar omni_purchase (mais abrangente), senão usar purchase
     conversionValue = omniPurchaseValue > 0 ? omniPurchaseValue : purchaseValue;
-    
-    if (conversionValue > 0) {
-      console.log(`[REVENUE-FINAL] conversionValue=${conversionValue} (source=${omniPurchaseValue > 0 ? 'omni_purchase' : 'purchase'})`);
-    }
-  }
-
-  // Log para debug
-  if (conversions > 0) {
-    console.log(`[CONVERSIONS] source=${source}, total=${conversions}, leads=${leadsCount}, purchases=${purchasesCount}, cpa=${costPerResult.toFixed(2)}`);
   }
 
   return { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount };
 }
 
-// Extrair messaging replies - métricas AUXILIARES (não afeta conversions)
 function extractMessagingReplies(insights: any): number {
   if (!insights?.actions) return 0;
   let c7d = 0, total = 0, first = 0;
@@ -1022,7 +625,6 @@ function extractMessagingReplies(insights: any): number {
   return c7d > 0 ? c7d : Math.max(total, first);
 }
 
-// Extrair profile visits - métricas AUXILIARES (não afeta conversions)
 function extractProfileVisits(insights: any): number {
   if (!insights?.actions) return 0;
   let max = 0;
@@ -1033,193 +635,109 @@ function extractProfileVisits(insights: any): number {
   return max;
 }
 
-function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | null; headline: string | null; cta: string | null } {
-  let primaryText: string | null = null, headline: string | null = null, cta: string | null = null;
-  const adId = ad?.id || 'unknown';
+// ===========================================================================================
+// EXTRAÇÃO DE COPY - SEGUINDO PRIORIDADE CORRETA
+// 
+// PRIORIDADE 1: asset_feed_spec (anúncios dinâmicos)
+//   - primary_text → asset_feed_spec.bodies[].text
+//   - headline → asset_feed_spec.titles[].text
+//   - description → asset_feed_spec.descriptions[].text
+// 
+// PRIORIDADE 2: object_story_spec.link_data (anúncios de imagem/link)
+//   - primary_text → link_data.message
+//   - headline → link_data.name
+//   - description → link_data.description
+// 
+// PRIORIDADE 3: object_story_spec.video_data (anúncios de vídeo)
+//   - primary_text → video_data.message
+//   - headline → video_data.title
+// ===========================================================================================
+function extractAdCopy(ad: any, creativeData?: any): { primaryText: string | null; headline: string | null; description: string | null; cta: string | null } {
+  let primaryText: string | null = null;
+  let headline: string | null = null;
+  let description: string | null = null;
+  let cta: string | null = null;
   
-  // FONTE 1: creativeData (do endpoint /adcreatives) - PRIORIDADE MÁXIMA
-  if (creativeData) { 
-    // Campos diretos do creative
-    if (creativeData.body) primaryText = creativeData.body;
-    if (creativeData.title) headline = creativeData.title;
-    if (creativeData.call_to_action_type) cta = creativeData.call_to_action_type;
-    
-    // object_story_spec - link_data (imagens)
-    const s = creativeData.object_story_spec; 
-    if (s?.link_data) { 
-      if (!primaryText && s.link_data.message) primaryText = s.link_data.message; 
-      if (!headline && s.link_data.name) headline = s.link_data.name; 
-      if (!headline && s.link_data.link_title) headline = s.link_data.link_title;
-      if (!cta && s.link_data.call_to_action?.type) cta = s.link_data.call_to_action.type; 
-      // Fallback: description pode ter headline
-      if (!headline && s.link_data.description) headline = s.link_data.description;
-    } 
-    
-    // object_story_spec - video_data (vídeos)
-    if (s?.video_data) { 
-      if (!primaryText && s.video_data.message) primaryText = s.video_data.message; 
-      if (!headline && s.video_data.title) headline = s.video_data.title; 
-      if (!cta && s.video_data.call_to_action?.type) cta = s.video_data.call_to_action.type; 
-    }
-    
-    // object_story_spec - photo_data (para posts de foto)
-    if (s?.photo_data) {
-      if (!primaryText && s.photo_data.message) primaryText = s.photo_data.message;
-      if (!primaryText && s.photo_data.caption) primaryText = s.photo_data.caption;
-    }
-    
-    // asset_feed_spec - para anúncios dinâmicos/catálogo
-    if (creativeData.asset_feed_spec) {
-      const afs = creativeData.asset_feed_spec;
-      if (!primaryText && afs.bodies?.length > 0) primaryText = afs.bodies[0].text;
-      if (!headline && afs.titles?.length > 0) headline = afs.titles[0].text;
-      if (!cta && afs.call_to_action_types?.length > 0) cta = afs.call_to_action_types[0];
-      // Link URLs podem ter dados também
-      if (!headline && afs.link_urls?.length > 0 && afs.link_urls[0].display_url) {
-        headline = afs.link_urls[0].display_url;
-      }
-    }
-    
-    // effective_object_story_id - nome do post original pode ser usado como fallback
-    if (!headline && creativeData.name) headline = creativeData.name;
+  // Fonte de dados: preferir creative do ad diretamente, depois creativeData
+  const creative = ad?.creative || creativeData;
+  
+  if (!creative) {
+    return { primaryText, headline, description, cta };
   }
   
-  // FONTE 2: ad.creative (da query de ads) - FALLBACK
-  const c = ad?.creative; 
-  if (c) { 
-    if (!primaryText && c.body) primaryText = c.body; 
-    if (!headline && c.title) headline = c.title; 
-    if (!cta && c.call_to_action_type) cta = c.call_to_action_type; 
-    
-    const s = c.object_story_spec; 
-    if (s?.link_data) { 
-      if (!primaryText && s.link_data.message) primaryText = s.link_data.message; 
-      if (!headline && s.link_data.name) headline = s.link_data.name; 
-      if (!headline && s.link_data.link_title) headline = s.link_data.link_title;
-      if (!cta && s.link_data.call_to_action?.type) cta = s.link_data.call_to_action.type;
-      if (!headline && s.link_data.description) headline = s.link_data.description;
-    } 
-    if (s?.video_data) { 
-      if (!primaryText && s.video_data.message) primaryText = s.video_data.message; 
-      if (!headline && s.video_data.title) headline = s.video_data.title; 
-      if (!cta && s.video_data.call_to_action?.type) cta = s.video_data.call_to_action.type; 
-    }
-    if (s?.photo_data) {
-      if (!primaryText && s.photo_data.message) primaryText = s.photo_data.message;
-      if (!primaryText && s.photo_data.caption) primaryText = s.photo_data.caption;
-    }
+  // PRIORIDADE 1: asset_feed_spec (anúncios dinâmicos)
+  if (creative.asset_feed_spec) {
+    const afs = creative.asset_feed_spec;
+    if (afs.bodies?.length > 0) primaryText = afs.bodies[0].text;
+    if (afs.titles?.length > 0) headline = afs.titles[0].text;
+    if (afs.descriptions?.length > 0) description = afs.descriptions[0].text;
+    if (afs.call_to_action_types?.length > 0) cta = afs.call_to_action_types[0];
   }
   
-  // LOG: Debug para diagnóstico
-  console.log(`[COPY-EXTRACT] Ad ${adId}: headline=${headline?.substring(0,30) || 'NULL'}, text=${primaryText?.substring(0,30) || 'NULL'}, cta=${cta || 'NULL'}, hasCreativeData=${!!creativeData}, hasAdCreative=${!!c}`);
+  // PRIORIDADE 2: object_story_spec.link_data
+  const oss = creative.object_story_spec;
+  if (oss?.link_data) {
+    if (!primaryText && oss.link_data.message) primaryText = oss.link_data.message;
+    if (!headline && oss.link_data.name) headline = oss.link_data.name;
+    if (!description && oss.link_data.description) description = oss.link_data.description;
+    if (!cta && oss.link_data.call_to_action?.type) cta = oss.link_data.call_to_action.type;
+  }
   
-  return { primaryText, headline, cta };
+  // PRIORIDADE 3: object_story_spec.video_data
+  if (oss?.video_data) {
+    if (!primaryText && oss.video_data.message) primaryText = oss.video_data.message;
+    if (!headline && oss.video_data.title) headline = oss.video_data.title;
+    if (!cta && oss.video_data.call_to_action?.type) cta = oss.video_data.call_to_action.type;
+  }
+  
+  // PRIORIDADE 4: object_story_spec.photo_data
+  if (oss?.photo_data) {
+    if (!primaryText && oss.photo_data.message) primaryText = oss.photo_data.message;
+    if (!primaryText && oss.photo_data.caption) primaryText = oss.photo_data.caption;
+  }
+  
+  // Campos diretos do creative (fallback final)
+  if (!primaryText && creative.body) primaryText = creative.body;
+  if (!headline && creative.title) headline = creative.title;
+  if (!cta && creative.call_to_action_type) cta = creative.call_to_action_type;
+  
+  return { primaryText, headline, description, cta };
 }
 
-// Limpa URL removendo parâmetros de resize para obter imagem HD
-function cleanImageUrl(url: string | null): string | null {
-  if (!url) return null;
+// ===========================================================================================
+// EXTRAÇÃO DE IMAGEM HD
+// 
+// REGRA: Imagem HD SÓ pode ser obtida via image_hash + endpoint /adimages
+// PROIBIDO: thumbnail_url, preview_shareable_link, qualquer campo de prévia
+// ===========================================================================================
+function extractCreativeImage(ad: any, adImageMap?: Map<string, string>, videoThumbnailMap?: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
+  let imageUrl: string | null = null;
+  let videoUrl: string | null = null;
   
-  // Remove stp= que força resize (p64x64, s120x120, etc)
-  let clean = url.replace(/[&?]stp=[^&]*/gi, '');
+  const creative = ad?.creative;
+  if (!creative) return { imageUrl, videoUrl };
   
-  // Remove parâmetros que afetam tamanho
-  clean = clean.replace(/[&?]_nc_cat=[^&]*/gi, '');
-  
-  // Remove tamanho em path (/p64x64/, /s120x120/)
-  clean = clean.replace(/\/p\d+x\d+\//g, '/');
-  clean = clean.replace(/\/s\d+x\d+\//g, '/');
-  
-  // Corrige URL malformada: se & antes de ?, troca primeiro & por ?
-  if (clean.includes('&') && !clean.includes('?')) {
-    clean = clean.replace('&', '?');
+  // ÚNICA FONTE VÁLIDA PARA IMAGEM HD: image_hash -> adImageMap
+  if (creative.image_hash && adImageMap?.has(creative.image_hash)) {
+    imageUrl = adImageMap.get(creative.image_hash)!;
   }
   
-  // Remove & ou ? no final
-  clean = clean.replace(/[&?]$/g, '');
-  
-  console.log(`[URL-CLEAN] Original: ${url.substring(0, 80)}... => Clean: ${clean.substring(0, 80)}...`);
-  
-  return clean;
-}
-
-function extractCreativeImage(ad: any, creativeData?: any, adImageMap?: Map<string, string>, videoThumbnailMap?: Map<string, string>): { imageUrl: string | null; videoUrl: string | null } {
-  let imageUrl: string | null = null, videoUrl: string | null = null;
-  const adId = ad?.id || 'unknown';
-  
-  // PRIORIDADE 1: Imagem HD do adImageMap (via image_hash) - SEMPRE preferida
-  const c = ad?.creative;
-  if (c?.image_hash && adImageMap?.has(c.image_hash)) {
-    imageUrl = adImageMap.get(c.image_hash)!;
-    console.log(`[CREATIVE] Ad ${adId}: HD image from adImageMap hash=${c.image_hash}`);
-    return { imageUrl, videoUrl };
+  // Para vídeos: buscar thumbnail HD
+  const oss = creative.object_story_spec;
+  if (!imageUrl && oss?.video_data?.video_id && videoThumbnailMap?.has(oss.video_data.video_id)) {
+    imageUrl = videoThumbnailMap.get(oss.video_data.video_id)!;
+    videoUrl = `https://www.facebook.com/${oss.video_data.video_id}`;
   }
   
-  // PRIORIDADE 2: creativeData image_hash
-  if (!imageUrl && creativeData?.image_hash && adImageMap?.has(creativeData.image_hash)) {
-    imageUrl = adImageMap.get(creativeData.image_hash)!;
-    console.log(`[CREATIVE] Ad ${adId}: HD image from creativeData.image_hash`);
-    return { imageUrl, videoUrl };
+  // image_hash de link_data ou video_data
+  if (!imageUrl && oss?.link_data?.image_hash && adImageMap?.has(oss.link_data.image_hash)) {
+    imageUrl = adImageMap.get(oss.link_data.image_hash)!;
   }
-  
-  // PRIORIDADE 3: Dados do criativo (creativeData)
-  if (!imageUrl && creativeData) {
-    if (creativeData.image_url) {
-      imageUrl = cleanImageUrl(creativeData.image_url);
-      console.log(`[CREATIVE] Ad ${adId}: Using creativeData.image_url (cleaned)`);
-    }
-    if (!imageUrl && creativeData.thumbnail_url) {
-      imageUrl = cleanImageUrl(creativeData.thumbnail_url);
-      console.log(`[CREATIVE] Ad ${adId}: Using creativeData.thumbnail_url (cleaned)`);
-    }
-    const s = creativeData.object_story_spec;
-    if (s?.link_data) {
-      if (!imageUrl && s.link_data.image_url) {
-        imageUrl = cleanImageUrl(s.link_data.image_url);
-        console.log(`[CREATIVE] Ad ${adId}: Using link_data.image_url (cleaned)`);
-      }
-      if (!imageUrl && s.link_data.picture) {
-        imageUrl = cleanImageUrl(s.link_data.picture);
-        console.log(`[CREATIVE] Ad ${adId}: Using link_data.picture (cleaned)`);
-      }
-    }
-    if (s?.video_data) {
-      if (s.video_data.video_id && videoThumbnailMap?.has(s.video_data.video_id)) {
-        imageUrl = videoThumbnailMap.get(s.video_data.video_id)!;
-        console.log(`[CREATIVE] Ad ${adId}: Using video thumbnail for video_id=${s.video_data.video_id}`);
-      }
-      if (s.video_data.image_url) {
-        videoUrl = s.video_data.image_url;
-        if (!imageUrl) {
-          imageUrl = cleanImageUrl(s.video_data.image_url);
-          console.log(`[CREATIVE] Ad ${adId}: Using video_data.image_url (cleaned)`);
-        }
-      }
-    }
+  if (!imageUrl && oss?.video_data?.image_hash && adImageMap?.has(oss.video_data.image_hash)) {
+    imageUrl = adImageMap.get(oss.video_data.image_hash)!;
   }
-  
-  // PRIORIDADE 4: Dados diretos do anúncio creative
-  if (!imageUrl && c) {
-    if (c.image_url) {
-      imageUrl = cleanImageUrl(c.image_url);
-      console.log(`[CREATIVE] Ad ${adId}: Using ad.creative.image_url (cleaned)`);
-    }
-    if (!imageUrl && c.thumbnail_url) {
-      imageUrl = cleanImageUrl(c.thumbnail_url);
-      console.log(`[CREATIVE] Ad ${adId}: Using ad.creative.thumbnail_url (cleaned)`);
-    }
-    const videoId = c.object_story_spec?.video_data?.video_id;
-    if (videoId && videoThumbnailMap?.has(videoId)) {
-      imageUrl = videoThumbnailMap.get(videoId)!;
-      console.log(`[CREATIVE] Ad ${adId}: Using video thumbnail from ad.creative`);
-    }
-  }
-  
-  // Log se não encontrou nada
-  if (!imageUrl) {
-    const hasCreative = !!c;
-    const hasCreativeData = !!creativeData;
-    console.log(`[CREATIVE] Ad ${adId}: NO IMAGE FOUND. hasCreative=${hasCreative}, hasCreativeData=${hasCreativeData}, creative.id=${c?.id || 'null'}`);
+  if (!imageUrl && oss?.photo_data?.image_hash && adImageMap?.has(oss.photo_data.image_hash)) {
+    imageUrl = adImageMap.get(oss.photo_data.image_hash)!;
   }
   
   return { imageUrl, videoUrl };
@@ -1294,42 +812,22 @@ Deno.serve(async (req) => {
     if (time_range) { since = time_range.since; until = time_range.until; }
     else { const today = new Date(); until = today.toISOString().split('T')[0]; const daysMap: Record<string, number> = { yesterday: 1, today: 0, last_7d: 7, last_14d: 14, last_30d: 30, last_90d: 90 }; const days = daysMap[date_preset || 'last_90d'] || 90; const sinceDate = new Date(today); sinceDate.setDate(sinceDate.getDate() - days); since = sinceDate.toISOString().split('T')[0]; }
     
-    console.log(`[SYNC] Project: ${project_id}, Range: ${since} to ${until}, light_sync: ${light_sync}, skip_cache: ${skip_image_cache}, syncOnly: ${syncOnly || 'all'}`);
+    console.log(`[SYNC] Project: ${project_id}, Range: ${since} to ${until}, light_sync: ${light_sync}, skip_cache: ${skip_image_cache}`);
     const token = access_token || metaAccessToken;
     if (!token) throw new Error('No Meta access token available');
     
     const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, immediateCache, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id, light_sync, skip_image_cache);
     if (tokenExpired) return new Response(JSON.stringify({ success: false, error: 'Token do Meta expirou.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     
-    console.log(`[DEBUG] Raw arrays - campaigns: ${campaigns.length}, adsets: ${adsets.length}, ads: ${ads.length}`);
+    console.log(`[DEBUG] Entities fetched - campaigns: ${campaigns.length}, adsets: ${adsets.length}, ads: ${ads.length}`);
     
     const campaignMap = new Map(campaigns.map(c => [extractId(c.id), c]));
     const adsetMap = new Map(adsets.map(a => [extractId(a.id), a]));
     const adMap = new Map(ads.map(a => [extractId(a.id), a]));
     
-    // Debug: Log sample of ads data to verify creative info is being fetched
-    if (ads.length > 0) {
-      const sampleAd = ads[0];
-      console.log(`[DEBUG] Sample ad from API - id: ${sampleAd.id}, type: ${typeof sampleAd.id}, has_creative: ${!!sampleAd.creative}, creative_id: ${sampleAd.creative?.id}`);
-      const extractedId = extractId(sampleAd.id);
-      console.log(`[DEBUG] extractId result: ${extractedId}, type: ${typeof extractedId}`);
-    } else {
-      console.log(`[DEBUG] WARNING: ads array is EMPTY!`);
-    }
-    console.log(`[DEBUG] Maps - campaignMap: ${campaignMap.size}, adsetMap: ${adsetMap.size}, adMap: ${adMap.size}, creativeDataMap: ${creativeDataMap.size}`);
+    console.log(`[DEBUG] Maps - campaignMap: ${campaignMap.size}, adsetMap: ${adsetMap.size}, adMap: ${adMap.size}`);
     
     const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
-    
-    // DEBUG: Comparar IDs
-    const insightAdIds = new Set(dailyInsights.keys());
-    const adMapKeys = new Set(adMap.keys());
-    const matchedIds = [...insightAdIds].filter(id => adMapKeys.has(id));
-    const unmatchedIds = [...insightAdIds].filter(id => !adMapKeys.has(id)).slice(0, 5);
-    console.log(`[DEBUG-IDS] Insights unique ads: ${insightAdIds.size}, AdMap keys: ${adMapKeys.size}, Matched: ${matchedIds.length}`);
-    if (unmatchedIds.length > 0) {
-      console.log(`[DEBUG-IDS] Sample unmatched insight IDs: ${unmatchedIds.join(', ')}`);
-      console.log(`[DEBUG-IDS] Sample adMap keys: ${[...adMapKeys].slice(0, 5).join(', ')}`);
-    }
     
     const dailyRecords: any[] = [];
     
@@ -1340,11 +838,6 @@ Deno.serve(async (req) => {
         const adset = adsetId ? adsetMap.get(adsetId) : null;
         const campaign = campaignId ? campaignMap.get(campaignId) : null;
         
-        // ===========================================================================================
-        // EXTRAÇÃO COM FALLBACK HIERÁRQUICO: results → actions → conversions
-        // Agora usa o campo "results" da API que é EXATAMENTE o que aparece no Gerenciador!
-        // IMPORTANTE: Campanhas de TRÁFEGO não contam leads - mesmo que a API retorne!
-        // ===========================================================================================
         const campaignObjective = campaign?.objective || null;
         const { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount } = extractConversions(insights, campaignObjective);
         const messagingReplies = extractMessagingReplies(insights);
@@ -1358,14 +851,11 @@ Deno.serve(async (req) => {
         const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
         const cpc = clicks > 0 ? spend / clicks : 0;
         const frequency = reach > 0 ? impressions / reach : 0;
-        // CPA: Usar o cost_per_result oficial da Meta, ou calcular se não disponível
         const cpa = costPerResult > 0 ? costPerResult : (conversions > 0 ? spend / conversions : 0);
         const roas = spend > 0 && conversionValue > 0 ? conversionValue / spend : 0;
         
-        const creativeData = ad?.creative?.id ? creativeDataMap.get(ad.creative.id) : null;
+        const { imageUrl } = extractCreativeImage(ad, adImageMap, videoThumbnailMap);
         const cachedData = cachedCreativeMap.get(adId);
-        const { primaryText, headline, cta } = extractAdCopy(ad, creativeData);
-        const { imageUrl } = extractCreativeImage(ad, creativeData, adImageMap, videoThumbnailMap);
         const cachedUrl = immediateCache.get(adId) || cachedData?.cached_url || null;
         
         dailyRecords.push({
@@ -1393,7 +883,7 @@ Deno.serve(async (req) => {
           cpm,
           cpc,
           frequency,
-          conversions, // VALOR TOTAL (leads + purchases)
+          conversions,
           conversion_value: conversionValue,
           cpa,
           roas,
@@ -1422,11 +912,10 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Update cached_creative_thumbnail for all ads with cached images (even if no new insights)
+    // Update cached_creative_thumbnail
     if (immediateCache.size > 0) {
-      console.log(`[CACHE] Updating ${immediateCache.size} cached thumbnails in ads_daily_metrics`);
+      console.log(`[CACHE] Updating ${immediateCache.size} cached thumbnails`);
       for (const [adId, cachedUrl] of immediateCache) {
-        // Update all records for this ad_id in this project
         await supabase.from('ads_daily_metrics')
           .update({ cached_creative_thumbnail: cachedUrl })
           .eq('project_id', project_id)
@@ -1490,36 +979,19 @@ Deno.serve(async (req) => {
       // Ad aggregation
       if (!adMetrics.has(r.ad_id)) {
         const ad = adMap.get(r.ad_id);
-        
-        // Debug: Log if ad is found and has creative data
-        if (!ad) {
-          console.log(`[DEBUG] Ad NOT found in adMap for id: ${r.ad_id}`);
-        } else if (!ad.creative) {
-          console.log(`[DEBUG] Ad found but NO creative: ${r.ad_id}`);
-        }
-        
-        const creativeData = ad?.creative?.id ? creativeDataMap.get(ad.creative.id) : null;
         const cachedData = cachedCreativeMap.get(r.ad_id);
-        const { primaryText, headline, cta } = extractAdCopy(ad, creativeData);
-        const { imageUrl, videoUrl } = extractCreativeImage(ad, creativeData, adImageMap, videoThumbnailMap);
-        const cachedUrl = immediateCache.get(r.ad_id) || cachedData?.cached_url || null;
         
-        // Debug: Log extraction results for first few ads
-        if (adMetrics.size < 5) {
-          const hasCreativeData = !!creativeData;
-          const hasObjectStorySpec = !!(creativeData?.object_story_spec || ad?.creative?.object_story_spec);
-          console.log(`[AD-COPY-DEBUG] ad_id: ${r.ad_id}`);
-          console.log(`[AD-COPY-DEBUG] creativeData found: ${hasCreativeData}, creative_id: ${ad?.creative?.id}`);
-          console.log(`[AD-COPY-DEBUG] hasObjectStorySpec: ${hasObjectStorySpec}`);
-          console.log(`[AD-COPY-DEBUG] RESULT - headline: ${headline || 'NULL'}, text: ${primaryText?.substring(0, 50) || 'NULL'}, cta: ${cta || 'NULL'}`);
-        }
+        // Extração de copy e imagem usando as funções corretas
+        const { primaryText, headline, description, cta } = extractAdCopy(ad);
+        const { imageUrl, videoUrl } = extractCreativeImage(ad, adImageMap, videoThumbnailMap);
+        const cachedUrl = immediateCache.get(r.ad_id) || cachedData?.cached_url || null;
         
         adMetrics.set(r.ad_id, { 
           ...initMetric(r.ad_id, r.ad_name, { status: ad?.status }), 
           campaign_id: r.campaign_id, 
           ad_set_id: r.adset_id,
           creative_id: ad?.creative?.id || null,
-          creative_thumbnail: ad?.creative?.thumbnail_url || cachedData?.thumbnail_url || null,
+          creative_thumbnail: imageUrl || cachedData?.thumbnail_url || null,
           creative_image_url: imageUrl || cachedData?.image_url || null,
           creative_video_url: videoUrl || cachedData?.video_url || null,
           cached_image_url: cachedUrl,
@@ -1551,7 +1023,6 @@ Deno.serve(async (req) => {
       return m;
     };
 
-    // Prepare records for upsert
     console.log(`[AGGREGATE] Building records - campaigns: ${campaignMetrics.size}, adsets: ${adsetMetrics.size}, ads: ${adMetrics.size}`);
     
     const campaignRecords = Array.from(campaignMetrics.values()).map(m => {
@@ -1563,14 +1034,12 @@ Deno.serve(async (req) => {
       });
     });
 
-    // Remove 'objective' field from adset records (ad_sets table doesn't have this column)
     const adsetRecords = Array.from(adsetMetrics.values()).map(m => {
       const record = calculateDerived(m);
       delete record.objective;
       return record;
     });
     
-    // Remove 'objective' field from ad records (ads table doesn't have this column)
     const adRecords = Array.from(adMetrics.values()).map(m => {
       const record = calculateDerived(m);
       delete record.objective;
@@ -1580,7 +1049,7 @@ Deno.serve(async (req) => {
     // Log sample ad with creative data
     if (adRecords.length > 0) {
       const sample = adRecords[0];
-      console.log(`[CREATIVE] Sample ad creative data - headline: ${sample.headline}, primary_text: ${sample.primary_text?.substring(0, 50)}, cta: ${sample.cta}, image: ${sample.creative_image_url ? 'YES' : 'NO'}`);
+      console.log(`[CREATIVE-RESULT] Sample ad: headline="${sample.headline || 'NULL'}", primary_text="${sample.primary_text?.substring(0, 50) || 'NULL'}", cta="${sample.cta || 'NULL'}", has_image=${!!sample.creative_image_url}`);
     }
 
     // Detect changes
@@ -1621,7 +1090,6 @@ Deno.serve(async (req) => {
       if (adsetError) console.error(`[UPSERT] Adset error:`, adsetError);
     }
     if (adRecords.length > 0) {
-      // Log sample ad record for debugging
       console.log(`[UPSERT] Sample ad record:`, JSON.stringify(adRecords[0]));
       const { error: adsError } = await supabase.from('ads').upsert(adRecords, { onConflict: 'id' });
       if (adsError) console.error(`[UPSERT] Ads error:`, adsError);
