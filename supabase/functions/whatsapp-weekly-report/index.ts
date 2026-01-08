@@ -236,12 +236,14 @@ function alreadySentForScheduledTime(lastSentAt: string | null, reportTime: stri
   const lastSentTotalMinutes = lastSentHour * 60 + lastSentMinute;
   const scheduledTotalMinutes = scheduledHour * 60 + scheduledMinute;
   
-  // If last sent was within 10 minutes of the scheduled time, consider it already sent
+  // Only consider "already sent" if last sent was within 3 minutes of the SAME scheduled time
+  // This prevents blocking when user changes the scheduled time
   const diff = Math.abs(lastSentTotalMinutes - scheduledTotalMinutes);
   
   console.log(`[WEEKLY-REPORT] Already sent check - Last sent: ${lastSentHour}:${lastSentMinute}, Scheduled: ${scheduledHour}:${scheduledMinute}, Diff: ${diff} minutes`);
   
-  return diff <= 10;
+  // Only block if the last sent was very close to the scheduled time (within 3 minutes)
+  return diff <= 3;
 }
 
 function getDefaultTemplate(businessModel: string | null): string {
