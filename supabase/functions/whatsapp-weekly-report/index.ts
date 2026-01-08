@@ -200,21 +200,48 @@ function isScheduledTime(reportTime: string, timezone: string = 'America/Sao_Pau
   return diff <= 5;
 }
 
-function alreadySentToday(lastSentAt: string | null, timezone: string = 'America/Sao_Paulo'): boolean {
+function alreadySentForScheduledTime(lastSentAt: string | null, reportTime: string, timezone: string = 'America/Sao_Paulo'): boolean {
   if (!lastSentAt) return false;
   
   const lastSent = new Date(lastSentAt);
   const now = new Date();
   
   // Compare dates in the project's timezone
-  const formatter = new Intl.DateTimeFormat('en-US', {
+  const dateFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
   });
   
-  return formatter.format(lastSent) === formatter.format(now);
+  // If not same day, hasn't been sent today
+  if (dateFormatter.format(lastSent) !== dateFormatter.format(now)) {
+    return false;
+  }
+  
+  // Same day - check if last sent time is close to the scheduled time
+  const timeFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  });
+  
+  const lastSentParts = timeFormatter.formatToParts(lastSent);
+  const lastSentHour = parseInt(lastSentParts.find(p => p.type === 'hour')?.value || '0');
+  const lastSentMinute = parseInt(lastSentParts.find(p => p.type === 'minute')?.value || '0');
+  
+  const [scheduledHour, scheduledMinute] = reportTime.split(':').map(Number);
+  
+  const lastSentTotalMinutes = lastSentHour * 60 + lastSentMinute;
+  const scheduledTotalMinutes = scheduledHour * 60 + scheduledMinute;
+  
+  // If last sent was within 10 minutes of the scheduled time, consider it already sent
+  const diff = Math.abs(lastSentTotalMinutes - scheduledTotalMinutes);
+  
+  console.log(`[WEEKLY-REPORT] Already sent check - Last sent: ${lastSentHour}:${lastSentMinute}, Scheduled: ${scheduledHour}:${scheduledMinute}, Diff: ${diff} minutes`);
+  
+  return diff <= 10;
 }
 
 function getDefaultTemplate(businessModel: string | null): string {
@@ -343,9 +370,9 @@ Deno.serve(async (req) => {
         if (!targetConfigId) {
           const reportTime = config.report_time || '08:00';
           
-          // Check if already sent today
-          if (alreadySentToday(config.last_report_sent_at, timezone) && !forceResend) {
-            console.log(`[WEEKLY-REPORT] Already sent today for ${config.id}, skipping`);
+          // Check if already sent for this scheduled time
+          if (alreadySentForScheduledTime(config.last_report_sent_at, reportTime, timezone) && !forceResend) {
+            console.log(`[WEEKLY-REPORT] Already sent for this time slot for ${config.id}, skipping`);
             results.push({ 
               configId: config.id,
               projectId,
