@@ -217,13 +217,12 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   url = `https://graph.facebook.com/v22.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) { const data = await fetchWithRetry(url, 'ADSETS'); if (isTokenExpiredError(data)) return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) adsets.push(...data.data); url = data.paging?.next || null; }
   
-  // Fetch ads with full creative fields - include image_url for direct HD access
-  const adsFields = lightSync 
-    ? 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url}' 
-    : 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url,image_hash,body,title,call_to_action_type,object_story_spec{link_data{message,name,call_to_action,picture,image_url},video_data{message,title,call_to_action,video_id,image_hash,image_url}}}';
+  // Fetch ads - sempre usar query simples para garantir que retorna dados
+  // Os dados completos de creative virão do endpoint /adcreatives separado
+  const adsFields = 'id,name,status,adset_id,campaign_id,creative{id,thumbnail_url,image_url}';
   url = `https://graph.facebook.com/v22.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
-  console.log(`[DEBUG-ADS-QUERY] Fields: ${adsFields.substring(0, 200)}`);
-  while (url) { 
+  console.log(`[DEBUG-ADS-QUERY] URL: ${url.substring(0, 150)}...`);
+  while (url) {
     const data = await fetchWithRetry(url, 'ADS'); 
     if (isTokenExpiredError(data)) return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; 
     if (data.data) {
@@ -1302,6 +1301,8 @@ Deno.serve(async (req) => {
     const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, immediateCache, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id, light_sync, skip_image_cache);
     if (tokenExpired) return new Response(JSON.stringify({ success: false, error: 'Token do Meta expirou.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     
+    console.log(`[DEBUG] Raw arrays - campaigns: ${campaigns.length}, adsets: ${adsets.length}, ads: ${ads.length}`);
+    
     const campaignMap = new Map(campaigns.map(c => [extractId(c.id), c]));
     const adsetMap = new Map(adsets.map(a => [extractId(a.id), a]));
     const adMap = new Map(ads.map(a => [extractId(a.id), a]));
@@ -1309,11 +1310,27 @@ Deno.serve(async (req) => {
     // Debug: Log sample of ads data to verify creative info is being fetched
     if (ads.length > 0) {
       const sampleAd = ads[0];
-      console.log(`[DEBUG] Sample ad from API - id: ${sampleAd.id}, has_creative: ${!!sampleAd.creative}, creative_id: ${sampleAd.creative?.id}, has_body: ${!!sampleAd.creative?.body}, has_title: ${!!sampleAd.creative?.title}`);
+      console.log(`[DEBUG] Sample ad from API - id: ${sampleAd.id}, type: ${typeof sampleAd.id}, has_creative: ${!!sampleAd.creative}, creative_id: ${sampleAd.creative?.id}`);
+      const extractedId = extractId(sampleAd.id);
+      console.log(`[DEBUG] extractId result: ${extractedId}, type: ${typeof extractedId}`);
+    } else {
+      console.log(`[DEBUG] WARNING: ads array is EMPTY!`);
     }
-    console.log(`[DEBUG] adMap size: ${adMap.size}, creativeDataMap size: ${creativeDataMap.size}`);
+    console.log(`[DEBUG] Maps - campaignMap: ${campaignMap.size}, adsetMap: ${adsetMap.size}, adMap: ${adMap.size}, creativeDataMap: ${creativeDataMap.size}`);
     
     const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
+    
+    // DEBUG: Comparar IDs
+    const insightAdIds = new Set(dailyInsights.keys());
+    const adMapKeys = new Set(adMap.keys());
+    const matchedIds = [...insightAdIds].filter(id => adMapKeys.has(id));
+    const unmatchedIds = [...insightAdIds].filter(id => !adMapKeys.has(id)).slice(0, 5);
+    console.log(`[DEBUG-IDS] Insights unique ads: ${insightAdIds.size}, AdMap keys: ${adMapKeys.size}, Matched: ${matchedIds.length}`);
+    if (unmatchedIds.length > 0) {
+      console.log(`[DEBUG-IDS] Sample unmatched insight IDs: ${unmatchedIds.join(', ')}`);
+      console.log(`[DEBUG-IDS] Sample adMap keys: ${[...adMapKeys].slice(0, 5).join(', ')}`);
+    }
+    
     const dailyRecords: any[] = [];
     
     for (const [adId, dateMap] of dailyInsights) {
