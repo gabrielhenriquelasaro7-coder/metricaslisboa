@@ -266,8 +266,10 @@ async function fetchCreativeDetails(creativeIds: string[], token: string): Promi
 // ===========================================================================================
 // EXTRAÇÃO DE CONVERSÕES
 // ===========================================================================================
+// TIPOS DE AÇÕES PARA LEADS - APENAS conversões reais, NÃO cliques
 const ALL_LEAD_ACTION_TYPES = ['lead', 'onsite_conversion.lead_grouped', 'leadgen_grouped', 'offsite_conversion.fb_pixel_lead'];
-const CONTACT_LEAD_ACTION_TYPES = ['onsite_conversion.messaging_conversation_started_7d', 'onsite_conversion.total_messaging_connection', 'link_click', 'landing_page_view'];
+// REMOVIDO: 'link_click' e 'landing_page_view' - NÃO são leads, são apenas cliques!
+const CONTACT_LEAD_ACTION_TYPES = ['onsite_conversion.messaging_conversation_started_7d', 'onsite_conversion.total_messaging_connection'];
 const MESSAGE_LEAD_ACTION_TYPES = ['onsite_conversion.messaging_first_reply'];
 const PURCHASE_ACTION_TYPES = ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase'];
 const CONVERSION_ACTION_TYPES = ['lead', 'onsite_conversion.lead_grouped', 'leadgen_grouped', 'purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_lead', 'offsite_conversion.fb_pixel_purchase'];
@@ -528,6 +530,17 @@ Deno.serve(async (req) => {
     // ===========================================================================================
     const { campaigns, adsets, ads, tokenExpired } = await fetchEntitiesLight(ad_account_id, token);
     if (tokenExpired) return new Response(JSON.stringify({ success: false, error: 'Token do Meta expirou.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    
+    // VALIDAÇÃO CRÍTICA: Se não conseguiu buscar campanhas, não continuar (rate limit)
+    // Isso evita salvar dados órfãos que desconectam campanhas dos ads
+    if (campaigns.length === 0 && ads.length === 0) {
+      console.log(`[SYNC] Rate limit detected - campaigns and ads empty. Aborting to prevent data corruption.`);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Rate limit da API Meta. Aguarde alguns minutos e tente novamente.',
+        rateLimited: true 
+      }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     
     const campaignMap = new Map(campaigns.map(c => [extractId(c.id), c]));
     const adsetMap = new Map(adsets.map(a => [extractId(a.id), a]));
