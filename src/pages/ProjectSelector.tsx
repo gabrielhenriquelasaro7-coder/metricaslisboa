@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects, Project, CreateProjectData, HealthScore, BusinessModel } from '@/hooks/useProjects';
-import { useProjectHealth, ProjectHealth } from '@/hooks/useProjectHealth';
 import { useProfile, UserCargo } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { SkeletonCard } from '@/components/ui/skeleton-card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
@@ -25,9 +21,6 @@ import {
   Trash2,
   User,
   RefreshCw,
-  ShieldCheck,
-  AlertTriangle,
-  AlertCircle,
   ChevronRight,
   ChevronDown,
   MoreVertical,
@@ -35,16 +28,12 @@ import {
   ArchiveRestore,
   Camera,
   Lock,
-  Mail,
-  Briefcase,
-  Save,
   Search,
   Target,
   GraduationCap,
   TrendingUp,
   MessageSquare
 } from 'lucide-react';
-import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -59,6 +48,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import whatsappIcon from '@/assets/whatsapp-icon.png';
+import v4Logo from '@/assets/v4-logo-full.png';
 
 const cargoOptions: { value: UserCargo; label: string }[] = [
   { value: 'gestor_trafego', label: 'Gestor de Tráfego' },
@@ -77,9 +67,10 @@ const businessModels: { value: BusinessModel; label: string; description: string
 
 type ExtendedHealthScore = HealthScore | 'undefined';
 
-// Industrial Client Card
+// Industrial Client Card - Dense and Solid
 interface ClientCardProps {
   project: Project;
+  showWhatsApp: boolean;
   onSelect: (project: Project) => void;
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
@@ -89,134 +80,130 @@ interface ClientCardProps {
   onWhatsApp: (project: Project) => void;
 }
 
-function ClientCard({ project, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync, onWhatsApp }: ClientCardProps) {
+function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchive, onUnarchive, onResync, onWhatsApp }: ClientCardProps) {
   const model = businessModels.find(m => m.value === project.business_model);
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
   const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
 
-  const statusConfig = {
-    safe: { color: 'bg-emerald-500', border: 'border-emerald-500/30' },
-    care: { color: 'bg-amber-500', border: 'border-amber-500/30' },
-    danger: { color: 'bg-red-500', border: 'border-red-500/30' },
-    undefined: { color: 'bg-zinc-600', border: 'border-zinc-600/30' },
-  }[displayHealthScore];
-
   return (
-    <div 
-      className={cn(
-        "group bg-zinc-900/80 border rounded-lg p-4 transition-all duration-200",
-        "hover:bg-zinc-800/80 cursor-pointer",
-        statusConfig.border,
-        project.archived && 'opacity-50'
-      )}
-    >
-      {/* Status indicator line */}
-      <div className={cn("absolute top-0 left-0 w-1 h-full rounded-l-lg", statusConfig.color)} />
+    <div className={cn(
+      "group relative bg-black border border-zinc-800 transition-all duration-200",
+      "hover:border-red-900/50",
+      project.archived && 'opacity-40'
+    )}>
+      {/* Top red accent line */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-red-600" />
       
-      <div className="flex items-start gap-4">
-        {/* Avatar */}
-        <div className="w-10 h-10 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
-          {project.avatar_url ? (
-            <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-sm font-semibold text-zinc-400">{project.name.charAt(0).toUpperCase()}</span>
+      <div className="p-4">
+        {/* Header row */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            {/* Avatar */}
+            <div className="w-10 h-10 bg-zinc-900 border border-zinc-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {project.avatar_url ? (
+                <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm font-bold text-white">{project.name.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+            
+            {/* Name and status */}
+            <div>
+              <h3 className="font-bold text-white text-sm uppercase tracking-wide">{project.name}</h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[10px] font-mono text-zinc-500 uppercase">{model?.label || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <button className="p-1 text-zinc-600 hover:text-white transition-colors">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40 bg-black border-zinc-800" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-900">
+                <Pencil className="w-4 h-4" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-900">
+                <RefreshCw className="w-4 h-4" />
+                Re-sincronizar
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-zinc-800" />
+              {project.archived ? (
+                <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-900">
+                  <ArchiveRestore className="w-4 h-4" />
+                  Restaurar
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-900">
+                  <Archive className="w-4 h-4" />
+                  Arquivar
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator className="bg-zinc-800" />
+              <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-500 focus:text-red-500 hover:bg-zinc-900">
+                <Trash2 className="w-4 h-4" />
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        
+        {/* Technical info */}
+        <div className="border-t border-zinc-900 pt-3 mb-3">
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div>
+              <span className="text-zinc-600 uppercase tracking-wider">Account ID</span>
+              <p className="font-mono text-zinc-400 mt-0.5">{project.ad_account_id.replace('act_', '')}</p>
+            </div>
+            <div>
+              <span className="text-zinc-600 uppercase tracking-wider">Última Sync</span>
+              <p className="text-zinc-400 mt-0.5">
+                {lastSyncDate 
+                  ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR })
+                  : 'Nunca'
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(project);
+            }}
+            className="flex-1 h-8 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-1"
+          >
+            Acessar
+            <ChevronRight className="w-3 h-3" />
+          </button>
+          
+          {showWhatsApp && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onWhatsApp(project);
+              }}
+              className="h-8 px-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+            >
+              <img src={whatsappIcon} alt="" className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">WhatsApp</span>
+            </button>
           )}
         </div>
-        
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold text-zinc-100 truncate">{project.name}</h3>
-            <div className={cn("w-2 h-2 rounded-full flex-shrink-0", statusConfig.color)} />
-          </div>
-          
-          <div className="flex items-center gap-3 text-xs text-zinc-500">
-            <span>{model?.label || 'N/A'}</span>
-            <span className="text-zinc-600">•</span>
-            <span className="font-mono">{project.ad_account_id.replace('act_', '')}</span>
-          </div>
-          
-          {/* Sync status */}
-          <div className="flex items-center gap-1.5 mt-2 text-xs text-zinc-500">
-            <RefreshCw className="w-3 h-3" />
-            <span>
-              {lastSyncDate 
-                ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR })
-                : 'Nunca sincronizado'
-              }
-            </span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Actions */}
-      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-zinc-800">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(project);
-          }}
-          className="flex-1 h-8 text-xs font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 border border-zinc-700"
-        >
-          Acessar
-          <ChevronRight className="w-3 h-3 ml-1" />
-        </Button>
-        
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onWhatsApp(project);
-          }}
-          className="flex-1 h-8 text-xs font-medium text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 border border-zinc-700 gap-1.5"
-        >
-          <img src={whatsappIcon} alt="WhatsApp" className="w-3.5 h-3.5" />
-          WhatsApp
-        </Button>
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800">
-              <MoreVertical className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40 bg-zinc-900 border-zinc-800" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
-              <Pencil className="w-4 h-4" />
-              Editar
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
-              <RefreshCw className="w-4 h-4" />
-              Re-sincronizar
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-zinc-800" />
-            {project.archived ? (
-              <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
-                <ArchiveRestore className="w-4 h-4" />
-                Restaurar
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
-                <Archive className="w-4 h-4" />
-                Arquivar
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator className="bg-zinc-800" />
-            <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-400 focus:text-red-400">
-              <Trash2 className="w-4 h-4" />
-              Excluir
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </div>
   );
 }
 
-// Collapsible Status Group
+// Status Group with industrial style
 interface StatusGroupProps {
   status: ExtendedHealthScore;
   projects: Project[];
@@ -236,46 +223,41 @@ function StatusGroup({ status, projects, defaultOpen = false, onSelect, onEdit, 
   if (projects.length === 0) return null;
 
   const config = {
-    safe: { label: 'SAFE', icon: ShieldCheck, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-    care: { label: 'CARE', icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' },
-    danger: { label: 'DANGER', icon: AlertCircle, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
-    undefined: { label: 'SEM STATUS', icon: AlertCircle, color: 'text-zinc-400', bg: 'bg-zinc-500/10', border: 'border-zinc-500/30' },
+    safe: { label: 'SAFE', color: 'text-white', indicator: 'bg-emerald-500' },
+    care: { label: 'CARE', color: 'text-white', indicator: 'bg-amber-500' },
+    danger: { label: 'DANGER', color: 'text-white', indicator: 'bg-red-500' },
+    undefined: { label: 'SEM STATUS', color: 'text-zinc-500', indicator: 'bg-zinc-600' },
   }[status];
 
-  const Icon = config.icon;
+  // Show WhatsApp for care and danger only
+  const showWhatsApp = status === 'care' || status === 'danger';
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-4">
       <CollapsibleTrigger asChild>
-        <button className={cn(
-          "w-full flex items-center justify-between p-3 rounded-lg transition-colors",
-          "bg-zinc-900/50 border hover:bg-zinc-900/80",
-          config.border
-        )}>
-          <div className="flex items-center gap-3">
-            <div className={cn("p-1.5 rounded", config.bg)}>
-              <Icon className={cn("w-4 h-4", config.color)} />
-            </div>
-            <span className={cn("font-semibold text-sm tracking-wide", config.color)}>
-              {config.label}
-            </span>
-            <span className="text-xs text-zinc-500 font-medium">
-              ({projects.length})
-            </span>
-          </div>
+        <button className="w-full flex items-center gap-3 py-3 px-4 bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-900 transition-colors">
+          <div className={cn("w-3 h-3 rounded-sm", config.indicator)} />
+          <span className={cn("font-bold text-sm uppercase tracking-widest", config.color)}>
+            {config.label}
+          </span>
+          <span className="text-sm font-mono text-zinc-600">
+            [{projects.length}]
+          </span>
+          <div className="flex-1" />
           <ChevronDown className={cn(
-            "w-4 h-4 text-zinc-500 transition-transform",
+            "w-4 h-4 text-zinc-600 transition-transform",
             isOpen && "rotate-180"
           )} />
         </button>
       </CollapsibleTrigger>
       
-      <CollapsibleContent className="pt-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      <CollapsibleContent className="pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
           {projects.map(project => (
             <ClientCard
               key={project.id}
               project={project}
+              showWhatsApp={showWhatsApp}
               onSelect={onSelect}
               onEdit={onEdit}
               onDelete={onDelete}
@@ -294,7 +276,6 @@ function StatusGroup({ status, projects, defaultOpen = false, onSelect, onEdit, 
 export default function ProjectSelector() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { projects, loading: projectsLoading, createProject, updateProject, deleteProject, archiveProject, unarchiveProject, resyncProject, refetch } = useProjects();
-  const { healthData, loading: healthLoading } = useProjectHealth(projects.filter(p => !p.archived));
   const { profile, updateProfile, updatePassword, uploadAvatar: uploadProfileAvatar } = useProfile();
   const { isGuest } = useUserRole();
   const navigate = useNavigate();
@@ -319,11 +300,6 @@ export default function ProjectSelector() {
   const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const editAvatarInputRef = useRef<HTMLInputElement>(null);
-  
-  // Guest invite
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-  const [inviteProjectId, setInviteProjectId] = useState<string | undefined>();
-  const [inviteProjectName, setInviteProjectName] = useState<string | undefined>();
   
   // Profile editing
   const [profileName, setProfileName] = useState('');
@@ -631,142 +607,157 @@ export default function ProjectSelector() {
   if (authLoading || projectsLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-zinc-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100">
-      {/* Header - 56px slim */}
-      <header className="h-14 border-b border-zinc-800 bg-black/95 backdrop-blur-sm sticky top-0 z-50">
-        <div className="h-full max-w-[1600px] mx-auto px-6 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center">
-              <span className="text-sm font-bold text-zinc-100">M</span>
-            </div>
-            <span className="text-sm font-semibold text-zinc-100 tracking-tight">MetaAds Manager</span>
+    <div className="min-h-screen bg-black text-white">
+      {/* ==================== HEADER DOMINANTE ==================== */}
+      <header className="relative border-b-2 border-red-600">
+        {/* Top bar with navigation */}
+        <div className="bg-black border-b border-zinc-900">
+          <div className="max-w-[1800px] mx-auto px-6 py-2">
+            <nav className="flex items-center justify-end gap-1">
+              <button className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-white bg-red-600 transition-colors">
+                Meta Ads
+              </button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-2">
+                      <Lock className="w-3 h-3" />
+                      Google Ads
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-black border-zinc-800 text-zinc-400">
+                    Em breve
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <button 
+                onClick={() => navigate('/whatsapp-manager')}
+                className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors flex items-center gap-2"
+              >
+                <MessageSquare className="w-3 h-3" />
+                WhatsApp
+              </button>
+              <button 
+                onClick={() => setProfileDialogOpen(true)}
+                className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors flex items-center gap-2"
+              >
+                <User className="w-3 h-3" />
+                Perfil
+              </button>
+            </nav>
           </div>
-          
-          {/* Navigation */}
-          <nav className="flex items-center gap-1">
-            <button className="px-4 py-2 text-sm font-medium text-zinc-100 bg-zinc-800 rounded transition-colors">
-              Meta Ads
-            </button>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button className="px-4 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-400 rounded transition-colors flex items-center gap-2">
-                    <Lock className="w-3 h-3" />
-                    Google Ads
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-zinc-800 border-zinc-700 text-zinc-300">
-                  Em breve
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <button 
-              onClick={() => navigate('/whatsapp-manager')}
-              className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 rounded transition-colors flex items-center gap-2"
-            >
-              <img src={whatsappIcon} alt="" className="w-4 h-4" />
-              WhatsApp
-            </button>
-            <button 
-              onClick={() => setProfileDialogOpen(true)}
-              className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 rounded transition-colors flex items-center gap-2"
-            >
-              <User className="w-4 h-4" />
-              Perfil
-            </button>
-          </nav>
+        </div>
+        
+        {/* Main header content */}
+        <div className="bg-black">
+          <div className="max-w-[1800px] mx-auto px-6 py-6">
+            <div className="flex items-center justify-between">
+              {/* Logo and product name */}
+              <div className="flex items-center gap-4">
+                <img src={v4Logo} alt="V4 Company" className="h-10 w-auto brightness-0 invert" />
+                <div className="w-px h-10 bg-red-600" />
+                <div>
+                  <h1 className="text-2xl font-black uppercase tracking-tight text-white">
+                    Ads <span className="text-red-600">Manager</span>
+                  </h1>
+                  <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-600">
+                    Painel de Controle
+                  </p>
+                </div>
+              </div>
+              
+              {/* Global Metrics */}
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900/50 border border-zinc-800">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Clientes Ativos</span>
+                  <span className="text-xl font-black text-white">{healthCounts.total}</span>
+                </div>
+                
+                <div className="h-10 w-px bg-zinc-800" />
+                
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-emerald-500" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Safe</span>
+                    <span className="text-lg font-black text-white">{healthCounts.safe}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-amber-500" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Care</span>
+                    <span className="text-lg font-black text-white">{healthCounts.care}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-red-500" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Danger</span>
+                    <span className="text-lg font-black text-white">{healthCounts.danger}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* Status Bar */}
-      <div className="border-b border-zinc-800/50 bg-zinc-900/30">
-        <div className="max-w-[1600px] mx-auto px-6 py-3">
-          <div className="flex items-center gap-8 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-500">Clientes Ativos</span>
-              <span className="font-semibold text-zinc-100">{healthCounts.total}</span>
-            </div>
-            <div className="w-px h-4 bg-zinc-800" />
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-zinc-500">Safe</span>
-              <span className="font-semibold text-emerald-400">{healthCounts.safe}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-zinc-500">Care</span>
-              <span className="font-semibold text-amber-400">{healthCounts.care}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-zinc-500">Danger</span>
-              <span className="font-semibold text-red-400">{healthCounts.danger}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Actions Bar */}
-      <div className="border-b border-zinc-800/50 bg-black">
-        <div className="max-w-[1600px] mx-auto px-6 py-3">
+      {/* ==================== ACTIONS BAR ==================== */}
+      <div className="bg-zinc-950 border-b border-zinc-900">
+        <div className="max-w-[1800px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             {/* Left - Search & Filter */}
             <div className="flex items-center gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
                 <Input
                   placeholder="Buscar cliente ou account ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 w-72 h-9 bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 rounded"
+                  className="pl-10 w-80 h-10 bg-black border-zinc-800 text-white placeholder:text-zinc-700 focus:border-red-600 focus:ring-red-600/20"
                 />
               </div>
               
               <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
-                <SelectTrigger className="w-36 h-9 bg-zinc-900 border-zinc-800 text-zinc-300">
+                <SelectTrigger className="w-40 h-10 bg-black border-zinc-800 text-zinc-400 focus:border-red-600">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800">
-                  <SelectItem value="all" className="text-zinc-300">Todos</SelectItem>
-                  <SelectItem value="safe" className="text-emerald-400">Safe</SelectItem>
-                  <SelectItem value="care" className="text-amber-400">Care</SelectItem>
-                  <SelectItem value="danger" className="text-red-400">Danger</SelectItem>
+                <SelectContent className="bg-black border-zinc-800">
+                  <SelectItem value="all" className="text-zinc-400">Todos os status</SelectItem>
+                  <SelectItem value="safe" className="text-emerald-500">Safe</SelectItem>
+                  <SelectItem value="care" className="text-amber-500">Care</SelectItem>
+                  <SelectItem value="danger" className="text-red-500">Danger</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             {/* Right - Actions */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {!isGuest && (
                 <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="h-9 px-4 bg-zinc-100 text-zinc-900 hover:bg-zinc-200 font-medium gap-2">
+                    <Button className="h-10 px-5 bg-red-600 hover:bg-red-700 text-white font-bold uppercase tracking-wider text-xs gap-2">
                       <Plus className="w-4 h-4" />
                       Novo Cliente
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-lg bg-zinc-900 border-zinc-800">
+                  <DialogContent className="sm:max-w-lg bg-black border-zinc-800">
                     <DialogHeader>
-                      <DialogTitle className="text-zinc-100">Criar novo cliente</DialogTitle>
+                      <DialogTitle className="text-white font-bold uppercase tracking-wide">Criar novo cliente</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleCreateProject} className="space-y-4 mt-4">
                       {/* Avatar */}
                       <div className="flex justify-center">
                         <div 
                           onClick={() => avatarInputRef.current?.click()}
-                          className="w-16 h-16 rounded-lg bg-zinc-800 border-2 border-dashed border-zinc-700 flex items-center justify-center cursor-pointer hover:border-zinc-600 transition-colors overflow-hidden"
+                          className="w-16 h-16 bg-zinc-900 border-2 border-dashed border-zinc-800 flex items-center justify-center cursor-pointer hover:border-red-600 transition-colors overflow-hidden"
                         >
                           {avatarPreview ? (
                             <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <Camera className="w-5 h-5 text-zinc-500" />
+                            <Camera className="w-5 h-5 text-zinc-600" />
                           )}
                         </div>
                         <input
@@ -779,37 +770,37 @@ export default function ProjectSelector() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-zinc-400">Nome do Cliente *</Label>
+                        <Label className="text-zinc-500 text-xs uppercase tracking-wider">Nome do Cliente *</Label>
                         <Input
                           value={formData.name}
                           onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="Ex: Empresa ABC"
-                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                          className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-zinc-400">Account ID *</Label>
+                        <Label className="text-zinc-500 text-xs uppercase tracking-wider">Account ID *</Label>
                         <Input
                           value={formData.ad_account_id}
                           onChange={(e) => setFormData(prev => ({ ...prev, ad_account_id: e.target.value }))}
                           placeholder="act_123456789"
-                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                          className="bg-zinc-900 border-zinc-800 text-white font-mono focus:border-red-600"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-zinc-400">Modelo de Negócio</Label>
+                        <Label className="text-zinc-500 text-xs uppercase tracking-wider">Modelo de Negócio</Label>
                         <Select
                           value={formData.business_model}
                           onValueChange={(val) => setFormData(prev => ({ ...prev, business_model: val as BusinessModel }))}
                         >
-                          <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                          <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-zinc-800 border-zinc-700">
+                          <SelectContent className="bg-black border-zinc-800">
                             {businessModels.map(model => (
-                              <SelectItem key={model.value} value={model.value} className="text-zinc-100">
+                              <SelectItem key={model.value} value={model.value} className="text-white">
                                 {model.label}
                               </SelectItem>
                             ))}
@@ -822,14 +813,14 @@ export default function ProjectSelector() {
                           type="button"
                           variant="outline"
                           onClick={() => setCreateDialogOpen(false)}
-                          className="flex-1 border-zinc-700 text-zinc-400 hover:text-zinc-100"
+                          className="flex-1 border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-900"
                         >
                           Cancelar
                         </Button>
                         <Button
                           type="submit"
                           disabled={isCreating}
-                          className="flex-1 bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+                          className="flex-1 bg-red-600 text-white hover:bg-red-700 font-bold uppercase"
                         >
                           {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Cliente'}
                         </Button>
@@ -841,11 +832,10 @@ export default function ProjectSelector() {
               
               <Button
                 variant="outline"
-                size="sm"
                 onClick={() => setShowArchived(!showArchived)}
                 className={cn(
-                  "h-9 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800",
-                  showArchived && 'bg-zinc-800 text-zinc-100'
+                  "h-10 border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-900 font-bold uppercase tracking-wider text-xs",
+                  showArchived && 'bg-zinc-900 text-white border-red-600/50'
                 )}
               >
                 <Archive className="w-4 h-4 mr-2" />
@@ -856,22 +846,22 @@ export default function ProjectSelector() {
         </div>
       </div>
 
-      {/* Client List */}
-      <main className="max-w-[1600px] mx-auto px-6 py-6">
+      {/* ==================== CLIENT LIST ==================== */}
+      <main className="max-w-[1800px] mx-auto px-6 py-6">
         {filteredProjects.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 rounded-xl bg-zinc-900 flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-zinc-600" />
+          <div className="text-center py-24 border border-zinc-900">
+            <div className="w-20 h-20 bg-zinc-950 border border-zinc-800 flex items-center justify-center mx-auto mb-4">
+              <Users className="w-10 h-10 text-zinc-700" />
             </div>
-            <h3 className="text-lg font-medium text-zinc-400 mb-2">
+            <h3 className="text-lg font-bold uppercase tracking-wide text-zinc-500 mb-2">
               {searchQuery ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
             </h3>
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-zinc-700 uppercase tracking-wider">
               {searchQuery ? 'Tente buscar por outro termo' : 'Clique em "Novo Cliente" para começar'}
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-4">
             <StatusGroup
               status="safe"
               projects={safeProjects}
@@ -887,7 +877,7 @@ export default function ProjectSelector() {
             <StatusGroup
               status="care"
               projects={careProjects}
-              defaultOpen={false}
+              defaultOpen={true}
               onSelect={handleSelectProject}
               onEdit={handleEditClick}
               onDelete={handleDeleteClick}
@@ -899,7 +889,7 @@ export default function ProjectSelector() {
             <StatusGroup
               status="danger"
               projects={dangerProjects}
-              defaultOpen={false}
+              defaultOpen={true}
               onSelect={handleSelectProject}
               onEdit={handleEditClick}
               onDelete={handleDeleteClick}
@@ -924,22 +914,24 @@ export default function ProjectSelector() {
         )}
       </main>
 
+      {/* ==================== DIALOGS ==================== */}
+      
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg bg-zinc-900 border-zinc-800">
+        <DialogContent className="sm:max-w-lg bg-black border-zinc-800">
           <DialogHeader>
-            <DialogTitle className="text-zinc-100">Editar Cliente</DialogTitle>
+            <DialogTitle className="text-white font-bold uppercase tracking-wide">Editar Cliente</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdateProject} className="space-y-4 mt-4">
             <div className="flex justify-center">
               <div 
                 onClick={() => editAvatarInputRef.current?.click()}
-                className="w-16 h-16 rounded-lg bg-zinc-800 border-2 border-dashed border-zinc-700 flex items-center justify-center cursor-pointer hover:border-zinc-600 transition-colors overflow-hidden"
+                className="w-16 h-16 bg-zinc-900 border-2 border-dashed border-zinc-800 flex items-center justify-center cursor-pointer hover:border-red-600 transition-colors overflow-hidden"
               >
                 {editAvatarPreview ? (
                   <img src={editAvatarPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <Camera className="w-5 h-5 text-zinc-500" />
+                  <Camera className="w-5 h-5 text-zinc-600" />
                 )}
               </div>
               <input
@@ -952,28 +944,28 @@ export default function ProjectSelector() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-zinc-400">Nome do Cliente</Label>
+              <Label className="text-zinc-500 text-xs uppercase tracking-wider">Nome do Cliente</Label>
               <Input
                 value={editFormData.name}
                 onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-zinc-400">Health Score</Label>
+              <Label className="text-zinc-500 text-xs uppercase tracking-wider">Health Score</Label>
               <Select
                 value={editFormData.health_score || 'none'}
                 onValueChange={(val) => setEditFormData(prev => ({ ...prev, health_score: val === 'none' ? null : val as HealthScore }))}
               >
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="none" className="text-zinc-400">Sem status</SelectItem>
-                  <SelectItem value="safe" className="text-emerald-400">Safe</SelectItem>
-                  <SelectItem value="care" className="text-amber-400">Care</SelectItem>
-                  <SelectItem value="danger" className="text-red-400">Danger</SelectItem>
+                <SelectContent className="bg-black border-zinc-800">
+                  <SelectItem value="none" className="text-zinc-500">Sem status</SelectItem>
+                  <SelectItem value="safe" className="text-emerald-500">Safe</SelectItem>
+                  <SelectItem value="care" className="text-amber-500">Care</SelectItem>
+                  <SelectItem value="danger" className="text-red-500">Danger</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -983,14 +975,14 @@ export default function ProjectSelector() {
                 type="button"
                 variant="outline"
                 onClick={() => setEditDialogOpen(false)}
-                className="flex-1 border-zinc-700 text-zinc-400 hover:text-zinc-100"
+                className="flex-1 border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-900"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={isUpdating}
-                className="flex-1 bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+                className="flex-1 bg-red-600 text-white hover:bg-red-700 font-bold uppercase"
               >
                 {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar'}
               </Button>
@@ -1001,16 +993,16 @@ export default function ProjectSelector() {
 
       {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-zinc-900 border-zinc-800">
+        <AlertDialogContent className="bg-black border-zinc-800">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-zinc-100">Excluir Cliente</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
+            <AlertDialogTitle className="text-white font-bold uppercase">Excluir Cliente</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-500">
               Tem certeza que deseja excluir "{selectedProject?.name}"? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-zinc-700 text-zinc-400 hover:text-zinc-100">Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogCancel className="border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-900">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 font-bold uppercase">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1019,21 +1011,21 @@ export default function ProjectSelector() {
 
       {/* Profile Dialog */}
       <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-zinc-900 border-zinc-800">
+        <DialogContent className="sm:max-w-md bg-black border-zinc-800">
           <DialogHeader>
-            <DialogTitle className="text-zinc-100">Meu Perfil</DialogTitle>
+            <DialogTitle className="text-white font-bold uppercase tracking-wide">Meu Perfil</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 mt-4">
             {/* Avatar */}
             <div className="flex justify-center">
               <div 
                 onClick={() => profileAvatarInputRef.current?.click()}
-                className="w-20 h-20 rounded-full bg-zinc-800 border-2 border-dashed border-zinc-700 flex items-center justify-center cursor-pointer hover:border-zinc-600 transition-colors overflow-hidden"
+                className="w-20 h-20 rounded-full bg-zinc-900 border-2 border-dashed border-zinc-800 flex items-center justify-center cursor-pointer hover:border-red-600 transition-colors overflow-hidden"
               >
                 {profileAvatarPreview ? (
                   <img src={profileAvatarPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-8 h-8 text-zinc-500" />
+                  <User className="w-8 h-8 text-zinc-600" />
                 )}
               </div>
               <input
@@ -1046,27 +1038,27 @@ export default function ProjectSelector() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-zinc-400">Nome</Label>
+              <Label className="text-zinc-500 text-xs uppercase tracking-wider">Nome</Label>
               <Input
                 value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-zinc-400">Cargo</Label>
+              <Label className="text-zinc-500 text-xs uppercase tracking-wider">Cargo</Label>
               <Select
                 value={profileCargo || 'none'}
                 onValueChange={(val) => setProfileCargo(val === 'none' ? null : val as UserCargo)}
               >
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white focus:border-red-600">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="none" className="text-zinc-400">Nenhum</SelectItem>
+                <SelectContent className="bg-black border-zinc-800">
+                  <SelectItem value="none" className="text-zinc-500">Nenhum</SelectItem>
                   {cargoOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-zinc-100">
+                    <SelectItem key={opt.value} value={opt.value} className="text-white">
                       {opt.label}
                     </SelectItem>
                   ))}
@@ -1077,33 +1069,33 @@ export default function ProjectSelector() {
             <Button
               onClick={handleUpdateProfile}
               disabled={isUpdatingProfile}
-              className="w-full bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+              className="w-full bg-red-600 text-white hover:bg-red-700 font-bold uppercase"
             >
               {isUpdatingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Perfil'}
             </Button>
 
             <div className="border-t border-zinc-800 pt-4">
-              <Label className="text-zinc-400 text-sm">Alterar Senha</Label>
+              <Label className="text-zinc-500 text-xs uppercase tracking-wider">Alterar Senha</Label>
               <div className="space-y-2 mt-2">
                 <Input
                   type="password"
+                  placeholder="Nova senha"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Nova senha"
-                  className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                  className="bg-zinc-900 border-zinc-800 text-white placeholder:text-zinc-700 focus:border-red-600"
                 />
                 <Input
                   type="password"
+                  placeholder="Confirmar senha"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirmar senha"
-                  className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                  className="bg-zinc-900 border-zinc-800 text-white placeholder:text-zinc-700 focus:border-red-600"
                 />
                 <Button
                   onClick={handleChangePassword}
                   disabled={isChangingPassword || !newPassword}
                   variant="outline"
-                  className="w-full border-zinc-700 text-zinc-400 hover:text-zinc-100"
+                  className="w-full border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-900"
                 >
                   {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Alterar Senha'}
                 </Button>
@@ -1111,9 +1103,9 @@ export default function ProjectSelector() {
             </div>
 
             <Button
+              variant="outline"
               onClick={handleLogout}
-              variant="ghost"
-              className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              className="w-full border-red-600/50 text-red-500 hover:bg-red-600/10 hover:text-red-400"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Sair
@@ -1121,14 +1113,6 @@ export default function ProjectSelector() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Invite Guest Dialog */}
-      <InviteGuestDialog
-        open={inviteDialogOpen}
-        onOpenChange={setInviteDialogOpen}
-        preselectedProjectId={inviteProjectId}
-        preselectedProjectName={inviteProjectName}
-      />
     </div>
   );
 }
