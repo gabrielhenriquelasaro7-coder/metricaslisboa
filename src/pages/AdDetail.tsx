@@ -130,6 +130,7 @@ export default function AdDetail() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
@@ -308,9 +309,33 @@ export default function AdDetail() {
 
   const hasVideo = ad?.creative_video_url;
   const hasImage = ad?.creative_image_url || ad?.creative_thumbnail || ad?.cached_image_url;
-  // Try Storage URL first (permanent), then cached_image_url, then Facebook URLs
+  
+  // Build list of URLs to try in priority order (like CreativeImage component)
+  const imageUrls: string[] = [];
   const storageUrl = ad?.id ? getStorageImageUrl(selectedProject?.id, ad.id) : null;
-  const creativeUrl = storageUrl || ad?.cached_image_url || cleanImageUrl(ad?.creative_image_url || ad?.creative_thumbnail) || '';
+  if (storageUrl) imageUrls.push(storageUrl);
+  if (ad?.cached_image_url) imageUrls.push(ad.cached_image_url);
+  const cleanedCreativeUrl = cleanImageUrl(ad?.creative_image_url);
+  if (cleanedCreativeUrl) imageUrls.push(cleanedCreativeUrl);
+  const cleanedThumbnail = cleanImageUrl(ad?.creative_thumbnail);
+  if (cleanedThumbnail) imageUrls.push(cleanedThumbnail);
+  
+  const creativeUrl = imageUrls[currentImageIndex] || '';
+  
+  // Handle image error - try next URL
+  const handleImageError = () => {
+    if (currentImageIndex < imageUrls.length - 1) {
+      setCurrentImageIndex(prev => prev + 1);
+    } else {
+      setImageError(true);
+    }
+  };
+  
+  // Reset image state when ad changes
+  useEffect(() => {
+    setCurrentImageIndex(0);
+    setImageError(false);
+  }, [ad?.id]);
 
   if (loading) {
     return (
@@ -418,15 +443,15 @@ export default function AdDetail() {
                 <Dialog>
                   <DialogTrigger asChild>
                     <div className="aspect-square rounded-lg overflow-hidden bg-muted cursor-zoom-in hover:opacity-90 transition-opacity relative">
-                      {!imageError && (
+                      {!imageError && creativeUrl && (
                         <img 
                           src={creativeUrl} 
                           alt={ad.name}
                           className="w-full h-full object-contain"
-                          onError={() => setImageError(true)}
+                          onError={handleImageError}
                         />
                       )}
-                      {imageError && (
+                      {(imageError || !creativeUrl) && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
                           <ImageIcon className="w-16 h-16 text-muted-foreground/50 mb-2" />
                           <p className="text-xs text-muted-foreground">Imagem expirada</p>
