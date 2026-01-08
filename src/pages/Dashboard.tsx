@@ -8,6 +8,7 @@ import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
 import { DynamicResultMetrics } from '@/components/dashboard/DynamicResultMetrics';
 import { LeadsSyncCard } from '@/components/leads/LeadsSyncCard';
+import { AccountBalanceCard } from '@/components/dashboard/AccountBalanceCard';
 import { useDemographicInsights } from '@/hooks/useDemographicInsights';
 import { useProjectMetricConfig } from '@/hooks/useProjectMetricConfig';
 import PeriodComparison from '@/components/dashboard/PeriodComparison';
@@ -398,6 +399,14 @@ export default function Dashboard() {
           <DashboardSkeleton />
         ) : (
           <>
+            {/* Account Balance Card - Top of Dashboard */}
+            {hasSelectedProject && (
+              <AccountBalanceCard
+                projectId={selectedProject?.id || null}
+                currency={selectedProject?.currency}
+              />
+            )}
+            
             <div className="flex items-center justify-end gap-2">
               <GitCompare className="w-4 h-4 text-muted-foreground" />
               <Label htmlFor="comparison-toggle" className="text-sm text-muted-foreground cursor-pointer">
