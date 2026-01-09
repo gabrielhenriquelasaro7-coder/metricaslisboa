@@ -164,20 +164,44 @@ async function cacheCreativeImage(supabase: any, projectId: string, adId: string
 }
 
 // ===========================================================================================
+// BUSCAR THUMBNAIL HD DO CRIATIVO
+// Endpoint: https://graph.facebook.com/v22.0/<creative_id>
+// Query params: fields=thumbnail_url&thumbnail_width=1080&thumbnail_height=1080
+// ===========================================================================================
+async function fetchCreativeThumbnailHD(creativeId: string, token: string): Promise<string | null> {
+  if (!creativeId) return null;
+  
+  try {
+    const url = `https://graph.facebook.com/v22.0/${creativeId}?fields=thumbnail_url&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    const data = await simpleFetch(url, undefined, 10000);
+    
+    if (data?.thumbnail_url) {
+      console.log(`[CREATIVE-HD] Got 1080px thumbnail for creative ${creativeId}`);
+      return data.thumbnail_url;
+    }
+    
+    return null;
+  } catch (e) {
+    console.log(`[CREATIVE-HD] Error fetching thumbnail for ${creativeId}: ${e}`);
+    return null;
+  }
+}
+
+// ===========================================================================================
 // FLUXO CORRETO DE EXTRAÇÃO DE CRIATIVOS (CONFORME DOCUMENTAÇÃO META)
 // 
 // 1. Buscar ads com: creative{id,image_hash,object_story_spec,asset_feed_spec}
 // 2. Extrair texto:
 //    - PRIORIDADE: asset_feed_spec (bodies[].text, titles[].text, descriptions[].text)
 //    - FALLBACK: object_story_spec.link_data (message, name, description)
-// 3. Extrair imagem HD via /adimages com fields=hash,url,url_1024
-// 4. NUNCA usar thumbnail_url, preview_shareable_link ou campos de prévia
+// 3. Extrair imagem HD via endpoint do criativo com thumbnail_width=1080
+// 4. FALLBACK: /adimages com fields=hash,url,url_1024
 // ===========================================================================================
 
 async function fetchEntities(adAccountId: string, token: string, supabase?: any, projectId?: string, lightSync = false, skipImageCache = false): Promise<{
   campaigns: any[]; adsets: any[]; ads: any[]; adImageMap: Map<string, string>; videoThumbnailMap: Map<string, string>;
   creativeDataMap: Map<string, any>; cachedCreativeMap: Map<string, any>; adPreviewMap: Map<string, string>;
-  immediateCache: Map<string, string>; tokenExpired?: boolean;
+  immediateCache: Map<string, string>; creativeThumbnailHDMap: Map<string, string>; tokenExpired?: boolean;
 }> {
   const campaigns: any[] = [], adsets: any[] = [], ads: any[] = [];
   const cachedCreativeMap = new Map<string, any>();
@@ -193,11 +217,11 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   
   // Campaigns - v22.0
   let url = `https://graph.facebook.com/v22.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
-  while (url) { const data = await fetchWithRetry(url, 'CAMPAIGNS'); if (isTokenExpiredError(data)) return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) campaigns.push(...data.data); url = data.paging?.next || null; }
+  while (url) { const data = await fetchWithRetry(url, 'CAMPAIGNS'); if (isTokenExpiredError(data)) return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), creativeThumbnailHDMap: new Map(), tokenExpired: true }; if (data.data) campaigns.push(...data.data); url = data.paging?.next || null; }
   
   // Adsets - v22.0 - includes targeting for optimization tracking
   url = `https://graph.facebook.com/v22.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting,promoted_object&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
-  while (url) { const data = await fetchWithRetry(url, 'ADSETS'); if (isTokenExpiredError(data)) return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) adsets.push(...data.data); url = data.paging?.next || null; }
+  while (url) { const data = await fetchWithRetry(url, 'ADSETS'); if (isTokenExpiredError(data)) return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), creativeThumbnailHDMap: new Map(), tokenExpired: true }; if (data.data) adsets.push(...data.data); url = data.paging?.next || null; }
   
   // ADS - LIGHT: apenas campos essenciais + creative para extração de texto
   const adsFields = 'id,name,status,adset_id,campaign_id,creative{id,object_story_spec,asset_feed_spec}';
@@ -206,14 +230,14 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   
   while (url) {
     const data = await fetchWithRetry(url, 'ADS'); 
-    if (isTokenExpiredError(data)) return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; 
+    if (isTokenExpiredError(data)) return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), creativeThumbnailHDMap: new Map(), tokenExpired: true }; 
     if (data.data) ads.push(...data.data); 
     url = data.paging?.next || null; 
   }
 
   console.log(`[ENTITIES] Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}`);
   
-  const adImageMap = new Map<string, string>(), videoThumbnailMap = new Map<string, string>(), creativeDataMap = new Map<string, any>(), adPreviewMap = new Map<string, string>(), immediateCache = new Map<string, string>();
+  const adImageMap = new Map<string, string>(), videoThumbnailMap = new Map<string, string>(), creativeDataMap = new Map<string, any>(), adPreviewMap = new Map<string, string>(), immediateCache = new Map<string, string>(), creativeThumbnailHDMap = new Map<string, string>();
   
   // LIGHT SYNC: apenas mapear creatives já existentes, SEM chamadas extras
   for (const ad of ads) {
@@ -308,11 +332,13 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 
   // ===========================================================================================
   // CACHE DE IMAGENS HD
-  // Prioridade: 1) image_hash via /adimages, 2) directImageUrls, 3) video thumbnail
+  // Prioridade: 0) thumbnail HD via endpoint do criativo (1080x1080)
+  //             1) image_hash via /adimages, 2) directImageUrls, 3) video thumbnail
   // ===========================================================================================
   if (!skipImageCache && supabase && projectId) {
-    const adsNeedingCache: Array<{ adId: string; imageUrl: string; source: string }> = [];
+    const adsNeedingCache: Array<{ adId: string; creativeId?: string; imageUrl?: string; source: string }> = [];
     
+    // Primeiro, coletar todos os ads que precisam de cache e seus creative IDs
     for (const ad of ads) {
       const adId = String(ad.id);
       const cached = cachedCreativeMap.get(adId);
@@ -322,79 +348,116 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
         continue;
       }
       
-      let hdImageUrl: string | null = null;
-      let source = '';
-      
-      // PRIORIDADE 1: image_hash via /adimages (url_1024)
-      const imageHash = ad.creative?.image_hash;
-      if (imageHash && adImageMap.has(imageHash)) {
-        hdImageUrl = adImageMap.get(imageHash)!;
-        source = 'adimages_hash';
-      }
-      
-      // Também verificar hashes em object_story_spec
-      if (!hdImageUrl) {
-        const oss = ad.creative?.object_story_spec;
-        const ossHashes = [
-          oss?.link_data?.image_hash,
-          oss?.photo_data?.image_hash,
-          oss?.video_data?.image_hash
-        ].filter(Boolean);
+      // Se tem creative ID, vamos tentar buscar thumbnail HD primeiro
+      const creativeId = ad.creative?.id;
+      if (creativeId) {
+        adsNeedingCache.push({ adId, creativeId, source: 'creative_thumbnail_hd' });
+      } else {
+        // Fallback para métodos antigos
+        let hdImageUrl: string | null = null;
+        let source = '';
         
-        for (const h of ossHashes) {
-          if (h && adImageMap.has(h)) {
-            hdImageUrl = adImageMap.get(h)!;
-            source = 'adimages_oss_hash';
-            break;
+        const imageHash = ad.creative?.image_hash;
+        if (imageHash && adImageMap.has(imageHash)) {
+          hdImageUrl = adImageMap.get(imageHash)!;
+          source = 'adimages_hash';
+        }
+        
+        if (!hdImageUrl) {
+          const oss = ad.creative?.object_story_spec;
+          const ossHashes = [
+            oss?.link_data?.image_hash,
+            oss?.photo_data?.image_hash,
+            oss?.video_data?.image_hash
+          ].filter(Boolean);
+          
+          for (const h of ossHashes) {
+            if (h && adImageMap.has(h)) {
+              hdImageUrl = adImageMap.get(h)!;
+              source = 'adimages_oss_hash';
+              break;
+            }
           }
         }
-      }
-      
-      // PRIORIDADE 2: URLs de object_story_spec (direto do creative)
-      if (!hdImageUrl && ad.creative?.object_story_spec) {
-        const oss = ad.creative.object_story_spec;
-        if (oss.photo_data?.url) {
-          hdImageUrl = oss.photo_data.url;
-          source = 'oss_photo_data';
-        } else if (oss.link_data?.picture) {
-          hdImageUrl = oss.link_data.picture;
-          source = 'oss_link_data';
+        
+        if (!hdImageUrl && ad.creative?.object_story_spec) {
+          const oss = ad.creative.object_story_spec;
+          if (oss.photo_data?.url) {
+            hdImageUrl = oss.photo_data.url;
+            source = 'oss_photo_data';
+          } else if (oss.link_data?.picture) {
+            hdImageUrl = oss.link_data.picture;
+            source = 'oss_link_data';
+          }
         }
-      }
-      
-      // PRIORIDADE 3: Para vídeos, usar thumbnail HD
-      if (!hdImageUrl) {
-        const videoId = ad.creative?.object_story_spec?.video_data?.video_id;
-        if (videoId && videoThumbnailMap.has(videoId)) {
-          hdImageUrl = videoThumbnailMap.get(videoId)!;
-          source = 'video_thumbnail';
+        
+        if (!hdImageUrl) {
+          const videoId = ad.creative?.object_story_spec?.video_data?.video_id;
+          if (videoId && videoThumbnailMap.has(videoId)) {
+            hdImageUrl = videoThumbnailMap.get(videoId)!;
+            source = 'video_thumbnail';
+          }
         }
-      }
-      
-      if (hdImageUrl) {
-        adsNeedingCache.push({ adId, imageUrl: hdImageUrl, source });
+        
+        if (hdImageUrl) {
+          adsNeedingCache.push({ adId, imageUrl: hdImageUrl, source });
+        }
       }
     }
     
-    // Log de fontes usadas
+    // Log de fontes planejadas
     const sources = adsNeedingCache.reduce((acc, x) => {
       acc[x.source] = (acc[x.source] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    console.log(`[CACHE] Image sources: ${JSON.stringify(sources)}`);
-    console.log(`[CACHE] Processing ${adsNeedingCache.length} HD images for caching...`);
+    console.log(`[CACHE] Planned image sources: ${JSON.stringify(sources)}`);
+    console.log(`[CACHE] Processing ${adsNeedingCache.length} ads for HD images...`);
     
-    for (let i = 0; i < adsNeedingCache.length; i += 10) {
-      const batch = adsNeedingCache.slice(i, i + 10);
-      const results = await Promise.all(batch.map(async ({ adId, imageUrl }) => ({ adId, cachedUrl: await cacheCreativeImage(supabase, projectId, adId, imageUrl, false) })));
-      for (const { adId, cachedUrl } of results) if (cachedUrl) immediateCache.set(adId, cachedUrl);
-      if (i + 10 < adsNeedingCache.length) await delay(50);
+    // Processar em batches de 5 para não sobrecarregar a API
+    for (let i = 0; i < adsNeedingCache.length; i += 5) {
+      const batch = adsNeedingCache.slice(i, i + 5);
+      
+      const results = await Promise.all(batch.map(async ({ adId, creativeId, imageUrl, source }) => {
+        let finalImageUrl = imageUrl;
+        let finalSource = source;
+        
+        // Se é creative_thumbnail_hd, buscar a URL primeiro
+        if (source === 'creative_thumbnail_hd' && creativeId) {
+          const hdUrl = await fetchCreativeThumbnailHD(creativeId, token);
+          if (hdUrl) {
+            finalImageUrl = hdUrl;
+            creativeThumbnailHDMap.set(adId, hdUrl);
+          } else {
+            // Fallback: tentar outras fontes
+            const ad = ads.find((a: any) => String(a.id) === adId);
+            if (ad?.creative?.object_story_spec?.photo_data?.url) {
+              finalImageUrl = ad.creative.object_story_spec.photo_data.url;
+              finalSource = 'oss_photo_data_fallback';
+            } else if (ad?.creative?.object_story_spec?.link_data?.picture) {
+              finalImageUrl = ad.creative.object_story_spec.link_data.picture;
+              finalSource = 'oss_link_data_fallback';
+            }
+          }
+        }
+        
+        if (finalImageUrl) {
+          const cachedUrl = await cacheCreativeImage(supabase, projectId, adId, finalImageUrl, false);
+          return { adId, cachedUrl, source: finalSource };
+        }
+        return { adId, cachedUrl: null, source: finalSource };
+      }));
+      
+      for (const { adId, cachedUrl } of results) {
+        if (cachedUrl) immediateCache.set(adId, cachedUrl);
+      }
+      
+      if (i + 5 < adsNeedingCache.length) await delay(100);
     }
     
-    console.log(`[CACHE] Cached ${immediateCache.size} images total`);
+    console.log(`[CACHE] Cached ${immediateCache.size} HD images total`);
   }
 
-  return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache };
+  return { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, adPreviewMap, immediateCache, creativeThumbnailHDMap };
 }
 
 async function fetchDailyInsights(adAccountId: string, token: string, since: string, until: string): Promise<Map<string, Map<string, any>>> {
