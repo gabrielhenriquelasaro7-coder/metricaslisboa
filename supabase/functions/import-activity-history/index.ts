@@ -121,6 +121,9 @@ Deno.serve(async (req) => {
     const seenKeys = new Set<string>();
 
     for (const activity of allActivities) {
+      // Skip Meta automated changes
+      if (activity.actor_name === 'Meta') continue;
+      
       const eventType = activity.event_type?.toLowerCase() || '';
       const objectType = activity.object_type?.toLowerCase() || '';
       

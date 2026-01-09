@@ -124,13 +124,63 @@ const ENTITY_TYPE_CONFIG: Record<string, { label: string; labelSingular: string;
   ad: { label: 'Anúncios', labelSingular: 'Anúncio', icon: FileText, color: 'text-amber-500 bg-amber-500/10' },
 };
 
+// Função para parsear valor de budget do JSON do Meta
+function parseBudgetValue(value: string | null): string | null {
+  if (!value) return null;
+  
+  try {
+    // Tenta parsear como JSON
+    const parsed = JSON.parse(value);
+    if (parsed.new_value !== undefined) {
+      // Formato: {"type":"payment_amount","currency":"BRL","new_value":2400}
+      const amount = (parsed.new_value / 100).toLocaleString('pt-BR', { style: 'currency', currency: parsed.currency || 'BRL' });
+      return amount;
+    }
+    if (parsed.old_value !== undefined) {
+      const amount = (parsed.old_value / 100).toLocaleString('pt-BR', { style: 'currency', currency: parsed.currency || 'BRL' });
+      return amount;
+    }
+    return null;
+  } catch {
+    // Se não for JSON, retorna o valor original
+    // Tenta extrair número se for string numérica
+    const num = parseFloat(value);
+    if (!isNaN(num)) {
+      return (num / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+    return value;
+  }
+}
+
 // Função para traduzir valores
 function translateValue(value: string | null, field: string): string {
-  if (value === null || value === '-') return 'Não definido';
+  if (value === null || value === '-' || value === 'null') return 'Não definido';
   
   // Traduz status
   if (field === 'status') {
-    return STATUS_TRANSLATIONS[value] || value;
+    // Status pode vir em português ou inglês
+    const statusMap: Record<string, string> = {
+      'ACTIVE': 'Ativo',
+      'PAUSED': 'Pausado',
+      'DELETED': 'Deletado',
+      'ARCHIVED': 'Arquivado',
+      'PENDING': 'Pendente',
+      'IN_PROCESS': 'Em Processamento',
+      'WITH_ISSUES': 'Com Problemas',
+      'Ativo': 'Ativo',
+      'Ativa': 'Ativo',
+      'Inativo': 'Pausado',
+      'Inativa': 'Pausado',
+      'Análise pendente': 'Em Análise',
+      'Processo pendente': 'Processando',
+    };
+    return statusMap[value] || value;
+  }
+  
+  // Traduz orçamento - pode vir como JSON
+  if (field === 'daily_budget' || field === 'lifetime_budget') {
+    const parsed = parseBudgetValue(value);
+    return parsed || value;
   }
   
   // Traduz objetivos
@@ -138,53 +188,67 @@ function translateValue(value: string | null, field: string): string {
     return OBJECTIVE_TRANSLATIONS[value] || value;
   }
   
-  // Traduz targeting (formato resumido: idade:18-65|genero:1,2|local:SP|publicos:3)
-  if (field === 'targeting') {
-    if (!value) return 'Não definido';
-    
-    const parts = value.split('|');
-    const translated: string[] = [];
-    
-    const genderMap: Record<string, string> = { '1': 'Homens', '2': 'Mulheres' };
-    const platformMap: Record<string, string> = { 
-      'facebook': 'Facebook', 
-      'instagram': 'Instagram', 
-      'audience_network': 'Audience Network',
-      'messenger': 'Messenger'
-    };
-    
-    for (const part of parts) {
-      const [key, val] = part.split(':');
-      if (!key || !val) continue;
-      
-      switch (key) {
-        case 'idade':
-          translated.push(`📅 Idade: ${val} anos`);
-          break;
-        case 'genero':
-          const genders = val.split(',').map(g => genderMap[g] || g).join(' e ');
-          translated.push(`👥 Gênero: ${genders}`);
-          break;
-        case 'local':
-          translated.push(`📍 Local: ${val}`);
-          break;
-        case 'publicos':
-          translated.push(`🎯 ${val} público(s) personalizado(s)`);
-          break;
-        case 'excluidos':
-          translated.push(`🚫 ${val} público(s) excluído(s)`);
-          break;
-        case 'interesses':
-          translated.push(`💡 ${val} interesse(s)`);
-          break;
-        case 'plataformas':
-          const platforms = val.split(',').map(p => platformMap[p] || p).join(', ');
-          translated.push(`📱 Plataformas: ${platforms}`);
-          break;
+  // Traduz targeting - pode vir como JSON array do Meta
+  if (field === 'targeting' || field.includes('target_spec')) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        // Formato: [{"content":"Localização:","children":["Brasil..."]}]
+        const parts: string[] = [];
+        for (const item of parsed.slice(0, 3)) { // Pega só os 3 primeiros
+          if (item.content && item.children?.length) {
+            const label = item.content.replace(':', '');
+            const childrenText = item.children.slice(0, 2).join(', ');
+            parts.push(`${label}: ${childrenText}`);
+          }
+        }
+        return parts.length > 0 ? parts.join(' | ') : 'Segmentação personalizada';
       }
+    } catch {
+      // Se não for JSON, tenta o formato antigo
+      if (!value) return 'Não definido';
+      
+      const parts = value.split('|');
+      const translated: string[] = [];
+      
+      const genderMap: Record<string, string> = { '1': 'Homens', '2': 'Mulheres' };
+      
+      for (const part of parts) {
+        const [key, val] = part.split(':');
+        if (!key || !val) continue;
+        
+        switch (key) {
+          case 'idade':
+            translated.push(`Idade: ${val} anos`);
+            break;
+          case 'genero':
+            const genders = val.split(',').map(g => genderMap[g] || g).join(' e ');
+            translated.push(`Gênero: ${genders}`);
+            break;
+          case 'local':
+            translated.push(`Local: ${val}`);
+            break;
+          case 'publicos':
+            translated.push(`${val} público(s) personalizado(s)`);
+            break;
+        }
+      }
+      
+      return translated.length > 0 ? translated.join(' | ') : 'Segmentação personalizada';
     }
-    
-    return translated.length > 0 ? translated.join(' | ') : 'Segmentação personalizada';
+  }
+  
+  // Se for JSON genérico, tenta simplificar
+  if (value.startsWith('{') || value.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === 'object') {
+        // Retorna uma versão simplificada
+        return 'Configuração atualizada';
+      }
+    } catch {
+      // Não é JSON válido, retorna como está
+    }
   }
   
   return value;
@@ -200,13 +264,35 @@ function getChangeDescription(record: OptimizationRecord): string {
   
   // Mudança de status
   if (record.field_changed === 'status') {
-    if (record.new_value === 'PAUSED') {
-      return `${entityLabel} foi pausada`;
+    // Verifica valores em português
+    const newLower = (record.new_value || '').toLowerCase();
+    const oldLower = (record.old_value || '').toLowerCase();
+    
+    if (newLower.includes('inativ') || newLower === 'paused') {
+      return `${entityLabel} foi pausado(a)`;
     }
-    if (record.new_value === 'ACTIVE') {
-      return `${entityLabel} foi ativada`;
+    if (newLower.includes('ativ') || newLower === 'active') {
+      if (oldLower.includes('inativ') || oldLower === 'paused') {
+        return `${entityLabel} foi reativado(a)`;
+      }
+      return `${entityLabel} foi ativado(a)`;
     }
     return `Status alterado de "${oldValue}" para "${newValue}"`;
+  }
+  
+  // Mudança de orçamento
+  if (record.field_changed === 'daily_budget') {
+    if (oldValue && newValue && oldValue !== 'Não definido' && newValue !== 'Não definido') {
+      return `Orçamento diário alterado de ${oldValue} para ${newValue}`;
+    }
+    return `Orçamento diário definido como ${newValue}`;
+  }
+  
+  if (record.field_changed === 'lifetime_budget') {
+    if (oldValue && newValue && oldValue !== 'Não definido' && newValue !== 'Não definido') {
+      return `Orçamento total alterado de ${oldValue} para ${newValue}`;
+    }
+    return `Orçamento total definido como ${newValue}`;
   }
   
   // Mudança de objetivo
@@ -214,9 +300,29 @@ function getChangeDescription(record: OptimizationRecord): string {
     return `Objetivo alterado para "${newValue}"`;
   }
   
-  // Mudança de targeting
-  if (record.field_changed === 'targeting') {
-    return `Público-alvo foi modificado: ${newValue}`;
+  // Mudança de targeting / público
+  if (record.field_changed === 'targeting' || record.field_changed.includes('target_spec')) {
+    if (newValue === 'Segmentação personalizada' || newValue === 'Configuração atualizada') {
+      return `Público-alvo foi modificado`;
+    }
+    return `Público-alvo: ${newValue}`;
+  }
+  
+  // Mudança de estratégia de lance
+  if (record.field_changed.includes('bid')) {
+    const bidStrategyMap: Record<string, string> = {
+      'LOWEST_COST_BID_STRATEGY': 'Menor custo',
+      'LOWEST_COST_WITHOUT_CAP': 'Menor custo sem limite',
+      'COST_CAP': 'Limite de custo',
+      'BID_CAP': 'Limite de lance',
+    };
+    const newBid = bidStrategyMap[record.new_value || ''] || record.new_value || 'Nova estratégia';
+    return `Estratégia de lance alterada para "${newBid}"`;
+  }
+  
+  // Mudança de nome
+  if (record.field_changed === 'name') {
+    return `Nome alterado para "${record.new_value}"`;
   }
   
   // Mudança de criativo
@@ -226,15 +332,28 @@ function getChangeDescription(record: OptimizationRecord): string {
   if (record.field_changed === 'primary_text') {
     return `Texto principal foi modificado`;
   }
-  if (record.field_changed === 'creative_image_url') {
-    return `Imagem do criativo foi substituída`;
+  if (record.field_changed === 'creative_image_url' || record.field_changed === 'creative') {
+    return `Criativo foi atualizado`;
   }
   if (record.field_changed === 'creative_video_url') {
     return `Vídeo do criativo foi substituído`;
   }
   
-  // Fallback genérico
-  return `${fieldLabel}: "${oldValue}" → "${newValue}"`;
+  // Criação
+  if (record.field_changed === 'created') {
+    return `${entityLabel} foi criado(a)`;
+  }
+  
+  // Fallback - traduz o nome do campo
+  const readableField = fieldLabel || record.field_changed
+    .replace('update_', '')
+    .replace('ad_set_', 'conjunto: ')
+    .replace('_', ' ');
+  
+  if (oldValue && newValue && oldValue !== 'Não definido') {
+    return `${readableField} alterado de "${oldValue}" para "${newValue}"`;
+  }
+  return `${readableField} foi atualizado`;
 }
 
 // Função para obter o ícone da mudança
