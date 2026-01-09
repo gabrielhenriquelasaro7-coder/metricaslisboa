@@ -870,9 +870,29 @@ async function detectAndRecordChanges(
 ): Promise<any[]> {
   const changes: any[] = [];
   if (newRecords.length === 0) return changes;
+  
   const ids = newRecords.map(r => r.id);
+  
+  // Fetch existing records from the entity table
   const { data: existingRecords } = await supabase.from(tableName).select('*').in('id', ids).eq('project_id', projectId);
   const existingMap = new Map((existingRecords || []).map((r: any) => [r.id, r]));
+  
+  // Fetch recent changes (last 24h) to avoid duplicates
+  const oneDayAgo = new Date();
+  oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+  
+  const { data: recentChanges } = await supabase
+    .from('optimization_history')
+    .select('entity_id, field_changed, new_value')
+    .eq('project_id', projectId)
+    .eq('entity_type', entityType)
+    .in('entity_id', ids)
+    .gte('detected_at', oneDayAgo.toISOString());
+  
+  // Create a set of recent change keys to check for duplicates
+  const recentChangeKeys = new Set(
+    (recentChanges || []).map((c: any) => `${c.entity_id}:${c.field_changed}:${c.new_value}`)
+  );
   
   for (const newRecord of newRecords) {
     const existing = existingMap.get(newRecord.id) as Record<string, any> | undefined;
@@ -882,19 +902,22 @@ async function detectAndRecordChanges(
     const changedBy = actorInfo?.actorName || null;
     
     // New entity detection
-    if (!existing) { 
-      changes.push({ 
-        project_id: projectId, 
-        entity_type: entityType, 
-        entity_id: newRecord.id, 
-        entity_name: newRecord.name || 'Unknown', 
-        field_changed: 'created', 
-        old_value: null, 
-        new_value: newRecord.status || 'ACTIVE', 
-        change_type: 'created', 
-        change_percentage: null,
-        changed_by: changedBy
-      }); 
+    if (!existing) {
+      const changeKey = `${newRecord.id}:created:${newRecord.status || 'ACTIVE'}`;
+      if (!recentChangeKeys.has(changeKey)) {
+        changes.push({ 
+          project_id: projectId, 
+          entity_type: entityType, 
+          entity_id: newRecord.id, 
+          entity_name: newRecord.name || 'Unknown', 
+          field_changed: 'created', 
+          old_value: null, 
+          new_value: newRecord.status || 'ACTIVE', 
+          change_type: 'created', 
+          change_percentage: null,
+          changed_by: changedBy
+        }); 
+      }
       continue; 
     }
     
@@ -909,22 +932,30 @@ async function detectAndRecordChanges(
         
         if (oldSummary === newSummary) continue;
         
-        changes.push({ 
-          project_id: projectId, 
-          entity_type: entityType, 
-          entity_id: newRecord.id, 
-          entity_name: newRecord.name || existing.name || 'Unknown', 
-          field_changed: 'targeting', 
-          old_value: oldSummary, 
-          new_value: newSummary, 
-          change_type: 'targeting_change', 
-          change_percentage: null,
-          changed_by: changedBy
-        });
+        const changeKey = `${newRecord.id}:targeting:${newSummary}`;
+        if (!recentChangeKeys.has(changeKey)) {
+          changes.push({ 
+            project_id: projectId, 
+            entity_type: entityType, 
+            entity_id: newRecord.id, 
+            entity_name: newRecord.name || existing.name || 'Unknown', 
+            field_changed: 'targeting', 
+            old_value: oldSummary, 
+            new_value: newSummary, 
+            change_type: 'targeting_change', 
+            change_percentage: null,
+            changed_by: changedBy
+          });
+        }
         continue;
       }
       
       if (oldVal === newVal || (oldVal == null && newVal == null)) continue;
+      
+      // Check for duplicate
+      const newValStr = newVal != null ? String(newVal) : null;
+      const changeKey = `${newRecord.id}:${field}:${newValStr}`;
+      if (recentChangeKeys.has(changeKey)) continue;
       
       let changeType = 'modified', changePct: number | null = null;
       
@@ -943,7 +974,7 @@ async function detectAndRecordChanges(
         entity_name: newRecord.name || existing.name || 'Unknown', 
         field_changed: field, 
         old_value: oldVal != null ? String(oldVal) : null, 
-        new_value: newVal != null ? String(newVal) : null, 
+        new_value: newValStr, 
         change_type: changeType, 
         change_percentage: changePct,
         changed_by: changedBy
