@@ -51,7 +51,6 @@ import {
 } from '@/components/ui/collapsible';
 import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
-import { OptimizationHistoryDialog } from '@/components/optimization/OptimizationHistoryDialog';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
 
@@ -78,7 +77,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const [campaignsOpen, setCampaignsOpen] = useState(true);
   const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  
   const [isChangingProject, setIsChangingProject] = useState(false);
   
   const location = useLocation();
@@ -419,13 +418,16 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
             {/* Histórico de Otimizações */}
             {selectedProject && (
-              <button
-                onClick={() => setHistoryDialogOpen(true)}
-                className="sidebar-item w-full"
+              <Link
+                to="/optimization-history"
+                className={cn(
+                  'sidebar-item',
+                  location.pathname === '/optimization-history' && 'active'
+                )}
               >
                 <History className="w-5 h-5 flex-shrink-0" />
                 {!collapsed && <span>Histórico</span>}
-              </button>
+              </Link>
             )}
 
 
@@ -531,14 +533,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         />
       )}
 
-      {/* Optimization History Dialog */}
-      {selectedProject && (
-        <OptimizationHistoryDialog
-          open={historyDialogOpen}
-          onOpenChange={setHistoryDialogOpen}
-          projectId={selectedProject.id}
-        />
-      )}
     </aside>
   );
 }
