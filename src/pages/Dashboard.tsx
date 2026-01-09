@@ -7,6 +7,7 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
 import { DynamicResultMetrics } from '@/components/dashboard/DynamicResultMetrics';
+import { TopCampaignsCard } from '@/components/dashboard/TopCampaignsCard';
 import { LeadsSyncCard } from '@/components/leads/LeadsSyncCard';
 import { AccountBalanceCard } from '@/components/dashboard/AccountBalanceCard';
 import { useDemographicInsights } from '@/hooks/useDemographicInsights';
@@ -767,91 +768,11 @@ export default function Dashboard() {
 
 
             {/* Top Campaigns */}
-            <div className="glass-card p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">Top Campanhas</h3>
-                <Link to="/campaigns">
-                  <Button variant="outline" size="sm">Ver todas</Button>
-                </Link>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Campanha</th>
-                      <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Gasto</th>
-                      {isEcommerce && (
-                        <>
-                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Receita</th>
-                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">ROAS</th>
-                        </>
-                      )}
-                      {isInsideSales && (
-                        <>
-                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Leads</th>
-                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">CPL</th>
-                        </>
-                      )}
-                      {isPdv && (
-                        <>
-                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Visitas</th>
-                          <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Custo/Visita</th>
-                        </>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {campaigns
-                      .sort((a, b) => isEcommerce ? b.roas - a.roas : b.conversions - a.conversions)
-                      .slice(0, 5)
-                      .map((campaign) => (
-                        <tr key={campaign.id} className="border-b border-border/50 hover:bg-secondary/30">
-                          <td className="py-3 px-2">
-                            <div className="max-w-[200px]">
-                              <p className="font-medium truncate">{campaign.name}</p>
-                              <p className="text-xs text-muted-foreground">{campaign.objective}</p>
-                            </div>
-                          </td>
-                          <td className="text-right py-3 px-2">{formatCurrency(campaign.spend)}</td>
-                          {isEcommerce && (
-                            <>
-                              <td className="text-right py-3 px-2">{formatCurrency(campaign.conversion_value)}</td>
-                              <td className="text-right py-3 px-2">
-                                <span className={cn(
-                                  "font-semibold",
-                                  campaign.roas >= 3 ? "text-metric-positive" : "text-metric-negative"
-                                )}>
-                                  {campaign.roas.toFixed(2)}x
-                                </span>
-                              </td>
-                            </>
-                          )}
-                          {isInsideSales && (
-                            <>
-                              <td className="text-right py-3 px-2">{campaign.conversions}</td>
-                              <td className="text-right py-3 px-2">
-                                {campaign.conversions > 0 
-                                  ? formatCurrency(campaign.spend / campaign.conversions)
-                                  : '-'}
-                              </td>
-                            </>
-                          )}
-                          {isPdv && (
-                            <>
-                              <td className="text-right py-3 px-2">{campaign.conversions}</td>
-                              <td className="text-right py-3 px-2">
-                                {campaign.conversions > 0 
-                                  ? formatCurrency(campaign.spend / campaign.conversions)
-                                  : '-'}
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <TopCampaignsCard
+              campaigns={campaigns}
+              businessModel={businessModel || null}
+              currency={selectedProject?.currency || 'BRL'}
+            />
           </>
         )}
       </div>
