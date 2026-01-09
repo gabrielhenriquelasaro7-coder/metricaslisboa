@@ -50,7 +50,20 @@ import {
   ResponsiveContainer,
   ComposedChart,
   Bar,
+  Line,
+  Area,
+  AreaChart,
+  BarChart,
+  LineChart,
 } from 'recharts';
+import { Settings2, Palette, LineChart as LineChartIcon } from 'lucide-react';
+import { ChartCustomizationDialog } from '@/components/dashboard/ChartCustomizationDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function PredictiveAnalysis() {
   const projectId = localStorage.getItem('selectedProjectId');
@@ -66,6 +79,11 @@ export default function PredictiveAnalysis() {
   // Filters for suggestions
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'applied' | 'ignored'>('all');
+  
+  // Chart customization state
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'area'>('bar');
+  const [chartColor, setChartColor] = useState('hsl(142, 76%, 36%)');
+  const [chartCustomizationOpen, setChartCustomizationOpen] = useState(false);
 
   // Stringify goal for comparison to detect changes
   const goalHash = useMemo(() => JSON.stringify(goal), [goal]);
@@ -583,15 +601,15 @@ export default function PredictiveAnalysis() {
                   {/* Simple Summary Cards */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                      <p className="text-sm text-muted-foreground mb-1">💰 Gasto Total</p>
+                      <p className="text-sm text-muted-foreground mb-1">Gasto Total</p>
                       <p className="text-2xl font-bold text-blue-500">{formatCurrency(data.totals.spend30Days)}</p>
                     </div>
                     <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                      <p className="text-sm text-muted-foreground mb-1">🎯 {showCPL ? 'Leads' : 'Resultados'}</p>
+                      <p className="text-sm text-muted-foreground mb-1">{showCPL ? 'Leads' : 'Resultados'}</p>
                       <p className="text-2xl font-bold text-green-500">{formatNumber(data.totals.conversions30Days)}</p>
                     </div>
                     <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                      <p className="text-sm text-muted-foreground mb-1">📊 CPL Médio</p>
+                      <p className="text-sm text-muted-foreground mb-1">CPL Médio</p>
                       <p className="text-2xl font-bold text-purple-500">
                         {data.totals.conversions30Days > 0 
                           ? formatCurrency(data.totals.spend30Days / data.totals.conversions30Days)
@@ -599,7 +617,7 @@ export default function PredictiveAnalysis() {
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                      <p className="text-sm text-muted-foreground mb-1">📅 Média/Dia</p>
+                      <p className="text-sm text-muted-foreground mb-1">Média/Dia</p>
                       <p className="text-2xl font-bold text-amber-500">
                         {formatNumber(data.totals.conversions30Days / 30)} {showCPL ? 'leads' : 'conv.'}
                       </p>
@@ -611,7 +629,7 @@ export default function PredictiveAnalysis() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="p-4 rounded-xl bg-gradient-to-r from-green-500/10 to-green-500/5 border border-green-500/30">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-lg">🏆</span>
+                          <TrendingUp className="w-5 h-5 text-green-500" />
                           <span className="font-semibold text-green-500">Melhor Dia: {performanceMarkers.best.date}</span>
                         </div>
                         <p className="text-sm text-muted-foreground">
@@ -623,7 +641,7 @@ export default function PredictiveAnalysis() {
                       </div>
                       <div className="p-4 rounded-xl bg-gradient-to-r from-red-500/10 to-red-500/5 border border-red-500/30">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-lg">⚠️</span>
+                          <AlertTriangle className="w-5 h-5 text-red-500" />
                           <span className="font-semibold text-red-500">Pior Dia: {performanceMarkers.worst.date}</span>
                         </div>
                         <p className="text-sm text-muted-foreground">
@@ -636,58 +654,196 @@ export default function PredictiveAnalysis() {
                     </div>
                   )}
 
-                  {/* Simplified Chart - Just bars for results */}
+                  {/* Chart with customization controls */}
                   <div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      📈 <strong>{showCPL ? 'Leads' : 'Resultados'} por dia</strong> — barras maiores = mais resultados
-                    </p>
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm text-muted-foreground">
+                        <strong>{showCPL ? 'Leads' : 'Resultados'} por dia</strong> — barras maiores = mais resultados
+                      </p>
+                      <div className="flex items-center gap-2">
+                        {/* Chart Type Selector */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="gap-2">
+                              <LineChartIcon className="w-4 h-4" />
+                              Tipo
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setChartType('bar')} className={chartType === 'bar' ? 'bg-accent' : ''}>
+                              <BarChart3 className="w-4 h-4 mr-2" />
+                              Barras
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChartType('line')} className={chartType === 'line' ? 'bg-accent' : ''}>
+                              <LineChartIcon className="w-4 h-4 mr-2" />
+                              Linhas
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChartType('area')} className={chartType === 'area' ? 'bg-accent' : ''}>
+                              <TrendingUp className="w-4 h-4 mr-2" />
+                              Área
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        
+                        {/* Color customization */}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="gap-2"
+                          onClick={() => setChartCustomizationOpen(true)}
+                        >
+                          <Palette className="w-4 h-4" />
+                          Cores
+                        </Button>
+                      </div>
+                    </div>
+                    
                     <ChartContainer config={chartConfig} className="h-[250px] w-full !aspect-auto">
                       <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={chartData}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
-                          <XAxis 
-                            dataKey="date" 
-                            tick={{ fontSize: 10 }} 
-                            tickLine={false}
-                            axisLine={false}
-                            interval="preserveStartEnd"
-                          />
-                          <YAxis 
-                            tick={{ fontSize: 11 }} 
-                            tickLine={false}
-                            axisLine={false}
-                            width={40}
-                            allowDecimals={false}
-                            domain={[0, 'dataMax']}
-                          />
-                          <ChartTooltip 
-                            content={({ active, payload }) => {
-                              if (!active || !payload?.length) return null;
-                              const d = payload[0]?.payload;
-                              return (
-                                <div className="bg-popover border rounded-lg shadow-lg p-3 space-y-1">
-                                  <p className="font-semibold">{d?.date}</p>
-                                  <p className="text-green-500">🎯 {d?.conversions} {showCPL ? 'leads' : 'resultados'}</p>
-                                  <p className="text-blue-500">💰 R$ {d?.spend?.toFixed(2)}</p>
-                                  <p className="text-purple-500">
-                                    📊 CPL: R$ {d?.conversions > 0 ? (d.spend / d.conversions).toFixed(2) : '0'}
-                                  </p>
-                                </div>
-                              );
-                            }}
-                          />
-                          <Bar
-                            dataKey="conversions"
-                            name={showCPL ? "Leads" : "Resultados"}
-                            fill="hsl(142, 76%, 36%)"
-                            radius={[4, 4, 0, 0]}
-                          />
-                        </ComposedChart>
+                        {chartType === 'bar' ? (
+                          <BarChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                            <XAxis 
+                              dataKey="date" 
+                              tick={{ fontSize: 10 }} 
+                              tickLine={false}
+                              axisLine={false}
+                              interval="preserveStartEnd"
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 11 }} 
+                              tickLine={false}
+                              axisLine={false}
+                              width={40}
+                              allowDecimals={false}
+                              domain={[0, 'dataMax']}
+                            />
+                            <ChartTooltip 
+                              content={({ active, payload }) => {
+                                if (!active || !payload?.length) return null;
+                                const d = payload[0]?.payload;
+                                return (
+                                  <div className="bg-popover border rounded-lg shadow-lg p-3 space-y-1">
+                                    <p className="font-semibold">{d?.date}</p>
+                                    <p style={{ color: chartColor }}>{d?.conversions} {showCPL ? 'leads' : 'resultados'}</p>
+                                    <p className="text-blue-500">R$ {d?.spend?.toFixed(2)}</p>
+                                    <p className="text-purple-500">
+                                      CPL: R$ {d?.conversions > 0 ? (d.spend / d.conversions).toFixed(2) : '0'}
+                                    </p>
+                                  </div>
+                                );
+                              }}
+                            />
+                            <Bar
+                              dataKey="conversions"
+                              name={showCPL ? "Leads" : "Resultados"}
+                              fill={chartColor}
+                              radius={[4, 4, 0, 0]}
+                            />
+                          </BarChart>
+                        ) : chartType === 'line' ? (
+                          <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                            <XAxis 
+                              dataKey="date" 
+                              tick={{ fontSize: 10 }} 
+                              tickLine={false}
+                              axisLine={false}
+                              interval="preserveStartEnd"
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 11 }} 
+                              tickLine={false}
+                              axisLine={false}
+                              width={40}
+                              allowDecimals={false}
+                              domain={[0, 'dataMax']}
+                            />
+                            <ChartTooltip 
+                              content={({ active, payload }) => {
+                                if (!active || !payload?.length) return null;
+                                const d = payload[0]?.payload;
+                                return (
+                                  <div className="bg-popover border rounded-lg shadow-lg p-3 space-y-1">
+                                    <p className="font-semibold">{d?.date}</p>
+                                    <p style={{ color: chartColor }}>{d?.conversions} {showCPL ? 'leads' : 'resultados'}</p>
+                                    <p className="text-blue-500">R$ {d?.spend?.toFixed(2)}</p>
+                                    <p className="text-purple-500">
+                                      CPL: R$ {d?.conversions > 0 ? (d.spend / d.conversions).toFixed(2) : '0'}
+                                    </p>
+                                  </div>
+                                );
+                              }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="conversions"
+                              name={showCPL ? "Leads" : "Resultados"}
+                              stroke={chartColor}
+                              strokeWidth={2}
+                              dot={{ fill: chartColor, r: 3 }}
+                            />
+                          </LineChart>
+                        ) : (
+                          <AreaChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                            <XAxis 
+                              dataKey="date" 
+                              tick={{ fontSize: 10 }} 
+                              tickLine={false}
+                              axisLine={false}
+                              interval="preserveStartEnd"
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 11 }} 
+                              tickLine={false}
+                              axisLine={false}
+                              width={40}
+                              allowDecimals={false}
+                              domain={[0, 'dataMax']}
+                            />
+                            <ChartTooltip 
+                              content={({ active, payload }) => {
+                                if (!active || !payload?.length) return null;
+                                const d = payload[0]?.payload;
+                                return (
+                                  <div className="bg-popover border rounded-lg shadow-lg p-3 space-y-1">
+                                    <p className="font-semibold">{d?.date}</p>
+                                    <p style={{ color: chartColor }}>{d?.conversions} {showCPL ? 'leads' : 'resultados'}</p>
+                                    <p className="text-blue-500">R$ {d?.spend?.toFixed(2)}</p>
+                                    <p className="text-purple-500">
+                                      CPL: R$ {d?.conversions > 0 ? (d.spend / d.conversions).toFixed(2) : '0'}
+                                    </p>
+                                  </div>
+                                );
+                              }}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="conversions"
+                              name={showCPL ? "Leads" : "Resultados"}
+                              fill={chartColor}
+                              fillOpacity={0.3}
+                              stroke={chartColor}
+                              strokeWidth={2}
+                            />
+                          </AreaChart>
+                        )}
                       </ResponsiveContainer>
                     </ChartContainer>
                   </div>
                 </CardContent>
               </Card>
+              
+              {/* Chart Customization Dialog */}
+              <ChartCustomizationDialog
+                open={chartCustomizationOpen}
+                onOpenChange={setChartCustomizationOpen}
+                chartName="Gráfico de Leads"
+                primaryColor={chartColor}
+                secondaryColor={chartColor}
+                onSave={(_, primary) => setChartColor(primary)}
+              />
 
 
               {/* Account Goals Progress - General Goals */}
