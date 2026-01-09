@@ -427,10 +427,10 @@ export default function PredictiveAnalysis() {
                 </Card>
 
                 {/* End of Year Projection */}
-                <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow border-purple-500/30">
+                <Card className="bg-card hover:shadow-md transition-shadow">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
-                      <Zap className="w-5 h-5 text-purple-500" />
+                      <Zap className="w-5 h-5 text-primary" />
                       Até Final de {new Date().getFullYear()}
                     </CardTitle>
                     <CardDescription>
@@ -439,9 +439,9 @@ export default function PredictiveAnalysis() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* Realistic - Main */}
-                    <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
                       <div className="flex items-center gap-2 mb-2">
-                        <Target className="w-4 h-4 text-purple-500" />
+                        <Target className="w-4 h-4 text-primary" />
                         <span className="text-sm font-medium">Projeção Realista</span>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
@@ -455,7 +455,7 @@ export default function PredictiveAnalysis() {
                         </div>
                       </div>
                       {showROAS && (
-                        <div className="mt-2 pt-2 border-t border-purple-500/20">
+                        <div className="mt-2 pt-2 border-t border-primary/20">
                           <p className="text-xs text-muted-foreground">Receita Projetada</p>
                           <p className="text-lg font-bold text-metric-positive">{formatCurrency(data.predictions.endOfYear?.scenarios?.realistic?.revenue || data.predictions.next30Days.estimatedRevenue * 4)}</p>
                         </div>
