@@ -203,8 +203,8 @@ export default function Campaigns() {
       <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in">
         {/* Info Banner - Sync automático */}
         {usingFallbackData && !loading && (
-          <div className="bg-primary/10 border border-primary/30 rounded-xl p-3 sm:p-4 flex items-start sm:items-center gap-3 red-gradient-card">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
+          <div className="bg-secondary border border-border rounded-xl p-3 sm:p-4 flex items-start sm:items-center gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
               <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
             <div className="min-w-0">
@@ -220,11 +220,11 @@ export default function Campaigns() {
         {/* Header */}
         <div className="flex flex-col gap-3 sm:gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2 gradient-text inline-block">Campanhas</h1>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2 text-foreground">Campanhas</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
               {selectedProject ? `Projeto: ${selectedProject.name}` : 'Selecione um projeto'}
               {selectedProject && (
-                <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
                   {isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'}
                 </span>
               )}
@@ -232,9 +232,9 @@ export default function Campaigns() {
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             {selectedProject?.last_sync_at && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-border/50">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-border">
                 <div className="w-2 h-2 rounded-full bg-metric-positive animate-pulse" />
-                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
                 <span className="truncate">Sync: {lastSyncDisplay}</span>
               </div>
             )}

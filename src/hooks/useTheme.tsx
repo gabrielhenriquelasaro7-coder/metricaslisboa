@@ -2,14 +2,23 @@ import { useEffect, useState } from 'react';
 
 type Theme = 'dark' | 'light';
 
+function getSystemTheme(): Theme {
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  return 'dark';
+}
+
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {
     // Check localStorage first
-    const stored = localStorage.getItem('theme') as Theme;
-    if (stored) return stored;
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('theme') as Theme;
+      if (stored === 'light' || stored === 'dark') return stored;
+    }
     
-    // Default to dark
-    return 'dark';
+    // Then check system preference
+    return getSystemTheme();
   });
 
   useEffect(() => {
@@ -25,6 +34,22 @@ export function useTheme() {
     
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Listen for system preference changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
+    
+    const handleChange = (e: MediaQueryListEvent) => {
+      // Only auto-switch if user hasn't manually set a preference
+      const stored = localStorage.getItem('theme');
+      if (!stored) {
+        setTheme(e.matches ? 'light' : 'dark');
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');

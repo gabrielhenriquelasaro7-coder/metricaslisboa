@@ -251,16 +251,16 @@ export default function Creatives() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2 gradient-text">Galeria de Criativos</h1>
+            <h1 className="text-3xl font-bold mb-2 text-foreground">Galeria de Criativos</h1>
             <p className="text-muted-foreground">
               Análise de performance dos seus criativos
               {selectedProject && (
-                <Badge variant="outline" className="ml-2 text-xs">
+                <Badge variant="outline" className="ml-2 text-xs border-primary/30 text-primary">
                   {isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'}
                 </Badge>
               )}
               {dateRange?.from && dateRange?.to && (
-                <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20">
                   {dateRange.from.toLocaleDateString('pt-BR')} - {dateRange.to.toLocaleDateString('pt-BR')}
                 </span>
               )}
@@ -343,23 +343,23 @@ export default function Creatives() {
 
         {/* Stats - Dynamic based on business model */}
         <div className={cn("grid gap-4", isEcommerce ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-6" : "grid-cols-2 md:grid-cols-4")}>
-          <div className="glass-card p-4 v4-accent">
+          <div className="glass-card p-4 border-l-2 border-l-primary">
             <div className="flex items-center gap-2 mb-1">
               <Target className="w-4 h-4 text-primary" />
               <p className="text-xs text-muted-foreground">Total Criativos</p>
             </div>
-            <p className="text-2xl font-bold">{filteredCreatives.length}</p>
+            <p className="text-2xl font-bold text-foreground">{filteredCreatives.length}</p>
           </div>
           <div className="glass-card p-4">
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className="w-4 h-4 text-primary" />
               <p className="text-xs text-muted-foreground">Gasto Total</p>
             </div>
-            <p className="text-2xl font-bold">{formatCurrency(totalSpend)}</p>
+            <p className="text-2xl font-bold text-foreground">{formatCurrency(totalSpend)}</p>
           </div>
           <div className="glass-card p-4">
             <div className="flex items-center gap-2 mb-1">
-              <ShoppingCart className="w-4 h-4 text-metric-positive" />
+              <ShoppingCart className="w-4 h-4 text-primary" />
               <p className="text-xs text-muted-foreground">{isEcommerce ? 'Total Compras' : 'Total Leads'}</p>
             </div>
             <p className="text-2xl font-bold text-metric-positive">{formatNumber(totalConversions)}</p>
@@ -370,14 +370,14 @@ export default function Creatives() {
             <>
               <div className="glass-card p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <DollarSign className="w-4 h-4 text-metric-positive" />
+                  <DollarSign className="w-4 h-4 text-primary" />
                   <p className="text-xs text-muted-foreground">Faturamento</p>
                 </div>
-                <p className="text-2xl font-bold">{formatCurrency(totalConversionValue)}</p>
+                <p className="text-2xl font-bold text-foreground">{formatCurrency(totalConversionValue)}</p>
               </div>
               <div className="glass-card p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <TrendingUp className="w-4 h-4 text-metric-positive" />
+                  <TrendingUp className="w-4 h-4 text-primary" />
                   <p className="text-xs text-muted-foreground">ROAS Médio</p>
                 </div>
                 <p className={cn("text-2xl font-bold", avgRoas >= 3 ? "text-metric-positive" : avgRoas >= 1 ? "text-metric-warning" : "text-metric-negative")}>
@@ -389,7 +389,7 @@ export default function Creatives() {
                   <ShoppingCart className="w-4 h-4 text-primary" />
                   <p className="text-xs text-muted-foreground">Ticket Médio</p>
                 </div>
-                <p className="text-2xl font-bold">{formatCurrency(avgTicket)}</p>
+                <p className="text-2xl font-bold text-foreground">{formatCurrency(avgTicket)}</p>
               </div>
             </>
           )}
@@ -398,10 +398,10 @@ export default function Creatives() {
           {isInsideSales && (
             <div className="glass-card p-4">
               <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="w-4 h-4 text-chart-1" />
+                <DollarSign className="w-4 h-4 text-primary" />
                 <p className="text-xs text-muted-foreground">CPL Médio</p>
               </div>
-              <p className="text-2xl font-bold text-chart-1">{formatCurrency(avgCpl)}</p>
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(avgCpl)}</p>
             </div>
           )}
           
@@ -409,10 +409,10 @@ export default function Creatives() {
           {isPdv && (
             <div className="glass-card p-4">
               <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="w-4 h-4 text-chart-2" />
+                <DollarSign className="w-4 h-4 text-primary" />
                 <p className="text-xs text-muted-foreground">Custo por Visita</p>
               </div>
-              <p className="text-2xl font-bold text-chart-2">{formatCurrency(avgCpl)}</p>
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(avgCpl)}</p>
             </div>
           )}
         </div>
