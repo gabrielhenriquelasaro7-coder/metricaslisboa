@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1242 2208" fill="none">
+  <rect width="1242" height="2208" fill="#121212"/>
+  <g transform="translate(521, 1004)">
+    <rect width="200" height="200" rx="20" fill="#E53935"/>
+  </g>
+  <text x="621" y="1280" fill="white" font-size="36" font-family="Arial, sans-serif" text-anchor="middle" font-weight="600">V4 Traffic</text>
+</svg>

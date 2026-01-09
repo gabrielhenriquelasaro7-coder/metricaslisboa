@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" fill="none">
+  <rect width="390" height="844" fill="#121212"/>
+  <g transform="translate(120, 350)">
+    <rect width="150" height="150" rx="15" fill="#E53935"/>
+    <path d="M30 30 L30 90 L45 75 L45 30 L75 30 L75 90 L60 105 L30 105 L30 30" fill="white"/>
+    <path d="M90 60 L90 120 L60 120 L60 90 L120 90 L120 120 L105 120 L105 60 L90 60" fill="white"/>
+  </g>
+  <text x="195" y="550" fill="white" font-size="18" font-family="Arial, sans-serif" text-anchor="middle">V4 Traffic Manager</text>
+</svg>
