@@ -139,32 +139,21 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'h-screen border-r border-sidebar-border transition-all duration-500 ease-out sidebar-container',
+        'h-screen border-r border-sidebar-border transition-all duration-300 sidebar-container',
         onNavigate ? 'relative w-full' : 'fixed left-0 top-0 z-40',
         !onNavigate && (collapsed ? 'w-20' : 'w-72')
       )}
     >
-      {/* Animated gradient overlay */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div 
-          className="absolute -top-1/2 -right-1/2 w-full h-full opacity-30"
-          style={{
-            background: 'radial-gradient(ellipse at 70% 30%, hsl(var(--sidebar-gradient-start) / 0.15) 0%, transparent 60%)',
-            animation: 'sidebar-ambient 10s ease-in-out infinite reverse'
-          }}
-        />
-      </div>
-      
       <div className="relative flex flex-col h-full">
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border/50">
+        <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
           {!isGuest ? (
-            <Link to="/projects" className="flex items-center gap-3 group">
+            <Link to="/projects" className="flex items-center gap-3">
               <img 
                 src={v4LogoFull} 
                 alt="V4 Company" 
                 className={cn(
-                  "transition-all duration-500 sidebar-logo",
+                  "transition-all duration-300 sidebar-logo",
                   collapsed ? "h-8 w-auto" : "h-10 w-auto"
                 )}
               />
@@ -175,7 +164,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 src={v4LogoFull} 
                 alt="V4 Company" 
                 className={cn(
-                  "transition-all duration-500 sidebar-logo",
+                  "transition-all duration-300 sidebar-logo",
                   collapsed ? "h-8 w-auto" : "h-10 w-auto"
                 )}
               />
@@ -191,27 +180,27 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
         {/* Project Selector */}
         {selectedProject && !collapsed && (
-          <div className="px-3 py-3 border-b border-sidebar-border/50" data-tour="project-selector">
+          <div className="px-3 py-3 border-b border-sidebar-border" data-tour="project-selector">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="sidebar-project-selector w-full flex items-center justify-between group">
                   <div className="text-left">
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-metric-positive animate-pulse" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-metric-positive" />
                       Projeto Ativo
                     </p>
-                    <p className="font-semibold truncate mt-0.5 group-hover:text-primary transition-colors">{selectedProject.name}</p>
+                    <p className="font-semibold truncate mt-0.5 text-foreground">{selectedProject.name}</p>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-all group-hover:rotate-180 duration-300" />
+                  <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56 bg-popover/95 backdrop-blur-xl border-sidebar-border">
+              <DropdownMenuContent align="start" className="w-56 bg-popover border-border">
                 {projects.filter(p => !p.archived).map((project) => (
                   <DropdownMenuItem 
                     key={project.id}
                     onClick={() => handleChangeProject(project.id)}
                     className={cn(
-                      'transition-all duration-200',
+                      'transition-colors duration-200',
                       project.id === selectedProject.id && 'bg-primary/15 text-primary'
                     )}
                   >
@@ -227,7 +216,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 ))}
                 {/* Hide "Gerenciar Projetos" for guests */}
                 {!isGuest && (
-                  <DropdownMenuItem onClick={() => navigate('/projects')} className="border-t border-sidebar-border mt-1 pt-2">
+                  <DropdownMenuItem onClick={() => navigate('/projects')} className="border-t border-border mt-1 pt-2">
                     <FolderKanban className="w-4 h-4 mr-2" />
                     Gerenciar Projetos
                   </DropdownMenuItem>
@@ -309,17 +298,16 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                           <div key={campaign.id} className="group/campaign">
                             <button
                               onClick={() => toggleCampaignExpand(campaign.id)}
-                              className="w-full flex items-center gap-2 px-3 py-2 pl-8 text-sm rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent hover:translate-x-1"
+                              className="w-full flex items-center gap-2 px-3 py-2 pl-8 text-sm rounded-lg transition-colors duration-200 hover:bg-secondary"
                             >
                               <span className={cn(
-                                'w-2 h-2 rounded-full flex-shrink-0 transition-all duration-300',
-                                getStatusColor(campaign.status),
-                                campaign.status === 'ACTIVE' && 'shadow-[0_0_8px_hsl(var(--metric-positive)/0.6)]'
+                                'w-2 h-2 rounded-full flex-shrink-0',
+                                getStatusColor(campaign.status)
                               )} />
                               <span className="truncate flex-1 text-left text-muted-foreground group-hover/campaign:text-foreground transition-colors">{campaign.name}</span>
                               {campaignAdSets.length > 0 && (
                                 <span className={cn(
-                                  'transition-transform duration-300',
+                                  'transition-transform duration-200',
                                   isExpanded && 'rotate-180'
                                 )}>
                                   <ChevronDown className="w-3 h-3 flex-shrink-0" />
@@ -329,12 +317,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                             
                             {/* Ad Sets */}
                             {isExpanded && campaignAdSets.length > 0 && (
-                              <div className="ml-6 border-l-2 border-gradient-to-b from-primary/30 to-transparent animate-fade-in">
+                              <div className="ml-6 border-l border-border animate-fade-in">
                                 {campaignAdSets.map((adSet) => (
                                   <Link
                                     key={adSet.id}
                                     to={`/adset/${adSet.id}`}
-                                    className="flex items-center gap-2 px-3 py-1.5 pl-4 text-xs rounded-lg transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-primary/5 hover:translate-x-1"
+                                    className="flex items-center gap-2 px-3 py-1.5 pl-4 text-xs rounded-lg transition-colors duration-200 text-muted-foreground hover:text-foreground hover:bg-secondary"
                                   >
                                     <Layers className="w-3 h-3 flex-shrink-0 opacity-50" />
                                     <span className={cn(
@@ -443,7 +431,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 }}
                 className="sidebar-item w-full group"
               >
-                <Compass className="w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:rotate-45" />
+                <Compass className="w-5 h-5 flex-shrink-0" />
                 {!collapsed && <span>Ver Tour</span>}
               </button>
             )}
@@ -488,18 +476,18 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           )}
         </nav>
 
-        {/* User section com gradiente */}
-        <div className="p-4 border-t border-sidebar-border/50 bg-gradient-to-t from-black/20 to-transparent">
+        {/* User section */}
+        <div className="p-4 border-t border-sidebar-border bg-black/20">
           <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
-            <Avatar className="w-10 h-10 ring-2 ring-primary/30 shadow-lg shadow-primary/20 transition-all duration-300 hover:ring-primary/50 hover:shadow-primary/40">
+            <Avatar className="w-10 h-10 ring-2 ring-primary/20">
               <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback className="bg-gradient-to-br from-primary via-primary to-v4-crimson text-primary-foreground font-bold">
+              <AvatarFallback className="bg-primary text-primary-foreground font-bold">
                 {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
+                <p className="text-sm font-medium truncate text-foreground">
                   {profile?.full_name || 'Investidor'}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
@@ -512,12 +500,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             variant="ghost"
             onClick={handleSignOut}
             className={cn(
-              'mt-4 w-full transition-all duration-300 group',
-              'hover:bg-gradient-to-r hover:from-destructive/20 hover:to-transparent hover:text-destructive',
+              'mt-4 w-full transition-colors duration-200 group',
+              'hover:bg-destructive/10 hover:text-destructive',
               collapsed ? 'px-0' : ''
             )}
           >
-            <LogOut className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
+            <LogOut className="w-4 h-4" />
             {!collapsed && <span className="ml-2">Sair</span>}
           </Button>
         </div>
