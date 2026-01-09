@@ -35,12 +35,16 @@ export interface CampaignGoalProgress {
   cpl: number | null;
   roas: number | null;
   ctr: number | null;
-  targetRoas: number;
-  targetCpl: number;
+  targetRoas: number | null;
+  targetCpl: number | null;
+  targetLeads: number | null;
   roasProgress: number | null;
   cplProgress: number | null;
+  leadsProgress: number | null;
   roasStatus: 'success' | 'warning' | 'critical' | 'unknown';
   cplStatus: 'success' | 'warning' | 'critical' | 'unknown';
+  leadsStatus: 'success' | 'warning' | 'critical' | 'unknown';
+  hasCustomGoal: boolean;
 }
 
 export interface ScenarioData {
@@ -137,6 +141,7 @@ export interface CampaignGoal {
   campaignId: string;
   targetRoas?: number;
   targetCpl?: number;
+  targetLeads?: number;
 }
 
 export function usePredictiveAnalysis(projectId: string | null) {

@@ -11,6 +11,7 @@ interface CampaignGoal {
   campaignId: string;
   targetRoas?: number;
   targetCpl?: number;
+  targetLeads?: number;
 }
 
 serve(async (req) => {
@@ -20,6 +21,9 @@ serve(async (req) => {
 
   try {
     const { projectId, campaignGoals } = await req.json();
+    
+    console.log('[PREDICTIVE] Received request with projectId:', projectId);
+    console.log('[PREDICTIVE] Received campaignGoals:', JSON.stringify(campaignGoals || []));
     
     if (!projectId) {
       throw new Error('projectId é obrigatório');
@@ -338,25 +342,44 @@ serve(async (req) => {
       
       // Find if there's a custom goal for this campaign
       const customGoal = campaignGoals?.find((g: CampaignGoal) => g.campaignId === metrics.campaignId);
+      const hasCustomGoal = !!customGoal && (customGoal.targetCpl || customGoal.targetRoas || customGoal.targetLeads);
       
-      // Default goals based on business model
-      const defaultRoasTarget = project.business_model === 'ecommerce' ? 3 : 2;
-      const defaultCplTarget = project.business_model === 'inside_sales' ? 30 : 50;
+      console.log(`[PREDICTIVE] Campaign ${metrics.campaignName} (${metrics.campaignId}) - customGoal:`, customGoal, 'hasCustomGoal:', hasCustomGoal);
       
-      const targetRoas = customGoal?.targetRoas || defaultRoasTarget;
-      const targetCpl = customGoal?.targetCpl || defaultCplTarget;
+      // Get targets from custom goal or use defaults based on business model
+      const targetRoas = customGoal?.targetRoas || null;
+      const targetCpl = customGoal?.targetCpl || null;
+      const targetLeads = customGoal?.targetLeads || null;
+      
+      // Default goals only if no custom goal is set
+      const effectiveRoasTarget = targetRoas || (project.business_model === 'ecommerce' ? 3 : 2);
+      const effectiveCplTarget = targetCpl || (project.business_model === 'inside_sales' ? 30 : 50);
+      
+      console.log(`[PREDICTIVE] Using targetCpl: ${targetCpl}, targetRoas: ${targetRoas}, targetLeads: ${targetLeads}`);
+      
+      // Calculate leads progress if target is set
+      const leadsProgress = targetLeads ? Math.min((metrics.conversions / targetLeads) * 100, 150) : null;
+      const leadsStatus = targetLeads 
+        ? (metrics.conversions >= targetLeads ? 'success' 
+          : metrics.conversions >= targetLeads * 0.7 ? 'warning' 
+          : 'critical')
+        : 'unknown';
       
       return {
         ...metrics,
         cpl,
         roas,
         ctr,
-        targetRoas,
-        targetCpl,
-        roasProgress: roas !== null ? Math.min((roas / targetRoas) * 100, 150) : null,
-        cplProgress: cpl !== null ? Math.min((targetCpl / cpl) * 100, 150) : null,
-        roasStatus: roas !== null ? (roas >= targetRoas ? 'success' : roas >= targetRoas * 0.7 ? 'warning' : 'critical') : 'unknown',
-        cplStatus: cpl !== null ? (cpl <= targetCpl ? 'success' : cpl <= targetCpl * 1.3 ? 'warning' : 'critical') : 'unknown',
+        targetRoas: targetRoas || effectiveRoasTarget,
+        targetCpl: targetCpl || effectiveCplTarget,
+        targetLeads,
+        hasCustomGoal,
+        roasProgress: roas !== null && targetRoas ? Math.min((roas / targetRoas) * 100, 150) : null,
+        cplProgress: cpl !== null && targetCpl ? Math.min((targetCpl / cpl) * 100, 150) : null,
+        leadsProgress,
+        roasStatus: roas !== null && targetRoas ? (roas >= targetRoas ? 'success' : roas >= targetRoas * 0.7 ? 'warning' : 'critical') : 'unknown',
+        cplStatus: cpl !== null && targetCpl ? (cpl <= targetCpl ? 'success' : cpl <= targetCpl * 1.3 ? 'warning' : 'critical') : 'unknown',
+        leadsStatus,
       };
     });
 
