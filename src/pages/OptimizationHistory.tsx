@@ -67,16 +67,30 @@ const OBJECTIVE_TRANSLATIONS: Record<string, string> = {
 };
 
 const FIELD_LABELS: Record<string, string> = {
+  // Status
   status: 'Status',
+  
+  // Campanha
   objective: 'Objetivo da Campanha',
-  targeting: 'Público-Alvo',
-  creative_image_url: 'Imagem do Criativo',
-  creative_video_url: 'Vídeo do Criativo',
-  headline: 'Título do Anúncio',
-  primary_text: 'Texto Principal',
-  cta: 'Botão de Ação',
   daily_budget: 'Orçamento Diário',
   lifetime_budget: 'Orçamento Total',
+  
+  // Conjunto de Anúncios
+  targeting: 'Público-Alvo',
+  update_ad_set_target_spec: 'Segmentação',
+  update_ad_set_optimization_goal: 'Meta de Otimização',
+  update_ad_set_bid_strategy: 'Estratégia de Lance',
+  update_ad_set_bid_amount: 'Valor do Lance',
+  
+  // Anúncio
+  creative_image_url: 'Imagem do Criativo',
+  creative_video_url: 'Vídeo do Criativo',
+  headline: 'Título',
+  primary_text: 'Texto Principal',
+  cta: 'Botão de Ação (CTA)',
+  creative: 'Criativo',
+  name: 'Nome',
+  created: 'Criação',
 };
 
 const CHANGE_TYPE_CONFIG: Record<string, { label: string; color: string; icon: typeof Settings; description: string }> = {
@@ -295,21 +309,38 @@ function getChangeDescription(record: OptimizationRecord): string {
     return `Orçamento total definido como ${newValue}`;
   }
   
-  // Mudança de objetivo
+  // Mudança de objetivo (CAMPANHA)
   if (record.field_changed === 'objective') {
-    return `Objetivo alterado para "${newValue}"`;
+    return `Objetivo da campanha alterado para "${newValue}"`;
   }
+  
+  // ========== CONJUNTO DE ANÚNCIOS ==========
   
   // Mudança de targeting / público
   if (record.field_changed === 'targeting' || record.field_changed.includes('target_spec')) {
     if (newValue === 'Segmentação personalizada' || newValue === 'Configuração atualizada') {
-      return `Público-alvo foi modificado`;
+      return `Segmentação do conjunto foi modificada`;
     }
-    return `Público-alvo: ${newValue}`;
+    return `Segmentação alterada: ${newValue}`;
+  }
+  
+  // Mudança de meta de otimização
+  if (record.field_changed.includes('optimization_goal')) {
+    const goalMap: Record<string, string> = {
+      'OFFSITE_CONVERSIONS': 'Conversões',
+      'LINK_CLICKS': 'Cliques no link',
+      'LANDING_PAGE_VIEWS': 'Visualizações da página',
+      'IMPRESSIONS': 'Impressões',
+      'REACH': 'Alcance',
+      'LEAD_GENERATION': 'Geração de leads',
+      'Conversões': 'Conversões',
+    };
+    const goalLabel = goalMap[record.new_value || ''] || record.new_value || 'Nova meta';
+    return `Meta de otimização alterada para "${goalLabel}"`;
   }
   
   // Mudança de estratégia de lance
-  if (record.field_changed.includes('bid')) {
+  if (record.field_changed.includes('bid_strategy')) {
     const bidStrategyMap: Record<string, string> = {
       'LOWEST_COST_BID_STRATEGY': 'Menor custo',
       'LOWEST_COST_WITHOUT_CAP': 'Menor custo sem limite',
@@ -320,6 +351,13 @@ function getChangeDescription(record: OptimizationRecord): string {
     return `Estratégia de lance alterada para "${newBid}"`;
   }
   
+  // Mudança de valor do lance
+  if (record.field_changed.includes('bid_amount')) {
+    return `Valor do lance foi alterado`;
+  }
+  
+  // ========== ANÚNCIO ==========
+  
   // Mudança de nome
   if (record.field_changed === 'name') {
     return `Nome alterado para "${record.new_value}"`;
@@ -327,16 +365,19 @@ function getChangeDescription(record: OptimizationRecord): string {
   
   // Mudança de criativo
   if (record.field_changed === 'headline') {
-    return `Título alterado para "${newValue}"`;
+    return `Título do anúncio alterado para "${newValue}"`;
   }
   if (record.field_changed === 'primary_text') {
-    return `Texto principal foi modificado`;
+    return `Texto principal do anúncio foi modificado`;
   }
   if (record.field_changed === 'creative_image_url' || record.field_changed === 'creative') {
-    return `Criativo foi atualizado`;
+    return `Criativo do anúncio foi atualizado`;
   }
   if (record.field_changed === 'creative_video_url') {
-    return `Vídeo do criativo foi substituído`;
+    return `Vídeo do anúncio foi substituído`;
+  }
+  if (record.field_changed === 'cta') {
+    return `Botão de ação (CTA) alterado para "${newValue}"`;
   }
   
   // Criação
@@ -344,14 +385,14 @@ function getChangeDescription(record: OptimizationRecord): string {
     return `${entityLabel} foi criado(a)`;
   }
   
-  // Fallback - traduz o nome do campo
-  const readableField = fieldLabel || record.field_changed
+  // Fallback - usa o mapa de labels
+  const readableField = FIELD_LABELS[record.field_changed] || record.field_changed
     .replace('update_', '')
-    .replace('ad_set_', 'conjunto: ')
-    .replace('_', ' ');
+    .replace('ad_set_', '')
+    .replace(/_/g, ' ');
   
-  if (oldValue && newValue && oldValue !== 'Não definido') {
-    return `${readableField} alterado de "${oldValue}" para "${newValue}"`;
+  if (oldValue && newValue && oldValue !== 'Não definido' && newValue !== 'Não definido') {
+    return `${readableField} alterado para "${newValue}"`;
   }
   return `${readableField} foi atualizado`;
 }
