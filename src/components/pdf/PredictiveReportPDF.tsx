@@ -175,39 +175,108 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
   const trendDirection = data.predictions.trends.spendTrend > 0 ? '+' : '';
   addKeyValue('Tendencia de Gasto', `${trendDirection}${data.predictions.trends.spendTrend.toFixed(1)}% vs semana anterior`);
 
-  // 30 Days Summary
+  // 30 Days Summary with detailed metrics
   checkNewPage();
   addSectionTitle('Resumo dos Ultimos 30 Dias');
-  addKeyValue('Total Gasto', formatCurrency(data.totals.spend30Days));
+  addKeyValue('Total Investido', formatCurrency(data.totals.spend30Days));
   addKeyValue(showCPL ? 'Total Leads' : 'Total Conversoes', formatNumber(data.totals.conversions30Days));
+  
+  // CPL Médio
+  if (showCPL && data.totals.conversions30Days > 0) {
+    const avgCpl = data.totals.spend30Days / data.totals.conversions30Days;
+    addKeyValue('CPL Medio', formatCurrency(avgCpl));
+  }
+  
+  // Média diária
+  const avgDailyConversions = data.totals.conversions30Days / 30;
+  addKeyValue(`Media Diaria (${showCPL ? 'Leads' : 'Conversoes'})`, formatNumber(avgDailyConversions));
+  
   if (showROAS && !showCPL) {
     addKeyValue('Total Receita', formatCurrency(data.totals.revenue30Days));
   }
   addKeyValue('Total Cliques', formatNumber(data.totals.clicks30Days));
   addKeyValue('Total Impressoes', formatNumber(data.totals.impressions30Days));
+  
+  // Best and Worst Days Analysis
+  if (data.dailyTrend && data.dailyTrend.length > 0) {
+    const daysWithConversions = data.dailyTrend.filter(d => d.conversions > 0);
+    if (daysWithConversions.length > 0) {
+      yPos += 5;
+      addSubtitle('Analise de Dias');
+      
+      // Find best day (lowest CPL with conversions)
+      const bestDay = daysWithConversions.reduce((best, current) => {
+        const bestCpl = best.spend / best.conversions;
+        const currentCpl = current.spend / current.conversions;
+        return currentCpl < bestCpl ? current : best;
+      });
+      
+      // Find worst day (highest CPL with conversions)
+      const worstDay = daysWithConversions.reduce((worst, current) => {
+        const worstCpl = worst.spend / worst.conversions;
+        const currentCpl = current.spend / current.conversions;
+        return currentCpl > worstCpl ? current : worst;
+      });
+      
+      const bestCpl = bestDay.spend / bestDay.conversions;
+      const worstCpl = worstDay.spend / worstDay.conversions;
+      
+      addKeyValue('Melhor Dia', `${bestDay.date} - ${formatNumber(bestDay.conversions)} ${showCPL ? 'leads' : 'conv.'} (CPL: ${formatCurrency(bestCpl)})`, true);
+      addKeyValue('Pior Dia', `${worstDay.date} - ${formatNumber(worstDay.conversions)} ${showCPL ? 'leads' : 'conv.'} (CPL: ${formatCurrency(worstCpl)})`);
+    }
+  }
 
-  // Campaign Goals
+  // Campaign Goals with Objective info
   const campaignsWithData = data.campaignGoalsProgress.filter(c => c.spend > 0).slice(0, 10);
   if (campaignsWithData.length > 0) {
     checkNewPage(50);
     addSectionTitle('Performance por Campanha');
     
     campaignsWithData.forEach((campaign, index) => {
-      checkNewPage(35);
+      checkNewPage(40);
       
       // Campaign name
       yPos += 3;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(31, 41, 55);
-      const campaignName = campaign.campaignName.length > 50 
-        ? campaign.campaignName.slice(0, 50) + '...' 
+      const campaignName = campaign.campaignName.length > 45 
+        ? campaign.campaignName.slice(0, 45) + '...' 
         : campaign.campaignName;
       doc.text(`${index + 1}. ${campaignName}`, margin, yPos);
+      
+      // Show objective badge if available
+      const objective = (campaign as any).objective;
+      if (objective) {
+        const objLabel = objective === 'MESSAGES' ? 'Mensagens' :
+                        objective === 'LINK_CLICKS' ? 'Trafego' :
+                        objective === 'LEAD_GENERATION' ? 'Leads' :
+                        objective === 'CONVERSIONS' ? 'Conversoes' :
+                        objective === 'OUTCOME_TRAFFIC' ? 'Trafego' :
+                        objective === 'OUTCOME_ENGAGEMENT' ? 'Engajamento' :
+                        objective === 'OUTCOME_LEADS' ? 'Leads' :
+                        objective === 'OUTCOME_SALES' ? 'Vendas' :
+                        objective;
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(107, 114, 128);
+        doc.text(`[${objLabel}]`, pageWidth - margin, yPos, { align: 'right' });
+      }
       yPos += 7;
       
       addKeyValue('   Investido', formatCurrency(campaign.spend));
       addKeyValue(showCPL ? '   Leads' : '   Conversoes', formatNumber(campaign.conversions));
+      
+      // Show profile visits or messaging replies if relevant
+      const profileVisits = (campaign as any).profileVisits;
+      const messagingReplies = (campaign as any).messagingReplies;
+      
+      if (profileVisits && profileVisits > 0) {
+        addKeyValue('   Visitas ao Perfil', formatNumber(profileVisits));
+      }
+      if (messagingReplies && messagingReplies > 0) {
+        addKeyValue('   Respostas de Mensagem', formatNumber(messagingReplies));
+      }
       
       if (showROAS && !showCPL && campaign.roas !== null) {
         const roasStatus = campaign.roasStatus === 'success' ? ' (OK)' : 
