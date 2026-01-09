@@ -138,33 +138,53 @@ function translateValue(value: string | null, field: string): string {
     return OBJECTIVE_TRANSLATIONS[value] || value;
   }
   
-  // Traduz targeting (é um JSON normalmente)
+  // Traduz targeting (formato resumido: idade:18-65|genero:1,2|local:SP|publicos:3)
   if (field === 'targeting') {
-    try {
-      const parsed = JSON.parse(value);
-      const parts: string[] = [];
+    if (!value) return 'Não definido';
+    
+    const parts = value.split('|');
+    const translated: string[] = [];
+    
+    const genderMap: Record<string, string> = { '1': 'Homens', '2': 'Mulheres' };
+    const platformMap: Record<string, string> = { 
+      'facebook': 'Facebook', 
+      'instagram': 'Instagram', 
+      'audience_network': 'Audience Network',
+      'messenger': 'Messenger'
+    };
+    
+    for (const part of parts) {
+      const [key, val] = part.split(':');
+      if (!key || !val) continue;
       
-      if (parsed.age_min || parsed.age_max) {
-        parts.push(`Idade: ${parsed.age_min || '18'}-${parsed.age_max || '65+'}anos`);
+      switch (key) {
+        case 'idade':
+          translated.push(`📅 Idade: ${val} anos`);
+          break;
+        case 'genero':
+          const genders = val.split(',').map(g => genderMap[g] || g).join(' e ');
+          translated.push(`👥 Gênero: ${genders}`);
+          break;
+        case 'local':
+          translated.push(`📍 Local: ${val}`);
+          break;
+        case 'publicos':
+          translated.push(`🎯 ${val} público(s) personalizado(s)`);
+          break;
+        case 'excluidos':
+          translated.push(`🚫 ${val} público(s) excluído(s)`);
+          break;
+        case 'interesses':
+          translated.push(`💡 ${val} interesse(s)`);
+          break;
+        case 'plataformas':
+          const platforms = val.split(',').map(p => platformMap[p] || p).join(', ');
+          translated.push(`📱 Plataformas: ${platforms}`);
+          break;
       }
-      if (parsed.genders && parsed.genders.length > 0) {
-        const genderMap: Record<number, string> = { 1: 'Homens', 2: 'Mulheres' };
-        const genders = parsed.genders.map((g: number) => genderMap[g] || g).join(' e ');
-        parts.push(`Gênero: ${genders}`);
-      }
-      if (parsed.geo_locations?.cities && parsed.geo_locations.cities.length > 0) {
-        const cities = parsed.geo_locations.cities.map((c: { name: string }) => c.name).slice(0, 3).join(', ');
-        parts.push(`Cidades: ${cities}${parsed.geo_locations.cities.length > 3 ? '...' : ''}`);
-      }
-      if (parsed.geo_locations?.regions && parsed.geo_locations.regions.length > 0) {
-        const regions = parsed.geo_locations.regions.map((r: { name: string }) => r.name).slice(0, 3).join(', ');
-        parts.push(`Regiões: ${regions}`);
-      }
-      
-      return parts.length > 0 ? parts.join(' | ') : 'Segmentação personalizada';
-    } catch {
-      return 'Segmentação atualizada';
     }
+    
+    return translated.length > 0 ? translated.join(' | ') : 'Segmentação personalizada';
   }
   
   return value;
