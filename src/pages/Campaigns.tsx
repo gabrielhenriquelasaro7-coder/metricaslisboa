@@ -79,13 +79,39 @@ export default function Campaigns() {
     ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
   ];
 
-  // Redirect to project selector if no project selected (only after projects have loaded)
-  useEffect(() => {
-    const projectId = localStorage.getItem('selectedProjectId');
-    if (!loading && !projectsLoading && !projectId && !selectedProject) {
-      navigate('/projects');
-    }
-  }, [loading, selectedProject, navigate, projectsLoading]);
+  // Show loading skeleton while projects are loading
+  if (projectsLoading) {
+    return (
+      <DashboardLayout>
+        <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            <div>
+              <div className="h-8 w-48 bg-muted rounded animate-pulse mb-2" />
+              <div className="h-4 w-64 bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonMetricCard key={i} />
+            ))}
+          </div>
+          <div className="glass-card overflow-hidden">
+            <div className="p-4 space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-16 bg-muted rounded animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Redirect to project selector only after loading is complete
+  if (!selectedProject) {
+    navigate('/projects');
+    return null;
+  }
 
   const filteredCampaigns = campaigns
     .filter((campaign) => {
