@@ -430,44 +430,44 @@ export default function Settings() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 space-y-8 animate-fade-in max-w-4xl">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-fade-in max-w-4xl overflow-x-hidden">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/30">
-            <SettingsIcon className="w-6 h-6 text-primary-foreground" />
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/30 flex-shrink-0">
+            <SettingsIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Configurações</h1>
-            <p className="text-muted-foreground">Gerencie sua conta e preferências</p>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Configurações</h1>
+            <p className="text-muted-foreground text-sm">Gerencie sua conta e preferências</p>
           </div>
         </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="bg-card border border-border p-1 flex-wrap h-auto gap-1">
-            <TabsTrigger value="profile" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <User className="w-4 h-4" />
-              Perfil
+        <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
+          <TabsList className="bg-card border border-border p-1 flex flex-wrap h-auto gap-1 w-full overflow-x-auto">
+            <TabsTrigger value="profile" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <User className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Perfil</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Bell className="w-4 h-4" />
-              Notificações
+            <TabsTrigger value="notifications" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Bell className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Notificações</span>
             </TabsTrigger>
-            <TabsTrigger value="security" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Shield className="w-4 h-4" />
-              Segurança
+            <TabsTrigger value="security" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Segurança</span>
             </TabsTrigger>
-            <TabsTrigger value="appearance" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Palette className="w-4 h-4" />
-              Aparência
+            <TabsTrigger value="appearance" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Palette className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Aparência</span>
             </TabsTrigger>
-            <TabsTrigger value="sync-history" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <History className="w-4 h-4" />
-              Histórico Sync
+            <TabsTrigger value="sync-history" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <History className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Histórico</span>
             </TabsTrigger>
             {!isGuest && (
-              <TabsTrigger value="guests" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <UserPlus className="w-4 h-4" />
-                Convidados
+              <TabsTrigger value="guests" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Convidados</span>
               </TabsTrigger>
             )}
           </TabsList>

@@ -4,6 +4,99 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== MOBILE-FIRST RESPONSIVE UTILITIES ===== */
+@layer utilities {
+  /* Prevent horizontal scroll globally */
+  .no-horizontal-scroll {
+    overflow-x: hidden !important;
+    max-width: 100vw;
+  }
+  
+  /* Responsive container that prevents overflow */
+  .responsive-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  /* Mobile-optimized grid for metric cards */
+  .metric-grid-mobile {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  @media (min-width: 480px) {
+    .metric-grid-mobile {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 768px) {
+    .metric-grid-mobile {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .metric-grid-mobile {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  
+  @media (min-width: 1280px) {
+    .metric-grid-mobile {
+      grid-template-columns: repeat(6, 1fr);
+    }
+  }
+  
+  /* Mobile-friendly chart container */
+  .chart-container-mobile {
+    width: 100%;
+    min-height: 280px;
+    overflow: hidden;
+  }
+  
+  @media (min-width: 640px) {
+    .chart-container-mobile {
+      min-height: 320px;
+    }
+  }
+  
+  @media (min-width: 768px) {
+    .chart-container-mobile {
+      min-height: 380px;
+    }
+  }
+  
+  /* Safe area padding for mobile */
+  .safe-area-padding {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  
+  /* Responsive text that scales */
+  .text-responsive-sm {
+    font-size: clamp(0.75rem, 2vw, 0.875rem);
+  }
+  
+  .text-responsive-base {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+  }
+  
+  .text-responsive-lg {
+    font-size: clamp(1rem, 3vw, 1.25rem);
+  }
+  
+  .text-responsive-xl {
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+  }
+  
+  .text-responsive-2xl {
+    font-size: clamp(1.5rem, 5vw, 2rem);
+  }
+}
+
 @layer base {
   :root {
     /* Pure black background - V4 Premium */

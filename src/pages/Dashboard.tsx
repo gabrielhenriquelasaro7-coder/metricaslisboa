@@ -318,35 +318,32 @@ export default function Dashboard() {
       {/* Guided Tour */}
       {showTour && <GuidedTour onComplete={completeTour} onSkip={skipTour} />}
       
-      <div className="relative min-h-screen">
+      <div className="relative min-h-screen overflow-x-hidden">
         {/* Background effects - matching projects page */}
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/3 rounded-full blur-[150px]" />
-          <div className="absolute bottom-1/4 left-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[120px]" />
+          <div className="absolute top-0 right-0 w-[300px] sm:w-[400px] lg:w-[600px] h-[300px] sm:h-[400px] lg:h-[600px] bg-primary/3 rounded-full blur-[100px] sm:blur-[150px]" />
+          <div className="absolute bottom-1/4 left-0 w-[200px] sm:w-[300px] lg:w-[400px] h-[200px] sm:h-[300px] lg:h-[400px] bg-primary/5 rounded-full blur-[80px] sm:blur-[120px]" />
         </div>
         
-        <div className="relative z-10 p-8 space-y-8 animate-fade-in">
+        <div className="relative z-10 p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in overflow-x-hidden">
           {/* Header */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                
-              </div>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <div>
-                <h1 className="text-3xl font-bold mb-1" style={{
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1" style={{
                 fontFamily: 'Space Grotesk, sans-serif'
               }}>Dashboard Métricas</h1>
-                <p className="text-muted-foreground text-sm">Visão geral das suas campanhas</p>
+                <p className="text-muted-foreground text-xs sm:text-sm">Visão geral das suas campanhas</p>
               </div>
             </div>
           
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div data-tour="date-picker">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <div data-tour="date-picker" className="flex-shrink-0">
                 <DateRangePicker dateRange={dateRange} onDateRangeChange={handleDateRangeChange} timezone={projectTimezone} onPresetChange={handlePresetChange} selectedPreset={selectedPreset} />
               </div>
               
               {/* PDF Builder Button */}
-              {hasSelectedProject && selectedProject && <div data-tour="pdf-export">
+              {hasSelectedProject && selectedProject && <div data-tour="pdf-export" className="flex-shrink-0">
                   <PDFBuilderDialog projectId={selectedProject.id} projectName={selectedProject.name} businessModel={businessModel || null} currency={selectedProject.currency || 'BRL'} currentPeriod={getDateRangeFromPreset(selectedPreset, projectTimezone) || {
                 since: format(new Date(), 'yyyy-MM-dd'),
                 until: format(new Date(), 'yyyy-MM-dd')
@@ -355,7 +352,7 @@ export default function Dashboard() {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0">
                     <MoreVertical className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -389,10 +386,11 @@ export default function Dashboard() {
             {/* Account Balance Card - Top of Dashboard */}
             {hasSelectedProject && <AccountBalanceCard projectId={selectedProject?.id || null} currency={selectedProject?.currency} />}
             
-            <div className="flex items-center justify-end gap-2">
-              <GitCompare className="w-4 h-4 text-muted-foreground" />
-              <Label htmlFor="comparison-toggle" className="text-sm text-muted-foreground cursor-pointer">
-                Comparar com período anterior
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              <GitCompare className="w-4 h-4 text-muted-foreground hidden sm:block" />
+              <Label htmlFor="comparison-toggle" className="text-xs sm:text-sm text-muted-foreground cursor-pointer">
+                <span className="hidden sm:inline">Comparar com período anterior</span>
+                <span className="sm:hidden">Comparar</span>
               </Label>
               <Switch id="comparison-toggle" checked={showComparison} onCheckedChange={setShowComparison} />
             </div>
@@ -402,15 +400,15 @@ export default function Dashboard() {
 
             {/* Metrics Grid - General Base Metrics with Sparklines */}
             <div data-tour="metrics">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-1 h-6 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
-                <h2 className="text-lg font-semibold text-foreground" style={{
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-1 h-5 sm:h-6 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
+                <h2 className="text-base sm:text-lg font-semibold text-foreground" style={{
                 fontFamily: 'Space Grotesk, sans-serif'
               }}>
                   Métricas Gerais
                 </h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
                 <SparklineCard title="Gasto Total" value={formatCurrency(metrics.totalSpend)} change={changes?.spend} changeLabel="vs anterior" icon={Banknote} sparklineData={sparklineData.spend} />
                 <SparklineCard title="Impressões" value={formatNumber(metrics.totalImpressions)} change={changes?.impressions} changeLabel="vs anterior" sparklineData={sparklineData.impressions} icon={Eye} />
                 <SparklineCard title="Cliques" value={formatNumber(metrics.totalClicks)} change={changes?.clicks} changeLabel="vs anterior" sparklineData={sparklineData.clicks} icon={MousePointerClick} />
@@ -422,17 +420,17 @@ export default function Dashboard() {
 
             {/* Top of Funnel Metrics - Only show when there are Instagram traffic campaigns with profile visits */}
             {hasSelectedProject && profileVisitsData.hasProfileVisitCampaigns && <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-1 h-6 bg-gradient-to-b from-pink-500 to-pink-500/50 rounded-full" />
-                  <h2 className="text-lg font-semibold text-foreground flex items-center gap-2" style={{
+                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                  <div className="w-1 h-5 sm:h-6 bg-gradient-to-b from-pink-500 to-pink-500/50 rounded-full" />
+                  <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2 flex-wrap" style={{
                 fontFamily: 'Space Grotesk, sans-serif'
               }}>
-                    <Instagram className="w-5 h-5 text-pink-500" />
-                    Métricas Topo de Funil
-                    <span className="text-sm font-normal text-muted-foreground">(Tráfego para Instagram)</span>
+                    <Instagram className="w-4 h-4 sm:w-5 sm:h-5 text-pink-500" />
+                    <span>Métricas Topo de Funil</span>
+                    <span className="text-xs sm:text-sm font-normal text-muted-foreground">(Tráfego para Instagram)</span>
                   </h2>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <SparklineCard title="Visitas ao Perfil" value={formatNumber(profileVisitsData.totalProfileVisits)} icon={Instagram} className="border-l-4 border-l-pink-500" />
                   <SparklineCard title="Custo por Visita" value={formatCurrency(profileVisitsData.costPerVisit)} icon={DollarSign} invertTrend />
                 </div>
@@ -440,20 +438,20 @@ export default function Dashboard() {
 
             {/* Result Metrics - Dynamic based on business model - Only show when a specific project is selected */}
             {hasSelectedProject && <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-1 h-6 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
-                <h2 className="text-lg font-semibold text-foreground" style={{
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-1 h-5 sm:h-6 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
+                <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center flex-wrap gap-1 sm:gap-2" style={{
                 fontFamily: 'Space Grotesk, sans-serif'
               }}>
-                  Métricas de Resultado 
-                  {!isCustom && <span className="text-sm font-normal text-muted-foreground ml-2">
+                  <span>Métricas de Resultado</span>
+                  {!isCustom && <span className="text-xs sm:text-sm font-normal text-muted-foreground">
                       ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : isPdv ? 'PDV' : isInfoproduto ? 'Infoproduto' : ''})
                     </span>}
                 </h2>
               </div>
               
               {/* E-commerce Metrics */}
-              {isEcommerce && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {isEcommerce && <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   <SparklineCard title="ROAS" value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} changeLabel="vs anterior" icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />
                   <SparklineCard title="Compras" value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} changeLabel="vs anterior" icon={ShoppingCart} sparklineData={sparklineData.purchases.length > 0 ? sparklineData.purchases : sparklineData.conversions} tooltip="Total de compras via pixel (OUTCOME_SALES)" />
                   <SparklineCard title="Receita" value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} changeLabel="vs anterior" icon={Receipt} sparklineData={sparklineData.revenue} />
@@ -470,7 +468,7 @@ export default function Dashboard() {
               const cpl = totalLeads > 0 ? metrics.totalSpend / totalLeads : 0;
               const previousCpl = previousTotalLeads > 0 && previousMetrics?.totalSpend ? previousMetrics.totalSpend / previousTotalLeads : 0;
               const convRate = metrics.totalClicks > 0 ? totalLeads / metrics.totalClicks * 100 : 0;
-              return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              return <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <SparklineCard title="Leads" value={formatNumber(totalLeads)} change={changes?.conversions} changeLabel="vs anterior" icon={Users} sparklineData={sparklineData.leads.length > 0 ? sparklineData.leads : sparklineData.conversions} className="border-l-4 border-l-chart-1" tooltip="Total de resultados (formulários + mensagens)" />
                     <SparklineCard title="CPL" value={formatCurrency(cpl)} change={changes?.cpa} changeLabel="vs anterior" icon={Receipt} sparklineData={sparklineData.cpl} invertTrend />
                     <SparklineCard title="Taxa de Conversão" value={`${convRate.toFixed(2)}%`} icon={Activity} />
@@ -479,7 +477,7 @@ export default function Dashboard() {
             })()}
 
               {/* Infoproduto Metrics - Vendas + Receita + ROAS + CPA */}
-              {isInfoproduto && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {isInfoproduto && <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   <SparklineCard title="Vendas" value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} changeLabel="vs anterior" icon={ShoppingCart} sparklineData={sparklineData.purchases} className="border-l-4 border-l-metric-positive" tooltip="Compras realizadas via pixel" />
                   <SparklineCard title="Receita" value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} changeLabel="vs anterior" icon={Receipt} sparklineData={sparklineData.revenue} />
                   <SparklineCard title="ROAS" value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} changeLabel="vs anterior" icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />
@@ -487,7 +485,7 @@ export default function Dashboard() {
                 </div>}
 
               {/* PDV Metrics */}
-              {isPdv && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {isPdv && <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   <SparklineCard title="Visitas" value={formatNumber(metrics.totalConversions)} change={changes?.conversions} changeLabel="vs anterior" icon={Store} sparklineData={sparklineData.conversions} sparklineColor="hsl(var(--chart-2))" className="border-l-4 border-l-chart-2" tooltip="Pequenas diferenças de ±1-2 visitas em relação ao Gerenciador são normais devido ao timing de atribuição do Meta." />
                   <SparklineCard title="Custo/Visita" value={formatCurrency(metrics.cpa)} change={changes?.cpa} changeLabel="vs anterior" icon={DollarSign} sparklineData={sparklineData.cpl} sparklineColor="hsl(var(--chart-3))" invertTrend />
                   <MetricCard title="Alcance Local" value={formatNumber(metrics.totalReach)} icon={Users} trend="neutral" />
@@ -514,12 +512,12 @@ export default function Dashboard() {
             </div>}
 
             {/* Customizable Charts - Real daily data */}
-            <div className="space-y-6" data-tour="charts">
+            <div className="space-y-4 sm:space-y-6" data-tour="charts">
               <div ref={chartRef}>
-                <CustomizableChart chartKey="dashboard-chart-1" data={dailyData} defaultTitle="Gráfico 1 - Performance" defaultPrimaryMetric="spend" defaultSecondaryMetric={isEcommerce ? 'conversions' : 'conversions'} defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} />
+                <CustomizableChart chartKey="dashboard-chart-1" data={dailyData} defaultTitle="Gráfico 1 - Performance" defaultPrimaryMetric="spend" defaultSecondaryMetric={isEcommerce ? 'conversions' : 'conversions'} defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
               </div>
-              <CustomizableChart chartKey="dashboard-chart-2" data={dailyData} defaultTitle="Gráfico 2 - Alcance" defaultPrimaryMetric="impressions" defaultSecondaryMetric="ctr" defaultChartType="line" currency={selectedProject?.currency || 'BRL'} />
-              <CustomizableChart chartKey="dashboard-chart-3" data={dailyData} defaultTitle="Gráfico 3 - Custo" defaultPrimaryMetric="cpc" defaultSecondaryMetric="clicks" defaultChartType="bar" currency={selectedProject?.currency || 'BRL'} />
+              <CustomizableChart chartKey="dashboard-chart-2" data={dailyData} defaultTitle="Gráfico 2 - Alcance" defaultPrimaryMetric="impressions" defaultSecondaryMetric="ctr" defaultChartType="line" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
+              <CustomizableChart chartKey="dashboard-chart-3" data={dailyData} defaultTitle="Gráfico 3 - Custo" defaultPrimaryMetric="cpc" defaultSecondaryMetric="clicks" defaultChartType="bar" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
             </div>
 
             {/* Funnel Chart */}
