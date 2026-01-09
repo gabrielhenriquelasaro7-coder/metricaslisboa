@@ -79,17 +79,6 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
     doc.setTextColor(55, 65, 81); // gray-700
   };
 
-  const addText = (text: string, size: number = 10, isBold: boolean = false) => {
-    doc.setFontSize(size);
-    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-    doc.setTextColor(55, 65, 81);
-    
-    // Handle long text with word wrap
-    const lines = doc.splitTextToSize(text, pageWidth - margin * 2);
-    doc.text(lines, margin, yPos);
-    yPos += lines.length * (size * 0.45) + 3;
-  };
-
   const addKeyValue = (label: string, value: string, highlight: boolean = false) => {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -130,18 +119,41 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
   // Header
   addHeader();
 
-  // Account Balance
-  addSectionTitle('Saldo da Conta Meta Ads');
+  // ========================================
+  // 1. ANÁLISE DE TENDÊNCIA
+  // ========================================
+  addSectionTitle('1. Analise de Tendencia');
+  addKeyValue('Gasto Medio Diario', formatCurrency(data.predictions.trends.avgDailySpend));
+  addKeyValue(showCPL ? 'Leads Medios/Dia' : 'Conversoes Medias/Dia', formatNumber(data.predictions.trends.avgDailyConversions));
+  
+  if (showCPL && data.predictions.trends.avgDailyCpl !== null) {
+    addKeyValue('CPL Medio', formatCurrency(data.predictions.trends.avgDailyCpl));
+  }
+  if (showROAS && !showCPL && data.predictions.trends.avgDailyRoas !== null) {
+    addKeyValue('ROAS Medio', `${data.predictions.trends.avgDailyRoas.toFixed(2)}x`);
+  }
+  if (data.predictions.trends.avgCtr !== null) {
+    addKeyValue('CTR Medio', `${data.predictions.trends.avgCtr.toFixed(2)}%`);
+  }
+  
+  const trendDirection = data.predictions.trends.spendTrend > 0 ? '+' : '';
+  addKeyValue('Tendencia de Gasto', `${trendDirection}${data.predictions.trends.spendTrend.toFixed(1)}% vs semana anterior`);
+  
+  // Saldo da conta
+  yPos += 3;
+  addSubtitle('Saldo da Conta');
   addKeyValue('Saldo Atual', formatCurrency(data.accountBalance.balance));
   if (data.accountBalance.daysOfSpendRemaining !== null) {
     const statusLabel = data.accountBalance.status === 'critical' ? ' (CRITICO!)' : 
                        data.accountBalance.status === 'warning' ? ' (Atencao)' : ' (Saudavel)';
     addKeyValue('Dias de Saldo Restante', `${data.accountBalance.daysOfSpendRemaining} dias${statusLabel}`);
   }
-  addKeyValue('Gasto Medio Diario', formatCurrency(data.predictions.trends.avgDailySpend));
 
-  // Predictions
-  addSectionTitle('Previsoes de Performance');
+  // ========================================
+  // 2. PROJEÇÕES (7 dias, 30 dias, resto do ano)
+  // ========================================
+  checkNewPage();
+  addSectionTitle('2. Projecoes de Performance');
   
   addSubtitle('Proximos 7 Dias');
   addKeyValue('Gasto Estimado', formatCurrency(data.predictions.next7Days.estimatedSpend));
@@ -158,26 +170,36 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
     addKeyValue('Receita Estimada', formatCurrency(data.predictions.next30Days.estimatedRevenue));
   }
 
-  // Trends
-  checkNewPage();
-  addSectionTitle('Tendencias Medias Diarias');
-  addKeyValue('Gasto Medio/Dia', formatCurrency(data.predictions.trends.avgDailySpend));
-  addKeyValue(showCPL ? 'Leads Medios/Dia' : 'Conversoes Medias/Dia', formatNumber(data.predictions.trends.avgDailyConversions));
-  if (showCPL && data.predictions.trends.avgDailyCpl !== null) {
-    addKeyValue('CPL Medio', formatCurrency(data.predictions.trends.avgDailyCpl));
-  }
-  if (showROAS && !showCPL && data.predictions.trends.avgDailyRoas !== null) {
-    addKeyValue('ROAS Medio', `${data.predictions.trends.avgDailyRoas.toFixed(2)}x`);
-  }
-  if (data.predictions.trends.avgCtr !== null) {
-    addKeyValue('CTR Medio', `${data.predictions.trends.avgCtr.toFixed(2)}%`);
-  }
-  const trendDirection = data.predictions.trends.spendTrend > 0 ? '+' : '';
-  addKeyValue('Tendencia de Gasto', `${trendDirection}${data.predictions.trends.spendTrend.toFixed(1)}% vs semana anterior`);
+  // Projeção para o resto do ano
+  yPos += 3;
+  addSubtitle('Projecao para o Resto do Ano');
+  
+  const today = new Date();
+  const endOfYear = new Date(today.getFullYear(), 11, 31);
+  const daysRemaining = Math.ceil((endOfYear.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  
+  const avgDailySpend = data.predictions.trends.avgDailySpend;
+  const avgDailyConversions = data.predictions.trends.avgDailyConversions;
+  
+  const projectedSpendYear = avgDailySpend * daysRemaining;
+  const projectedConversionsYear = avgDailyConversions * daysRemaining;
+  const projectedRevenueYear = showROAS && data.predictions.trends.avgDailyRoas !== null
+    ? projectedSpendYear * data.predictions.trends.avgDailyRoas
+    : 0;
 
-  // 30 Days Summary with detailed metrics
+  addKeyValue('Dias Restantes no Ano', `${daysRemaining} dias`);
+  addKeyValue('Gasto Projetado', formatCurrency(projectedSpendYear));
+  addKeyValue(showCPL ? 'Leads Projetados' : 'Conversoes Projetadas', formatNumber(projectedConversionsYear));
+  if (showROAS && !showCPL && projectedRevenueYear > 0) {
+    addKeyValue('Receita Projetada', formatCurrency(projectedRevenueYear));
+  }
+
+  // ========================================
+  // 3. DESEMPENHO DOS ÚLTIMOS 30 DIAS
+  // ========================================
   checkNewPage();
-  addSectionTitle('Resumo dos Ultimos 30 Dias');
+  addSectionTitle('3. Desempenho dos Ultimos 30 Dias');
+  
   addKeyValue('Total Investido', formatCurrency(data.totals.spend30Days));
   addKeyValue(showCPL ? 'Total Leads' : 'Total Conversoes', formatNumber(data.totals.conversions30Days));
   
@@ -187,9 +209,13 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
     addKeyValue('CPL Medio', formatCurrency(avgCpl));
   }
   
-  // Média diária
-  const avgDailyConversions = data.totals.conversions30Days / 30;
-  addKeyValue(`Media Diaria (${showCPL ? 'Leads' : 'Conversoes'})`, formatNumber(avgDailyConversions));
+  // ROAS Médio
+  if (showROAS && !showCPL && data.totals.revenue30Days > 0) {
+    const avgRoas = data.totals.revenue30Days / data.totals.spend30Days;
+    addKeyValue('ROAS Medio', `${avgRoas.toFixed(2)}x`);
+  }
+  
+  addKeyValue(`Media Diaria (${showCPL ? 'Leads' : 'Conversoes'})`, formatNumber(data.totals.conversions30Days / 30));
   
   if (showROAS && !showCPL) {
     addKeyValue('Total Receita', formatCurrency(data.totals.revenue30Days));
@@ -202,7 +228,7 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
     const daysWithConversions = data.dailyTrend.filter(d => d.conversions > 0);
     if (daysWithConversions.length > 0) {
       yPos += 5;
-      addSubtitle('Analise de Dias');
+      addSubtitle('Analise de Melhor/Pior Dia');
       
       // Find best day (lowest CPL with conversions)
       const bestDay = daysWithConversions.reduce((best, current) => {
@@ -226,11 +252,13 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
     }
   }
 
-  // Campaign Goals with Objective info
+  // ========================================
+  // 4. PROGRESSO DE METAS
+  // ========================================
   const campaignsWithData = data.campaignGoalsProgress.filter(c => c.spend > 0).slice(0, 10);
   if (campaignsWithData.length > 0) {
     checkNewPage(50);
-    addSectionTitle('Performance por Campanha');
+    addSectionTitle('4. Progresso de Metas por Campanha');
     
     campaignsWithData.forEach((campaign, index) => {
       checkNewPage(40);
@@ -292,45 +320,60 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
     });
   }
 
-  // Suggestions
+  // ========================================
+  // 5. SUGESTÕES DE OTIMIZAÇÃO
+  // ========================================
   checkNewPage(60);
-  addSectionTitle('Sugestoes de Otimizacao');
+  addSectionTitle('5. Sugestoes de Otimizacao');
   
-  data.suggestions.forEach((suggestion, index) => {
-    checkNewPage(35);
-    
-    const priorityLabel = suggestion.priority === 'high' ? 'Alta' : 
-                         suggestion.priority === 'medium' ? 'Media' : 'Baixa';
-    
-    yPos += 3;
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(31, 41, 55);
-    doc.text(`${index + 1}. ${suggestion.title}`, margin, yPos);
-    yPos += 7;
-    
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(
-      suggestion.priority === 'high' ? 185 : suggestion.priority === 'medium' ? 161 : 34,
-      suggestion.priority === 'high' ? 28 : suggestion.priority === 'medium' ? 98 : 197,
-      suggestion.priority === 'high' ? 28 : suggestion.priority === 'medium' ? 7 : 94
-    );
-    doc.text(`Prioridade: ${priorityLabel}`, margin + 5, yPos);
-    yPos += 6;
-    
+  if (data.suggestions.length === 0) {
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(55, 65, 81);
-    const descLines = doc.splitTextToSize(suggestion.description, pageWidth - margin * 2 - 10);
-    doc.text(descLines, margin + 5, yPos);
-    yPos += descLines.length * 4 + 3;
-    
-    doc.setFontSize(8);
     doc.setTextColor(107, 114, 128);
-    const reasonLines = doc.splitTextToSize(`Motivo: ${suggestion.reason}`, pageWidth - margin * 2 - 10);
-    doc.text(reasonLines, margin + 5, yPos);
-    yPos += reasonLines.length * 3.5 + 5;
-  });
+    doc.text('Nenhuma sugestao de otimizacao no momento.', margin, yPos);
+    yPos += 10;
+  } else {
+    data.suggestions.forEach((suggestion, index) => {
+      checkNewPage(35);
+      
+      const priorityLabel = suggestion.priority === 'high' ? 'Alta' : 
+                           suggestion.priority === 'medium' ? 'Media' : 'Baixa';
+      
+      yPos += 3;
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(31, 41, 55);
+      
+      // Truncate title if too long
+      const title = suggestion.title.length > 70 
+        ? suggestion.title.slice(0, 70) + '...' 
+        : suggestion.title;
+      doc.text(`${index + 1}. ${title}`, margin, yPos);
+      yPos += 7;
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(
+        suggestion.priority === 'high' ? 185 : suggestion.priority === 'medium' ? 161 : 34,
+        suggestion.priority === 'high' ? 28 : suggestion.priority === 'medium' ? 98 : 197,
+        suggestion.priority === 'high' ? 28 : suggestion.priority === 'medium' ? 7 : 94
+      );
+      doc.text(`Prioridade: ${priorityLabel}`, margin + 5, yPos);
+      yPos += 6;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(55, 65, 81);
+      const descLines = doc.splitTextToSize(suggestion.description, pageWidth - margin * 2 - 10);
+      doc.text(descLines, margin + 5, yPos);
+      yPos += descLines.length * 4 + 3;
+      
+      doc.setFontSize(8);
+      doc.setTextColor(107, 114, 128);
+      const reasonLines = doc.splitTextToSize(`Motivo: ${suggestion.reason}`, pageWidth - margin * 2 - 10);
+      doc.text(reasonLines, margin + 5, yPos);
+      yPos += reasonLines.length * 3.5 + 5;
+    });
+  }
 
   // Footer on each page
   const pageCount = doc.getNumberOfPages();
