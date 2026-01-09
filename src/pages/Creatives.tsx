@@ -246,20 +246,20 @@ export default function Creatives() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 space-y-8 animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in overflow-x-hidden">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2 text-foreground">Galeria de Criativos</h1>
-            <p className="text-muted-foreground">
-              Análise de performance dos seus criativos
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2 text-foreground">Galeria de Criativos</h1>
+            <p className="text-muted-foreground text-xs sm:text-sm flex items-center flex-wrap gap-2">
+              <span>Análise de performance dos seus criativos</span>
               {selectedProject && (
-                <Badge variant="outline" className="ml-2 text-xs border-primary/30 text-primary">
+                <Badge variant="outline" className="text-xs border-primary/30 text-primary">
                   {isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'}
                 </Badge>
               )}
               {dateRange?.from && dateRange?.to && (
-                <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20">
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20">
                   {dateRange.from.toLocaleDateString('pt-BR')} - {dateRange.to.toLocaleDateString('pt-BR')}
                 </span>
               )}
@@ -275,73 +275,75 @@ export default function Creatives() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
+          <div className="relative flex-1 min-w-0 max-w-full sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
             <Input
               placeholder="Buscar criativos..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-              className="pl-10"
+              className="pl-9 sm:pl-10 text-sm"
             />
           </div>
 
-          <Select value={campaignFilter} onValueChange={handleCampaignChange}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Campanha" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover">
-              <SelectItem value="all">Todas Campanhas</SelectItem>
-              {campaigns.map((campaign) => (
-                <SelectItem key={campaign.id} value={campaign.id}>
-                  {campaign.name.length > 30 ? campaign.name.substring(0, 30) + '...' : campaign.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
+            <Select value={campaignFilter} onValueChange={handleCampaignChange}>
+              <SelectTrigger className="w-full sm:w-[160px] text-xs sm:text-sm">
+                <SelectValue placeholder="Campanha" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover max-h-60">
+                <SelectItem value="all">Todas</SelectItem>
+                {campaigns.map((campaign) => (
+                  <SelectItem key={campaign.id} value={campaign.id}>
+                    {campaign.name.length > 25 ? campaign.name.substring(0, 25) + '...' : campaign.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={adSetFilter} onValueChange={handleFilterChange(setAdSetFilter)}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Conjunto de Anúncios" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover">
-              <SelectItem value="all">Todos Conjuntos</SelectItem>
-              {filteredAdSets.map((adSet) => (
-                <SelectItem key={adSet.id} value={adSet.id}>
-                  {adSet.name.length > 30 ? adSet.name.substring(0, 30) + '...' : adSet.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={adSetFilter} onValueChange={handleFilterChange(setAdSetFilter)}>
+              <SelectTrigger className="w-full sm:w-[160px] text-xs sm:text-sm">
+                <SelectValue placeholder="Conjunto" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover max-h-60">
+                <SelectItem value="all">Todos</SelectItem>
+                {filteredAdSets.map((adSet) => (
+                  <SelectItem key={adSet.id} value={adSet.id}>
+                    {adSet.name.length > 25 ? adSet.name.substring(0, 25) + '...' : adSet.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={statusFilter} onValueChange={handleFilterChange(setStatusFilter)}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover">
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="ACTIVE">Ativos</SelectItem>
-              <SelectItem value="PAUSED">Pausados</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={statusFilter} onValueChange={handleFilterChange(setStatusFilter)}>
+              <SelectTrigger className="w-full sm:w-[120px] text-xs sm:text-sm">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="ACTIVE">Ativos</SelectItem>
+                <SelectItem value="PAUSED">Pausados</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={sortBy} onValueChange={handleFilterChange(setSortBy)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Ordenar por" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover">
-              <SelectItem value="status">Ativos Primeiro</SelectItem>
-              <SelectItem value="spend">Maior Gasto</SelectItem>
-              <SelectItem value="conversions">{isEcommerce ? 'Mais Compras' : 'Mais Leads'}</SelectItem>
-              {isEcommerce && <SelectItem value="roas">Maior ROAS</SelectItem>}
-              {isEcommerce && <SelectItem value="ticket">Maior Ticket</SelectItem>}
-              <SelectItem value="ctr">Maior CTR</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={sortBy} onValueChange={handleFilterChange(setSortBy)}>
+              <SelectTrigger className="w-full sm:w-[140px] text-xs sm:text-sm">
+                <SelectValue placeholder="Ordenar" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="status">Ativos Primeiro</SelectItem>
+                <SelectItem value="spend">Maior Gasto</SelectItem>
+                <SelectItem value="conversions">{isEcommerce ? 'Mais Compras' : 'Mais Leads'}</SelectItem>
+                {isEcommerce && <SelectItem value="roas">Maior ROAS</SelectItem>}
+                {isEcommerce && <SelectItem value="ticket">Maior Ticket</SelectItem>}
+                <SelectItem value="ctr">Maior CTR</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Stats - Dynamic based on business model */}
-        <div className={cn("grid gap-4", isEcommerce ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-6" : "grid-cols-2 md:grid-cols-4")}>
+        <div className={cn("grid gap-3 sm:gap-4", isEcommerce ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-4")}>
           <div className="glass-card p-4 border-l-2 border-l-primary">
             <div className="flex items-center gap-2 mb-1">
               <Target className="w-4 h-4 text-primary" />

@@ -275,29 +275,29 @@ export default function Ads() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 space-y-8 animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in overflow-x-hidden">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <Link 
               to={adSet ? `/campaign/${adSet.campaign_id}/adsets` : '/campaigns'} 
-              className="p-2 rounded-lg hover:bg-secondary/80 transition-colors"
+              className="p-2 rounded-lg hover:bg-secondary/80 transition-colors flex-shrink-0"
             >
-              <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
             </Link>
-            <div>
-              <h1 className="text-3xl font-bold">Anúncios</h1>
-              <p className="text-muted-foreground mt-1">
-                {adSet ? `Conjunto: ${adSet.name}` : 'Carregando...'}
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Anúncios</h1>
+              <p className="text-muted-foreground text-xs sm:text-sm mt-1 flex items-center flex-wrap gap-2">
+                <span className="truncate max-w-[200px] sm:max-w-none">{adSet ? `Conjunto: ${adSet.name}` : 'Carregando...'}</span>
                 {selectedProject && (
-                  <Badge variant="outline" className="ml-3 text-xs">
+                  <Badge variant="outline" className="text-xs flex-shrink-0">
                     {isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : 'PDV'}
                   </Badge>
                 )}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <DateRangePicker 
               dateRange={dateRange} 
               onDateRangeChange={handleDateRangeChange}
@@ -334,7 +334,7 @@ export default function Ads() {
         ) : (
           <>
             {/* Summary Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               <MetricCard 
                 title={isEcommerce ? "Compras" : "Leads"} 
                 value={formatNumber(totals.conversions)} 
@@ -363,7 +363,7 @@ export default function Ads() {
 
             <AdvancedFilters filters={filters} onFiltersChange={setFilters} sort={sort} onSortChange={setSort} sortOptions={sortOptions} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {filteredAds.map((ad) => (
                 <div key={ad.id} className="glass-card-hover overflow-hidden cursor-pointer" onClick={() => setSelectedAd(ad)}>
                   <div className="relative aspect-square bg-secondary/30 flex items-center justify-center">
