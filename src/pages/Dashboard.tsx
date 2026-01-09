@@ -449,7 +449,7 @@ export default function Dashboard() {
             <div data-tour="metrics">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-1 h-6 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
-                <h2 className="text-lg font-semibold text-white/90" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                <h2 className="text-lg font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                   Métricas Gerais
                 </h2>
               </div>
@@ -510,10 +510,10 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-1 h-6 bg-gradient-to-b from-pink-500 to-pink-500/50 rounded-full" />
-                  <h2 className="text-lg font-semibold text-white/90 flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  <h2 className="text-lg font-semibold text-foreground flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                     <Instagram className="w-5 h-5 text-pink-500" />
                     Métricas Topo de Funil
-                    <span className="text-sm font-normal text-white/50">(Tráfego para Instagram)</span>
+                    <span className="text-sm font-normal text-muted-foreground">(Tráfego para Instagram)</span>
                   </h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
@@ -538,10 +538,10 @@ export default function Dashboard() {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-1 h-6 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
-                <h2 className="text-lg font-semibold text-white/90" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                <h2 className="text-lg font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                   Métricas de Resultado 
                   {!isCustom && (
-                    <span className="text-sm font-normal text-white/50 ml-2">
+                    <span className="text-sm font-normal text-muted-foreground ml-2">
                       ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : isPdv ? 'PDV' : isInfoproduto ? 'Infoproduto' : ''})
                     </span>
                   )}
