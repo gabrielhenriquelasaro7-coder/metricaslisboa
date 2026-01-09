@@ -644,44 +644,16 @@ export default function OptimizationHistory() {
 
         {/* Stats - Resumo */}
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {[...Array(6)].map((_, i) => (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-24" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="glass-card p-4 v4-accent">
               <p className="text-3xl font-bold text-foreground">{stats.total}</p>
               <p className="text-sm text-muted-foreground">Total de Mudanças</p>
-            </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2">
-                <Pause className="w-5 h-5 text-orange-500" />
-                <p className="text-2xl font-bold text-orange-500">{stats.paused}</p>
-              </div>
-              <p className="text-sm text-muted-foreground">Pausados</p>
-            </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2">
-                <Play className="w-5 h-5 text-emerald-500" />
-                <p className="text-2xl font-bold text-emerald-500">{stats.activated}</p>
-              </div>
-              <p className="text-sm text-muted-foreground">Ativados</p>
-            </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2">
-                <Image className="w-5 h-5 text-pink-500" />
-                <p className="text-2xl font-bold text-pink-500">{stats.creativeChanges}</p>
-              </div>
-              <p className="text-sm text-muted-foreground">Criativos</p>
-            </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-cyan-500" />
-                <p className="text-2xl font-bold text-cyan-500">{stats.targetingChanges}</p>
-              </div>
-              <p className="text-sm text-muted-foreground">Público</p>
             </div>
             <div className="glass-card p-4">
               <div className="flex items-center gap-2">
@@ -689,6 +661,20 @@ export default function OptimizationHistory() {
                 <p className="text-2xl font-bold text-blue-500">{stats.campaigns}</p>
               </div>
               <p className="text-sm text-muted-foreground">Campanhas</p>
+            </div>
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2">
+                <Layers className="w-5 h-5 text-purple-500" />
+                <p className="text-2xl font-bold text-purple-500">{stats.adSets}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Conjuntos</p>
+            </div>
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-amber-500" />
+                <p className="text-2xl font-bold text-amber-500">{stats.ads}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Anúncios</p>
             </div>
           </div>
         )}
