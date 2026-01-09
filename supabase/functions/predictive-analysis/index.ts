@@ -240,7 +240,7 @@ serve(async (req) => {
 
     if (metricsError) throw metricsError;
 
-    // Fetch campaign budgets
+    // Fetch campaign budgets - only ACTIVE campaigns
     const { data: campaigns, error: campaignsError } = await supabase
       .from('campaigns')
       .select('id, name, daily_budget, lifetime_budget, spend, status, conversions, conversion_value')
@@ -249,8 +249,16 @@ serve(async (req) => {
 
     if (campaignsError) throw campaignsError;
 
-    // Aggregate metrics by date
-    const aggregatedByDate = dailyMetrics?.reduce((acc: Record<string, any>, metric) => {
+    // Get IDs of active campaigns for filtering
+    const activeCampaignIds = new Set(campaigns?.map(c => c.id) || []);
+    console.log('[PREDICTIVE] Active campaigns:', activeCampaignIds.size, Array.from(activeCampaignIds).slice(0, 5));
+
+    // Filter metrics to only include ACTIVE campaigns
+    const activeMetrics = dailyMetrics?.filter(m => activeCampaignIds.has(m.campaign_id)) || [];
+    console.log('[PREDICTIVE] Filtered to active campaigns - total metrics:', activeMetrics.length);
+
+    // Aggregate metrics by date (only from active campaigns)
+    const aggregatedByDate = activeMetrics.reduce((acc: Record<string, any>, metric) => {
       if (!acc[metric.date]) {
         acc[metric.date] = { date: metric.date, spend: 0, impressions: 0, clicks: 0, conversions: 0, conversion_value: 0, reach: 0 };
       }
@@ -261,10 +269,10 @@ serve(async (req) => {
       acc[metric.date].conversion_value += metric.conversion_value || 0;
       acc[metric.date].reach += metric.reach || 0;
       return acc;
-    }, {}) || {};
+    }, {});
 
-    // Aggregate metrics by campaign
-    const campaignMetrics = dailyMetrics?.reduce((acc: Record<string, any>, metric) => {
+    // Aggregate metrics by campaign (only from active campaigns)
+    const campaignMetrics = activeMetrics.reduce((acc: Record<string, any>, metric) => {
       if (!acc[metric.campaign_id]) {
         acc[metric.campaign_id] = { 
           campaignId: metric.campaign_id,
@@ -282,7 +290,7 @@ serve(async (req) => {
       acc[metric.campaign_id].clicks += metric.clicks || 0;
       acc[metric.campaign_id].impressions += metric.impressions || 0;
       return acc;
-    }, {}) || {};
+    }, {});
 
     const sortedDates = Object.values(aggregatedByDate).sort((a: any, b: any) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
