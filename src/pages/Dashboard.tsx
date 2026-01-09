@@ -771,6 +771,8 @@ export default function Dashboard() {
                 ctr={metrics.ctr}
                 cpc={metrics.cpc}
                 cpl={metrics.cpa}
+                cpm={metrics.cpm}
+                frequency={metrics.avgFrequency}
                 currency={selectedProject?.currency || 'BRL'}
               />
             )}

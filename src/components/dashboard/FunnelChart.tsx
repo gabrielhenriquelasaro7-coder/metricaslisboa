@@ -13,6 +13,9 @@ interface FunnelChartProps {
   ctr?: number;
   cpc?: number;
   cpl?: number;
+  cpm?: number;
+  frequency?: number;
+  conversionRate?: number;
   currency?: string;
   className?: string;
 }
@@ -33,6 +36,9 @@ export function FunnelChart({
   ctr = 0,
   cpc = 0,
   cpl = 0,
+  cpm = 0,
+  frequency = 0,
+  conversionRate = 0,
   currency = 'BRL',
   className,
 }: FunnelChartProps) {
@@ -154,6 +160,35 @@ export function FunnelChart({
             </motion.div>
           ))}
         </div>
+
+        {/* Métricas adicionais */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.4 }}
+          className="mt-6 pt-4 border-t border-border/50"
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-3 rounded-lg bg-card/50 border border-border/30">
+              <p className="text-xs text-muted-foreground mb-1">CPM</p>
+              <p className="text-sm font-bold text-foreground">{formatCurrency(cpm)}</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-card/50 border border-border/30">
+              <p className="text-xs text-muted-foreground mb-1">Frequência</p>
+              <p className="text-sm font-bold text-foreground">{frequency.toFixed(2)}</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-card/50 border border-border/30">
+              <p className="text-xs text-muted-foreground mb-1">Taxa Conversão</p>
+              <p className="text-sm font-bold text-foreground">
+                {clicks > 0 ? ((conversions / clicks) * 100).toFixed(2) : '0.00'}%
+              </p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-card/50 border border-border/30">
+              <p className="text-xs text-muted-foreground mb-1">Custo Total</p>
+              <p className="text-sm font-bold text-primary">{formatCurrency(spend)}</p>
+            </div>
+          </div>
+        </motion.div>
       </CardContent>
     </Card>
   );
