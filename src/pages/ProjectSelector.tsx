@@ -627,26 +627,26 @@ export default function ProjectSelector() {
       </div>;
   }
   return <div className="min-h-screen bg-background">
-      {/* ==================== HEADER ==================== */}
+      {/* ==================== HEADER - Mobile-first ==================== */}
       <header className="relative bg-card border-b border-border">
         {/* Gradient overlay - only in dark mode */}
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none dark:block hidden" />
         
-        {/* Top nav - Bigger and more prominent */}
+        {/* Top nav - Responsive */}
         <div className="relative border-b border-border">
-          <div className="max-w-[1600px] mx-auto px-8 py-5">
-            <nav className="flex items-center justify-between">
-              {/* Logo Section - Bigger */}
-              <div className="flex items-center gap-6">
-                <img src={v4Logo} alt="V4 Company" className="h-12 w-auto dark:brightness-0 dark:invert dark:opacity-95" />
-                <div className="w-px h-12 bg-gradient-to-b from-transparent via-primary/60 to-transparent" />
+          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-5">
+            <nav className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 sm:justify-between">
+              {/* Logo Section */}
+              <div className="flex items-center gap-3 sm:gap-6">
+                <img src={v4Logo} alt="V4 Company" className="h-8 sm:h-12 w-auto dark:brightness-0 dark:invert dark:opacity-95" />
+                <div className="hidden sm:block w-px h-12 bg-gradient-to-b from-transparent via-primary/60 to-transparent" />
                 <div className="flex flex-col">
-                  <span className="text-2xl font-bold tracking-tight text-foreground leading-tight" style={{
+                  <span className="text-lg sm:text-2xl font-bold tracking-tight text-foreground leading-tight" style={{
                   fontFamily: 'Space Grotesk, sans-serif'
                 }}>
                     ADS<span className="font-light text-foreground/70">MANAGER</span>
                   </span>
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground" style={{
+                  <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-muted-foreground hidden sm:block" style={{
                   fontFamily: 'Inter, sans-serif'
                 }}>
                     Painel de Controle
@@ -654,80 +654,75 @@ export default function ProjectSelector() {
                 </div>
               </div>
               
-              {/* Nav items with platform icons */}
-              <div className="flex items-center gap-2">
-                <button className="h-11 px-5 rounded-lg text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition-all flex items-center gap-2.5">
-                  <img src={metaIcon} alt="" className="w-5 h-5" />
-                  META ADS
+              {/* Nav items - Horizontal scroll on mobile */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 sm:mx-0 sm:px-0 scrollbar-hide">
+                <button className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition-all flex items-center gap-1.5 sm:gap-2.5 whitespace-nowrap touch-target">
+                  <img src={metaIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden xs:inline">META ADS</span>
                 </button>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button className="h-11 px-5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-2.5 border border-border">
-                        <img src={googleAdsIcon} alt="" className="w-5 h-5 opacity-50" />
+                      <button className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
+                        <img src={googleAdsIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5 opacity-50" />
                         <Lock className="w-3 h-3" />
-                        GOOGLE ADS
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent className="bg-popover border-border">
+                    <TooltipContent className="bg-popover border-border z-50">
                       <p className="text-sm">Em breve</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                <button onClick={() => navigate('/whatsapp-manager')} className="h-11 px-5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-2.5 border border-border">
-                  <img src={whatsappIcon} alt="" className="w-5 h-5 opacity-70" />
-                  WHATSAPP
+                <button onClick={() => navigate('/whatsapp-manager')} className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
+                  <img src={whatsappIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5 opacity-70" />
                 </button>
-                <button onClick={() => setSettingsDialogOpen(true)} className="h-11 px-5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-2.5 border border-border">
+                <button onClick={() => setSettingsDialogOpen(true)} className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
                   <User className="w-4 h-4" />
-                  CONFIGURAÇÕES
                 </button>
               </div>
             </nav>
           </div>
         </div>
         
-        {/* Stats bar - More compact */}
+        {/* Stats bar - Compact on mobile */}
         <div className="relative border-b border-border bg-card/50 backdrop-blur-xl">
-          <div className="max-w-[1600px] mx-auto px-8 py-4">
-            <div className="flex items-center justify-between">
+          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
               {/* Stats */}
-              <div className="flex items-center gap-4 px-5 py-2.5 rounded-xl bg-secondary/30 border border-border">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground uppercase tracking-wider" style={{
-                  fontFamily: 'Inter, sans-serif'
-                }}>Clientes Ativos</span>
-                  <span className="text-2xl font-bold text-foreground" style={{
-                  fontFamily: 'Space Grotesk, sans-serif'
-                }}>
-                    {healthCounts.total}
-                  </span>
-                </div>
+              <div className="flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-secondary/30 border border-border">
+                <span className="text-xs sm:text-sm text-muted-foreground uppercase tracking-wider" style={{
+                fontFamily: 'Inter, sans-serif'
+              }}>Clientes</span>
+                <span className="text-xl sm:text-2xl font-bold text-foreground" style={{
+                fontFamily: 'Space Grotesk, sans-serif'
+              }}>
+                  {healthCounts.total}
+                </span>
               </div>
               
-              {/* Health indicators */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5">
+              {/* Health indicators - Horizontal scroll on mobile */}
+              <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto pb-1 sm:pb-0">
+                <div className="flex items-center gap-1.5 whitespace-nowrap">
                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase" style={{
+                  <span className="text-[10px] sm:text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase" style={{
                   fontFamily: 'Inter, sans-serif'
                 }}>Safe</span>
                   <span className="text-sm font-bold text-foreground" style={{
                   fontFamily: 'Space Grotesk, sans-serif'
                 }}>{healthCounts.safe}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 whitespace-nowrap">
                   <div className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase" style={{
+                  <span className="text-[10px] sm:text-xs font-medium text-amber-600 dark:text-amber-400 uppercase" style={{
                   fontFamily: 'Inter, sans-serif'
                 }}>Care</span>
                   <span className="text-sm font-bold text-foreground" style={{
                   fontFamily: 'Space Grotesk, sans-serif'
                 }}>{healthCounts.care}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 whitespace-nowrap">
                   <div className="w-2 h-2 rounded-full bg-red-500" />
-                  <span className="text-xs font-medium text-red-600 dark:text-red-400 uppercase" style={{
+                  <span className="text-[10px] sm:text-xs font-medium text-red-600 dark:text-red-400 uppercase" style={{
                   fontFamily: 'Inter, sans-serif'
                 }}>Danger</span>
                   <span className="text-sm font-bold text-foreground" style={{
@@ -740,24 +735,28 @@ export default function ProjectSelector() {
         </div>
       </header>
 
-      {/* ==================== ACTIONS BAR ==================== */}
-      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="max-w-[1600px] mx-auto px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            {/* Search & Filter */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Buscar cliente..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 w-72 h-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:ring-primary/20 rounded-xl" style={{
-                fontFamily: 'Inter, sans-serif'
-              }} />
+      {/* ==================== ACTIONS BAR - Mobile-first ==================== */}
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border safe-area-top">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            {/* Search & Filter - Full width on mobile */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <div className="relative flex-1 sm:flex-none">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Buscar cliente..." 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                  className="pl-10 h-10 sm:h-10 w-full sm:w-56 lg:w-72 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:ring-primary/20 rounded-xl touch-target" 
+                  style={{ fontFamily: 'Inter, sans-serif' }} 
+                />
               </div>
               
               <Select value={healthFilter} onValueChange={val => setHealthFilter(val as any)}>
-                <SelectTrigger className="w-36 h-10 bg-secondary border-border text-muted-foreground rounded-xl focus:border-primary/50">
+                <SelectTrigger className="w-full sm:w-32 h-10 bg-secondary border-border text-muted-foreground rounded-xl focus:border-primary/50 touch-target">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl">
+                <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50">
                   <SelectItem value="all" className="text-foreground rounded-lg">Todos</SelectItem>
                   <SelectItem value="safe" className="text-emerald-600 dark:text-emerald-400 rounded-lg">Safe</SelectItem>
                   <SelectItem value="care" className="text-amber-600 dark:text-amber-400 rounded-lg">Care</SelectItem>
@@ -766,19 +765,20 @@ export default function ProjectSelector() {
               </Select>
             </div>
             
-            {/* Actions */}
-            <div className="flex items-center gap-3">
+            {/* Actions - Scrollable on mobile */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 sm:mx-0 sm:px-0">
               {!isGuest && <>
                   <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button className="h-10 px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-xl shadow-lg shadow-primary/20 gap-2 transition-all" style={{
+                      <Button className="h-10 px-3 sm:px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-xl shadow-lg shadow-primary/20 gap-1.5 sm:gap-2 transition-all whitespace-nowrap touch-target" style={{
                     fontFamily: 'Space Grotesk, sans-serif'
                   }}>
                         <Plus className="w-4 h-4" />
-                        Novo Cliente
+                        <span className="hidden xs:inline">Novo Cliente</span>
+                        <span className="xs:hidden">Novo</span>
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-md bg-popover backdrop-blur-xl border-border rounded-2xl">
+                    <DialogContent className="w-[95vw] max-w-md mx-auto bg-popover backdrop-blur-xl border-border rounded-2xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle className="text-foreground font-semibold" style={{
                       fontFamily: 'Space Grotesk, sans-serif'
@@ -789,7 +789,7 @@ export default function ProjectSelector() {
                       <form onSubmit={handleCreateProject} className="space-y-4 mt-4">
                         {/* Avatar */}
                         <div className="flex justify-center">
-                          <div onClick={() => avatarInputRef.current?.click()} className="w-16 h-16 rounded-xl bg-secondary border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary/50 transition-all overflow-hidden">
+                          <div onClick={() => avatarInputRef.current?.click()} className="w-16 h-16 rounded-xl bg-secondary border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary/50 transition-all overflow-hidden touch-target">
                             {avatarPreview ? <img src={avatarPreview} alt="" className="w-full h-full object-cover" /> : <Camera className="w-5 h-5 text-muted-foreground" />}
                           </div>
                           <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleAvatarChange(e)} />
@@ -800,7 +800,7 @@ export default function ProjectSelector() {
                           <Input value={formData.name} onChange={e => setFormData(prev => ({
                         ...prev,
                         name: e.target.value
-                      }))} placeholder="Ex: Empresa ABC" className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50" />
+                      }))} placeholder="Ex: Empresa ABC" className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 touch-target" />
                         </div>
 
                         <div className="space-y-2">
@@ -808,7 +808,7 @@ export default function ProjectSelector() {
                           <Input value={formData.ad_account_id} onChange={e => setFormData(prev => ({
                         ...prev,
                         ad_account_id: e.target.value
-                      }))} placeholder="act_123456789" className="bg-secondary border-border text-foreground font-mono rounded-xl focus:border-primary/50" />
+                      }))} placeholder="act_123456789" className="bg-secondary border-border text-foreground font-mono rounded-xl focus:border-primary/50 h-10 touch-target" />
                         </div>
 
                         <div className="space-y-2">
@@ -817,10 +817,10 @@ export default function ProjectSelector() {
                         ...prev,
                         business_model: val as BusinessModel
                       }))}>
-                            <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
+                            <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 touch-target">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl">
+                            <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50">
                               {businessModels.map(model => <SelectItem key={model.value} value={model.value} className="text-foreground rounded-lg">
                                   {model.label}
                                 </SelectItem>)}
@@ -835,14 +835,14 @@ export default function ProjectSelector() {
                           ...prev,
                           timezone: val
                         }))}>
-                              <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
+                              <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 text-xs sm:text-sm touch-target">
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl">
-                                <SelectItem value="America/Sao_Paulo" className="text-foreground rounded-lg">São Paulo (GMT-3)</SelectItem>
-                                <SelectItem value="America/New_York" className="text-foreground rounded-lg">New York (GMT-5)</SelectItem>
-                                <SelectItem value="Europe/London" className="text-foreground rounded-lg">Londres (GMT+0)</SelectItem>
-                                <SelectItem value="Europe/Lisbon" className="text-foreground rounded-lg">Lisboa (GMT+0)</SelectItem>
+                              <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50">
+                                <SelectItem value="America/Sao_Paulo" className="text-foreground rounded-lg">São Paulo</SelectItem>
+                                <SelectItem value="America/New_York" className="text-foreground rounded-lg">New York</SelectItem>
+                                <SelectItem value="Europe/London" className="text-foreground rounded-lg">Londres</SelectItem>
+                                <SelectItem value="Europe/Lisbon" className="text-foreground rounded-lg">Lisboa</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -853,23 +853,23 @@ export default function ProjectSelector() {
                           ...prev,
                           currency: val
                         }))}>
-                              <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
+                              <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 text-xs sm:text-sm touch-target">
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl">
-                                <SelectItem value="BRL" className="text-foreground rounded-lg">Real (R$)</SelectItem>
-                                <SelectItem value="USD" className="text-foreground rounded-lg">Dólar (US$)</SelectItem>
-                                <SelectItem value="EUR" className="text-foreground rounded-lg">Euro (€)</SelectItem>
+                              <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50">
+                                <SelectItem value="BRL" className="text-foreground rounded-lg">R$</SelectItem>
+                                <SelectItem value="USD" className="text-foreground rounded-lg">US$</SelectItem>
+                                <SelectItem value="EUR" className="text-foreground rounded-lg">€</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
                         </div>
 
                         <div className="flex gap-3 pt-4">
-                          <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)} className="flex-1 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl">
+                          <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)} className="flex-1 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl h-10 touch-target">
                             Cancelar
                           </Button>
-                          <Button type="submit" disabled={isCreating} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-medium">
+                          <Button type="submit" disabled={isCreating} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-medium h-10 touch-target">
                             {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar'}
                           </Button>
                         </div>
@@ -877,27 +877,27 @@ export default function ProjectSelector() {
                     </DialogContent>
                   </Dialog>
                   
-                  <Button onClick={() => setInviteDialogOpen(true)} variant="outline" className="h-10 px-4 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all gap-2" style={{
+                  <Button onClick={() => setInviteDialogOpen(true)} variant="outline" className="h-10 px-3 sm:px-4 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all gap-1.5 sm:gap-2 whitespace-nowrap touch-target" style={{
                 fontFamily: 'Space Grotesk, sans-serif'
               }}>
                     <UserPlus className="w-4 h-4" />
-                    Convidar Cliente
+                    <span className="hidden sm:inline">Convidar</span>
                   </Button>
                 </>}
               
-              <Button variant="outline" onClick={() => setShowArchived(!showArchived)} className={cn("h-10 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all", showArchived && 'bg-secondary text-foreground border-primary/30')}>
-                <Archive className="w-4 h-4 mr-2" />
-                Arquivados
+              <Button variant="outline" onClick={() => setShowArchived(!showArchived)} className={cn("h-10 px-3 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all whitespace-nowrap touch-target", showArchived && 'bg-secondary text-foreground border-primary/30')}>
+                <Archive className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Arquivados</span>
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ==================== CLIENT LIST ==================== */}
-      <main className="max-w-[1600px] mx-auto px-6 py-8">
-        {filteredProjects.length === 0 ? <div className="text-center py-24">
-            <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+      {/* ==================== CLIENT LIST - Mobile-first ==================== */}
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-8 safe-area-bottom">
+        {filteredProjects.length === 0 ? <div className="text-center py-12 sm:py-24">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
               <Users className="w-10 h-10 text-white/20" />
             </div>
             <h3 className="text-lg font-medium text-white/60 mb-2" style={{

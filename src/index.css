@@ -6,29 +6,75 @@
 
 /* ===== MOBILE-FIRST RESPONSIVE UTILITIES ===== */
 @layer utilities {
-  /* Prevent horizontal scroll globally */
-  .no-horizontal-scroll {
-    overflow-x: hidden !important;
+  /* Global mobile-first foundation */
+  html, body {
+    overflow-x: hidden;
     max-width: 100vw;
+    -webkit-overflow-scrolling: touch;
   }
   
-  /* Responsive container that prevents overflow */
-  .responsive-container {
+  /* Safe area support for notch devices */
+  .safe-area-top {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  
+  .safe-area-left {
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+  
+  .safe-area-right {
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  
+  .safe-area-x {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  
+  /* Mobile-optimized containers */
+  .mobile-container {
     width: 100%;
     max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
     overflow-x: hidden;
   }
   
-  /* Mobile-optimized grid for metric cards */
+  @media (min-width: 640px) {
+    .mobile-container {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .mobile-container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+  
+  /* Mobile-first metric grid - 1 column base, expanding up */
   .metric-grid-mobile {
     display: grid;
     grid-template-columns: 1fr;
     gap: 0.75rem;
+    width: 100%;
   }
   
-  @media (min-width: 480px) {
+  @media (min-width: 380px) {
     .metric-grid-mobile {
       grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 640px) {
+    .metric-grid-mobile {
+      gap: 1rem;
     }
   }
   
@@ -50,32 +96,102 @@
     }
   }
   
-  /* Mobile-friendly chart container */
+  /* Mobile-optimized chart container */
   .chart-container-mobile {
     width: 100%;
-    min-height: 280px;
+    min-height: 220px;
     overflow: hidden;
+  }
+  
+  @media (min-width: 480px) {
+    .chart-container-mobile {
+      min-height: 260px;
+    }
   }
   
   @media (min-width: 640px) {
     .chart-container-mobile {
-      min-height: 320px;
+      min-height: 300px;
     }
   }
   
   @media (min-width: 768px) {
     .chart-container-mobile {
-      min-height: 380px;
+      min-height: 350px;
     }
   }
   
-  /* Safe area padding for mobile */
-  .safe-area-padding {
-    padding-left: max(1rem, env(safe-area-inset-left));
-    padding-right: max(1rem, env(safe-area-inset-right));
+  /* Mobile-friendly card grid */
+  .card-grid-mobile {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    width: 100%;
+  }
+  
+  @media (min-width: 640px) {
+    .card-grid-mobile {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .card-grid-mobile {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  @media (min-width: 1280px) {
+    .card-grid-mobile {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  
+  /* Mobile-friendly filter controls - stack vertically on mobile */
+  .filter-controls-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  
+  @media (min-width: 640px) {
+    .filter-controls-mobile {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+  }
+  
+  /* Touch-friendly button sizing */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Mobile header - compact */
+  .mobile-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  @media (min-width: 640px) {
+    .mobile-header {
+      padding: 1rem 1.5rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .mobile-header {
+      padding: 1.5rem 2rem;
+    }
   }
   
   /* Responsive text that scales */
+  .text-responsive-xs {
+    font-size: clamp(0.65rem, 1.5vw, 0.75rem);
+  }
+  
   .text-responsive-sm {
     font-size: clamp(0.75rem, 2vw, 0.875rem);
   }
@@ -85,15 +201,69 @@
   }
   
   .text-responsive-lg {
-    font-size: clamp(1rem, 3vw, 1.25rem);
+    font-size: clamp(1rem, 3vw, 1.125rem);
   }
   
   .text-responsive-xl {
-    font-size: clamp(1.25rem, 4vw, 1.5rem);
+    font-size: clamp(1.125rem, 3.5vw, 1.25rem);
   }
   
   .text-responsive-2xl {
-    font-size: clamp(1.5rem, 5vw, 2rem);
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+  }
+  
+  .text-responsive-3xl {
+    font-size: clamp(1.5rem, 5vw, 1.875rem);
+  }
+  
+  /* Hide on mobile, show on larger screens */
+  .hide-mobile {
+    display: none;
+  }
+  
+  @media (min-width: 640px) {
+    .hide-mobile {
+      display: block;
+    }
+  }
+  
+  /* Show on mobile, hide on larger screens */
+  .show-mobile {
+    display: block;
+  }
+  
+  @media (min-width: 640px) {
+    .show-mobile {
+      display: none;
+    }
+  }
+  
+  /* Truncate text with ellipsis */
+  .truncate-mobile {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  @media (min-width: 640px) {
+    .truncate-mobile {
+      max-width: none;
+      overflow: visible;
+      text-overflow: clip;
+      white-space: normal;
+    }
+  }
+  
+  /* Full width on mobile */
+  .full-width-mobile {
+    width: 100%;
+  }
+  
+  @media (min-width: 640px) {
+    .full-width-mobile {
+      width: auto;
+    }
   }
 }
 

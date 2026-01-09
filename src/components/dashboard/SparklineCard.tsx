@@ -69,39 +69,39 @@ export default function SparklineCard({
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: index * 0.05, duration: 0.4, ease: "easeOut" }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      transition={{ delay: index * 0.03, duration: 0.3, ease: "easeOut" }}
+      whileHover={{ y: -2, transition: { duration: 0.15 } }}
       className={cn(
-        'premium-card group relative cursor-default p-4',
+        'premium-card group relative cursor-default p-3 sm:p-4',
         className
       )}
     >
-      <div className="flex items-start justify-between mb-3 relative z-10">
+      <div className="flex items-start justify-between mb-2 sm:mb-3 relative z-10">
         <div className="flex-1 min-w-0">
           {titleElement}
-          <p className="text-2xl font-bold mt-1 text-foreground transition-colors duration-300">
+          <p className="text-lg sm:text-xl md:text-2xl font-bold mt-0.5 sm:mt-1 text-foreground transition-colors duration-300 truncate">
             {value}
           </p>
           {previousValue !== undefined && (
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
               Anterior: {previousValue}
             </p>
           )}
         </div>
         {Icon && (
-          <div className="premium-icon w-11 h-11 flex-shrink-0 ml-3">
-            <Icon className="w-5 h-5 text-primary transition-all duration-300 group-hover:scale-110" />
+          <div className="premium-icon w-9 h-9 sm:w-11 sm:h-11 flex-shrink-0 ml-2 sm:ml-3">
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary transition-all duration-300 group-hover:scale-110" />
           </div>
         )}
       </div>
       
-      {/* Sparkline */}
+      {/* Sparkline - Responsive height */}
       {sparklineData.length > 1 && (
-        <div className="h-14 -mx-2 mt-2 relative z-10">
+        <div className="h-10 sm:h-14 -mx-1 sm:-mx-2 mt-1 sm:mt-2 relative z-10">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
               <defs>
                 <linearGradient id={`area-gradient-${uniqueId}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
@@ -118,11 +118,11 @@ export default function SparklineCard({
                 type="monotone"
                 dataKey="value"
                 stroke={`url(#stroke-gradient-${uniqueId})`}
-                strokeWidth={2}
+                strokeWidth={1.5}
                 fill={`url(#area-gradient-${uniqueId})`}
                 dot={false}
                 activeDot={false}
-                animationDuration={1000}
+                animationDuration={800}
                 animationEasing="ease-out"
               />
             </AreaChart>
@@ -130,11 +130,11 @@ export default function SparklineCard({
         </div>
       )}
       
-      {/* Change indicator */}
+      {/* Change indicator - Compact on mobile */}
       {change !== undefined && (
-        <div className="flex items-center gap-2 mt-3 relative z-10">
+        <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-3 relative z-10">
           <div className={cn(
-            'flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full',
+            'flex items-center gap-1 text-[10px] sm:text-xs font-medium px-2 py-0.5 sm:px-3 sm:py-1.5 rounded-full',
             'transition-all duration-300 border',
             displayTrend === 'up' 
               ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20' 
@@ -142,11 +142,11 @@ export default function SparklineCard({
                 ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20' 
                 : 'bg-muted/50 text-muted-foreground border-muted/30'
           )}>
-            <TrendIcon className="w-4 h-4" />
+            <TrendIcon className="w-3 h-3 sm:w-4 sm:h-4" />
             <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
           </div>
           {changeLabel && (
-            <span className="text-xs text-muted-foreground">{changeLabel}</span>
+            <span className="text-[10px] sm:text-xs text-muted-foreground truncate max-w-[60px] sm:max-w-none">{changeLabel}</span>
           )}
         </div>
       )}
