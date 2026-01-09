@@ -37,6 +37,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChartContainer,
   ChartTooltip,
@@ -973,99 +974,166 @@ export default function PredictiveAnalysis() {
                       const isMarked = !!existingAction;
                       
                       return (
-                        <div 
-                          key={index}
+                        <motion.div 
+                          key={`${suggestion.title}-${index}`}
+                          layout
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ 
+                            opacity: isMarked && existingAction?.action_type === 'ignored' ? 0.6 : 1, 
+                            y: 0,
+                            scale: 1
+                          }}
+                          transition={{ 
+                            duration: 0.3, 
+                            ease: "easeOut",
+                            layout: { duration: 0.2 }
+                          }}
                           className={cn(
-                            "p-4 rounded-lg border transition-colors relative",
+                            "p-4 rounded-lg border relative overflow-hidden",
                             isMarked && existingAction.action_type === 'applied' && "bg-metric-positive/5 border-metric-positive/30",
-                            isMarked && existingAction.action_type === 'ignored' && "bg-muted/30 border-muted-foreground/20 opacity-60",
+                            isMarked && existingAction.action_type === 'ignored' && "bg-muted/30 border-muted-foreground/20",
                             !isMarked && suggestion.priority === 'high' && "bg-destructive/5 border-destructive/20",
                             !isMarked && suggestion.priority === 'medium' && "bg-metric-warning/5 border-metric-warning/20",
                             !isMarked && suggestion.priority === 'low' && "bg-muted/50 border-border"
                           )}
                         >
-                          {/* Status badge if marked */}
-                          {isMarked && (
-                            <div className="absolute -top-2 -right-2">
-                              <Badge 
-                                variant={existingAction.action_type === 'applied' ? 'default' : 'secondary'}
-                                className={cn(
-                                  "text-xs",
-                                  existingAction.action_type === 'applied' && "bg-metric-positive text-white"
-                                )}
+                          {/* Status badge if marked - animated */}
+                          <AnimatePresence>
+                            {isMarked && (
+                              <motion.div 
+                                className="absolute -top-2 -right-2 z-10"
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0, opacity: 0 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 25 }}
                               >
-                                {existingAction.action_type === 'applied' ? '✓ Aplicada' : 'Ignorada'}
-                              </Badge>
-                            </div>
-                          )}
+                                <Badge 
+                                  variant={existingAction.action_type === 'applied' ? 'default' : 'secondary'}
+                                  className={cn(
+                                    "text-xs shadow-sm",
+                                    existingAction.action_type === 'applied' && "bg-metric-positive text-white"
+                                  )}
+                                >
+                                  {existingAction.action_type === 'applied' ? '✓ Aplicada' : 'Ignorada'}
+                                </Badge>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                           
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex items-start gap-3 flex-1">
-                              <Zap className={cn(
-                                "w-5 h-5 mt-0.5 flex-shrink-0",
-                                isMarked && existingAction.action_type === 'applied' && "text-metric-positive",
-                                isMarked && existingAction.action_type === 'ignored' && "text-muted-foreground",
-                                !isMarked && suggestion.priority === 'high' && "text-destructive",
-                                !isMarked && suggestion.priority === 'medium' && "text-metric-warning",
-                                !isMarked && suggestion.priority === 'low' && "text-primary"
-                              )} />
+                              <motion.div
+                                animate={{ 
+                                  rotate: isMarked && existingAction?.action_type === 'applied' ? [0, -10, 10, 0] : 0
+                                }}
+                                transition={{ duration: 0.4 }}
+                              >
+                                <Zap className={cn(
+                                  "w-5 h-5 mt-0.5 flex-shrink-0 transition-colors duration-300",
+                                  isMarked && existingAction.action_type === 'applied' && "text-metric-positive",
+                                  isMarked && existingAction.action_type === 'ignored' && "text-muted-foreground",
+                                  !isMarked && suggestion.priority === 'high' && "text-destructive",
+                                  !isMarked && suggestion.priority === 'medium' && "text-metric-warning",
+                                  !isMarked && suggestion.priority === 'low' && "text-primary"
+                                )} />
+                              </motion.div>
                               <div className="space-y-1">
-                                <p className="font-medium">{suggestion.title}</p>
+                                <p className={cn(
+                                  "font-medium transition-all duration-300",
+                                  isMarked && existingAction?.action_type === 'applied' && "line-through decoration-metric-positive/50"
+                                )}>{suggestion.title}</p>
                                 <p className="text-sm text-muted-foreground">{suggestion.description}</p>
                                 <p className="text-xs text-muted-foreground/80 italic flex items-center gap-1">
                                   <Info className="w-3 h-3" />
                                   {suggestion.reason}
                                 </p>
-                                {/* Show reason if marked */}
-                                {isMarked && existingAction.reason && (
-                                  <p className="text-xs text-primary/80 mt-2 p-2 bg-primary/5 rounded">
-                                    <span className="font-medium">Nota:</span> {existingAction.reason}
-                                  </p>
-                                )}
+                                {/* Show reason if marked - animated */}
+                                <AnimatePresence>
+                                  {isMarked && existingAction.reason && (
+                                    <motion.p 
+                                      className="text-xs text-primary/80 mt-2 p-2 bg-primary/5 rounded"
+                                      initial={{ opacity: 0, height: 0 }}
+                                      animate={{ opacity: 1, height: "auto" }}
+                                      exit={{ opacity: 0, height: 0 }}
+                                      transition={{ duration: 0.2 }}
+                                    >
+                                      <span className="font-medium">Nota:</span> {existingAction.reason}
+                                    </motion.p>
+                                  )}
+                                </AnimatePresence>
                               </div>
                             </div>
                             
                             <div className="flex flex-col items-end gap-3">
-                              {!isMarked && getPriorityBadge(suggestion.priority)}
+                              <AnimatePresence mode="wait">
+                                {!isMarked && (
+                                  <motion.div
+                                    key="priority"
+                                    initial={{ opacity: 0, x: 10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 10 }}
+                                    transition={{ duration: 0.2 }}
+                                  >
+                                    {getPriorityBadge(suggestion.priority)}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                               
-                              {/* Action buttons - redesigned */}
-                              {isMarked ? (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-xs h-8 text-muted-foreground hover:text-foreground"
-                                  onClick={() => removeMark(suggestion.title)}
-                                >
-                                  Desfazer
-                                </Button>
-                              ) : (
-                                <div className="flex items-center gap-2 bg-muted/50 rounded-full p-1">
-                                  <button
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all bg-transparent hover:bg-metric-positive/20 text-muted-foreground hover:text-metric-positive"
-                                    onClick={() => {
-                                      setSelectedSuggestion({ title: suggestion.title, actionType: 'applied' });
-                                      setActionDialogOpen(true);
-                                    }}
+                              {/* Action buttons - animated */}
+                              <AnimatePresence mode="wait">
+                                {isMarked ? (
+                                  <motion.div
+                                    key="undo"
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    transition={{ duration: 0.2 }}
                                   >
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                    Aplicar
-                                  </button>
-                                  <div className="w-px h-4 bg-border" />
-                                  <button
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground"
-                                    onClick={() => {
-                                      setSelectedSuggestion({ title: suggestion.title, actionType: 'ignored' });
-                                      setActionDialogOpen(true);
-                                    }}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-xs h-8 text-muted-foreground hover:text-foreground"
+                                      onClick={() => removeMark(suggestion.title)}
+                                    >
+                                      Desfazer
+                                    </Button>
+                                  </motion.div>
+                                ) : (
+                                  <motion.div 
+                                    key="actions"
+                                    className="flex items-center gap-2 bg-muted/50 rounded-full p-1"
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    transition={{ duration: 0.2 }}
                                   >
-                                    <XCircle className="w-3.5 h-3.5" />
-                                    Ignorar
-                                  </button>
-                                </div>
-                              )}
+                                    <button
+                                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all bg-transparent hover:bg-metric-positive/20 text-muted-foreground hover:text-metric-positive active:scale-95"
+                                      onClick={() => {
+                                        setSelectedSuggestion({ title: suggestion.title, actionType: 'applied' });
+                                        setActionDialogOpen(true);
+                                      }}
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      Aplicar
+                                    </button>
+                                    <div className="w-px h-4 bg-border" />
+                                    <button
+                                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground active:scale-95"
+                                      onClick={() => {
+                                        setSelectedSuggestion({ title: suggestion.title, actionType: 'ignored' });
+                                        setActionDialogOpen(true);
+                                      }}
+                                    >
+                                      <XCircle className="w-3.5 h-3.5" />
+                                      Ignorar
+                                    </button>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
                           </div>
-                        </div>
+                        </motion.div>
                       );
                     })}
                   </div>
