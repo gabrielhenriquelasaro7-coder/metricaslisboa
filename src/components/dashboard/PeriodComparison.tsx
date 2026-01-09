@@ -53,10 +53,8 @@ function ComparisonItem({ label, current, previous, change, isInverse = false, t
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="premium-card group p-4 relative"
+      className="group relative p-4 rounded-xl bg-card/80 border border-border/50 hover:border-border transition-all duration-300"
     >
-      {/* Top gradient line */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-2">
@@ -94,7 +92,7 @@ function ComparisonItem({ label, current, previous, change, isInverse = false, t
           </div>
         </div>
         
-        <p className="text-xl font-bold group-hover:text-primary transition-colors duration-300">{current}</p>
+        <p className="text-xl font-bold transition-colors duration-300">{current}</p>
         
         {previous && (
           <p className="text-xs text-muted-foreground mt-2">

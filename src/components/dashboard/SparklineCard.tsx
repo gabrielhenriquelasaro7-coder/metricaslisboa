@@ -80,7 +80,7 @@ export default function SparklineCard({
       <div className="flex items-start justify-between mb-3 relative z-10">
         <div className="flex-1 min-w-0">
           {titleElement}
-          <p className="text-2xl font-bold mt-1 text-foreground group-hover:text-primary transition-colors duration-300">
+          <p className="text-2xl font-bold mt-1 text-foreground transition-colors duration-300">
             {value}
           </p>
           {previousValue !== undefined && (
