@@ -415,10 +415,25 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
         if (!firstRowLogged) {
           console.log(`[INSIGHTS] === SAMPLE ROW ===`);
           console.log(`[INSIGHTS] spend: ${row.spend}, impressions: ${row.impressions}, clicks: ${row.clicks}`);
-          if (row.results) {
-            for (const r of row.results) {
-              console.log(`[INSIGHTS] results: action_type=${r.action_type}, value=${r.value}`);
+          // Log actions para debug de profile_visits
+          if (row.actions) {
+            console.log(`[INSIGHTS] actions count: ${row.actions.length}`);
+            const profileActions = row.actions.filter((a: any) => 
+              a.action_type?.includes('profile') || 
+              a.action_type?.includes('ig_') ||
+              a.action_type?.includes('instagram')
+            );
+            if (profileActions.length > 0) {
+              for (const a of profileActions) {
+                console.log(`[INSIGHTS] profile action: ${a.action_type}=${a.value}`);
+              }
+            } else {
+              // Log all action types to see what's available
+              const actionTypes = row.actions.map((a: any) => a.action_type).join(', ');
+              console.log(`[INSIGHTS] all action_types: ${actionTypes.substring(0, 300)}`);
             }
+          } else {
+            console.log(`[INSIGHTS] NO actions array in response`);
           }
           firstRowLogged = true;
         }
