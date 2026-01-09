@@ -34,7 +34,10 @@ import {
   TrendingUp,
   MessageSquare,
   ExternalLink,
-  UserPlus
+  UserPlus,
+  Settings,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -315,6 +318,7 @@ export default function ProjectSelector() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -673,7 +677,7 @@ export default function ProjectSelector() {
               
               {/* Nav items with platform icons */}
               <div className="flex items-center gap-2">
-                <button className="h-11 px-5 rounded-lg text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition-all flex items-center gap-2.5 shadow-lg shadow-primary/20">
+                <button className="h-11 px-5 rounded-lg text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition-all flex items-center gap-2.5">
                   <img src={metaIcon} alt="" className="w-5 h-5" />
                   META ADS
                 </button>
@@ -697,6 +701,13 @@ export default function ProjectSelector() {
                 >
                   <img src={whatsappIcon} alt="" className="w-5 h-5 opacity-70" />
                   WHATSAPP
+                </button>
+                <button 
+                  onClick={() => setSettingsDialogOpen(true)}
+                  className="h-11 px-5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-2.5 border border-border"
+                >
+                  <Settings className="w-4 h-4" />
+                  CONFIGURAÇÕES
                 </button>
                 <button 
                   onClick={() => setProfileDialogOpen(true)}
@@ -1022,9 +1033,9 @@ export default function ProjectSelector() {
       
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-2xl">
+        <DialogContent className="sm:max-w-md bg-card border-border rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-white font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+            <DialogTitle className="text-foreground font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
               Editar Cliente
             </DialogTitle>
           </DialogHeader>
@@ -1032,12 +1043,12 @@ export default function ProjectSelector() {
             <div className="flex justify-center">
               <div 
                 onClick={() => editAvatarInputRef.current?.click()}
-                className="w-16 h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-red-500/50 transition-all overflow-hidden"
+                className="w-16 h-16 rounded-xl bg-secondary border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary/50 transition-all overflow-hidden"
               >
                 {editAvatarPreview ? (
                   <img src={editAvatarPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <Camera className="w-5 h-5 text-white/30" />
+                  <Camera className="w-5 h-5 text-muted-foreground" />
                 )}
               </div>
               <input
@@ -1050,28 +1061,28 @@ export default function ProjectSelector() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-white/50 text-xs">Nome do Cliente</Label>
+              <Label className="text-muted-foreground text-xs">Nome do Cliente</Label>
               <Input
                 value={editFormData.name}
                 onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50"
+                className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-white/50 text-xs">Health Score</Label>
+              <Label className="text-muted-foreground text-xs">Health Score</Label>
               <Select
                 value={editFormData.health_score || 'none'}
                 onValueChange={(val) => setEditFormData(prev => ({ ...prev, health_score: val === 'none' ? null : val as HealthScore }))}
               >
-                <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
+                <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
-                  <SelectItem value="none" className="text-white/50 rounded-lg">Sem status</SelectItem>
-                  <SelectItem value="safe" className="text-emerald-400 rounded-lg">Safe</SelectItem>
-                  <SelectItem value="care" className="text-amber-400 rounded-lg">Care</SelectItem>
-                  <SelectItem value="danger" className="text-red-400 rounded-lg">Danger</SelectItem>
+                <SelectContent className="bg-popover border-border rounded-xl">
+                  <SelectItem value="none" className="text-muted-foreground rounded-lg">Sem status</SelectItem>
+                  <SelectItem value="safe" className="text-emerald-600 dark:text-emerald-400 rounded-lg">Safe</SelectItem>
+                  <SelectItem value="care" className="text-amber-600 dark:text-amber-400 rounded-lg">Care</SelectItem>
+                  <SelectItem value="danger" className="text-red-600 dark:text-red-400 rounded-lg">Danger</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1081,14 +1092,14 @@ export default function ProjectSelector() {
                 type="button"
                 variant="outline"
                 onClick={() => setEditDialogOpen(false)}
-                className="flex-1 border-white/10 text-white/60 hover:text-white hover:bg-white/5 rounded-xl"
+                className="flex-1 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={isUpdating}
-                className="flex-1 bg-red-600 text-white hover:bg-red-500 rounded-xl font-medium"
+                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-medium"
               >
                 {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar'}
               </Button>
@@ -1099,20 +1110,20 @@ export default function ProjectSelector() {
 
       {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-2xl">
+        <AlertDialogContent className="bg-card border-border rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+            <AlertDialogTitle className="text-foreground font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
               Excluir Cliente
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-white/50">
+            <AlertDialogDescription className="text-muted-foreground">
               Tem certeza que deseja excluir "{selectedProject?.name}"? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-white/60 hover:text-white hover:bg-white/5 rounded-xl">
+            <AlertDialogCancel className="border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl">
               Cancelar
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-500 rounded-xl font-medium">
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-medium">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1121,9 +1132,9 @@ export default function ProjectSelector() {
 
       {/* Profile Dialog */}
       <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-2xl">
+        <DialogContent className="sm:max-w-md bg-card border-border rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-white font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+            <DialogTitle className="text-foreground font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
               Meu Perfil
             </DialogTitle>
           </DialogHeader>
@@ -1132,12 +1143,12 @@ export default function ProjectSelector() {
             <div className="flex justify-center">
               <div 
                 onClick={() => profileAvatarInputRef.current?.click()}
-                className="w-20 h-20 rounded-full bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-red-500/50 transition-all overflow-hidden"
+                className="w-20 h-20 rounded-full bg-secondary border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary/50 transition-all overflow-hidden"
               >
                 {profileAvatarPreview ? (
                   <img src={profileAvatarPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-8 h-8 text-white/30" />
+                  <User className="w-8 h-8 text-muted-foreground" />
                 )}
               </div>
               <input
@@ -1150,27 +1161,27 @@ export default function ProjectSelector() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-white/50 text-xs">Nome</Label>
+              <Label className="text-muted-foreground text-xs">Nome</Label>
               <Input
                 value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
-                className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50"
+                className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-white/50 text-xs">Cargo</Label>
+              <Label className="text-muted-foreground text-xs">Cargo</Label>
               <Select
                 value={profileCargo || 'none'}
                 onValueChange={(val) => setProfileCargo(val === 'none' ? null : val as UserCargo)}
               >
-                <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
+                <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
-                  <SelectItem value="none" className="text-white/50 rounded-lg">Nenhum</SelectItem>
+                <SelectContent className="bg-popover border-border rounded-xl">
+                  <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhum</SelectItem>
                   {cargoOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-white rounded-lg">
+                    <SelectItem key={opt.value} value={opt.value} className="text-foreground rounded-lg">
                       {opt.label}
                     </SelectItem>
                   ))}
@@ -1181,33 +1192,33 @@ export default function ProjectSelector() {
             <Button
               onClick={handleUpdateProfile}
               disabled={isUpdatingProfile}
-              className="w-full bg-red-600 text-white hover:bg-red-500 rounded-xl font-medium"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-medium"
             >
               {isUpdatingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Perfil'}
             </Button>
 
-            <div className="border-t border-white/10 pt-4">
-              <Label className="text-white/50 text-xs">Alterar Senha</Label>
+            <div className="border-t border-border pt-4">
+              <Label className="text-muted-foreground text-xs">Alterar Senha</Label>
               <div className="space-y-2 mt-2">
                 <Input
                   type="password"
                   placeholder="Nova senha"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl focus:border-red-500/50"
+                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground rounded-xl focus:border-primary/50"
                 />
                 <Input
                   type="password"
                   placeholder="Confirmar senha"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl focus:border-red-500/50"
+                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground rounded-xl focus:border-primary/50"
                 />
                 <Button
                   onClick={handleChangePassword}
                   disabled={isChangingPassword || !newPassword}
                   variant="outline"
-                  className="w-full border-white/10 text-white/60 hover:text-white hover:bg-white/5 rounded-xl"
+                  className="w-full border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl"
                 >
                   {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Alterar Senha'}
                 </Button>
@@ -1217,10 +1228,93 @@ export default function ProjectSelector() {
             <Button
               variant="outline"
               onClick={handleLogout}
-              className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-xl"
+              className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Sair
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Settings Dialog */}
+      <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-card border-border rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+              Configurações
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 mt-4">
+            {/* Theme Toggle */}
+            <div className="space-y-3">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Aparência</Label>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.classList.add('light');
+                    localStorage.setItem('theme', 'light');
+                    setSettingsDialogOpen(false);
+                    setTimeout(() => setSettingsDialogOpen(true), 10);
+                  }}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border transition-all",
+                    document.documentElement.classList.contains('light')
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:bg-secondary"
+                  )}
+                >
+                  <Sun className="w-5 h-5" />
+                  <span className="font-medium">Claro</span>
+                </button>
+                <button
+                  onClick={() => {
+                    document.documentElement.classList.remove('light');
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    setSettingsDialogOpen(false);
+                    setTimeout(() => setSettingsDialogOpen(true), 10);
+                  }}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border transition-all",
+                    !document.documentElement.classList.contains('light')
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:bg-secondary"
+                  )}
+                >
+                  <Moon className="w-5 h-5" />
+                  <span className="font-medium">Escuro</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Profile shortcut */}
+            <div className="space-y-3">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Conta</Label>
+              <button
+                onClick={() => {
+                  setSettingsDialogOpen(false);
+                  setProfileDialogOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-xl border border-border hover:bg-secondary transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <User className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-foreground font-medium">Editar Perfil</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Logout */}
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair da conta
             </Button>
           </div>
         </DialogContent>
