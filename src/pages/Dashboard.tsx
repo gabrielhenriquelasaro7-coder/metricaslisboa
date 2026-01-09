@@ -767,11 +767,11 @@ export default function Dashboard() {
                 reach={metrics.totalReach}
                 clicks={metrics.totalClicks}
                 conversions={metrics.totalConversions}
-                conversionValue={metrics.totalConversionValue}
-                messages={metrics.totalMessages}
                 spend={metrics.totalSpend}
+                ctr={metrics.ctr}
+                cpc={metrics.cpc}
+                cpl={metrics.cpa}
                 currency={selectedProject?.currency || 'BRL'}
-                businessModel={businessModel}
               />
             )}
 
