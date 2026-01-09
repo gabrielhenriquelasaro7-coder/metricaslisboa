@@ -89,41 +89,15 @@ export default function Creatives() {
     setSelectedPreset(preset);
   }, []);
 
-
-  // Show loading skeleton while projects are loading
-  if (projectsLoading) {
-    return (
-      <DashboardLayout>
-        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-          <div className="flex flex-col gap-4">
-            <div className="h-8 w-48 bg-muted rounded animate-pulse" />
-            <div className="h-5 w-64 bg-muted rounded animate-pulse" />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-64 bg-muted rounded-lg animate-pulse" />
-            ))}
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  // Redirect only after loading is complete
-  if (!selectedProject) {
-    navigate('/projects');
-    return null;
-  }
-
-  const getCampaignName = (campaignId: string) => {
+  const getCampaignName = useCallback((campaignId: string) => {
     const campaign = campaigns.find(c => c.id === campaignId);
     return campaign?.name || 'Campanha Desconhecida';
-  };
+  }, [campaigns]);
 
-  const getAdSetName = (adSetId: string) => {
+  const getAdSetName = useCallback((adSetId: string) => {
     const adSet = adSets.find(a => a.id === adSetId);
     return adSet?.name || 'Conjunto Desconhecido';
-  };
+  }, [adSets]);
 
   const filteredAdSets = useMemo(() => {
     if (campaignFilter === 'all') return adSets;
@@ -182,7 +156,7 @@ export default function Creatives() {
             return 0;
         }
       });
-  }, [ads, search, statusFilter, campaignFilter, adSetFilter, sortBy, campaigns, adSets]);
+  }, [ads, search, statusFilter, campaignFilter, adSetFilter, sortBy, getCampaignName, getAdSetName]);
 
   // Pagination
   const totalPages = Math.ceil(filteredCreatives.length / ITEMS_PER_PAGE);
@@ -191,33 +165,33 @@ export default function Creatives() {
     return filteredCreatives.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredCreatives, currentPage]);
 
-  const handleCampaignChange = (value: string) => {
+  const handleCampaignChange = useCallback((value: string) => {
     setCampaignFilter(value);
     setAdSetFilter('all');
     setCurrentPage(1);
-  };
+  }, []);
 
-  const handleFilterChange = (setter: (value: string) => void) => (value: string) => {
+  const handleFilterChange = useCallback((setter: (value: string) => void) => (value: string) => {
     setter(value);
     setCurrentPage(1);
-  };
+  }, []);
 
-  const formatNumber = (num: number) => {
+  const formatNumber = useCallback((num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toString();
-  };
+  }, []);
 
-  const formatCurrency = (num: number) => {
+  const formatCurrency = useCallback((num: number) => {
     const currency = selectedProject?.currency || 'BRL';
     const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
     }).format(num);
-  };
+  }, [selectedProject?.currency]);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = useCallback((status: string) => {
     const statusMap: Record<string, { label: string; className: string }> = {
       ACTIVE: { label: 'Ativo', className: 'bg-metric-positive/20 text-metric-positive' },
       PAUSED: { label: 'Pausado', className: 'bg-metric-warning/20 text-metric-warning' },
@@ -225,15 +199,40 @@ export default function Creatives() {
       ARCHIVED: { label: 'Arquivado', className: 'bg-muted text-muted-foreground' },
     };
     return statusMap[status] || { label: status, className: 'bg-muted text-muted-foreground' };
-  };
+  }, []);
 
   // Metrics calculations
-  const totalSpend = filteredCreatives.reduce((sum, c) => sum + (c.spend || 0), 0);
-  const totalConversions = filteredCreatives.reduce((sum, c) => sum + (c.conversions || 0), 0);
-  const totalConversionValue = filteredCreatives.reduce((sum, c) => sum + (c.conversion_value || 0), 0);
+  const totalSpend = useMemo(() => filteredCreatives.reduce((sum, c) => sum + (c.spend || 0), 0), [filteredCreatives]);
+  const totalConversions = useMemo(() => filteredCreatives.reduce((sum, c) => sum + (c.conversions || 0), 0), [filteredCreatives]);
+  const totalConversionValue = useMemo(() => filteredCreatives.reduce((sum, c) => sum + (c.conversion_value || 0), 0), [filteredCreatives]);
   const avgRoas = totalSpend > 0 ? totalConversionValue / totalSpend : 0;
   const avgTicket = totalConversions > 0 ? totalConversionValue / totalConversions : 0;
   const avgCpl = totalConversions > 0 ? totalSpend / totalConversions : 0;
+
+  // Show loading skeleton while projects are loading
+  if (projectsLoading) {
+    return (
+      <DashboardLayout>
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+          <div className="flex flex-col gap-4">
+            <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+            <div className="h-5 w-64 bg-muted rounded animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-64 bg-muted rounded-lg animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Redirect only after loading is complete
+  if (!selectedProject) {
+    navigate('/projects');
+    return null;
+  }
 
   if (loading) {
     return (
