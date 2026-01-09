@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { PredictiveSkeleton } from '@/components/skeletons';
 import { generatePredictiveReportPDF } from '@/components/pdf/PredictiveReportPDF';
 import { CampaignGoalsConfig } from '@/components/predictive/CampaignGoalsConfig';
-import { ChartCustomizationDialog } from '@/components/dashboard/ChartCustomizationDialog';
 
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
@@ -34,59 +33,25 @@ import {
   AlertCircle,
   XCircle,
   HelpCircle,
-  Settings2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
 } from '@/components/ui/chart';
 import {
-  Area,
-  AreaChart,
   XAxis,
   YAxis,
   CartesianGrid,
   ResponsiveContainer,
-  Line,
   ComposedChart,
   Bar,
-  Legend,
-  ReferenceDot,
 } from 'recharts';
-
-// Default chart colors
-const DEFAULT_COLORS = {
-  spend: 'hsl(220, 70%, 50%)',
-  conversions: 'hsl(142, 76%, 36%)',
-  projectedSpend: 'hsl(280, 70%, 50%)',
-  projectedConversions: 'hsl(30, 70%, 50%)',
-};
 
 export default function PredictiveAnalysis() {
   const projectId = localStorage.getItem('selectedProjectId');
   const { data, loading, error, fetchAnalysis } = usePredictiveAnalysis(projectId);
   const { goals } = useCampaignGoals(projectId);
-
-  // Chart customization state
-  const [trendChartCustomization, setTrendChartCustomization] = useState({
-    name: 'Tendência dos Últimos 30 Dias',
-    primaryColor: DEFAULT_COLORS.spend,
-    secondaryColor: DEFAULT_COLORS.conversions,
-  });
-  const [projectionChartCustomization, setProjectionChartCustomization] = useState({
-    name: 'Projeção Futura',
-    primaryColor: DEFAULT_COLORS.projectedSpend,
-    secondaryColor: DEFAULT_COLORS.projectedConversions,
-  });
-  const [trendChartDialogOpen, setTrendChartDialogOpen] = useState(false);
-  const [projectionChartDialogOpen, setProjectionChartDialogOpen] = useState(false);
-  
-  // Chart type state: 'area' | 'line' | 'bar' for each series
-  const [spendChartType, setSpendChartType] = useState<'area' | 'line' | 'bar'>('area');
-  const [conversionsChartType, setConversionsChartType] = useState<'area' | 'line' | 'bar'>('bar');
-  
 
   // Build campaign goals from saved data
   const campaignGoals: CampaignGoal[] = useMemo(() => {
@@ -584,537 +549,217 @@ export default function PredictiveAnalysis() {
                 </Card>
               </div>
 
-              {/* Historical Summary */}
+              {/* Simplified Trend Chart */}
               <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Dados Históricos (30 dias)</CardTitle>
-                  <CardDescription>Base utilizada para as projeções</CardDescription>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-primary" />
+                    Desempenho dos Últimos 30 Dias
+                  </CardTitle>
+                  <CardDescription>
+                    Veja quanto você gastou e quantos {showCPL ? 'leads' : 'resultados'} obteve por dia
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className={cn(
-                    "grid gap-6",
-                    showROAS ? "grid-cols-2 md:grid-cols-5" : "grid-cols-2 md:grid-cols-4"
-                  )}>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Total Investido</p>
-                      <p className="text-xl font-semibold">{formatCurrency(data.totals.spend30Days)}</p>
+                <CardContent className="space-y-6">
+                  {/* Simple Summary Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                      <p className="text-sm text-muted-foreground mb-1">💰 Gasto Total</p>
+                      <p className="text-2xl font-bold text-blue-500">{formatCurrency(data.totals.spend30Days)}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">{showCPL ? 'Leads Gerados' : 'Conversões'}</p>
-                      <p className="text-xl font-semibold">{formatNumber(data.totals.conversions30Days)}</p>
+                    <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                      <p className="text-sm text-muted-foreground mb-1">🎯 {showCPL ? 'Leads' : 'Resultados'}</p>
+                      <p className="text-2xl font-bold text-green-500">{formatNumber(data.totals.conversions30Days)}</p>
                     </div>
-                    {showROAS && (
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Receita Gerada</p>
-                        <p className="text-xl font-semibold">{formatCurrency(data.totals.revenue30Days)}</p>
+                    <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                      <p className="text-sm text-muted-foreground mb-1">📊 CPL Médio</p>
+                      <p className="text-2xl font-bold text-purple-500">
+                        {data.totals.conversions30Days > 0 
+                          ? formatCurrency(data.totals.spend30Days / data.totals.conversions30Days)
+                          : 'R$ 0'}
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                      <p className="text-sm text-muted-foreground mb-1">📅 Média/Dia</p>
+                      <p className="text-2xl font-bold text-amber-500">
+                        {formatNumber(data.totals.conversions30Days / 30)} {showCPL ? 'leads' : 'conv.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Best and Worst Days Highlight */}
+                  {performanceMarkers.best && performanceMarkers.worst && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 rounded-xl bg-gradient-to-r from-green-500/10 to-green-500/5 border border-green-500/30">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">🏆</span>
+                          <span className="font-semibold text-green-500">Melhor Dia: {performanceMarkers.best.date}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {performanceMarkers.best.conversions} {showCPL ? 'leads' : 'conversões'} com R$ {performanceMarkers.best.spend.toFixed(2)} de gasto
+                        </p>
+                        <p className="text-sm font-medium text-green-500 mt-1">
+                          CPL: R$ {performanceMarkers.bestCPL?.toFixed(2)}
+                        </p>
                       </div>
-                    )}
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Cliques</p>
-                      <p className="text-xl font-semibold">{formatNumber(data.totals.clicks30Days)}</p>
+                      <div className="p-4 rounded-xl bg-gradient-to-r from-red-500/10 to-red-500/5 border border-red-500/30">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">⚠️</span>
+                          <span className="font-semibold text-red-500">Pior Dia: {performanceMarkers.worst.date}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {performanceMarkers.worst.conversions} {showCPL ? 'leads' : 'conversões'} com R$ {performanceMarkers.worst.spend.toFixed(2)} de gasto
+                        </p>
+                        <p className="text-sm font-medium text-red-500 mt-1">
+                          CPL: R$ {performanceMarkers.worstCPL?.toFixed(2)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Impressões</p>
-                      <p className="text-xl font-semibold">{formatNumber(data.totals.impressions30Days)}</p>
-                    </div>
+                  )}
+
+                  {/* Simplified Chart - Just bars for results */}
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      📈 <strong>{showCPL ? 'Leads' : 'Resultados'} por dia</strong> — barras maiores = mais resultados
+                    </p>
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full !aspect-auto">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                          <XAxis 
+                            dataKey="date" 
+                            tick={{ fontSize: 10 }} 
+                            tickLine={false}
+                            axisLine={false}
+                            interval="preserveStartEnd"
+                          />
+                          <YAxis 
+                            tick={{ fontSize: 11 }} 
+                            tickLine={false}
+                            axisLine={false}
+                            width={40}
+                            allowDecimals={false}
+                            domain={[0, 'dataMax']}
+                          />
+                          <ChartTooltip 
+                            content={({ active, payload }) => {
+                              if (!active || !payload?.length) return null;
+                              const d = payload[0]?.payload;
+                              return (
+                                <div className="bg-popover border rounded-lg shadow-lg p-3 space-y-1">
+                                  <p className="font-semibold">{d?.date}</p>
+                                  <p className="text-green-500">🎯 {d?.conversions} {showCPL ? 'leads' : 'resultados'}</p>
+                                  <p className="text-blue-500">💰 R$ {d?.spend?.toFixed(2)}</p>
+                                  <p className="text-purple-500">
+                                    📊 CPL: R$ {d?.conversions > 0 ? (d.spend / d.conversions).toFixed(2) : '0'}
+                                  </p>
+                                </div>
+                              );
+                            }}
+                          />
+                          <Bar
+                            dataKey="conversions"
+                            name={showCPL ? "Leads" : "Resultados"}
+                            fill="hsl(142, 76%, 36%)"
+                            radius={[4, 4, 0, 0]}
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Charts Row - Trend Chart Full Width */}
+              {/* Simplified Future Projection */}
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5" />
-                      {trendChartCustomization.name}
-                    </CardTitle>
-                    <CardDescription>
-                      Gasto diário e {showCPL ? 'leads' : 'conversões'} ao longo do tempo
-                    </CardDescription>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setTrendChartDialogOpen(true)}
-                    className="shrink-0"
-                    title="Personalizar gráfico"
-                  >
-                    <Settings2 className="w-4 h-4" />
-                  </Button>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    O Que Esperar nos Próximos Dias
+                  </CardTitle>
+                  <CardDescription>
+                    Projeção baseada na média dos últimos 30 dias
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  {/* Explanatory Text */}
-                  <div className="bg-muted/50 rounded-lg p-3 mb-4 text-sm text-muted-foreground">
-                    <p className="flex items-start gap-2">
-                      <Info className="w-4 h-4 mt-0.5 shrink-0" />
-                      <span>
-                        Este gráfico mostra a relação entre <strong className="text-foreground">gasto diário</strong> (área azul) e <strong className="text-foreground">{showCPL ? 'leads' : 'conversões'}</strong> (barras verdes). 
-                        Dias com barras altas e área baixa indicam melhor eficiência. 
-                        {performanceMarkers.best && (
-                          <span> O <strong className="text-metric-positive">melhor dia</strong> teve CPL de R${performanceMarkers.bestCPL?.toFixed(2)} e o <strong className="text-destructive">pior</strong> R${performanceMarkers.worstCPL?.toFixed(2)}.</span>
-                        )}
-                      </span>
-                    </p>
-                  </div>
-                  
-                  {/* Chart Type Selector */}
-                  <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Gasto:</span>
-                        <div className="flex rounded-md border border-border overflow-hidden">
-                          <button
-                            onClick={() => setSpendChartType('area')}
-                            className={cn(
-                              "px-2 py-1 text-xs transition-colors",
-                              spendChartType === 'area' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
-                            )}
-                          >
-                            Área
-                          </button>
-                          <button
-                            onClick={() => setSpendChartType('line')}
-                            className={cn(
-                              "px-2 py-1 text-xs transition-colors border-x border-border",
-                              spendChartType === 'line' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
-                            )}
-                          >
-                            Linha
-                          </button>
-                          <button
-                            onClick={() => setSpendChartType('bar')}
-                            className={cn(
-                              "px-2 py-1 text-xs transition-colors",
-                              spendChartType === 'bar' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
-                            )}
-                          >
-                            Barra
-                          </button>
-                        </div>
+                <CardContent className="space-y-6">
+                  {/* Simple Projection Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* 7 Days Projection */}
+                    <div className="p-6 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Calendar className="w-5 h-5 text-blue-500" />
+                        <h3 className="font-semibold text-lg">Próximos 7 Dias</h3>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">{showCPL ? 'Leads' : 'Conversões'}:</span>
-                        <div className="flex rounded-md border border-border overflow-hidden">
-                          <button
-                            onClick={() => setConversionsChartType('area')}
-                            className={cn(
-                              "px-2 py-1 text-xs transition-colors",
-                              conversionsChartType === 'area' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
-                            )}
-                          >
-                            Área
-                          </button>
-                          <button
-                            onClick={() => setConversionsChartType('line')}
-                            className={cn(
-                              "px-2 py-1 text-xs transition-colors border-x border-border",
-                              conversionsChartType === 'line' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
-                            )}
-                          >
-                            Linha
-                          </button>
-                          <button
-                            onClick={() => setConversionsChartType('bar')}
-                            className={cn(
-                              "px-2 py-1 text-xs transition-colors",
-                              conversionsChartType === 'bar' ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
-                            )}
-                          >
-                            Barra
-                          </button>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">💰 Gasto estimado</span>
+                          <span className="font-bold text-xl">{formatCurrency(data.predictions.next7Days.estimatedSpend)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">🎯 {showCPL ? 'Leads' : 'Resultados'} esperados</span>
+                          <span className="font-bold text-xl text-green-500">{formatNumber(data.predictions.next7Days.estimatedConversions)}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                          <span className="text-muted-foreground">📊 CPL projetado</span>
+                          <span className="font-bold text-purple-500">
+                            {data.predictions.next7Days.estimatedConversions > 0 
+                              ? formatCurrency(data.predictions.next7Days.estimatedSpend / data.predictions.next7Days.estimatedConversions)
+                              : 'R$ 0'}
+                          </span>
                         </div>
                       </div>
                     </div>
-                    
-                    {/* Legend */}
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-4 h-4 rounded" 
-                          style={{ backgroundColor: trendChartCustomization.primaryColor }} 
-                        />
-                        <span className="text-sm font-medium">Gasto (R$)</span>
+
+                    {/* 30 Days Projection */}
+                    <div className="p-6 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Calendar className="w-5 h-5 text-purple-500" />
+                        <h3 className="font-semibold text-lg">Próximos 30 Dias</h3>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-4 h-4 rounded" 
-                          style={{ backgroundColor: trendChartCustomization.secondaryColor }} 
-                        />
-                        <span className="text-sm font-medium">{showCPL ? 'Leads' : 'Conversões'}</span>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">💰 Gasto estimado</span>
+                          <span className="font-bold text-xl">{formatCurrency(data.predictions.next30Days.estimatedSpend)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">🎯 {showCPL ? 'Leads' : 'Resultados'} esperados</span>
+                          <span className="font-bold text-xl text-green-500">{formatNumber(data.predictions.next30Days.estimatedConversions)}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                          <span className="text-muted-foreground">📊 CPL projetado</span>
+                          <span className="font-bold text-purple-500">
+                            {data.predictions.next30Days.estimatedConversions > 0 
+                              ? formatCurrency(data.predictions.next30Days.estimatedSpend / data.predictions.next30Days.estimatedConversions)
+                              : 'R$ 0'}
+                          </span>
+                        </div>
                       </div>
-                      {performanceMarkers.best && (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-metric-positive border-2 border-white shadow" />
-                            <span className="text-sm font-medium text-metric-positive">Melhor dia</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 rounded-full bg-destructive border-2 border-white shadow" />
-                            <span className="text-sm font-medium text-destructive">Pior dia</span>
-                          </div>
-                        </>
+                    </div>
+                  </div>
+
+                  {/* Simple Visual: How many leads per day expected */}
+                  <div className="p-4 rounded-xl bg-muted/30">
+                    <p className="text-center text-muted-foreground mb-4">
+                      📈 Projeção diária: <strong className="text-foreground">{formatNumber(data.predictions.trends.avgDailyConversions)} {showCPL ? 'leads' : 'resultados'}</strong> por dia
+                    </p>
+                    <div className="flex justify-center gap-2 flex-wrap">
+                      {Array.from({ length: Math.min(Math.round(data.predictions.trends.avgDailyConversions), 10) }).map((_, i) => (
+                        <div 
+                          key={i}
+                          className="w-8 h-8 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center text-green-500 text-sm font-bold"
+                        >
+                          🎯
+                        </div>
+                      ))}
+                      {Math.round(data.predictions.trends.avgDailyConversions) > 10 && (
+                        <div className="w-8 h-8 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center text-green-500 text-xs font-bold">
+                          +{Math.round(data.predictions.trends.avgDailyConversions) - 10}
+                        </div>
                       )}
                     </div>
                   </div>
-                  <ChartContainer config={chartConfig} className="h-[350px] w-full !aspect-auto">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis 
-                          dataKey="date" 
-                          tick={{ fontSize: 10 }} 
-                          tickLine={false}
-                          axisLine={false}
-                          interval={0}
-                        />
-                        <YAxis 
-                          yAxisId="left"
-                          tick={{ fontSize: 11 }} 
-                          tickLine={false}
-                          axisLine={false}
-                          width={70}
-                          tickFormatter={(v) => {
-                            if (v >= 1000) return `R$${(v/1000).toFixed(1)}k`;
-                            return `R$${Math.round(v)}`;
-                          }}
-                          domain={[0, 'dataMax']}
-                          tickCount={6}
-                          label={{ value: 'Gasto (R$)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
-                        />
-                        <YAxis 
-                          yAxisId="right"
-                          orientation="right"
-                          tick={{ fontSize: 11 }} 
-                          tickLine={false}
-                          axisLine={false}
-                          width={50}
-                          allowDecimals={false}
-                          domain={conversionsYDomain}
-                          tickCount={6}
-                          label={{ value: showCPL ? 'Leads' : 'Conversões', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
-                        />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        
-                        {/* Spend Series - Dynamic Chart Type */}
-                        {spendChartType === 'area' && (
-                          <Area
-                            yAxisId="left"
-                            type="monotone"
-                            dataKey="spend"
-                            name="Gasto (R$)"
-                            stroke={trendChartCustomization.primaryColor}
-                            fill={trendChartCustomization.primaryColor}
-                            fillOpacity={0.2}
-                          />
-                        )}
-                        {spendChartType === 'line' && (
-                          <Line
-                            yAxisId="left"
-                            type="monotone"
-                            dataKey="spend"
-                            name="Gasto (R$)"
-                            stroke={trendChartCustomization.primaryColor}
-                            strokeWidth={2}
-                            dot={{ r: 3, fill: trendChartCustomization.primaryColor }}
-                          />
-                        )}
-                        {spendChartType === 'bar' && (
-                          <Bar
-                            yAxisId="left"
-                            dataKey="spend"
-                            name="Gasto (R$)"
-                            fill={trendChartCustomization.primaryColor}
-                            radius={[4, 4, 0, 0]}
-                            fillOpacity={0.8}
-                          />
-                        )}
-                        
-                        {/* Conversions Series - Dynamic Chart Type */}
-                        {conversionsChartType === 'area' && (
-                          <Area
-                            yAxisId="right"
-                            type="monotone"
-                            dataKey="conversions"
-                            name={showCPL ? "Leads" : "Conversões"}
-                            stroke={trendChartCustomization.secondaryColor}
-                            fill={trendChartCustomization.secondaryColor}
-                            fillOpacity={0.2}
-                          />
-                        )}
-                        {conversionsChartType === 'line' && (
-                          <Line
-                            yAxisId="right"
-                            type="monotone"
-                            dataKey="conversions"
-                            name={showCPL ? "Leads" : "Conversões"}
-                            stroke={trendChartCustomization.secondaryColor}
-                            strokeWidth={2}
-                            dot={{ r: 3, fill: trendChartCustomization.secondaryColor }}
-                          />
-                        )}
-                        {conversionsChartType === 'bar' && (
-                          <Bar
-                            yAxisId="right"
-                            dataKey="conversions"
-                            name={showCPL ? "Leads" : "Conversões"}
-                            fill={trendChartCustomization.secondaryColor}
-                            radius={[4, 4, 0, 0]}
-                          />
-                        )}
-                        {/* Best Performance Day Marker */}
-                        {performanceMarkers.best && (
-                          <ReferenceDot
-                            x={performanceMarkers.best.date}
-                            y={performanceMarkers.best.conversions}
-                            yAxisId="right"
-                            r={8}
-                            fill="hsl(var(--metric-positive))"
-                            stroke="white"
-                            strokeWidth={2}
-                          />
-                        )}
-                        {/* Worst Performance Day Marker */}
-                        {performanceMarkers.worst && performanceMarkers.worst.date !== performanceMarkers.best?.date && (
-                          <ReferenceDot
-                            x={performanceMarkers.worst.date}
-                            y={performanceMarkers.worst.conversions}
-                            yAxisId="right"
-                            r={8}
-                            fill="hsl(var(--destructive))"
-                            stroke="white"
-                            strokeWidth={2}
-                          />
-                        )}
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
                 </CardContent>
               </Card>
-
-              {/* Future Projection Chart */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-primary" />
-                      {projectionChartCustomization.name}
-                    </CardTitle>
-                    <CardDescription>
-                      Estimativa de gasto e {showCPL ? 'leads' : 'conversões'} com base nos dados históricos
-                    </CardDescription>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setProjectionChartDialogOpen(true)}
-                    className="shrink-0"
-                    title="Personalizar gráfico"
-                  >
-                    <Settings2 className="w-4 h-4" />
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {(() => {
-                    // Build projection data
-                    const today = new Date();
-                    const projectionData = [];
-                    
-                    // Last 7 days of historical data
-                    const last7Days = chartData.slice(-7);
-                    last7Days.forEach((d, i) => {
-                      projectionData.push({
-                        date: d.date,
-                        spend: d.spend,
-                        conversions: d.conversions,
-                        type: 'historical'
-                      });
-                    });
-                    
-                    // Projection for next 7 days
-                    const avgDailySpend = data.predictions.trends.avgDailySpend;
-                    const avgDailyConversions = data.predictions.trends.avgDailyConversions;
-                    
-                    for (let i = 1; i <= 7; i++) {
-                      const projDate = new Date(today);
-                      projDate.setDate(projDate.getDate() + i);
-                      projectionData.push({
-                        date: projDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-                        projectedSpend: avgDailySpend,
-                        projectedConversions: avgDailyConversions,
-                        type: 'projection'
-                      });
-                    }
-                    
-                    const projectionConfig = {
-                      spend: { label: 'Gasto Real', color: projectionChartCustomization.primaryColor },
-                      projectedSpend: { label: 'Gasto Projetado', color: projectionChartCustomization.primaryColor },
-                      conversions: { label: showCPL ? 'Leads Reais' : 'Conversões Reais', color: projectionChartCustomization.secondaryColor },
-                      projectedConversions: { label: showCPL ? 'Leads Projetados' : 'Conversões Projetadas', color: projectionChartCustomization.secondaryColor },
-                    };
-                    
-                    return (
-                      <>
-                        {/* Custom Legend for Projection Chart */}
-                        <div className="flex flex-wrap items-center justify-center gap-4 mb-4">
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-4 h-4 rounded" 
-                              style={{ backgroundColor: projectionChartCustomization.primaryColor }} 
-                            />
-                            <span className="text-sm font-medium">Gasto Real</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-4 h-1 rounded" 
-                              style={{ 
-                                backgroundColor: projectionChartCustomization.primaryColor,
-                                backgroundImage: `repeating-linear-gradient(90deg, ${projectionChartCustomization.primaryColor}, ${projectionChartCustomization.primaryColor} 4px, transparent 4px, transparent 8px)`
-                              }} 
-                            />
-                            <span className="text-sm font-medium">Gasto Projetado</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-4 h-4 rounded" 
-                              style={{ backgroundColor: projectionChartCustomization.secondaryColor }} 
-                            />
-                            <span className="text-sm font-medium">{showCPL ? 'Leads Reais' : 'Conversões Reais'}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-4 h-1 rounded" 
-                              style={{ 
-                                backgroundColor: projectionChartCustomization.secondaryColor,
-                                backgroundImage: `repeating-linear-gradient(90deg, ${projectionChartCustomization.secondaryColor}, ${projectionChartCustomization.secondaryColor} 4px, transparent 4px, transparent 8px)`
-                              }} 
-                            />
-                            <span className="text-sm font-medium">{showCPL ? 'Leads Projetados' : 'Conversões Projetadas'}</span>
-                          </div>
-                        </div>
-                        <ChartContainer config={projectionConfig} className="h-[300px] w-full !aspect-auto">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={projectionData}>
-                              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                              <XAxis 
-                                dataKey="date" 
-                                tick={{ fontSize: 11 }} 
-                                tickLine={false}
-                                axisLine={false}
-                                interval={0}
-                              />
-                              <YAxis 
-                                yAxisId="left"
-                                tick={{ fontSize: 11 }} 
-                                tickLine={false}
-                                axisLine={false}
-                                width={70}
-                                domain={[0, 'auto']}
-                                tickCount={6}
-                                tickFormatter={(v) => {
-                                  if (v >= 1000) return `R$${(v/1000).toFixed(1)}k`;
-                                  return `R$${Math.round(v)}`;
-                                }}
-                                label={{ value: 'Gasto (R$)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
-                              />
-                              <YAxis 
-                                yAxisId="right"
-                                orientation="right"
-                                tick={{ fontSize: 11 }} 
-                                tickLine={false}
-                                axisLine={false}
-                                width={50}
-                                allowDecimals={false}
-                                domain={[0, 'auto']}
-                                tickCount={6}
-                                label={{ value: showCPL ? 'Leads' : 'Conversões', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
-                              />
-                              <ChartTooltip content={<ChartTooltipContent />} />
-                              {/* Historical Data - Solid Lines */}
-                              <Area
-                                yAxisId="left"
-                                type="monotone"
-                                dataKey="spend"
-                                name="Gasto Real"
-                                stroke={projectionChartCustomization.primaryColor}
-                                fill={projectionChartCustomization.primaryColor}
-                                fillOpacity={0.2}
-                                connectNulls={false}
-                              />
-                              <Bar
-                                yAxisId="right"
-                                dataKey="conversions"
-                                name={showCPL ? "Leads Reais" : "Conversões Reais"}
-                                fill={projectionChartCustomization.secondaryColor}
-                                radius={[4, 4, 0, 0]}
-                              />
-                              {/* Projected Data - Dashed Lines */}
-                              <Line
-                                yAxisId="left"
-                                type="monotone"
-                                dataKey="projectedSpend"
-                                name="Gasto Projetado"
-                                stroke={projectionChartCustomization.primaryColor}
-                                strokeDasharray="8 4"
-                                strokeWidth={3}
-                                dot={{ fill: projectionChartCustomization.primaryColor, strokeWidth: 2, r: 4 }}
-                                connectNulls={false}
-                              />
-                              <Line
-                                yAxisId="right"
-                                type="monotone"
-                                dataKey="projectedConversions"
-                                name={showCPL ? "Leads Projetados" : "Conversões Projetadas"}
-                                stroke={projectionChartCustomization.secondaryColor}
-                                strokeDasharray="8 4"
-                                strokeWidth={3}
-                                dot={{ fill: projectionChartCustomization.secondaryColor, strokeWidth: 2, r: 4 }}
-                                connectNulls={false}
-                              />
-                            </ComposedChart>
-                          </ResponsiveContainer>
-                        </ChartContainer>
-                      </>
-                    );
-                  })()}
-                  <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-border">
-                    <div className="text-center p-4 rounded-lg bg-muted/30">
-                      <p className="text-sm text-muted-foreground">Projeção 7 Dias</p>
-                      <p className="text-xl font-bold text-primary">{formatCurrency(data.predictions.next7Days.estimatedSpend)}</p>
-                      <p className="text-sm text-muted-foreground">{formatNumber(data.predictions.next7Days.estimatedConversions)} {showCPL ? 'leads' : 'conversões'}</p>
-                    </div>
-                    <div className="text-center p-4 rounded-lg bg-muted/30">
-                      <p className="text-sm text-muted-foreground">Projeção 30 Dias</p>
-                      <p className="text-xl font-bold text-primary">{formatCurrency(data.predictions.next30Days.estimatedSpend)}</p>
-                      <p className="text-sm text-muted-foreground">{formatNumber(data.predictions.next30Days.estimatedConversions)} {showCPL ? 'leads' : 'conversões'}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Chart Customization Dialogs */}
-              <ChartCustomizationDialog
-                open={trendChartDialogOpen}
-                onOpenChange={setTrendChartDialogOpen}
-                chartName={trendChartCustomization.name}
-                primaryColor={trendChartCustomization.primaryColor}
-                secondaryColor={trendChartCustomization.secondaryColor}
-                onSave={(name, primaryColor, secondaryColor) => {
-                  setTrendChartCustomization({ name, primaryColor, secondaryColor });
-                  toast.success('Gráfico personalizado com sucesso!');
-                }}
-              />
-              <ChartCustomizationDialog
-                open={projectionChartDialogOpen}
-                onOpenChange={setProjectionChartDialogOpen}
-                chartName={projectionChartCustomization.name}
-                primaryColor={projectionChartCustomization.primaryColor}
-                secondaryColor={projectionChartCustomization.secondaryColor}
-                onSave={(name, primaryColor, secondaryColor) => {
-                  setProjectionChartCustomization({ name, primaryColor, secondaryColor });
-                  toast.success('Gráfico personalizado com sucesso!');
-                }}
-              />
 
               {/* Campaign Goals Progress - Adapted by business model */}
               {data.campaignGoalsProgress.length > 0 && (
