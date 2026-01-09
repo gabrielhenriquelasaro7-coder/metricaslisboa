@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { PeriodProvider } from "@/hooks/usePeriodContext";
 import { AdminAuthProvider } from "@/hooks/useAdminAuth";
 import { GuestAccessGuard } from "@/components/auth/GuestAccessGuard";
+import { PWAProvider } from "@/components/pwa/PWAProvider";
 import { AnimatePresence, motion } from "framer-motion";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -91,13 +92,15 @@ const App = () => (
       <AdminAuthProvider>
         <PeriodProvider>
           <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <GuestAccessGuard>
-                <AnimatedRoutes />
-              </GuestAccessGuard>
-            </BrowserRouter>
+            <PWAProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <GuestAccessGuard>
+                  <AnimatedRoutes />
+                </GuestAccessGuard>
+              </BrowserRouter>
+            </PWAProvider>
           </TooltipProvider>
         </PeriodProvider>
       </AdminAuthProvider>
