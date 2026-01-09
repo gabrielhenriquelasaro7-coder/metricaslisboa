@@ -33,7 +33,8 @@ const MESSAGING_ACTION_TYPES = [
   'onsite_conversion.total_messaging_connection'
 ];
 
-const PROFILE_VISIT_ACTION_TYPES = ['onsite_conversion.profile_view', 'ig_profile_visit', 'profile_visit', 'page_engagement', 'post_engagement'];
+// Only include actual Instagram profile visit actions - NOT page_engagement or post_engagement
+const PROFILE_VISIT_ACTION_TYPES = ['ig_profile_visit', 'onsite_conversion.profile_view', 'profile_visit'];
 
 function delay(ms: number): Promise<void> { return new Promise(resolve => setTimeout(resolve, ms)); }
 
