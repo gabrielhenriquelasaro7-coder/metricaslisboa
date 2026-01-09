@@ -769,6 +769,7 @@ export default function Dashboard() {
                 conversions={metrics.totalConversions}
                 conversionValue={metrics.totalConversionValue}
                 messages={metrics.totalMessages}
+                spend={metrics.totalSpend}
                 currency={selectedProject?.currency || 'BRL'}
                 businessModel={businessModel}
               />
