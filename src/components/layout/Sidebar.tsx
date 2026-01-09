@@ -158,7 +158,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 className={cn(
                   "transition-all duration-300",
                   collapsed ? "h-8 w-auto" : "h-10 w-auto",
-                  "dark:brightness-0 dark:invert"
+                  "dark:filter dark:brightness-0 dark:invert"
                 )}
               />
             </Link>
@@ -170,7 +170,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 className={cn(
                   "transition-all duration-300",
                   collapsed ? "h-8 w-auto" : "h-10 w-auto",
-                  "dark:brightness-0 dark:invert"
+                  "dark:filter dark:brightness-0 dark:invert"
                 )}
               />
             </div>
