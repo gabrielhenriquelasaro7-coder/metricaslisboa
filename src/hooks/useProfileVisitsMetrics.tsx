@@ -11,9 +11,6 @@ export interface ProfileVisitsData {
   hasProfileVisitCampaigns: boolean;
 }
 
-// Only campaigns with LINK_CLICKS objective are considered "profile visits" campaigns
-const PROFILE_VISIT_OBJECTIVES = ['LINK_CLICKS'];
-
 export function useProfileVisitsMetrics(
   projectId: string | undefined,
   preset: DatePresetKey,
@@ -54,7 +51,6 @@ export function useProfileVisitsMetrics(
             since = period.since;
             until = period.until;
           } else {
-            // Fallback - last 30 days
             const now = new Date();
             until = now.toISOString().split('T')[0];
             since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -63,14 +59,13 @@ export function useProfileVisitsMetrics(
 
         console.log(`[ProfileVisitsMetrics] Fetching for project ${projectId}, ${since} to ${until}`);
 
-        // Fetch ONLY from campaigns with LINK_CLICKS objective (profile visits campaigns)
+        // Get ALL campaigns with profile_visits > 0, regardless of objective
         const { data: metricsData, error } = await supabase
           .from('ads_daily_metrics')
-          .select('profile_visits, spend')
+          .select('profile_visits, spend, campaign_status')
           .eq('project_id', projectId)
           .gte('date', since)
           .lte('date', until)
-          .in('campaign_objective', PROFILE_VISIT_OBJECTIVES)
           .gt('profile_visits', 0);
 
         if (error) {
@@ -84,7 +79,7 @@ export function useProfileVisitsMetrics(
           return;
         }
 
-        // Sum profile visits and spend from profile visit campaigns only
+        // Sum ALL profile visits from ALL campaigns
         let totalProfileVisits = 0;
         let totalSpend = 0;
 
@@ -93,11 +88,10 @@ export function useProfileVisitsMetrics(
           totalSpend += Number(row.spend) || 0;
         }
 
-        // Only show if there are actual profile visits
         const hasProfileVisitCampaigns = totalProfileVisits > 0;
         const costPerVisit = totalProfileVisits > 0 ? totalSpend / totalProfileVisits : 0;
 
-        console.log(`[ProfileVisitsMetrics] Found ${totalProfileVisits} profile visits from LINK_CLICKS campaigns, spend: ${formatNumber(totalSpend)}`);
+        console.log(`[ProfileVisitsMetrics] Total: ${totalProfileVisits} visits, R$ ${totalSpend.toFixed(2)} spend, CPV: R$ ${costPerVisit.toFixed(2)}`);
 
         setData({
           totalProfileVisits,
@@ -122,8 +116,4 @@ export function useProfileVisitsMetrics(
   }, [projectId, preset, customDateRange]);
 
   return { data, loading };
-}
-
-function formatNumber(num: number): string {
-  return new Intl.NumberFormat('pt-BR').format(num);
 }
