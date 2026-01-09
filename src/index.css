@@ -99,24 +99,27 @@
   }
 
   .light {
-    --background: 220 15% 97%;
-    --foreground: 220 15% 10%;
+    /* Clean white background */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 10%;
+    --card-foreground: 0 0% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 10%;
+    --popover-foreground: 0 0% 8%;
 
+    /* V4 Red Primary - same accent */
     --primary: 0 85% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 15% 94%;
-    --secondary-foreground: 220 15% 10%;
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 8%;
 
-    --muted: 220 10% 92%;
-    --muted-foreground: 220 8% 45%;
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 45%;
 
+    /* Red Accent */
     --accent: 0 75% 45%;
     --accent-foreground: 0 0% 100%;
 
@@ -127,10 +130,10 @@
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 45%;
-    --warning-foreground: 220 15% 10%;
+    --warning-foreground: 0 0% 8%;
 
-    --border: 220 15% 88%;
-    --input: 220 15% 94%;
+    --border: 0 0% 88%;
+    --input: 0 0% 95%;
     --ring: 0 85% 50%;
 
     /* V4 Color tokens - Light */
@@ -141,30 +144,37 @@
 
     /* Custom semantic tokens - Light Theme */
     --gradient-primary: linear-gradient(135deg, hsl(0, 85%, 50%) 0%, hsl(348, 85%, 45%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(220, 10%, 98%) 100%);
-    --gradient-glow: radial-gradient(ellipse at center, hsl(0, 85%, 50%, 0.1) 0%, transparent 70%);
-    --gradient-hero: linear-gradient(135deg, hsl(220, 10%, 98%) 0%, hsl(220, 15%, 95%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(0, 0%, 98%) 100%);
+    --gradient-glow: radial-gradient(ellipse at center, hsl(0, 85%, 50%, 0.08) 0%, transparent 70%);
+    --gradient-hero: linear-gradient(135deg, hsl(0, 0%, 98%) 0%, hsl(0, 0%, 96%) 100%);
     
-    --shadow-glow: 0 0 60px hsl(0, 85%, 50%, 0.15);
-    --shadow-glow-sm: 0 0 30px hsl(0, 85%, 50%, 0.12);
-    --shadow-card: 0 4px 24px hsl(0, 0%, 0%, 0.08);
-    --shadow-elevated: 0 8px 32px hsl(0, 0%, 0%, 0.12);
-    --shadow-deep: 0 25px 50px -12px hsl(0, 0%, 0%, 0.15);
+    --shadow-glow: 0 0 40px hsl(0, 85%, 50%, 0.1);
+    --shadow-glow-sm: 0 0 20px hsl(0, 85%, 50%, 0.08);
+    --shadow-card: 0 2px 12px hsl(0, 0%, 0%, 0.06);
+    --shadow-elevated: 0 8px 32px hsl(0, 0%, 0%, 0.1);
+    --shadow-deep: 0 25px 50px -12px hsl(0, 0%, 0%, 0.12);
 
+    /* Sidebar - Light */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 15% 10%;
+    --sidebar-foreground: 0 0% 8%;
     --sidebar-primary: 0 85% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 96%;
-    --sidebar-accent-foreground: 220 15% 10%;
-    --sidebar-border: 220 15% 92%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 8%;
+    --sidebar-border: 0 0% 90%;
     --sidebar-ring: 0 85% 50%;
+    
+    /* Sidebar gradients - Light */
+    --sidebar-gradient-start: 0 85% 50%;
+    --sidebar-gradient-end: 348 85% 45%;
+    --sidebar-gradient-accent: 20 90% 50%;
+    --sidebar-glow: 0 85% 50%;
 
     /* Metrics colors - Light */
-    --metric-positive: 150 80% 35%;
-    --metric-negative: 0 72% 50%;
-    --metric-neutral: 220 10% 50%;
-    --metric-warning: 38 92% 45%;
+    --metric-positive: 150 80% 32%;
+    --metric-negative: 0 72% 48%;
+    --metric-neutral: 0 0% 45%;
+    --metric-warning: 38 92% 42%;
 
     /* Chart colors - Light */
     --chart-1: 0 85% 50%;
@@ -174,8 +184,8 @@
     --chart-5: 200 75% 45%;
 
     /* Undefined state */
-    --undefined: 220 10% 60%;
-    --undefined-foreground: 220 10% 40%;
+    --undefined: 0 0% 55%;
+    --undefined-foreground: 0 0% 35%;
   }
 }
 
@@ -375,31 +385,31 @@
     opacity: 0.3;
   }
 
-  /* ===== PREMIUM CARD STYLES (Clean - No Red Glow) ===== */
+  /* ===== PREMIUM CARD STYLES (Clean with subtle animation) ===== */
   .premium-card {
     @apply relative overflow-hidden rounded-xl;
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border) / 0.5);
-    box-shadow: 0 2px 8px hsl(0, 0%, 0%, 0.15);
-    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px hsl(0, 0%, 0%, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .premium-card:hover {
-    border-color: hsl(var(--border));
-    box-shadow: 0 4px 16px hsl(0, 0%, 0%, 0.2);
-    transform: translateY(-1px);
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 8px 24px hsl(0, 0%, 0%, 0.15);
   }
 
   /* Premium icon container */
   .premium-icon {
     @apply relative rounded-lg flex items-center justify-center;
-    background: hsl(var(--secondary));
-    border: 1px solid hsl(var(--border) / 0.5);
+    background: hsl(var(--primary) / 0.1);
+    border: 1px solid hsl(var(--primary) / 0.2);
+    transition: all 0.3s ease;
   }
 
   .premium-card:hover .premium-icon {
-    background: hsl(var(--secondary));
-    border-color: hsl(var(--border));
+    background: hsl(var(--primary) / 0.15);
+    border-color: hsl(var(--primary) / 0.3);
   }
 
   /* Premium bar - for charts (clean depth, no glow) */
@@ -435,12 +445,12 @@
     border-color: hsl(var(--primary) / 0.2);
   }
 
-  /* ===== SIDEBAR PREMIUM - Pure Black ===== */
+  /* ===== SIDEBAR PREMIUM ===== */
   
   /* Container principal da sidebar */
   .sidebar-container {
     @apply relative overflow-hidden;
-    background: hsl(0 0% 2%);
+    background: hsl(var(--sidebar-background));
   }
   
   .sidebar-container::before {
@@ -455,7 +465,7 @@
       hsl(var(--sidebar-gradient-start) / 0.03) 0%,
       transparent 30%,
       transparent 70%,
-      hsl(0 0% 0% / 0.5) 100%
+      hsl(var(--sidebar-background) / 0.8) 100%
     );
     pointer-events: none;
   }
@@ -467,12 +477,7 @@
     top: 0;
     bottom: 0;
     width: 1px;
-    background: linear-gradient(
-      180deg, 
-      hsl(var(--sidebar-gradient-start) / 0.3) 0%,
-      hsl(var(--sidebar-border)) 50%,
-      hsl(var(--sidebar-gradient-start) / 0.3) 100%
-    );
+    background: hsl(var(--sidebar-border));
   }
   
   /* Item da sidebar - Clean & Modern */
@@ -483,7 +488,7 @@
 
   .sidebar-item:hover {
     @apply text-foreground;
-    background: hsl(0 0% 8%);
+    background: hsl(var(--sidebar-accent));
     border-color: hsl(var(--border));
   }
 
@@ -531,13 +536,13 @@
   /* Project selector - Clean */
   .sidebar-project-selector {
     @apply rounded-lg p-3 transition-all duration-200;
-    background: hsl(0 0% 6%);
+    background: hsl(var(--sidebar-accent));
     border: 1px solid hsl(var(--border));
   }
   
   .sidebar-project-selector:hover {
     border-color: hsl(var(--primary) / 0.3);
-    background: hsl(0 0% 8%);
+    background: hsl(var(--sidebar-accent));
   }
   
   /* Logo - Subtle glow */
@@ -561,18 +566,18 @@
   /* Collapse button - Clean */
   .sidebar-collapse-btn {
     @apply p-2 rounded-lg transition-all duration-200;
-    background: hsl(0 0% 8%);
+    background: hsl(var(--sidebar-accent));
     border: 1px solid hsl(var(--border));
   }
   
   .sidebar-collapse-btn:hover {
-    background: hsl(0 0% 12%);
+    background: hsl(var(--sidebar-accent));
     border-color: hsl(var(--primary) / 0.3);
   }
   
   .sidebar-collapse-btn svg {
     @apply transition-all duration-200;
-    color: hsl(0 0% 60%);
+    color: hsl(var(--muted-foreground));
   }
   
   .sidebar-collapse-btn:hover svg {
@@ -779,35 +784,40 @@
   }
 }
 
-/* Scrollbar styling - V4 Red */
+/* Scrollbar styling - Minimal & Clean */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background) / 0.5);
-  border-radius: 5px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.6) 100%);
-  border-radius: 5px;
-  border: 2px solid hsl(var(--background) / 0.3);
-  box-shadow: 0 0 10px hsl(var(--primary) / 0.3);
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, hsl(var(--primary) / 1) 0%, hsl(var(--primary) / 0.8) 100%);
-  box-shadow: 0 0 15px hsl(var(--primary) / 0.5);
+  background: hsl(var(--muted-foreground) / 0.5);
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}
+
 /* Selection styling */
 ::selection {
-  background: hsl(var(--primary) / 0.35);
+  background: hsl(var(--primary) / 0.3);
   color: hsl(var(--foreground));
 }

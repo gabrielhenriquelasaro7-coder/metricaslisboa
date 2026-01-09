@@ -102,21 +102,22 @@ export default function MetricCard({
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.4 }}
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: index * 0.05, duration: 0.4, ease: "easeOut" }}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
       className={cn('premium-card group cursor-default p-4', className)}
     >
       <div className="flex items-center justify-between gap-2 mb-2 relative z-10">
         <div className="flex-1 min-w-0">
           {titleElement}
-          <p className="text-lg md:text-xl font-bold truncate text-foreground group-hover:text-primary transition-colors duration-300">
+          <p className="text-lg md:text-xl font-bold truncate text-foreground transition-colors duration-300">
             {animatedValue}
           </p>
         </div>
         {Icon && (
           <div className="premium-icon w-10 h-10 flex-shrink-0">
-            <Icon className="w-4 h-4 text-muted-foreground transition-colors duration-300" />
+            <Icon className="w-4 h-4 text-primary transition-all duration-300 group-hover:scale-110" />
           </div>
         )}
       </div>

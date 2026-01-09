@@ -69,9 +69,10 @@ export default function SparklineCard({
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.4 }}
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: index * 0.05, duration: 0.4, ease: "easeOut" }}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
       className={cn(
         'premium-card group relative cursor-default p-4',
         className
@@ -91,7 +92,7 @@ export default function SparklineCard({
         </div>
         {Icon && (
           <div className="premium-icon w-11 h-11 flex-shrink-0 ml-3">
-            <Icon className="w-5 h-5 text-muted-foreground transition-colors duration-300" />
+            <Icon className="w-5 h-5 text-primary transition-all duration-300 group-hover:scale-110" />
           </div>
         )}
       </div>
