@@ -156,7 +156,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 src={v4LogoFull} 
                 alt="V4 Company" 
                 className={cn(
-                  "transition-all duration-300 brightness-0 invert",
+                  "transition-all duration-300 dark:brightness-0 dark:invert",
                   collapsed ? "h-8 w-auto" : "h-10 w-auto"
                 )}
               />
@@ -167,7 +167,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 src={v4LogoFull} 
                 alt="V4 Company" 
                 className={cn(
-                  "transition-all duration-300 brightness-0 invert",
+                  "transition-all duration-300 dark:brightness-0 dark:invert",
                   collapsed ? "h-8 w-auto" : "h-10 w-auto"
                 )}
               />
