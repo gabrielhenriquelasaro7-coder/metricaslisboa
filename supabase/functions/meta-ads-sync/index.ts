@@ -194,8 +194,8 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   let url = `https://graph.facebook.com/v22.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) { const data = await fetchWithRetry(url, 'CAMPAIGNS'); if (isTokenExpiredError(data)) return { campaigns: [], adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) campaigns.push(...data.data); url = data.paging?.next || null; }
   
-  // Adsets - v22.0
-  url = `https://graph.facebook.com/v22.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
+  // Adsets - v22.0 - includes targeting for optimization tracking
+  url = `https://graph.facebook.com/v22.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting,promoted_object&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) { const data = await fetchWithRetry(url, 'ADSETS'); if (isTokenExpiredError(data)) return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), tokenExpired: true }; if (data.data) adsets.push(...data.data); url = data.paging?.next || null; }
   
   // ADS - LIGHT: apenas campos essenciais + creative para extração de texto
@@ -752,22 +752,129 @@ function validateSyncData(records: any[]): { isValid: boolean; totalSpend: numbe
   return { isValid: !allZero || records.length === 0, totalSpend, totalImpressions, totalConversions };
 }
 
+// Targeting comparison helper - extracts key targeting info for comparison
+function summarizeTargeting(targeting: any): string | null {
+  if (!targeting) return null;
+  const parts: string[] = [];
+  
+  // Age and gender
+  if (targeting.age_min || targeting.age_max) {
+    parts.push(`idade:${targeting.age_min || 18}-${targeting.age_max || 65}`);
+  }
+  if (targeting.genders?.length) {
+    parts.push(`genero:${targeting.genders.join(',')}`);
+  }
+  
+  // Locations
+  if (targeting.geo_locations) {
+    const geo = targeting.geo_locations;
+    const locs = [
+      ...(geo.countries || []),
+      ...(geo.cities?.map((c: any) => c.name || c.key) || []),
+      ...(geo.regions?.map((r: any) => r.name || r.key) || [])
+    ];
+    if (locs.length) parts.push(`local:${locs.slice(0, 3).join(',')}`);
+  }
+  
+  // Custom audiences
+  if (targeting.custom_audiences?.length) {
+    parts.push(`publicos:${targeting.custom_audiences.length}`);
+  }
+  if (targeting.excluded_custom_audiences?.length) {
+    parts.push(`excluidos:${targeting.excluded_custom_audiences.length}`);
+  }
+  
+  // Interests (flexible_spec)
+  if (targeting.flexible_spec?.length) {
+    let interestCount = 0;
+    for (const spec of targeting.flexible_spec) {
+      interestCount += (spec.interests?.length || 0) + (spec.behaviors?.length || 0);
+    }
+    if (interestCount > 0) parts.push(`interesses:${interestCount}`);
+  }
+  
+  // Placements
+  if (targeting.publisher_platforms?.length) {
+    parts.push(`plataformas:${targeting.publisher_platforms.join(',')}`);
+  }
+  
+  return parts.length > 0 ? parts.join('|') : null;
+}
+
 async function detectAndRecordChanges(supabase: any, projectId: string, entityType: 'campaign' | 'adset' | 'ad', tableName: string, newRecords: any[], trackedFields: string[]): Promise<any[]> {
   const changes: any[] = [];
   if (newRecords.length === 0) return changes;
   const ids = newRecords.map(r => r.id);
   const { data: existingRecords } = await supabase.from(tableName).select('*').in('id', ids).eq('project_id', projectId);
   const existingMap = new Map((existingRecords || []).map((r: any) => [r.id, r]));
+  
   for (const newRecord of newRecords) {
     const existing = existingMap.get(newRecord.id) as Record<string, any> | undefined;
-    if (!existing) { changes.push({ project_id: projectId, entity_type: entityType, entity_id: newRecord.id, entity_name: newRecord.name || 'Unknown', field_changed: 'created', old_value: null, new_value: newRecord.status || 'ACTIVE', change_type: 'created', change_percentage: null }); continue; }
+    
+    // New entity detection
+    if (!existing) { 
+      changes.push({ 
+        project_id: projectId, 
+        entity_type: entityType, 
+        entity_id: newRecord.id, 
+        entity_name: newRecord.name || 'Unknown', 
+        field_changed: 'created', 
+        old_value: null, 
+        new_value: newRecord.status || 'ACTIVE', 
+        change_type: 'created', 
+        change_percentage: null 
+      }); 
+      continue; 
+    }
+    
     for (const field of trackedFields) {
-      const oldVal = existing[field], newVal = newRecord[field];
+      let oldVal = existing[field];
+      let newVal = newRecord[field];
+      
+      // Special handling for targeting - compare summarized version
+      if (field === 'targeting') {
+        const oldSummary = summarizeTargeting(oldVal);
+        const newSummary = summarizeTargeting(newVal);
+        
+        if (oldSummary === newSummary) continue;
+        
+        changes.push({ 
+          project_id: projectId, 
+          entity_type: entityType, 
+          entity_id: newRecord.id, 
+          entity_name: newRecord.name || existing.name || 'Unknown', 
+          field_changed: 'targeting', 
+          old_value: oldSummary, 
+          new_value: newSummary, 
+          change_type: 'targeting_change', 
+          change_percentage: null 
+        });
+        continue;
+      }
+      
       if (oldVal === newVal || (oldVal == null && newVal == null)) continue;
+      
       let changeType = 'modified', changePct: number | null = null;
-      if (field === 'status') { changeType = oldVal === 'ACTIVE' && newVal !== 'ACTIVE' ? 'paused' : oldVal !== 'ACTIVE' && newVal === 'ACTIVE' ? 'activated' : 'status_change'; }
-      else if (field.includes('budget')) { changeType = 'budget_change'; const oldNum = parseFloat(String(oldVal)) || 0, newNum = parseFloat(String(newVal)) || 0; if (oldNum > 0) changePct = ((newNum - oldNum) / oldNum) * 100; }
-      changes.push({ project_id: projectId, entity_type: entityType, entity_id: newRecord.id, entity_name: newRecord.name || existing.name || 'Unknown', field_changed: field, old_value: oldVal != null ? String(oldVal) : null, new_value: newVal != null ? String(newVal) : null, change_type: changeType, change_percentage: changePct });
+      
+      if (field === 'status') { 
+        changeType = oldVal === 'ACTIVE' && newVal !== 'ACTIVE' ? 'paused' : oldVal !== 'ACTIVE' && newVal === 'ACTIVE' ? 'activated' : 'status_change'; 
+      } else if (field === 'objective') {
+        changeType = 'objective_change';
+      } else if (['creative_image_url', 'creative_video_url', 'headline', 'primary_text', 'cta'].includes(field)) {
+        changeType = 'creative_change';
+      }
+      
+      changes.push({ 
+        project_id: projectId, 
+        entity_type: entityType, 
+        entity_id: newRecord.id, 
+        entity_name: newRecord.name || existing.name || 'Unknown', 
+        field_changed: field, 
+        old_value: oldVal != null ? String(oldVal) : null, 
+        new_value: newVal != null ? String(newVal) : null, 
+        change_type: changeType, 
+        change_percentage: changePct 
+      });
     }
   }
   return changes;
@@ -965,7 +1072,13 @@ Deno.serve(async (req) => {
       // Adset aggregation
       if (!adsetMetrics.has(r.adset_id)) {
         const adset = adsetMap.get(r.adset_id);
-        adsetMetrics.set(r.adset_id, { ...initMetric(r.adset_id, r.adset_name, { status: adset?.status }), campaign_id: r.campaign_id, daily_budget: adset?.daily_budget, lifetime_budget: adset?.lifetime_budget });
+        adsetMetrics.set(r.adset_id, { 
+          ...initMetric(r.adset_id, r.adset_name, { status: adset?.status }), 
+          campaign_id: r.campaign_id, 
+          daily_budget: adset?.daily_budget, 
+          lifetime_budget: adset?.lifetime_budget,
+          targeting: adset?.targeting || null,
+        });
       }
       const am = adsetMetrics.get(r.adset_id);
       am.spend += r.spend;
