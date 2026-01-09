@@ -324,64 +324,76 @@ export default function Dashboard() {
         <GuidedTour onComplete={completeTour} onSkip={skipTour} />
       )}
       
-      <div className="p-8 space-y-8 animate-fade-in">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <img 
-              src={v4LogoFull} 
-              alt="V4 Company" 
-              className="h-12 w-auto"
-            />
-            <div>
-              <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
-              <p className="text-muted-foreground">Visão geral das suas campanhas</p>
-            </div>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div data-tour="date-picker">
-              <DateRangePicker
-                dateRange={dateRange} 
-                onDateRangeChange={handleDateRangeChange}
-                timezone={projectTimezone}
-                onPresetChange={handlePresetChange}
-                selectedPreset={selectedPreset}
-              />
-            </div>
-            
-            {/* PDF Builder Button */}
-            {hasSelectedProject && selectedProject && (
-              <div data-tour="pdf-export">
-                <PDFBuilderDialog
-                  projectId={selectedProject.id}
-                  projectName={selectedProject.name}
-                  businessModel={businessModel || null}
-                  currency={selectedProject.currency || 'BRL'}
-                  currentPeriod={getDateRangeFromPreset(selectedPreset, projectTimezone) || { since: format(new Date(), 'yyyy-MM-dd'), until: format(new Date(), 'yyyy-MM-dd') }}
+      <div className="relative min-h-screen">
+        {/* Background effects - matching projects page */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/3 rounded-full blur-[150px]" />
+          <div className="absolute bottom-1/4 left-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[120px]" />
+        </div>
+        
+        <div className="relative z-10 p-8 space-y-8 animate-fade-in">
+          {/* Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <img 
+                  src={v4LogoFull} 
+                  alt="V4 Company" 
+                  className="h-12 w-auto"
+                  style={{ filter: 'drop-shadow(0 0 20px rgba(255, 0, 0, 0.3))' }}
                 />
               </div>
-            )}
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleManualSync} disabled={syncing || !selectedProject}>
-                  <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-                  {syncing ? 'Sincronizando...' : 'Sincronizar Campanhas'}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSyncDemographics} disabled={syncing || !selectedProject}>
-                  <Users className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-                  Sincronizar Demográficos
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <div>
+                <h1 className="text-3xl font-bold mb-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  Dashboard
+                </h1>
+                <p className="text-muted-foreground text-sm">Visão geral das suas campanhas</p>
+              </div>
+            </div>
+          
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div data-tour="date-picker">
+                <DateRangePicker
+                  dateRange={dateRange} 
+                  onDateRangeChange={handleDateRangeChange}
+                  timezone={projectTimezone}
+                  onPresetChange={handlePresetChange}
+                  selectedPreset={selectedPreset}
+                />
+              </div>
+              
+              {/* PDF Builder Button */}
+              {hasSelectedProject && selectedProject && (
+                <div data-tour="pdf-export">
+                  <PDFBuilderDialog
+                    projectId={selectedProject.id}
+                    projectName={selectedProject.name}
+                    businessModel={businessModel || null}
+                    currency={selectedProject.currency || 'BRL'}
+                    currentPeriod={getDateRangeFromPreset(selectedPreset, projectTimezone) || { since: format(new Date(), 'yyyy-MM-dd'), until: format(new Date(), 'yyyy-MM-dd') }}
+                  />
+                </div>
+              )}
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleManualSync} disabled={syncing || !selectedProject}>
+                    <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+                    {syncing ? 'Sincronizando...' : 'Sincronizar Campanhas'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSyncDemographics} disabled={syncing || !selectedProject}>
+                    <Users className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+                    Sincronizar Demográficos
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        </div>
 
         {/* Check if has projects */}
         {activeProjects.length === 0 && !loading ? (
@@ -435,7 +447,12 @@ export default function Dashboard() {
 
             {/* Metrics Grid - General Base Metrics with Sparklines */}
             <div data-tour="metrics">
-              <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Métricas Gerais</h2>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1 h-6 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
+                <h2 className="text-lg font-semibold text-white/90" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  Métricas Gerais
+                </h2>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 <SparklineCard
                   title="Gasto Total"
@@ -491,11 +508,14 @@ export default function Dashboard() {
             {/* Top of Funnel Metrics - Only show when there are Instagram traffic campaigns with profile visits */}
             {hasSelectedProject && profileVisitsData.hasProfileVisitCampaigns && (
               <div>
-                <h2 className="text-lg font-semibold mb-4 text-muted-foreground flex items-center gap-2">
-                  <Instagram className="w-5 h-5 text-pink-500" />
-                  Métricas Topo de Funil
-                  <span className="text-sm font-normal">(Tráfego para Instagram)</span>
-                </h2>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-1 h-6 bg-gradient-to-b from-pink-500 to-pink-500/50 rounded-full" />
+                  <h2 className="text-lg font-semibold text-white/90 flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    <Instagram className="w-5 h-5 text-pink-500" />
+                    Métricas Topo de Funil
+                    <span className="text-sm font-normal text-white/50">(Tráfego para Instagram)</span>
+                  </h2>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
                   <SparklineCard
                     title="Visitas ao Perfil"
@@ -516,14 +536,17 @@ export default function Dashboard() {
             {/* Result Metrics - Dynamic based on business model - Only show when a specific project is selected */}
             {hasSelectedProject && (
             <div>
-              <h2 className="text-lg font-semibold mb-4 text-muted-foreground">
-                Métricas de Resultado 
-                {!isCustom && (
-                  <span className="text-sm font-normal ml-2">
-                    ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : isPdv ? 'PDV' : isInfoproduto ? 'Infoproduto' : ''})
-                  </span>
-                )}
-              </h2>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1 h-6 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
+                <h2 className="text-lg font-semibold text-white/90" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  Métricas de Resultado 
+                  {!isCustom && (
+                    <span className="text-sm font-normal text-white/50 ml-2">
+                      ({isEcommerce ? 'E-commerce' : isInsideSales ? 'Inside Sales' : isPdv ? 'PDV' : isInfoproduto ? 'Infoproduto' : ''})
+                    </span>
+                  )}
+                </h2>
+              </div>
               
               {/* E-commerce Metrics */}
               {isEcommerce && (
@@ -793,6 +816,7 @@ export default function Dashboard() {
             />
           </>
         )}
+        </div>
       </div>
 
     </DashboardLayout>
