@@ -296,7 +296,7 @@ Deno.serve(async (req) => {
     let forceResend = false;
     try {
       const body = await req.json();
-      targetConfigId = body.configId || null;
+      targetConfigId = body.configId || body.targetConfigId || null;
       forceResend = body.forceResend || false;
     } catch {
       // No body, will process all active configs
