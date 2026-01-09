@@ -68,13 +68,12 @@ export function useProfileVisitsMetrics(
 
         console.log(`[ProfileVisitsMetrics] Fetching for project ${projectId}, ${since} to ${until}`);
 
-        // Get ONLY traffic campaigns (LINK_CLICKS objective) with profile_visits > 0
-        // This matches the "Visitas ao perfil do Instagram" metric from Meta Ads
+        // Get ALL campaigns with profile_visits > 0
+        // This includes LINK_CLICKS, OUTCOME_ENGAGEMENT, OUTCOME_LEADS, OUTCOME_SALES, etc.
         const { data: metricsData, error } = await supabase
           .from('ads_daily_metrics')
           .select('profile_visits, spend, campaign_status, campaign_objective')
           .eq('project_id', projectId)
-          .eq('campaign_objective', 'LINK_CLICKS')
           .gte('date', since)
           .lte('date', until)
           .gt('profile_visits', 0);
