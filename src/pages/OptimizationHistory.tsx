@@ -290,43 +290,7 @@ export default function OptimizationHistory() {
   const [entityFilter, setEntityFilter] = useState<string>('all');
   const [changeTypeFilter, setChangeTypeFilter] = useState<string>('all');
 
-  // Show loading skeleton while loading
-  if (projectsLoading || dataLoading) {
-    return (
-      <DashboardLayout>
-        <div className="p-8 space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div>
-              <Skeleton className="h-10 w-80 mb-2" />
-              <Skeleton className="h-5 w-96" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-10 w-28" />
-              <Skeleton className="h-10 w-28" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <Skeleton key={i} className="h-24" />
-            ))}
-          </div>
-          <Skeleton className="h-12 w-full" />
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-20" />
-            ))}
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  // Redirect only after loading is complete and no project
-  if (!selectedProject) {
-    navigate('/projects');
-    return null;
-  }
-
+  // All useMemo hooks MUST be called before any conditional returns
   const filteredHistory = useMemo(() => {
     return history.filter(record => {
       const matchesSearch = search === '' || 
@@ -417,6 +381,43 @@ export default function OptimizationHistory() {
     const types = new Set(history.map(h => h.change_type));
     return Array.from(types);
   }, [history]);
+
+  // Show loading skeleton while loading (AFTER all hooks)
+  if (projectsLoading || dataLoading) {
+    return (
+      <DashboardLayout>
+        <div className="p-8 space-y-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+              <Skeleton className="h-10 w-80 mb-2" />
+              <Skeleton className="h-5 w-96" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-10 w-28" />
+              <Skeleton className="h-10 w-28" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+          <Skeleton className="h-12 w-full" />
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-20" />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Redirect only after loading is complete and no project (AFTER all hooks)
+  if (!selectedProject) {
+    navigate('/projects');
+    return null;
+  }
 
   return (
     <DashboardLayout>
