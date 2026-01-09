@@ -1318,6 +1318,7 @@ export type Database = {
         Row: {
           change_percentage: number | null
           change_type: string
+          changed_by: string | null
           created_at: string
           detected_at: string
           entity_id: string
@@ -1332,6 +1333,7 @@ export type Database = {
         Insert: {
           change_percentage?: number | null
           change_type: string
+          changed_by?: string | null
           created_at?: string
           detected_at?: string
           entity_id: string
@@ -1346,6 +1348,7 @@ export type Database = {
         Update: {
           change_percentage?: number | null
           change_type?: string
+          changed_by?: string | null
           created_at?: string
           detected_at?: string
           entity_id?: string

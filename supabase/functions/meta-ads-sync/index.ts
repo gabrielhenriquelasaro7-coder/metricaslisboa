@@ -823,7 +823,51 @@ function summarizeTargeting(targeting: any): string | null {
   return parts.length > 0 ? parts.join('|') : null;
 }
 
-async function detectAndRecordChanges(supabase: any, projectId: string, entityType: 'campaign' | 'adset' | 'ad', tableName: string, newRecords: any[], trackedFields: string[]): Promise<any[]> {
+// Fetch activities from Meta API to get actor names (who made the change)
+async function fetchActivities(adAccountId: string, token: string): Promise<Map<string, { actorName: string; eventTime: string }>> {
+  const activityMap = new Map<string, { actorName: string; eventTime: string }>();
+  
+  try {
+    // Fetch activities from last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sinceTimestamp = Math.floor(sevenDaysAgo.getTime() / 1000);
+    
+    const url = `https://graph.facebook.com/v22.0/${adAccountId}/activities?fields=actor_id,actor_name,object_id,object_type,event_type,event_time&limit=500&since=${sinceTimestamp}&access_token=${token}`;
+    
+    const data = await fetchWithRetry(url, 'ACTIVITIES');
+    
+    if (data.data && Array.isArray(data.data)) {
+      for (const activity of data.data) {
+        if (activity.object_id && activity.actor_name) {
+          // Use most recent activity for each object
+          const existing = activityMap.get(String(activity.object_id));
+          if (!existing || new Date(activity.event_time) > new Date(existing.eventTime)) {
+            activityMap.set(String(activity.object_id), {
+              actorName: activity.actor_name,
+              eventTime: activity.event_time
+            });
+          }
+        }
+      }
+      console.log(`[ACTIVITIES] Fetched ${data.data.length} activities, mapped ${activityMap.size} unique objects`);
+    }
+  } catch (error) {
+    console.log(`[ACTIVITIES] Error fetching activities: ${error}`);
+  }
+  
+  return activityMap;
+}
+
+async function detectAndRecordChanges(
+  supabase: any, 
+  projectId: string, 
+  entityType: 'campaign' | 'adset' | 'ad', 
+  tableName: string, 
+  newRecords: any[], 
+  trackedFields: string[],
+  activityMap?: Map<string, { actorName: string; eventTime: string }>
+): Promise<any[]> {
   const changes: any[] = [];
   if (newRecords.length === 0) return changes;
   const ids = newRecords.map(r => r.id);
@@ -832,6 +876,10 @@ async function detectAndRecordChanges(supabase: any, projectId: string, entityTy
   
   for (const newRecord of newRecords) {
     const existing = existingMap.get(newRecord.id) as Record<string, any> | undefined;
+    
+    // Get actor name from activities
+    const actorInfo = activityMap?.get(String(newRecord.id));
+    const changedBy = actorInfo?.actorName || null;
     
     // New entity detection
     if (!existing) { 
@@ -844,7 +892,8 @@ async function detectAndRecordChanges(supabase: any, projectId: string, entityTy
         old_value: null, 
         new_value: newRecord.status || 'ACTIVE', 
         change_type: 'created', 
-        change_percentage: null 
+        change_percentage: null,
+        changed_by: changedBy
       }); 
       continue; 
     }
@@ -869,7 +918,8 @@ async function detectAndRecordChanges(supabase: any, projectId: string, entityTy
           old_value: oldSummary, 
           new_value: newSummary, 
           change_type: 'targeting_change', 
-          change_percentage: null 
+          change_percentage: null,
+          changed_by: changedBy
         });
         continue;
       }
@@ -895,7 +945,8 @@ async function detectAndRecordChanges(supabase: any, projectId: string, entityTy
         old_value: oldVal != null ? String(oldVal) : null, 
         new_value: newVal != null ? String(newVal) : null, 
         change_type: changeType, 
-        change_percentage: changePct 
+        change_percentage: changePct,
+        changed_by: changedBy
       });
     }
   }
@@ -1188,27 +1239,30 @@ Deno.serve(async (req) => {
       console.log(`[CREATIVE-RESULT] Sample ad: headline="${sample.headline || 'NULL'}", primary_text="${sample.primary_text?.substring(0, 50) || 'NULL'}", cta="${sample.cta || 'NULL'}", has_image=${!!sample.creative_image_url}`);
     }
 
+    // Fetch activities to get actor names (who made the change)
+    const activityMap = await fetchActivities(ad_account_id, token);
+
     // Detect changes
     const { data: existingCampaigns } = await supabase.from('campaigns').select('*').eq('project_id', project_id);
     const allChanges: any[] = [];
     
     if (campaignRecords.length > 0) {
-      const campaignChanges = await detectAndRecordChanges(supabase, project_id, 'campaign', 'campaigns', campaignRecords, TRACKED_FIELDS_CAMPAIGN);
+      const campaignChanges = await detectAndRecordChanges(supabase, project_id, 'campaign', 'campaigns', campaignRecords, TRACKED_FIELDS_CAMPAIGN, activityMap);
       allChanges.push(...campaignChanges);
     }
     if (adsetRecords.length > 0) {
-      const adsetChanges = await detectAndRecordChanges(supabase, project_id, 'adset', 'ad_sets', adsetRecords, TRACKED_FIELDS_ADSET);
+      const adsetChanges = await detectAndRecordChanges(supabase, project_id, 'adset', 'ad_sets', adsetRecords, TRACKED_FIELDS_ADSET, activityMap);
       allChanges.push(...adsetChanges);
     }
     if (adRecords.length > 0) {
-      const adChanges = await detectAndRecordChanges(supabase, project_id, 'ad', 'ads', adRecords, TRACKED_FIELDS_AD);
+      const adChanges = await detectAndRecordChanges(supabase, project_id, 'ad', 'ads', adRecords, TRACKED_FIELDS_AD, activityMap);
       allChanges.push(...adChanges);
     }
 
     // Save changes to optimization_history
     if (allChanges.length > 0) {
       await supabase.from('optimization_history').insert(allChanges);
-      console.log(`[CHANGES] Recorded ${allChanges.length} changes`);
+      console.log(`[CHANGES] Recorded ${allChanges.length} changes with actor info`);
     }
 
     // Detect anomalies
