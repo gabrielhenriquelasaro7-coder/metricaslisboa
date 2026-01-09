@@ -409,32 +409,37 @@ export function CustomizableChart({
       return (
         <BarChart data={chartData} margin={{ top: shouldAggregateByMonth ? 25 : 10, right: 30, left: 0, bottom: 0 }}>
           <defs>
+            {/* Primary bar gradient with 3D depth effect */}
             <linearGradient id={gradientId1} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={primaryColor} stopOpacity={1} />
-              <stop offset="100%" stopColor={primaryColor} stopOpacity={0.7} />
+              <stop offset="50%" stopColor={primaryColor} stopOpacity={0.85} />
+              <stop offset="100%" stopColor={primaryColor} stopOpacity={0.6} />
             </linearGradient>
+            {/* Secondary bar gradient with 3D depth effect */}
             <linearGradient id={gradientId2} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={secondaryColor} stopOpacity={1} />
-              <stop offset="100%" stopColor={secondaryColor} stopOpacity={0.7} />
+              <stop offset="50%" stopColor={secondaryColor} stopOpacity={0.85} />
+              <stop offset="100%" stopColor={secondaryColor} stopOpacity={0.6} />
             </linearGradient>
-            <filter id={glowId1} x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feFlood floodColor={primaryColor} floodOpacity="0.4" />
-              <feComposite in2="blur" operator="in" />
-              <feMerge>
-                <feMergeNode />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+            {/* Primary glow filter - dynamic color */}
+            <filter id={glowId1} x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor={primaryColor} floodOpacity="0.5" />
             </filter>
-            <filter id={glowId2} x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feFlood floodColor={secondaryColor} floodOpacity="0.4" />
-              <feComposite in2="blur" operator="in" />
-              <feMerge>
-                <feMergeNode />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+            {/* Secondary glow filter - dynamic color */}
+            <filter id={glowId2} x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor={secondaryColor} floodOpacity="0.5" />
             </filter>
+            {/* Inner highlight for 3D effect */}
+            <linearGradient id={`${gradientId1}-highlight`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="white" stopOpacity="0.25" />
+              <stop offset="50%" stopColor="white" stopOpacity="0.05" />
+              <stop offset="100%" stopColor="black" stopOpacity="0.15" />
+            </linearGradient>
+            <linearGradient id={`${gradientId2}-highlight`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="white" stopOpacity="0.25" />
+              <stop offset="50%" stopColor="white" stopOpacity="0.05" />
+              <stop offset="100%" stopColor="black" stopOpacity="0.15" />
+            </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
@@ -442,10 +447,10 @@ export function CustomizableChart({
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Bar yAxisId="left" dataKey={primaryMetric} name={primary.label} fill={`url(#${gradientId1})`} radius={[6, 6, 0, 0]} animationDuration={800} style={{ filter: `url(#${glowId1})` }}>
+          <Bar yAxisId="left" dataKey={primaryMetric} name={primary.label} fill={`url(#${gradientId1})`} radius={[6, 6, 0, 0]} animationDuration={800} style={{ filter: `url(#${glowId1})` }} stroke={primaryColor} strokeWidth={1} strokeOpacity={0.3}>
             {shouldAggregateByMonth && <LabelList dataKey={primaryMetric} content={renderLabel} />}
           </Bar>
-          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={`url(#${gradientId2})`} radius={[6, 6, 0, 0]} animationDuration={800} style={{ filter: `url(#${glowId2})` }}>
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={`url(#${gradientId2})`} radius={[6, 6, 0, 0]} animationDuration={800} style={{ filter: `url(#${glowId2})` }} stroke={secondaryColor} strokeWidth={1} strokeOpacity={0.3}>
             {shouldAggregateByMonth && <LabelList dataKey={secondaryMetric} content={renderLabel} />}
           </Bar>
         </BarChart>
@@ -501,18 +506,15 @@ export function CustomizableChart({
       return (
         <ComposedChart data={chartData} margin={{ top: shouldAggregateByMonth ? 25 : 10, right: 30, left: 0, bottom: 0 }}>
           <defs>
+            {/* Composed bar gradient with 3D depth */}
             <linearGradient id={`${gradientId2}-composed`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={secondaryColor} stopOpacity={1} />
-              <stop offset="100%" stopColor={secondaryColor} stopOpacity={0.7} />
+              <stop offset="50%" stopColor={secondaryColor} stopOpacity={0.85} />
+              <stop offset="100%" stopColor={secondaryColor} stopOpacity={0.6} />
             </linearGradient>
-            <filter id={`${glowId2}-composed`} x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feFlood floodColor={secondaryColor} floodOpacity="0.35" />
-              <feComposite in2="blur" operator="in" />
-              <feMerge>
-                <feMergeNode />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+            {/* Composed glow filter - dynamic color */}
+            <filter id={`${glowId2}-composed`} x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor={secondaryColor} floodOpacity="0.45" />
             </filter>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
@@ -522,7 +524,7 @@ export function CustomizableChart({
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
           {/* Bar rendered FIRST so it's behind */}
-          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={`url(#${gradientId2}-composed)`} radius={[6, 6, 0, 0]} opacity={0.9} animationDuration={800} style={{ filter: `url(#${glowId2}-composed)` }}>
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={`url(#${gradientId2}-composed)`} radius={[6, 6, 0, 0]} animationDuration={800} style={{ filter: `url(#${glowId2}-composed)` }} stroke={secondaryColor} strokeWidth={1} strokeOpacity={0.3}>
             {shouldAggregateByMonth && <LabelList dataKey={secondaryMetric} content={renderBarLabel} />}
           </Bar>
           {/* Line rendered AFTER so it's on top */}
