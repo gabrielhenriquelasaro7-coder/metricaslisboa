@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
 import { DateRange } from 'react-day-picker';
@@ -10,16 +10,6 @@ export interface ProfileVisitsData {
   totalSpend: number;
   hasProfileVisitCampaigns: boolean;
 }
-
-// List of objectives that are considered "traffic to Instagram profile"
-const TRAFFIC_OBJECTIVES = [
-  'OUTCOME_TRAFFIC',
-  'LINK_CLICKS', 
-  'POST_ENGAGEMENT',
-  'REACH',
-  'BRAND_AWARENESS',
-  'VIDEO_VIEWS',
-];
 
 export function useProfileVisitsMetrics(
   projectId: string | undefined,
@@ -70,15 +60,15 @@ export function useProfileVisitsMetrics(
 
         console.log(`[ProfileVisitsMetrics] Fetching for project ${projectId}, ${since} to ${until}`);
 
-        // Fetch daily metrics that have profile_visits > 0 AND are from traffic campaigns
-        // We consider traffic campaigns those with specific objectives
+        // Fetch ALL daily metrics that have profile_visits > 0
+        // Profile visits can come from ANY campaign type, not just traffic campaigns
         const { data: metricsData, error } = await supabase
           .from('ads_daily_metrics')
-          .select('profile_visits, spend, campaign_objective')
+          .select('profile_visits, spend')
           .eq('project_id', projectId)
           .gte('date', since)
           .lte('date', until)
-          .in('campaign_objective', TRAFFIC_OBJECTIVES);
+          .gt('profile_visits', 0);
 
         if (error) {
           console.error('[ProfileVisitsMetrics] Error fetching:', error);
@@ -91,7 +81,7 @@ export function useProfileVisitsMetrics(
           return;
         }
 
-        // Sum profile visits and spend from traffic campaigns
+        // Sum profile visits and spend from ALL campaigns with profile visits
         let totalProfileVisits = 0;
         let totalSpend = 0;
 
@@ -104,7 +94,7 @@ export function useProfileVisitsMetrics(
         const hasProfileVisitCampaigns = totalProfileVisits > 0;
         const costPerVisit = totalProfileVisits > 0 ? totalSpend / totalProfileVisits : 0;
 
-        console.log(`[ProfileVisitsMetrics] Found ${totalProfileVisits} profile visits, ${formatNumber(totalSpend)} spend, hasData: ${hasProfileVisitCampaigns}`);
+        console.log(`[ProfileVisitsMetrics] Found ${totalProfileVisits} profile visits, ${formatNumber(totalSpend)} spend from ${metricsData?.length || 0} records`);
 
         setData({
           totalProfileVisits,
