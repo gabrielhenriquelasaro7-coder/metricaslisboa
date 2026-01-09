@@ -31,8 +31,8 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
   const showCPL = isInsideSales || isCustom || isPDV;
   const showROAS = isEcommerce || isCustom;
 
-  const fmt = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  const fmtNum = (v: number) => Math.round(v).toLocaleString('pt-BR');
+  const fmt = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtNum = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const checkPage = (need: number = 30) => {
     if (y > pageHeight - 20 - need) {
