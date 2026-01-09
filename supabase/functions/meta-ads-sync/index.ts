@@ -400,7 +400,7 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 async function fetchDailyInsights(adAccountId: string, token: string, since: string, until: string): Promise<Map<string, Map<string, any>>> {
   const dailyInsights = new Map<string, Map<string, any>>();
   
-  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,results,cost_per_result,actions,action_values,conversions,cost_per_action_type,website_ctr,inline_link_clicks,outbound_clicks';
+  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,results,cost_per_result,actions,action_values,conversions,cost_per_action_type,website_ctr,inline_link_clicks,outbound_clicks,instagram_profile_visits';
   
   const timeRange = JSON.stringify({ since, until });
   let url = `https://graph.facebook.com/v22.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&action_breakdowns=action_type&access_token=${token}`;
@@ -412,28 +412,28 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
     const data = await fetchWithRetry(url, 'INSIGHTS');
     if (data.data) {
       for (const row of data.data) {
+        // Log ALL action_types from every row to find profile visits
+        if (row.actions) {
+          for (const a of row.actions) {
+            // Log ALL action types to find the right one
+            const lowerType = (a.action_type || '').toLowerCase();
+            if (lowerType.includes('profile') || 
+                lowerType.includes('visit') ||
+                lowerType.includes('ig_') ||
+                lowerType.includes('onsite_conversion.page') ||
+                lowerType.includes('onsite_conversion.ig')) {
+              console.log(`[INSIGHTS-PROFILE] campaign=${row.campaign_name?.substring(0,25)}, type=${a.action_type}, value=${a.value}`);
+            }
+          }
+        }
+        
         if (!firstRowLogged) {
           console.log(`[INSIGHTS] === SAMPLE ROW ===`);
-          console.log(`[INSIGHTS] spend: ${row.spend}, impressions: ${row.impressions}, clicks: ${row.clicks}`);
-          // Log actions para debug de profile_visits
+          console.log(`[INSIGHTS] campaign: ${row.campaign_name}`);
+          console.log(`[INSIGHTS] spend: ${row.spend}, impressions: ${row.impressions}`);
           if (row.actions) {
-            console.log(`[INSIGHTS] actions count: ${row.actions.length}`);
-            const profileActions = row.actions.filter((a: any) => 
-              a.action_type?.includes('profile') || 
-              a.action_type?.includes('ig_') ||
-              a.action_type?.includes('instagram')
-            );
-            if (profileActions.length > 0) {
-              for (const a of profileActions) {
-                console.log(`[INSIGHTS] profile action: ${a.action_type}=${a.value}`);
-              }
-            } else {
-              // Log all action types to see what's available
-              const actionTypes = row.actions.map((a: any) => a.action_type).join(', ');
-              console.log(`[INSIGHTS] all action_types: ${actionTypes.substring(0, 300)}`);
-            }
-          } else {
-            console.log(`[INSIGHTS] NO actions array in response`);
+            // Log ALL actions from first row
+            console.log(`[INSIGHTS] ALL action_types: ${row.actions.map((a: any) => a.action_type).join(', ')}`);
           }
           firstRowLogged = true;
         }
@@ -622,6 +622,12 @@ function extractMessagingReplies(insights: any): number {
 }
 
 function extractProfileVisits(insights: any): number {
+  // PRIORITY 1: Use the new instagram_profile_visits field (added Oct 2025)
+  if (insights?.instagram_profile_visits) {
+    return parseInt(insights.instagram_profile_visits) || 0;
+  }
+  
+  // FALLBACK: Check actions for legacy action types
   if (!insights?.actions) return 0;
   let max = 0;
   for (const a of insights.actions) {
