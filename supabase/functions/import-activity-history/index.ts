@@ -127,11 +127,26 @@ Deno.serve(async (req) => {
       const eventType = activity.event_type?.toLowerCase() || '';
       const objectType = activity.object_type?.toLowerCase() || '';
       
-      // Map object_type to entity_type
+      // Determine entity_type based on both object_type and event_type
+      // Event type is more accurate for ad_set specific operations
       let entityType: 'campaign' | 'ad_set' | 'ad' | null = null;
-      if (objectType.includes('campaign')) entityType = 'campaign';
-      else if (objectType.includes('adset') || objectType.includes('ad_set')) entityType = 'ad_set';
-      else if (objectType.includes('ad') && !objectType.includes('adset')) entityType = 'ad';
+      
+      // First, check event_type for specific entity indicators
+      if (eventType.includes('ad_set') || eventType.includes('adset')) {
+        entityType = 'ad_set';
+      } else if (eventType.includes('_ad_') && !eventType.includes('ad_set')) {
+        entityType = 'ad';
+      } else if (eventType.includes('_campaign_')) {
+        entityType = 'campaign';
+      }
+      // Fallback to object_type if event_type didn't determine it
+      else if (objectType.includes('adset') || objectType.includes('ad_set')) {
+        entityType = 'ad_set';
+      } else if (objectType.includes('campaign')) {
+        entityType = 'campaign';
+      } else if (objectType.includes('ad') && !objectType.includes('adset')) {
+        entityType = 'ad';
+      }
       
       if (!entityType || !activity.object_id) continue;
 
@@ -146,9 +161,13 @@ Deno.serve(async (req) => {
           eventInfo = { field: 'daily_budget', changeType: 'budget_change' };
         } else if (eventType.includes('name')) {
           eventInfo = { field: 'name', changeType: 'name_change' };
-        } else if (eventType.includes('targeting')) {
+        } else if (eventType.includes('target') || eventType.includes('targeting')) {
+          // Targeting changes are always ad_set level
+          entityType = 'ad_set';
           eventInfo = { field: 'targeting', changeType: 'targeting_change' };
         } else if (eventType.includes('creative')) {
+          // Creative changes are always ad level
+          entityType = 'ad';
           eventInfo = { field: 'creative', changeType: 'creative_change' };
         } else if (eventType.includes('create')) {
           eventInfo = { field: 'created', changeType: 'created' };
@@ -156,6 +175,10 @@ Deno.serve(async (req) => {
           eventInfo = { field: 'status', changeType: 'paused' };
         } else if (eventType.includes('unpause') || eventType.includes('resume')) {
           eventInfo = { field: 'status', changeType: 'activated' };
+        } else if (eventType.includes('optimization_goal') || eventType.includes('bid')) {
+          // Optimization and bid changes are ad_set level
+          entityType = 'ad_set';
+          eventInfo = { field: eventType, changeType: 'modified' };
         } else {
           eventInfo = { field: eventType, changeType: 'modified' };
         }
