@@ -51,7 +51,8 @@ import {
 export default function PredictiveAnalysis() {
   const projectId = localStorage.getItem('selectedProjectId');
   const { data, loading, error, fetchAnalysis } = usePredictiveAnalysis(projectId);
-  const { goals } = useCampaignGoals(projectId);
+  const { goals, fetchGoals } = useCampaignGoals(projectId);
+  const [goalsVersion, setGoalsVersion] = useState(0);
 
   // Build campaign goals from saved data
   const campaignGoals: CampaignGoal[] = useMemo(() => {
@@ -59,18 +60,23 @@ export default function PredictiveAnalysis() {
       campaignId: g.campaign_id,
       targetCpl: g.target_cpl || undefined,
       targetRoas: g.target_roas || undefined,
+      targetLeads: g.target_leads || undefined,
     }));
   }, [goals]);
 
+  // Stringify goals for comparison to detect any changes (not just length)
+  const goalsHash = useMemo(() => JSON.stringify(goals), [goals]);
+
   useEffect(() => {
-    if (projectId) {
+    if (projectId && campaignGoals) {
       fetchAnalysis(campaignGoals);
     }
-  }, [projectId, goals.length]);
+  }, [projectId, goalsHash, goalsVersion]);
 
-  const handleGoalsSaved = () => {
-    // Refetch analysis with updated goals
-    fetchAnalysis(campaignGoals);
+  const handleGoalsSaved = async () => {
+    // Refetch goals first, then trigger analysis refresh
+    await fetchGoals();
+    setGoalsVersion(v => v + 1);
   };
 
   const formatCurrency = (value: number) => {
@@ -762,7 +768,7 @@ export default function PredictiveAnalysis() {
               </Card>
 
               {/* Campaign Goals Progress - Adapted by business model */}
-              {data.campaignGoalsProgress.length > 0 && (
+              {data.campaignGoalsProgress.filter(c => c.hasCustomGoal).length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -770,16 +776,13 @@ export default function PredictiveAnalysis() {
                       Metas por Campanha (30 dias)
                     </CardTitle>
                     <CardDescription>
-                      {showCPL 
-                        ? 'Progresso de CPL em relação às metas'
-                        : 'Progresso de ROAS em relação às metas'
-                      }
+                      Progresso em relação às metas que você configurou
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       {data.campaignGoalsProgress
-                        .filter(c => c.spend > 0)
+                        .filter(c => c.hasCustomGoal && c.spend > 0)
                         .sort((a, b) => b.spend - a.spend)
                         .slice(0, 8)
                         .map((campaign) => (
@@ -794,13 +797,45 @@ export default function PredictiveAnalysis() {
                             </div>
                             
                             <div className="grid gap-4 grid-cols-1">
-                              {/* CPL Progress - Show for Inside Sales and Custom */}
-                              {showCPL && (
+                              {/* Leads Progress - Show if target is set */}
+                              {campaign.targetLeads && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="flex items-center gap-1">
+                                      {getStatusIcon(campaign.leadsStatus)}
+                                      Meta de Leads
+                                    </span>
+                                    <span className={cn(
+                                      "font-medium",
+                                      campaign.leadsStatus === 'success' && "text-metric-positive",
+                                      campaign.leadsStatus === 'warning' && "text-metric-warning",
+                                      campaign.leadsStatus === 'critical' && "text-destructive"
+                                    )}>
+                                      {formatNumber(campaign.conversions)} leads
+                                      <span className="text-muted-foreground font-normal"> / {formatNumber(campaign.targetLeads)} meta</span>
+                                    </span>
+                                  </div>
+                                  {campaign.leadsProgress !== null && (
+                                    <Progress 
+                                      value={campaign.leadsProgress} 
+                                      className={cn(
+                                        "h-2",
+                                        campaign.leadsStatus === 'success' && "[&>div]:bg-metric-positive",
+                                        campaign.leadsStatus === 'warning' && "[&>div]:bg-metric-warning",
+                                        campaign.leadsStatus === 'critical' && "[&>div]:bg-destructive"
+                                      )}
+                                    />
+                                  )}
+                                </div>
+                              )}
+
+                              {/* CPL Progress - Show if target is set */}
+                              {campaign.cplProgress !== null && (
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-1">
                                       {getStatusIcon(campaign.cplStatus)}
-                                      CPL
+                                      Meta de CPL
                                     </span>
                                     <span className={cn(
                                       "font-medium",
@@ -809,30 +844,28 @@ export default function PredictiveAnalysis() {
                                       campaign.cplStatus === 'critical' && "text-destructive"
                                     )}>
                                       {campaign.cpl !== null ? formatCurrency(campaign.cpl) : '-'}
-                                      <span className="text-muted-foreground font-normal"> / {formatCurrency(campaign.targetCpl)}</span>
+                                      <span className="text-muted-foreground font-normal"> / {formatCurrency(campaign.targetCpl || 0)}</span>
                                     </span>
                                   </div>
-                                  {campaign.cplProgress !== null && (
-                                    <Progress 
-                                      value={campaign.cplProgress} 
-                                      className={cn(
-                                        "h-2",
-                                        campaign.cplStatus === 'success' && "[&>div]:bg-metric-positive",
-                                        campaign.cplStatus === 'warning' && "[&>div]:bg-metric-warning",
-                                        campaign.cplStatus === 'critical' && "[&>div]:bg-destructive"
-                                      )}
-                                    />
-                                  )}
+                                  <Progress 
+                                    value={campaign.cplProgress} 
+                                    className={cn(
+                                      "h-2",
+                                      campaign.cplStatus === 'success' && "[&>div]:bg-metric-positive",
+                                      campaign.cplStatus === 'warning' && "[&>div]:bg-metric-warning",
+                                      campaign.cplStatus === 'critical' && "[&>div]:bg-destructive"
+                                    )}
+                                  />
                                 </div>
                               )}
 
-                              {/* ROAS Progress - Show for Ecommerce only */}
-                              {showROAS && (
+                              {/* ROAS Progress - Show if target is set */}
+                              {campaign.roasProgress !== null && (
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-1">
                                       {getStatusIcon(campaign.roasStatus)}
-                                      ROAS
+                                      Meta de ROAS
                                     </span>
                                     <span className={cn(
                                       "font-medium",
@@ -844,31 +877,35 @@ export default function PredictiveAnalysis() {
                                       <span className="text-muted-foreground font-normal"> / {campaign.targetRoas}x</span>
                                     </span>
                                   </div>
-                                  {campaign.roasProgress !== null && (
-                                    <Progress 
-                                      value={campaign.roasProgress} 
-                                      className={cn(
-                                        "h-2",
-                                        campaign.roasStatus === 'success' && "[&>div]:bg-metric-positive",
-                                        campaign.roasStatus === 'warning' && "[&>div]:bg-metric-warning",
-                                        campaign.roasStatus === 'critical' && "[&>div]:bg-destructive"
-                                      )}
-                                    />
-                                  )}
+                                  <Progress 
+                                    value={campaign.roasProgress} 
+                                    className={cn(
+                                      "h-2",
+                                      campaign.roasStatus === 'success' && "[&>div]:bg-metric-positive",
+                                      campaign.roasStatus === 'warning' && "[&>div]:bg-metric-warning",
+                                      campaign.roasStatus === 'critical' && "[&>div]:bg-destructive"
+                                    )}
+                                  />
                                 </div>
                               )}
                             </div>
 
-                            {/* Additional metrics - Adapted by business model */}
+                            {/* Additional metrics */}
                             <div className="flex gap-4 text-xs text-muted-foreground pt-1 border-t border-border/50">
-                              <span>{formatNumber(campaign.conversions)} {showCPL ? 'leads' : 'conversões'}</span>
-                              {showROAS && (
-                                <span>{formatCurrency(campaign.conversion_value)} receita</span>
-                              )}
+                              <span>{formatNumber(campaign.conversions)} leads</span>
+                              <span>CPL atual: {campaign.cpl ? formatCurrency(campaign.cpl) : '-'}</span>
                               <span>CTR: {campaign.ctr?.toFixed(2) || 0}%</span>
                             </div>
                           </div>
                         ))}
+                      
+                      {data.campaignGoalsProgress.filter(c => c.hasCustomGoal && c.spend > 0).length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p>Nenhuma campanha com meta configurada e gastos no período.</p>
+                          <p className="text-sm mt-1">Use o botão "Configurar Metas" para definir metas para suas campanhas.</p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
