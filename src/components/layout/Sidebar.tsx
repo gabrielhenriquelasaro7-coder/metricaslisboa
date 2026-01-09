@@ -6,6 +6,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useSidebarCampaigns } from '@/hooks/useSidebarCampaigns';
 import { useTour } from '@/hooks/useTour';
+import { useTheme } from '@/hooks/useTheme';
 import v4LogoFull from '@/assets/v4-logo-full.png';
 import { 
   LayoutDashboard, 
@@ -26,7 +27,9 @@ import {
   Compass,
   Lock,
   TrendingUp,
-  History
+  History,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -87,7 +90,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const { profile } = useProfile();
   const { isGuest, loading: roleLoading } = useUserRole();
   const { triggerTour } = useTour();
-  
+  const { theme, toggleTheme } = useTheme();
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   // Only return a project if explicitly selected - never auto-select
   const selectedProject = useMemo(() => {
@@ -472,12 +475,25 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 <Settings className="w-5 h-5 flex-shrink-0" />
                 {!collapsed && <span>Configurações</span>}
               </Link>
+
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="sidebar-item w-full"
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-5 h-5 flex-shrink-0" />
+                ) : (
+                  <Moon className="w-5 h-5 flex-shrink-0" />
+                )}
+                {!collapsed && <span>{theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}</span>}
+              </button>
             </div>
           )}
         </nav>
 
         {/* User section */}
-        <div className="p-4 border-t border-sidebar-border bg-black/20">
+        <div className="p-4 border-t border-sidebar-border bg-sidebar-accent/50">
           <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
             <Avatar className="w-10 h-10 ring-2 ring-primary/20">
               <AvatarImage src={profile?.avatar_url || undefined} />
