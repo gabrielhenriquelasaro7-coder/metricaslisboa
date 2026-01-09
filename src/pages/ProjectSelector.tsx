@@ -91,40 +91,40 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
   const lastSyncDate = project.last_sync_at ? new Date(project.last_sync_at) : null;
 
   const statusColors = {
-    safe: 'from-zinc-500/10 to-zinc-500/5 border-zinc-700/50',
-    care: 'from-amber-500/20 to-amber-500/5 border-amber-500/30',
-    danger: 'from-red-500/20 to-red-500/5 border-red-500/30',
-    undefined: 'from-zinc-500/10 to-zinc-500/5 border-zinc-700/50',
+    safe: 'bg-card border-emerald-500/20 dark:from-zinc-500/10 dark:to-zinc-500/5 dark:border-zinc-700/50',
+    care: 'bg-card border-amber-500/30 dark:from-amber-500/20 dark:to-amber-500/5',
+    danger: 'bg-card border-red-500/30 dark:from-red-500/20 dark:to-red-500/5',
+    undefined: 'bg-card border-border dark:from-zinc-500/10 dark:to-zinc-500/5 dark:border-zinc-700/50',
   }[displayHealthScore];
 
   const dotColor = {
     safe: 'bg-emerald-500',
     care: 'bg-amber-500',
     danger: 'bg-red-500',
-    undefined: 'bg-zinc-600',
+    undefined: 'bg-zinc-500 dark:bg-zinc-600',
   }[displayHealthScore];
 
   return (
     <div className={cn(
       "group relative overflow-hidden rounded-xl transition-all duration-300",
-      "bg-gradient-to-br border backdrop-blur-sm",
-      "hover:scale-[1.02] hover:shadow-2xl hover:shadow-black/50",
+      "border backdrop-blur-sm",
+      "hover:scale-[1.02] hover:border-primary/40",
       statusColors,
       project.archived && 'opacity-40'
     )}>
-      {/* Subtle glow effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
+      {/* Subtle glow effect - dark mode only */}
+      <div className="absolute inset-0 bg-gradient-to-br from-foreground/[0.02] to-transparent pointer-events-none dark:block hidden" />
       
       <div className="relative p-5">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             {/* Avatar */}
-            <div className="w-11 h-11 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shadow-lg">
+            <div className="w-11 h-11 rounded-xl bg-secondary border border-border flex items-center justify-center overflow-hidden shadow-lg">
               {project.avatar_url ? (
                 <img src={project.avatar_url} alt={project.name} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-base font-semibold text-white/90" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                <span className="text-base font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                   {project.name.charAt(0).toUpperCase()}
                 </span>
               )}
@@ -133,14 +133,14 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h3 
-                  className="font-semibold text-white truncate"
+                  className="font-semibold text-foreground truncate"
                   style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                 >
                   {project.name}
                 </h3>
                 <div className={cn("w-2 h-2 rounded-full flex-shrink-0 shadow-lg", dotColor)} />
               </div>
-              <p className="text-xs text-white/50 mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <p className="text-xs text-muted-foreground mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
                 {model?.label || 'Sem categoria'}
               </p>
             </div>
@@ -149,33 +149,33 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
           {/* Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <button className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition-all">
+              <button className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all">
                 <MoreVertical className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer text-white/70 hover:text-white hover:bg-white/5 rounded-lg">
+            <DropdownMenuContent align="end" className="w-44 bg-popover backdrop-blur-xl border-border rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg">
                 <Pencil className="w-4 h-4" />
                 Editar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer text-white/70 hover:text-white hover:bg-white/5 rounded-lg">
+              <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg">
                 <RefreshCw className="w-4 h-4" />
                 Sincronizar
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-white/10" />
+              <DropdownMenuSeparator className="bg-border" />
               {project.archived ? (
-                <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer text-white/70 hover:text-white hover:bg-white/5 rounded-lg">
+                <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg">
                   <ArchiveRestore className="w-4 h-4" />
                   Restaurar
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer text-white/70 hover:text-white hover:bg-white/5 rounded-lg">
+                <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg">
                   <Archive className="w-4 h-4" />
                   Arquivar
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator className="bg-white/10" />
-              <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-red-400 focus:text-red-400 hover:bg-red-500/10 rounded-lg">
+              <DropdownMenuSeparator className="bg-border" />
+              <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-destructive focus:text-destructive hover:bg-destructive/10 rounded-lg">
                 <Trash2 className="w-4 h-4" />
                 Excluir
               </DropdownMenuItem>
@@ -186,12 +186,12 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
         {/* Info */}
         <div className="space-y-2 mb-4">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-white/40">Account ID</span>
-            <span className="font-mono text-white/60">{project.ad_account_id.replace('act_', '')}</span>
+            <span className="text-muted-foreground">Account ID</span>
+            <span className="font-mono text-foreground/70">{project.ad_account_id.replace('act_', '')}</span>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-white/40">Última sync</span>
-            <span className="text-white/60">
+            <span className="text-muted-foreground">Última sync</span>
+            <span className="text-foreground/70">
               {lastSyncDate 
                 ? formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: ptBR })
                 : 'Nunca'
@@ -207,7 +207,7 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
               e.stopPropagation();
               onSelect(project);
             }}
-            className="flex-1 h-9 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-600/20"
+            className="flex-1 h-9 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
             style={{ fontFamily: 'Space Grotesk, sans-serif' }}
           >
             Acessar
@@ -220,7 +220,7 @@ function ClientCard({ project, showWhatsApp, onSelect, onEdit, onDelete, onArchi
                 e.stopPropagation();
                 onWhatsApp(project);
               }}
-              className="h-9 px-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-sm transition-all flex items-center gap-2"
+              className="h-9 px-3 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground text-sm transition-all flex items-center gap-2"
             >
               <img src={whatsappIcon} alt="" className="w-4 h-4" />
             </button>
@@ -251,10 +251,10 @@ function StatusGroup({ status, projects, defaultOpen = false, onSelect, onEdit, 
   if (projects.length === 0) return null;
 
   const config = {
-    safe: { label: 'Safe', color: 'text-emerald-400', bg: 'bg-emerald-500/10', indicator: 'bg-emerald-500' },
-    care: { label: 'Care', color: 'text-amber-400', bg: 'bg-amber-500/10', indicator: 'bg-amber-500' },
-    danger: { label: 'Danger', color: 'text-red-400', bg: 'bg-red-500/10', indicator: 'bg-red-500' },
-    undefined: { label: 'Sem Status', color: 'text-zinc-400', bg: 'bg-zinc-500/10', indicator: 'bg-zinc-500' },
+    safe: { label: 'Safe', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', indicator: 'bg-emerald-500' },
+    care: { label: 'Care', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', indicator: 'bg-amber-500' },
+    danger: { label: 'Danger', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10', indicator: 'bg-red-500' },
+    undefined: { label: 'Sem Status', color: 'text-muted-foreground', bg: 'bg-muted/50', indicator: 'bg-muted-foreground' },
   }[status];
 
   const showWhatsApp = status === 'care' || status === 'danger';
@@ -262,7 +262,7 @@ function StatusGroup({ status, projects, defaultOpen = false, onSelect, onEdit, 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-6">
       <CollapsibleTrigger asChild>
-        <button className="w-full flex items-center gap-3 py-3 px-4 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/5 transition-all group">
+        <button className="w-full flex items-center gap-3 py-3 px-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border transition-all group">
           <div className={cn("w-2.5 h-2.5 rounded-full", config.indicator)} />
           <span 
             className={cn("font-medium text-sm", config.color)}
@@ -270,12 +270,12 @@ function StatusGroup({ status, projects, defaultOpen = false, onSelect, onEdit, 
           >
             {config.label}
           </span>
-          <span className="text-sm text-white/30 font-medium">
+          <span className="text-sm text-muted-foreground font-medium">
             {projects.length} {projects.length === 1 ? 'cliente' : 'clientes'}
           </span>
           <div className="flex-1" />
           <ChevronDown className={cn(
-            "w-4 h-4 text-white/30 transition-transform duration-200",
+            "w-4 h-4 text-muted-foreground transition-transform duration-200",
             isOpen && "rotate-180"
           )} />
         </button>
@@ -637,35 +637,35 @@ export default function ProjectSelector() {
 
   if (authLoading || projectsLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-black to-zinc-950">
+    <div className="min-h-screen bg-background">
       {/* ==================== HEADER ==================== */}
-      <header className="relative bg-zinc-950">
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-red-600/5 to-transparent pointer-events-none" />
+      <header className="relative bg-card border-b border-border">
+        {/* Gradient overlay - only in dark mode */}
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none dark:block hidden" />
         
         {/* Top nav - Bigger and more prominent */}
-        <div className="relative border-b border-white/10">
+        <div className="relative border-b border-border">
           <div className="max-w-[1600px] mx-auto px-8 py-5">
             <nav className="flex items-center justify-between">
               {/* Logo Section - Bigger */}
               <div className="flex items-center gap-6">
-                <img src={v4Logo} alt="V4 Company" className="h-12 w-auto brightness-0 invert opacity-95" />
-                <div className="w-px h-12 bg-gradient-to-b from-transparent via-red-500/60 to-transparent" />
+                <img src={v4Logo} alt="V4 Company" className="h-12 w-auto dark:brightness-0 dark:invert dark:opacity-95" />
+                <div className="w-px h-12 bg-gradient-to-b from-transparent via-primary/60 to-transparent" />
                 <div className="flex flex-col">
                   <span 
-                    className="text-2xl font-bold tracking-tight text-white leading-tight"
+                    className="text-2xl font-bold tracking-tight text-foreground leading-tight"
                     style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                   >
-                    ADS<span className="font-light text-white/70">MANAGER</span>
+                    ADS<span className="font-light text-foreground/70">MANAGER</span>
                   </span>
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/30" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground" style={{ fontFamily: 'Inter, sans-serif' }}>
                     Painel de Controle
                   </span>
                 </div>
@@ -673,34 +673,34 @@ export default function ProjectSelector() {
               
               {/* Nav items with platform icons */}
               <div className="flex items-center gap-2">
-                <button className="h-11 px-5 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-500 transition-all flex items-center gap-2.5 shadow-lg shadow-red-600/20">
+                <button className="h-11 px-5 rounded-lg text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition-all flex items-center gap-2.5 shadow-lg shadow-primary/20">
                   <img src={metaIcon} alt="" className="w-5 h-5" />
                   META ADS
                 </button>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button className="h-11 px-5 rounded-lg text-sm font-medium text-white/50 hover:text-white/70 hover:bg-white/5 transition-all flex items-center gap-2.5 border border-white/10">
+                      <button className="h-11 px-5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-2.5 border border-border">
                         <img src={googleAdsIcon} alt="" className="w-5 h-5 opacity-50" />
                         <Lock className="w-3 h-3" />
                         GOOGLE ADS
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent className="bg-zinc-900 border-white/10">
+                    <TooltipContent className="bg-popover border-border">
                       <p className="text-sm">Em breve</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
                 <button 
                   onClick={() => navigate('/whatsapp-manager')}
-                  className="h-11 px-5 rounded-lg text-sm font-medium text-white/50 hover:text-white/70 hover:bg-white/5 transition-all flex items-center gap-2.5 border border-white/10"
+                  className="h-11 px-5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-2.5 border border-border"
                 >
                   <img src={whatsappIcon} alt="" className="w-5 h-5 opacity-70" />
                   WHATSAPP
                 </button>
                 <button 
                   onClick={() => setProfileDialogOpen(true)}
-                  className="h-11 px-5 rounded-lg text-sm font-medium text-white/50 hover:text-white/70 hover:bg-white/5 transition-all flex items-center gap-2.5 border border-white/10"
+                  className="h-11 px-5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-2.5 border border-border"
                 >
                   <User className="w-4 h-4" />
                   PERFIL
@@ -711,14 +711,14 @@ export default function ProjectSelector() {
         </div>
         
         {/* Stats bar - More compact */}
-        <div className="relative border-b border-white/5 bg-black/50 backdrop-blur-xl">
+        <div className="relative border-b border-border bg-card/50 backdrop-blur-xl">
           <div className="max-w-[1600px] mx-auto px-8 py-4">
             <div className="flex items-center justify-between">
               {/* Stats */}
-              <div className="flex items-center gap-4 px-5 py-2.5 rounded-xl bg-white/[0.03] border border-white/5">
+              <div className="flex items-center gap-4 px-5 py-2.5 rounded-xl bg-secondary/30 border border-border">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-white/40 uppercase tracking-wider" style={{ fontFamily: 'Inter, sans-serif' }}>Clientes Ativos</span>
-                  <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  <span className="text-sm text-muted-foreground uppercase tracking-wider" style={{ fontFamily: 'Inter, sans-serif' }}>Clientes Ativos</span>
+                  <span className="text-2xl font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                     {healthCounts.total}
                   </span>
                 </div>
@@ -728,18 +728,18 @@ export default function ProjectSelector() {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-xs font-medium text-emerald-400 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Safe</span>
-                  <span className="text-sm font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.safe}</span>
+                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Safe</span>
+                  <span className="text-sm font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.safe}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span className="text-xs font-medium text-amber-400 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Care</span>
-                  <span className="text-sm font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.care}</span>
+                  <span className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Care</span>
+                  <span className="text-sm font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.care}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-red-500" />
-                  <span className="text-xs font-medium text-red-400 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Danger</span>
-                  <span className="text-sm font-bold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.danger}</span>
+                  <span className="text-xs font-medium text-red-600 dark:text-red-400 uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>Danger</span>
+                  <span className="text-sm font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{healthCounts.danger}</span>
                 </div>
               </div>
             </div>
@@ -748,31 +748,31 @@ export default function ProjectSelector() {
       </header>
 
       {/* ==================== ACTIONS BAR ==================== */}
-      <div className="sticky top-0 z-40 bg-black/80 backdrop-blur-xl border-b border-white/5">
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-[1600px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             {/* Search & Filter */}
             <div className="flex items-center gap-3">
               <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar cliente..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 w-72 h-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-red-500/50 focus:ring-red-500/20 rounded-xl"
+                  className="pl-10 w-72 h-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:ring-primary/20 rounded-xl"
                   style={{ fontFamily: 'Inter, sans-serif' }}
                 />
               </div>
               
               <Select value={healthFilter} onValueChange={(val) => setHealthFilter(val as any)}>
-                <SelectTrigger className="w-36 h-10 bg-white/5 border-white/10 text-white/70 rounded-xl focus:border-red-500/50">
+                <SelectTrigger className="w-36 h-10 bg-secondary border-border text-muted-foreground rounded-xl focus:border-primary/50">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
-                  <SelectItem value="all" className="text-white/70 rounded-lg">Todos</SelectItem>
-                  <SelectItem value="safe" className="text-emerald-400 rounded-lg">Safe</SelectItem>
-                  <SelectItem value="care" className="text-amber-400 rounded-lg">Care</SelectItem>
-                  <SelectItem value="danger" className="text-red-400 rounded-lg">Danger</SelectItem>
+                <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl">
+                  <SelectItem value="all" className="text-foreground rounded-lg">Todos</SelectItem>
+                  <SelectItem value="safe" className="text-emerald-600 dark:text-emerald-400 rounded-lg">Safe</SelectItem>
+                  <SelectItem value="care" className="text-amber-600 dark:text-amber-400 rounded-lg">Care</SelectItem>
+                  <SelectItem value="danger" className="text-red-600 dark:text-red-400 rounded-lg">Danger</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -784,17 +784,17 @@ export default function ProjectSelector() {
                   <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                     <DialogTrigger asChild>
                       <Button 
-                        className="h-10 px-5 bg-red-600 hover:bg-red-500 text-white font-medium rounded-xl shadow-lg shadow-red-600/20 gap-2 transition-all"
+                        className="h-10 px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-xl shadow-lg shadow-primary/20 gap-2 transition-all"
                         style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                       >
                         <Plus className="w-4 h-4" />
                         Novo Cliente
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-md bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-2xl">
+                    <DialogContent className="sm:max-w-md bg-popover backdrop-blur-xl border-border rounded-2xl">
                       <DialogHeader>
                         <DialogTitle 
-                          className="text-white font-semibold"
+                          className="text-foreground font-semibold"
                           style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                         >
                           Novo Cliente
@@ -805,12 +805,12 @@ export default function ProjectSelector() {
                         <div className="flex justify-center">
                           <div 
                             onClick={() => avatarInputRef.current?.click()}
-                            className="w-16 h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-red-500/50 transition-all overflow-hidden"
+                            className="w-16 h-16 rounded-xl bg-secondary border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary/50 transition-all overflow-hidden"
                           >
                             {avatarPreview ? (
                               <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
                             ) : (
-                              <Camera className="w-5 h-5 text-white/30" />
+                              <Camera className="w-5 h-5 text-muted-foreground" />
                             )}
                           </div>
                           <input
@@ -823,37 +823,37 @@ export default function ProjectSelector() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label className="text-white/50 text-xs">Nome do Cliente</Label>
+                          <Label className="text-muted-foreground text-xs">Nome do Cliente</Label>
                           <Input
                             value={formData.name}
                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                             placeholder="Ex: Empresa ABC"
-                            className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50"
+                            className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <Label className="text-white/50 text-xs">Account ID</Label>
+                          <Label className="text-muted-foreground text-xs">Account ID</Label>
                           <Input
                             value={formData.ad_account_id}
                             onChange={(e) => setFormData(prev => ({ ...prev, ad_account_id: e.target.value }))}
                             placeholder="act_123456789"
-                            className="bg-white/5 border-white/10 text-white font-mono rounded-xl focus:border-red-500/50"
+                            className="bg-secondary border-border text-foreground font-mono rounded-xl focus:border-primary/50"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <Label className="text-white/50 text-xs">Modelo de Negócio</Label>
+                          <Label className="text-muted-foreground text-xs">Modelo de Negócio</Label>
                           <Select
                             value={formData.business_model}
                             onValueChange={(val) => setFormData(prev => ({ ...prev, business_model: val as BusinessModel }))}
                           >
-                            <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
+                            <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
+                            <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl">
                               {businessModels.map(model => (
-                                <SelectItem key={model.value} value={model.value} className="text-white rounded-lg">
+                                <SelectItem key={model.value} value={model.value} className="text-foreground rounded-lg">
                                   {model.label}
                                 </SelectItem>
                               ))}
@@ -863,36 +863,36 @@ export default function ProjectSelector() {
 
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-2">
-                            <Label className="text-white/50 text-xs">Fuso Horário</Label>
+                            <Label className="text-muted-foreground text-xs">Fuso Horário</Label>
                             <Select
                               value={formData.timezone}
                               onValueChange={(val) => setFormData(prev => ({ ...prev, timezone: val }))}
                             >
-                              <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
+                              <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
-                                <SelectItem value="America/Sao_Paulo" className="text-white rounded-lg">São Paulo (GMT-3)</SelectItem>
-                                <SelectItem value="America/New_York" className="text-white rounded-lg">New York (GMT-5)</SelectItem>
-                                <SelectItem value="Europe/London" className="text-white rounded-lg">Londres (GMT+0)</SelectItem>
-                                <SelectItem value="Europe/Lisbon" className="text-white rounded-lg">Lisboa (GMT+0)</SelectItem>
+                              <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl">
+                                <SelectItem value="America/Sao_Paulo" className="text-foreground rounded-lg">São Paulo (GMT-3)</SelectItem>
+                                <SelectItem value="America/New_York" className="text-foreground rounded-lg">New York (GMT-5)</SelectItem>
+                                <SelectItem value="Europe/London" className="text-foreground rounded-lg">Londres (GMT+0)</SelectItem>
+                                <SelectItem value="Europe/Lisbon" className="text-foreground rounded-lg">Lisboa (GMT+0)</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
 
                           <div className="space-y-2">
-                            <Label className="text-white/50 text-xs">Moeda</Label>
+                            <Label className="text-muted-foreground text-xs">Moeda</Label>
                             <Select
                               value={formData.currency}
                               onValueChange={(val) => setFormData(prev => ({ ...prev, currency: val }))}
                             >
-                              <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-red-500/50">
+                              <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent className="bg-zinc-900/95 backdrop-blur-xl border-white/10 rounded-xl">
-                                <SelectItem value="BRL" className="text-white rounded-lg">Real (R$)</SelectItem>
-                                <SelectItem value="USD" className="text-white rounded-lg">Dólar (US$)</SelectItem>
-                                <SelectItem value="EUR" className="text-white rounded-lg">Euro (€)</SelectItem>
+                              <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl">
+                                <SelectItem value="BRL" className="text-foreground rounded-lg">Real (R$)</SelectItem>
+                                <SelectItem value="USD" className="text-foreground rounded-lg">Dólar (US$)</SelectItem>
+                                <SelectItem value="EUR" className="text-foreground rounded-lg">Euro (€)</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -903,14 +903,14 @@ export default function ProjectSelector() {
                             type="button"
                             variant="outline"
                             onClick={() => setCreateDialogOpen(false)}
-                            className="flex-1 border-white/10 text-white/60 hover:text-white hover:bg-white/5 rounded-xl"
+                            className="flex-1 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl"
                           >
                             Cancelar
                           </Button>
                           <Button
                             type="submit"
                             disabled={isCreating}
-                            className="flex-1 bg-red-600 text-white hover:bg-red-500 rounded-xl font-medium"
+                            className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-medium"
                           >
                             {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar'}
                           </Button>
@@ -922,7 +922,7 @@ export default function ProjectSelector() {
                   <Button
                     onClick={() => setInviteDialogOpen(true)}
                     variant="outline"
-                    className="h-10 px-4 border-white/10 text-white/70 hover:text-white hover:bg-white/5 rounded-xl transition-all gap-2"
+                    className="h-10 px-4 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all gap-2"
                     style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                   >
                     <UserPlus className="w-4 h-4" />
@@ -935,8 +935,8 @@ export default function ProjectSelector() {
                 variant="outline"
                 onClick={() => setShowArchived(!showArchived)}
                 className={cn(
-                  "h-10 border-white/10 text-white/50 hover:text-white hover:bg-white/5 rounded-xl transition-all",
-                  showArchived && 'bg-white/10 text-white border-red-500/30'
+                  "h-10 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all",
+                  showArchived && 'bg-secondary text-foreground border-primary/30'
                 )}
               >
                 <Archive className="w-4 h-4 mr-2" />

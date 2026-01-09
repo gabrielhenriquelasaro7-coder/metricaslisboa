@@ -172,12 +172,12 @@
     --metric-neutral: 0 0% 25%;
     --metric-warning: 38 88% 35%;
 
-    /* Chart colors - Light (darker for readability) */
-    --chart-1: 0 85% 45%;
-    --chart-2: 348 85% 40%;
-    --chart-3: 150 70% 28%;
-    --chart-4: 38 88% 38%;
-    --chart-5: 200 70% 38%;
+    /* Chart colors - Light (high contrast, dark tones) */
+    --chart-1: 0 85% 40%;
+    --chart-2: 348 85% 35%;
+    --chart-3: 150 70% 22%;
+    --chart-4: 38 88% 30%;
+    --chart-5: 200 70% 32%;
 
     /* Undefined state */
     --undefined: 0 0% 45%;
@@ -222,6 +222,10 @@
     -webkit-backdrop-filter: none;
     border: 1px solid hsl(var(--foreground) / 0.12);
     box-shadow: none;
+  }
+
+  .light .glass-card:hover {
+    border-color: hsl(var(--primary) / 0.5);
   }
 
   .glass-card-hover {
@@ -287,7 +291,7 @@
   }
 
   .light .metric-card:hover {
-    border-color: hsl(var(--primary) / 0.25);
+    border-color: hsl(var(--primary) / 0.5);
     box-shadow: none;
   }
 
@@ -364,7 +368,7 @@
   }
 
   .light .premium-card:hover {
-    border-color: hsl(var(--primary) / 0.35);
+    border-color: hsl(var(--primary) / 0.5);
     box-shadow: none;
   }
 
