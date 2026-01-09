@@ -90,8 +90,27 @@ export default function Creatives() {
   }, []);
 
 
-  // Redirect if no project selected
-  if (!selectedProject && !projectsLoading && !loading) {
+  // Show loading skeleton while projects are loading
+  if (projectsLoading) {
+    return (
+      <DashboardLayout>
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+          <div className="flex flex-col gap-4">
+            <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+            <div className="h-5 w-64 bg-muted rounded animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-64 bg-muted rounded-lg animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Redirect only after loading is complete
+  if (!selectedProject) {
     navigate('/projects');
     return null;
   }
