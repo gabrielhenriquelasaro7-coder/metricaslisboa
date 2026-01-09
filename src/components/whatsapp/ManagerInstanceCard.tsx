@@ -56,7 +56,7 @@ export function ManagerInstanceCard({
   const isConnected = instance.instance_status === 'connected';
 
   return (
-    <Card className="border-sidebar-border bg-card/50 backdrop-blur-sm">
+    <Card className="border-0 bg-muted/30 backdrop-blur-sm">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -123,7 +123,7 @@ export function ManagerInstanceCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-sidebar-border">
+        <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-border/30">
           {isConnected ? (
             <Button
               variant="outline"

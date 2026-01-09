@@ -312,7 +312,7 @@ export default function WhatsAppManager() {
                   return (
                     <div
                       key={project.id}
-                      className="flex items-center justify-between gap-4 p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between gap-4 p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium truncate">{project.name}</h4>
