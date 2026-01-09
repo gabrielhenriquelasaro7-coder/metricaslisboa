@@ -473,32 +473,32 @@ export default function Settings() {
           </TabsList>
 
           {/* Profile Tab */}
-          <TabsContent value="profile" className="space-y-6">
+          <TabsContent value="profile" className="space-y-4 sm:space-y-6">
             <Card className="glass-card border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5 text-primary" />
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   Informações do Perfil
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Atualize suas informações pessoais
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-6">
                 {/* Avatar Section */}
-                <div className="flex items-center gap-6 p-4 rounded-xl bg-muted/30 border border-border/50">
-                  <div className="relative">
-                    <Avatar className="w-20 h-20 ring-4 ring-primary/20">
+                <div className="flex items-center gap-4 sm:gap-6 p-3 sm:p-4 rounded-xl bg-muted/30 border border-border/50">
+                  <div className="relative flex-shrink-0">
+                    <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-4 ring-primary/20">
                       <AvatarImage src={profile?.avatar_url || undefined} />
-                      <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground font-bold">
+                      <AvatarFallback className="text-xl sm:text-2xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground font-bold">
                         {fullName?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg cursor-pointer">
+                    <label className="absolute bottom-0 right-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg cursor-pointer">
                       {uploadingAvatar ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
                       ) : (
-                        <Camera className="w-4 h-4" />
+                        <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       )}
                       <input
                         type="file"
@@ -509,43 +509,43 @@ export default function Settings() {
                       />
                     </label>
                   </div>
-                  <div>
-                    <p className="font-semibold text-lg">{fullName || 'Sem nome'}</p>
-                    <p className="text-sm text-muted-foreground">{user?.email}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Clique no ícone para alterar a foto</p>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-base sm:text-lg truncate">{fullName || 'Sem nome'}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate">{user?.email}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Clique no ícone para alterar</p>
                   </div>
                 </div>
 
                 {/* Form */}
-                <div className="grid gap-4 max-w-md">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Nome completo</Label>
+                <div className="grid gap-3 sm:gap-4 w-full max-w-md">
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label htmlFor="fullName" className="text-xs sm:text-sm">Nome completo</Label>
                     <Input
                       id="fullName"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Seu nome"
-                      className="bg-muted/30"
+                      className="bg-muted/30 h-10 text-sm"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">E-mail</Label>
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label htmlFor="email" className="text-xs sm:text-sm">E-mail</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                       <Input
                         id="email"
                         value={user?.email || ''}
                         disabled
-                        className="pl-10 bg-muted/50 text-muted-foreground"
+                        className="pl-9 sm:pl-10 bg-muted/50 text-muted-foreground h-10 text-sm"
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
                       O e-mail não pode ser alterado
                     </p>
                   </div>
 
-                  <Button onClick={handleSaveProfile} disabled={saving} className="w-fit gap-2">
+                  <Button onClick={handleSaveProfile} disabled={saving} className="w-full sm:w-fit gap-2 h-10 text-sm">
                     {saving ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -554,7 +554,7 @@ export default function Settings() {
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        Salvar alterações
+                        Salvar
                       </>
                     )}
                   </Button>
@@ -564,47 +564,48 @@ export default function Settings() {
           </TabsContent>
 
           {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-6">
+          <TabsContent value="notifications" className="space-y-4 sm:space-y-6">
             <Card className="glass-card border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-primary" />
-                  Preferências de Notificação
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  Notificações
                 </CardTitle>
-                <CardDescription>
-                  Configure como você deseja receber notificações
+                <CardDescription className="text-xs sm:text-sm">
+                  Configure como você recebe notificações
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-1">
                 {[
-                  { key: 'emailReports', title: 'Relatórios por e-mail', desc: 'Receba relatórios diários de performance' },
-                  { key: 'emailAlerts', title: 'Alertas por e-mail', desc: 'Receba alertas importantes sobre suas campanhas' },
-                  { key: 'browserNotifications', title: 'Notificações do navegador', desc: 'Receba notificações em tempo real' },
-                  { key: 'weeklyDigest', title: 'Resumo semanal', desc: 'Receba um resumo semanal do desempenho' },
-                  { key: 'roasAlerts', title: 'Alertas de ROAS', desc: 'Alerta quando o ROAS cair abaixo do esperado' },
-                  { key: 'budgetAlerts', title: 'Alertas de orçamento', desc: 'Alerta quando o orçamento estiver acabando' },
+                  { key: 'emailReports', title: 'Relatórios por e-mail', desc: 'Relatórios diários' },
+                  { key: 'emailAlerts', title: 'Alertas por e-mail', desc: 'Alertas importantes' },
+                  { key: 'browserNotifications', title: 'Notificações', desc: 'Notificações em tempo real' },
+                  { key: 'weeklyDigest', title: 'Resumo semanal', desc: 'Resumo do desempenho' },
+                  { key: 'roasAlerts', title: 'Alertas de ROAS', desc: 'ROAS abaixo do esperado' },
+                  { key: 'budgetAlerts', title: 'Alertas de orçamento', desc: 'Orçamento acabando' },
                 ].map((item, index) => (
                   <div 
                     key={item.key} 
-                    className={`flex items-center justify-between py-4 ${index < 5 ? 'border-b border-border/50' : ''}`}
+                    className={`flex items-center justify-between py-3 sm:py-4 ${index < 5 ? 'border-b border-border/50' : ''}`}
                   >
-                    <div>
-                      <p className="font-medium">{item.title}</p>
-                      <p className="text-sm text-muted-foreground">{item.desc}</p>
+                    <div className="min-w-0 mr-2">
+                      <p className="font-medium text-sm">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">{item.desc}</p>
                     </div>
                     <Switch
                       checked={notifications[item.key as keyof NotificationSettings]}
                       onCheckedChange={(checked) =>
                         setNotifications({ ...notifications, [item.key]: checked })
                       }
+                      className="flex-shrink-0"
                     />
                   </div>
                 ))}
 
-                <div className="pt-4">
-                  <Button onClick={() => toast.success('Preferências salvas!')} className="gap-2">
+                <div className="pt-3 sm:pt-4">
+                  <Button onClick={() => toast.success('Preferências salvas!')} className="gap-2 h-10 text-sm w-full sm:w-auto">
                     <Save className="w-4 h-4" />
-                    Salvar preferências
+                    Salvar
                   </Button>
                 </div>
               </CardContent>
@@ -612,32 +613,32 @@ export default function Settings() {
           </TabsContent>
 
           {/* Security Tab */}
-          <TabsContent value="security" className="space-y-6">
+          <TabsContent value="security" className="space-y-4 sm:space-y-6">
             <Card className="glass-card border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-primary" />
-                  Segurança da Conta
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  Segurança
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Gerencie sua senha e segurança
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 max-w-md">
-                <div className="space-y-2">
-                  <Label>Nova senha</Label>
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4 max-w-md">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm">Nova senha</Label>
                   <div className="relative">
-                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input type="password" placeholder="Nova senha" className="pl-10 bg-muted/30" />
+                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
+                    <Input type="password" placeholder="Nova senha" className="pl-9 sm:pl-10 bg-muted/30 h-10 text-sm" />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Confirmar nova senha</Label>
-                  <Input type="password" placeholder="Confirmar nova senha" className="bg-muted/30" />
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm">Confirmar senha</Label>
+                  <Input type="password" placeholder="Confirmar nova senha" className="bg-muted/30 h-10 text-sm" />
                 </div>
 
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 h-10 text-sm w-full sm:w-auto">
                   <Key className="w-4 h-4" />
                   Atualizar senha
                 </Button>
@@ -645,42 +646,41 @@ export default function Settings() {
             </Card>
 
             <Card className="glass-card border-destructive/30 bg-destructive/5">
-              <CardHeader>
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-destructive/20 flex items-center justify-center flex-shrink-0">
-                    <AlertTriangle className="w-5 h-5 text-destructive" />
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-destructive/20 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-destructive" />
                   </div>
                   <div>
-                    <CardTitle className="text-destructive">Zona de perigo</CardTitle>
-                    <CardDescription className="mt-1">
-                      Ações irreversíveis que afetam sua conta permanentemente
+                    <CardTitle className="text-destructive text-base sm:text-lg">Zona de perigo</CardTitle>
+                    <CardDescription className="mt-1 text-xs sm:text-sm">
+                      Ações irreversíveis
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 sm:p-6 pt-0">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="gap-2">
+                    <Button variant="destructive" className="gap-2 h-10 text-sm w-full sm:w-auto">
                       <Trash2 className="w-4 h-4" />
                       Excluir conta
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent className="max-w-[90vw] sm:max-w-lg">
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir conta permanentemente?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta ação não pode ser desfeita. Todos os seus dados, projetos e histórico
-                        serão permanentemente excluídos.
+                      <AlertDialogTitle className="text-base sm:text-lg">Excluir conta permanentemente?</AlertDialogTitle>
+                      <AlertDialogDescription className="text-xs sm:text-sm">
+                        Esta ação não pode ser desfeita. Todos os seus dados serão excluídos.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                      <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleDeleteAccount}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
                       >
-                        Excluir minha conta
+                        Excluir
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -690,14 +690,14 @@ export default function Settings() {
           </TabsContent>
 
           {/* Appearance Tab */}
-          <TabsContent value="appearance" className="space-y-6">
+          <TabsContent value="appearance" className="space-y-4 sm:space-y-6">
             <Card className="glass-card border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Palette className="w-5 h-5 text-primary" />
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   Aparência
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Personalize a aparência do sistema
                 </CardDescription>
               </CardHeader>

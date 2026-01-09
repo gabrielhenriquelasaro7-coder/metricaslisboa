@@ -72,13 +72,13 @@ export default function DateRangePicker({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
       {/* Period selector */}
       <Select value={selectedPreset} onValueChange={(value) => handlePresetChange(value as DatePresetKey)}>
-        <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Selecione o período" />
+        <SelectTrigger className="w-full sm:w-[160px] h-9 sm:h-10 text-xs sm:text-sm">
+          <SelectValue placeholder="Período" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="bg-popover">
           {DATE_PRESETS.map((preset) => (
             <SelectItem key={preset.key} value={preset.key}>
               {preset.label}
@@ -95,25 +95,29 @@ export default function DateRangePicker({
             variant="outline"
             size="sm"
             className={cn(
-              'justify-start text-left font-normal',
+              'justify-start text-left font-normal h-9 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm',
               !dateRange && 'text-muted-foreground'
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon className="mr-1 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             {dateRange?.from ? (
               dateRange.to ? (
-                <>
+                <span className="truncate">
                   {format(dateRange.from, 'dd/MM', { locale: ptBR })} - {format(dateRange.to, 'dd/MM', { locale: ptBR })}
-                </>
+                </span>
               ) : (
-                format(dateRange.from, 'dd/MM/yy', { locale: ptBR })
+                format(dateRange.from, 'dd/MM', { locale: ptBR })
               )
             ) : (
               <span>Datas</span>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 bg-popover/95 backdrop-blur-sm border-border/50 shadow-xl" align="start">
+        <PopoverContent 
+          className="w-auto p-0 bg-popover/95 backdrop-blur-sm border-border/50 shadow-xl max-w-[95vw]" 
+          align="start"
+          sideOffset={4}
+        >
           <div className="p-2 border-b border-border/30">
             <p className="text-xs text-muted-foreground font-medium">Selecione o período</p>
           </div>
@@ -123,11 +127,12 @@ export default function DateRangePicker({
             defaultMonth={dateRange?.from}
             selected={dateRange}
             onSelect={handleCalendarSelect}
-            numberOfMonths={2}
+            numberOfMonths={1}
             locale={ptBR}
+            className="p-2"
           />
           {dateRange?.from && dateRange?.to && (
-            <div className="p-3 border-t border-border/30 bg-muted/30">
+            <div className="p-2 sm:p-3 border-t border-border/30 bg-muted/30">
               <p className="text-xs text-center text-muted-foreground">
                 <span className="font-medium text-foreground">
                   {format(dateRange.from, 'dd/MM/yyyy', { locale: ptBR })}
