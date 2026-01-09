@@ -113,8 +113,8 @@ const createMetricOptions = (currency: string = 'BRL'): MetricOption[] => {
   }).format(value);
 
   return [
-    { key: 'spend', label: 'Gasto', format: formatCurrency, color: 'hsl(var(--primary))' },
-    { key: 'conversions', label: 'Conversões', format: formatNumber, color: 'hsl(var(--chart-1))' },
+    { key: 'spend', label: 'Gasto', format: formatCurrency, color: 'hsl(var(--chart-1))' },
+    { key: 'conversions', label: 'Conversões', format: formatNumber, color: 'hsl(var(--metric-positive))' },
     { key: 'revenue', label: 'Receita', format: formatCurrency, color: 'hsl(var(--metric-positive))' },
     { key: 'impressions', label: 'Impressões', format: formatNumber, color: 'hsl(var(--chart-2))' },
     { key: 'clicks', label: 'Cliques', format: formatNumber, color: 'hsl(var(--chart-3))' },
@@ -153,10 +153,10 @@ export function CustomizableChart({
   );
   const [customName, setCustomName] = useState(savedPref?.custom_name || '');
   const [primaryColor, setPrimaryColor] = useState(
-    savedPref?.primary_color || 'hsl(var(--primary))'
+    savedPref?.primary_color || 'hsl(150, 80%, 42%)'
   );
   const [secondaryColor, setSecondaryColor] = useState(
-    savedPref?.secondary_color || 'hsl(var(--metric-positive))'
+    savedPref?.secondary_color || 'hsl(200, 80%, 50%)'
   );
   const [dialogOpen, setDialogOpen] = useState(false);
 
