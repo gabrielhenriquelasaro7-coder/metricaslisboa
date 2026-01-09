@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_goals: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          target_cpc: number | null
+          target_cpl: number | null
+          target_ctr: number | null
+          target_leads_monthly: number | null
+          target_roas: number | null
+          target_spend_daily: number | null
+          target_spend_monthly: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          target_cpc?: number | null
+          target_cpl?: number | null
+          target_ctr?: number | null
+          target_leads_monthly?: number | null
+          target_roas?: number | null
+          target_spend_daily?: number | null
+          target_spend_monthly?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          target_cpc?: number | null
+          target_cpl?: number | null
+          target_ctr?: number | null
+          target_leads_monthly?: number | null
+          target_roas?: number | null
+          target_spend_daily?: number | null
+          target_spend_monthly?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_goals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ad_sets: {
         Row: {
           campaign_id: string

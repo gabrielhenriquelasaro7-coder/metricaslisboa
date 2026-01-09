@@ -7,11 +7,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface CampaignGoal {
-  campaignId: string;
-  targetRoas?: number;
-  targetCpl?: number;
-  targetLeads?: number;
+interface AccountGoal {
+  targetLeadsMonthly?: number | null;
+  targetCpl?: number | null;
+  targetRoas?: number | null;
+  targetCtr?: number | null;
+  targetSpendDaily?: number | null;
+  targetSpendMonthly?: number | null;
 }
 
 serve(async (req) => {
@@ -20,10 +22,10 @@ serve(async (req) => {
   }
 
   try {
-    const { projectId, campaignGoals } = await req.json();
+    const { projectId, accountGoal } = await req.json();
     
     console.log('[PREDICTIVE] Received request with projectId:', projectId);
-    console.log('[PREDICTIVE] Received campaignGoals:', JSON.stringify(campaignGoals || []));
+    console.log('[PREDICTIVE] Received accountGoal:', JSON.stringify(accountGoal || {}));
     
     if (!projectId) {
       throw new Error('projectId é obrigatório');
@@ -334,52 +336,40 @@ serve(async (req) => {
       else accountBalance.status = 'healthy';
     }
 
-    // Calculate campaign goals progress
+    // Calculate campaign performance (using account-level goals, not per-campaign)
+    const accountGoalData = accountGoal as AccountGoal | undefined;
+    const accountTargetCpl = accountGoalData?.targetCpl || null;
+    const accountTargetRoas = accountGoalData?.targetRoas || null;
+    const accountTargetLeadsMonthly = accountGoalData?.targetLeadsMonthly || null;
+    const accountTargetCtr = accountGoalData?.targetCtr || null;
+
     const campaignGoalsProgress = Object.values(campaignMetrics).map((metrics: any) => {
       const cpl = metrics.conversions > 0 ? metrics.spend / metrics.conversions : null;
       const roas = metrics.spend > 0 ? metrics.conversion_value / metrics.spend : null;
       const ctr = metrics.impressions > 0 ? (metrics.clicks / metrics.impressions) * 100 : null;
       
-      // Find if there's a custom goal for this campaign
-      const customGoal = campaignGoals?.find((g: CampaignGoal) => g.campaignId === metrics.campaignId);
-      const hasCustomGoal = !!customGoal && (customGoal.targetCpl || customGoal.targetRoas || customGoal.targetLeads);
+      // Use account-level goals if available
+      const hasAccountGoal = !!(accountTargetCpl || accountTargetRoas || accountTargetLeadsMonthly);
       
-      console.log(`[PREDICTIVE] Campaign ${metrics.campaignName} (${metrics.campaignId}) - customGoal:`, customGoal, 'hasCustomGoal:', hasCustomGoal);
-      
-      // Get targets from custom goal or use defaults based on business model
-      const targetRoas = customGoal?.targetRoas || null;
-      const targetCpl = customGoal?.targetCpl || null;
-      const targetLeads = customGoal?.targetLeads || null;
-      
-      // Default goals only if no custom goal is set
-      const effectiveRoasTarget = targetRoas || (project.business_model === 'ecommerce' ? 3 : 2);
-      const effectiveCplTarget = targetCpl || (project.business_model === 'inside_sales' ? 30 : 50);
-      
-      console.log(`[PREDICTIVE] Using targetCpl: ${targetCpl}, targetRoas: ${targetRoas}, targetLeads: ${targetLeads}`);
-      
-      // Calculate leads progress if target is set
-      const leadsProgress = targetLeads ? Math.min((metrics.conversions / targetLeads) * 100, 150) : null;
-      const leadsStatus = targetLeads 
-        ? (metrics.conversions >= targetLeads ? 'success' 
-          : metrics.conversions >= targetLeads * 0.7 ? 'warning' 
-          : 'critical')
-        : 'unknown';
+      // Default goals based on business model (only if no account goal)
+      const effectiveRoasTarget = accountTargetRoas || (project.business_model === 'ecommerce' ? 3 : 2);
+      const effectiveCplTarget = accountTargetCpl || (project.business_model === 'inside_sales' ? 30 : 50);
       
       return {
         ...metrics,
         cpl,
         roas,
         ctr,
-        targetRoas: targetRoas || effectiveRoasTarget,
-        targetCpl: targetCpl || effectiveCplTarget,
-        targetLeads,
-        hasCustomGoal,
-        roasProgress: roas !== null && targetRoas ? Math.min((roas / targetRoas) * 100, 150) : null,
-        cplProgress: cpl !== null && targetCpl ? Math.min((targetCpl / cpl) * 100, 150) : null,
-        leadsProgress,
-        roasStatus: roas !== null && targetRoas ? (roas >= targetRoas ? 'success' : roas >= targetRoas * 0.7 ? 'warning' : 'critical') : 'unknown',
-        cplStatus: cpl !== null && targetCpl ? (cpl <= targetCpl ? 'success' : cpl <= targetCpl * 1.3 ? 'warning' : 'critical') : 'unknown',
-        leadsStatus,
+        targetRoas: accountTargetRoas || effectiveRoasTarget,
+        targetCpl: accountTargetCpl || effectiveCplTarget,
+        targetLeads: null, // No per-campaign lead target
+        hasCustomGoal: hasAccountGoal,
+        roasProgress: roas !== null && accountTargetRoas ? Math.min((roas / accountTargetRoas) * 100, 150) : null,
+        cplProgress: cpl !== null && accountTargetCpl ? Math.min((accountTargetCpl / cpl) * 100, 150) : null,
+        leadsProgress: null,
+        roasStatus: roas !== null && accountTargetRoas ? (roas >= accountTargetRoas ? 'success' : roas >= accountTargetRoas * 0.7 ? 'warning' : 'critical') : 'unknown',
+        cplStatus: cpl !== null && accountTargetCpl ? (cpl <= accountTargetCpl ? 'success' : cpl <= accountTargetCpl * 1.3 ? 'warning' : 'critical') : 'unknown',
+        leadsStatus: 'unknown',
       };
     });
 
@@ -499,23 +489,49 @@ serve(async (req) => {
     let aiSuggestions: { title: string; description: string; reason: string; priority: 'high' | 'medium' | 'low' }[] = [];
     
     if (lovableApiKey) {
+      // Filter only active campaigns with spend
+      const activeCampaigns = campaignGoalsProgress.filter((c: any) => c.spend > 0);
+      
+      // Build detailed campaign context - with clean formatting to avoid NULL issues
+      const campaignDetails = activeCampaigns.slice(0, 8).map((c: any) => ({
+        nome: c.campaignName || 'Campanha sem nome',
+        leads: c.conversions || 0,
+        gasto: c.spend ? `R$ ${c.spend.toFixed(2)}` : 'R$ 0',
+        cpl: c.cpl ? `R$ ${c.cpl.toFixed(2)}` : 'Sem leads',
+        ctr: c.ctr ? `${c.ctr.toFixed(2)}%` : '0%',
+        roas: c.roas ? `${c.roas.toFixed(2)}x` : 'N/A',
+        performance: c.cpl && c.cpl < 30 ? 'Boa' : c.cpl && c.cpl < 50 ? 'Regular' : c.cpl ? 'Precisa melhorar' : 'Sem dados'
+      }));
+
       const contextData = {
         projectName: project.name,
         businessModel: project.business_model,
         currency: project.currency,
-        accountBalance: accountBalance,
-        last7DaysMetrics: {
-          avgDailySpend: avgDailySpend7,
-          avgDailyConversions: avgDailyConversions7,
-          avgDailyRevenue: avgDailyRevenue7,
-          avgCpl: avgDailyConversions7 > 0 ? avgDailySpend7 / avgDailyConversions7 : null,
-          avgRoas: avgDailySpend7 > 0 ? avgDailyRevenue7 / avgDailySpend7 : null,
-          spendTrend: predictions.trends.spendTrend,
+        accountBalance: {
+          saldo: accountBalance.balance > 0 ? `R$ ${accountBalance.balance.toFixed(2)}` : 'Não disponível',
+          diasRestantes: accountBalance.daysOfSpendRemaining || 'Não calculado',
+          status: accountBalance.status
         },
-        totals,
-        campaignPerformance: campaignGoalsProgress.slice(0, 10),
-        budgetAlerts: budgetAlerts.filter(b => b.budgetStatus !== 'healthy'),
-        activeCampaignsCount: campaigns?.length || 0,
+        metricas7Dias: {
+          gastoMedioDiario: `R$ ${avgDailySpend7.toFixed(2)}`,
+          leadsMedioDiario: avgDailyConversions7.toFixed(1),
+          cplMedio: avgDailyConversions7 > 0 ? `R$ ${(avgDailySpend7 / avgDailyConversions7).toFixed(2)}` : 'Sem leads',
+          roasMedio: avgDailySpend7 > 0 ? `${(avgDailyRevenue7 / avgDailySpend7).toFixed(2)}x` : 'N/A',
+          tendencia: predictions.trends.spendTrend > 5 ? 'Crescente' : predictions.trends.spendTrend < -5 ? 'Decrescente' : 'Estável',
+        },
+        totais30Dias: {
+          gasto: `R$ ${totals.spend30Days.toFixed(2)}`,
+          leads: totals.conversions30Days,
+          cplGeral: totals.conversions30Days > 0 ? `R$ ${(totals.spend30Days / totals.conversions30Days).toFixed(2)}` : 'Sem leads',
+        },
+        campanhasAtivas: campaignDetails,
+        totalCampanhasAtivas: activeCampaigns.length,
+        metasGerais: accountGoal ? {
+          cplMeta: accountGoal.targetCpl ? `R$ ${accountGoal.targetCpl}` : null,
+          roasMeta: accountGoal.targetRoas ? `${accountGoal.targetRoas}x` : null,
+          leadsMensal: accountGoal.targetLeadsMonthly || null,
+          ctrMeta: accountGoal.targetCtr ? `${accountGoal.targetCtr}%` : null,
+        } : null,
       };
 
       // Determine which metrics are relevant based on business model
@@ -524,43 +540,45 @@ serve(async (req) => {
         ? 'ROAS (retorno sobre investimento) é a métrica principal. CPL também é relevante.'
         : 'CPL (custo por lead) é a métrica PRINCIPAL. NÃO mencione ROAS pois este projeto não vende online.';
 
-      const systemPrompt = `Você é um especialista em tráfego pago e análise de dados de marketing digital.
-Analise os dados fornecidos e gere exatamente 5 sugestões de otimização ESPECÍFICAS e ACIONÁVEIS.
+      const systemPrompt = `Você é um gestor de tráfego pago experiente analisando campanhas reais do Meta Ads.
 
 MODELO DE NEGÓCIO: ${contextData.businessModel}
 ${metricsContext}
 
-REGRAS CRÍTICAS:
-- Cada sugestão DEVE ser baseada em dados concretos fornecidos
-- Explique o MOTIVO da sugestão com números específicos
-- Indique prioridade (high, medium, low) baseada no impacto potencial
-- SEMPRE escreva em português correto, sem abreviações estranhas
-- Use "CPL" não "avaliCPL", use "ROAS" não "avaliROAS"
-${!isRevenueModel ? '- NÃO MENCIONE ROAS, receita ou vendas - foque em CPL, CTR, leads e engajamento' : ''}
-${contextData.businessModel === 'inside_sales' ? '- Foque em qualidade de leads, custo por lead e otimização de campanhas de geração de leads' : ''}
-${contextData.businessModel === 'pdv' ? '- Foque em alcance local, visitas à loja e engajamento regional' : ''}
+Gere EXATAMENTE 5 sugestões de otimização seguindo estas regras:
 
-Formato de resposta (JSON array estrito):
+ESTRUTURA DAS SUGESTÕES (2 MACRO + 3 MICRO):
+- 2 sugestões MACRO: sobre a conta como um todo (saldo, tendência geral, distribuição de budget)
+- 3 sugestões MICRO: sobre campanhas específicas mencionando o NOME exato da campanha
+
+REGRAS CRÍTICAS:
+1. NUNCA use "null", "N/A", "undefined" ou valores vazios na resposta
+2. Se não há dados, diga "sem dados suficientes" ou omita a informação
+3. Mencione valores em REAIS (R$) e porcentagens reais dos dados
+4. Títulos curtos e diretos (máximo 50 caracteres)
+5. Descrições práticas e acionáveis (máximo 120 caracteres)
+6. Motivo baseado em DADOS REAIS fornecidos (máximo 80 caracteres)
+7. NÃO invente números - use apenas os dados fornecidos
+8. Prioridade: "high" para urgente/impacto alto, "medium" para melhorias, "low" para otimizações finas
+
+${!isRevenueModel ? 'NÃO mencione ROAS, receita ou vendas - foque em CPL, CTR, leads e engajamento' : ''}
+
+Formato JSON estrito:
 [
-  {
-    "title": "Título curto da ação (máx 50 chars)",
-    "description": "Descrição detalhada da ação a tomar (máx 150 chars)",
-    "reason": "Por que esta sugestão? Cite dados específicos (máx 100 chars)",
-    "priority": "high|medium|low"
-  }
+  {"title": "Título curto", "description": "O que fazer", "reason": "Por quê (com dados)", "priority": "high|medium|low"}
 ]
 
-Exemplos de boas sugestões para GERAÇÃO DE LEADS (inside_sales, pdv, custom):
-- "CPL de R$45 está 50% acima da meta de R$30 - otimize públicos"
-- "CTR de 0.5% está baixo - teste novos criativos"
-- "Campanhas com bom CPL - escale gradualmente o orçamento"
-- "Volume de leads baixo - amplie públicos semelhantes"
+EXEMPLOS DE BOAS SUGESTÕES MICRO:
+- Título: "Otimizar [Nome Campanha]"
+- Descrição: "CPL de R$45 acima do ideal. Teste públicos mais segmentados ou novos criativos."
+- Reason: "CPL atual R$45 vs média da conta R$32 - 40% acima"
 
-Exemplos de boas sugestões para E-COMMERCE/INFOPRODUTO:
-- "ROAS de 4.2x está excelente - aumente budget em 20%"
-- "ROAS abaixo de 2x - revise público e landing page"
+EXEMPLOS DE BOAS SUGESTÕES MACRO:
+- Título: "Recarregar saldo da conta"
+- Descrição: "Saldo baixo pode pausar campanhas. Adicione créditos nos próximos dias."
+- Reason: "Apenas 5 dias de saldo com gasto médio atual"
 
-Responda APENAS com o JSON array, sem texto adicional.`;
+Responda APENAS o JSON array.`;
 
       try {
         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -573,7 +591,7 @@ Responda APENAS com o JSON array, sem texto adicional.`;
             model: 'google/gemini-2.5-flash',
             messages: [
               { role: 'system', content: systemPrompt },
-              { role: 'user', content: JSON.stringify(contextData) }
+              { role: 'user', content: JSON.stringify(contextData, null, 2) }
             ],
           }),
         });
@@ -583,7 +601,14 @@ Responda APENAS com o JSON array, sem texto adicional.`;
           const content = aiData.choices?.[0]?.message?.content || '[]';
           try {
             const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
-            aiSuggestions = JSON.parse(cleanContent);
+            const parsed = JSON.parse(cleanContent);
+            // Clean up any null/undefined values in the response
+            aiSuggestions = parsed.map((s: any) => ({
+              title: (s.title || 'Sugestão de otimização').replace(/null|undefined|N\/A/gi, '').trim(),
+              description: (s.description || 'Revise os dados da campanha').replace(/null|undefined|N\/A/gi, '').trim(),
+              reason: (s.reason || 'Baseado na análise dos dados').replace(/null|undefined|N\/A/gi, '').trim(),
+              priority: s.priority || 'medium'
+            }));
           } catch {
             console.log('Failed to parse AI suggestions, using fallback');
           }
