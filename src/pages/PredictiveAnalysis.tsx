@@ -1025,57 +1025,44 @@ export default function PredictiveAnalysis() {
                               </div>
                             </div>
                             
-                            <div className="flex flex-col items-end gap-2">
+                            <div className="flex flex-col items-end gap-3">
                               {!isMarked && getPriorityBadge(suggestion.priority)}
                               
-                              {/* Action buttons */}
-                              <div className="flex gap-1">
-                                {isMarked ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-xs h-7"
-                                    onClick={() => removeMark(suggestion.title)}
+                              {/* Action buttons - redesigned */}
+                              {isMarked ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs h-8 text-muted-foreground hover:text-foreground"
+                                  onClick={() => removeMark(suggestion.title)}
+                                >
+                                  Desfazer
+                                </Button>
+                              ) : (
+                                <div className="flex items-center gap-2 bg-muted/50 rounded-full p-1">
+                                  <button
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all bg-transparent hover:bg-metric-positive/20 text-muted-foreground hover:text-metric-positive"
+                                    onClick={() => {
+                                      setSelectedSuggestion({ title: suggestion.title, actionType: 'applied' });
+                                      setActionDialogOpen(true);
+                                    }}
                                   >
-                                    Desfazer
-                                  </Button>
-                                ) : (
-                                  <>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-7 w-7 p-0 text-metric-positive hover:bg-metric-positive/10"
-                                          onClick={() => {
-                                            setSelectedSuggestion({ title: suggestion.title, actionType: 'applied' });
-                                            setActionDialogOpen(true);
-                                          }}
-                                        >
-                                          <CheckCircle2 className="w-4 h-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Marcar como aplicada</TooltipContent>
-                                    </Tooltip>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-7 w-7 p-0 text-muted-foreground hover:bg-muted"
-                                          onClick={() => {
-                                            setSelectedSuggestion({ title: suggestion.title, actionType: 'ignored' });
-                                            setActionDialogOpen(true);
-                                          }}
-                                        >
-                                          <XCircle className="w-4 h-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Marcar como ignorada</TooltipContent>
-                                    </Tooltip>
-                                  </>
-                                )}
-                              </div>
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    Aplicar
+                                  </button>
+                                  <div className="w-px h-4 bg-border" />
+                                  <button
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground"
+                                    onClick={() => {
+                                      setSelectedSuggestion({ title: suggestion.title, actionType: 'ignored' });
+                                      setActionDialogOpen(true);
+                                    }}
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    Ignorar
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
