@@ -487,14 +487,39 @@ export default function OptimizationHistory() {
     const ads = history.filter(h => h.entity_type === 'ad').length;
     
     // Contagem por tipo de mudança
-    const paused = history.filter(h => h.new_value === 'PAUSED').length;
-    const activated = history.filter(h => h.new_value === 'ACTIVE').length;
+    const paused = history.filter(h => 
+      h.new_value === 'PAUSED' || 
+      h.change_type === 'paused'
+    ).length;
+    const activated = history.filter(h => 
+      h.new_value === 'ACTIVE' || 
+      h.change_type === 'activated'
+    ).length;
+    
+    // Criativos: mudanças em imagem, vídeo, texto, headline, CTA - campos de anúncio
     const creativeChanges = history.filter(h => 
       h.field_changed.includes('creative') || 
       h.field_changed === 'headline' || 
-      h.field_changed === 'primary_text'
+      h.field_changed === 'primary_text' ||
+      h.field_changed === 'cta' ||
+      h.field_changed === 'link_url' ||
+      h.field_changed === 'display_link' ||
+      h.change_type === 'creative_change' ||
+      (h.entity_type === 'ad' && h.field_changed !== 'status')
     ).length;
-    const targetingChanges = history.filter(h => h.field_changed === 'targeting').length;
+    
+    // Público: mudanças em targeting, segmentação, localização, idade - campos de conjunto
+    const targetingChanges = history.filter(h => 
+      h.field_changed === 'targeting' ||
+      h.field_changed.includes('target_spec') ||
+      h.field_changed.includes('geo_locations') ||
+      h.field_changed.includes('age_') ||
+      h.field_changed.includes('gender') ||
+      h.field_changed.includes('interests') ||
+      h.field_changed.includes('behaviors') ||
+      h.field_changed.includes('custom_audiences') ||
+      h.change_type === 'targeting_change'
+    ).length;
     
     return { campaigns, adSets, ads, total: history.length, paused, activated, creativeChanges, targetingChanges };
   }, [history]);
