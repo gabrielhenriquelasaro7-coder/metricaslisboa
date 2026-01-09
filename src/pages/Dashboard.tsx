@@ -8,6 +8,7 @@ import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
 import { DynamicResultMetrics } from '@/components/dashboard/DynamicResultMetrics';
 import { TopCampaignsCard } from '@/components/dashboard/TopCampaignsCard';
+import { FunnelChart } from '@/components/dashboard/FunnelChart';
 import { LeadsSyncCard } from '@/components/leads/LeadsSyncCard';
 import { AccountBalanceCard } from '@/components/dashboard/AccountBalanceCard';
 import { useDemographicInsights } from '@/hooks/useDemographicInsights';
@@ -758,6 +759,20 @@ export default function Dashboard() {
                 currency={selectedProject?.currency || 'BRL'}
               />
             </div>
+
+            {/* Funnel Chart */}
+            {hasSelectedProject && (
+              <FunnelChart
+                impressions={metrics.totalImpressions}
+                reach={metrics.totalReach}
+                clicks={metrics.totalClicks}
+                conversions={metrics.totalConversions}
+                conversionValue={metrics.totalConversionValue}
+                messages={metrics.totalMessages}
+                currency={selectedProject?.currency || 'BRL'}
+                businessModel={businessModel}
+              />
+            )}
 
             {/* Demographic Charts */}
             <DemographicCharts
