@@ -145,39 +145,43 @@ function DemographicPieChart({
 
   if (data.length === 0) {
     return (
-      <Card className="glass-card">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium flex items-center gap-2">
-            <Icon className="w-4 h-4 text-muted-foreground" />
+      <div className="premium-card relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+        <div className="p-4">
+          <h4 className="text-base font-medium flex items-center gap-2 mb-4">
+            <div className="w-7 h-7 rounded-md premium-bar flex items-center justify-center">
+              <Icon className="w-3.5 h-3.5 text-primary-foreground" />
+            </div>
             {title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-          Sem dados demográficos
-        </CardContent>
-      </Card>
+          </h4>
+          <div className="h-[160px] flex items-center justify-center text-muted-foreground text-sm">
+            Sem dados demográficos
+          </div>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="glass-card">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium flex items-center gap-2">
-          <Icon className="w-4 h-4 text-muted-foreground" />
+    <div className="premium-card relative overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+      <div className="p-4">
+        <h4 className="text-base font-medium flex items-center gap-2 mb-4">
+          <div className="w-7 h-7 rounded-md premium-bar flex items-center justify-center">
+            <Icon className="w-3.5 h-3.5 text-primary-foreground" />
+          </div>
           {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </h4>
         <div className="flex items-center gap-4">
-          <div className="h-[180px] w-[180px]">
+          <div className="h-[160px] w-[160px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={chartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={45}
-                  outerRadius={75}
+                  innerRadius={40}
+                  outerRadius={70}
                   dataKey="value"
                   strokeWidth={2}
                   stroke="hsl(var(--background))"
@@ -202,8 +206,8 @@ function DemographicPieChart({
             ))}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
