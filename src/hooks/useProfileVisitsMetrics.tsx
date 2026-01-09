@@ -11,6 +11,9 @@ export interface ProfileVisitsData {
   hasProfileVisitCampaigns: boolean;
 }
 
+// Only campaigns with LINK_CLICKS objective are considered "profile visits" campaigns
+const PROFILE_VISIT_OBJECTIVES = ['LINK_CLICKS'];
+
 export function useProfileVisitsMetrics(
   projectId: string | undefined,
   preset: DatePresetKey,
@@ -60,14 +63,14 @@ export function useProfileVisitsMetrics(
 
         console.log(`[ProfileVisitsMetrics] Fetching for project ${projectId}, ${since} to ${until}`);
 
-        // Fetch ALL daily metrics that have profile_visits > 0
-        // Profile visits can come from ANY campaign type, not just traffic campaigns
+        // Fetch ONLY from campaigns with LINK_CLICKS objective (profile visits campaigns)
         const { data: metricsData, error } = await supabase
           .from('ads_daily_metrics')
           .select('profile_visits, spend')
           .eq('project_id', projectId)
           .gte('date', since)
           .lte('date', until)
+          .in('campaign_objective', PROFILE_VISIT_OBJECTIVES)
           .gt('profile_visits', 0);
 
         if (error) {
@@ -81,7 +84,7 @@ export function useProfileVisitsMetrics(
           return;
         }
 
-        // Sum profile visits and spend from ALL campaigns with profile visits
+        // Sum profile visits and spend from profile visit campaigns only
         let totalProfileVisits = 0;
         let totalSpend = 0;
 
@@ -94,7 +97,7 @@ export function useProfileVisitsMetrics(
         const hasProfileVisitCampaigns = totalProfileVisits > 0;
         const costPerVisit = totalProfileVisits > 0 ? totalSpend / totalProfileVisits : 0;
 
-        console.log(`[ProfileVisitsMetrics] Found ${totalProfileVisits} profile visits, ${formatNumber(totalSpend)} spend from ${metricsData?.length || 0} records`);
+        console.log(`[ProfileVisitsMetrics] Found ${totalProfileVisits} profile visits from LINK_CLICKS campaigns, spend: ${formatNumber(totalSpend)}`);
 
         setData({
           totalProfileVisits,
