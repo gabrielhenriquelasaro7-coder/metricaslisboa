@@ -172,10 +172,11 @@ export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalan
 
   return (
     <div className={cn(
-      "premium-card relative transition-colors overflow-hidden",
+      "rounded-xl border bg-card p-0 relative transition-colors overflow-hidden",
       data?.status === 'critical' && "border-destructive/30",
       data?.status === 'warning' && "border-metric-warning/30",
-      data?.status === 'healthy' && "border-metric-positive/30"
+      data?.status === 'healthy' && "border-metric-positive/30",
+      (!data || data.status === 'unknown') && "border-border"
     )}>
       {/* Top gradient line */}
       <div className={cn(
