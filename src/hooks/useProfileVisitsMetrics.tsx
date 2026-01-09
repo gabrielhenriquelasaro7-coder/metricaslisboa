@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
 import { DateRange } from 'react-day-picker';
@@ -24,6 +24,15 @@ export function useProfileVisitsMetrics(
   });
   const [loading, setLoading] = useState(false);
 
+  // Stabilize customDateRange to avoid infinite loops
+  const stableDateRange = useMemo(() => {
+    if (!customDateRange?.from || !customDateRange?.to) return null;
+    return {
+      from: format(customDateRange.from, 'yyyy-MM-dd'),
+      to: format(customDateRange.to, 'yyyy-MM-dd'),
+    };
+  }, [customDateRange?.from?.getTime(), customDateRange?.to?.getTime()]);
+
   useEffect(() => {
     if (!projectId) {
       setData({
@@ -42,9 +51,9 @@ export function useProfileVisitsMetrics(
         let since: string;
         let until: string;
         
-        if (preset === 'custom' && customDateRange?.from && customDateRange?.to) {
-          since = format(customDateRange.from, 'yyyy-MM-dd');
-          until = format(customDateRange.to, 'yyyy-MM-dd');
+        if (preset === 'custom' && stableDateRange) {
+          since = stableDateRange.from;
+          until = stableDateRange.to;
         } else {
           const period = getDateRangeFromPreset(preset, 'America/Sao_Paulo');
           if (period) {
@@ -115,7 +124,7 @@ export function useProfileVisitsMetrics(
     };
 
     fetchProfileVisits();
-  }, [projectId, preset, customDateRange]);
+  }, [projectId, preset, stableDateRange]);
 
   return { data, loading };
 }

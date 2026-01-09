@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
 import { DateRange } from 'react-day-picker';
@@ -302,12 +302,27 @@ export function useDailyMetrics(
   const [comparison, setComparison] = useState<PeriodComparison | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Stabilize customDateRange to avoid infinite loops
+  const stableDateRange = useMemo(() => {
+    if (!customDateRange?.from || !customDateRange?.to) return null;
+    return {
+      from: format(customDateRange.from, 'yyyy-MM-dd'),
+      to: format(customDateRange.to, 'yyyy-MM-dd'),
+    };
+  }, [customDateRange?.from?.getTime(), customDateRange?.to?.getTime()]);
+
   const loadDailyMetrics = useCallback(async () => {
     if (!projectId) return;
     
     setLoading(true);
     try {
-      const { since, until, days, previousType } = getDateRangeFromPeriod(preset, customDateRange);
+      // Convert stable date range back to DateRange format for getDateRangeFromPeriod
+      const rangeForPeriod = stableDateRange ? {
+        from: new Date(stableDateRange.from),
+        to: new Date(stableDateRange.to),
+      } : undefined;
+      
+      const { since, until, days, previousType } = getDateRangeFromPeriod(preset, rangeForPeriod);
       const previousDates = getPreviousPeriodDates(since, until, days, previousType);
       
       console.log(`[DailyMetrics] Loading: ${since} to ${until} (${days} days)`);
@@ -411,7 +426,7 @@ export function useDailyMetrics(
     } finally {
       setLoading(false);
     }
-  }, [projectId, preset, customDateRange]);
+  }, [projectId, preset, stableDateRange]);
 
   useEffect(() => {
     loadDailyMetrics();
