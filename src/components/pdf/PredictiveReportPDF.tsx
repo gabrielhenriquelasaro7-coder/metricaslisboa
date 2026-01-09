@@ -5,8 +5,25 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
+  const margin = 15;
+  const contentWidth = pageWidth - margin * 2;
   let yPos = 0;
+  
+  // Colors
+  const colors = {
+    primary: { r: 220, g: 38, b: 38 }, // red-600
+    primaryDark: { r: 153, g: 27, b: 27 }, // red-800
+    primaryLight: { r: 254, g: 226, b: 226 }, // red-100
+    accent: { r: 249, g: 115, b: 22 }, // orange-500
+    success: { r: 22, g: 163, b: 74 }, // green-600
+    warning: { r: 234, g: 179, b: 8 }, // yellow-500
+    gray900: { r: 17, g: 24, b: 39 },
+    gray700: { r: 55, g: 65, b: 81 },
+    gray500: { r: 107, g: 114, b: 128 },
+    gray300: { r: 209, g: 213, b: 219 },
+    gray100: { r: 243, g: 244, b: 246 },
+    white: { r: 255, g: 255, b: 255 },
+  };
   
   // Business model logic
   const isInsideSales = data.project.businessModel === 'inside_sales';
@@ -20,6 +37,8 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: data.project.currency || 'BRL',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(value);
   };
 
@@ -33,211 +52,300 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
       case 'ecommerce': return 'E-commerce';
       case 'pdv': return 'PDV';
       case 'custom': return 'Personalizado';
+      case 'infoproduto': return 'Infoproduto';
       default: return model;
     }
   };
 
-  const addHeader = () => {
-    // Red header background
-    doc.setFillColor(185, 28, 28); // red-700
-    doc.rect(0, 0, pageWidth, 45, 'F');
-    
-    // White text on red background
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Relatorio de Analise Preditiva', margin, 20);
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Projeto: ${data.project.name}`, margin, 30);
-    doc.text(`Modelo: ${getBusinessModelLabel(data.project.businessModel)}`, margin, 38);
-    
-    // Right side info
-    doc.setFontSize(10);
-    doc.text(`Gerado em: ${new Date(data.generatedAt).toLocaleDateString('pt-BR')}`, pageWidth - margin, 30, { align: 'right' });
-    doc.text(`${new Date(data.generatedAt).toLocaleTimeString('pt-BR')}`, pageWidth - margin, 38, { align: 'right' });
-    
-    yPos = 60;
-  };
-
-  const addSectionTitle = (text: string) => {
-    checkNewPage(30);
-    yPos += 8;
-    
-    // Section background
-    doc.setFillColor(254, 226, 226); // red-100
-    doc.rect(margin - 5, yPos - 8, pageWidth - (margin * 2) + 10, 14, 'F');
-    
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(153, 27, 27); // red-800
-    doc.text(text, margin, yPos);
-    yPos += 14;
-    
-    // Reset text color
-    doc.setTextColor(55, 65, 81); // gray-700
-  };
-
-  const addKeyValue = (label: string, value: string, highlight: boolean = false) => {
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(107, 114, 128); // gray-500
-    doc.text(label, margin, yPos);
-    
-    doc.setFont('helvetica', 'bold');
-    if (highlight) {
-      doc.setTextColor(22, 163, 74); // green-600
-    } else {
-      doc.setTextColor(31, 41, 55); // gray-800
-    }
-    doc.text(value, pageWidth - margin, yPos, { align: 'right' });
-    yPos += 8;
-  };
-
-  const addSubtitle = (text: string) => {
-    yPos += 5;
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(75, 85, 99); // gray-600
-    doc.text(text, margin, yPos);
-    yPos += 8;
-  };
-
-  // Footer space: line at 15, text at 8 from bottom = reserve 25 minimum
-  const footerSpace = 25;
+  // Footer space
+  const footerSpace = 20;
   
   const checkNewPage = (neededSpace: number = 30) => {
     if (yPos > pageHeight - footerSpace - neededSpace) {
       doc.addPage();
-      yPos = 25;
+      yPos = 20;
     }
   };
 
-  // === Start Building PDF ===
-  
-  // Header
+  // === HEADER ===
+  const addHeader = () => {
+    // Gradient-like header with darker top
+    doc.setFillColor(colors.primaryDark.r, colors.primaryDark.g, colors.primaryDark.b);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    doc.setFillColor(colors.primary.r, colors.primary.g, colors.primary.b);
+    doc.rect(0, 35, pageWidth, 10, 'F');
+    
+    // Header text
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ANALISE PREDITIVA', margin, 18);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.project.name, margin, 28);
+    
+    // Right side badge
+    doc.setFontSize(9);
+    const modelLabel = getBusinessModelLabel(data.project.businessModel);
+    doc.text(modelLabel, pageWidth - margin, 18, { align: 'right' });
+    doc.text(new Date(data.generatedAt).toLocaleDateString('pt-BR'), pageWidth - margin, 28, { align: 'right' });
+    
+    yPos = 55;
+  };
+
+  // === SECTION TITLE ===
+  const addSectionTitle = (number: string, text: string) => {
+    checkNewPage(35);
+    yPos += 5;
+    
+    // Number badge
+    doc.setFillColor(colors.primary.r, colors.primary.g, colors.primary.b);
+    doc.roundedRect(margin, yPos - 6, 20, 10, 2, 2, 'F');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(number, margin + 10, yPos, { align: 'center' });
+    
+    // Title text
+    doc.setFontSize(13);
+    doc.setTextColor(colors.gray900.r, colors.gray900.g, colors.gray900.b);
+    doc.text(text, margin + 25, yPos);
+    
+    // Underline
+    doc.setDrawColor(colors.gray300.r, colors.gray300.g, colors.gray300.b);
+    doc.setLineWidth(0.3);
+    doc.line(margin, yPos + 5, pageWidth - margin, yPos + 5);
+    
+    yPos += 14;
+  };
+
+  // === METRIC BOX ===
+  const drawMetricBox = (x: number, y: number, width: number, height: number, label: string, value: string, highlight: boolean = false) => {
+    // Background
+    if (highlight) {
+      doc.setFillColor(colors.primaryLight.r, colors.primaryLight.g, colors.primaryLight.b);
+    } else {
+      doc.setFillColor(colors.gray100.r, colors.gray100.g, colors.gray100.b);
+    }
+    doc.roundedRect(x, y, width, height, 3, 3, 'F');
+    
+    // Label
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(colors.gray500.r, colors.gray500.g, colors.gray500.b);
+    doc.text(label, x + width / 2, y + 10, { align: 'center' });
+    
+    // Value
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    if (highlight) {
+      doc.setTextColor(colors.primaryDark.r, colors.primaryDark.g, colors.primaryDark.b);
+    } else {
+      doc.setTextColor(colors.gray900.r, colors.gray900.g, colors.gray900.b);
+    }
+    doc.text(value, x + width / 2, y + 22, { align: 'center' });
+  };
+
+  // === PROJECTION TABLE ===
+  const drawProjectionTable = () => {
+    const tableY = yPos;
+    const colWidth = (contentWidth - 10) / 4; // 4 columns: label + 3 periods
+    const rowHeight = 18;
+    const headerHeight = 14;
+    
+    // Header row
+    doc.setFillColor(colors.gray900.r, colors.gray900.g, colors.gray900.b);
+    doc.roundedRect(margin, tableY, contentWidth, headerHeight, 2, 2, 'F');
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    
+    const headers = ['Metrica', 'Prox. 7 Dias', 'Prox. 30 Dias', 'Resto do Ano'];
+    headers.forEach((h, i) => {
+      const x = margin + (i * colWidth) + colWidth / 2;
+      doc.text(h, x, tableY + 9, { align: 'center' });
+    });
+    
+    // Data rows
+    const today = new Date();
+    const endOfYear = new Date(today.getFullYear(), 11, 31);
+    const daysRemaining = Math.ceil((endOfYear.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    const avgDailySpend = data.predictions.trends.avgDailySpend;
+    const avgDailyConversions = data.predictions.trends.avgDailyConversions;
+    const projectedSpendYear = avgDailySpend * daysRemaining;
+    const projectedConversionsYear = avgDailyConversions * daysRemaining;
+    const projectedRevenueYear = showROAS && data.predictions.trends.avgDailyRoas !== null
+      ? projectedSpendYear * data.predictions.trends.avgDailyRoas
+      : 0;
+    
+    const rows = [
+      ['Investimento', formatCurrency(data.predictions.next7Days.estimatedSpend), formatCurrency(data.predictions.next30Days.estimatedSpend), formatCurrency(projectedSpendYear)],
+      [showCPL ? 'Leads' : 'Conversoes', formatNumber(data.predictions.next7Days.estimatedConversions), formatNumber(data.predictions.next30Days.estimatedConversions), formatNumber(projectedConversionsYear)],
+    ];
+    
+    if (showROAS && !showCPL) {
+      rows.push(['Receita', formatCurrency(data.predictions.next7Days.estimatedRevenue), formatCurrency(data.predictions.next30Days.estimatedRevenue), formatCurrency(projectedRevenueYear)]);
+    }
+    
+    let currentY = tableY + headerHeight;
+    rows.forEach((row, rowIndex) => {
+      // Alternating row background
+      if (rowIndex % 2 === 0) {
+        doc.setFillColor(colors.gray100.r, colors.gray100.g, colors.gray100.b);
+      } else {
+        doc.setFillColor(255, 255, 255);
+      }
+      doc.rect(margin, currentY, contentWidth, rowHeight, 'F');
+      
+      // Row data
+      row.forEach((cell, colIndex) => {
+        const x = margin + (colIndex * colWidth) + colWidth / 2;
+        doc.setFontSize(9);
+        if (colIndex === 0) {
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(colors.gray700.r, colors.gray700.g, colors.gray700.b);
+        } else {
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(colors.gray900.r, colors.gray900.g, colors.gray900.b);
+        }
+        doc.text(cell, x, currentY + 11, { align: 'center' });
+      });
+      
+      currentY += rowHeight;
+    });
+    
+    // Border
+    doc.setDrawColor(colors.gray300.r, colors.gray300.g, colors.gray300.b);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(margin, tableY, contentWidth, headerHeight + (rows.length * rowHeight), 2, 2, 'S');
+    
+    yPos = currentY + 8;
+  };
+
+  // === SIMPLE ROW ===
+  const addSimpleRow = (label: string, value: string, highlight: boolean = false) => {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(colors.gray500.r, colors.gray500.g, colors.gray500.b);
+    doc.text(label, margin + 5, yPos);
+    
+    doc.setFont('helvetica', 'bold');
+    if (highlight) {
+      doc.setTextColor(colors.success.r, colors.success.g, colors.success.b);
+    } else {
+      doc.setTextColor(colors.gray900.r, colors.gray900.g, colors.gray900.b);
+    }
+    doc.text(value, pageWidth - margin - 5, yPos, { align: 'right' });
+    yPos += 7;
+  };
+
+  // === START BUILDING PDF ===
   addHeader();
 
   // ========================================
   // 1. ANÁLISE DE TENDÊNCIA
   // ========================================
-  addSectionTitle('1. Analise de Tendencia');
-  addKeyValue('Gasto Medio Diario', formatCurrency(data.predictions.trends.avgDailySpend));
-  addKeyValue(showCPL ? 'Leads Medios/Dia' : 'Conversoes Medias/Dia', formatNumber(data.predictions.trends.avgDailyConversions));
+  addSectionTitle('01', 'Analise de Tendencia');
+  
+  // Trend metrics in boxes
+  const boxWidth = (contentWidth - 15) / 4;
+  const boxHeight = 30;
+  
+  drawMetricBox(margin, yPos, boxWidth, boxHeight, 'Gasto Medio/Dia', formatCurrency(data.predictions.trends.avgDailySpend), true);
+  drawMetricBox(margin + boxWidth + 5, yPos, boxWidth, boxHeight, showCPL ? 'Leads/Dia' : 'Conv/Dia', formatNumber(data.predictions.trends.avgDailyConversions));
   
   if (showCPL && data.predictions.trends.avgDailyCpl !== null) {
-    addKeyValue('CPL Medio', formatCurrency(data.predictions.trends.avgDailyCpl));
+    drawMetricBox(margin + (boxWidth + 5) * 2, yPos, boxWidth, boxHeight, 'CPL Medio', formatCurrency(data.predictions.trends.avgDailyCpl), true);
+  } else if (showROAS && data.predictions.trends.avgDailyRoas !== null) {
+    drawMetricBox(margin + (boxWidth + 5) * 2, yPos, boxWidth, boxHeight, 'ROAS Medio', `${data.predictions.trends.avgDailyRoas.toFixed(2)}x`);
   }
-  if (showROAS && !showCPL && data.predictions.trends.avgDailyRoas !== null) {
-    addKeyValue('ROAS Medio', `${data.predictions.trends.avgDailyRoas.toFixed(2)}x`);
-  }
+  
   if (data.predictions.trends.avgCtr !== null) {
-    addKeyValue('CTR Medio', `${data.predictions.trends.avgCtr.toFixed(2)}%`);
+    drawMetricBox(margin + (boxWidth + 5) * 3, yPos, boxWidth, boxHeight, 'CTR Medio', `${data.predictions.trends.avgCtr.toFixed(2)}%`);
   }
   
-  const trendDirection = data.predictions.trends.spendTrend > 0 ? '+' : '';
-  addKeyValue('Tendencia de Gasto', `${trendDirection}${data.predictions.trends.spendTrend.toFixed(1)}% vs semana anterior`);
+  yPos += boxHeight + 10;
   
-  // Saldo da conta
-  yPos += 3;
-  addSubtitle('Saldo da Conta');
-  addKeyValue('Saldo Atual', formatCurrency(data.accountBalance.balance));
+  // Account balance status
+  const balanceStatus = data.accountBalance.status;
+  const statusColor = balanceStatus === 'critical' ? colors.primary : balanceStatus === 'warning' ? colors.warning : colors.success;
+  
+  doc.setFillColor(colors.gray100.r, colors.gray100.g, colors.gray100.b);
+  doc.roundedRect(margin, yPos, contentWidth, 25, 3, 3, 'F');
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(colors.gray700.r, colors.gray700.g, colors.gray700.b);
+  doc.text('Saldo da Conta:', margin + 5, yPos + 10);
+  
+  doc.setFontSize(12);
+  doc.setTextColor(statusColor.r, statusColor.g, statusColor.b);
+  doc.text(formatCurrency(data.accountBalance.balance), margin + 60, yPos + 10);
+  
   if (data.accountBalance.daysOfSpendRemaining !== null) {
-    const statusLabel = data.accountBalance.status === 'critical' ? ' (CRITICO!)' : 
-                       data.accountBalance.status === 'warning' ? ' (Atencao)' : ' (Saudavel)';
-    addKeyValue('Dias de Saldo Restante', `${data.accountBalance.daysOfSpendRemaining} dias${statusLabel}`);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(colors.gray500.r, colors.gray500.g, colors.gray500.b);
+    const statusLabel = balanceStatus === 'critical' ? 'CRITICO' : balanceStatus === 'warning' ? 'Atencao' : 'OK';
+    doc.text(`${data.accountBalance.daysOfSpendRemaining} dias restantes (${statusLabel})`, margin + 5, yPos + 19);
   }
+  
+  yPos += 35;
 
   // ========================================
-  // 2. PROJEÇÕES (7 dias, 30 dias, resto do ano)
+  // 2. PROJEÇÕES
   // ========================================
-  checkNewPage();
-  addSectionTitle('2. Projecoes de Performance');
-  
-  addSubtitle('Proximos 7 Dias');
-  addKeyValue('Gasto Estimado', formatCurrency(data.predictions.next7Days.estimatedSpend));
-  addKeyValue(showCPL ? 'Leads Estimados' : 'Conversoes Estimadas', formatNumber(data.predictions.next7Days.estimatedConversions));
-  if (showROAS && !showCPL) {
-    addKeyValue('Receita Estimada', formatCurrency(data.predictions.next7Days.estimatedRevenue));
-  }
-
-  yPos += 3;
-  addSubtitle('Proximos 30 Dias');
-  addKeyValue('Gasto Estimado', formatCurrency(data.predictions.next30Days.estimatedSpend));
-  addKeyValue(showCPL ? 'Leads Estimados' : 'Conversoes Estimadas', formatNumber(data.predictions.next30Days.estimatedConversions));
-  if (showROAS && !showCPL) {
-    addKeyValue('Receita Estimada', formatCurrency(data.predictions.next30Days.estimatedRevenue));
-  }
-
-  // Projeção para o resto do ano
-  yPos += 3;
-  addSubtitle('Projecao para o Resto do Ano');
-  
-  const today = new Date();
-  const endOfYear = new Date(today.getFullYear(), 11, 31);
-  const daysRemaining = Math.ceil((endOfYear.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  
-  const avgDailySpend = data.predictions.trends.avgDailySpend;
-  const avgDailyConversions = data.predictions.trends.avgDailyConversions;
-  
-  const projectedSpendYear = avgDailySpend * daysRemaining;
-  const projectedConversionsYear = avgDailyConversions * daysRemaining;
-  const projectedRevenueYear = showROAS && data.predictions.trends.avgDailyRoas !== null
-    ? projectedSpendYear * data.predictions.trends.avgDailyRoas
-    : 0;
-
-  addKeyValue('Dias Restantes no Ano', `${daysRemaining} dias`);
-  addKeyValue('Gasto Projetado', formatCurrency(projectedSpendYear));
-  addKeyValue(showCPL ? 'Leads Projetados' : 'Conversoes Projetadas', formatNumber(projectedConversionsYear));
-  if (showROAS && !showCPL && projectedRevenueYear > 0) {
-    addKeyValue('Receita Projetada', formatCurrency(projectedRevenueYear));
-  }
+  checkNewPage(60);
+  addSectionTitle('02', 'Projecoes de Performance');
+  drawProjectionTable();
 
   // ========================================
-  // 3. DESEMPENHO DOS ÚLTIMOS 30 DIAS
+  // 3. DESEMPENHO ÚLTIMOS 30 DIAS
   // ========================================
-  checkNewPage();
-  addSectionTitle('3. Desempenho dos Ultimos 30 Dias');
+  checkNewPage(50);
+  addSectionTitle('03', 'Desempenho dos Ultimos 30 Dias');
   
-  addKeyValue('Total Investido', formatCurrency(data.totals.spend30Days));
-  addKeyValue(showCPL ? 'Total Leads' : 'Total Conversoes', formatNumber(data.totals.conversions30Days));
+  // Performance boxes
+  const perfBoxWidth = (contentWidth - 10) / 3;
+  const perfBoxHeight = 32;
   
-  // CPL Médio
+  drawMetricBox(margin, yPos, perfBoxWidth, perfBoxHeight, 'Investido', formatCurrency(data.totals.spend30Days), true);
+  drawMetricBox(margin + perfBoxWidth + 5, yPos, perfBoxWidth, perfBoxHeight, showCPL ? 'Leads' : 'Conversoes', formatNumber(data.totals.conversions30Days));
+  
   if (showCPL && data.totals.conversions30Days > 0) {
     const avgCpl = data.totals.spend30Days / data.totals.conversions30Days;
-    addKeyValue('CPL Medio', formatCurrency(avgCpl));
-  }
-  
-  // ROAS Médio
-  if (showROAS && !showCPL && data.totals.revenue30Days > 0) {
+    drawMetricBox(margin + (perfBoxWidth + 5) * 2, yPos, perfBoxWidth, perfBoxHeight, 'CPL Medio', formatCurrency(avgCpl), true);
+  } else if (showROAS && data.totals.revenue30Days > 0) {
     const avgRoas = data.totals.revenue30Days / data.totals.spend30Days;
-    addKeyValue('ROAS Medio', `${avgRoas.toFixed(2)}x`);
+    drawMetricBox(margin + (perfBoxWidth + 5) * 2, yPos, perfBoxWidth, perfBoxHeight, 'ROAS Medio', `${avgRoas.toFixed(2)}x`);
   }
   
-  addKeyValue(`Media Diaria (${showCPL ? 'Leads' : 'Conversoes'})`, formatNumber(data.totals.conversions30Days / 30));
+  yPos += perfBoxHeight + 8;
   
-  if (showROAS && !showCPL) {
-    addKeyValue('Total Receita', formatCurrency(data.totals.revenue30Days));
-  }
-  addKeyValue('Total Cliques', formatNumber(data.totals.clicks30Days));
-  addKeyValue('Total Impressoes', formatNumber(data.totals.impressions30Days));
+  // Additional metrics
+  doc.setFillColor(colors.gray100.r, colors.gray100.g, colors.gray100.b);
+  doc.roundedRect(margin, yPos, contentWidth, 30, 3, 3, 'F');
+  yPos += 8;
   
-  // Best and Worst Days Analysis
+  addSimpleRow('Cliques', formatNumber(data.totals.clicks30Days));
+  addSimpleRow('Impressoes', formatNumber(data.totals.impressions30Days));
+  addSimpleRow(`Media Diaria (${showCPL ? 'Leads' : 'Conv'})`, formatNumber(data.totals.conversions30Days / 30));
+  
+  yPos += 5;
+  
+  // Best/Worst day analysis
   if (data.dailyTrend && data.dailyTrend.length > 0) {
     const daysWithConversions = data.dailyTrend.filter(d => d.conversions > 0);
     if (daysWithConversions.length > 0) {
-      yPos += 5;
-      addSubtitle('Analise de Melhor/Pior Dia');
-      
-      // Find best day (lowest CPL with conversions)
       const bestDay = daysWithConversions.reduce((best, current) => {
         const bestCpl = best.spend / best.conversions;
         const currentCpl = current.spend / current.conversions;
         return currentCpl < bestCpl ? current : best;
       });
       
-      // Find worst day (highest CPL with conversions)
       const worstDay = daysWithConversions.reduce((worst, current) => {
         const worstCpl = worst.spend / worst.conversions;
         const currentCpl = current.spend / current.conversions;
@@ -247,154 +355,150 @@ export const generatePredictiveReportPDF = (data: PredictiveAnalysisData): void 
       const bestCpl = bestDay.spend / bestDay.conversions;
       const worstCpl = worstDay.spend / worstDay.conversions;
       
-      addKeyValue('Melhor Dia', `${bestDay.date} - ${formatNumber(bestDay.conversions)} ${showCPL ? 'leads' : 'conv.'} (CPL: ${formatCurrency(bestCpl)})`, true);
-      addKeyValue('Pior Dia', `${worstDay.date} - ${formatNumber(worstDay.conversions)} ${showCPL ? 'leads' : 'conv.'} (CPL: ${formatCurrency(worstCpl)})`);
+      yPos += 3;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(colors.success.r, colors.success.g, colors.success.b);
+      doc.text(`Melhor: ${bestDay.date} - ${formatNumber(bestDay.conversions)} ${showCPL ? 'leads' : 'conv'} (CPL: ${formatCurrency(bestCpl)})`, margin + 5, yPos);
+      
+      yPos += 6;
+      doc.setTextColor(colors.primary.r, colors.primary.g, colors.primary.b);
+      doc.text(`Pior: ${worstDay.date} - ${formatNumber(worstDay.conversions)} ${showCPL ? 'leads' : 'conv'} (CPL: ${formatCurrency(worstCpl)})`, margin + 5, yPos);
+      yPos += 8;
     }
   }
 
   // ========================================
   // 4. PROGRESSO DE METAS
   // ========================================
-  const campaignsWithData = data.campaignGoalsProgress.filter(c => c.spend > 0).slice(0, 10);
+  const campaignsWithData = data.campaignGoalsProgress.filter(c => c.spend > 0).slice(0, 8);
   if (campaignsWithData.length > 0) {
     checkNewPage(50);
-    addSectionTitle('4. Progresso de Metas por Campanha');
+    addSectionTitle('04', 'Progresso de Metas por Campanha');
+    
+    // Table header
+    doc.setFillColor(colors.gray900.r, colors.gray900.g, colors.gray900.b);
+    doc.roundedRect(margin, yPos, contentWidth, 12, 2, 2, 'F');
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('Campanha', margin + 5, yPos + 8);
+    doc.text('Investido', margin + 90, yPos + 8);
+    doc.text(showCPL ? 'Leads' : 'Conv', margin + 120, yPos + 8);
+    doc.text(showCPL ? 'CPL' : 'ROAS', margin + 145, yPos + 8);
+    doc.text('Status', pageWidth - margin - 10, yPos + 8, { align: 'right' });
+    
+    yPos += 12;
     
     campaignsWithData.forEach((campaign, index) => {
-      checkNewPage(40);
+      checkNewPage(12);
       
-      // Campaign name
-      yPos += 3;
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(31, 41, 55);
-      const campaignName = campaign.campaignName.length > 45 
-        ? campaign.campaignName.slice(0, 45) + '...' 
+      // Alternating background
+      if (index % 2 === 0) {
+        doc.setFillColor(colors.gray100.r, colors.gray100.g, colors.gray100.b);
+        doc.rect(margin, yPos, contentWidth, 10, 'F');
+      }
+      
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(colors.gray700.r, colors.gray700.g, colors.gray700.b);
+      
+      // Campaign name (truncated)
+      const campaignName = campaign.campaignName.length > 35 
+        ? campaign.campaignName.slice(0, 35) + '...' 
         : campaign.campaignName;
-      doc.text(`${index + 1}. ${campaignName}`, margin, yPos);
+      doc.text(campaignName, margin + 5, yPos + 7);
       
-      // Show objective badge if available
-      const objective = (campaign as any).objective;
-      if (objective) {
-        const objLabel = objective === 'MESSAGES' ? 'Mensagens' :
-                        objective === 'LINK_CLICKS' ? 'Trafego' :
-                        objective === 'LEAD_GENERATION' ? 'Leads' :
-                        objective === 'CONVERSIONS' ? 'Conversoes' :
-                        objective === 'OUTCOME_TRAFFIC' ? 'Trafego' :
-                        objective === 'OUTCOME_ENGAGEMENT' ? 'Engajamento' :
-                        objective === 'OUTCOME_LEADS' ? 'Leads' :
-                        objective === 'OUTCOME_SALES' ? 'Vendas' :
-                        objective;
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(107, 114, 128);
-        doc.text(`[${objLabel}]`, pageWidth - margin, yPos, { align: 'right' });
-      }
-      yPos += 7;
+      // Metrics
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatCurrency(campaign.spend), margin + 90, yPos + 7);
+      doc.text(formatNumber(campaign.conversions), margin + 120, yPos + 7);
       
-      addKeyValue('   Investido', formatCurrency(campaign.spend));
-      addKeyValue(showCPL ? '   Leads' : '   Conversoes', formatNumber(campaign.conversions));
-      
-      // Show profile visits or messaging replies if relevant
-      const profileVisits = (campaign as any).profileVisits;
-      const messagingReplies = (campaign as any).messagingReplies;
-      
-      if (profileVisits && profileVisits > 0) {
-        addKeyValue('   Visitas ao Perfil', formatNumber(profileVisits));
-      }
-      if (messagingReplies && messagingReplies > 0) {
-        addKeyValue('   Respostas de Mensagem', formatNumber(messagingReplies));
-      }
-      
-      if (showROAS && !showCPL && campaign.roas !== null) {
-        const roasStatus = campaign.roasStatus === 'success' ? ' (OK)' : 
-                          campaign.roasStatus === 'warning' ? ' (!)' : ' (X)';
-        addKeyValue('   ROAS', `${campaign.roas.toFixed(2)}x (meta: ${campaign.targetRoas}x)${roasStatus}`);
-      }
       if (showCPL && campaign.cpl !== null) {
-        const cplStatus = campaign.cplStatus === 'success' ? ' (OK)' : 
-                         campaign.cplStatus === 'warning' ? ' (!)' : ' (X)';
-        addKeyValue('   CPL', `${formatCurrency(campaign.cpl)} (meta: ${formatCurrency(campaign.targetCpl)})${cplStatus}`);
+        doc.text(formatCurrency(campaign.cpl), margin + 145, yPos + 7);
+      } else if (showROAS && campaign.roas !== null) {
+        doc.text(`${campaign.roas.toFixed(2)}x`, margin + 145, yPos + 7);
       }
-      yPos += 3;
+      
+      // Status indicator
+      const status = showCPL ? campaign.cplStatus : campaign.roasStatus;
+      const statusColor = status === 'success' ? colors.success : status === 'warning' ? colors.warning : colors.primary;
+      doc.setFillColor(statusColor.r, statusColor.g, statusColor.b);
+      doc.circle(pageWidth - margin - 8, yPos + 5, 3, 'F');
+      
+      yPos += 10;
     });
+    
+    yPos += 5;
   }
 
   // ========================================
   // 5. SUGESTÕES DE OTIMIZAÇÃO
   // ========================================
-  checkNewPage(60);
-  addSectionTitle('5. Sugestoes de Otimizacao');
+  checkNewPage(50);
+  addSectionTitle('05', 'Sugestoes de Otimizacao');
   
   if (data.suggestions.length === 0) {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(107, 114, 128);
-    doc.text('Nenhuma sugestao de otimizacao no momento.', margin, yPos);
-    yPos += 10;
+    doc.setTextColor(colors.gray500.r, colors.gray500.g, colors.gray500.b);
+    doc.text('Nenhuma sugestao de otimizacao no momento.', margin + 5, yPos);
+    yPos += 15;
   } else {
-    data.suggestions.forEach((suggestion, index) => {
-      checkNewPage(35);
+    data.suggestions.slice(0, 6).forEach((suggestion, index) => {
+      checkNewPage(30);
       
-      const priorityLabel = suggestion.priority === 'high' ? 'Alta' : 
-                           suggestion.priority === 'medium' ? 'Media' : 'Baixa';
+      const priorityColor = suggestion.priority === 'high' ? colors.primary : 
+                           suggestion.priority === 'medium' ? colors.accent : colors.success;
       
-      yPos += 3;
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(31, 41, 55);
+      // Card background
+      doc.setFillColor(colors.gray100.r, colors.gray100.g, colors.gray100.b);
+      doc.roundedRect(margin, yPos, contentWidth, 28, 3, 3, 'F');
       
-      // Truncate title if too long
-      const title = suggestion.title.length > 70 
-        ? suggestion.title.slice(0, 70) + '...' 
-        : suggestion.title;
-      doc.text(`${index + 1}. ${title}`, margin, yPos);
-      yPos += 7;
+      // Priority bar
+      doc.setFillColor(priorityColor.r, priorityColor.g, priorityColor.b);
+      doc.rect(margin, yPos, 4, 28, 'F');
       
+      // Title
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(
-        suggestion.priority === 'high' ? 185 : suggestion.priority === 'medium' ? 161 : 34,
-        suggestion.priority === 'high' ? 28 : suggestion.priority === 'medium' ? 98 : 197,
-        suggestion.priority === 'high' ? 28 : suggestion.priority === 'medium' ? 7 : 94
-      );
-      doc.text(`Prioridade: ${priorityLabel}`, margin + 5, yPos);
-      yPos += 6;
+      doc.setTextColor(colors.gray900.r, colors.gray900.g, colors.gray900.b);
+      const title = suggestion.title.length > 65 ? suggestion.title.slice(0, 65) + '...' : suggestion.title;
+      doc.text(title, margin + 8, yPos + 9);
       
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(55, 65, 81);
-      const descLines = doc.splitTextToSize(suggestion.description, pageWidth - margin * 2 - 10);
-      doc.text(descLines, margin + 5, yPos);
-      yPos += descLines.length * 4 + 3;
+      // Priority badge
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(priorityColor.r, priorityColor.g, priorityColor.b);
+      const priorityLabel = suggestion.priority === 'high' ? 'ALTA' : suggestion.priority === 'medium' ? 'MEDIA' : 'BAIXA';
+      doc.text(priorityLabel, pageWidth - margin - 5, yPos + 9, { align: 'right' });
       
+      // Description
       doc.setFontSize(8);
-      doc.setTextColor(107, 114, 128);
-      const reasonLines = doc.splitTextToSize(`Motivo: ${suggestion.reason}`, pageWidth - margin * 2 - 10);
-      doc.text(reasonLines, margin + 5, yPos);
-      yPos += reasonLines.length * 3.5 + 5;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(colors.gray700.r, colors.gray700.g, colors.gray700.b);
+      const descLines = doc.splitTextToSize(suggestion.description, contentWidth - 20);
+      doc.text(descLines.slice(0, 2).join(' '), margin + 8, yPos + 18);
+      
+      yPos += 33;
     });
   }
 
-  // Footer on each page
+  // === FOOTER ===
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     
-    // Footer line
-    doc.setDrawColor(185, 28, 28);
-    doc.setLineWidth(0.5);
-    doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+    // Footer bar
+    doc.setFillColor(colors.gray900.r, colors.gray900.g, colors.gray900.b);
+    doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
     
     // Footer text
-    doc.setFontSize(8);
-    doc.setTextColor(107, 114, 128);
-    doc.text(
-      `Relatorio gerado automaticamente - ${new Date().toLocaleString('pt-BR')}`,
-      pageWidth / 2,
-      pageHeight - 8,
-      { align: 'center' }
-    );
-    doc.text(`Pagina ${i} de ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
+    doc.setFontSize(7);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`V4 Company - Relatorio gerado em ${new Date().toLocaleString('pt-BR')}`, margin, pageHeight - 5);
+    doc.text(`Pagina ${i}/${pageCount}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
   }
 
   // Save
