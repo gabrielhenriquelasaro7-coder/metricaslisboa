@@ -35,6 +35,7 @@ import {
   AlertCircle,
   XCircle,
   HelpCircle,
+  Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -61,6 +62,10 @@ export default function PredictiveAnalysis() {
   // State for suggestion action dialog
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<{ title: string; actionType: 'applied' | 'ignored' } | null>(null);
+  
+  // Filters for suggestions
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'applied' | 'ignored'>('all');
 
   // Stringify goal for comparison to detect changes
   const goalHash = useMemo(() => JSON.stringify(goal), [goal]);
@@ -793,35 +798,156 @@ export default function PredictiveAnalysis() {
 
               {/* AI Suggestions - Improved */}
               <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Lightbulb className="w-5 h-5 text-metric-warning" />
-                        Sugestões de Otimização
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        Recomendações baseadas em análise dos seus dados ({data.project?.businessModel === 'ecommerce' || data.project?.businessModel === 'infoproduto' ? 'foco em ROAS' : 'foco em CPL/Leads'})
-                      </CardDescription>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <Lightbulb className="w-5 h-5 text-metric-warning" />
+                          Sugestões de Otimização
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          Recomendações baseadas em análise dos seus dados ({data.project?.businessModel === 'ecommerce' || data.project?.businessModel === 'infoproduto' ? 'foco em ROAS' : 'foco em CPL/Leads'})
+                        </CardDescription>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          fetchAnalysis();
+                          toast.info('Atualizando análise...');
+                        }}
+                        disabled={loading}
+                        className="flex items-center gap-2"
+                      >
+                        <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+                        Atualizar
+                      </Button>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        fetchAnalysis();
-                        toast.info('Atualizando análise...');
-                      }}
-                      disabled={loading}
-                      className="flex items-center gap-2"
-                    >
-                      <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-                      Atualizar
-                    </Button>
+                    
+                    {/* Filters */}
+                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border/50">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Filter className="w-4 h-4" />
+                        <span>Filtros:</span>
+                      </div>
+                      
+                      {/* Priority Filter */}
+                      <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1">
+                        <button
+                          onClick={() => setPriorityFilter('all')}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-xs font-medium transition-all",
+                            priorityFilter === 'all' 
+                              ? "bg-primary text-primary-foreground" 
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          )}
+                        >
+                          Todas
+                        </button>
+                        <button
+                          onClick={() => setPriorityFilter('high')}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-xs font-medium transition-all",
+                            priorityFilter === 'high' 
+                              ? "bg-destructive text-destructive-foreground" 
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          )}
+                        >
+                          Alta
+                        </button>
+                        <button
+                          onClick={() => setPriorityFilter('medium')}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-xs font-medium transition-all",
+                            priorityFilter === 'medium' 
+                              ? "bg-metric-warning text-white" 
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          )}
+                        >
+                          Média
+                        </button>
+                        <button
+                          onClick={() => setPriorityFilter('low')}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-xs font-medium transition-all",
+                            priorityFilter === 'low' 
+                              ? "bg-primary text-primary-foreground" 
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          )}
+                        >
+                          Baixa
+                        </button>
+                      </div>
+                      
+                      <div className="w-px h-5 bg-border hidden sm:block" />
+                      
+                      {/* Status Filter */}
+                      <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1">
+                        <button
+                          onClick={() => setStatusFilter('all')}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-xs font-medium transition-all",
+                            statusFilter === 'all' 
+                              ? "bg-primary text-primary-foreground" 
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          )}
+                        >
+                          Todas
+                        </button>
+                        <button
+                          onClick={() => setStatusFilter('pending')}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-xs font-medium transition-all",
+                            statusFilter === 'pending' 
+                              ? "bg-metric-warning text-white" 
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          )}
+                        >
+                          Pendentes
+                        </button>
+                        <button
+                          onClick={() => setStatusFilter('applied')}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-xs font-medium transition-all",
+                            statusFilter === 'applied' 
+                              ? "bg-metric-positive text-white" 
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          )}
+                        >
+                          Aplicadas
+                        </button>
+                        <button
+                          onClick={() => setStatusFilter('ignored')}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-xs font-medium transition-all",
+                            statusFilter === 'ignored' 
+                              ? "bg-muted-foreground text-white" 
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          )}
+                        >
+                          Ignoradas
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {data.suggestions.map((suggestion, index) => {
+                    {data.suggestions
+                      .filter(suggestion => {
+                        // Priority filter
+                        if (priorityFilter !== 'all' && suggestion.priority !== priorityFilter) {
+                          return false;
+                        }
+                        // Status filter
+                        const action = getActionForSuggestion(suggestion.title);
+                        if (statusFilter === 'pending' && action) return false;
+                        if (statusFilter === 'applied' && action?.action_type !== 'applied') return false;
+                        if (statusFilter === 'ignored' && action?.action_type !== 'ignored') return false;
+                        return true;
+                      })
+                      .map((suggestion, index) => {
                       const existingAction = getActionForSuggestion(suggestion.title);
                       const isMarked = !!existingAction;
                       
@@ -988,6 +1114,33 @@ export default function PredictiveAnalysis() {
                         </motion.div>
                       );
                     })}
+                    
+                    {/* Empty state when filters return no results */}
+                    {data.suggestions.filter(suggestion => {
+                      if (priorityFilter !== 'all' && suggestion.priority !== priorityFilter) return false;
+                      const action = getActionForSuggestion(suggestion.title);
+                      if (statusFilter === 'pending' && action) return false;
+                      if (statusFilter === 'applied' && action?.action_type !== 'applied') return false;
+                      if (statusFilter === 'ignored' && action?.action_type !== 'ignored') return false;
+                      return true;
+                    }).length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Filter className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                        <p className="font-medium">Nenhuma sugestão encontrada</p>
+                        <p className="text-sm mt-1">Ajuste os filtros para ver mais sugestões</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-4"
+                          onClick={() => {
+                            setPriorityFilter('all');
+                            setStatusFilter('all');
+                          }}
+                        >
+                          Limpar filtros
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
