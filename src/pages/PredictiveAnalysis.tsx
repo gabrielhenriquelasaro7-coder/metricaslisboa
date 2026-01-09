@@ -575,6 +575,14 @@ export default function PredictiveAnalysis() {
                   <CardDescription>
                     Veja quanto você gastou e quantos {showCPL ? 'leads' : 'resultados'} obteve por dia
                   </CardDescription>
+                  <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border/50">
+                    <p className="text-xs text-muted-foreground flex items-start gap-2">
+                      <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-primary" />
+                      <span>
+                        <strong className="text-foreground">Como interpretar:</strong> O melhor dia não é necessariamente o que teve mais {showCPL ? 'leads' : 'resultados'}, mas sim aquele com o <strong className="text-primary">menor CPL</strong> (custo por lead). Dias com menos leads podem ter sido mais eficientes se o custo foi baixo.
+                      </span>
+                    </p>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Simple Summary Cards */}
@@ -686,96 +694,6 @@ export default function PredictiveAnalysis() {
                 </CardContent>
               </Card>
 
-              {/* Simplified Future Projection */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-primary" />
-                    O Que Esperar nos Próximos Dias
-                  </CardTitle>
-                  <CardDescription>
-                    Projeção baseada na média dos últimos 30 dias
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Simple Projection Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* 7 Days Projection */}
-                    <div className="p-6 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Calendar className="w-5 h-5 text-blue-500" />
-                        <h3 className="font-semibold text-lg">Próximos 7 Dias</h3>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">💰 Gasto estimado</span>
-                          <span className="font-bold text-xl">{formatCurrency(data.predictions.next7Days.estimatedSpend)}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">🎯 {showCPL ? 'Leads' : 'Resultados'} esperados</span>
-                          <span className="font-bold text-xl text-green-500">{formatNumber(data.predictions.next7Days.estimatedConversions)}</span>
-                        </div>
-                        <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                          <span className="text-muted-foreground">📊 CPL projetado</span>
-                          <span className="font-bold text-purple-500">
-                            {data.predictions.next7Days.estimatedConversions > 0 
-                              ? formatCurrency(data.predictions.next7Days.estimatedSpend / data.predictions.next7Days.estimatedConversions)
-                              : 'R$ 0'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 30 Days Projection */}
-                    <div className="p-6 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Calendar className="w-5 h-5 text-purple-500" />
-                        <h3 className="font-semibold text-lg">Próximos 30 Dias</h3>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">💰 Gasto estimado</span>
-                          <span className="font-bold text-xl">{formatCurrency(data.predictions.next30Days.estimatedSpend)}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">🎯 {showCPL ? 'Leads' : 'Resultados'} esperados</span>
-                          <span className="font-bold text-xl text-green-500">{formatNumber(data.predictions.next30Days.estimatedConversions)}</span>
-                        </div>
-                        <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                          <span className="text-muted-foreground">📊 CPL projetado</span>
-                          <span className="font-bold text-purple-500">
-                            {data.predictions.next30Days.estimatedConversions > 0 
-                              ? formatCurrency(data.predictions.next30Days.estimatedSpend / data.predictions.next30Days.estimatedConversions)
-                              : 'R$ 0'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Simple Visual: How many leads per day expected */}
-                  <div className="p-4 rounded-xl bg-muted/30">
-                    <p className="text-center text-muted-foreground mb-4">
-                      📈 Projeção diária: <strong className="text-foreground">{formatNumber(data.predictions.trends.avgDailyConversions)} {showCPL ? 'leads' : 'resultados'}</strong> por dia
-                    </p>
-                    <div className="flex justify-center gap-2 flex-wrap">
-                      {Array.from({ length: Math.min(Math.round(data.predictions.trends.avgDailyConversions), 10) }).map((_, i) => (
-                        <div 
-                          key={i}
-                          className="w-8 h-8 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center text-green-500 text-sm font-bold"
-                        >
-                          🎯
-                        </div>
-                      ))}
-                      {Math.round(data.predictions.trends.avgDailyConversions) > 10 && (
-                        <div className="w-8 h-8 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center text-green-500 text-xs font-bold">
-                          +{Math.round(data.predictions.trends.avgDailyConversions) - 10}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
 
               {/* Campaign Goals Progress - Show all campaigns */}
               {data.campaignGoalsProgress.length > 0 && (
