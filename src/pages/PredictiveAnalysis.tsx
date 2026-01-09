@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { usePredictiveAnalysis, CampaignGoal, OptimizationSuggestion } from '@/hooks/usePredictiveAnalysis';
 import { useCampaignGoals } from '@/hooks/useCampaignGoals';
+import { useSuggestionActions } from '@/hooks/useSuggestionActions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PredictiveSkeleton } from '@/components/skeletons';
 import { generatePredictiveReportPDF } from '@/components/pdf/PredictiveReportPDF';
 import { CampaignGoalsConfig } from '@/components/predictive/CampaignGoalsConfig';
+import { SuggestionActionDialog } from '@/components/predictive/SuggestionActionDialog';
 
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
@@ -52,7 +54,12 @@ export default function PredictiveAnalysis() {
   const projectId = localStorage.getItem('selectedProjectId');
   const { data, loading, error, fetchAnalysis } = usePredictiveAnalysis(projectId);
   const { goals, fetchGoals } = useCampaignGoals(projectId);
+  const { markSuggestion, getActionForSuggestion, removeMark } = useSuggestionActions(projectId);
   const [goalsVersion, setGoalsVersion] = useState(0);
+  
+  // State for suggestion action dialog
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<{ title: string; actionType: 'applied' | 'ignored' } | null>(null);
 
   // Build campaign goals from saved data
   const campaignGoals: CampaignGoal[] = useMemo(() => {
@@ -961,37 +968,119 @@ export default function PredictiveAnalysis() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {data.suggestions.map((suggestion, index) => (
-                      <div 
-                        key={index}
-                        className={cn(
-                          "p-4 rounded-lg border transition-colors",
-                          suggestion.priority === 'high' && "bg-destructive/5 border-destructive/20",
-                          suggestion.priority === 'medium' && "bg-metric-warning/5 border-metric-warning/20",
-                          suggestion.priority === 'low' && "bg-muted/50 border-border"
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-3 flex-1">
-                            <Zap className={cn(
-                              "w-5 h-5 mt-0.5 flex-shrink-0",
-                              suggestion.priority === 'high' && "text-destructive",
-                              suggestion.priority === 'medium' && "text-metric-warning",
-                              suggestion.priority === 'low' && "text-primary"
-                            )} />
-                            <div className="space-y-1">
-                              <p className="font-medium">{suggestion.title}</p>
-                              <p className="text-sm text-muted-foreground">{suggestion.description}</p>
-                              <p className="text-xs text-muted-foreground/80 italic flex items-center gap-1">
-                                <Info className="w-3 h-3" />
-                                {suggestion.reason}
-                              </p>
+                    {data.suggestions.map((suggestion, index) => {
+                      const existingAction = getActionForSuggestion(suggestion.title);
+                      const isMarked = !!existingAction;
+                      
+                      return (
+                        <div 
+                          key={index}
+                          className={cn(
+                            "p-4 rounded-lg border transition-colors relative",
+                            isMarked && existingAction.action_type === 'applied' && "bg-metric-positive/5 border-metric-positive/30",
+                            isMarked && existingAction.action_type === 'ignored' && "bg-muted/30 border-muted-foreground/20 opacity-60",
+                            !isMarked && suggestion.priority === 'high' && "bg-destructive/5 border-destructive/20",
+                            !isMarked && suggestion.priority === 'medium' && "bg-metric-warning/5 border-metric-warning/20",
+                            !isMarked && suggestion.priority === 'low' && "bg-muted/50 border-border"
+                          )}
+                        >
+                          {/* Status badge if marked */}
+                          {isMarked && (
+                            <div className="absolute -top-2 -right-2">
+                              <Badge 
+                                variant={existingAction.action_type === 'applied' ? 'default' : 'secondary'}
+                                className={cn(
+                                  "text-xs",
+                                  existingAction.action_type === 'applied' && "bg-metric-positive text-white"
+                                )}
+                              >
+                                {existingAction.action_type === 'applied' ? '✓ Aplicada' : 'Ignorada'}
+                              </Badge>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-3 flex-1">
+                              <Zap className={cn(
+                                "w-5 h-5 mt-0.5 flex-shrink-0",
+                                isMarked && existingAction.action_type === 'applied' && "text-metric-positive",
+                                isMarked && existingAction.action_type === 'ignored' && "text-muted-foreground",
+                                !isMarked && suggestion.priority === 'high' && "text-destructive",
+                                !isMarked && suggestion.priority === 'medium' && "text-metric-warning",
+                                !isMarked && suggestion.priority === 'low' && "text-primary"
+                              )} />
+                              <div className="space-y-1">
+                                <p className="font-medium">{suggestion.title}</p>
+                                <p className="text-sm text-muted-foreground">{suggestion.description}</p>
+                                <p className="text-xs text-muted-foreground/80 italic flex items-center gap-1">
+                                  <Info className="w-3 h-3" />
+                                  {suggestion.reason}
+                                </p>
+                                {/* Show reason if marked */}
+                                {isMarked && existingAction.reason && (
+                                  <p className="text-xs text-primary/80 mt-2 p-2 bg-primary/5 rounded">
+                                    <span className="font-medium">Nota:</span> {existingAction.reason}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex flex-col items-end gap-2">
+                              {!isMarked && getPriorityBadge(suggestion.priority)}
+                              
+                              {/* Action buttons */}
+                              <div className="flex gap-1">
+                                {isMarked ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-xs h-7"
+                                    onClick={() => removeMark(suggestion.title)}
+                                  >
+                                    Desfazer
+                                  </Button>
+                                ) : (
+                                  <>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 text-metric-positive hover:bg-metric-positive/10"
+                                          onClick={() => {
+                                            setSelectedSuggestion({ title: suggestion.title, actionType: 'applied' });
+                                            setActionDialogOpen(true);
+                                          }}
+                                        >
+                                          <CheckCircle2 className="w-4 h-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Marcar como aplicada</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 text-muted-foreground hover:bg-muted"
+                                          onClick={() => {
+                                            setSelectedSuggestion({ title: suggestion.title, actionType: 'ignored' });
+                                            setActionDialogOpen(true);
+                                          }}
+                                        >
+                                          <XCircle className="w-4 h-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Marcar como ignorada</TooltipContent>
+                                    </Tooltip>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          {getPriorityBadge(suggestion.priority)}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -1004,6 +1093,20 @@ export default function PredictiveAnalysis() {
           )}
         </div>
       </TooltipProvider>
+      
+      {/* Suggestion Action Dialog */}
+      {selectedSuggestion && (
+        <SuggestionActionDialog
+          open={actionDialogOpen}
+          onOpenChange={setActionDialogOpen}
+          suggestionTitle={selectedSuggestion.title}
+          actionType={selectedSuggestion.actionType}
+          onConfirm={(reason) => {
+            markSuggestion(selectedSuggestion.title, selectedSuggestion.actionType, reason);
+            setSelectedSuggestion(null);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }

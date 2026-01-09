@@ -1575,6 +1575,47 @@ export type Database = {
         }
         Relationships: []
       }
+      suggestion_actions: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          project_id: string
+          reason: string | null
+          suggestion_hash: string
+          suggestion_title: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          project_id: string
+          reason?: string | null
+          suggestion_hash: string
+          suggestion_title: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+          reason?: string | null
+          suggestion_hash?: string
+          suggestion_title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suggestion_actions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sync_logs: {
         Row: {
           created_at: string
