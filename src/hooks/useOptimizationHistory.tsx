@@ -14,6 +14,7 @@ export interface OptimizationRecord {
   change_percentage: number | null;
   detected_at: string;
   created_at: string;
+  changed_by: string | null;
 }
 
 export function useOptimizationHistory(projectId: string | null) {

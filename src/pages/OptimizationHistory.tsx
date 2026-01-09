@@ -351,7 +351,8 @@ export default function OptimizationHistory() {
       'Tipo',
       'Nome',
       'O que mudou',
-      'Descrição da Mudança'
+      'Descrição da Mudança',
+      'Alterado por'
     ];
 
     const rows = filteredHistory.map(record => [
@@ -360,7 +361,8 @@ export default function OptimizationHistory() {
       ENTITY_TYPE_CONFIG[record.entity_type]?.labelSingular || record.entity_type,
       record.entity_name,
       FIELD_LABELS[record.field_changed] || record.field_changed,
-      getChangeDescription(record)
+      getChangeDescription(record),
+      record.changed_by || 'Não identificado'
     ]);
 
     const csvContent = [
@@ -603,16 +605,24 @@ export default function OptimizationHistory() {
                                     </p>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge 
-                                    className={cn("text-xs text-white flex items-center gap-1", badgeStyle.color)}
-                                  >
-                                    {ChangeIcon}
-                                    {badgeStyle.label}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    {new Date(record.detected_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
+                                <div className="flex flex-col items-end gap-1">
+                                  <div className="flex items-center gap-2">
+                                    <Badge 
+                                      className={cn("text-xs text-white flex items-center gap-1", badgeStyle.color)}
+                                    >
+                                      {ChangeIcon}
+                                      {badgeStyle.label}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {new Date(record.detected_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  {record.changed_by && (
+                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <Users className="w-3 h-3" />
+                                      {record.changed_by}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               
