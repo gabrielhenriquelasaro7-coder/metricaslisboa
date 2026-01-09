@@ -16,64 +16,251 @@ import {
 import { 
   History, 
   Search, 
-  TrendingUp, 
-  TrendingDown, 
-  Minus,
   Target,
   Layers,
   FileText,
-  ArrowRight,
   Calendar,
   RefreshCw,
-  Download
+  Download,
+  Pause,
+  Play,
+  Settings,
+  Users,
+  Image,
+  Type,
+  Pencil
 } from 'lucide-react';
 import { useOptimizationHistory, OptimizationRecord } from '@/hooks/useOptimizationHistory';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+// Traduções de status
+const STATUS_TRANSLATIONS: Record<string, string> = {
+  'ACTIVE': 'Ativo',
+  'PAUSED': 'Pausado',
+  'DELETED': 'Deletado',
+  'ARCHIVED': 'Arquivado',
+  'PENDING': 'Pendente',
+  'IN_PROCESS': 'Em Processamento',
+  'WITH_ISSUES': 'Com Problemas',
+};
+
+// Traduções de objetivos de campanha
+const OBJECTIVE_TRANSLATIONS: Record<string, string> = {
+  'OUTCOME_LEADS': 'Geração de Leads',
+  'OUTCOME_SALES': 'Vendas',
+  'OUTCOME_ENGAGEMENT': 'Engajamento',
+  'OUTCOME_AWARENESS': 'Reconhecimento de Marca',
+  'OUTCOME_TRAFFIC': 'Tráfego',
+  'OUTCOME_APP_PROMOTION': 'Promoção de App',
+  'LINK_CLICKS': 'Cliques no Link',
+  'POST_ENGAGEMENT': 'Engajamento com Publicação',
+  'VIDEO_VIEWS': 'Visualizações de Vídeo',
+  'REACH': 'Alcance',
+  'CONVERSIONS': 'Conversões',
+  'MESSAGES': 'Mensagens',
+  'LEAD_GENERATION': 'Geração de Leads',
+  'BRAND_AWARENESS': 'Reconhecimento de Marca',
+  'STORE_VISITS': 'Visitas à Loja',
+  'CATALOG_SALES': 'Vendas do Catálogo',
+};
+
 const FIELD_LABELS: Record<string, string> = {
   status: 'Status',
-  objective: 'Objetivo',
-  targeting: 'Público/Segmentação',
+  objective: 'Objetivo da Campanha',
+  targeting: 'Público-Alvo',
   creative_image_url: 'Imagem do Criativo',
   creative_video_url: 'Vídeo do Criativo',
-  headline: 'Título',
+  headline: 'Título do Anúncio',
   primary_text: 'Texto Principal',
-  cta: 'Botão de Ação (CTA)',
+  cta: 'Botão de Ação',
   daily_budget: 'Orçamento Diário',
-  lifetime_budget: 'Orçamento Vitalício',
-  spend: 'Gasto',
-  impressions: 'Impressões',
-  clicks: 'Cliques',
-  ctr: 'CTR',
-  cpc: 'CPC',
-  cpm: 'CPM',
-  conversions: 'Conversões',
-  cpa: 'CPA',
-  roas: 'ROAS',
-  reach: 'Alcance',
-  frequency: 'Frequência',
-  conversion_value: 'Valor de Conversão',
+  lifetime_budget: 'Orçamento Total',
 };
 
-const CHANGE_TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  status_change: { label: 'Status', color: 'bg-blue-500' },
-  budget_change: { label: 'Orçamento', color: 'bg-purple-500' },
-  metric_change: { label: 'Métrica', color: 'bg-amber-500' },
-  creative_change: { label: 'Criativo', color: 'bg-pink-500' },
-  targeting_change: { label: 'Público', color: 'bg-cyan-500' },
-  objective_change: { label: 'Objetivo', color: 'bg-indigo-500' },
-  created: { label: 'Criado', color: 'bg-green-500' },
-  paused: { label: 'Pausado', color: 'bg-gray-500' },
-  activated: { label: 'Ativado', color: 'bg-emerald-500' },
+const CHANGE_TYPE_CONFIG: Record<string, { label: string; color: string; icon: typeof Settings; description: string }> = {
+  status_change: { 
+    label: 'Mudança de Status', 
+    color: 'bg-blue-500', 
+    icon: Settings,
+    description: 'O status foi alterado'
+  },
+  creative_change: { 
+    label: 'Alteração de Criativo', 
+    color: 'bg-pink-500', 
+    icon: Image,
+    description: 'O criativo foi modificado'
+  },
+  targeting_change: { 
+    label: 'Alteração de Público', 
+    color: 'bg-cyan-500', 
+    icon: Users,
+    description: 'A segmentação de público foi alterada'
+  },
+  objective_change: { 
+    label: 'Mudança de Objetivo', 
+    color: 'bg-indigo-500', 
+    icon: Target,
+    description: 'O objetivo da campanha foi alterado'
+  },
+  paused: { 
+    label: 'Pausado', 
+    color: 'bg-orange-500', 
+    icon: Pause,
+    description: 'Foi pausado'
+  },
+  activated: { 
+    label: 'Ativado', 
+    color: 'bg-emerald-500', 
+    icon: Play,
+    description: 'Foi ativado'
+  },
 };
 
-const ENTITY_TYPE_LABELS: Record<string, { label: string; icon: typeof Target }> = {
-  campaign: { label: 'Campanha', icon: Target },
-  ad_set: { label: 'Conjunto', icon: Layers },
-  ad: { label: 'Anúncio', icon: FileText },
+const ENTITY_TYPE_CONFIG: Record<string, { label: string; labelSingular: string; icon: typeof Target; color: string }> = {
+  campaign: { label: 'Campanhas', labelSingular: 'Campanha', icon: Target, color: 'text-blue-500 bg-blue-500/10' },
+  ad_set: { label: 'Conjuntos', labelSingular: 'Conjunto de Anúncios', icon: Layers, color: 'text-purple-500 bg-purple-500/10' },
+  ad: { label: 'Anúncios', labelSingular: 'Anúncio', icon: FileText, color: 'text-amber-500 bg-amber-500/10' },
 };
+
+// Função para traduzir valores
+function translateValue(value: string | null, field: string): string {
+  if (value === null || value === '-') return 'Não definido';
+  
+  // Traduz status
+  if (field === 'status') {
+    return STATUS_TRANSLATIONS[value] || value;
+  }
+  
+  // Traduz objetivos
+  if (field === 'objective') {
+    return OBJECTIVE_TRANSLATIONS[value] || value;
+  }
+  
+  // Traduz targeting (é um JSON normalmente)
+  if (field === 'targeting') {
+    try {
+      const parsed = JSON.parse(value);
+      const parts: string[] = [];
+      
+      if (parsed.age_min || parsed.age_max) {
+        parts.push(`Idade: ${parsed.age_min || '18'}-${parsed.age_max || '65+'}anos`);
+      }
+      if (parsed.genders && parsed.genders.length > 0) {
+        const genderMap: Record<number, string> = { 1: 'Homens', 2: 'Mulheres' };
+        const genders = parsed.genders.map((g: number) => genderMap[g] || g).join(' e ');
+        parts.push(`Gênero: ${genders}`);
+      }
+      if (parsed.geo_locations?.cities && parsed.geo_locations.cities.length > 0) {
+        const cities = parsed.geo_locations.cities.map((c: { name: string }) => c.name).slice(0, 3).join(', ');
+        parts.push(`Cidades: ${cities}${parsed.geo_locations.cities.length > 3 ? '...' : ''}`);
+      }
+      if (parsed.geo_locations?.regions && parsed.geo_locations.regions.length > 0) {
+        const regions = parsed.geo_locations.regions.map((r: { name: string }) => r.name).slice(0, 3).join(', ');
+        parts.push(`Regiões: ${regions}`);
+      }
+      
+      return parts.length > 0 ? parts.join(' | ') : 'Segmentação personalizada';
+    } catch {
+      return 'Segmentação atualizada';
+    }
+  }
+  
+  return value;
+}
+
+// Função para gerar descrição legível da mudança
+function getChangeDescription(record: OptimizationRecord): string {
+  const entityLabel = ENTITY_TYPE_CONFIG[record.entity_type]?.labelSingular || record.entity_type;
+  const fieldLabel = FIELD_LABELS[record.field_changed] || record.field_changed;
+  
+  const oldValue = translateValue(record.old_value, record.field_changed);
+  const newValue = translateValue(record.new_value, record.field_changed);
+  
+  // Mudança de status
+  if (record.field_changed === 'status') {
+    if (record.new_value === 'PAUSED') {
+      return `${entityLabel} foi pausada`;
+    }
+    if (record.new_value === 'ACTIVE') {
+      return `${entityLabel} foi ativada`;
+    }
+    return `Status alterado de "${oldValue}" para "${newValue}"`;
+  }
+  
+  // Mudança de objetivo
+  if (record.field_changed === 'objective') {
+    return `Objetivo alterado para "${newValue}"`;
+  }
+  
+  // Mudança de targeting
+  if (record.field_changed === 'targeting') {
+    return `Público-alvo foi modificado: ${newValue}`;
+  }
+  
+  // Mudança de criativo
+  if (record.field_changed === 'headline') {
+    return `Título alterado para "${newValue}"`;
+  }
+  if (record.field_changed === 'primary_text') {
+    return `Texto principal foi modificado`;
+  }
+  if (record.field_changed === 'creative_image_url') {
+    return `Imagem do criativo foi substituída`;
+  }
+  if (record.field_changed === 'creative_video_url') {
+    return `Vídeo do criativo foi substituído`;
+  }
+  
+  // Fallback genérico
+  return `${fieldLabel}: "${oldValue}" → "${newValue}"`;
+}
+
+// Função para obter o ícone da mudança
+function getChangeIcon(record: OptimizationRecord) {
+  if (record.field_changed === 'status') {
+    if (record.new_value === 'PAUSED') return <Pause className="w-4 h-4" />;
+    if (record.new_value === 'ACTIVE') return <Play className="w-4 h-4" />;
+  }
+  if (record.field_changed === 'targeting') return <Users className="w-4 h-4" />;
+  if (record.field_changed === 'objective') return <Target className="w-4 h-4" />;
+  if (record.field_changed === 'headline' || record.field_changed === 'primary_text') return <Type className="w-4 h-4" />;
+  if (record.field_changed.includes('creative') || record.field_changed.includes('image') || record.field_changed.includes('video')) {
+    return <Image className="w-4 h-4" />;
+  }
+  return <Pencil className="w-4 h-4" />;
+}
+
+// Função para obter cor do badge baseado na mudança
+function getChangeBadgeStyle(record: OptimizationRecord): { color: string; label: string } {
+  if (record.field_changed === 'status') {
+    if (record.new_value === 'PAUSED') {
+      return { color: 'bg-orange-500', label: 'Pausado' };
+    }
+    if (record.new_value === 'ACTIVE') {
+      return { color: 'bg-emerald-500', label: 'Ativado' };
+    }
+  }
+  
+  const config = CHANGE_TYPE_CONFIG[record.change_type];
+  if (config) {
+    return { color: config.color, label: config.label };
+  }
+  
+  // Fallback baseado no campo
+  if (record.field_changed === 'targeting') {
+    return { color: 'bg-cyan-500', label: 'Público Alterado' };
+  }
+  if (record.field_changed === 'objective') {
+    return { color: 'bg-indigo-500', label: 'Objetivo Alterado' };
+  }
+  if (record.field_changed.includes('creative') || record.field_changed === 'headline' || record.field_changed === 'primary_text') {
+    return { color: 'bg-pink-500', label: 'Criativo Alterado' };
+  }
+  
+  return { color: 'bg-gray-500', label: 'Modificado' };
+}
 
 export default function OptimizationHistory() {
   const navigate = useNavigate();
@@ -93,7 +280,7 @@ export default function OptimizationHistory() {
     return history.filter(record => {
       const matchesSearch = search === '' || 
         record.entity_name.toLowerCase().includes(search.toLowerCase()) ||
-        record.field_changed.toLowerCase().includes(search.toLowerCase());
+        getChangeDescription(record).toLowerCase().includes(search.toLowerCase());
       
       const matchesEntity = entityFilter === 'all' || record.entity_type === entityFilter;
       const matchesChangeType = changeTypeFilter === 'all' || record.change_type === changeTypeFilter;
@@ -106,7 +293,12 @@ export default function OptimizationHistory() {
     const groups: Record<string, OptimizationRecord[]> = {};
     
     filteredHistory.forEach(record => {
-      const date = new Date(record.detected_at).toLocaleDateString('pt-BR');
+      const date = new Date(record.detected_at).toLocaleDateString('pt-BR', {
+        weekday: 'long',
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      });
       if (!groups[date]) groups[date] = [];
       groups[date].push(record);
     });
@@ -114,34 +306,22 @@ export default function OptimizationHistory() {
     return groups;
   }, [filteredHistory]);
 
-  const formatValue = (value: string | null, field: string): string => {
-    if (value === null) return '-';
-    
-    const numValue = parseFloat(value);
-    if (isNaN(numValue)) return value;
-    
-    if (['spend', 'daily_budget', 'lifetime_budget', 'cpc', 'cpa', 'conversion_value'].includes(field)) {
-      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numValue);
-    }
-    if (['ctr', 'roas'].includes(field)) {
-      return `${numValue.toFixed(2)}${field === 'ctr' ? '%' : 'x'}`;
-    }
-    return new Intl.NumberFormat('pt-BR').format(numValue);
-  };
-
-  const getChangeIcon = (record: OptimizationRecord) => {
-    if (record.change_percentage !== null) {
-      if (record.change_percentage > 0) return <TrendingUp className="w-4 h-4 text-metric-positive" />;
-      if (record.change_percentage < 0) return <TrendingDown className="w-4 h-4 text-metric-negative" />;
-    }
-    return <Minus className="w-4 h-4 text-muted-foreground" />;
-  };
-
   const stats = useMemo(() => {
     const campaigns = history.filter(h => h.entity_type === 'campaign').length;
     const adSets = history.filter(h => h.entity_type === 'ad_set').length;
     const ads = history.filter(h => h.entity_type === 'ad').length;
-    return { campaigns, adSets, ads, total: history.length };
+    
+    // Contagem por tipo de mudança
+    const paused = history.filter(h => h.new_value === 'PAUSED').length;
+    const activated = history.filter(h => h.new_value === 'ACTIVE').length;
+    const creativeChanges = history.filter(h => 
+      h.field_changed.includes('creative') || 
+      h.field_changed === 'headline' || 
+      h.field_changed === 'primary_text'
+    ).length;
+    const targetingChanges = history.filter(h => h.field_changed === 'targeting').length;
+    
+    return { campaigns, adSets, ads, total: history.length, paused, activated, creativeChanges, targetingChanges };
   }, [history]);
 
   const exportToCSV = useCallback(() => {
@@ -153,27 +333,19 @@ export default function OptimizationHistory() {
     const headers = [
       'Data',
       'Hora',
-      'Tipo de Entidade',
-      'Nome da Entidade',
-      'ID da Entidade',
-      'Campo Alterado',
-      'Valor Anterior',
-      'Novo Valor',
-      'Tipo de Mudança',
-      'Variação (%)'
+      'Tipo',
+      'Nome',
+      'O que mudou',
+      'Descrição da Mudança'
     ];
 
     const rows = filteredHistory.map(record => [
       new Date(record.detected_at).toLocaleDateString('pt-BR'),
       new Date(record.detected_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      ENTITY_TYPE_LABELS[record.entity_type]?.label || record.entity_type,
+      ENTITY_TYPE_CONFIG[record.entity_type]?.labelSingular || record.entity_type,
       record.entity_name,
-      record.entity_id,
       FIELD_LABELS[record.field_changed] || record.field_changed,
-      record.old_value || '-',
-      record.new_value || '-',
-      CHANGE_TYPE_LABELS[record.change_type]?.label || record.change_type,
-      record.change_percentage !== null ? `${record.change_percentage.toFixed(1)}%` : '-'
+      getChangeDescription(record)
     ]);
 
     const csvContent = [
@@ -206,7 +378,7 @@ export default function OptimizationHistory() {
               Histórico de Otimizações
             </h1>
             <p className="text-muted-foreground">
-              Todas as mudanças detectadas em campanhas, conjuntos e anúncios
+              Acompanhe todas as mudanças realizadas nas suas campanhas, conjuntos e anúncios
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -226,28 +398,51 @@ export default function OptimizationHistory() {
               className="gap-2"
             >
               <Download className="w-4 h-4" />
-              Exportar CSV
+              Exportar
             </Button>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Stats - Resumo */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <div className="glass-card p-4 v4-accent">
             <p className="text-3xl font-bold text-foreground">{stats.total}</p>
             <p className="text-sm text-muted-foreground">Total de Mudanças</p>
           </div>
           <div className="glass-card p-4">
-            <p className="text-3xl font-bold text-blue-500">{stats.campaigns}</p>
+            <div className="flex items-center gap-2">
+              <Pause className="w-5 h-5 text-orange-500" />
+              <p className="text-2xl font-bold text-orange-500">{stats.paused}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">Pausados</p>
+          </div>
+          <div className="glass-card p-4">
+            <div className="flex items-center gap-2">
+              <Play className="w-5 h-5 text-emerald-500" />
+              <p className="text-2xl font-bold text-emerald-500">{stats.activated}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">Ativados</p>
+          </div>
+          <div className="glass-card p-4">
+            <div className="flex items-center gap-2">
+              <Image className="w-5 h-5 text-pink-500" />
+              <p className="text-2xl font-bold text-pink-500">{stats.creativeChanges}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">Criativos</p>
+          </div>
+          <div className="glass-card p-4">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-cyan-500" />
+              <p className="text-2xl font-bold text-cyan-500">{stats.targetingChanges}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">Público</p>
+          </div>
+          <div className="glass-card p-4">
+            <div className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-blue-500" />
+              <p className="text-2xl font-bold text-blue-500">{stats.campaigns}</p>
+            </div>
             <p className="text-sm text-muted-foreground">Campanhas</p>
-          </div>
-          <div className="glass-card p-4">
-            <p className="text-3xl font-bold text-purple-500">{stats.adSets}</p>
-            <p className="text-sm text-muted-foreground">Conjuntos</p>
-          </div>
-          <div className="glass-card p-4">
-            <p className="text-3xl font-bold text-amber-500">{stats.ads}</p>
-            <p className="text-sm text-muted-foreground">Anúncios</p>
           </div>
         </div>
 
@@ -256,7 +451,7 @@ export default function OptimizationHistory() {
           <div className="relative flex-1 min-w-[200px] max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nome ou campo..."
+              placeholder="Buscar por nome ou descrição..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
@@ -264,14 +459,14 @@ export default function OptimizationHistory() {
           </div>
           
           <Select value={changeTypeFilter} onValueChange={setChangeTypeFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Tipo de mudança" />
             </SelectTrigger>
             <SelectContent className="bg-popover">
-              <SelectItem value="all">Todas mudanças</SelectItem>
+              <SelectItem value="all">Todas as mudanças</SelectItem>
               {availableChangeTypes.map(type => (
                 <SelectItem key={type} value={type}>
-                  {CHANGE_TYPE_LABELS[type]?.label || type}
+                  {CHANGE_TYPE_CONFIG[type]?.label || type}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -280,11 +475,20 @@ export default function OptimizationHistory() {
 
         {/* Tabs */}
         <Tabs value={entityFilter} onValueChange={setEntityFilter} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-4">
+          <TabsList className="grid w-full max-w-lg grid-cols-4">
             <TabsTrigger value="all">Todos</TabsTrigger>
-            <TabsTrigger value="campaign">Campanhas</TabsTrigger>
-            <TabsTrigger value="ad_set">Conjuntos</TabsTrigger>
-            <TabsTrigger value="ad">Anúncios</TabsTrigger>
+            <TabsTrigger value="campaign" className="flex items-center gap-1">
+              <Target className="w-3 h-3" />
+              <span className="hidden sm:inline">Campanhas</span>
+            </TabsTrigger>
+            <TabsTrigger value="ad_set" className="flex items-center gap-1">
+              <Layers className="w-3 h-3" />
+              <span className="hidden sm:inline">Conjuntos</span>
+            </TabsTrigger>
+            <TabsTrigger value="ad" className="flex items-center gap-1">
+              <FileText className="w-3 h-3" />
+              <span className="hidden sm:inline">Anúncios</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value={entityFilter} className="mt-6">
@@ -299,7 +503,9 @@ export default function OptimizationHistory() {
                 <History className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-50" />
                 <h3 className="text-xl font-semibold mb-2">Nenhuma mudança detectada</h3>
                 <p className="text-muted-foreground">
-                  O histórico será preenchido conforme as sincronizações ocorrem
+                  O histórico será preenchido conforme as sincronizações ocorrem.
+                  <br />
+                  Mudanças em status, público-alvo, objetivo e criativos serão registradas automaticamente.
                 </p>
               </div>
             ) : (
@@ -308,71 +514,60 @@ export default function OptimizationHistory() {
                   <div key={date}>
                     <div className="flex items-center gap-3 mb-4 sticky top-0 bg-background/95 backdrop-blur py-2 z-10">
                       <Calendar className="w-5 h-5 text-primary" />
-                      <span className="text-lg font-semibold">{date}</span>
-                      <Badge variant="secondary">{records.length} mudanças</Badge>
+                      <span className="text-lg font-semibold capitalize">{date}</span>
+                      <Badge variant="secondary">{records.length} {records.length === 1 ? 'mudança' : 'mudanças'}</Badge>
                     </div>
                     
                     <div className="grid gap-3">
                       {records.map(record => {
-                        const EntityIcon = ENTITY_TYPE_LABELS[record.entity_type]?.icon || Target;
-                        const changeType = CHANGE_TYPE_LABELS[record.change_type];
+                        const entityConfig = ENTITY_TYPE_CONFIG[record.entity_type];
+                        const EntityIcon = entityConfig?.icon || Target;
+                        const badgeStyle = getChangeBadgeStyle(record);
+                        const description = getChangeDescription(record);
+                        const ChangeIcon = getChangeIcon(record);
                         
                         return (
                           <div 
                             key={record.id}
-                            className="glass-card p-4 hover:bg-muted/50 transition-colors"
+                            className="glass-card p-5 hover:bg-muted/30 transition-all duration-200 border-l-4"
+                            style={{ borderLeftColor: badgeStyle.color.replace('bg-', 'var(--') }}
                           >
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                              {/* Entity info */}
-                              <div className="flex items-start gap-3 flex-1">
-                                <div className={cn(
-                                  "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-                                  record.entity_type === 'campaign' && "bg-blue-500/10 text-blue-500",
-                                  record.entity_type === 'ad_set' && "bg-purple-500/10 text-purple-500",
-                                  record.entity_type === 'ad' && "bg-amber-500/10 text-amber-500",
-                                )}>
-                                  <EntityIcon className="w-5 h-5" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium truncate" title={record.entity_name}>
-                                    {record.entity_name}
-                                  </p>
-                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                    <Badge 
-                                      variant="secondary" 
-                                      className={cn("text-xs text-white", changeType?.color || 'bg-gray-500')}
-                                    >
-                                      {changeType?.label || record.change_type}
-                                    </Badge>
-                                    <span className="text-sm text-muted-foreground">
-                                      {FIELD_LABELS[record.field_changed] || record.field_changed}
-                                    </span>
+                            <div className="flex flex-col gap-3">
+                              {/* Header: Entity + Badge */}
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={cn(
+                                    "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
+                                    entityConfig?.color
+                                  )}>
+                                    <EntityIcon className="w-5 h-5" />
                                   </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                      {entityConfig?.labelSingular}
+                                    </p>
+                                    <p className="font-semibold" title={record.entity_name}>
+                                      {record.entity_name}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge 
+                                    className={cn("text-xs text-white flex items-center gap-1", badgeStyle.color)}
+                                  >
+                                    {ChangeIcon}
+                                    {badgeStyle.label}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(record.detected_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
                                 </div>
                               </div>
                               
-                              {/* Values */}
-                              <div className="flex items-center gap-3 pl-13 sm:pl-0">
-                                <div className="flex items-center gap-2 text-sm">
-                                  <span className="text-muted-foreground bg-muted/50 px-2 py-1 rounded">
-                                    {formatValue(record.old_value, record.field_changed)}
-                                  </span>
-                                  <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                                  <span className="font-medium bg-primary/10 text-primary px-2 py-1 rounded">
-                                    {formatValue(record.new_value, record.field_changed)}
-                                  </span>
-                                  {getChangeIcon(record)}
-                                  {record.change_percentage !== null && (
-                                    <span className={cn(
-                                      "text-sm font-medium",
-                                      record.change_percentage > 0 ? "text-metric-positive" : "text-metric-negative"
-                                    )}>
-                                      {record.change_percentage > 0 ? '+' : ''}{record.change_percentage.toFixed(1)}%
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-xs text-muted-foreground whitespace-nowrap ml-auto">
-                                  {new Date(record.detected_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              {/* Description */}
+                              <div className="pl-13">
+                                <p className="text-sm text-foreground">
+                                  {description}
                                 </p>
                               </div>
                             </div>
