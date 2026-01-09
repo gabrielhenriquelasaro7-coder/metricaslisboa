@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, MousePointerClick, Target, ShoppingCart, MessageCircle, Users } from 'lucide-react';
+import { Eye, MousePointerClick, Target, ShoppingCart, MessageCircle, Users, TrendingDown, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ interface FunnelChartProps {
   conversions: number;
   conversionValue?: number;
   messages?: number;
+  spend?: number;
   currency?: string;
   className?: string;
   businessModel?: string | null;
@@ -21,7 +22,7 @@ interface FunnelStep {
   value: number;
   icon: React.ReactNode;
   color: string;
-  percentage?: number;
+  bgColor: string;
 }
 
 export function FunnelChart({
@@ -31,6 +32,7 @@ export function FunnelChart({
   conversions,
   conversionValue = 0,
   messages = 0,
+  spend = 0,
   currency = 'BRL',
   className,
   businessModel
@@ -45,8 +47,17 @@ export function FunnelChart({
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
+
+  const formatCurrencyCompact = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(value);
   };
 
@@ -58,8 +69,8 @@ export function FunnelChart({
       label: 'Impressões',
       value: impressions,
       icon: <Eye className="w-4 h-4" />,
-      color: 'from-primary/90 to-primary',
-      percentage: 100,
+      color: 'from-warning via-warning to-warning/90',
+      bgColor: 'bg-warning',
     });
 
     // Alcance (se disponível)
@@ -68,8 +79,8 @@ export function FunnelChart({
         label: 'Alcance',
         value: reach,
         icon: <Users className="w-4 h-4" />,
-        color: 'from-chart-2/90 to-chart-2',
-        percentage: impressions > 0 ? (reach / impressions) * 100 : 0,
+        color: 'from-warning via-warning to-warning/90',
+        bgColor: 'bg-warning',
       });
     }
 
@@ -78,8 +89,8 @@ export function FunnelChart({
       label: 'Cliques',
       value: clicks,
       icon: <MousePointerClick className="w-4 h-4" />,
-      color: 'from-warning/90 to-warning',
-      percentage: impressions > 0 ? (clicks / impressions) * 100 : 0,
+      color: 'from-warning via-warning to-warning/90',
+      bgColor: 'bg-warning',
     });
 
     // Mensagens (se disponível para inside_sales)
@@ -88,8 +99,8 @@ export function FunnelChart({
         label: 'Mensagens',
         value: messages,
         icon: <MessageCircle className="w-4 h-4" />,
-        color: 'from-chart-5/90 to-chart-5',
-        percentage: clicks > 0 ? (messages / clicks) * 100 : 0,
+        color: 'from-warning via-warning to-warning/90',
+        bgColor: 'bg-warning',
       });
     }
 
@@ -98,8 +109,8 @@ export function FunnelChart({
       label: businessModel === 'ecommerce' ? 'Compras' : 'Conversões',
       value: conversions,
       icon: businessModel === 'ecommerce' ? <ShoppingCart className="w-4 h-4" /> : <Target className="w-4 h-4" />,
-      color: 'from-success/90 to-success',
-      percentage: clicks > 0 ? (conversions / clicks) * 100 : 0,
+      color: 'from-warning via-warning to-warning/90',
+      bgColor: 'bg-warning',
     });
 
     return baseSteps;
@@ -110,118 +121,145 @@ export function FunnelChart({
 
   return (
     <Card className={cn("glass-card overflow-hidden", className)}>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-            <Target className="w-4 h-4 text-primary" />
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-warning/20 to-warning/10 flex items-center justify-center">
+            <TrendingDown className="w-4 h-4 text-warning" />
           </div>
-          Funil de Conversão
+          Funil Geral
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="space-y-3">
+      <CardContent className="pt-2">
+        {/* Header das colunas */}
+        <div className="flex items-center mb-4 text-xs text-muted-foreground font-medium">
+          <div className="flex-1" />
+          <div className="w-20 text-center">Taxa</div>
+          <div className="w-24 text-right">Custo/Ação</div>
+        </div>
+
+        <div className="space-y-2">
           {steps.map((step, index) => {
             // Calcula a largura baseada no valor proporcional
-            const widthPercent = maxValue > 0 ? Math.max((step.value / maxValue) * 100, 20) : 20;
+            const widthPercent = maxValue > 0 ? Math.max((step.value / maxValue) * 100, 25) : 25;
             
             // Taxa de conversão do step anterior para este
             const conversionRate = index > 0 && steps[index - 1].value > 0 
-              ? ((step.value / steps[index - 1].value) * 100).toFixed(1)
-              : null;
+              ? ((step.value / steps[index - 1].value) * 100)
+              : 100;
+
+            // Custo por ação (spend / valor do step)
+            const costPerAction = step.value > 0 ? spend / step.value : 0;
 
             return (
               <motion.div
                 key={step.label}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.4 }}
-                className="relative"
+                transition={{ delay: index * 0.08, duration: 0.4 }}
+                className="flex items-center gap-3"
               >
-                {/* Linha conectora */}
-                {index > 0 && (
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
-                    <div className="w-px h-2 bg-border/50" />
-                    {conversionRate && (
-                      <span className="text-[10px] text-muted-foreground bg-card px-1.5 py-0.5 rounded-full border border-border/50 -mt-0.5">
-                        {conversionRate}%
-                      </span>
-                    )}
-                  </div>
-                )}
-
                 {/* Barra do funil */}
-                <div className="flex items-center justify-center">
+                <div className="flex-1 flex items-center justify-center">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${widthPercent}%` }}
-                    transition={{ delay: index * 0.1 + 0.2, duration: 0.5, ease: "easeOut" }}
+                    transition={{ delay: index * 0.08 + 0.15, duration: 0.5, ease: "easeOut" }}
                     className={cn(
-                      "relative h-14 rounded-lg bg-gradient-to-r shadow-lg",
+                      "relative h-12 rounded-md bg-gradient-to-r shadow-lg",
                       step.color,
-                      "flex items-center justify-between px-4",
-                      "border border-white/10"
+                      "flex items-center justify-between px-3",
+                      "border border-white/20"
                     )}
                     style={{
-                      minWidth: '180px',
-                      boxShadow: `0 4px 20px -4px hsl(var(--${step.color.includes('success') ? 'success' : step.color.includes('warning') ? 'warning' : 'primary'}) / 0.3)`
+                      minWidth: '160px',
+                      boxShadow: '0 4px 16px -4px hsl(var(--warning) / 0.4)'
                     }}
                   >
                     {/* Ícone e Label */}
-                    <div className="flex items-center gap-2 text-white/90">
+                    <div className="flex items-center gap-2 text-warning-foreground">
                       {step.icon}
-                      <span className="text-sm font-medium truncate">{step.label}</span>
+                      <span className="text-xs font-medium truncate">{step.label}</span>
                     </div>
                     
                     {/* Valor */}
                     <div className="text-right">
-                      <span className="text-lg font-bold text-white">
+                      <span className="text-base font-bold text-warning-foreground">
                         {formatNumber(step.value)}
                       </span>
                     </div>
 
                     {/* Efeito de brilho */}
-                    <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-transparent via-white/5 to-white/10 pointer-events-none" />
+                    <div className="absolute inset-0 rounded-md bg-gradient-to-t from-transparent via-white/5 to-white/15 pointer-events-none" />
                   </motion.div>
                 </div>
+
+                {/* Taxa de conversão */}
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: index * 0.08 + 0.3, duration: 0.3 }}
+                  className="w-20 text-center"
+                >
+                  <span className={cn(
+                    "text-sm font-semibold",
+                    index === 0 ? "text-muted-foreground" : conversionRate >= 50 ? "text-success" : conversionRate >= 20 ? "text-warning" : "text-destructive"
+                  )}>
+                    {index === 0 ? '-' : `${conversionRate.toFixed(0)}%`}
+                  </span>
+                </motion.div>
+
+                {/* Custo por ação */}
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: index * 0.08 + 0.35, duration: 0.3 }}
+                  className="w-24 text-right"
+                >
+                  <span className="text-sm font-semibold text-foreground">
+                    {formatCurrencyCompact(costPerAction)}
+                  </span>
+                </motion.div>
               </motion.div>
             );
           })}
         </div>
 
         {/* Resumo final */}
-        {conversionValue > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: steps.length * 0.1 + 0.3, duration: 0.4 }}
-            className="mt-6 pt-4 border-t border-border/50"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Valor Total em Conversões</span>
-              <span className="text-xl font-bold text-success">
-                {formatCurrency(conversionValue)}
-              </span>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Taxa de conversão geral */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: steps.length * 0.1 + 0.4, duration: 0.4 }}
-          className={cn("mt-4 pt-4 border-t border-border/50", !conversionValue && "mt-6")}
+          transition={{ delay: steps.length * 0.08 + 0.4, duration: 0.4 }}
+          className="mt-6 pt-4 border-t border-border/50 space-y-3"
         >
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Taxa de Conversão Geral</span>
-            <span className="font-semibold text-foreground">
-              {impressions > 0 ? ((conversions / impressions) * 100).toFixed(2) : '0.00'}%
+          {/* Investimento */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Investimento Total</span>
+            </div>
+            <span className="text-lg font-bold text-primary">
+              {formatCurrency(spend)}
             </span>
           </div>
-          <div className="flex items-center justify-between text-sm mt-1">
-            <span className="text-muted-foreground">CTR (Cliques/Impressões)</span>
+
+          {/* Valor de conversão */}
+          {conversionValue > 0 && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Valor em Conversões</span>
+              </div>
+              <span className="text-lg font-bold text-success">
+                {formatCurrency(conversionValue)}
+              </span>
+            </div>
+          )}
+
+          {/* Taxa geral */}
+          <div className="flex items-center justify-between text-sm pt-2 border-t border-border/30">
+            <span className="text-muted-foreground">Taxa de Conversão Geral</span>
             <span className="font-semibold text-foreground">
-              {impressions > 0 ? ((clicks / impressions) * 100).toFixed(2) : '0.00'}%
+              {impressions > 0 ? ((conversions / impressions) * 100).toFixed(3) : '0.000'}%
             </span>
           </div>
         </motion.div>
