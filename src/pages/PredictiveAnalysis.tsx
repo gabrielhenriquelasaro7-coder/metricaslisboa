@@ -934,13 +934,30 @@ export default function PredictiveAnalysis() {
               {/* AI Suggestions - Improved */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Lightbulb className="w-5 h-5 text-metric-warning" />
-                    Sugestões de Otimização
-                  </CardTitle>
-                  <CardDescription>
-                    Recomendações baseadas em análise dos seus dados
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Lightbulb className="w-5 h-5 text-metric-warning" />
+                        Sugestões de Otimização
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        Recomendações baseadas em análise dos seus dados ({data.project?.businessModel === 'ecommerce' || data.project?.businessModel === 'infoproduto' ? 'foco em ROAS' : 'foco em CPL/Leads'})
+                      </CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        fetchAnalysis(campaignGoals);
+                        toast.info('Atualizando análise...');
+                      }}
+                      disabled={loading}
+                      className="flex items-center gap-2"
+                    >
+                      <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+                      Atualizar
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">

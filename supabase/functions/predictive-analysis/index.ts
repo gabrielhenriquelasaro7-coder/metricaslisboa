@@ -518,15 +518,27 @@ serve(async (req) => {
         activeCampaignsCount: campaigns?.length || 0,
       };
 
+      // Determine which metrics are relevant based on business model
+      const isRevenueModel = contextData.businessModel === 'ecommerce' || contextData.businessModel === 'infoproduto';
+      const metricsContext = isRevenueModel 
+        ? 'ROAS (retorno sobre investimento) é a métrica principal. CPL também é relevante.'
+        : 'CPL (custo por lead) é a métrica PRINCIPAL. NÃO mencione ROAS pois este projeto não vende online.';
+
       const systemPrompt = `Você é um especialista em tráfego pago e análise de dados de marketing digital.
 Analise os dados fornecidos e gere exatamente 5 sugestões de otimização ESPECÍFICAS e ACIONÁVEIS.
 
-IMPORTANTE:
+MODELO DE NEGÓCIO: ${contextData.businessModel}
+${metricsContext}
+
+REGRAS CRÍTICAS:
 - Cada sugestão DEVE ser baseada em dados concretos fornecidos
 - Explique o MOTIVO da sugestão com números específicos
 - Indique prioridade (high, medium, low) baseada no impacto potencial
 - SEMPRE escreva em português correto, sem abreviações estranhas
 - Use "CPL" não "avaliCPL", use "ROAS" não "avaliROAS"
+${!isRevenueModel ? '- NÃO MENCIONE ROAS, receita ou vendas - foque em CPL, CTR, leads e engajamento' : ''}
+${contextData.businessModel === 'inside_sales' ? '- Foque em qualidade de leads, custo por lead e otimização de campanhas de geração de leads' : ''}
+${contextData.businessModel === 'pdv' ? '- Foque em alcance local, visitas à loja e engajamento regional' : ''}
 
 Formato de resposta (JSON array estrito):
 [
@@ -538,11 +550,15 @@ Formato de resposta (JSON array estrito):
   }
 ]
 
-Exemplos de boas sugestões:
+Exemplos de boas sugestões para GERAÇÃO DE LEADS (inside_sales, pdv, custom):
 - "CPL de R$45 está 50% acima da meta de R$30 - otimize públicos"
-- "ROAS de 4.2x está excelente - aumente budget em 20%"
-- "Saldo de conta para apenas 3 dias - recarregue urgente"
 - "CTR de 0.5% está baixo - teste novos criativos"
+- "Campanhas com bom CPL - escale gradualmente o orçamento"
+- "Volume de leads baixo - amplie públicos semelhantes"
+
+Exemplos de boas sugestões para E-COMMERCE/INFOPRODUTO:
+- "ROAS de 4.2x está excelente - aumente budget em 20%"
+- "ROAS abaixo de 2x - revise público e landing page"
 
 Responda APENAS com o JSON array, sem texto adicional.`;
 
