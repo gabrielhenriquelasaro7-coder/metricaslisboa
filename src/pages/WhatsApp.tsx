@@ -994,37 +994,38 @@ export default function WhatsApp() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 overflow-x-hidden">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg">
-            <MessageSquare className="w-6 h-6 text-white" />
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg flex-shrink-0">
+            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold">WhatsApp</h1>
-            <p className="text-muted-foreground">
-              Configurar relatório para <span className="font-medium text-foreground">{selectedProject.name}</span>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">WhatsApp</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+              Relatório: <span className="font-medium text-foreground">{selectedProject.name}</span>
             </p>
           </div>
         </div>
 
         {/* Connections Section */}
         <Card className="glass-card border-border/50">
-          <CardHeader>
-            <div className="flex items-center justify-between">
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
               <div>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Smartphone className="w-5 h-5" />
-                  Suas Conexões
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 sm:w-5 sm:h-5" />
+                  Conexões
                 </CardTitle>
-                <CardDescription>
-                  Conecte até 3 WhatsApps para enviar relatórios
+                <CardDescription className="text-xs sm:text-sm">
+                  Conecte até 3 WhatsApps
                 </CardDescription>
               </div>
               <Button
                 onClick={handleCreateInstance}
                 disabled={creatingInstance || instances.length >= 3}
                 size="sm"
+                className="w-full sm:w-auto h-9 text-sm"
               >
                 {creatingInstance ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -1035,19 +1036,19 @@ export default function WhatsApp() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-6 pt-0">
             {instancesLoading ? (
-              <div className="flex justify-center py-8">
+              <div className="flex justify-center py-6 sm:py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
             ) : instances.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Smartphone className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Nenhuma conexão configurada</p>
-                <p className="text-sm">Crie uma conexão para começar a enviar relatórios</p>
+              <div className="text-center py-6 sm:py-8 text-muted-foreground">
+                <Smartphone className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">Nenhuma conexão configurada</p>
+                <p className="text-xs">Crie uma conexão para enviar relatórios</p>
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {instances.map((instance) => (
                   <WhatsAppInstanceCard
                     key={instance.id}
@@ -1072,50 +1073,45 @@ export default function WhatsApp() {
         {/* Anomaly Alerts Card */}
         <AnomalyAlertsCard projectId={selectedProject.id} />
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
           {/* Left Column - Configuration */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Basic Settings Card */}
             <Card className="glass-card border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg">Configurar Envio</CardTitle>
-                <CardDescription>
-                  Configure quando e para onde enviar o relatório
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Configurar Envio</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Configure quando e para onde enviar
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-5">
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-5">
                 {/* Instance & Target Selection */}
                 {connectedInstances.length > 0 && (
                   <>
                     <div className="space-y-2">
-                      <Label>Conexão WhatsApp</Label>
+                      <Label className="text-xs sm:text-sm">Conexão WhatsApp</Label>
                       <Select
                         value={selectedInstanceId || ''}
                         onValueChange={setSelectedInstanceId}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10 text-sm">
                           <SelectValue placeholder="Selecione uma conexão">
                             {selectedInstanceId && (
                               <div className="flex items-center gap-2">
-                                <Smartphone className="h-4 w-4" />
-                                <span>
+                                <Smartphone className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                <span className="truncate">
                                   {instances.find(i => i.id === selectedInstanceId)?.display_name || 'Conexão'}
                                 </span>
                               </div>
                             )}
                           </SelectValue>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-popover">
                           {connectedInstances.map((instance) => (
                             <SelectItem key={instance.id} value={instance.id}>
                               <div className="flex items-center gap-2">
-                                <Smartphone className="h-4 w-4" />
-                                <span>{instance.display_name}</span>
-                                {instance.phone_connected && (
-                                  <span className="text-muted-foreground text-xs">
-                                    ({instance.phone_connected})
-                                  </span>
-                                )}
+                                <Smartphone className="h-3.5 w-3.5" />
+                                <span className="truncate">{instance.display_name}</span>
                               </div>
                             </SelectItem>
                           ))}
@@ -1125,15 +1121,15 @@ export default function WhatsApp() {
 
                     {selectedInstanceId && (
                       <div className="space-y-2">
-                        <Label>Enviar para</Label>
+                        <Label className="text-xs sm:text-sm">Enviar para</Label>
                         <Tabs value={targetType} onValueChange={(v) => setTargetType(v as 'phone' | 'group')}>
-                          <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="phone">
-                              <Smartphone className="w-4 h-4 mr-2" />
+                          <TabsList className="grid w-full grid-cols-2 h-10">
+                            <TabsTrigger value="phone" className="text-xs sm:text-sm gap-1.5">
+                              <Smartphone className="w-3.5 h-3.5" />
                               Número
                             </TabsTrigger>
-                            <TabsTrigger value="group">
-                              <Users className="w-4 h-4 mr-2" />
+                            <TabsTrigger value="group" className="text-xs sm:text-sm gap-1.5">
+                              <Users className="w-3.5 h-3.5" />
                               Grupo
                             </TabsTrigger>
                           </TabsList>

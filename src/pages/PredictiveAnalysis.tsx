@@ -246,19 +246,19 @@ export default function PredictiveAnalysis() {
   return (
     <DashboardLayout>
       <TooltipProvider>
-        <div className="space-y-6 p-6">
+        <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 overflow-x-hidden">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col gap-4">
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <BarChart3 className="w-7 h-7 text-primary" />
-                Projeções Futuras
+              <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 sm:w-7 sm:h-7 text-primary" />
+                <span>Projeções</span>
               </h1>
-              <p className="text-muted-foreground mt-1">
-                Estimamos os resultados com base na tendência dos últimos 30 dias
+              <p className="text-muted-foreground text-xs sm:text-sm mt-1">
+                Resultados baseados na tendência dos últimos 30 dias
               </p>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex flex-wrap gap-2">
               {data && (
                 <AccountGoalsConfig
                   projectId={projectId}
@@ -268,6 +268,7 @@ export default function PredictiveAnalysis() {
               )}
               <Button 
                 variant="outline"
+                size="sm"
                 onClick={() => {
                   if (data) {
                     generatePredictiveReportPDF(data);
@@ -275,17 +276,18 @@ export default function PredictiveAnalysis() {
                   }
                 }}
                 disabled={!data}
-                className="gap-2"
+                className="gap-1.5 h-9 text-xs sm:text-sm"
               >
-                <FileText className="w-4 h-4" />
-                Exportar PDF
+                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Exportar</span> PDF
               </Button>
               <Button 
                 onClick={() => fetchAnalysis()} 
                 disabled={loading}
-                className="gap-2"
+                size="sm"
+                className="gap-1.5 h-9 text-xs sm:text-sm"
               >
-                <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+                <RefreshCw className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", loading && "animate-spin")} />
                 Atualizar
               </Button>
             </div>
@@ -294,30 +296,30 @@ export default function PredictiveAnalysis() {
           {/* Trend Context Card */}
           {data && (
             <Card className="bg-gradient-to-r from-primary/5 via-primary/3 to-transparent border-primary/20">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-2 rounded-full bg-primary/10">
-                    <TrendingUp className="w-5 h-5 text-primary" />
+              <CardContent className="p-4 sm:pt-6">
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="p-1.5 sm:p-2 rounded-full bg-primary/10 flex-shrink-0">
+                    <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   </div>
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold">Análise de Tendência</h3>
-                      <Badge variant={data.predictions.trends.confidenceLevel === 'alta' ? 'default' : data.predictions.trends.confidenceLevel === 'média' ? 'secondary' : 'outline'}>
-                        Confiança {data.predictions.trends.confidenceLevel}
+                  <div className="space-y-2 flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
+                      <h3 className="font-semibold text-sm sm:text-base">Análise de Tendência</h3>
+                      <Badge variant={data.predictions.trends.confidenceLevel === 'alta' ? 'default' : data.predictions.trends.confidenceLevel === 'média' ? 'secondary' : 'outline'} className="text-xs">
+                        {data.predictions.trends.confidenceLevel}
                       </Badge>
-                      <Badge variant="outline" className="capitalize">
-                        Tendência {data.predictions.trends.trendDirection}
+                      <Badge variant="outline" className="capitalize text-xs">
+                        {data.predictions.trends.trendDirection}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                       {data.predictions.trends.trendDirection === 'crescente' && (
-                        <>A tendência indica um <strong className="text-metric-positive">crescimento de {Math.abs(data.predictions.trends.spendTrend).toFixed(1)}%</strong> no investimento. Projetamos que esse ritmo se mantenha, resultando em maior volume de resultados.</>
+                        <>Tendência de <strong className="text-metric-positive">+{Math.abs(data.predictions.trends.spendTrend).toFixed(1)}%</strong> no investimento.</>
                       )}
                       {data.predictions.trends.trendDirection === 'decrescente' && (
-                        <>Observamos uma <strong className="text-metric-warning">redução de {Math.abs(data.predictions.trends.spendTrend).toFixed(1)}%</strong> no investimento. Isso pode impactar o volume de resultados nas próximas semanas.</>
+                        <>Tendência de <strong className="text-metric-warning">-{Math.abs(data.predictions.trends.spendTrend).toFixed(1)}%</strong> no investimento.</>
                       )}
                       {data.predictions.trends.trendDirection === 'estável' && (
-                        <>O investimento está <strong className="text-foreground">estável</strong>. Projetamos que os resultados sigam o padrão atual, sem grandes variações.</>
+                        <>Investimento <strong className="text-foreground">estável</strong>.</>
                       )}
                     </p>
                   </div>
@@ -342,52 +344,50 @@ export default function PredictiveAnalysis() {
             <>
 
               {/* Scenario-Based Projections */}
-              <div className="grid gap-6 lg:grid-cols-3">
+              <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
                 {/* 7-Day Projection */}
                 <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Calendar className="w-5 h-5 text-primary" />
+                  <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                       Próximos 7 Dias
                     </CardTitle>
-                    <CardDescription>Projetamos os seguintes cenários</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">Cenários projetados</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
                     {/* Realistic - Main */}
-                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                    <div className="p-3 sm:p-4 rounded-lg bg-primary/10 border border-primary/20">
                       <div className="flex items-center gap-2 mb-2">
-                        <Target className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-medium">Cenário Realista</span>
+                        <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+                        <span className="text-xs sm:text-sm font-medium">Realista</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3 sm:gap-4">
                         <div>
-                          <p className="text-xs text-muted-foreground">Investimento</p>
-                          <p className="text-xl font-bold">{formatCurrency(data.predictions.next7Days.scenarios?.realistic?.spend || data.predictions.next7Days.estimatedSpend)}</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">Investimento</p>
+                          <p className="text-base sm:text-xl font-bold">{formatCurrency(data.predictions.next7Days.scenarios?.realistic?.spend || data.predictions.next7Days.estimatedSpend)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">{showCPL ? 'Leads' : 'Conversões'}</p>
-                          <p className="text-xl font-bold">{formatNumber(data.predictions.next7Days.scenarios?.realistic?.conversions || data.predictions.next7Days.estimatedConversions)}</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">{showCPL ? 'Leads' : 'Conv.'}</p>
+                          <p className="text-base sm:text-xl font-bold">{formatNumber(data.predictions.next7Days.scenarios?.realistic?.conversions || data.predictions.next7Days.estimatedConversions)}</p>
                         </div>
                       </div>
                     </div>
                     
                     {/* Pessimistic & Optimistic */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 rounded-lg bg-metric-warning/10 border border-metric-warning/20">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                      <div className="p-2 sm:p-3 rounded-lg bg-metric-warning/10 border border-metric-warning/20">
                         <div className="flex items-center gap-1 mb-1">
                           <TrendingDown className="w-3 h-3 text-metric-warning" />
-                          <span className="text-xs font-medium text-metric-warning">Pessimista</span>
+                          <span className="text-[10px] sm:text-xs font-medium text-metric-warning">Pessimista</span>
                         </div>
-                        <p className="text-sm font-semibold">{formatNumber(data.predictions.next7Days.scenarios?.pessimistic?.conversions || Math.round(data.predictions.next7Days.estimatedConversions * 0.7))} {showCPL ? 'leads' : 'conv.'}</p>
-                        <p className="text-xs text-muted-foreground">{formatCurrency(data.predictions.next7Days.scenarios?.pessimistic?.spend || data.predictions.next7Days.estimatedSpend * 0.8)}</p>
+                        <p className="text-xs sm:text-sm font-semibold">{formatNumber(data.predictions.next7Days.scenarios?.pessimistic?.conversions || Math.round(data.predictions.next7Days.estimatedConversions * 0.7))}</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-metric-positive/10 border border-metric-positive/20">
+                      <div className="p-2 sm:p-3 rounded-lg bg-metric-positive/10 border border-metric-positive/20">
                         <div className="flex items-center gap-1 mb-1">
                           <TrendingUp className="w-3 h-3 text-metric-positive" />
-                          <span className="text-xs font-medium text-metric-positive">Otimista</span>
+                          <span className="text-[10px] sm:text-xs font-medium text-metric-positive">Otimista</span>
                         </div>
-                        <p className="text-sm font-semibold">{formatNumber(data.predictions.next7Days.scenarios?.optimistic?.conversions || Math.round(data.predictions.next7Days.estimatedConversions * 1.3))} {showCPL ? 'leads' : 'conv.'}</p>
-                        <p className="text-xs text-muted-foreground">{formatCurrency(data.predictions.next7Days.scenarios?.optimistic?.spend || data.predictions.next7Days.estimatedSpend * 1.2)}</p>
+                        <p className="text-xs sm:text-sm font-semibold">{formatNumber(data.predictions.next7Days.scenarios?.optimistic?.conversions || Math.round(data.predictions.next7Days.estimatedConversions * 1.3))}</p>
                       </div>
                     </div>
                   </CardContent>

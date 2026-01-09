@@ -87,158 +87,158 @@ export default function AdvancedFilters({
   };
 
   return (
-    <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-wrap">
       {/* Search */}
-      <div className="relative flex-1 min-w-[200px] max-w-md">
+      <div className="relative flex-1 min-w-0 w-full sm:max-w-md">
         <Input
-          placeholder="Buscar campanhas..."
+          placeholder="Buscar..."
           value={filters.search || ''}
           onChange={(e) => onFiltersChange({ ...filters, search: e.target.value || undefined })}
-          className="pr-8"
+          className="pr-8 text-sm h-10"
         />
         {filters.search && (
           <button
             onClick={() => onFiltersChange({ ...filters, search: undefined })}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
           >
             <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      {/* Filter Popover */}
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className="gap-2">
-            <Filter className="w-4 h-4" />
-            Filtros
-            {activeFiltersCount > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                {activeFiltersCount}
-              </Badge>
-            )}
-            <ChevronDown className="w-4 h-4" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-80 p-4" align="start">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold">Filtros Avançados</h4>
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        {/* Filter Popover */}
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-1.5 sm:gap-2 flex-1 sm:flex-none h-10 text-sm">
+              <Filter className="w-4 h-4" />
+              <span className="hidden xs:inline">Filtros</span>
               {activeFiltersCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearFilters}>
-                  Limpar
-                </Button>
+                <Badge variant="secondary" className="ml-0.5 sm:ml-1 h-5 px-1.5 text-xs">
+                  {activeFiltersCount}
+                </Badge>
               )}
-            </div>
-
-            {/* Status Filter */}
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {statusOptions.map((option) => (
-                  <label key={option.value} className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={filters.status?.includes(option.value) || false}
-                      onCheckedChange={(checked) => handleStatusChange(option.value, !!checked)}
-                    />
-                    <span className="text-sm">{option.label}</span>
-                  </label>
-                ))}
+              <ChevronDown className="w-3.5 h-3.5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 p-3 sm:p-4 max-h-[70vh] overflow-y-auto" align="start">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-sm">Filtros Avançados</h4>
+                {activeFiltersCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs">
+                    Limpar
+                  </Button>
+                )}
               </div>
-            </div>
 
-            {/* Objective Filter */}
-            <div className="space-y-2">
-              <Label>Objetivo</Label>
+              {/* Status Filter */}
               <div className="space-y-2">
-                {objectiveOptions.map((option) => (
-                  <label key={option.value} className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={filters.objective?.includes(option.value) || false}
-                      onCheckedChange={(checked) => handleObjectiveChange(option.value, !!checked)}
-                    />
-                    <span className="text-sm">{option.label}</span>
-                  </label>
-                ))}
+                <Label className="text-xs sm:text-sm">Status</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {statusOptions.map((option) => (
+                    <label key={option.value} className="flex items-center gap-2 cursor-pointer min-h-[36px]">
+                      <Checkbox
+                        checked={filters.status?.includes(option.value) || false}
+                        onCheckedChange={(checked) => handleStatusChange(option.value, !!checked)}
+                      />
+                      <span className="text-xs sm:text-sm">{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Objective Filter */}
+              <div className="space-y-2">
+                <Label className="text-xs sm:text-sm">Objetivo</Label>
+                <div className="space-y-1.5">
+                  {objectiveOptions.map((option) => (
+                    <label key={option.value} className="flex items-center gap-2 cursor-pointer min-h-[36px]">
+                      <Checkbox
+                        checked={filters.objective?.includes(option.value) || false}
+                        onCheckedChange={(checked) => handleObjectiveChange(option.value, !!checked)}
+                      />
+                      <span className="text-xs sm:text-sm">{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Spend Range */}
+              <div className="space-y-2">
+                <Label className="text-xs sm:text-sm">Gasto (R$)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Mín"
+                    value={filters.minSpend || ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...filters,
+                        minSpend: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                    className="w-full h-9 text-sm"
+                  />
+                  <span className="text-muted-foreground text-sm">-</span>
+                  <Input
+                    type="number"
+                    placeholder="Máx"
+                    value={filters.maxSpend || ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...filters,
+                        maxSpend: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                    className="w-full h-9 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* ROAS Range */}
+              <div className="space-y-2">
+                <Label className="text-xs sm:text-sm">ROAS</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="Mín"
+                    value={filters.minRoas || ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...filters,
+                        minRoas: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                    className="w-full h-9 text-sm"
+                  />
+                  <span className="text-muted-foreground text-sm">-</span>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="Máx"
+                    value={filters.maxRoas || ''}
+                    onChange={(e) =>
+                      onFiltersChange({
+                        ...filters,
+                        maxRoas: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                    className="w-full h-9 text-sm"
+                  />
+                </div>
               </div>
             </div>
+          </PopoverContent>
+        </Popover>
 
-            {/* Spend Range */}
-            <div className="space-y-2">
-              <Label>Gasto (R$)</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  placeholder="Mín"
-                  value={filters.minSpend || ''}
-                  onChange={(e) =>
-                    onFiltersChange({
-                      ...filters,
-                      minSpend: e.target.value ? Number(e.target.value) : undefined,
-                    })
-                  }
-                  className="w-full"
-                />
-                <span className="text-muted-foreground">-</span>
-                <Input
-                  type="number"
-                  placeholder="Máx"
-                  value={filters.maxSpend || ''}
-                  onChange={(e) =>
-                    onFiltersChange({
-                      ...filters,
-                      maxSpend: e.target.value ? Number(e.target.value) : undefined,
-                    })
-                  }
-                  className="w-full"
-                />
-              </div>
-            </div>
-
-            {/* ROAS Range */}
-            <div className="space-y-2">
-              <Label>ROAS</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  step="0.1"
-                  placeholder="Mín"
-                  value={filters.minRoas || ''}
-                  onChange={(e) =>
-                    onFiltersChange({
-                      ...filters,
-                      minRoas: e.target.value ? Number(e.target.value) : undefined,
-                    })
-                  }
-                  className="w-full"
-                />
-                <span className="text-muted-foreground">-</span>
-                <Input
-                  type="number"
-                  step="0.1"
-                  placeholder="Máx"
-                  value={filters.maxRoas || ''}
-                  onChange={(e) =>
-                    onFiltersChange({
-                      ...filters,
-                      maxRoas: e.target.value ? Number(e.target.value) : undefined,
-                    })
-                  }
-                  className="w-full"
-                />
-              </div>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-
-      {/* Sort */}
-      <div className="flex items-center gap-2">
+        {/* Sort */}
         <Select value={sort.field} onValueChange={(value) => onSortChange({ ...sort, field: value })}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Ordenar por" />
+          <SelectTrigger className="w-auto min-w-[100px] sm:w-[140px] h-10 text-xs sm:text-sm">
+            <SelectValue placeholder="Ordenar" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-popover">
             {sortOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
@@ -249,6 +249,7 @@ export default function AdvancedFilters({
         <Button
           variant="outline"
           size="icon"
+          className="h-10 w-10 flex-shrink-0"
           onClick={() => onSortChange({ ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' })}
         >
           {sort.direction === 'asc' ? (
