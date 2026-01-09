@@ -444,7 +444,7 @@ function getChangeBadgeStyle(record: OptimizationRecord): { color: string; label
 
 export default function OptimizationHistory() {
   const navigate = useNavigate();
-  const { selectedProject, projectsLoading, loading: dataLoading } = useMetaAdsData();
+  const { selectedProject, projectsLoading } = useMetaAdsData();
   const { history, loading, refetch } = useOptimizationHistory(selectedProject?.id || null);
   const [search, setSearch] = useState('');
   const [entityFilter, setEntityFilter] = useState<string>('all');
@@ -544,8 +544,8 @@ export default function OptimizationHistory() {
     return Array.from(types);
   }, [history]);
 
-  // Show loading skeleton while loading (AFTER all hooks)
-  if (projectsLoading || dataLoading) {
+  // Show loading skeleton while loading projects (AFTER all hooks)
+  if (projectsLoading) {
     return (
       <DashboardLayout>
         <div className="p-8 space-y-6">
@@ -618,47 +618,55 @@ export default function OptimizationHistory() {
         </div>
 
         {/* Stats - Resumo */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <div className="glass-card p-4 v4-accent">
-            <p className="text-3xl font-bold text-foreground">{stats.total}</p>
-            <p className="text-sm text-muted-foreground">Total de Mudanças</p>
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
           </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2">
-              <Pause className="w-5 h-5 text-orange-500" />
-              <p className="text-2xl font-bold text-orange-500">{stats.paused}</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="glass-card p-4 v4-accent">
+              <p className="text-3xl font-bold text-foreground">{stats.total}</p>
+              <p className="text-sm text-muted-foreground">Total de Mudanças</p>
             </div>
-            <p className="text-sm text-muted-foreground">Pausados</p>
-          </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2">
-              <Play className="w-5 h-5 text-emerald-500" />
-              <p className="text-2xl font-bold text-emerald-500">{stats.activated}</p>
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2">
+                <Pause className="w-5 h-5 text-orange-500" />
+                <p className="text-2xl font-bold text-orange-500">{stats.paused}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Pausados</p>
             </div>
-            <p className="text-sm text-muted-foreground">Ativados</p>
-          </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2">
-              <Image className="w-5 h-5 text-pink-500" />
-              <p className="text-2xl font-bold text-pink-500">{stats.creativeChanges}</p>
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2">
+                <Play className="w-5 h-5 text-emerald-500" />
+                <p className="text-2xl font-bold text-emerald-500">{stats.activated}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Ativados</p>
             </div>
-            <p className="text-sm text-muted-foreground">Criativos</p>
-          </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-cyan-500" />
-              <p className="text-2xl font-bold text-cyan-500">{stats.targetingChanges}</p>
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2">
+                <Image className="w-5 h-5 text-pink-500" />
+                <p className="text-2xl font-bold text-pink-500">{stats.creativeChanges}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Criativos</p>
             </div>
-            <p className="text-sm text-muted-foreground">Público</p>
-          </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-blue-500" />
-              <p className="text-2xl font-bold text-blue-500">{stats.campaigns}</p>
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-cyan-500" />
+                <p className="text-2xl font-bold text-cyan-500">{stats.targetingChanges}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Público</p>
             </div>
-            <p className="text-sm text-muted-foreground">Campanhas</p>
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-blue-500" />
+                <p className="text-2xl font-bold text-blue-500">{stats.campaigns}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Campanhas</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-4">
