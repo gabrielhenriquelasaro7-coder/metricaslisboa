@@ -33,6 +33,7 @@ import ChangePassword from "./pages/ChangePassword";
 import GuestOnboarding from "./pages/GuestOnboarding";
 import GoogleCampaigns from "./pages/GoogleCampaigns";
 import PredictiveAnalysis from "./pages/PredictiveAnalysis";
+import OptimizationHistory from "./pages/OptimizationHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -76,6 +77,7 @@ function AnimatedRoutes() {
           <Route path="/guest-onboarding" element={<GuestOnboarding />} />
           <Route path="/google-campaigns" element={<GoogleCampaigns />} />
           <Route path="/predictive-analysis" element={<PredictiveAnalysis />} />
+          <Route path="/optimization-history" element={<OptimizationHistory />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </motion.div>
