@@ -56,6 +56,7 @@ export default function PredictiveAnalysis() {
 
   // Build campaign goals from saved data
   const campaignGoals: CampaignGoal[] = useMemo(() => {
+    console.log('[PredictiveAnalysis] Building campaignGoals from:', goals);
     return goals.map(g => ({
       campaignId: g.campaign_id,
       targetCpl: g.target_cpl || undefined,
@@ -68,7 +69,8 @@ export default function PredictiveAnalysis() {
   const goalsHash = useMemo(() => JSON.stringify(goals), [goals]);
 
   useEffect(() => {
-    if (projectId && campaignGoals) {
+    if (projectId) {
+      console.log('[PredictiveAnalysis] Fetching analysis with campaignGoals:', campaignGoals);
       fetchAnalysis(campaignGoals);
     }
   }, [projectId, goalsHash, goalsVersion]);
@@ -425,10 +427,10 @@ export default function PredictiveAnalysis() {
                 </Card>
 
                 {/* End of Year Projection */}
-                <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow border-primary/30">
+                <Card className="bg-gradient-to-br from-card to-card/80 hover:shadow-md transition-shadow border-purple-500/30">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
-                      <Zap className="w-5 h-5 text-primary" />
+                      <Zap className="w-5 h-5 text-purple-500" />
                       Até Final de {new Date().getFullYear()}
                     </CardTitle>
                     <CardDescription>
@@ -437,9 +439,9 @@ export default function PredictiveAnalysis() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* Realistic - Main */}
-                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                    <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
                       <div className="flex items-center gap-2 mb-2">
-                        <Target className="w-4 h-4 text-primary" />
+                        <Target className="w-4 h-4 text-purple-500" />
                         <span className="text-sm font-medium">Projeção Realista</span>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
@@ -453,7 +455,7 @@ export default function PredictiveAnalysis() {
                         </div>
                       </div>
                       {showROAS && (
-                        <div className="mt-2 pt-2 border-t border-primary/20">
+                        <div className="mt-2 pt-2 border-t border-purple-500/20">
                           <p className="text-xs text-muted-foreground">Receita Projetada</p>
                           <p className="text-lg font-bold text-metric-positive">{formatCurrency(data.predictions.endOfYear?.scenarios?.realistic?.revenue || data.predictions.next30Days.estimatedRevenue * 4)}</p>
                         </div>
@@ -767,8 +769,8 @@ export default function PredictiveAnalysis() {
                 </CardContent>
               </Card>
 
-              {/* Campaign Goals Progress - Adapted by business model */}
-              {data.campaignGoalsProgress.filter(c => c.hasCustomGoal).length > 0 && (
+              {/* Campaign Goals Progress - Show all campaigns */}
+              {data.campaignGoalsProgress.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -776,21 +778,31 @@ export default function PredictiveAnalysis() {
                       Metas por Campanha (30 dias)
                     </CardTitle>
                     <CardDescription>
-                      Progresso em relação às metas que você configurou
+                      {data.campaignGoalsProgress.filter(c => c.hasCustomGoal).length > 0 
+                        ? 'Progresso em relação às metas configuradas'
+                        : 'Configure metas para acompanhar o progresso das campanhas'
+                      }
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       {data.campaignGoalsProgress
-                        .filter(c => c.hasCustomGoal && c.spend > 0)
+                        .filter(c => c.spend > 0)
                         .sort((a, b) => b.spend - a.spend)
                         .slice(0, 8)
                         .map((campaign) => (
                           <div key={campaign.campaignId} className="p-4 rounded-lg bg-muted/30 space-y-3">
                             <div className="flex items-center justify-between">
-                              <span className="font-medium truncate max-w-[300px]">
-                                {campaign.campaignName}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium truncate max-w-[280px]">
+                                  {campaign.campaignName}
+                                </span>
+                                {campaign.hasCustomGoal && (
+                                  <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                                    Meta definida
+                                  </Badge>
+                                )}
+                              </div>
                               <span className="text-sm text-muted-foreground">
                                 {formatCurrency(campaign.spend)} investido
                               </span>
@@ -829,8 +841,8 @@ export default function PredictiveAnalysis() {
                                 </div>
                               )}
 
-                              {/* CPL Progress - Show if target is set */}
-                              {campaign.cplProgress !== null && (
+                              {/* CPL Progress - Show if custom target is set */}
+                              {campaign.hasCustomGoal && campaign.cplProgress !== null && (
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-1">
@@ -859,8 +871,8 @@ export default function PredictiveAnalysis() {
                                 </div>
                               )}
 
-                              {/* ROAS Progress - Show if target is set */}
-                              {campaign.roasProgress !== null && (
+                              {/* ROAS Progress - Show if custom target is set */}
+                              {campaign.hasCustomGoal && campaign.roasProgress !== null && (
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-1">
@@ -888,24 +900,32 @@ export default function PredictiveAnalysis() {
                                   />
                                 </div>
                               )}
+
+                              {/* Show basic metrics if no custom goal */}
+                              {!campaign.hasCustomGoal && (
+                                <div className="text-sm text-muted-foreground">
+                                  <p>
+                                    {formatNumber(campaign.conversions)} {showCPL ? 'leads' : 'conversões'} • 
+                                    CPL: {campaign.cpl ? formatCurrency(campaign.cpl) : '-'} • 
+                                    CTR: {campaign.ctr?.toFixed(2) || 0}%
+                                  </p>
+                                  <p className="text-xs mt-1 italic">
+                                    Clique em "Configurar Metas" para definir metas para esta campanha
+                                  </p>
+                                </div>
+                              )}
                             </div>
 
-                            {/* Additional metrics */}
-                            <div className="flex gap-4 text-xs text-muted-foreground pt-1 border-t border-border/50">
-                              <span>{formatNumber(campaign.conversions)} leads</span>
-                              <span>CPL atual: {campaign.cpl ? formatCurrency(campaign.cpl) : '-'}</span>
-                              <span>CTR: {campaign.ctr?.toFixed(2) || 0}%</span>
-                            </div>
+                            {/* Additional metrics for campaigns with goals */}
+                            {campaign.hasCustomGoal && (
+                              <div className="flex gap-4 text-xs text-muted-foreground pt-1 border-t border-border/50">
+                                <span>{formatNumber(campaign.conversions)} {showCPL ? 'leads' : 'conversões'}</span>
+                                <span>CPL atual: {campaign.cpl ? formatCurrency(campaign.cpl) : '-'}</span>
+                                <span>CTR: {campaign.ctr?.toFixed(2) || 0}%</span>
+                              </div>
+                            )}
                           </div>
                         ))}
-                      
-                      {data.campaignGoalsProgress.filter(c => c.hasCustomGoal && c.spend > 0).length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                          <p>Nenhuma campanha com meta configurada e gastos no período.</p>
-                          <p className="text-sm mt-1">Use o botão "Configurar Metas" para definir metas para suas campanhas.</p>
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
