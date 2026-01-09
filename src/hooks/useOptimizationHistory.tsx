@@ -33,6 +33,7 @@ export function useOptimizationHistory(projectId: string | null) {
         .from('optimization_history')
         .select('*')
         .eq('project_id', projectId)
+        .neq('changed_by', 'Meta') // Ignora mudanças automáticas do Meta
         .order('detected_at', { ascending: false })
         .limit(500);
       
