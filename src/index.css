@@ -96,24 +96,24 @@
 
   .light {
     /* Clean white background */
-    --background: 0 0% 97%;
-    --foreground: 0 0% 5%;
+    --background: 0 0% 98%;
+    --foreground: 0 0% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 5%;
+    --card-foreground: 0 0% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 5%;
+    --popover-foreground: 0 0% 8%;
 
     /* V4 Red Primary - same accent */
     --primary: 0 85% 48%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 93%;
-    --secondary-foreground: 0 0% 5%;
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 10%;
 
-    --muted: 0 0% 90%;
-    --muted-foreground: 0 0% 40%;
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 25%;
 
     /* Red Accent */
     --accent: 0 80% 45%;
@@ -122,42 +122,42 @@
     --destructive: 0 72% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 150 75% 30%;
+    --success: 150 75% 28%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 90% 42%;
+    --warning: 38 90% 40%;
     --warning-foreground: 0 0% 5%;
 
-    --border: 0 0% 82%;
-    --input: 0 0% 93%;
+    --border: 0 0% 85%;
+    --input: 0 0% 95%;
     --ring: 0 85% 48%;
 
     /* V4 Color tokens - Light */
     --v4-red: 0 85% 48%;
-    --v4-red-light: 0 85% 58%;
+    --v4-red-light: 0 85% 55%;
     --v4-red-dark: 0 85% 38%;
     --v4-crimson: 348 85% 42%;
 
-    /* Custom semantic tokens - Light Theme - NO GLOW */
+    /* Custom semantic tokens - Light Theme - NO GLOW, NO SHADOW */
     --gradient-primary: linear-gradient(135deg, hsl(0, 85%, 48%) 0%, hsl(348, 85%, 42%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(0, 0%, 98%) 100%);
+    --gradient-card: none;
     --gradient-glow: none;
-    --gradient-hero: linear-gradient(135deg, hsl(0, 0%, 97%) 0%, hsl(0, 0%, 95%) 100%);
+    --gradient-hero: none;
     
     --shadow-glow: none;
     --shadow-glow-sm: none;
-    --shadow-card: 0 1px 3px hsl(0, 0%, 0%, 0.08), 0 1px 2px hsl(0, 0%, 0%, 0.06);
-    --shadow-elevated: 0 4px 16px hsl(0, 0%, 0%, 0.1);
-    --shadow-deep: 0 10px 30px -10px hsl(0, 0%, 0%, 0.15);
+    --shadow-card: none;
+    --shadow-elevated: none;
+    --shadow-deep: none;
 
     /* Sidebar - Light */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 5%;
+    --sidebar-foreground: 0 0% 8%;
     --sidebar-primary: 0 85% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 95%;
-    --sidebar-accent-foreground: 0 0% 5%;
-    --sidebar-border: 0 0% 85%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 8%;
+    --sidebar-border: 0 0% 88%;
     --sidebar-ring: 0 85% 48%;
     
     /* Sidebar gradients - Light (disabled) */
@@ -166,22 +166,22 @@
     --sidebar-gradient-accent: 20 90% 48%;
     --sidebar-glow: 0 0% 0%;
 
-    /* Metrics colors - Light (darker for contrast) */
-    --metric-positive: 150 70% 28%;
-    --metric-negative: 0 72% 45%;
-    --metric-neutral: 0 0% 40%;
-    --metric-warning: 38 88% 38%;
+    /* Metrics colors - Light (dark for strong contrast) */
+    --metric-positive: 150 70% 25%;
+    --metric-negative: 0 72% 42%;
+    --metric-neutral: 0 0% 25%;
+    --metric-warning: 38 88% 35%;
 
-    /* Chart colors - Light (slightly darker) */
-    --chart-1: 0 85% 48%;
-    --chart-2: 348 85% 42%;
-    --chart-3: 150 70% 30%;
-    --chart-4: 38 88% 42%;
-    --chart-5: 200 70% 42%;
+    /* Chart colors - Light (darker for readability) */
+    --chart-1: 0 85% 45%;
+    --chart-2: 348 85% 40%;
+    --chart-3: 150 70% 28%;
+    --chart-4: 38 88% 38%;
+    --chart-5: 200 70% 38%;
 
     /* Undefined state */
-    --undefined: 0 0% 50%;
-    --undefined-foreground: 0 0% 30%;
+    --undefined: 0 0% 45%;
+    --undefined-foreground: 0 0% 20%;
   }
 }
 
@@ -215,15 +215,13 @@
       inset 0 1px 0 hsl(var(--foreground) / 0.04);
   }
 
-  /* Light mode - solid with subtle transparency */
+  /* Light mode - solid, clean, no shadows */
   .light .glass-card {
-    background: hsl(var(--card) / 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--foreground) / 0.1);
-    box-shadow: 
-      0 2px 12px hsl(0, 0%, 0%, 0.06),
-      inset 0 1px 0 hsl(var(--foreground) / 0.02);
+    background: hsl(var(--card));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    box-shadow: none;
   }
 
   .glass-card-hover {
@@ -239,10 +237,8 @@
   }
 
   .light .glass-card-hover:hover {
-    border-color: hsl(var(--foreground) / 0.15);
-    box-shadow: 
-      0 4px 16px hsl(0, 0%, 0%, 0.1),
-      inset 0 1px 0 hsl(var(--foreground) / 0.03);
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: none;
   }
 
   /* Grid background - subtle */
@@ -285,13 +281,14 @@
   }
 
   .light .metric-card {
-    background: hsl(var(--card) / 0.95);
-    border: 1px solid hsl(var(--foreground) / 0.08);
-    box-shadow: 0 1px 6px hsl(0, 0%, 0%, 0.05);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.1);
+    box-shadow: none;
   }
 
   .light .metric-card:hover {
-    box-shadow: 0 4px 12px hsl(0, 0%, 0%, 0.1);
+    border-color: hsl(var(--primary) / 0.25);
+    box-shadow: none;
   }
 
   /* ===== VIBRANT TABLE STYLES ===== */
@@ -315,8 +312,8 @@
   }
 
   .light .vibrant-table {
-    background: hsl(var(--card) / 0.95);
-    border: 1px solid hsl(var(--foreground) / 0.08);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.1);
   }
 
   .vibrant-table-row {
@@ -361,14 +358,14 @@
   }
 
   .light .premium-card {
-    background: hsl(var(--card) / 0.95);
-    border: 1px solid hsl(var(--foreground) / 0.08);
-    box-shadow: 0 1px 6px hsl(0, 0%, 0%, 0.05);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.1);
+    box-shadow: none;
   }
 
   .light .premium-card:hover {
-    border-color: hsl(var(--primary) / 0.3);
-    box-shadow: 0 4px 16px hsl(0, 0%, 0%, 0.1);
+    border-color: hsl(var(--primary) / 0.35);
+    box-shadow: none;
   }
 
   /* Premium icon container */
@@ -440,6 +437,7 @@
   .light .sidebar-container {
     background: hsl(var(--sidebar-background));
     backdrop-filter: none;
+    border-right: 1px solid hsl(var(--sidebar-border));
   }
   
   /* Item da sidebar */
