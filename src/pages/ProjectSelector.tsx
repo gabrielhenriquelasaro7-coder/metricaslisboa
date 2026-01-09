@@ -706,15 +706,8 @@ export default function ProjectSelector() {
                   onClick={() => setSettingsDialogOpen(true)}
                   className="h-11 px-5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-2.5 border border-border"
                 >
-                  <Settings className="w-4 h-4" />
-                  CONFIGURAÇÕES
-                </button>
-                <button 
-                  onClick={() => setProfileDialogOpen(true)}
-                  className="h-11 px-5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-2.5 border border-border"
-                >
                   <User className="w-4 h-4" />
-                  PERFIL
+                  MEU PERFIL
                 </button>
               </div>
             </nav>
