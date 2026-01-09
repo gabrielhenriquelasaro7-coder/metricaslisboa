@@ -144,12 +144,21 @@ export interface CampaignGoal {
   targetLeads?: number;
 }
 
+export interface AccountGoal {
+  targetLeadsMonthly?: number | null;
+  targetCpl?: number | null;
+  targetRoas?: number | null;
+  targetCtr?: number | null;
+  targetSpendDaily?: number | null;
+  targetSpendMonthly?: number | null;
+}
+
 export function usePredictiveAnalysis(projectId: string | null) {
   const [data, setData] = useState<PredictiveAnalysisData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAnalysis = useCallback(async (campaignGoals?: CampaignGoal[]) => {
+  const fetchAnalysis = useCallback(async (accountGoal?: AccountGoal) => {
     if (!projectId) {
       setError('Projeto não selecionado');
       return;
@@ -160,7 +169,7 @@ export function usePredictiveAnalysis(projectId: string | null) {
 
     try {
       const { data: result, error: fnError } = await supabase.functions.invoke('predictive-analysis', {
-        body: { projectId, campaignGoals },
+        body: { projectId, accountGoal },
       });
 
       if (fnError) throw fnError;

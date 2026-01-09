@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { usePredictiveAnalysis, CampaignGoal, OptimizationSuggestion } from '@/hooks/usePredictiveAnalysis';
-import { useCampaignGoals } from '@/hooks/useCampaignGoals';
+import { usePredictiveAnalysis, OptimizationSuggestion } from '@/hooks/usePredictiveAnalysis';
+import { useAccountGoals } from '@/hooks/useAccountGoals';
 import { useSuggestionActions } from '@/hooks/useSuggestionActions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PredictiveSkeleton } from '@/components/skeletons';
 import { generatePredictiveReportPDF } from '@/components/pdf/PredictiveReportPDF';
-import { CampaignGoalsConfig } from '@/components/predictive/CampaignGoalsConfig';
+import { AccountGoalsConfig } from '@/components/predictive/AccountGoalsConfig';
 import { SuggestionActionDialog } from '@/components/predictive/SuggestionActionDialog';
 
 import { toast } from 'sonner';
@@ -54,7 +54,7 @@ import {
 export default function PredictiveAnalysis() {
   const projectId = localStorage.getItem('selectedProjectId');
   const { data, loading, error, fetchAnalysis } = usePredictiveAnalysis(projectId);
-  const { goals, fetchGoals } = useCampaignGoals(projectId);
+  const { goal, refetch: refetchGoal } = useAccountGoals(projectId);
   const { markSuggestion, getActionForSuggestion, removeMark } = useSuggestionActions(projectId);
   const [goalsVersion, setGoalsVersion] = useState(0);
   
@@ -62,30 +62,25 @@ export default function PredictiveAnalysis() {
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<{ title: string; actionType: 'applied' | 'ignored' } | null>(null);
 
-  // Build campaign goals from saved data
-  const campaignGoals: CampaignGoal[] = useMemo(() => {
-    console.log('[PredictiveAnalysis] Building campaignGoals from:', goals);
-    return goals.map(g => ({
-      campaignId: g.campaign_id,
-      targetCpl: g.target_cpl || undefined,
-      targetRoas: g.target_roas || undefined,
-      targetLeads: g.target_leads || undefined,
-    }));
-  }, [goals]);
-
-  // Stringify goals for comparison to detect any changes (not just length)
-  const goalsHash = useMemo(() => JSON.stringify(goals), [goals]);
+  // Stringify goal for comparison to detect changes
+  const goalHash = useMemo(() => JSON.stringify(goal), [goal]);
 
   useEffect(() => {
     if (projectId) {
-      console.log('[PredictiveAnalysis] Fetching analysis with campaignGoals:', campaignGoals);
-      fetchAnalysis(campaignGoals);
+      console.log('[PredictiveAnalysis] Fetching analysis with accountGoal:', goal);
+      fetchAnalysis(goal ? {
+        targetLeadsMonthly: goal.target_leads_monthly,
+        targetCpl: goal.target_cpl,
+        targetRoas: goal.target_roas,
+        targetCtr: goal.target_ctr,
+        targetSpendDaily: goal.target_spend_daily,
+        targetSpendMonthly: goal.target_spend_monthly,
+      } : undefined);
     }
-  }, [projectId, goalsHash, goalsVersion]);
+  }, [projectId, goalHash, goalsVersion]);
 
   const handleGoalsSaved = async () => {
-    // Refetch goals first, then trigger analysis refresh
-    await fetchGoals();
+    await refetchGoal();
     setGoalsVersion(v => v + 1);
   };
 
@@ -240,13 +235,8 @@ export default function PredictiveAnalysis() {
             </div>
             <div className="flex gap-2 flex-wrap">
               {data && (
-                <CampaignGoalsConfig
+                <AccountGoalsConfig
                   projectId={projectId}
-                  campaigns={data.campaignGoalsProgress.map(c => ({
-                    campaignId: c.campaignId,
-                    campaignName: c.campaignName,
-                    spend: c.spend,
-                  }))}
                   businessModel={data.project.businessModel}
                   onGoalsSaved={handleGoalsSaved}
                 />
@@ -266,7 +256,7 @@ export default function PredictiveAnalysis() {
                 Exportar PDF
               </Button>
               <Button 
-                onClick={() => fetchAnalysis(campaignGoals)} 
+                onClick={() => fetchAnalysis()} 
                 disabled={loading}
                 className="gap-2"
               >
@@ -695,163 +685,107 @@ export default function PredictiveAnalysis() {
               </Card>
 
 
-              {/* Campaign Goals Progress - Show all campaigns */}
-              {data.campaignGoalsProgress.length > 0 && (
+              {/* Account Goals Progress - General Goals */}
+              {goal && (goal.target_leads_monthly || goal.target_cpl || goal.target_roas || goal.target_ctr) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Target className="w-5 h-5" />
-                      Metas por Campanha (30 dias)
+                      Progresso das Metas Gerais
                     </CardTitle>
                     <CardDescription>
-                      {data.campaignGoalsProgress.filter(c => c.hasCustomGoal).length > 0 
-                        ? 'Progresso em relação às metas configuradas'
-                        : 'Configure metas para acompanhar o progresso das campanhas'
-                      }
+                      Acompanhamento das metas definidas para a conta
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {data.campaignGoalsProgress
-                        .filter(c => c.spend > 0)
-                        .sort((a, b) => b.spend - a.spend)
-                        .slice(0, 8)
-                        .map((campaign) => (
-                          <div key={campaign.campaignId} className="p-4 rounded-lg bg-muted/30 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium truncate max-w-[280px]">
-                                  {campaign.campaignName}
-                                </span>
-                                {campaign.hasCustomGoal && (
-                                  <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
-                                    Meta definida
-                                  </Badge>
-                                )}
-                              </div>
-                              <span className="text-sm text-muted-foreground">
-                                {formatCurrency(campaign.spend)} investido
-                              </span>
-                            </div>
-                            
-                            <div className="grid gap-4 grid-cols-1">
-                              {/* Leads Progress - Show if target is set */}
-                              {campaign.targetLeads && (
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="flex items-center gap-1">
-                                      {getStatusIcon(campaign.leadsStatus)}
-                                      Meta de Leads
-                                    </span>
-                                    <span className={cn(
-                                      "font-medium",
-                                      campaign.leadsStatus === 'success' && "text-metric-positive",
-                                      campaign.leadsStatus === 'warning' && "text-metric-warning",
-                                      campaign.leadsStatus === 'critical' && "text-destructive"
-                                    )}>
-                                      {formatNumber(campaign.conversions)} leads
-                                      <span className="text-muted-foreground font-normal"> / {formatNumber(campaign.targetLeads)} meta</span>
-                                    </span>
-                                  </div>
-                                  {campaign.leadsProgress !== null && (
-                                    <Progress 
-                                      value={campaign.leadsProgress} 
-                                      className={cn(
-                                        "h-2",
-                                        campaign.leadsStatus === 'success' && "[&>div]:bg-metric-positive",
-                                        campaign.leadsStatus === 'warning' && "[&>div]:bg-metric-warning",
-                                        campaign.leadsStatus === 'critical' && "[&>div]:bg-destructive"
-                                      )}
-                                    />
-                                  )}
-                                </div>
-                              )}
-
-                              {/* CPL Progress - Show if custom target is set */}
-                              {campaign.hasCustomGoal && campaign.cplProgress !== null && (
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="flex items-center gap-1">
-                                      {getStatusIcon(campaign.cplStatus)}
-                                      Meta de CPL
-                                    </span>
-                                    <span className={cn(
-                                      "font-medium",
-                                      campaign.cplStatus === 'success' && "text-metric-positive",
-                                      campaign.cplStatus === 'warning' && "text-metric-warning",
-                                      campaign.cplStatus === 'critical' && "text-destructive"
-                                    )}>
-                                      {campaign.cpl !== null ? formatCurrency(campaign.cpl) : '-'}
-                                      <span className="text-muted-foreground font-normal"> / {formatCurrency(campaign.targetCpl || 0)}</span>
-                                    </span>
-                                  </div>
-                                  <Progress 
-                                    value={campaign.cplProgress} 
-                                    className={cn(
-                                      "h-2",
-                                      campaign.cplStatus === 'success' && "[&>div]:bg-metric-positive",
-                                      campaign.cplStatus === 'warning' && "[&>div]:bg-metric-warning",
-                                      campaign.cplStatus === 'critical' && "[&>div]:bg-destructive"
-                                    )}
-                                  />
-                                </div>
-                              )}
-
-                              {/* ROAS Progress - Show if custom target is set */}
-                              {campaign.hasCustomGoal && campaign.roasProgress !== null && (
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="flex items-center gap-1">
-                                      {getStatusIcon(campaign.roasStatus)}
-                                      Meta de ROAS
-                                    </span>
-                                    <span className={cn(
-                                      "font-medium",
-                                      campaign.roasStatus === 'success' && "text-metric-positive",
-                                      campaign.roasStatus === 'warning' && "text-metric-warning",
-                                      campaign.roasStatus === 'critical' && "text-destructive"
-                                    )}>
-                                      {campaign.roas !== null ? `${campaign.roas.toFixed(2)}x` : '-'}
-                                      <span className="text-muted-foreground font-normal"> / {campaign.targetRoas}x</span>
-                                    </span>
-                                  </div>
-                                  <Progress 
-                                    value={campaign.roasProgress} 
-                                    className={cn(
-                                      "h-2",
-                                      campaign.roasStatus === 'success' && "[&>div]:bg-metric-positive",
-                                      campaign.roasStatus === 'warning' && "[&>div]:bg-metric-warning",
-                                      campaign.roasStatus === 'critical' && "[&>div]:bg-destructive"
-                                    )}
-                                  />
-                                </div>
-                              )}
-
-                              {/* Show basic metrics if no custom goal */}
-                              {!campaign.hasCustomGoal && (
-                                <div className="text-sm text-muted-foreground">
-                                  <p>
-                                    {formatNumber(campaign.conversions)} {showCPL ? 'leads' : 'conversões'} • 
-                                    CPL: {campaign.cpl ? formatCurrency(campaign.cpl) : '-'} • 
-                                    CTR: {campaign.ctr?.toFixed(2) || 0}%
-                                  </p>
-                                  <p className="text-xs mt-1 italic">
-                                    Clique em "Configurar Metas" para definir metas para esta campanha
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Additional metrics for campaigns with goals */}
-                            {campaign.hasCustomGoal && (
-                              <div className="flex gap-4 text-xs text-muted-foreground pt-1 border-t border-border/50">
-                                <span>{formatNumber(campaign.conversions)} {showCPL ? 'leads' : 'conversões'}</span>
-                                <span>CPL atual: {campaign.cpl ? formatCurrency(campaign.cpl) : '-'}</span>
-                                <span>CTR: {campaign.ctr?.toFixed(2) || 0}%</span>
-                              </div>
-                            )}
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                      {/* Leads Progress */}
+                      {goal.target_leads_monthly && (
+                        <div className="p-4 rounded-lg bg-muted/30 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Leads/Mês</span>
+                            <span className={cn(
+                              "text-sm font-bold",
+                              data.totals.conversions30Days >= goal.target_leads_monthly ? "text-metric-positive" : "text-metric-warning"
+                            )}>
+                              {formatNumber(data.totals.conversions30Days)} / {formatNumber(goal.target_leads_monthly)}
+                            </span>
                           </div>
-                        ))}
+                          <Progress 
+                            value={Math.min((data.totals.conversions30Days / goal.target_leads_monthly) * 100, 100)} 
+                            className={cn(
+                              "h-2",
+                              data.totals.conversions30Days >= goal.target_leads_monthly ? "[&>div]:bg-metric-positive" : "[&>div]:bg-primary"
+                            )}
+                          />
+                        </div>
+                      )}
+
+                      {/* CPL Progress */}
+                      {goal.target_cpl && data.totals.conversions30Days > 0 && (
+                        <div className="p-4 rounded-lg bg-muted/30 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">CPL</span>
+                            {(() => {
+                              const currentCpl = data.totals.spend30Days / data.totals.conversions30Days;
+                              const isGood = currentCpl <= goal.target_cpl;
+                              return (
+                                <span className={cn(
+                                  "text-sm font-bold",
+                                  isGood ? "text-metric-positive" : "text-destructive"
+                                )}>
+                                  {formatCurrency(currentCpl)} / {formatCurrency(goal.target_cpl)}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                          <Progress 
+                            value={Math.min((goal.target_cpl / (data.totals.spend30Days / data.totals.conversions30Days)) * 100, 100)} 
+                            className="h-2"
+                          />
+                        </div>
+                      )}
+
+                      {/* CTR Progress */}
+                      {goal.target_ctr && data.totals.impressions30Days > 0 && (
+                        <div className="p-4 rounded-lg bg-muted/30 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">CTR</span>
+                            {(() => {
+                              const currentCtr = (data.totals.clicks30Days / data.totals.impressions30Days) * 100;
+                              const isGood = currentCtr >= goal.target_ctr;
+                              return (
+                                <span className={cn(
+                                  "text-sm font-bold",
+                                  isGood ? "text-metric-positive" : "text-metric-warning"
+                                )}>
+                                  {currentCtr.toFixed(2)}% / {goal.target_ctr}%
+                                </span>
+                              );
+                            })()}
+                          </div>
+                          <Progress 
+                            value={Math.min(((data.totals.clicks30Days / data.totals.impressions30Days) * 100 / goal.target_ctr) * 100, 100)} 
+                            className="h-2"
+                          />
+                        </div>
+                      )}
+
+                      {/* Spend Progress */}
+                      {goal.target_spend_monthly && (
+                        <div className="p-4 rounded-lg bg-muted/30 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Gasto/Mês</span>
+                            <span className="text-sm font-bold">
+                              {formatCurrency(data.totals.spend30Days)} / {formatCurrency(goal.target_spend_monthly)}
+                            </span>
+                          </div>
+                          <Progress 
+                            value={Math.min((data.totals.spend30Days / goal.target_spend_monthly) * 100, 100)} 
+                            className="h-2"
+                          />
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -874,7 +808,7 @@ export default function PredictiveAnalysis() {
                       variant="outline" 
                       size="sm"
                       onClick={() => {
-                        fetchAnalysis(campaignGoals);
+                        fetchAnalysis();
                         toast.info('Atualizando análise...');
                       }}
                       disabled={loading}
