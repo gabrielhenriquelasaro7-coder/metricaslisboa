@@ -110,6 +110,9 @@ export default defineConfig(({ mode }) => ({
         // Cache strategies
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         
+        // Increase limit for large bundles (3 MB)
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        
         // Runtime caching for API calls
         runtimeCaching: [
           {
