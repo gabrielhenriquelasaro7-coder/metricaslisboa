@@ -171,11 +171,22 @@ export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalan
   const StatusIcon = accountStatusInfo?.icon;
 
   return (
-    <Card className={cn(
-      "border transition-colors",
-      data ? getStatusBg(data.status) : "bg-muted/50"
+    <div className={cn(
+      "premium-card relative transition-colors overflow-hidden",
+      data?.status === 'critical' && "border-destructive/30",
+      data?.status === 'warning' && "border-metric-warning/30",
+      data?.status === 'healthy' && "border-metric-positive/30"
     )}>
-      <CardContent className="pt-4 pb-4">
+      {/* Top gradient line */}
+      <div className={cn(
+        "absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent to-transparent",
+        data?.status === 'healthy' && "via-metric-positive/60",
+        data?.status === 'warning' && "via-metric-warning/60",
+        data?.status === 'critical' && "via-destructive/60",
+        (!data || data.status === 'unknown') && "via-primary/40"
+      )} />
+      
+      <div className="pt-4 pb-4 px-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className={cn(
@@ -272,7 +283,7 @@ export function AccountBalanceCard({ projectId, currency = 'BRL' }: AccountBalan
             <span>Gasto médio: {formatCurrency(data.avgDailySpend)}/dia</span>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { TrendingUp, TrendingDown, Minus, Calendar, ArrowRight, Info } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -49,14 +50,13 @@ function ComparisonItem({ label, current, previous, change, isInverse = false, t
   const progressWidth = Math.min(Math.abs(change), 100);
 
   return (
-    <div className="group p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden">
-      {/* Animated background gradient on hover */}
-      <div className={cn(
-        "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none",
-        isPositive && "bg-gradient-to-br from-metric-positive/5 to-transparent",
-        isNegative && "bg-gradient-to-br from-metric-negative/5 to-transparent",
-        isNeutral && "bg-gradient-to-br from-muted/10 to-transparent"
-      )} />
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="premium-card group p-4 relative"
+    >
+      {/* Top gradient line */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-2">
@@ -77,10 +77,10 @@ function ComparisonItem({ label, current, previous, change, isInverse = false, t
           </div>
           <div
             className={cn(
-              'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-300',
-              isPositive && 'bg-metric-positive/20 text-metric-positive group-hover:bg-metric-positive/30 group-hover:shadow-[0_0_10px_hsl(var(--metric-positive)/0.3)]',
-              isNegative && 'bg-metric-negative/20 text-metric-negative group-hover:bg-metric-negative/30 group-hover:shadow-[0_0_10px_hsl(var(--metric-negative)/0.3)]',
-              isNeutral && 'bg-muted text-muted-foreground'
+              'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-300 border',
+              isPositive && 'bg-metric-positive/15 text-metric-positive border-metric-positive/20',
+              isNegative && 'bg-metric-negative/15 text-metric-negative border-metric-negative/20',
+              isNeutral && 'bg-muted/50 text-muted-foreground border-muted/30'
             )}
           >
             {isNeutral ? (
@@ -102,7 +102,7 @@ function ComparisonItem({ label, current, previous, change, isInverse = false, t
           </p>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 

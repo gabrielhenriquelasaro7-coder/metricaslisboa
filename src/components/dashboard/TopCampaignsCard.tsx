@@ -137,13 +137,16 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
   const pausedCount = campaigns.filter(c => c.status === 'PAUSED').length;
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="premium-card overflow-hidden relative">
+      {/* Top gradient line */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/60 to-transparent z-10" />
+      
       {/* Header */}
-      <div className="p-6 border-b border-border">
+      <div className="p-6 border-b border-border/50">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Trophy className="h-5 w-5 text-primary" />
+            <div className="w-10 h-10 rounded-lg premium-bar flex items-center justify-center">
+              <Trophy className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
               <h3 className="text-lg font-semibold">Top Campanhas</h3>

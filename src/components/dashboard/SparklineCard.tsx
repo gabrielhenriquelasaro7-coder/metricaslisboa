@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
+import { motion } from 'framer-motion';
 
 interface SparklineCardProps {
   title: string;
@@ -17,38 +18,8 @@ interface SparklineCardProps {
   className?: string;
   tooltip?: string;
   accentColor?: 'primary' | 'success' | 'warning' | 'danger' | 'info';
+  index?: number;
 }
-
-// V4 RED THEME: All sparklines use V4 red color for consistency
-const V4_RED_SPARKLINE = 'hsl(var(--primary))';
-
-const accentColors = {
-  primary: {
-    bg: 'bg-primary/10',
-    icon: 'text-primary',
-    gradient: 'from-primary/10 to-transparent',
-  },
-  success: {
-    bg: 'bg-primary/10',
-    icon: 'text-primary',
-    gradient: 'from-primary/10 to-transparent',
-  },
-  warning: {
-    bg: 'bg-primary/10',
-    icon: 'text-primary',
-    gradient: 'from-primary/10 to-transparent',
-  },
-  danger: {
-    bg: 'bg-primary/10',
-    icon: 'text-primary',
-    gradient: 'from-primary/10 to-transparent',
-  },
-  info: {
-    bg: 'bg-primary/10',
-    icon: 'text-primary',
-    gradient: 'from-primary/10 to-transparent',
-  },
-};
 
 export default function SparklineCard({
   title,
@@ -59,11 +30,10 @@ export default function SparklineCard({
   icon: Icon,
   trend,
   sparklineData = [],
-  sparklineColor,
   invertTrend = false,
   className,
   tooltip,
-  accentColor = 'primary',
+  index = 0,
 }: SparklineCardProps) {
   const actualTrend = trend ?? (change !== undefined 
     ? change > 0 ? 'up' : change < 0 ? 'down' : 'neutral'
@@ -74,23 +44,14 @@ export default function SparklineCard({
     : actualTrend;
   
   const TrendIcon = actualTrend === 'up' ? TrendingUp : actualTrend === 'down' ? TrendingDown : Minus;
-  
-  const trendColor = displayTrend === 'up' 
-    ? 'text-metric-positive bg-metric-positive/15' 
-    : displayTrend === 'down' 
-      ? 'text-metric-negative bg-metric-negative/15' 
-      : 'text-muted-foreground bg-muted/50';
 
   const chartData = sparklineData.map((value, index) => ({ value, index }));
-  const colors = accentColors[accentColor];
   const uniqueId = `sparkline-${title.replace(/\s/g, '')}-${Math.random().toString(36).substr(2, 9)}`;
-  // V4 THEME: Always use V4 red for sparklines
-  const finalSparklineColor = V4_RED_SPARKLINE;
 
   const titleElement = tooltip ? (
     <Tooltip delayDuration={100}>
       <TooltipTrigger asChild>
-        <span className="text-sm text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help inline-block text-left">
+        <span className="text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help inline-block text-left">
           {title}
         </span>
       </TooltipTrigger>
@@ -98,37 +59,31 @@ export default function SparklineCard({
         side="top" 
         sideOffset={8}
         className="max-w-[280px] p-3 text-sm leading-relaxed bg-popover text-popover-foreground border border-border shadow-xl z-[9999]"
-        style={{ zIndex: 9999 }}
       >
         {tooltip}
       </TooltipContent>
     </Tooltip>
   ) : (
-    <span className="text-sm text-muted-foreground block">{title}</span>
+    <span className="text-xs text-muted-foreground block">{title}</span>
   );
 
   return (
-    <div 
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.4 }}
       className={cn(
-        'metric-card group relative cursor-default',
+        'premium-card group relative cursor-default p-4',
         className
       )}
     >
-      {/* Shimmer effect on hover */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
-        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
-      </div>
-      
-      {/* Sparkle effects */}
-      <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-primary opacity-0 group-hover:opacity-100 group-hover:animate-ping" />
-      <div className="absolute top-6 right-8 w-1 h-1 rounded-full bg-primary/70 opacity-0 group-hover:opacity-100 group-hover:animate-ping" style={{ animationDelay: '0.3s' }} />
-      <div className="absolute bottom-8 left-4 w-0.5 h-0.5 rounded-full bg-primary/50 opacity-0 group-hover:opacity-100 group-hover:animate-ping" style={{ animationDelay: '0.5s' }} />
+      {/* Top gradient line */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
       
       <div className="flex items-start justify-between mb-3 relative z-10">
         <div className="flex-1 min-w-0">
           {titleElement}
-          <p className="text-2xl font-bold mt-1 text-foreground group-hover:text-primary transition-colors duration-500">
+          <p className="text-2xl font-bold mt-1 text-foreground group-hover:text-primary transition-colors duration-300">
             {value}
           </p>
           {previousValue !== undefined && (
@@ -138,24 +93,15 @@ export default function SparklineCard({
           )}
         </div>
         {Icon && (
-          <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 ml-3 group-hover:from-primary/30 group-hover:to-primary/10 transition-all duration-500 overflow-hidden">
-            {/* Icon glow ring */}
-            <div className="absolute inset-0 rounded-xl border border-primary/20 group-hover:border-primary/40 transition-colors duration-500" />
-            <div className="absolute inset-[2px] rounded-lg bg-gradient-to-br from-background/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            
-            {/* Rotating gradient on hover */}
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-              <div className="absolute inset-0 bg-gradient-conic from-primary/30 via-transparent to-primary/30 animate-spin" style={{ animationDuration: '3s' }} />
-            </div>
-            
-            <Icon className="w-5 h-5 text-primary relative z-10 group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_currentColor] transition-all duration-500" />
+          <div className="relative w-11 h-11 rounded-lg premium-bar flex items-center justify-center flex-shrink-0 ml-3">
+            <Icon className="w-5 h-5 text-primary-foreground relative z-10" />
           </div>
         )}
       </div>
       
-      {/* Sparkline - Area chart with gradient fill */}
+      {/* Sparkline */}
       {sparklineData.length > 1 && (
-        <div className="h-16 -mx-2 mt-2 relative z-10">
+        <div className="h-14 -mx-2 mt-2 relative z-10">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <defs>
@@ -186,17 +132,17 @@ export default function SparklineCard({
         </div>
       )}
       
-      {/* Change indicator with enhanced styling */}
+      {/* Change indicator */}
       {change !== undefined && (
         <div className="flex items-center gap-2 mt-3 relative z-10">
           <div className={cn(
             'flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full',
-            'transition-all duration-300 backdrop-blur-sm border',
+            'transition-all duration-300 border',
             displayTrend === 'up' 
-              ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20 group-hover:bg-metric-positive/25 group-hover:shadow-[0_0_12px_hsl(var(--metric-positive)/0.3)]' 
+              ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20' 
               : displayTrend === 'down' 
-                ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20 group-hover:bg-metric-negative/25 group-hover:shadow-[0_0_12px_hsl(var(--metric-negative)/0.3)]' 
-                : 'bg-muted/50 text-muted-foreground border-muted/30 group-hover:bg-muted/70'
+                ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20' 
+                : 'bg-muted/50 text-muted-foreground border-muted/30'
           )}>
             <TrendIcon className="w-4 h-4" />
             <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
@@ -206,6 +152,6 @@ export default function SparklineCard({
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

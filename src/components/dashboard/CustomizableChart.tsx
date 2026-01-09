@@ -502,18 +502,18 @@ export function CustomizableChart({
   return (
     <>
       <div className={cn(
-        'glass-card p-6 transition-all duration-500 group',
-        'hover:shadow-[0_8px_40px_hsl(0,0%,0%,0.4),0_0_40px_hsl(var(--primary)/0.1)]',
-        'hover:border-primary/30',
+        'premium-card p-6 transition-all duration-300 group relative',
         className
       )}>
-        {/* Animated top border */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary via-v4-crimson to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        {/* Top gradient line */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           <div className="flex items-center gap-2">
-            <Settings2 className="w-4 h-4 text-primary group-hover:drop-shadow-[0_0_6px_currentColor] transition-all duration-500" />
-            <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-500">{displayTitle}</h3>
+            <div className="w-8 h-8 rounded-lg premium-bar flex items-center justify-center">
+              <Settings2 className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300">{displayTitle}</h3>
             <Button
               variant="ghost"
               size="sm"
