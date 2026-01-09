@@ -284,63 +284,18 @@
     opacity: 1;
   }
 
-  /* ===== VIBRANT METRIC CARD STYLES ===== */
+  /* ===== METRIC CARD STYLES (Clean) ===== */
   .metric-card {
     @apply relative overflow-visible rounded-xl p-3 sm:p-4;
-    background: linear-gradient(135deg, 
-      hsl(var(--card)) 0%, 
-      hsl(var(--card) / 0.8) 100%
-    );
+    background: hsl(var(--card));
     border: 1px solid hsl(var(--border) / 0.5);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .metric-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(
-      ellipse at 50% 0%,
-      hsl(var(--primary) / 0.08) 0%,
-      transparent 70%
-    );
-    opacity: 0;
-    transition: opacity 0.4s ease;
-  }
-
-  .metric-card::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, 
-      transparent 0%,
-      hsl(var(--primary)) 50%,
-      transparent 100%
-    );
-    opacity: 0;
-    transform: scaleX(0);
-    transition: all 0.4s ease;
+    transition: all 0.3s ease;
   }
 
   .metric-card:hover {
-    transform: translateY(-4px);
-    border-color: hsl(var(--primary) / 0.4);
-    box-shadow: 
-      0 8px 32px hsl(var(--primary) / 0.15),
-      0 0 0 1px hsl(var(--primary) / 0.1),
-      inset 0 1px 0 hsl(var(--background) / 0.1);
-  }
-
-  .metric-card:hover::before {
-    opacity: 1;
-  }
-
-  .metric-card:hover::after {
-    opacity: 1;
-    transform: scaleX(1);
+    transform: translateY(-2px);
+    border-color: hsl(var(--border));
+    box-shadow: 0 4px 16px hsl(0, 0%, 0%, 0.2);
   }
 
   /* ===== VIBRANT TABLE STYLES ===== */
@@ -418,42 +373,19 @@
     opacity: 0.3;
   }
 
-  /* ===== PREMIUM CARD STYLES (Refined) ===== */
+  /* ===== PREMIUM CARD STYLES (Clean - No Red Glow) ===== */
   .premium-card {
     @apply relative overflow-hidden rounded-xl;
     background: hsl(var(--card));
-    border: 1px solid hsl(var(--border) / 0.6);
-    box-shadow: 0 2px 8px hsl(0, 0%, 0%, 0.2);
+    border: 1px solid hsl(var(--border) / 0.5);
+    box-shadow: 0 2px 8px hsl(0, 0%, 0%, 0.15);
     transition: all 0.3s ease;
   }
 
   .premium-card:hover {
-    border-color: hsl(var(--primary) / 0.25);
-    box-shadow: 
-      0 4px 16px hsl(0, 0%, 0%, 0.25),
-      0 0 20px hsl(var(--primary) / 0.08);
+    border-color: hsl(var(--border));
+    box-shadow: 0 4px 16px hsl(0, 0%, 0%, 0.2);
     transform: translateY(-1px);
-  }
-
-  /* Subtle top accent - only on hover */
-  .premium-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 2px;
-    background: linear-gradient(90deg, 
-      transparent,
-      hsl(var(--primary)) 50%,
-      transparent
-    );
-    transition: width 0.3s ease;
-  }
-
-  .premium-card:hover::before {
-    width: 60%;
   }
 
   /* Premium icon container */
@@ -464,16 +396,8 @@
   }
 
   .premium-card:hover .premium-icon {
-    background: linear-gradient(135deg, 
-      hsl(var(--primary)) 0%, 
-      hsl(var(--primary) / 0.85) 100%
-    );
-    border-color: hsl(var(--primary) / 0.5);
-    box-shadow: 0 2px 12px hsl(var(--primary) / 0.4);
-  }
-
-  .premium-card:hover .premium-icon svg {
-    color: hsl(var(--primary-foreground));
+    background: hsl(var(--secondary));
+    border-color: hsl(var(--border));
   }
 
   /* Premium bar - for charts */
