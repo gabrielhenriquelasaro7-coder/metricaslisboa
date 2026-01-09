@@ -233,21 +233,26 @@ serve(async (req) => {
     
     const { data: dailyMetrics, error: metricsError } = await supabase
       .from('ads_daily_metrics')
-      .select('date, spend, impressions, clicks, conversions, conversion_value, reach, campaign_id, campaign_name')
+      .select('date, spend, impressions, clicks, conversions, conversion_value, reach, campaign_id, campaign_name, campaign_objective, profile_visits, messaging_replies')
       .eq('project_id', projectId)
       .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
       .order('date', { ascending: true });
 
     if (metricsError) throw metricsError;
 
-    // Fetch campaign budgets - only ACTIVE campaigns
+    // Fetch campaign budgets - only ACTIVE campaigns with objective
     const { data: campaigns, error: campaignsError } = await supabase
       .from('campaigns')
-      .select('id, name, daily_budget, lifetime_budget, spend, status, conversions, conversion_value')
+      .select('id, name, daily_budget, lifetime_budget, spend, status, conversions, conversion_value, objective, profile_visits, messaging_replies')
       .eq('project_id', projectId)
       .eq('status', 'ACTIVE');
 
     if (campaignsError) throw campaignsError;
+
+    // Create a map of campaign objectives for quick lookup
+    const campaignObjectives = new Map(campaigns?.map(c => [c.id, c.objective]) || []);
+    const campaignProfileVisits = new Map(campaigns?.map(c => [c.id, c.profile_visits || 0]) || []);
+    const campaignMessagingReplies = new Map(campaigns?.map(c => [c.id, c.messaging_replies || 0]) || []);
 
     // Get IDs of active campaigns for filtering
     const activeCampaignIds = new Set(campaigns?.map(c => c.id) || []);
@@ -271,17 +276,20 @@ serve(async (req) => {
       return acc;
     }, {});
 
-    // Aggregate metrics by campaign (only from active campaigns)
+    // Aggregate metrics by campaign (only from active campaigns) - include objective
     const campaignMetrics = activeMetrics.reduce((acc: Record<string, any>, metric) => {
       if (!acc[metric.campaign_id]) {
         acc[metric.campaign_id] = { 
           campaignId: metric.campaign_id,
           campaignName: metric.campaign_name,
+          objective: metric.campaign_objective || campaignObjectives.get(metric.campaign_id) || 'OUTCOME_LEADS',
           spend: 0, 
           conversions: 0, 
           conversion_value: 0,
           clicks: 0,
-          impressions: 0
+          impressions: 0,
+          profile_visits: 0,
+          messaging_replies: 0
         };
       }
       acc[metric.campaign_id].spend += metric.spend || 0;
@@ -289,6 +297,8 @@ serve(async (req) => {
       acc[metric.campaign_id].conversion_value += metric.conversion_value || 0;
       acc[metric.campaign_id].clicks += metric.clicks || 0;
       acc[metric.campaign_id].impressions += metric.impressions || 0;
+      acc[metric.campaign_id].profile_visits += metric.profile_visits || 0;
+      acc[metric.campaign_id].messaging_replies += metric.messaging_replies || 0;
       return acc;
     }, {});
 
@@ -365,6 +375,9 @@ serve(async (req) => {
       
       return {
         ...metrics,
+        objective: metrics.objective || 'OUTCOME_LEADS',
+        profile_visits: metrics.profile_visits || 0,
+        messaging_replies: metrics.messaging_replies || 0,
         cpl,
         roas,
         ctr,
@@ -500,16 +513,85 @@ serve(async (req) => {
       // Filter only active campaigns with spend
       const activeCampaigns = campaignGoalsProgress.filter((c: any) => c.spend > 0);
       
-      // Build detailed campaign context - with clean formatting to avoid NULL issues
-      const campaignDetails = activeCampaigns.slice(0, 8).map((c: any) => ({
-        nome: c.campaignName || 'Campanha sem nome',
-        leads: c.conversions || 0,
-        gasto: c.spend ? `R$ ${c.spend.toFixed(2)}` : 'R$ 0',
-        cpl: c.cpl ? `R$ ${c.cpl.toFixed(2)}` : 'Sem leads',
-        ctr: c.ctr ? `${c.ctr.toFixed(2)}%` : '0%',
-        roas: c.roas ? `${c.roas.toFixed(2)}x` : 'N/A',
-        performance: c.cpl && c.cpl < 30 ? 'Boa' : c.cpl && c.cpl < 50 ? 'Regular' : c.cpl ? 'Precisa melhorar' : 'Sem dados'
-      }));
+      // Helper to translate Meta objectives to Portuguese
+      const translateObjective = (obj: string) => {
+        const translations: Record<string, string> = {
+          'OUTCOME_LEADS': 'Geração de Leads',
+          'OUTCOME_SALES': 'Vendas/Conversões',
+          'OUTCOME_TRAFFIC': 'Tráfego',
+          'OUTCOME_AWARENESS': 'Reconhecimento',
+          'OUTCOME_ENGAGEMENT': 'Engajamento',
+          'OUTCOME_APP_PROMOTION': 'Promoção de App',
+          'LEAD_GENERATION': 'Geração de Leads',
+          'CONVERSIONS': 'Conversões',
+          'LINK_CLICKS': 'Cliques no Link',
+          'REACH': 'Alcance',
+          'POST_ENGAGEMENT': 'Engajamento',
+          'VIDEO_VIEWS': 'Visualizações de Vídeo',
+          'MESSAGES': 'Mensagens (WhatsApp/Direct)',
+          'PAGE_LIKES': 'Curtidas na Página',
+          'PROFILE_VISIT': 'Visitas ao Perfil',
+        };
+        return translations[obj] || obj || 'Não definido';
+      };
+
+      // Helper to get the main KPI based on objective
+      const getMainKPI = (c: any) => {
+        const obj = c.objective || '';
+        // Profile visits campaigns
+        if (obj.includes('PROFILE') || obj.includes('ENGAGEMENT') || obj.includes('AWARENESS')) {
+          const costPerVisit = c.profile_visits > 0 ? c.spend / c.profile_visits : null;
+          return {
+            metricaFoco: 'Visitas ao Perfil',
+            valorFoco: c.profile_visits || 0,
+            custoPorResultado: costPerVisit ? `R$ ${costPerVisit.toFixed(2)}` : 'Sem visitas',
+            performance: costPerVisit && costPerVisit < 1 ? 'Excelente' : costPerVisit && costPerVisit < 2 ? 'Boa' : costPerVisit ? 'Regular' : 'Sem dados'
+          };
+        }
+        // Messages campaigns (WhatsApp, Messenger)
+        if (obj.includes('MESSAGES')) {
+          const costPerMessage = c.messaging_replies > 0 ? c.spend / c.messaging_replies : null;
+          return {
+            metricaFoco: 'Mensagens Recebidas',
+            valorFoco: c.messaging_replies || 0,
+            custoPorResultado: costPerMessage ? `R$ ${costPerMessage.toFixed(2)}` : 'Sem mensagens',
+            performance: costPerMessage && costPerMessage < 5 ? 'Excelente' : costPerMessage && costPerMessage < 15 ? 'Boa' : costPerMessage ? 'Regular' : 'Sem dados'
+          };
+        }
+        // Traffic campaigns
+        if (obj.includes('TRAFFIC') || obj.includes('LINK_CLICKS')) {
+          const cpc = c.clicks > 0 ? c.spend / c.clicks : null;
+          return {
+            metricaFoco: 'Cliques no Link',
+            valorFoco: c.clicks || 0,
+            custoPorResultado: cpc ? `R$ ${cpc.toFixed(2)}` : 'Sem cliques',
+            performance: cpc && cpc < 0.5 ? 'Excelente' : cpc && cpc < 1 ? 'Boa' : cpc ? 'Regular' : 'Sem dados'
+          };
+        }
+        // Default: leads/conversions
+        return {
+          metricaFoco: 'Leads/Conversões',
+          valorFoco: c.conversions || 0,
+          custoPorResultado: c.cpl ? `R$ ${c.cpl.toFixed(2)}` : 'Sem leads',
+          performance: c.cpl && c.cpl < 30 ? 'Excelente' : c.cpl && c.cpl < 50 ? 'Boa' : c.cpl ? 'Precisa melhorar' : 'Sem dados'
+        };
+      };
+      
+      // Build detailed campaign context - with objective and correct KPIs
+      const campaignDetails = activeCampaigns.slice(0, 8).map((c: any) => {
+        const kpi = getMainKPI(c);
+        return {
+          nome: c.campaignName || 'Campanha sem nome',
+          objetivo: translateObjective(c.objective),
+          objetivoOriginal: c.objective || 'OUTCOME_LEADS',
+          metricaFoco: kpi.metricaFoco,
+          resultados: kpi.valorFoco,
+          custoPorResultado: kpi.custoPorResultado,
+          gasto: c.spend ? `R$ ${c.spend.toFixed(2)}` : 'R$ 0',
+          ctr: c.ctr ? `${c.ctr.toFixed(2)}%` : '0%',
+          performance: kpi.performance
+        };
+      });
 
       const contextData = {
         projectName: project.name,
@@ -553,6 +635,15 @@ serve(async (req) => {
 MODELO DE NEGÓCIO: ${contextData.businessModel}
 ${metricsContext}
 
+REGRA CRÍTICA - OBJETIVO DA CAMPANHA:
+Cada campanha tem um OBJETIVO ESPECÍFICO (campo "objetivo"). Você DEVE avaliar a campanha pela métrica correta do objetivo:
+- "Visitas ao Perfil" / "Engajamento" / "Reconhecimento" → Avaliar por VISITAS AO PERFIL e CTR, NÃO por leads
+- "Mensagens (WhatsApp/Direct)" → Avaliar por MENSAGENS RECEBIDAS, NÃO por leads  
+- "Tráfego" / "Cliques no Link" → Avaliar por CLIQUES e CPC, NÃO por leads
+- "Geração de Leads" / "Conversões" / "Vendas" → Avaliar por LEADS e CPL
+
+NÃO critique uma campanha de "Visitas ao Perfil" por não ter leads - ela não foi feita para isso!
+
 Gere EXATAMENTE 5 sugestões de otimização seguindo estas regras:
 
 ESTRUTURA DAS SUGESTÕES (2 MACRO + 3 MICRO):
@@ -560,8 +651,8 @@ ESTRUTURA DAS SUGESTÕES (2 MACRO + 3 MICRO):
 - 3 sugestões MICRO: sobre campanhas específicas mencionando o NOME exato da campanha
 
 REGRAS CRÍTICAS:
-1. NUNCA use "null", "N/A", "undefined" ou valores vazios na resposta
-2. Se não há dados, diga "sem dados suficientes" ou omita a informação
+1. RESPEITE o objetivo de cada campanha ao avaliar performance
+2. NUNCA use "null", "N/A", "undefined" ou valores vazios na resposta
 3. Mencione valores em REAIS (R$) e porcentagens reais dos dados
 4. Títulos curtos e diretos (máximo 50 caracteres)
 5. Descrições práticas e acionáveis (máximo 120 caracteres)
@@ -576,15 +667,10 @@ Formato JSON estrito:
   {"title": "Título curto", "description": "O que fazer", "reason": "Por quê (com dados)", "priority": "high|medium|low"}
 ]
 
-EXEMPLOS DE BOAS SUGESTÕES MICRO:
-- Título: "Otimizar [Nome Campanha]"
-- Descrição: "CPL de R$45 acima do ideal. Teste públicos mais segmentados ou novos criativos."
-- Reason: "CPL atual R$45 vs média da conta R$32 - 40% acima"
-
-EXEMPLOS DE BOAS SUGESTÕES MACRO:
-- Título: "Recarregar saldo da conta"
-- Descrição: "Saldo baixo pode pausar campanhas. Adicione créditos nos próximos dias."
-- Reason: "Apenas 5 dias de saldo com gasto médio atual"
+EXEMPLOS DE BOAS SUGESTÕES MICRO (respeitando objetivo):
+- Campanha de LEADS: "CPL de R$45 acima do ideal. Teste públicos mais segmentados."
+- Campanha de PERFIL: "Custo por visita de R$1,80 está bom. Mantenha e escale gradualmente."
+- Campanha de MENSAGENS: "Custo por mensagem de R$8 adequado. Otimize copy para respostas."
 
 Responda APENAS o JSON array.`;
 
