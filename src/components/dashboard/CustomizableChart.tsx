@@ -357,6 +357,8 @@ export function CustomizableChart({
   const secondary = getMetric(secondaryMetric);
   const gradientId1 = `gradient-${chartKey}-primary`;
   const gradientId2 = `gradient-${chartKey}-secondary`;
+  const glowId1 = `glow-${chartKey}-primary`;
+  const glowId2 = `glow-${chartKey}-secondary`;
 
   const renderChart = () => {
     if (chartType === 'line') {
@@ -406,16 +408,44 @@ export function CustomizableChart({
       
       return (
         <BarChart data={chartData} margin={{ top: shouldAggregateByMonth ? 25 : 10, right: 30, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={gradientId1} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={primaryColor} stopOpacity={1} />
+              <stop offset="100%" stopColor={primaryColor} stopOpacity={0.7} />
+            </linearGradient>
+            <linearGradient id={gradientId2} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={secondaryColor} stopOpacity={1} />
+              <stop offset="100%" stopColor={secondaryColor} stopOpacity={0.7} />
+            </linearGradient>
+            <filter id={glowId1} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feFlood floodColor={primaryColor} floodOpacity="0.4" />
+              <feComposite in2="blur" operator="in" />
+              <feMerge>
+                <feMergeNode />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id={glowId2} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feFlood floodColor={secondaryColor} floodOpacity="0.4" />
+              <feComposite in2="blur" operator="in" />
+              <feMerge>
+                <feMergeNode />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
           <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Bar yAxisId="left" dataKey={primaryMetric} name={primary.label} fill={primaryColor} radius={[4, 4, 0, 0]} animationDuration={800}>
+          <Bar yAxisId="left" dataKey={primaryMetric} name={primary.label} fill={`url(#${gradientId1})`} radius={[6, 6, 0, 0]} animationDuration={800} style={{ filter: `url(#${glowId1})` }}>
             {shouldAggregateByMonth && <LabelList dataKey={primaryMetric} content={renderLabel} />}
           </Bar>
-          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} animationDuration={800}>
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={`url(#${gradientId2})`} radius={[6, 6, 0, 0]} animationDuration={800} style={{ filter: `url(#${glowId2})` }}>
             {shouldAggregateByMonth && <LabelList dataKey={secondaryMetric} content={renderLabel} />}
           </Bar>
         </BarChart>
@@ -470,6 +500,21 @@ export function CustomizableChart({
       
       return (
         <ComposedChart data={chartData} margin={{ top: shouldAggregateByMonth ? 25 : 10, right: 30, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={`${gradientId2}-composed`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={secondaryColor} stopOpacity={1} />
+              <stop offset="100%" stopColor={secondaryColor} stopOpacity={0.7} />
+            </linearGradient>
+            <filter id={`${glowId2}-composed`} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feFlood floodColor={secondaryColor} floodOpacity="0.35" />
+              <feComposite in2="blur" operator="in" />
+              <feMerge>
+                <feMergeNode />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
@@ -477,7 +522,7 @@ export function CustomizableChart({
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
           {/* Bar rendered FIRST so it's behind */}
-          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondaryColor} radius={[4, 4, 0, 0]} opacity={0.85} animationDuration={800}>
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={`url(#${gradientId2}-composed)`} radius={[6, 6, 0, 0]} opacity={0.9} animationDuration={800} style={{ filter: `url(#${glowId2}-composed)` }}>
             {shouldAggregateByMonth && <LabelList dataKey={secondaryMetric} content={renderBarLabel} />}
           </Bar>
           {/* Line rendered AFTER so it's on top */}
@@ -502,17 +547,11 @@ export function CustomizableChart({
   return (
     <>
       <div className={cn(
-        'premium-card p-6 transition-all duration-300 group relative',
+        'premium-card p-6 transition-all duration-300 group',
         className
       )}>
-        {/* Top gradient line */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-        
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg premium-bar flex items-center justify-center">
-              <Settings2 className="w-4 h-4 text-primary-foreground" />
-            </div>
             <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300">{displayTitle}</h3>
             <Button
               variant="ghost"

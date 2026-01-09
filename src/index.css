@@ -418,64 +418,95 @@
     opacity: 0.3;
   }
 
-  /* ===== PREMIUM CARD STYLES (Funnel Style) ===== */
+  /* ===== PREMIUM CARD STYLES (Refined) ===== */
   .premium-card {
     @apply relative overflow-hidden rounded-xl;
-    background: linear-gradient(135deg, 
-      hsl(var(--card)) 0%, 
-      hsl(var(--card) / 0.9) 50%,
-      hsl(var(--primary) / 0.02) 100%
-    );
-    border: 1px solid hsl(var(--primary) / 0.15);
-    box-shadow: 
-      0 4px 24px hsl(0, 0%, 0%, 0.3),
-      0 0 0 1px hsl(var(--primary) / 0.05),
-      inset 0 1px 0 hsl(var(--foreground) / 0.03);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.6);
+    box-shadow: 0 2px 8px hsl(0, 0%, 0%, 0.2);
     transition: all 0.3s ease;
   }
 
   .premium-card:hover {
-    border-color: hsl(var(--primary) / 0.3);
+    border-color: hsl(var(--primary) / 0.25);
     box-shadow: 
-      0 8px 32px hsl(0, 0%, 0%, 0.4),
-      0 0 40px hsl(var(--primary) / 0.1),
-      inset 0 1px 0 hsl(var(--foreground) / 0.05);
-    transform: translateY(-2px);
+      0 4px 16px hsl(0, 0%, 0%, 0.25),
+      0 0 20px hsl(var(--primary) / 0.08);
+    transform: translateY(-1px);
   }
 
-  /* Premium bar - gradient with glow */
-  .premium-bar {
-    @apply relative rounded-lg;
+  /* Subtle top accent - only on hover */
+  .premium-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, 
+      transparent,
+      hsl(var(--primary)) 50%,
+      transparent
+    );
+    transition: width 0.3s ease;
+  }
+
+  .premium-card:hover::before {
+    width: 60%;
+  }
+
+  /* Premium icon container */
+  .premium-icon {
+    @apply relative rounded-lg flex items-center justify-center;
+    background: hsl(var(--secondary));
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+
+  .premium-card:hover .premium-icon {
     background: linear-gradient(135deg, 
       hsl(var(--primary)) 0%, 
       hsl(var(--primary) / 0.85) 100%
     );
-    border: 1px solid hsl(0, 0%, 100%, 0.15);
-    box-shadow: 
-      0 4px 16px -4px hsl(var(--primary) / 0.5),
-      inset 0 1px 0 hsl(0, 0%, 100%, 0.1);
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 0 2px 12px hsl(var(--primary) / 0.4);
   }
 
-  .premium-bar::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: linear-gradient(180deg,
-      hsl(0, 0%, 100%, 0.12) 0%,
-      transparent 50%
-    );
-    pointer-events: none;
+  .premium-card:hover .premium-icon svg {
+    color: hsl(var(--primary-foreground));
   }
 
-  /* Premium metric box */
+  /* Premium bar - for charts */
+  .premium-bar,
+  .recharts-bar-rectangle {
+    filter: drop-shadow(0 2px 4px hsl(var(--primary) / 0.3));
+  }
+
+  /* Chart bar glow effect */
+  .premium-chart-bar {
+    position: relative;
+  }
+
+  .premium-chart-bar .recharts-bar-rectangle path {
+    filter: drop-shadow(0 4px 8px hsl(var(--primary) / 0.4));
+    transition: filter 0.3s ease;
+  }
+
+  .premium-chart-bar:hover .recharts-bar-rectangle path {
+    filter: drop-shadow(0 6px 16px hsl(var(--primary) / 0.6));
+  }
+
+  /* Premium metric box - bottom stats */
   .premium-metric-box {
     @apply relative p-3 rounded-lg text-center;
-    background: linear-gradient(135deg,
-      hsl(var(--card) / 0.8) 0%,
-      hsl(var(--card) / 0.5) 100%
-    );
-    border: 1px solid hsl(var(--border) / 0.5);
+    background: hsl(var(--secondary) / 0.5);
+    border: 1px solid hsl(var(--border) / 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .premium-metric-box:hover {
+    background: hsl(var(--secondary));
+    border-color: hsl(var(--primary) / 0.2);
   }
 
   /* ===== SIDEBAR VIBRANTE ===== */

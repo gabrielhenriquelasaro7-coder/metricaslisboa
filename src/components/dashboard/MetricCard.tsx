@@ -107,9 +107,6 @@ export default function MetricCard({
       transition={{ delay: index * 0.05, duration: 0.4 }}
       className={cn('premium-card group cursor-default p-4', className)}
     >
-      {/* Top gradient line */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-      
       <div className="flex items-center justify-between gap-2 mb-2 relative z-10">
         <div className="flex-1 min-w-0">
           {titleElement}
@@ -118,8 +115,8 @@ export default function MetricCard({
           </p>
         </div>
         {Icon && (
-          <div className="relative w-10 h-10 rounded-lg premium-bar flex items-center justify-center flex-shrink-0">
-            <Icon className="w-4 h-4 text-primary-foreground relative z-10" />
+          <div className="premium-icon w-10 h-10 flex-shrink-0">
+            <Icon className="w-4 h-4 text-muted-foreground transition-colors duration-300" />
           </div>
         )}
       </div>

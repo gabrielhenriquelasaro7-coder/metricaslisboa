@@ -77,9 +77,6 @@ export default function SparklineCard({
         className
       )}
     >
-      {/* Top gradient line */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-      
       <div className="flex items-start justify-between mb-3 relative z-10">
         <div className="flex-1 min-w-0">
           {titleElement}
@@ -93,8 +90,8 @@ export default function SparklineCard({
           )}
         </div>
         {Icon && (
-          <div className="relative w-11 h-11 rounded-lg premium-bar flex items-center justify-center flex-shrink-0 ml-3">
-            <Icon className="w-5 h-5 text-primary-foreground relative z-10" />
+          <div className="premium-icon w-11 h-11 flex-shrink-0 ml-3">
+            <Icon className="w-5 h-5 text-muted-foreground transition-colors duration-300" />
           </div>
         )}
       </div>
