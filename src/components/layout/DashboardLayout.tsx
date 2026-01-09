@@ -120,22 +120,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Mobile layout with Sheet
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background red-texture-bg grid-background">
-        {/* Mobile Header */}
-        <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-sidebar border-b border-sidebar-border flex items-center px-4">
+      <div className="min-h-screen bg-background red-texture-bg grid-background overflow-x-hidden">
+        {/* Mobile Header - Compact & Touch-friendly */}
+        <header className="fixed top-0 left-0 right-0 z-50 h-12 bg-sidebar/95 backdrop-blur-lg border-b border-sidebar-border flex items-center px-3 safe-area-top">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="mr-3">
+              <Button variant="ghost" size="icon" className="mr-2 h-9 w-9 touch-target">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-72 bg-sidebar border-sidebar-border">
+            <SheetContent side="left" className="p-0 w-[85vw] max-w-[320px] bg-sidebar border-sidebar-border safe-area-left">
               <Sidebar onNavigate={() => setSidebarOpen(false)} />
             </SheetContent>
           </Sheet>
-          <span className="font-semibold text-foreground">MetaAds Manager</span>
+          <span className="font-semibold text-foreground text-sm truncate">MetaAds Manager</span>
         </header>
-        <main className="pt-14 min-h-screen relative z-10">
+        <main className="pt-12 min-h-screen relative z-10 overflow-x-hidden safe-area-bottom">
           {children}
         </main>
       </div>
