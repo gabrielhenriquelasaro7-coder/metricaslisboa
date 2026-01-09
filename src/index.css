@@ -351,13 +351,13 @@
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid hsl(var(--foreground) / 0.06);
-    box-shadow: 0 2px 12px hsl(0, 0%, 0%, 0.15);
+    box-shadow: none;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .premium-card:hover {
     border-color: hsl(var(--primary) / 0.25);
-    box-shadow: 0 6px 24px hsl(0, 0%, 0%, 0.25);
+    box-shadow: none;
     transform: translateY(-2px);
   }
 
