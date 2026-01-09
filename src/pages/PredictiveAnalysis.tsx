@@ -83,7 +83,9 @@ export default function PredictiveAnalysis() {
   // Chart customization state
   const [chartType, setChartType] = useState<'bar' | 'line' | 'area'>('bar');
   const [chartColor, setChartColor] = useState('hsl(142, 76%, 36%)');
+  const [secondaryColor, setSecondaryColor] = useState('hsl(217, 91%, 60%)');
   const [chartCustomizationOpen, setChartCustomizationOpen] = useState(false);
+  const [showSecondaryMetric, setShowSecondaryMetric] = useState(true);
 
   // Stringify goal for comparison to detect changes
   const goalHash = useMemo(() => JSON.stringify(goal), [goal]);
@@ -657,10 +659,35 @@ export default function PredictiveAnalysis() {
                   {/* Chart with customization controls */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <p className="text-sm text-muted-foreground">
-                        <strong>{showCPL ? 'Leads' : 'Resultados'} por dia</strong> — barras maiores = mais resultados
-                      </p>
+                      <div className="flex items-center gap-4">
+                        <p className="text-sm text-muted-foreground">
+                          <strong>{showCPL ? 'Leads' : 'Resultados'} por dia</strong>
+                        </p>
+                        <div className="flex items-center gap-3 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: chartColor }} />
+                            <span className="text-muted-foreground">{showCPL ? 'Leads' : 'Resultados'}</span>
+                          </div>
+                          {showSecondaryMetric && (
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: secondaryColor }} />
+                              <span className="text-muted-foreground">Investimento (R$)</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       <div className="flex items-center gap-2">
+                        {/* Toggle Secondary Metric */}
+                        <Button
+                          variant={showSecondaryMetric ? 'default' : 'outline'}
+                          size="sm"
+                          className="gap-2 text-xs"
+                          onClick={() => setShowSecondaryMetric(!showSecondaryMetric)}
+                        >
+                          <DollarSign className="w-3.5 h-3.5" />
+                          Investimento
+                        </Button>
+                        
                         {/* Chart Type Selector */}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -700,125 +727,62 @@ export default function PredictiveAnalysis() {
                     
                     <ChartContainer config={chartConfig} className="h-[250px] w-full !aspect-auto">
                       <ResponsiveContainer width="100%" height="100%">
-                        {chartType === 'bar' ? (
-                          <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
-                            <XAxis 
-                              dataKey="date" 
-                              tick={{ fontSize: 10 }} 
-                              tickLine={false}
-                              axisLine={false}
-                              interval="preserveStartEnd"
-                            />
+                        <ComposedChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                          <XAxis 
+                            dataKey="date" 
+                            tick={{ fontSize: 10 }} 
+                            tickLine={false}
+                            axisLine={false}
+                            interval="preserveStartEnd"
+                          />
+                          <YAxis 
+                            yAxisId="left"
+                            tick={{ fontSize: 11 }} 
+                            tickLine={false}
+                            axisLine={false}
+                            width={40}
+                            allowDecimals={false}
+                            domain={[0, 'dataMax']}
+                          />
+                          {showSecondaryMetric && (
                             <YAxis 
+                              yAxisId="right"
+                              orientation="right"
                               tick={{ fontSize: 11 }} 
                               tickLine={false}
                               axisLine={false}
-                              width={40}
-                              allowDecimals={false}
-                              domain={[0, 'dataMax']}
+                              width={50}
+                              tickFormatter={(value) => `R$${value}`}
                             />
-                            <ChartTooltip 
-                              content={({ active, payload }) => {
-                                if (!active || !payload?.length) return null;
-                                const d = payload[0]?.payload;
-                                return (
-                                  <div className="bg-popover border rounded-lg shadow-lg p-3 space-y-1">
-                                    <p className="font-semibold">{d?.date}</p>
-                                    <p style={{ color: chartColor }}>{d?.conversions} {showCPL ? 'leads' : 'resultados'}</p>
-                                    <p className="text-blue-500">R$ {d?.spend?.toFixed(2)}</p>
-                                    <p className="text-purple-500">
-                                      CPL: R$ {d?.conversions > 0 ? (d.spend / d.conversions).toFixed(2) : '0'}
-                                    </p>
-                                  </div>
-                                );
-                              }}
-                            />
+                          )}
+                          <ChartTooltip 
+                            content={({ active, payload }) => {
+                              if (!active || !payload?.length) return null;
+                              const d = payload[0]?.payload;
+                              return (
+                                <div className="bg-popover border rounded-lg shadow-lg p-3 space-y-1">
+                                  <p className="font-semibold">{d?.date}</p>
+                                  <p style={{ color: chartColor }}>{d?.conversions} {showCPL ? 'leads' : 'resultados'}</p>
+                                  <p style={{ color: secondaryColor }}>R$ {d?.spend?.toFixed(2)}</p>
+                                  <p className="text-purple-500">
+                                    CPL: R$ {d?.conversions > 0 ? (d.spend / d.conversions).toFixed(2) : '0'}
+                                  </p>
+                                </div>
+                              );
+                            }}
+                          />
+                          {chartType === 'bar' ? (
                             <Bar
+                              yAxisId="left"
                               dataKey="conversions"
                               name={showCPL ? "Leads" : "Resultados"}
                               fill={chartColor}
                               radius={[4, 4, 0, 0]}
                             />
-                          </BarChart>
-                        ) : chartType === 'line' ? (
-                          <LineChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
-                            <XAxis 
-                              dataKey="date" 
-                              tick={{ fontSize: 10 }} 
-                              tickLine={false}
-                              axisLine={false}
-                              interval="preserveStartEnd"
-                            />
-                            <YAxis 
-                              tick={{ fontSize: 11 }} 
-                              tickLine={false}
-                              axisLine={false}
-                              width={40}
-                              allowDecimals={false}
-                              domain={[0, 'dataMax']}
-                            />
-                            <ChartTooltip 
-                              content={({ active, payload }) => {
-                                if (!active || !payload?.length) return null;
-                                const d = payload[0]?.payload;
-                                return (
-                                  <div className="bg-popover border rounded-lg shadow-lg p-3 space-y-1">
-                                    <p className="font-semibold">{d?.date}</p>
-                                    <p style={{ color: chartColor }}>{d?.conversions} {showCPL ? 'leads' : 'resultados'}</p>
-                                    <p className="text-blue-500">R$ {d?.spend?.toFixed(2)}</p>
-                                    <p className="text-purple-500">
-                                      CPL: R$ {d?.conversions > 0 ? (d.spend / d.conversions).toFixed(2) : '0'}
-                                    </p>
-                                  </div>
-                                );
-                              }}
-                            />
-                            <Line
-                              type="monotone"
-                              dataKey="conversions"
-                              name={showCPL ? "Leads" : "Resultados"}
-                              stroke={chartColor}
-                              strokeWidth={2}
-                              dot={{ fill: chartColor, r: 3 }}
-                            />
-                          </LineChart>
-                        ) : (
-                          <AreaChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
-                            <XAxis 
-                              dataKey="date" 
-                              tick={{ fontSize: 10 }} 
-                              tickLine={false}
-                              axisLine={false}
-                              interval="preserveStartEnd"
-                            />
-                            <YAxis 
-                              tick={{ fontSize: 11 }} 
-                              tickLine={false}
-                              axisLine={false}
-                              width={40}
-                              allowDecimals={false}
-                              domain={[0, 'dataMax']}
-                            />
-                            <ChartTooltip 
-                              content={({ active, payload }) => {
-                                if (!active || !payload?.length) return null;
-                                const d = payload[0]?.payload;
-                                return (
-                                  <div className="bg-popover border rounded-lg shadow-lg p-3 space-y-1">
-                                    <p className="font-semibold">{d?.date}</p>
-                                    <p style={{ color: chartColor }}>{d?.conversions} {showCPL ? 'leads' : 'resultados'}</p>
-                                    <p className="text-blue-500">R$ {d?.spend?.toFixed(2)}</p>
-                                    <p className="text-purple-500">
-                                      CPL: R$ {d?.conversions > 0 ? (d.spend / d.conversions).toFixed(2) : '0'}
-                                    </p>
-                                  </div>
-                                );
-                              }}
-                            />
+                          ) : chartType === 'area' ? (
                             <Area
+                              yAxisId="left"
                               type="monotone"
                               dataKey="conversions"
                               name={showCPL ? "Leads" : "Resultados"}
@@ -827,8 +791,30 @@ export default function PredictiveAnalysis() {
                               stroke={chartColor}
                               strokeWidth={2}
                             />
-                          </AreaChart>
-                        )}
+                          ) : (
+                            <Line
+                              yAxisId="left"
+                              type="monotone"
+                              dataKey="conversions"
+                              name={showCPL ? "Leads" : "Resultados"}
+                              stroke={chartColor}
+                              strokeWidth={2}
+                              dot={false}
+                            />
+                          )}
+                          {showSecondaryMetric && (
+                            <Line
+                              yAxisId="right"
+                              type="monotone"
+                              dataKey="spend"
+                              name="Investimento"
+                              stroke={secondaryColor}
+                              strokeWidth={2}
+                              dot={false}
+                              strokeDasharray="4 4"
+                            />
+                          )}
+                        </ComposedChart>
                       </ResponsiveContainer>
                     </ChartContainer>
                   </div>
@@ -839,10 +825,13 @@ export default function PredictiveAnalysis() {
               <ChartCustomizationDialog
                 open={chartCustomizationOpen}
                 onOpenChange={setChartCustomizationOpen}
-                chartName="Gráfico de Leads"
+                chartName="Gráfico de Desempenho"
                 primaryColor={chartColor}
-                secondaryColor={chartColor}
-                onSave={(_, primary) => setChartColor(primary)}
+                secondaryColor={secondaryColor}
+                onSave={(_, primary, secondary) => {
+                  setChartColor(primary);
+                  if (secondary) setSecondaryColor(secondary);
+                }}
               />
 
 
