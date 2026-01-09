@@ -226,11 +226,8 @@ export function AccountBalanceCard({
   const FundingIcon = fundingInfo?.icon ?? Wallet;
   const accountStatusInfo = getAccountStatusInfo(data?.accountStatus ?? null);
   const StatusIcon = accountStatusInfo?.icon;
-  return <div className="">
-      {/* Top gradient line */}
-      <div className={cn("absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent to-transparent", data?.status === 'healthy' && "via-metric-positive/60", data?.status === 'warning' && "via-metric-warning/60", data?.status === 'critical' && "via-destructive/60", (!data || data.status === 'unknown') && "via-primary/40")} />
-      
-      <div className="pt-4 pb-4 px-6 border-secondary-foreground border border-solid">
+  return <Card className="relative overflow-hidden">
+      <CardContent className="pt-4 pb-4 px-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className={cn("p-2.5 rounded-full", data?.status === 'critical' && "bg-destructive/20", data?.status === 'warning' && "bg-metric-warning/20", data?.status === 'healthy' && "bg-metric-positive/20", (!data || data.status === 'unknown') && "bg-muted")}>
@@ -287,6 +284,6 @@ export function AccountBalanceCard({
             <TrendingDown className="w-3 h-3" />
             <span>Gasto médio: {formatCurrency(data.avgDailySpend)}/dia</span>
           </div>}
-      </div>
-    </div>;
+      </CardContent>
+    </Card>;
 }
