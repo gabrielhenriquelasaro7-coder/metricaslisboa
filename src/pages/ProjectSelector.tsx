@@ -637,7 +637,7 @@ export default function ProjectSelector() {
           <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-5">
             <nav className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 sm:justify-between">
               {/* Logo Section */}
-              <div className="flex items-center gap-3 sm:gap-6">
+              <div className="flex items-center justify-center sm:justify-start gap-3 sm:gap-6 w-full sm:w-auto">
                 <img src={v4Logo} alt="V4 Company" className="h-8 sm:h-12 w-auto dark:brightness-0 dark:invert dark:opacity-95" />
                 <div className="hidden sm:block w-px h-12 bg-gradient-to-b from-transparent via-primary/60 to-transparent" />
                 <div className="flex flex-col">
