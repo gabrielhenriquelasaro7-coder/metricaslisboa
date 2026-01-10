@@ -608,16 +608,18 @@ export default function OptimizationHistory() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 space-y-6 animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 animate-fade-in">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2 gradient-text flex items-center gap-3">
-              <History className="w-8 h-8 text-primary" />
-              Histórico de Otimizações
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2 gradient-text flex items-center gap-2 sm:gap-3">
+              <History className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
+              <span className="hidden sm:inline">Histórico de Otimizações</span>
+              <span className="sm:hidden">Histórico</span>
             </h1>
-            <p className="text-muted-foreground">
-              Acompanhe todas as mudanças realizadas nas suas campanhas, conjuntos e anúncios
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              <span className="hidden sm:inline">Acompanhe todas as mudanças realizadas nas suas campanhas, conjuntos e anúncios</span>
+              <span className="sm:hidden">Mudanças em campanhas e anúncios</span>
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -625,75 +627,79 @@ export default function OptimizationHistory() {
               variant="outline" 
               onClick={() => refetch()} 
               disabled={loading}
-              className="gap-2"
+              size="sm"
+              className="gap-1.5 sm:gap-2 flex-1 sm:flex-none h-9 sm:h-10"
             >
-              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-              Atualizar
+              <RefreshCw className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", loading && "animate-spin")} />
+              <span className="hidden sm:inline">Atualizar</span>
+              <span className="sm:hidden">Atualizar</span>
             </Button>
             <Button 
               variant="outline" 
               onClick={exportToCSV}
               disabled={filteredHistory.length === 0}
-              className="gap-2"
+              size="sm"
+              className="gap-1.5 sm:gap-2 flex-1 sm:flex-none h-9 sm:h-10"
             >
-              <Download className="w-4 h-4" />
-              Exportar
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Exportar</span>
+              <span className="sm:hidden">CSV</span>
             </Button>
           </div>
         </div>
 
         {/* Stats - Resumo */}
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
             {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-24" />
+              <Skeleton key={i} className="h-16 sm:h-24" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="glass-card p-4 v4-accent">
-              <p className="text-3xl font-bold text-foreground">{stats.total}</p>
-              <p className="text-sm text-muted-foreground">Total de Mudanças</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+            <div className="glass-card p-3 sm:p-4 v4-accent">
+              <p className="text-xl sm:text-3xl font-bold text-foreground">{stats.total}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total</p>
             </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-blue-500" />
-                <p className="text-2xl font-bold text-blue-500">{stats.campaigns}</p>
+            <div className="glass-card p-3 sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
+                <p className="text-lg sm:text-2xl font-bold text-blue-500">{stats.campaigns}</p>
               </div>
-              <p className="text-sm text-muted-foreground">Campanhas</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Campanhas</p>
             </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2">
-                <Layers className="w-5 h-5 text-purple-500" />
-                <p className="text-2xl font-bold text-purple-500">{stats.adSets}</p>
+            <div className="glass-card p-3 sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
+                <p className="text-lg sm:text-2xl font-bold text-purple-500">{stats.adSets}</p>
               </div>
-              <p className="text-sm text-muted-foreground">Conjuntos</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Conjuntos</p>
             </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-amber-500" />
-                <p className="text-2xl font-bold text-amber-500">{stats.ads}</p>
+            <div className="glass-card p-3 sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+                <p className="text-lg sm:text-2xl font-bold text-amber-500">{stats.ads}</p>
               </div>
-              <p className="text-sm text-muted-foreground">Anúncios</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Anúncios</p>
             </div>
           </div>
         )}
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nome ou descrição..."
+              placeholder="Buscar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
+              className="pl-9 sm:pl-10 h-9 sm:h-10 text-sm"
             />
           </div>
           
           <Select value={changeTypeFilter} onValueChange={setChangeTypeFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Tipo de mudança" />
+            <SelectTrigger className="w-full sm:w-[180px] h-9 sm:h-10 text-sm">
+              <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent className="bg-popover">
               <SelectItem value="all">Todas as mudanças</SelectItem>
@@ -708,50 +714,48 @@ export default function OptimizationHistory() {
 
         {/* Tabs */}
         <Tabs value={entityFilter} onValueChange={setEntityFilter} className="w-full">
-          <TabsList className="grid w-full max-w-lg grid-cols-4">
-            <TabsTrigger value="all">Todos</TabsTrigger>
-            <TabsTrigger value="campaign" className="flex items-center gap-1">
+          <TabsList className="grid w-full grid-cols-4 h-9 sm:h-10">
+            <TabsTrigger value="all" className="text-xs sm:text-sm px-1 sm:px-3">Todos</TabsTrigger>
+            <TabsTrigger value="campaign" className="flex items-center gap-0.5 sm:gap-1 text-xs sm:text-sm px-1 sm:px-3">
               <Target className="w-3 h-3" />
-              <span className="hidden sm:inline">Campanhas</span>
+              <span className="hidden xs:inline">Camp.</span>
             </TabsTrigger>
-            <TabsTrigger value="ad_set" className="flex items-center gap-1">
+            <TabsTrigger value="ad_set" className="flex items-center gap-0.5 sm:gap-1 text-xs sm:text-sm px-1 sm:px-3">
               <Layers className="w-3 h-3" />
-              <span className="hidden sm:inline">Conjuntos</span>
+              <span className="hidden xs:inline">Conj.</span>
             </TabsTrigger>
-            <TabsTrigger value="ad" className="flex items-center gap-1">
+            <TabsTrigger value="ad" className="flex items-center gap-0.5 sm:gap-1 text-xs sm:text-sm px-1 sm:px-3">
               <FileText className="w-3 h-3" />
-              <span className="hidden sm:inline">Anúncios</span>
+              <span className="hidden xs:inline">Anún.</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={entityFilter} className="mt-6">
+          <TabsContent value={entityFilter} className="mt-4 sm:mt-6">
             {loading ? (
-              <div className="space-y-4">
-                {[...Array(8)].map((_, i) => (
-                  <Skeleton key={i} className="h-24 w-full" />
+              <div className="space-y-3 sm:space-y-4">
+                {[...Array(6)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 sm:h-24 w-full" />
                 ))}
               </div>
             ) : Object.keys(groupedByDate).length === 0 ? (
-              <div className="glass-card p-12 text-center">
-                <History className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-50" />
-                <h3 className="text-xl font-semibold mb-2">Nenhuma mudança detectada</h3>
-                <p className="text-muted-foreground">
+              <div className="glass-card p-6 sm:p-12 text-center">
+                <History className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground mb-3 sm:mb-4 opacity-50" />
+                <h3 className="text-base sm:text-xl font-semibold mb-2">Nenhuma mudança detectada</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   O histórico será preenchido conforme as sincronizações ocorrem.
-                  <br />
-                  Mudanças em status, público-alvo, objetivo e criativos serão registradas automaticamente.
                 </p>
               </div>
             ) : (
-              <div className="space-y-8">
+              <div className="space-y-6 sm:space-y-8">
                 {Object.entries(groupedByDate).map(([date, records]) => (
                   <div key={date}>
-                    <div className="flex items-center gap-3 mb-4 sticky top-0 bg-background/95 backdrop-blur py-2 z-10">
-                      <Calendar className="w-5 h-5 text-primary" />
-                      <span className="text-lg font-semibold capitalize">{date}</span>
-                      <Badge variant="secondary">{records.length} {records.length === 1 ? 'mudança' : 'mudanças'}</Badge>
+                    <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 sticky top-0 bg-background/95 backdrop-blur py-2 z-10">
+                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+                      <span className="text-sm sm:text-lg font-semibold capitalize truncate">{date}</span>
+                      <Badge variant="secondary" className="text-xs shrink-0">{records.length}</Badge>
                     </div>
                     
-                    <div className="grid gap-3">
+                    <div className="grid gap-2 sm:gap-3">
                       {records.map(record => {
                         const entityConfig = ENTITY_TYPE_CONFIG[record.entity_type];
                         const EntityIcon = entityConfig?.icon || Target;
@@ -762,54 +766,52 @@ export default function OptimizationHistory() {
                         return (
                           <div 
                             key={record.id}
-                            className="glass-card p-5 hover:bg-muted/30 transition-all duration-200 border-l-4"
+                            className="glass-card p-3 sm:p-5 hover:bg-muted/30 transition-all duration-200 border-l-4"
                             style={{ borderLeftColor: badgeStyle.color.replace('bg-', 'var(--') }}
                           >
-                            <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-2 sm:gap-3">
                               {/* Header: Entity + Badge */}
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex items-center gap-3">
+                              <div className="flex items-start justify-between gap-2 sm:gap-4">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                                   <div className={cn(
-                                    "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
+                                    "w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0",
                                     entityConfig?.color
                                   )}>
-                                    <EntityIcon className="w-5 h-5" />
+                                    <EntityIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                                   </div>
-                                  <div>
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                  <div className="min-w-0">
+                                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
                                       {entityConfig?.labelSingular}
                                     </p>
-                                    <p className="font-semibold" title={record.entity_name}>
+                                    <p className="text-sm sm:text-base font-semibold truncate" title={record.entity_name}>
                                       {record.entity_name}
                                     </p>
                                   </div>
                                 </div>
-                                <div className="flex flex-col items-end gap-1">
-                                  <div className="flex items-center gap-2">
-                                    <Badge 
-                                      className={cn("text-xs text-white flex items-center gap-1", badgeStyle.color)}
-                                    >
-                                      {ChangeIcon}
-                                      {badgeStyle.label}
-                                    </Badge>
-                                    <span className="text-xs text-muted-foreground">
-                                      {new Date(record.detected_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
-                                  {record.changed_by && (
-                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                      <Users className="w-3 h-3" />
-                                      {record.changed_by}
-                                    </span>
-                                  )}
+                                <div className="flex flex-col items-end gap-0.5 sm:gap-1 shrink-0">
+                                  <Badge 
+                                    className={cn("text-[10px] sm:text-xs text-white flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-0.5", badgeStyle.color)}
+                                  >
+                                    <span className="hidden sm:inline">{ChangeIcon}</span>
+                                    <span className="truncate max-w-[70px] sm:max-w-none">{badgeStyle.label}</span>
+                                  </Badge>
+                                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                                    {new Date(record.detected_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
                                 </div>
                               </div>
                               
                               {/* Description */}
-                              <div className="pl-13">
-                                <p className="text-sm text-foreground">
+                              <div className="pl-10 sm:pl-13">
+                                <p className="text-xs sm:text-sm text-foreground leading-relaxed">
                                   {description}
                                 </p>
+                                {record.changed_by && (
+                                  <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                    <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                                    {record.changed_by}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
