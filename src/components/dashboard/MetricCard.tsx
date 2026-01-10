@@ -89,7 +89,7 @@ export default function MetricCard({
 
   const trendBadge = (change !== undefined) && (
     <div className={cn(
-      'flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full border shrink-0', 
+      'inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full border', 
       trend === 'up' ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20' :
       trend === 'down' ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20' :
       'bg-muted/50 text-muted-foreground border-muted/30'
@@ -101,7 +101,7 @@ export default function MetricCard({
 
   const titleElement = tooltip ? (
     <Tooltip>
-      <TooltipTrigger className="text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help text-left truncate">
+      <TooltipTrigger className="text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help text-left">
         {title}
       </TooltipTrigger>
       <TooltipContent className="max-w-xs bg-background/95 backdrop-blur-xl border-border/50">
@@ -109,7 +109,7 @@ export default function MetricCard({
       </TooltipContent>
     </Tooltip>
   ) : (
-    <span className="text-xs text-muted-foreground truncate">{title}</span>
+    <span className="text-xs text-muted-foreground">{title}</span>
   );
 
   return (
@@ -118,18 +118,11 @@ export default function MetricCard({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: index * 0.03, duration: 0.3, ease: "easeOut" }}
       whileHover={{ y: -2, transition: { duration: 0.15 } }}
-      className={cn('premium-card group cursor-default p-3 sm:p-4 overflow-hidden', className)}
+      className={cn('premium-card group cursor-default p-3 sm:p-4', className)}
     >
-      <div className="flex items-start justify-between gap-2 mb-1.5 sm:mb-2 relative z-10">
-        <div className="flex-1 min-w-0 space-y-1">
-          {/* Title row with badge */}
-          <div className="flex items-center gap-2 min-w-0">
-            {titleElement}
-            {trendBadge}
-          </div>
-          <p className="text-base sm:text-lg md:text-xl font-bold truncate text-foreground transition-colors duration-300">
-            {animatedValue}
-          </p>
+      <div className="flex items-start justify-between gap-2 mb-1 relative z-10">
+        <div className="flex-1 min-w-0">
+          {titleElement}
         </div>
         {Icon && (
           <div className="premium-icon w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
@@ -138,9 +131,16 @@ export default function MetricCard({
         )}
       </div>
       
-      {changeLabel && (
-        <div className="flex items-center gap-1.5 relative z-10">
-          <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{changeLabel}</span>
+      <p className="text-base sm:text-lg md:text-xl font-bold text-foreground transition-colors duration-300 mb-2">
+        {animatedValue}
+      </p>
+      
+      {(change !== undefined || changeLabel) && (
+        <div className="flex items-center gap-2 relative z-10">
+          {trendBadge}
+          {changeLabel && (
+            <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{changeLabel}</span>
+          )}
         </div>
       )}
     </motion.div>
