@@ -5,7 +5,6 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import Sidebar from './Sidebar';
 import { ImportLoadingScreen } from './ImportLoadingScreen';
-import { LoadingScreen } from '@/components/ui/loading-screen';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -20,11 +19,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, loading } = useAuth();
   const { isGuest, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
-  const [hasProject, setHasProject] = useState<boolean>(true); // Default to true to prevent blocking
-  const [isImporting, setIsImporting] = useState<boolean>(false); // Default to false
+  const [isImporting, setIsImporting] = useState<boolean>(false);
   const [projectInfo, setProjectInfo] = useState<{ id: string; name: string } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
   const isMobile = useIsMobile();
 
   const checkImportStatus = useCallback(async (projectId: string) => {
@@ -44,24 +41,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, []);
 
-  // Force initialization after 1.5 seconds regardless of state
   useEffect(() => {
-    const forceInit = setTimeout(() => {
-      setIsInitialized(true);
-    }, 1500);
-
-    return () => clearTimeout(forceInit);
-  }, []);
-
-  useEffect(() => {
-    // Skip if auth is still loading (but respect timeout)
-    if ((loading || roleLoading) && !isInitialized) return;
-    
-    // If no user after loading completes, redirect to auth
+    // Redirect to auth if not loading and no user
     if (!loading && !user) {
       navigate('/auth');
       return;
     }
+
+    // Skip initialization if still loading auth
+    if (loading || roleLoading || !user) return;
 
     const init = async () => {
       try {
@@ -76,7 +64,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           if (projects && projects.length > 0) {
             selectedProjectId = projects[0].id;
             localStorage.setItem('selectedProjectId', selectedProjectId);
-          } else if (!isGuest && !loading) {
+          } else if (!isGuest) {
             navigate('/projects');
             return;
           }
@@ -87,46 +75,33 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             .from('projects')
             .select('id, name')
             .eq('id', selectedProjectId)
-            .single();
+            .maybeSingle();
 
           if (project) {
             setProjectInfo({ id: project.id, name: project.name });
             const importing = await checkImportStatus(selectedProjectId);
             setIsImporting(importing);
-            setHasProject(true);
           } else {
             localStorage.removeItem('selectedProjectId');
-            setHasProject(false);
+            // Don't block - just navigate to projects
+            if (!isGuest) {
+              navigate('/projects');
+            }
           }
         }
       } catch (error) {
         console.error('Error in dashboard init:', error);
-      } finally {
-        setIsInitialized(true);
       }
     };
 
     init();
-  }, [user, loading, roleLoading, isGuest, navigate, checkImportStatus, isInitialized]);
+  }, [user, loading, roleLoading, isGuest, navigate, checkImportStatus]);
 
   const handleImportComplete = useCallback(() => {
     setIsImporting(false);
   }, []);
 
-  // Show loading only briefly - max 1.5 seconds
-  if (!isInitialized) {
-    return <LoadingScreen message="Carregando dashboard..." />;
-  }
-
-  // After initialization, if no user, they should have been redirected
-  if (!user) {
-    // Force redirect if not already navigating
-    navigate('/auth');
-    return <LoadingScreen message="Redirecionando..." />;
-  }
-
-  if (!hasProject) return null;
-
+  // Show import screen only when actively importing
   if (isImporting && projectInfo) {
     return (
       <ImportLoadingScreen
