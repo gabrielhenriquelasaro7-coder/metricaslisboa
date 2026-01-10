@@ -113,12 +113,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     setIsImporting(false);
   }, []);
 
-  // Show loading only briefly and only if not yet initialized
-  if (!isInitialized && (loading || roleLoading)) {
+  // Show loading only briefly - max 1.5 seconds
+  if (!isInitialized) {
     return <LoadingScreen message="Carregando dashboard..." />;
   }
 
-  if (!user || !hasProject) return null;
+  // After initialization, if no user, they should have been redirected
+  if (!user) {
+    // Force redirect if not already navigating
+    navigate('/auth');
+    return <LoadingScreen message="Redirecionando..." />;
+  }
+
+  if (!hasProject) return null;
 
   if (isImporting && projectInfo) {
     return (
