@@ -55,41 +55,21 @@ function ComparisonItem({ label, current, previous, change, isInverse = false, t
       animate={{ opacity: 1, y: 0 }}
       className="group relative p-4 rounded-xl bg-card/80 border border-border/50 hover:border-border transition-all duration-300"
     >
-      
       <div className="relative z-10">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1">
-            <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{label}</p>
-            {tooltip && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs">
-                    <p className="text-xs">{tooltip}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
-          <div
-            className={cn(
-              'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-300 border',
-              isPositive && 'bg-metric-positive/15 text-metric-positive border-metric-positive/20',
-              isNegative && 'bg-metric-negative/15 text-metric-negative border-metric-negative/20',
-              isNeutral && 'bg-muted/50 text-muted-foreground border-muted/30'
-            )}
-          >
-            {isNeutral ? (
-              <Minus className="w-3 h-3" />
-            ) : isPositive ? (
-              <TrendingUp className="w-3 h-3" />
-            ) : (
-              <TrendingDown className="w-3 h-3" />
-            )}
-            <span>{isNeutral ? '0%' : `${change > 0 ? '+' : ''}${change.toFixed(1)}%`}</span>
-          </div>
+        <div className="flex items-center gap-1 mb-2">
+          <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{label}</p>
+          {tooltip && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-xs">{tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
         
         <p className="text-xl font-bold transition-colors duration-300">{current}</p>
