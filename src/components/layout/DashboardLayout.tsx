@@ -20,57 +20,45 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, loading } = useAuth();
   const { isGuest, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
-  const [hasProject, setHasProject] = useState<boolean | null>(null);
-  const [isImporting, setIsImporting] = useState<boolean | null>(null);
+  const [hasProject, setHasProject] = useState<boolean>(true); // Default to true to prevent blocking
+  const [isImporting, setIsImporting] = useState<boolean>(false); // Default to false
   const [projectInfo, setProjectInfo] = useState<{ id: string; name: string } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const isMobile = useIsMobile();
 
   const checkImportStatus = useCallback(async (projectId: string) => {
-    const { data: months } = await supabase
-      .from('project_import_months')
-      .select('status')
-      .eq('project_id', projectId);
+    try {
+      const { data: months } = await supabase
+        .from('project_import_months')
+        .select('status')
+        .eq('project_id', projectId);
 
-    if (!months || months.length === 0) {
+      if (!months || months.length === 0) {
+        return false;
+      }
+
+      return months.some((m: any) => m.status === 'importing' || m.status === 'pending');
+    } catch {
       return false;
     }
-
-    const hasActiveImport = months.some(
-      (m: any) => m.status === 'importing' || m.status === 'pending'
-    );
-
-    return hasActiveImport;
   }, []);
 
-  // Emergency timeout to prevent infinite loading - checks current state
+  // Force initialization after 1.5 seconds regardless of state
   useEffect(() => {
-    const emergencyTimeout = setTimeout(() => {
-      setHasProject(prev => {
-        if (prev === null) {
-          console.warn('Emergency timeout - forcing hasProject to true');
-          return true;
-        }
-        return prev;
-      });
-      setIsImporting(prev => {
-        if (prev === null) {
-          console.warn('Emergency timeout - forcing isImporting to false');
-          return false;
-        }
-        return prev;
-      });
-    }, 2000); // 2 second emergency timeout
+    const forceInit = setTimeout(() => {
+      setIsInitialized(true);
+    }, 1500);
 
-    return () => clearTimeout(emergencyTimeout);
-  }, [hasProject, isImporting]);
+    return () => clearTimeout(forceInit);
+  }, []);
 
   useEffect(() => {
-    // Skip if auth is still loading
-    if (loading || roleLoading) return;
+    // Skip if auth is still loading (but respect timeout)
+    if ((loading || roleLoading) && !isInitialized) return;
     
-    // If no user, redirect to auth
-    if (!user) {
+    // If no user after loading completes, redirect to auth
+    if (!loading && !user) {
       navigate('/auth');
       return;
     }
@@ -80,70 +68,53 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         let selectedProjectId = localStorage.getItem('selectedProjectId');
         
         if (!selectedProjectId) {
-          const { data: projects, error } = await supabase
+          const { data: projects } = await supabase
             .from('projects')
             .select('id, name')
             .limit(1);
           
-          if (error) {
-            console.error('Error fetching projects:', error);
-            setHasProject(false);
-            setIsImporting(false);
-            return;
-          }
-          
           if (projects && projects.length > 0) {
             selectedProjectId = projects[0].id;
             localStorage.setItem('selectedProjectId', selectedProjectId);
-          } else if (!isGuest) {
+          } else if (!isGuest && !loading) {
             navigate('/projects');
-            return;
-          } else {
-            setHasProject(false);
-            setIsImporting(false);
             return;
           }
         }
         
         if (selectedProjectId) {
-          const { data: project, error } = await supabase
+          const { data: project } = await supabase
             .from('projects')
             .select('id, name')
             .eq('id', selectedProjectId)
             .single();
 
-          if (error || !project) {
-            console.error('Error fetching project:', error);
+          if (project) {
+            setProjectInfo({ id: project.id, name: project.name });
+            const importing = await checkImportStatus(selectedProjectId);
+            setIsImporting(importing);
+            setHasProject(true);
+          } else {
             localStorage.removeItem('selectedProjectId');
             setHasProject(false);
-            setIsImporting(false);
-            return;
           }
-
-          setProjectInfo({ id: project.id, name: project.name });
-          
-          const importing = await checkImportStatus(selectedProjectId);
-          setIsImporting(importing);
-          setHasProject(true);
-        } else {
-          setHasProject(false);
-          setIsImporting(false);
         }
       } catch (error) {
         console.error('Error in dashboard init:', error);
-        setHasProject(false);
-        setIsImporting(false);
+      } finally {
+        setIsInitialized(true);
       }
     };
 
     init();
-  }, [user, loading, roleLoading, isGuest, navigate, checkImportStatus]);
+  }, [user, loading, roleLoading, isGuest, navigate, checkImportStatus, isInitialized]);
 
   const handleImportComplete = useCallback(() => {
     setIsImporting(false);
   }, []);
 
-  if (loading || hasProject === null || isImporting === null) {
+  // Show loading only briefly and only if not yet initialized
+  if (!isInitialized && (loading || roleLoading)) {
     return <LoadingScreen message="Carregando dashboard..." />;
   }
 
