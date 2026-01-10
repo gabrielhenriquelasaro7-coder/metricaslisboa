@@ -87,21 +87,34 @@ export default function MetricCard({
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
   const animatedValue = useCountAnimation(value, 800);
 
-  const trendBadge = (change !== undefined) && (
-    <div className={cn(
-      'inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full border', 
-      trend === 'up' ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20' :
-      trend === 'down' ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20' :
-      'bg-muted/50 text-muted-foreground border-muted/30'
-    )}>
-      <TrendIcon className="w-2.5 h-2.5" />
+  // MetricDeltaBadge - Responsive percentage change badge
+  const MetricDeltaBadge = change !== undefined && (
+    <span 
+      className={cn(
+        // Base styles - inline-flex to never break line
+        'inline-flex items-center gap-0.5 whitespace-nowrap shrink-0',
+        // Responsive padding: smaller on mobile
+        'px-1 py-0.5 sm:px-1.5 sm:py-0.5',
+        // Responsive font-size: smaller on mobile
+        'text-[9px] sm:text-[10px]',
+        // Consistent styling
+        'font-medium rounded-full border leading-none',
+        // Dynamic colors based on trend
+        trend === 'up' 
+          ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20' 
+          : trend === 'down' 
+            ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20' 
+            : 'bg-muted/50 text-muted-foreground border-muted/30'
+      )}
+    >
+      <TrendIcon className="w-2 h-2 sm:w-2.5 sm:h-2.5 shrink-0" />
       <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
-    </div>
+    </span>
   );
 
   const titleElement = tooltip ? (
     <Tooltip>
-      <TooltipTrigger className="text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help text-left">
+      <TooltipTrigger className="text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help text-left truncate max-w-[60%] sm:max-w-none">
         {title}
       </TooltipTrigger>
       <TooltipContent className="max-w-xs bg-background/95 backdrop-blur-xl border-border/50">
@@ -109,7 +122,7 @@ export default function MetricCard({
       </TooltipContent>
     </Tooltip>
   ) : (
-    <span className="text-xs text-muted-foreground">{title}</span>
+    <span className="text-xs text-muted-foreground truncate max-w-[60%] sm:max-w-none">{title}</span>
   );
 
   return (
@@ -120,28 +133,30 @@ export default function MetricCard({
       whileHover={{ y: -2, transition: { duration: 0.15 } }}
       className={cn('premium-card group cursor-default p-3 sm:p-4', className)}
     >
-      <div className="flex items-start justify-between gap-2 mb-1 relative z-10">
-        <div className="flex-1 min-w-0">
+      {/* Header row: Title + Badge aligned, Icon on right */}
+      <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1 relative z-10">
+        {/* Title and Badge container - flex with center alignment */}
+        <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
           {titleElement}
+          {MetricDeltaBadge}
         </div>
         {Icon && (
-          <div className="premium-icon w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
-            <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary transition-all duration-300 group-hover:scale-110" />
+          <div className="premium-icon w-7 h-7 sm:w-10 sm:h-10 shrink-0">
+            <Icon className="w-3 h-3 sm:w-4 sm:h-4 text-primary transition-all duration-300 group-hover:scale-110" />
           </div>
         )}
       </div>
       
-      <p className="text-base sm:text-lg md:text-xl font-bold text-foreground transition-colors duration-300 mb-2">
+      {/* Value */}
+      <p className="text-base sm:text-lg md:text-xl font-bold text-foreground transition-colors duration-300">
         {animatedValue}
       </p>
       
-      {(change !== undefined || changeLabel) && (
-        <div className="flex items-center gap-2 relative z-10">
-          {trendBadge}
-          {changeLabel && (
-            <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{changeLabel}</span>
-          )}
-        </div>
+      {/* Change label (e.g., "Anterior: R$ 1.922,54") */}
+      {changeLabel && (
+        <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">
+          {changeLabel}
+        </p>
       )}
     </motion.div>
   );
