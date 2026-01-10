@@ -225,9 +225,10 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   
   // ADS - campos essenciais + creative para extração de texto e imagem
   // Inclui thumbnail_url, image_url, effective_object_story_id para fallback de imagens
+  // body, title, call_to_action_type são campos diretos do creative para fallback de texto
   const adsFields = lightSync 
-    ? 'id,name,status,adset_id,campaign_id,creative{id,object_story_spec,asset_feed_spec,thumbnail_url}'
-    : 'id,name,status,adset_id,campaign_id,creative{id,image_hash,object_story_spec,asset_feed_spec,thumbnail_url,image_url}';
+    ? 'id,name,status,adset_id,campaign_id,creative{id,object_story_spec,asset_feed_spec,thumbnail_url,body,title,call_to_action_type}'
+    : 'id,name,status,adset_id,campaign_id,creative{id,image_hash,object_story_spec,asset_feed_spec,thumbnail_url,image_url,body,title,call_to_action_type}';
   url = `https://graph.facebook.com/v22.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   console.log(`[ADS-QUERY] ${lightSync ? 'LIGHT' : 'FULL'} SYNC - fetching ads...`);
   
