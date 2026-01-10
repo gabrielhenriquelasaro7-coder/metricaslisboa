@@ -326,30 +326,108 @@ export default function AIAssistant() {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Bot className="h-5 w-5 text-primary" />
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
+          {/* Mobile: Stack layout */}
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="shrink-0 h-8 w-8 sm:h-10 sm:w-10">
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 shrink-0">
+                  <Bot className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="font-semibold text-sm sm:text-lg truncate">Agente Lisboa</h1>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground hidden xs:block">Análise de Performance</p>
+                </div>
               </div>
-              <div>
-                <h1 className="font-semibold text-lg">Agente Lisboa</h1>
-                <p className="text-xs text-muted-foreground">Análise de Performance</p>
-              </div>
+            </div>
+            
+            {/* Desktop: inline controls */}
+            <div className="hidden sm:flex items-center gap-2">
+              <Select value={selectedProjectId || ''} onValueChange={setSelectedProjectId}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Selecione projeto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeProjects.map(project => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={selectedPreset} onValueChange={(v) => setSelectedPreset(v as DatePresetKey)}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {datePresets.map(preset => (
+                    <SelectItem key={preset.value} value={preset.value}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setBriefingDialogOpen(true)}
+                title="Configurar briefing do projeto"
+                className="relative"
+              >
+                <Settings2 className="h-4 w-4" />
+                {selectedProject && !(selectedProject as any).ai_briefing && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-metric-warning rounded-full" />
+                )}
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearMessages}
+                title="Limpar conversa"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {/* Mobile: just action buttons */}
+            <div className="flex sm:hidden items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setBriefingDialogOpen(true)}
+                className="relative h-8 w-8"
+              >
+                <Settings2 className="h-4 w-4" />
+                {selectedProject && !(selectedProject as any).ai_briefing && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-metric-warning rounded-full" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearMessages}
+                className="h-8 w-8"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          {/* Mobile: Selects row */}
+          <div className="flex sm:hidden items-center gap-2 mt-2">
             <Select value={selectedProjectId || ''} onValueChange={setSelectedProjectId}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Selecione projeto" />
+              <SelectTrigger className="flex-1 h-9 text-xs">
+                <SelectValue placeholder="Projeto" />
               </SelectTrigger>
               <SelectContent>
                 {activeProjects.map(project => (
-                  <SelectItem key={project.id} value={project.id}>
+                  <SelectItem key={project.id} value={project.id} className="text-xs">
                     {project.name}
                   </SelectItem>
                 ))}
@@ -357,63 +435,41 @@ export default function AIAssistant() {
             </Select>
             
             <Select value={selectedPreset} onValueChange={(v) => setSelectedPreset(v as DatePresetKey)}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-[120px] h-9 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {datePresets.map(preset => (
-                  <SelectItem key={preset.value} value={preset.value}>
+                  <SelectItem key={preset.value} value={preset.value} className="text-xs">
                     {preset.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setBriefingDialogOpen(true)}
-              title="Configurar briefing do projeto"
-              className="relative"
-            >
-              <Settings2 className="h-4 w-4" />
-              {selectedProject && !(selectedProject as any).ai_briefing && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-metric-warning rounded-full" />
-              )}
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={clearMessages}
-              title="Limpar conversa"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </header>
 
       {/* Chat Area */}
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-[calc(100vh-180px)]" ref={scrollRef}>
-          <div className="max-w-3xl mx-auto px-4 py-6">
+        <ScrollArea className="h-[calc(100vh-160px)] sm:h-[calc(100vh-180px)]" ref={scrollRef}>
+          <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
             {messages.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-6">
-                  <Bot className="h-8 w-8 text-primary" />
+              <div className="text-center py-8 sm:py-16">
+                <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/10 mb-4 sm:mb-6">
+                  <Bot className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                 </div>
-                <h2 className="text-2xl font-semibold mb-2">Agente Lisboa</h2>
-                <p className="text-muted-foreground max-w-md mx-auto mb-4">
+                <h2 className="text-xl sm:text-2xl font-semibold mb-2">Agente Lisboa</h2>
+                <p className="text-muted-foreground text-sm sm:text-base max-w-md mx-auto mb-4 px-4">
                   Analista de performance especializado em Meta Ads. 
                   Faça perguntas sobre suas campanhas e receba diagnósticos baseados em dados.
                 </p>
                 
                 {/* Briefing status */}
                 {selectedProject && (
-                  <div className="mb-8">
+                  <div className="mb-6 sm:mb-8">
                     {(selectedProject as any).ai_briefing ? (
-                      <Badge variant="outline" className="bg-metric-positive/10 text-metric-positive border-metric-positive/30">
+                      <Badge variant="outline" className="bg-metric-positive/10 text-metric-positive border-metric-positive/30 text-xs">
                         ✓ Briefing configurado
                       </Badge>
                     ) : (
@@ -421,66 +477,66 @@ export default function AIAssistant() {
                         variant="outline"
                         size="sm"
                         onClick={() => setBriefingDialogOpen(true)}
-                        className="text-metric-warning border-metric-warning/30 hover:bg-metric-warning/10"
+                        className="text-metric-warning border-metric-warning/30 hover:bg-metric-warning/10 text-xs"
                       >
-                        ⚠️ Configure o briefing para análises mais precisas
+                        ⚠️ Configure o briefing
                       </Button>
                     )}
                   </div>
                 )}
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg mx-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 max-w-lg mx-auto px-2">
                   <Button
                     variant="outline"
-                    className="justify-start h-auto py-3 px-4"
+                    className="justify-start h-auto py-2.5 sm:py-3 px-3 sm:px-4"
                     onClick={() => sendMessage('Faça um diagnóstico completo de performance das campanhas no período selecionado.')}
                     disabled={isLoading || !selectedProjectId}
                   >
                     <span className="text-left">
-                      <span className="font-medium block">Diagnóstico Completo</span>
-                      <span className="text-xs text-muted-foreground">Análise detalhada de todas as métricas</span>
+                      <span className="font-medium block text-sm">Diagnóstico Completo</span>
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">Análise de todas as métricas</span>
                     </span>
                   </Button>
                   
                   <Button
                     variant="outline"
-                    className="justify-start h-auto py-3 px-4"
+                    className="justify-start h-auto py-2.5 sm:py-3 px-3 sm:px-4"
                     onClick={() => sendMessage('Identifique os principais gargalos de performance e oportunidades de melhoria.')}
                     disabled={isLoading || !selectedProjectId}
                   >
                     <span className="text-left">
-                      <span className="font-medium block">Gargalos e Oportunidades</span>
-                      <span className="text-xs text-muted-foreground">Problemas e áreas de melhoria</span>
+                      <span className="font-medium block text-sm">Gargalos</span>
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">Problemas e melhorias</span>
                     </span>
                   </Button>
                   
                   <Button
                     variant="outline"
-                    className="justify-start h-auto py-3 px-4"
+                    className="justify-start h-auto py-2.5 sm:py-3 px-3 sm:px-4"
                     onClick={() => sendMessage('Compare a performance do período atual com o período anterior e identifique tendências.')}
                     disabled={isLoading || !selectedProjectId}
                   >
                     <span className="text-left">
-                      <span className="font-medium block">Análise de Tendências</span>
-                      <span className="text-xs text-muted-foreground">Comparação temporal</span>
+                      <span className="font-medium block text-sm">Tendências</span>
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">Comparação temporal</span>
                     </span>
                   </Button>
                   
                   <Button
                     variant="outline"
-                    className="justify-start h-auto py-3 px-4"
+                    className="justify-start h-auto py-2.5 sm:py-3 px-3 sm:px-4"
                     onClick={() => sendMessage('Gere recomendações acionáveis para otimizar o ROI das campanhas.')}
                     disabled={isLoading || !selectedProjectId}
                   >
                     <span className="text-left">
-                      <span className="font-medium block">Recomendações</span>
-                      <span className="text-xs text-muted-foreground">Ações práticas para melhorar</span>
+                      <span className="font-medium block text-sm">Recomendações</span>
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">Ações práticas</span>
                     </span>
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -491,14 +547,14 @@ export default function AIAssistant() {
                   >
                     <div
                       className={cn(
-                        'max-w-[85%] rounded-2xl px-5 py-4',
+                        'max-w-[90%] sm:max-w-[85%] rounded-2xl px-3 sm:px-5 py-3 sm:py-4',
                         message.role === 'user'
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted/50 border'
                       )}
                     >
                       {message.role === 'assistant' ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
                           {message.content ? formatContent(message.content) : null}
                           {message.isStreaming && message.content && (
                             <span className="inline-block w-2 h-4 bg-primary/60 animate-pulse rounded-sm ml-1 align-middle" />
@@ -524,7 +580,7 @@ export default function AIAssistant() {
                           )}
                         </div>
                       ) : (
-                        <p className="whitespace-pre-wrap">{message.content}</p>
+                        <p className="whitespace-pre-wrap text-sm">{message.content}</p>
                       )}
                     </div>
                   </div>
@@ -548,30 +604,30 @@ export default function AIAssistant() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t bg-card/50 backdrop-blur-sm">
-        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto px-4 py-4">
-          <div className="flex gap-3">
+      <div className="border-t bg-card/50 backdrop-blur-sm safe-area-bottom">
+        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex gap-2 sm:gap-3">
             <Textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={selectedProjectId ? "Faça uma pergunta sobre suas campanhas..." : "Selecione um projeto para começar"}
+              placeholder={selectedProjectId ? "Faça uma pergunta..." : "Selecione um projeto"}
               disabled={isLoading || !selectedProjectId}
-              className="min-h-[52px] max-h-[200px] resize-none"
+              className="min-h-[44px] sm:min-h-[52px] max-h-[150px] sm:max-h-[200px] resize-none text-sm"
               rows={1}
             />
             <Button 
               type="submit" 
               size="icon" 
-              className="h-[52px] w-[52px] shrink-0"
+              className="h-[44px] w-[44px] sm:h-[52px] sm:w-[52px] shrink-0"
               disabled={isLoading || !input.trim() || !selectedProjectId}
             >
-              <Send className="h-5 w-5" />
+              <Send className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            {selectedProject ? `Analisando: ${selectedProject.name}` : 'Selecione um projeto'} • Enter para enviar, Shift+Enter para nova linha
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-2 text-center hidden sm:block">
+            {selectedProject ? `Analisando: ${selectedProject.name}` : 'Selecione um projeto'} • Enter para enviar
           </p>
         </form>
       </div>
