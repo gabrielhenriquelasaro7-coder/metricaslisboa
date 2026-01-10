@@ -313,7 +313,7 @@ export default function Dashboard() {
     return num.toLocaleString('pt-BR');
   };
   // Only show loading if projects are still loading, or if we have a selected project and data is loading
-  const loading = projectsLoading || selectedProject && (dataLoading || dailyLoading);
+  const loading = projectsLoading || (selectedProject ? (dataLoading || dailyLoading) : false);
   return <DashboardLayout>
       {/* Guided Tour */}
       {showTour && <GuidedTour onComplete={completeTour} onSkip={skipTour} />}
