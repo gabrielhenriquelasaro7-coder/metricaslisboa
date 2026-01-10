@@ -100,21 +100,14 @@
   
   /* Mobile-optimized chart container */
   .chart-container-mobile {
-    width: calc(100% + 1rem);
+    width: 100%;
     min-height: 220px;
     overflow: hidden;
-    margin-left: -0.5rem;
-    margin-right: -0.5rem;
-    display: flex;
-    justify-content: center;
   }
   
   @media (min-width: 640px) {
     .chart-container-mobile {
       min-height: 300px;
-      margin-left: 0;
-      margin-right: 0;
-      width: 100%;
     }
   }
   
