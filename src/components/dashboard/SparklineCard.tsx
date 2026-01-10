@@ -130,23 +130,36 @@ export default function SparklineCard({
         </div>
       )}
       
-      {/* Change indicator - Compact on mobile */}
+      {/* Change indicator - Responsive with proper tooltip on mobile */}
       {change !== undefined && (
-        <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-3 relative z-10">
-          <div className={cn(
-            'flex items-center gap-1 text-[10px] sm:text-xs font-medium px-2 py-0.5 sm:px-3 sm:py-1.5 rounded-full',
-            'transition-all duration-300 border',
-            displayTrend === 'up' 
-              ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20' 
-              : displayTrend === 'down' 
-                ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20' 
-                : 'bg-muted/50 text-muted-foreground border-muted/30'
-          )}>
-            <TrendIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
-          </div>
+        <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-3 relative z-10 flex-wrap">
+          <Tooltip delayDuration={100}>
+            <TooltipTrigger asChild>
+              <div className={cn(
+                'flex items-center gap-1 text-[10px] sm:text-xs font-medium px-2 py-0.5 sm:px-3 sm:py-1.5 rounded-full cursor-default',
+                'transition-all duration-300 border',
+                displayTrend === 'up' 
+                  ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20' 
+                  : displayTrend === 'down' 
+                    ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20' 
+                    : 'bg-muted/50 text-muted-foreground border-muted/30'
+              )}>
+                <TrendIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
+              </div>
+            </TooltipTrigger>
+            {changeLabel && (
+              <TooltipContent 
+                side="top" 
+                sideOffset={4}
+                className="text-xs bg-popover text-popover-foreground border border-border shadow-lg z-[9999]"
+              >
+                {changeLabel}
+              </TooltipContent>
+            )}
+          </Tooltip>
           {changeLabel && (
-            <span className="text-[10px] sm:text-xs text-muted-foreground truncate max-w-[60px] sm:max-w-none">{changeLabel}</span>
+            <span className="hidden sm:inline text-xs text-muted-foreground">{changeLabel}</span>
           )}
         </div>
       )}

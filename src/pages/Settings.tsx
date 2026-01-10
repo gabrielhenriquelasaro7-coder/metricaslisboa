@@ -202,19 +202,20 @@ export default function Settings() {
     fetchProfile();
   }, [user]);
 
-  // Apply theme
+  // Apply theme - Sync with useTheme hook to prevent conflicts
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
     
+    let effectiveTheme = theme;
     if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.add(theme);
+      effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
     
-    localStorage.setItem('theme', theme);
+    root.classList.add(effectiveTheme);
+    
+    // Store effective theme (not 'system') to sync with useTheme hook
+    localStorage.setItem('theme', effectiveTheme);
   }, [theme]);
 
   // Apply primary color
@@ -443,31 +444,31 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
-          <TabsList className="bg-card border border-border p-1 flex flex-wrap h-auto gap-1 w-full overflow-x-auto">
-            <TabsTrigger value="profile" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          <TabsList className="bg-card border border-border p-1 flex flex-wrap h-auto gap-1 w-full overflow-x-auto scrollbar-hide">
+            <TabsTrigger value="profile" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
               <User className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Perfil</span>
+              <span className="hidden sm:inline">Perfil</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="notifications" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
               <Bell className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Notificações</span>
+              <span className="hidden sm:inline">Notificações</span>
             </TabsTrigger>
-            <TabsTrigger value="security" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="security" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
               <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Segurança</span>
+              <span className="hidden sm:inline">Segurança</span>
             </TabsTrigger>
-            <TabsTrigger value="appearance" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="appearance" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
               <Palette className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Aparência</span>
+              <span className="hidden sm:inline">Aparência</span>
             </TabsTrigger>
-            <TabsTrigger value="sync-history" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="sync-history" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
               <History className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Histórico</span>
+              <span className="hidden sm:inline">Histórico</span>
             </TabsTrigger>
             {!isGuest && (
-              <TabsTrigger value="guests" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <TabsTrigger value="guests" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
                 <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden xs:inline">Convidados</span>
+                <span className="hidden sm:inline">Convidados</span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -701,60 +702,60 @@ export default function Settings() {
                   Personalize a aparência do sistema
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-6">
                 {/* Theme Selection */}
                 <div>
-                  <Label className="mb-4 block">Tema</Label>
-                  <div className="grid grid-cols-3 gap-4 max-w-md">
+                  <Label className="mb-3 sm:mb-4 block text-sm">Tema</Label>
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-md">
                     <button 
                       onClick={() => handleThemeChange('dark')}
                       className={cn(
-                        "group p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg",
+                        "group p-2 sm:p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg touch-target",
                         theme === 'dark' 
                           ? "border-primary hover:shadow-primary/20" 
                           : "border-border hover:border-primary/50"
                       )}
                     >
-                      <div className="w-full h-10 rounded-lg bg-zinc-900 border border-zinc-700 mb-3 flex items-center justify-center">
-                        <Moon className="w-4 h-4 text-zinc-400" />
+                      <div className="w-full h-8 sm:h-10 rounded-lg bg-zinc-900 border border-zinc-700 mb-2 sm:mb-3 flex items-center justify-center">
+                        <Moon className="w-3 h-3 sm:w-4 sm:h-4 text-zinc-400" />
                       </div>
-                      <span className="text-sm font-medium">Escuro</span>
+                      <span className="text-xs sm:text-sm font-medium">Escuro</span>
                     </button>
                     <button 
                       onClick={() => handleThemeChange('light')}
                       className={cn(
-                        "p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg",
+                        "p-2 sm:p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg touch-target",
                         theme === 'light' 
                           ? "border-primary hover:shadow-primary/20" 
                           : "border-border hover:border-primary/50"
                       )}
                     >
-                      <div className="w-full h-10 rounded-lg bg-white border border-gray-200 mb-3 flex items-center justify-center">
-                        <Sun className="w-4 h-4 text-amber-500" />
+                      <div className="w-full h-8 sm:h-10 rounded-lg bg-white border border-gray-200 mb-2 sm:mb-3 flex items-center justify-center">
+                        <Sun className="w-3 h-3 sm:w-4 sm:h-4 text-amber-500" />
                       </div>
-                      <span className="text-sm font-medium">Claro</span>
+                      <span className="text-xs sm:text-sm font-medium">Claro</span>
                     </button>
                     <button 
                       onClick={() => handleThemeChange('system')}
                       className={cn(
-                        "p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg",
+                        "p-2 sm:p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg touch-target",
                         theme === 'system' 
                           ? "border-primary hover:shadow-primary/20" 
                           : "border-border hover:border-primary/50"
                       )}
                     >
-                      <div className="w-full h-10 rounded-lg bg-gradient-to-r from-zinc-900 to-white border border-border mb-3 flex items-center justify-center">
-                        <Monitor className="w-4 h-4 text-muted-foreground" />
+                      <div className="w-full h-8 sm:h-10 rounded-lg bg-gradient-to-r from-zinc-900 to-white border border-border mb-2 sm:mb-3 flex items-center justify-center">
+                        <Monitor className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
                       </div>
-                      <span className="text-sm font-medium">Sistema</span>
+                      <span className="text-xs sm:text-sm font-medium">Sistema</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Primary Color Selection */}
                 <div>
-                  <Label className="mb-4 block">Cor Primária</Label>
-                  <div className="grid grid-cols-6 gap-3 max-w-lg">
+                  <Label className="mb-3 sm:mb-4 block text-sm">Cor Primária</Label>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3 max-w-lg">
                     {(Object.keys(COLOR_PRESETS) as Array<Exclude<PrimaryColor, 'custom'>>).map((color) => {
                       const preset = COLOR_PRESETS[color];
                       const bgColor = `hsl(${preset.hue}, ${preset.saturation}%, 50%)`;
@@ -763,17 +764,17 @@ export default function Settings() {
                           key={color}
                           onClick={() => handleColorChange(color)}
                           className={cn(
-                            "p-3 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg",
+                            "p-2 sm:p-3 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg touch-target",
                             primaryColor === color
                               ? "border-foreground shadow-lg"
                               : "border-border hover:border-foreground/50"
                           )}
                         >
                           <div 
-                            className="w-full h-10 rounded-lg mb-2"
+                            className="w-full h-8 sm:h-10 rounded-lg mb-1.5 sm:mb-2"
                             style={{ backgroundColor: bgColor }}
                           />
-                          <span className="text-xs font-medium">{preset.name}</span>
+                          <span className="text-[10px] sm:text-xs font-medium">{preset.name}</span>
                         </button>
                       );
                     })}
@@ -782,14 +783,14 @@ export default function Settings() {
                     <button
                       onClick={() => handleColorChange('custom')}
                       className={cn(
-                        "p-3 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg relative",
+                        "p-2 sm:p-3 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg relative touch-target",
                         primaryColor === 'custom'
                           ? "border-foreground shadow-lg"
                           : "border-border hover:border-foreground/50"
                       )}
                     >
                       <div 
-                        className="w-full h-10 rounded-lg mb-2 relative overflow-hidden"
+                        className="w-full h-8 sm:h-10 rounded-lg mb-1.5 sm:mb-2 relative overflow-hidden"
                         style={{ 
                           background: primaryColor === 'custom' 
                             ? customColor 
@@ -804,7 +805,7 @@ export default function Settings() {
                           title="Escolher cor personalizada"
                         />
                       </div>
-                      <span className="text-xs font-medium">Custom</span>
+                      <span className="text-[10px] sm:text-xs font-medium">Custom</span>
                     </button>
                   </div>
                   
