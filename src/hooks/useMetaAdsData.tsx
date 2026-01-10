@@ -501,7 +501,8 @@ export function useMetaAdsData() {
   }, [loadDataFromDatabase]);
 
   // Sync with Meta API - ONLY for manual/emergency use
-  const syncData = useCallback(async (timeRange?: { since: string; until: string }, periodKey?: string) => {
+  // Options: fullCreativeSync = true forces fetching all HD images and creative data
+  const syncData = useCallback(async (timeRange?: { since: string; until: string }, periodKey?: string, options?: { fullCreativeSync?: boolean }) => {
     if (!selectedProject) {
       toast.error('Nenhum projeto selecionado');
       return { success: false };
@@ -512,7 +513,17 @@ export function useMetaAdsData() {
       const body: Record<string, unknown> = {
         project_id: selectedProject.id,
         ad_account_id: selectedProject.ad_account_id,
+        // IMPORTANT: Always do full sync for manual requests (fetch HD images, creatives, etc.)
+        light_sync: false,
+        skip_image_cache: false,
       };
+      
+      // If fullCreativeSync is explicitly requested, ensure we're not using light mode
+      if (options?.fullCreativeSync) {
+        body.light_sync = false;
+        body.skip_image_cache = false;
+        console.log('[SYNC] Full creative sync mode enabled - will fetch HD images');
+      }
       
       if (timeRange) {
         body.time_range = timeRange;
