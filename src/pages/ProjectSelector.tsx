@@ -774,7 +774,7 @@ export default function ProjectSelector() {
               {!isGuest && <>
                   <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button className="h-10 px-3 sm:px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-xl shadow-lg shadow-primary/20 gap-1.5 sm:gap-2 transition-all whitespace-nowrap touch-target" style={{
+                      <Button className="h-10 px-5 sm:px-6 min-w-[100px] bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-xl shadow-lg shadow-primary/20 gap-1.5 sm:gap-2 transition-all whitespace-nowrap touch-target" style={{
                     fontFamily: 'Space Grotesk, sans-serif'
                   }}>
                         <Plus className="w-4 h-4" />
