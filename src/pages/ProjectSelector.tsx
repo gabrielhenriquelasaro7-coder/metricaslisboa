@@ -690,22 +690,22 @@ export default function ProjectSelector() {
         
         {/* Stats bar - Compact on mobile */}
         <div className="relative border-b border-border bg-card/50 backdrop-blur-xl">
-          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-              {/* Stats */}
-              <div className="flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-secondary/30 border border-border">
-                <span className="text-xs sm:text-sm text-muted-foreground uppercase tracking-wider" style={{
+          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
+            <div className="flex items-center justify-center gap-4 sm:gap-6">
+              {/* Stats - Compact */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/30 border border-border">
+                <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider" style={{
                 fontFamily: 'Inter, sans-serif'
               }}>Clientes</span>
-                <span className="text-xl sm:text-2xl font-bold text-foreground" style={{
+                <span className="text-lg sm:text-xl font-bold text-foreground" style={{
                 fontFamily: 'Space Grotesk, sans-serif'
               }}>
                   {healthCounts.total}
                 </span>
               </div>
               
-              {/* Health indicators - Horizontal scroll on mobile */}
-              <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto pb-1 sm:pb-0">
+              {/* Health indicators - Centered with stats */}
+              <div className="flex items-center gap-3 sm:gap-4">
                 <div className="flex items-center gap-1.5 whitespace-nowrap">
                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
                   <span className="text-[10px] sm:text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase" style={{
