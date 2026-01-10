@@ -26,8 +26,13 @@ import {
   Compass,
   Lock,
   TrendingUp,
-  History
+  History,
+  Sun,
+  Moon,
+  User,
+  KeyRound
 } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -74,8 +79,9 @@ interface SidebarProps {
 
 export default function Sidebar({ onNavigate }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [campaignsOpen, setCampaignsOpen] = useState(true);
+  const [campaignsOpen, setCampaignsOpen] = useState(false); // Starts closed
   const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
+  const [guestSettingsOpen, setGuestSettingsOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   
   const [isChangingProject, setIsChangingProject] = useState(false);
@@ -87,6 +93,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const { profile } = useProfile();
   const { isGuest, loading: roleLoading } = useUserRole();
   const { triggerTour } = useTour();
+  const { theme, toggleTheme } = useTheme();
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   // Only return a project if explicitly selected - never auto-select
   const selectedProject = useMemo(() => {
@@ -473,9 +480,96 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </Link>
             </div>
           )}
+
+          {/* Guest Settings Section */}
+          {!roleLoading && isGuest && (
+            <div className="space-y-1 mt-2 mb-2">
+              {!collapsed && <div className="sidebar-divider mx-3 mb-2" />}
+              
+              {!collapsed ? (
+                <Collapsible open={guestSettingsOpen} onOpenChange={setGuestSettingsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <button className="sidebar-item w-full justify-between">
+                      <div className="flex items-center gap-3">
+                        <Settings className="w-5 h-5 flex-shrink-0" />
+                        <span>Configurações</span>
+                      </div>
+                      {guestSettingsOpen ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-1 space-y-0.5">
+                    {/* Theme Toggle */}
+                    <button
+                      onClick={toggleTheme}
+                      className="sidebar-item pl-10 text-sm w-full"
+                    >
+                      {theme === 'dark' ? (
+                        <>
+                          <Sun className="w-4 h-4 mr-2" />
+                          Modo Claro
+                        </>
+                      ) : (
+                        <>
+                          <Moon className="w-4 h-4 mr-2" />
+                          Modo Escuro
+                        </>
+                      )}
+                    </button>
+                    
+                    {/* Edit Profile */}
+                    <Link
+                      to="/settings"
+                      onClick={onNavigate}
+                      className="sidebar-item pl-10 text-sm"
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      Editar Perfil
+                    </Link>
+                    
+                    {/* Change Password */}
+                    <Link
+                      to="/change-password"
+                      onClick={onNavigate}
+                      className="sidebar-item pl-10 text-sm"
+                    >
+                      <KeyRound className="w-4 h-4 mr-2" />
+                      Alterar Senha
+                    </Link>
+                    
+                    {/* Logout */}
+                    <button
+                      onClick={handleSignOut}
+                      className="sidebar-item pl-10 text-sm w-full text-destructive hover:bg-destructive/10"
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sair
+                    </button>
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setGuestSettingsOpen(!guestSettingsOpen)}
+                        className="sidebar-item w-full justify-center"
+                      >
+                        <Settings className="w-5 h-5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Configurações</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+          )}
         </nav>
 
-        {/* User section */}
+        {/* User section - Different for guests vs regular users */}
         <div className="p-4 border-t border-sidebar-border bg-sidebar-accent/50">
           <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
             <Avatar className="w-10 h-10 ring-2 ring-primary/20">
@@ -495,18 +589,21 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </div>
             )}
           </div>
-          <Button
-            variant="ghost"
-            onClick={handleSignOut}
-            className={cn(
-              'mt-4 w-full transition-colors duration-200 group',
-              'hover:bg-destructive/10 hover:text-destructive',
-              collapsed ? 'px-0' : ''
-            )}
-          >
-            <LogOut className="w-4 h-4" />
-            {!collapsed && <span className="ml-2">Sair</span>}
-          </Button>
+          {/* Only show logout button for non-guests (guests have it in their settings menu) */}
+          {!isGuest && (
+            <Button
+              variant="ghost"
+              onClick={handleSignOut}
+              className={cn(
+                'mt-4 w-full transition-colors duration-200 group',
+                'hover:bg-destructive/10 hover:text-destructive',
+                collapsed ? 'px-0' : ''
+              )}
+            >
+              <LogOut className="w-4 h-4" />
+              {!collapsed && <span className="ml-2">Sair</span>}
+            </Button>
+          )}
         </div>
       </div>
 
