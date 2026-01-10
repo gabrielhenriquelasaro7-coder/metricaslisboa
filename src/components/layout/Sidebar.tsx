@@ -7,7 +7,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { useSidebarCampaigns } from '@/hooks/useSidebarCampaigns';
 import { useTour } from '@/hooks/useTour';
 import { useTheme } from '@/hooks/useTheme';
-import v4LisboaLogo from '@/assets/v4-lisboa-logo.png';
+import v4LogoFull from '@/assets/v4-logo-full.png';
 import { 
   LayoutDashboard, 
   FolderKanban, 
@@ -153,22 +153,22 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           {!isGuest ? (
             <Link to="/projects" className="flex items-center gap-3">
               <img 
-                src={v4LisboaLogo} 
-                alt="V4 Lisboa&Co" 
+                src={v4LogoFull} 
+                alt="V4 Company" 
                 className={cn(
-                  "transition-all duration-300",
-                  collapsed ? "h-10 w-auto" : "h-14 w-auto"
+                  "transition-all duration-300 dark:brightness-0 dark:invert",
+                  collapsed ? "h-8 w-auto" : "h-10 w-auto"
                 )}
               />
             </Link>
           ) : (
             <div className="flex items-center gap-3">
               <img 
-                src={v4LisboaLogo} 
-                alt="V4 Lisboa&Co" 
+                src={v4LogoFull} 
+                alt="V4 Company" 
                 className={cn(
-                  "transition-all duration-300",
-                  collapsed ? "h-10 w-auto" : "h-14 w-auto"
+                  "transition-all duration-300 dark:brightness-0 dark:invert",
+                  collapsed ? "h-8 w-auto" : "h-10 w-auto"
                 )}
               />
             </div>
