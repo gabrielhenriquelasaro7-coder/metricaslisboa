@@ -1188,7 +1188,20 @@ Deno.serve(async (req) => {
     const metaAccessToken = Deno.env.get('META_ACCESS_TOKEN');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body: SyncRequest = await req.json();
-    const { project_id, ad_account_id, access_token, date_preset, time_range, retry_count = 0, light_sync = false, skip_image_cache = false, syncOnly } = body;
+    let { project_id, ad_account_id, access_token, date_preset, time_range, retry_count = 0, light_sync = false, skip_image_cache = false, syncOnly } = body;
+    
+    // If ad_account_id not provided, fetch from project
+    if (!ad_account_id && project_id) {
+      const { data: project } = await supabase.from('projects').select('ad_account_id').eq('id', project_id).single();
+      if (project?.ad_account_id) {
+        ad_account_id = project.ad_account_id;
+        console.log(`[SYNC] Retrieved ad_account_id from project: ${ad_account_id}`);
+      }
+    }
+    
+    if (!ad_account_id) {
+      throw new Error('No ad_account_id provided and could not retrieve from project');
+    }
     
     let since: string, until: string;
     if (time_range) { since = time_range.since; until = time_range.until; }
