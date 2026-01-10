@@ -552,9 +552,9 @@ export function CustomizableChart({
         'premium-card p-3 sm:p-6 transition-all duration-300 group',
         className
       )}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300">{displayTitle}</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
+          <div className="flex items-center justify-center sm:justify-start gap-2">
+            <h3 className="text-base sm:text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300">{displayTitle}</h3>
             <Button
               variant="ghost"
               size="sm"
@@ -564,7 +564,7 @@ export function CustomizableChart({
               <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
             </Button>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2">
             <MetricSelector 
               value={primaryMetric} 
               onChange={(v) => handleMetricChange(true, v)} 
