@@ -72,23 +72,16 @@ export function useChartResponsive(): ChartResponsiveConfig {
         isMobile: true,
         isTablet: false,
         isDesktop: false,
-        // Increased height for mobile
-        chartHeight: 260,
-        // Smaller fonts for mobile
+        chartHeight: 220,
         xAxisFontSize: 9,
         yAxisFontSize: 9,
-        // Fewer ticks on mobile
         xAxisTickCount: 4,
-        // Rotate labels on mobile for readability
         xAxisAngle: -45,
         xAxisTextAnchor: "end" as const,
-        // Reduce data density on mobile
         maxDataPoints: 15,
-        // Smaller markers
         dotRadius: 2,
         activeDotRadius: 4,
         strokeWidth: 1.5,
-        // Legend
         legendFontSize: 10,
         legendWrapperStyle: { 
           paddingTop: '8px', 
@@ -98,13 +91,10 @@ export function useChartResponsive(): ChartResponsiveConfig {
           justifyContent: 'center',
           gap: '4px'
         },
-        // Tighter margins for mobile
-        chartMargins: { top: 5, right: 5, bottom: 35, left: 0 },
-        // Tooltip
+        // Minimal margins for maximum width on mobile
+        chartMargins: { top: 5, right: 0, bottom: 35, left: 0 },
         tooltipFontSize: 11,
-        // Bar chart
         barRadius: [2, 2, 0, 0] as [number, number, number, number],
-        // Pie chart
         pieInnerRadius: 30,
         pieOuterRadius: 50,
       };
@@ -113,7 +103,7 @@ export function useChartResponsive(): ChartResponsiveConfig {
         isMobile: false,
         isTablet: true,
         isDesktop: false,
-        chartHeight: 340,
+        chartHeight: 280,
         xAxisFontSize: 10,
         yAxisFontSize: 10,
         xAxisTickCount: 6,
@@ -136,7 +126,7 @@ export function useChartResponsive(): ChartResponsiveConfig {
         isMobile: false,
         isTablet: false,
         isDesktop: true,
-        chartHeight: 400,
+        chartHeight: 350,
         xAxisFontSize: 11,
         yAxisFontSize: 11,
         xAxisTickCount: 10,

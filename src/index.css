@@ -98,34 +98,32 @@
     }
   }
   
-  /* Mobile-optimized chart container - WIDER */
+  /* Mobile-optimized chart container */
   .chart-container-mobile {
     width: 100%;
-    min-height: 260px;
+    min-height: 220px;
     overflow: hidden;
-  }
-  
-  @media (min-width: 480px) {
-    .chart-container-mobile {
-      min-height: 300px;
-    }
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+    width: calc(100% + 1rem);
   }
   
   @media (min-width: 640px) {
     .chart-container-mobile {
-      min-height: 340px;
+      min-height: 300px;
+      margin-left: 0;
+      margin-right: 0;
+      padding-left: 0;
+      padding-right: 0;
+      width: 100%;
     }
   }
   
   @media (min-width: 768px) {
     .chart-container-mobile {
-      min-height: 400px;
-    }
-  }
-  
-  @media (min-width: 1024px) {
-    .chart-container-mobile {
-      min-height: 420px;
+      min-height: 350px;
     }
   }
   
