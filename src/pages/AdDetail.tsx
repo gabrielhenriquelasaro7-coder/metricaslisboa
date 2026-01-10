@@ -268,15 +268,17 @@ export default function AdDetail() {
   const hasVideo = ad?.creative_video_url;
   const hasImage = ad?.cached_image_url || ad?.creative_image_url || ad?.creative_thumbnail;
   
+  // Detectar se é anúncio de catálogo dinâmico (nome contém "catálogo" ou campaign objetivo)
+  const isCatalogAd = ad?.name?.toLowerCase().includes('catálogo') || 
+                      ad?.name?.toLowerCase().includes('catalogo') ||
+                      campaign?.name?.toLowerCase().includes('catálogo') ||
+                      campaign?.name?.toLowerCase().includes('catalogo');
+  
   // Priorizar imagem cacheada no storage (nunca expira)
   const creativeUrl = ad?.cached_image_url || ad?.creative_image_url || ad?.creative_thumbnail || '';
   
-  // Debug
-  console.log('[AdDetail] Image URL:', creativeUrl?.substring(0, 100));
-  console.log('[AdDetail] Cached URL:', ad?.cached_image_url?.substring(0, 50));
-  
   const handleImageError = () => {
-    console.log('[AdDetail] Image failed to load:', creativeUrl?.substring(0, 100));
+    console.log('[AdDetail] Image failed to load, catalog ad:', isCatalogAd);
     setImageError(true);
   };
 
@@ -386,19 +388,37 @@ export default function AdDetail() {
                 <Dialog>
                   <DialogTrigger asChild>
                     <div className="aspect-square rounded-lg overflow-hidden bg-muted cursor-zoom-in hover:opacity-90 transition-opacity relative">
-                      {!imageError && creativeUrl && (
+                      {!imageError && creativeUrl && !isCatalogAd && (
                         <img 
                           src={creativeUrl} 
                           alt={ad.name}
                           className="w-full h-full object-contain"
                           onError={handleImageError}
+                          onLoad={(e) => {
+                            // Se a imagem for muito pequena (placeholder), mostrar fallback
+                            const img = e.target as HTMLImageElement;
+                            if (img.naturalWidth < 50 || img.naturalHeight < 50) {
+                              setImageError(true);
+                            }
+                          }}
                         />
                       )}
-                      {(imageError || !creativeUrl) && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      {(imageError || !creativeUrl || isCatalogAd) && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted">
                           <ImageIcon className="w-16 h-16 text-muted-foreground/50 mb-2" />
-                          <p className="text-xs text-muted-foreground">Imagem expirada</p>
-                          <p className="text-xs text-muted-foreground">Sincronize para atualizar</p>
+                          {isCatalogAd ? (
+                            <>
+                              <p className="text-sm font-medium text-muted-foreground">Catálogo Dinâmico</p>
+                              <p className="text-xs text-muted-foreground text-center px-4">
+                                Anúncios de catálogo exibem produtos diferentes para cada usuário
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-xs text-muted-foreground">Imagem não disponível</p>
+                              <p className="text-xs text-muted-foreground">Sincronize para atualizar</p>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
