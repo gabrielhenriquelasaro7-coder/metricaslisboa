@@ -52,50 +52,81 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         return;
       }
 
-      let selectedProjectId = localStorage.getItem('selectedProjectId');
-      
-      if (!selectedProjectId) {
-        const { data: projects } = await supabase
-          .from('projects')
-          .select('id, name')
-          .limit(1);
+      try {
+        let selectedProjectId = localStorage.getItem('selectedProjectId');
         
-        if (projects && projects.length > 0) {
-          selectedProjectId = projects[0].id;
-          localStorage.setItem('selectedProjectId', selectedProjectId);
-        } else if (!isGuest) {
-          navigate('/projects');
-          return;
-        } else {
-          setHasProject(false);
-          setIsImporting(false);
-          return;
+        if (!selectedProjectId) {
+          const { data: projects, error } = await supabase
+            .from('projects')
+            .select('id, name')
+            .limit(1);
+          
+          if (error) {
+            console.error('Error fetching projects:', error);
+            setHasProject(false);
+            setIsImporting(false);
+            return;
+          }
+          
+          if (projects && projects.length > 0) {
+            selectedProjectId = projects[0].id;
+            localStorage.setItem('selectedProjectId', selectedProjectId);
+          } else if (!isGuest) {
+            navigate('/projects');
+            return;
+          } else {
+            setHasProject(false);
+            setIsImporting(false);
+            return;
+          }
         }
-      }
-      
-      if (selectedProjectId) {
-        const { data: project } = await supabase
-          .from('projects')
-          .select('id, name')
-          .eq('id', selectedProjectId)
-          .single();
+        
+        if (selectedProjectId) {
+          const { data: project, error } = await supabase
+            .from('projects')
+            .select('id, name')
+            .eq('id', selectedProjectId)
+            .single();
 
-        if (project) {
+          if (error || !project) {
+            console.error('Error fetching project:', error);
+            localStorage.removeItem('selectedProjectId');
+            setHasProject(false);
+            setIsImporting(false);
+            return;
+          }
+
           setProjectInfo({ id: project.id, name: project.name });
           
           const importing = await checkImportStatus(selectedProjectId);
           setIsImporting(importing);
           setHasProject(true);
         } else {
-          localStorage.removeItem('selectedProjectId');
           setHasProject(false);
           setIsImporting(false);
         }
+      } catch (error) {
+        console.error('Error in dashboard init:', error);
+        setHasProject(false);
+        setIsImporting(false);
       }
     };
 
     init();
   }, [user, loading, roleLoading, isGuest, navigate, checkImportStatus]);
+
+  // Timeout fallback to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (hasProject === null || isImporting === null) {
+        console.warn('Dashboard init timeout - forcing state');
+        setHasProject(false);
+        setIsImporting(false);
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [hasProject, isImporting]);
 
   const handleImportComplete = useCallback(() => {
     setIsImporting(false);
