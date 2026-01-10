@@ -114,7 +114,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     if (projectId === selectedProjectId) return;
     setIsChangingProject(true);
     localStorage.setItem('selectedProjectId', projectId);
-    window.location.reload();
+    // Sempre navegar para Dashboard ao trocar de projeto
+    window.location.href = '/dashboard';
   };
 
   const toggleCampaignExpand = (campaignId: string) => {
