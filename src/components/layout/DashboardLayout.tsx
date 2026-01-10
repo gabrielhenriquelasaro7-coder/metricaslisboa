@@ -43,21 +43,27 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return hasActiveImport;
   }, []);
 
-  // Quick timeout to prevent infinite loading - runs immediately
+  // Emergency timeout to prevent infinite loading - checks current state
   useEffect(() => {
-    const quickTimeout = setTimeout(() => {
-      if (hasProject === null) {
-        console.warn('Quick timeout - setting hasProject to true');
-        setHasProject(true);
-      }
-      if (isImporting === null) {
-        console.warn('Quick timeout - setting isImporting to false');
-        setIsImporting(false);
-      }
-    }, 3000); // 3 second timeout
+    const emergencyTimeout = setTimeout(() => {
+      setHasProject(prev => {
+        if (prev === null) {
+          console.warn('Emergency timeout - forcing hasProject to true');
+          return true;
+        }
+        return prev;
+      });
+      setIsImporting(prev => {
+        if (prev === null) {
+          console.warn('Emergency timeout - forcing isImporting to false');
+          return false;
+        }
+        return prev;
+      });
+    }, 2000); // 2 second emergency timeout
 
-    return () => clearTimeout(quickTimeout);
-  }, []);
+    return () => clearTimeout(emergencyTimeout);
+  }, [hasProject, isImporting]);
 
   useEffect(() => {
     // Skip if auth is still loading
