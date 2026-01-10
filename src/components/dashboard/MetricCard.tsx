@@ -87,18 +87,15 @@ export default function MetricCard({
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
   const animatedValue = useCountAnimation(value, 800);
 
-  // MetricDeltaBadge - Responsive percentage change badge
+  // MetricDeltaBadge - Hidden on mobile, visible on sm+ screens
   const MetricDeltaBadge = change !== undefined && (
     <span 
       className={cn(
-        // Base styles - inline-flex to never break line
-        'inline-flex items-center gap-0.5 whitespace-nowrap shrink-0',
-        // Responsive padding: smaller on mobile
-        'px-1 py-0.5 sm:px-1.5 sm:py-0.5',
-        // Responsive font-size: smaller on mobile
-        'text-[9px] sm:text-[10px]',
-        // Consistent styling
-        'font-medium rounded-full border leading-none',
+        // Hidden on mobile, visible on tablet+
+        'hidden sm:inline-flex',
+        // Base styles
+        'items-center gap-0.5 whitespace-nowrap shrink-0',
+        'px-1.5 py-0.5 text-[10px] font-medium rounded-full border leading-none',
         // Dynamic colors based on trend
         trend === 'up' 
           ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20' 
@@ -107,14 +104,14 @@ export default function MetricCard({
             : 'bg-muted/50 text-muted-foreground border-muted/30'
       )}
     >
-      <TrendIcon className="w-2 h-2 sm:w-2.5 sm:h-2.5 shrink-0" />
+      <TrendIcon className="w-2.5 h-2.5 shrink-0" />
       <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
     </span>
   );
 
   const titleElement = tooltip ? (
     <Tooltip>
-      <TooltipTrigger className="text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help text-left truncate max-w-[60%] sm:max-w-none">
+      <TooltipTrigger className="text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help text-left truncate">
         {title}
       </TooltipTrigger>
       <TooltipContent className="max-w-xs bg-background/95 backdrop-blur-xl border-border/50">
@@ -122,7 +119,7 @@ export default function MetricCard({
       </TooltipContent>
     </Tooltip>
   ) : (
-    <span className="text-xs text-muted-foreground truncate max-w-[60%] sm:max-w-none">{title}</span>
+    <span className="text-xs text-muted-foreground truncate">{title}</span>
   );
 
   return (
