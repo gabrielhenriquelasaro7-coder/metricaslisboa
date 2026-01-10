@@ -655,16 +655,18 @@ export default function ProjectSelector() {
               </div>
               
               {/* Nav items - Horizontal scroll on mobile */}
+              {/* Nav items - Icon only on mobile, full label on desktop */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 sm:mx-0 sm:px-0 scrollbar-hide">
                 <button className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition-all flex items-center gap-1.5 sm:gap-2.5 whitespace-nowrap touch-target">
                   <img src={metaIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden xs:inline">META ADS</span>
+                  <span className="hidden sm:inline">META ADS</span>
                 </button>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
                         <img src={googleAdsIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5 opacity-50" />
+                        <span className="hidden sm:inline">GOOGLE</span>
                         <Lock className="w-3 h-3" />
                       </button>
                     </TooltipTrigger>
@@ -675,9 +677,11 @@ export default function ProjectSelector() {
                 </TooltipProvider>
                 <button onClick={() => navigate('/whatsapp-manager')} className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
                   <img src={whatsappIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5 opacity-70" />
+                  <span className="hidden sm:inline">WhatsApp</span>
                 </button>
                 <button onClick={() => setSettingsDialogOpen(true)} className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
                   <User className="w-4 h-4" />
+                  <span className="hidden sm:inline">Configurações</span>
                 </button>
               </div>
             </nav>
@@ -774,8 +778,8 @@ export default function ProjectSelector() {
                     fontFamily: 'Space Grotesk, sans-serif'
                   }}>
                         <Plus className="w-4 h-4" />
-                        <span className="hidden xs:inline">Novo Cliente</span>
-                        <span className="xs:hidden">Novo</span>
+                        <span className="hidden sm:inline">Novo Cliente</span>
+                        <span className="sm:hidden">Novo</span>
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="w-[95vw] max-w-md mx-auto bg-popover backdrop-blur-xl border-border rounded-2xl max-h-[90vh] overflow-y-auto">
@@ -881,12 +885,12 @@ export default function ProjectSelector() {
                 fontFamily: 'Space Grotesk, sans-serif'
               }}>
                     <UserPlus className="w-4 h-4" />
-                    <span className="hidden sm:inline">Convidar</span>
+                    <span className="hidden sm:inline">Convidar Cliente</span>
                   </Button>
                 </>}
               
-              <Button variant="outline" onClick={() => setShowArchived(!showArchived)} className={cn("h-10 px-3 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all whitespace-nowrap touch-target", showArchived && 'bg-secondary text-foreground border-primary/30')}>
-                <Archive className="w-4 h-4 sm:mr-2" />
+              <Button variant="outline" onClick={() => setShowArchived(!showArchived)} className={cn("h-10 px-3 sm:px-4 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all whitespace-nowrap touch-target gap-1.5 sm:gap-2", showArchived && 'bg-secondary text-foreground border-primary/30')}>
+                <Archive className="w-4 h-4" />
                 <span className="hidden sm:inline">Arquivados</span>
               </Button>
             </div>

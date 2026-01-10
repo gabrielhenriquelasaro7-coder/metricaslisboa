@@ -1250,21 +1250,22 @@ export default function WhatsApp() {
 
             {/* Balance Alert Card */}
             <Card className="glass-card border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Wallet className="w-5 h-5" />
-                  Alerta de Saldo Crítico
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Alerta de Saldo Crítico</span>
+                  <span className="sm:hidden">Alerta de Saldo</span>
                 </CardTitle>
-                <CardDescription>
-                  Receba alertas quando o saldo da conta Meta Ads estiver baixo
+                <CardDescription className="text-xs sm:text-sm">
+                  Receba alertas quando o saldo estiver baixo
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="balance-alert">Alertas de saldo ativados</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Notificar quando o saldo estiver acabando
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg bg-muted/30 border border-border/50 gap-3">
+                  <div className="space-y-0.5 min-w-0">
+                    <Label htmlFor="balance-alert" className="text-sm">Alertas ativados</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Notificar saldo baixo
                     </p>
                   </div>
                   <Switch
@@ -1351,18 +1352,18 @@ export default function WhatsApp() {
 
             {/* Metrics Selection Card */}
             <Card className="glass-card border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg">Métricas do Relatório</CardTitle>
-                <CardDescription>
-                  Escolha quais métricas incluir no relatório
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Métricas</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Escolha as métricas do relatório
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="grid grid-cols-2 gap-2">
                   {availableMetrics.map(metric => (
                     <div
                       key={metric.id}
-                      className="flex items-center space-x-2 p-2.5 rounded-lg bg-muted/30 border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="flex items-center space-x-2 p-2 sm:p-2.5 rounded-lg bg-muted/30 border border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => toggleMetric(metric.id)}
                     >
                       <Checkbox
@@ -1370,7 +1371,7 @@ export default function WhatsApp() {
                         checked={metricsEnabled[metric.id] ?? true}
                         onCheckedChange={() => toggleMetric(metric.id)}
                       />
-                      <Label htmlFor={metric.id} className="cursor-pointer text-xs sm:text-sm truncate">
+                      <Label htmlFor={metric.id} className="cursor-pointer text-[10px] sm:text-xs truncate">
                         {metric.label}
                       </Label>
                     </div>
@@ -1380,53 +1381,55 @@ export default function WhatsApp() {
             </Card>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               <Button
                 onClick={handleSave}
                 disabled={saving || !hasChanges}
-                className="flex-1 sm:flex-none"
+                className="flex-1 h-10 text-sm"
               >
                 {saving ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 ) : (
                   <Save className="w-4 h-4 mr-2" />
                 )}
-                Salvar
+                <span className="hidden sm:inline">Salvar</span>
+                <span className="sm:hidden">Salvar</span>
               </Button>
 
               <Button
                 variant="outline"
                 onClick={sendTestReport}
                 disabled={sendingTest || !subscription}
-                className="flex-1 sm:flex-none"
+                className="flex-1 h-10 text-sm"
               >
                 {sendingTest ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 ) : (
                   <Send className="w-4 h-4 mr-2" />
                 )}
-                Enviar Teste
+                <span className="hidden sm:inline">Enviar Teste</span>
+                <span className="sm:hidden">Testar</span>
               </Button>
 
               {subscription && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:text-destructive hover:bg-destructive/10 flex-shrink-0">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Remover configuração?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Isso irá desativar o envio de relatórios para seu WhatsApp neste projeto.
+                      <AlertDialogTitle className="text-base sm:text-lg">Remover configuração?</AlertDialogTitle>
+                      <AlertDialogDescription className="text-xs sm:text-sm">
+                        Isso irá desativar o envio de relatórios.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                      <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleDelete}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
                       >
                         Remover
                       </AlertDialogAction>
@@ -1438,24 +1441,24 @@ export default function WhatsApp() {
           </div>
 
           {/* Right Column - Message Preview & Template */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Message Preview Card */}
             <Card className="glass-card border-border/50">
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
                       <Eye className="w-4 h-4" />
-                      Preview da Mensagem
+                      Preview
                     </CardTitle>
-                    <CardDescription>
-                      Como sua mensagem será exibida
+                    <CardDescription className="text-xs sm:text-sm">
+                      Visualização da mensagem
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="bg-[#0b141a] rounded-lg p-4 font-mono text-sm text-[#e9edef] whitespace-pre-wrap border border-[#2a3942] max-h-[400px] overflow-y-auto">
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="bg-[#0b141a] rounded-lg p-3 sm:p-4 font-mono text-xs sm:text-sm text-[#e9edef] whitespace-pre-wrap border border-[#2a3942] max-h-[250px] sm:max-h-[400px] overflow-y-auto">
                   {previewMessage}
                 </div>
               </CardContent>
@@ -1463,47 +1466,39 @@ export default function WhatsApp() {
 
             {/* Message Template Editor */}
             <Card className="glass-card border-border/50">
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
                       <Edit3 className="w-4 h-4" />
-                      Editar Template
+                      Template
                     </CardTitle>
-                    <CardDescription>
-                      Personalize o texto da mensagem
+                    <CardDescription className="text-xs sm:text-sm">
+                      Personalize a mensagem
                     </CardDescription>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={resetTemplate}>
-                    <RotateCcw className="w-4 h-4 mr-1" />
-                    Restaurar
+                  <Button variant="ghost" size="sm" onClick={resetTemplate} className="h-8 px-2 sm:px-3 text-xs">
+                    <RotateCcw className="w-3.5 h-3.5 sm:mr-1" />
+                    <span className="hidden sm:inline">Restaurar</span>
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
                 <Textarea
                   value={messageTemplate}
                   onChange={(e) => setMessageTemplate(e.target.value)}
-                  rows={12}
-                  className="font-mono text-sm bg-muted/30"
+                  rows={8}
+                  className="font-mono text-xs sm:text-sm bg-muted/30"
                 />
-                <div className="text-xs text-muted-foreground space-y-2">
-                  <p className="font-medium">Variáveis disponíveis:</p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <div><code className="bg-muted px-1 rounded">{'{projeto}'}</code> Nome do projeto</div>
-                    <div><code className="bg-muted px-1 rounded">{'{periodo}'}</code> Período selecionado</div>
-                    <div><code className="bg-muted px-1 rounded">{'{investimento}'}</code> Investimento</div>
-                    <div><code className="bg-muted px-1 rounded">{'{alcance}'}</code> Alcance</div>
-                    <div><code className="bg-muted px-1 rounded">{'{impressoes}'}</code> Impressões</div>
-                    <div><code className="bg-muted px-1 rounded">{'{frequencia}'}</code> Frequência</div>
-                    <div><code className="bg-muted px-1 rounded">{'{cliques}'}</code> Cliques</div>
-                    <div><code className="bg-muted px-1 rounded">{'{ctr}'}</code> CTR</div>
-                    <div><code className="bg-muted px-1 rounded">{'{cpm}'}</code> CPM</div>
-                    <div><code className="bg-muted px-1 rounded">{'{cpc}'}</code> CPC</div>
-                    <div><code className="bg-muted px-1 rounded">{'{conversoes}'}</code> Conversões</div>
-                    <div><code className="bg-muted px-1 rounded">{'{valor_conversao}'}</code> Valor</div>
-                    <div><code className="bg-muted px-1 rounded">{'{cpl}'}</code> CPL / CPA</div>
-                    <div><code className="bg-muted px-1 rounded">{'{roas}'}</code> ROAS</div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground space-y-2">
+                  <p className="font-medium">Variáveis:</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    <div><code className="bg-muted px-1 rounded text-[9px] sm:text-xs">{'{projeto}'}</code> Nome</div>
+                    <div><code className="bg-muted px-1 rounded text-[9px] sm:text-xs">{'{periodo}'}</code> Período</div>
+                    <div><code className="bg-muted px-1 rounded text-[9px] sm:text-xs">{'{investimento}'}</code> Invest.</div>
+                    <div><code className="bg-muted px-1 rounded text-[9px] sm:text-xs">{'{leads}'}</code> Leads</div>
+                    <div><code className="bg-muted px-1 rounded text-[9px] sm:text-xs">{'{cpl}'}</code> CPL</div>
+                    <div><code className="bg-muted px-1 rounded text-[9px] sm:text-xs">{'{roas}'}</code> ROAS</div>
                   </div>
                 </div>
               </CardContent>
@@ -1512,23 +1507,24 @@ export default function WhatsApp() {
             {/* Message History */}
             {subscription && messageLogs.length > 0 && (
               <Card className="glass-card border-border/50">
-                <CardHeader className="pb-3">
+                <CardHeader className="p-4 sm:p-6 pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
                       <History className="w-4 h-4" />
-                      Histórico de Envios
+                      <span className="hidden sm:inline">Histórico de Envios</span>
+                      <span className="sm:hidden">Histórico</span>
                     </CardTitle>
-                    <Badge variant="outline" className="text-xs">
-                      {messageLogs.length} {messageLogs.length === 1 ? 'envio' : 'envios'}
+                    <Badge variant="outline" className="text-[10px] sm:text-xs">
+                      {messageLogs.length}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                <CardContent className="p-4 sm:p-6 pt-0">
+                  <div className="space-y-2 sm:space-y-3 max-h-48 sm:max-h-64 overflow-y-auto pr-1">
                     {messageLogs.map((log, index) => (
                       <div
                         key={log.id}
-                        className={`relative flex items-start gap-3 p-4 rounded-xl transition-all duration-200 hover:scale-[1.01] ${
+                        className={`relative flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl transition-all duration-200 ${
                           log.status === 'sent' 
                             ? 'bg-gradient-to-r from-green-500/10 to-green-500/5 border border-green-500/20' 
                             : log.status === 'failed'
@@ -1536,7 +1532,7 @@ export default function WhatsApp() {
                             : 'bg-gradient-to-r from-yellow-500/10 to-yellow-500/5 border border-yellow-500/20'
                         }`}
                       >
-                        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                        <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${
                           log.status === 'sent' 
                             ? 'bg-green-500/20 text-green-500' 
                             : log.status === 'failed'
@@ -1544,34 +1540,30 @@ export default function WhatsApp() {
                             : 'bg-yellow-500/20 text-yellow-500'
                         }`}>
                           {log.status === 'sent' ? (
-                            <CheckCircle2 className="w-5 h-5" />
+                            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
                           ) : log.status === 'failed' ? (
-                            <XCircle className="w-5 h-5" />
+                            <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                           ) : (
-                            <Clock className="w-5 h-5" />
+                            <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
                           )}
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-sm">
-                              {log.message_type === 'weekly_report' ? '📊 Relatório Semanal' : '🧪 Teste de Envio'}
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="font-semibold text-xs sm:text-sm">
+                              {log.message_type === 'weekly_report' ? '📊 Relatório' : '🧪 Teste'}
                             </span>
                             {getStatusBadge(log.status)}
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground">
                             <Calendar className="w-3 h-3" />
-                            <span>{format(new Date(log.created_at), "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}</span>
+                            <span className="truncate">{format(new Date(log.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}</span>
                           </div>
                           {log.error_message && (
-                            <p className="mt-2 text-xs text-red-400 bg-red-500/10 rounded-md px-2 py-1">
+                            <p className="mt-1.5 text-[10px] sm:text-xs text-red-400 bg-red-500/10 rounded-md px-2 py-1 truncate">
                               {log.error_message}
                             </p>
                           )}
-                        </div>
-
-                        <div className="absolute top-2 right-2 text-[10px] text-muted-foreground/50 font-mono">
-                          #{messageLogs.length - index}
                         </div>
                       </div>
                     ))}
