@@ -16,7 +16,6 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
   User, 
-  Bell, 
   Shield, 
   Palette, 
   Loader2,
@@ -36,7 +35,6 @@ import {
   Clock,
   Sun,
   Moon,
-  Monitor,
   UserPlus
 } from 'lucide-react';
 import { GuestsTab } from '@/components/settings/GuestsTab';
@@ -69,14 +67,6 @@ interface Profile {
   avatar_url: string | null;
 }
 
-interface NotificationSettings {
-  emailReports: boolean;
-  emailAlerts: boolean;
-  browserNotifications: boolean;
-  weeklyDigest: boolean;
-  roasAlerts: boolean;
-  budgetAlerts: boolean;
-}
 
 interface SyncLog {
   id: string;
@@ -86,57 +76,7 @@ interface SyncLog {
   created_at: string;
 }
 
-type Theme = 'dark' | 'light' | 'system';
-
-type PrimaryColor = 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'custom';
-
-const COLOR_PRESETS: Record<Exclude<PrimaryColor, 'custom'>, { name: string; hue: number; saturation: number }> = {
-  red: { name: 'Vermelho', hue: 0, saturation: 85 },
-  blue: { name: 'Azul', hue: 220, saturation: 85 },
-  green: { name: 'Verde', hue: 142, saturation: 71 },
-  purple: { name: 'Roxo', hue: 270, saturation: 75 },
-  orange: { name: 'Laranja', hue: 25, saturation: 90 },
-};
-
-// Convert hex to HSL
-const hexToHsl = (hex: string): { h: number; s: number; l: number } => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return { h: 0, s: 85, l: 50 };
-  
-  let r = parseInt(result[1], 16) / 255;
-  let g = parseInt(result[2], 16) / 255;
-  let b = parseInt(result[3], 16) / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  let h = 0, s = 0;
-  const l = (max + min) / 2;
-
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-      case g: h = ((b - r) / d + 2) / 6; break;
-      case b: h = ((r - g) / d + 4) / 6; break;
-    }
-  }
-
-  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
-};
-
-// Convert HSL to hex
-const hslToHex = (h: number, s: number, l: number): string => {
-  s /= 100;
-  l /= 100;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-};
+type Theme = 'dark' | 'light';
 
 export default function Settings() {
   const { user, signOut } = useAuth();
@@ -147,31 +87,11 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState('');
-  const [notifications, setNotifications] = useState<NotificationSettings>({
-    emailReports: true,
-    emailAlerts: true,
-    browserNotifications: false,
-    weeklyDigest: true,
-    roasAlerts: true,
-    budgetAlerts: true,
-  });
   
   // Theme state
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem('theme') as Theme;
-    return stored || 'dark';
-  });
-
-  // Primary color state
-  const [primaryColor, setPrimaryColor] = useState<PrimaryColor>(() => {
-    const stored = localStorage.getItem('primaryColor') as PrimaryColor;
-    return stored || 'red';
-  });
-
-  // Custom color state (hex)
-  const [customColor, setCustomColor] = useState<string>(() => {
-    const stored = localStorage.getItem('customColor');
-    return stored || '#ef4444';
+    return (stored === 'light' || stored === 'dark') ? stored : 'dark';
   });
 
   // Sync logs state
@@ -202,50 +122,13 @@ export default function Settings() {
     fetchProfile();
   }, [user]);
 
-  // Apply theme - Sync with useTheme hook to prevent conflicts
+  // Apply theme
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
-    
-    let effectiveTheme = theme;
-    if (theme === 'system') {
-      effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    
-    root.classList.add(effectiveTheme);
-    
-    // Store effective theme (not 'system') to sync with useTheme hook
-    localStorage.setItem('theme', effectiveTheme);
+    root.classList.add(theme);
+    localStorage.setItem('theme', theme);
   }, [theme]);
-
-  // Apply primary color
-  useEffect(() => {
-    const root = document.documentElement;
-    let hue: number;
-    let saturation: number;
-    
-    if (primaryColor === 'custom') {
-      const hsl = hexToHsl(customColor);
-      hue = hsl.h;
-      saturation = hsl.s;
-      localStorage.setItem('customColor', customColor);
-    } else {
-      const colorPreset = COLOR_PRESETS[primaryColor];
-      hue = colorPreset.hue;
-      saturation = colorPreset.saturation;
-    }
-    
-    root.style.setProperty('--primary', `${hue} ${saturation}% 50%`);
-    root.style.setProperty('--ring', `${hue} ${saturation}% 50%`);
-    root.style.setProperty('--sidebar-primary', `${hue} ${saturation}% 50%`);
-    root.style.setProperty('--sidebar-ring', `${hue} ${saturation}% 50%`);
-    root.style.setProperty('--accent', `${hue} 70% 60%`);
-    root.style.setProperty('--chart-1', `${hue} ${saturation}% 50%`);
-    root.style.setProperty('--chart-2', `${hue} 70% 65%`);
-    root.style.setProperty('--metric-neutral', `${hue} ${saturation}% 50%`);
-    
-    localStorage.setItem('primaryColor', primaryColor);
-  }, [primaryColor, customColor]);
 
   // Fetch sync logs
   const fetchLogs = async () => {
@@ -364,19 +247,7 @@ export default function Settings() {
 
   const handleThemeChange = (newTheme: Theme) => {
     setTheme(newTheme);
-    toast.success(`Tema ${newTheme === 'dark' ? 'escuro' : newTheme === 'light' ? 'claro' : 'do sistema'} ativado`);
-  };
-
-  const handleColorChange = (color: PrimaryColor) => {
-    setPrimaryColor(color);
-    if (color !== 'custom') {
-      toast.success(`Cor ${COLOR_PRESETS[color].name} ativada`);
-    }
-  };
-
-  const handleCustomColorChange = (hex: string) => {
-    setCustomColor(hex);
-    setPrimaryColor('custom');
+    toast.success(`Tema ${newTheme === 'dark' ? 'escuro' : 'claro'} ativado`);
   };
 
   const getStatusIcon = (status: string) => {
@@ -448,10 +319,6 @@ export default function Settings() {
             <TabsTrigger value="profile" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
               <User className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Perfil</span>
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
-              <Bell className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Notificações</span>
             </TabsTrigger>
             <TabsTrigger value="security" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
               <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -564,54 +431,6 @@ export default function Settings() {
             </Card>
           </TabsContent>
 
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-4 sm:space-y-6">
-            <Card className="glass-card border-border/50">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                  Notificações
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Configure como você recebe notificações
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0 space-y-1">
-                {[
-                  { key: 'emailReports', title: 'Relatórios por e-mail', desc: 'Relatórios diários' },
-                  { key: 'emailAlerts', title: 'Alertas por e-mail', desc: 'Alertas importantes' },
-                  { key: 'browserNotifications', title: 'Notificações', desc: 'Notificações em tempo real' },
-                  { key: 'weeklyDigest', title: 'Resumo semanal', desc: 'Resumo do desempenho' },
-                  { key: 'roasAlerts', title: 'Alertas de ROAS', desc: 'ROAS abaixo do esperado' },
-                  { key: 'budgetAlerts', title: 'Alertas de orçamento', desc: 'Orçamento acabando' },
-                ].map((item, index) => (
-                  <div 
-                    key={item.key} 
-                    className={`flex items-center justify-between py-3 sm:py-4 ${index < 5 ? 'border-b border-border/50' : ''}`}
-                  >
-                    <div className="min-w-0 mr-2">
-                      <p className="font-medium text-sm">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">{item.desc}</p>
-                    </div>
-                    <Switch
-                      checked={notifications[item.key as keyof NotificationSettings]}
-                      onCheckedChange={(checked) =>
-                        setNotifications({ ...notifications, [item.key]: checked })
-                      }
-                      className="flex-shrink-0"
-                    />
-                  </div>
-                ))}
-
-                <div className="pt-3 sm:pt-4">
-                  <Button onClick={() => toast.success('Preferências salvas!')} className="gap-2 h-10 text-sm w-full sm:w-auto">
-                    <Save className="w-4 h-4" />
-                    Salvar
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* Security Tab */}
           <TabsContent value="security" className="space-y-4 sm:space-y-6">
@@ -699,146 +518,43 @@ export default function Settings() {
                   Aparência
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Personalize a aparência do sistema
+                  Escolha o tema do sistema
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0 space-y-6">
+              <CardContent className="p-4 sm:p-6 pt-0">
                 {/* Theme Selection */}
                 <div>
                   <Label className="mb-3 sm:mb-4 block text-sm">Tema</Label>
-                  <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-md">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-sm">
                     <button 
                       onClick={() => handleThemeChange('dark')}
                       className={cn(
-                        "group p-2 sm:p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg touch-target",
+                        "group p-3 sm:p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg touch-target",
                         theme === 'dark' 
                           ? "border-primary hover:shadow-primary/20" 
                           : "border-border hover:border-primary/50"
                       )}
                     >
-                      <div className="w-full h-8 sm:h-10 rounded-lg bg-zinc-900 border border-zinc-700 mb-2 sm:mb-3 flex items-center justify-center">
-                        <Moon className="w-3 h-3 sm:w-4 sm:h-4 text-zinc-400" />
+                      <div className="w-full h-10 sm:h-12 rounded-lg bg-zinc-900 border border-zinc-700 mb-2 sm:mb-3 flex items-center justify-center">
+                        <Moon className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400" />
                       </div>
-                      <span className="text-xs sm:text-sm font-medium">Escuro</span>
+                      <span className="text-sm font-medium">Escuro</span>
                     </button>
                     <button 
                       onClick={() => handleThemeChange('light')}
                       className={cn(
-                        "p-2 sm:p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg touch-target",
+                        "p-3 sm:p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg touch-target",
                         theme === 'light' 
                           ? "border-primary hover:shadow-primary/20" 
                           : "border-border hover:border-primary/50"
                       )}
                     >
-                      <div className="w-full h-8 sm:h-10 rounded-lg bg-white border border-gray-200 mb-2 sm:mb-3 flex items-center justify-center">
-                        <Sun className="w-3 h-3 sm:w-4 sm:h-4 text-amber-500" />
+                      <div className="w-full h-10 sm:h-12 rounded-lg bg-white border border-gray-200 mb-2 sm:mb-3 flex items-center justify-center">
+                        <Sun className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />
                       </div>
-                      <span className="text-xs sm:text-sm font-medium">Claro</span>
-                    </button>
-                    <button 
-                      onClick={() => handleThemeChange('system')}
-                      className={cn(
-                        "p-2 sm:p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg touch-target",
-                        theme === 'system' 
-                          ? "border-primary hover:shadow-primary/20" 
-                          : "border-border hover:border-primary/50"
-                      )}
-                    >
-                      <div className="w-full h-8 sm:h-10 rounded-lg bg-gradient-to-r from-zinc-900 to-white border border-border mb-2 sm:mb-3 flex items-center justify-center">
-                        <Monitor className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
-                      </div>
-                      <span className="text-xs sm:text-sm font-medium">Sistema</span>
+                      <span className="text-sm font-medium">Claro</span>
                     </button>
                   </div>
-                </div>
-
-                {/* Primary Color Selection */}
-                <div>
-                  <Label className="mb-3 sm:mb-4 block text-sm">Cor Primária</Label>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3 max-w-lg">
-                    {(Object.keys(COLOR_PRESETS) as Array<Exclude<PrimaryColor, 'custom'>>).map((color) => {
-                      const preset = COLOR_PRESETS[color];
-                      const bgColor = `hsl(${preset.hue}, ${preset.saturation}%, 50%)`;
-                      return (
-                        <button
-                          key={color}
-                          onClick={() => handleColorChange(color)}
-                          className={cn(
-                            "p-2 sm:p-3 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg touch-target",
-                            primaryColor === color
-                              ? "border-foreground shadow-lg"
-                              : "border-border hover:border-foreground/50"
-                          )}
-                        >
-                          <div 
-                            className="w-full h-8 sm:h-10 rounded-lg mb-1.5 sm:mb-2"
-                            style={{ backgroundColor: bgColor }}
-                          />
-                          <span className="text-[10px] sm:text-xs font-medium">{preset.name}</span>
-                        </button>
-                      );
-                    })}
-                    
-                    {/* Custom Color Picker */}
-                    <button
-                      onClick={() => handleColorChange('custom')}
-                      className={cn(
-                        "p-2 sm:p-3 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg relative touch-target",
-                        primaryColor === 'custom'
-                          ? "border-foreground shadow-lg"
-                          : "border-border hover:border-foreground/50"
-                      )}
-                    >
-                      <div 
-                        className="w-full h-8 sm:h-10 rounded-lg mb-1.5 sm:mb-2 relative overflow-hidden"
-                        style={{ 
-                          background: primaryColor === 'custom' 
-                            ? customColor 
-                            : 'conic-gradient(from 0deg, red, yellow, lime, aqua, blue, magenta, red)' 
-                        }}
-                      >
-                        <input
-                          type="color"
-                          value={customColor}
-                          onChange={(e) => handleCustomColorChange(e.target.value)}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                          title="Escolher cor personalizada"
-                        />
-                      </div>
-                      <span className="text-[10px] sm:text-xs font-medium">Custom</span>
-                    </button>
-                  </div>
-                  
-                  {primaryColor === 'custom' && (
-                    <div className="mt-4 flex items-center gap-3 max-w-md">
-                      <Label className="text-sm">Cor selecionada:</Label>
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-8 h-8 rounded-lg border border-border"
-                          style={{ backgroundColor: customColor }}
-                        />
-                        <Input
-                          type="text"
-                          value={customColor}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (/^#[0-9A-Fa-f]{0,6}$/.test(value)) {
-                              setCustomColor(value);
-                              if (value.length === 7) {
-                                setPrimaryColor('custom');
-                              }
-                            }
-                          }}
-                          className="w-28 font-mono text-sm bg-muted/30"
-                          placeholder="#ef4444"
-                        />
-                      </div>
-                    </div>
-                  )}
-                  
-                  <p className="text-xs text-muted-foreground mt-3">
-                    A cor primária será aplicada em todo o sistema
-                  </p>
                 </div>
               </CardContent>
             </Card>
