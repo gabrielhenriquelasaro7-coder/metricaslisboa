@@ -223,11 +223,11 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   url = `https://graph.facebook.com/v22.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting,promoted_object&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) { const data = await fetchWithRetry(url, 'ADSETS'); if (isTokenExpiredError(data)) return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), creativeThumbnailHDMap: new Map(), tokenExpired: true }; if (data.data) adsets.push(...data.data); url = data.paging?.next || null; }
   
-  // ADS - campos essenciais + creative para extração de texto
-  // Quando lightSync = false, incluímos image_hash para buscar URLs HD
+  // ADS - campos essenciais + creative para extração de texto e imagem
+  // Inclui thumbnail_url, image_url, effective_object_story_id para fallback de imagens
   const adsFields = lightSync 
-    ? 'id,name,status,adset_id,campaign_id,creative{id,object_story_spec,asset_feed_spec}'
-    : 'id,name,status,adset_id,campaign_id,creative{id,image_hash,object_story_spec,asset_feed_spec}';
+    ? 'id,name,status,adset_id,campaign_id,creative{id,object_story_spec,asset_feed_spec,thumbnail_url}'
+    : 'id,name,status,adset_id,campaign_id,creative{id,image_hash,object_story_spec,asset_feed_spec,thumbnail_url,image_url}';
   url = `https://graph.facebook.com/v22.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   console.log(`[ADS-QUERY] ${lightSync ? 'LIGHT' : 'FULL'} SYNC - fetching ads...`);
   
@@ -881,8 +881,16 @@ function extractCreativeImage(ad: any, adImageMap?: Map<string, string>, videoTh
   const creative = ad?.creative;
   const oss = creative?.object_story_spec;
   
+  // PRIORIDADE 0: thumbnail_url e image_url direto do creative (mais confiável)
+  if (creative?.thumbnail_url) {
+    imageUrl = creative.thumbnail_url;
+  }
+  if (!imageUrl && creative?.image_url) {
+    imageUrl = creative.image_url;
+  }
+  
   // PRIORIDADE 1: image_hash via adImageMap (url_1024 do endpoint /adimages)
-  if (creative?.image_hash && adImageMap?.has(creative.image_hash)) {
+  if (!imageUrl && creative?.image_hash && adImageMap?.has(creative.image_hash)) {
     imageUrl = adImageMap.get(creative.image_hash)!;
   }
   
@@ -904,11 +912,25 @@ function extractCreativeImage(ad: any, adImageMap?: Map<string, string>, videoTh
   if (!imageUrl && oss?.link_data?.picture) {
     imageUrl = oss.link_data.picture;
   }
+  if (!imageUrl && oss?.link_data?.image_url) {
+    imageUrl = oss.link_data.image_url;
+  }
   
-  // PRIORIDADE 3: Para vídeos, usar thumbnail HD
-  if (!imageUrl && oss?.video_data?.video_id && videoThumbnailMap?.has(oss.video_data.video_id)) {
-    imageUrl = videoThumbnailMap.get(oss.video_data.video_id)!;
+  // PRIORIDADE 3: Para vídeos, usar thumbnail HD ou image_url do video_data
+  if (!imageUrl && oss?.video_data?.video_id) {
+    if (videoThumbnailMap?.has(oss.video_data.video_id)) {
+      imageUrl = videoThumbnailMap.get(oss.video_data.video_id)!;
+    } else if (oss.video_data.image_url) {
+      imageUrl = oss.video_data.image_url;
+    }
     videoUrl = `https://www.facebook.com/${oss.video_data.video_id}`;
+  }
+  
+  // PRIORIDADE 4: asset_feed_spec para anúncios dinâmicos
+  if (!imageUrl && creative?.asset_feed_spec?.images?.length > 0) {
+    const firstImage = creative.asset_feed_spec.images[0];
+    if (firstImage.url) imageUrl = firstImage.url;
+    else if (firstImage.url_tags) imageUrl = firstImage.url_tags;
   }
   
   return { imageUrl, videoUrl };
