@@ -657,7 +657,7 @@ export default function ProjectSelector() {
               {/* Nav items - Horizontal scroll on mobile */}
               {/* Nav items - Icon only on mobile, full label on desktop */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 sm:mx-0 sm:px-0 scrollbar-hide">
-                <button className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition-all flex items-center gap-1.5 sm:gap-2.5 whitespace-nowrap touch-target">
+                <button className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-semibold text-foreground bg-secondary hover:bg-secondary/80 transition-all flex items-center gap-1.5 sm:gap-2.5 whitespace-nowrap touch-target border border-border">
                   <img src={metaIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span className="hidden sm:inline">META ADS</span>
                 </button>
