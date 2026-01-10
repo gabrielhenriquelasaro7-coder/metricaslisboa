@@ -72,8 +72,8 @@ export function useChartResponsive(): ChartResponsiveConfig {
         isMobile: true,
         isTablet: false,
         isDesktop: false,
-        // Smaller height for mobile
-        chartHeight: 220,
+        // Increased height for mobile
+        chartHeight: 260,
         // Smaller fonts for mobile
         xAxisFontSize: 9,
         yAxisFontSize: 9,
@@ -113,7 +113,7 @@ export function useChartResponsive(): ChartResponsiveConfig {
         isMobile: false,
         isTablet: true,
         isDesktop: false,
-        chartHeight: 280,
+        chartHeight: 340,
         xAxisFontSize: 10,
         yAxisFontSize: 10,
         xAxisTickCount: 6,
@@ -136,7 +136,7 @@ export function useChartResponsive(): ChartResponsiveConfig {
         isMobile: false,
         isTablet: false,
         isDesktop: true,
-        chartHeight: 350,
+        chartHeight: 400,
         xAxisFontSize: 11,
         yAxisFontSize: 11,
         xAxisTickCount: 10,

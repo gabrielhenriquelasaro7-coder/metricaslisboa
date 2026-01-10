@@ -98,28 +98,34 @@
     }
   }
   
-  /* Mobile-optimized chart container */
+  /* Mobile-optimized chart container - WIDER */
   .chart-container-mobile {
     width: 100%;
-    min-height: 220px;
+    min-height: 260px;
     overflow: hidden;
   }
   
   @media (min-width: 480px) {
     .chart-container-mobile {
-      min-height: 260px;
+      min-height: 300px;
     }
   }
   
   @media (min-width: 640px) {
     .chart-container-mobile {
-      min-height: 300px;
+      min-height: 340px;
     }
   }
   
   @media (min-width: 768px) {
     .chart-container-mobile {
-      min-height: 350px;
+      min-height: 400px;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .chart-container-mobile {
+      min-height: 420px;
     }
   }
   
