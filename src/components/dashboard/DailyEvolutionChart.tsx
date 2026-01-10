@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { DailyMetric } from '@/hooks/useDailyMetrics';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useChartResponsive, sampleDataForMobile, formatCompactCurrency } from '@/hooks/useChartResponsive';
 
 interface DailyEvolutionChartProps {
   data: DailyMetric[];
@@ -82,35 +83,34 @@ export default function DailyEvolutionChart({
   currency = 'BRL'
 }: DailyEvolutionChartProps) {
   const isEcommerce = businessModel === 'ecommerce';
+  const responsive = useChartResponsive();
   
   // Calculate the date range span to determine if we should aggregate by month
-  // More than 60 data points OR more than 60 days span = aggregate by month
   const shouldAggregateByMonth = useMemo(() => {
     if (data.length === 0) return false;
-    
-    // If more than 60 data points, aggregate
     if (data.length > 60) return true;
     
-    // Also check actual date span
     const firstDate = new Date(data[0].date);
     const lastDate = new Date(data[data.length - 1].date);
     const daysDiff = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    console.log(`[DailyEvolutionChart] Data length: ${data.length}, Days span: ${daysDiff}, shouldAggregate: ${data.length > 60 || daysDiff > 60}`);
     
     return daysDiff > 60;
   }, [data]);
   
   const chartData = useMemo(() => {
-    // If too many data points, aggregate by month
     const processedData = shouldAggregateByMonth ? aggregateByMonth(data) : data;
     
-    return processedData.map(d => {
-      // For monthly data, the date is already in 'yyyy-MM' format
-      const isMonthly = d.date.length === 7; // 'yyyy-MM' = 7 chars
+    // Sample data for mobile to reduce density
+    const sampledData = responsive.isMobile 
+      ? sampleDataForMobile(processedData, responsive.maxDataPoints)
+      : processedData;
+    
+    return sampledData.map(d => {
+      const isMonthly = d.date.length === 7;
+      // Shorter date format for mobile
       const formattedDate = isMonthly 
-        ? format(parseISO(`${d.date}-01`), 'MMM/yy', { locale: ptBR })
-        : format(parseISO(d.date), 'dd/MM', { locale: ptBR });
+        ? format(parseISO(`${d.date}-01`), responsive.isMobile ? 'MM/yy' : 'MMM/yy', { locale: ptBR })
+        : format(parseISO(d.date), responsive.isMobile ? 'dd/MM' : 'dd/MM', { locale: ptBR });
       
       return {
         date: formattedDate,
@@ -123,34 +123,47 @@ export default function DailyEvolutionChart({
         ctr: d.ctr,
       };
     });
-  }, [data, shouldAggregateByMonth]);
+  }, [data, shouldAggregateByMonth, responsive.isMobile, responsive.maxDataPoints]);
 
   const formatCurrency = (value: number) => {
+    if (responsive.isMobile) {
+      return formatCompactCurrency(value, currency);
+    }
     const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(value);
   };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload || !payload.length) return null;
 
+    const fullFormatCurrency = (value: number) => {
+      const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(value);
+    };
+
     return (
-      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
-        <p className="font-medium text-sm mb-2">{label}</p>
+      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-2 sm:p-3 shadow-lg max-w-[200px] sm:max-w-none">
+        <p className="font-medium text-xs sm:text-sm mb-1 sm:mb-2">{label}</p>
         {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center gap-2 text-sm">
+          <div key={index} className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <div 
-              className="w-3 h-3 rounded-full" 
+              className="w-2 h-2 sm:w-3 sm:h-3 rounded-full shrink-0" 
               style={{ backgroundColor: entry.color }}
             />
-            <span className="text-muted-foreground">{entry.name}:</span>
+            <span className="text-muted-foreground truncate">{entry.name}:</span>
             <span className="font-medium">
               {entry.name === 'Gasto' || entry.name === 'Receita' || entry.name === 'CPL'
-                ? formatCurrency(entry.value)
+                ? fullFormatCurrency(entry.value)
                 : entry.name === 'ROAS'
                   ? `${entry.value.toFixed(2)}x`
                   : entry.name === 'CTR'
@@ -165,9 +178,9 @@ export default function DailyEvolutionChart({
 
   if (data.length === 0) {
     return (
-      <div className={cn('glass-card p-6', className)}>
-        <h3 className="text-lg font-semibold mb-4">Evolução Diária</h3>
-        <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+      <div className={cn('glass-card p-4 sm:p-6', className)}>
+        <h3 className="text-base sm:text-lg font-semibold mb-4">Evolução Diária</h3>
+        <div className="h-[180px] sm:h-[300px] flex items-center justify-center text-muted-foreground text-sm">
           Sem dados para o período selecionado
         </div>
       </div>
@@ -175,13 +188,13 @@ export default function DailyEvolutionChart({
   }
 
   return (
-    <div className={cn('glass-card p-6', className)}>
-      <h3 className="text-lg font-semibold mb-4">
+    <div className={cn('glass-card p-4 sm:p-6', className)}>
+      <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">
         {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'} - {isEcommerce ? 'Gasto vs Receita' : 'Gasto vs Leads'}
       </h3>
-      <div className="h-[350px]">
+      <div style={{ height: responsive.chartHeight }} className="w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+          <ComposedChart data={chartData} margin={responsive.chartMargins}>
             <defs>
               <linearGradient id="gradientSpend" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
@@ -196,30 +209,39 @@ export default function DailyEvolutionChart({
             <XAxis 
               dataKey="date" 
               stroke="hsl(var(--muted-foreground))" 
-              fontSize={11}
+              fontSize={responsive.xAxisFontSize}
               tickLine={false}
               axisLine={false}
+              angle={responsive.xAxisAngle}
+              textAnchor={responsive.xAxisTextAnchor}
+              height={responsive.isMobile ? 40 : 30}
+              interval={responsive.isMobile ? 'preserveStartEnd' : 'equidistantPreserveStart'}
+              tick={{ dy: responsive.isMobile ? 8 : 0 }}
             />
             <YAxis 
               yAxisId="left"
               stroke="hsl(var(--muted-foreground))" 
-              fontSize={11}
+              fontSize={responsive.yAxisFontSize}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => formatCurrency(value)}
+              tickFormatter={formatCurrency}
+              width={responsive.isMobile ? 45 : 60}
             />
-            <YAxis 
-              yAxisId="right"
-              orientation="right"
-              stroke="hsl(var(--muted-foreground))" 
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-            />
+            {!responsive.isMobile && (
+              <YAxis 
+                yAxisId="right"
+                orientation="right"
+                stroke="hsl(var(--muted-foreground))" 
+                fontSize={responsive.yAxisFontSize}
+                tickLine={false}
+                axisLine={false}
+              />
+            )}
             <Tooltip content={<CustomTooltip />} />
             <Legend 
-              wrapperStyle={{ paddingTop: '20px' }}
-              formatter={(value) => <span className="text-sm">{value}</span>}
+              wrapperStyle={responsive.legendWrapperStyle}
+              formatter={(value) => <span className="text-xs sm:text-sm">{value}</span>}
+              iconSize={responsive.isMobile ? 8 : 14}
             />
             
             {/* Gasto */}
@@ -229,11 +251,13 @@ export default function DailyEvolutionChart({
               dataKey="spend"
               name="Gasto"
               stroke="hsl(var(--primary))"
-              strokeWidth={2}
+              strokeWidth={responsive.strokeWidth}
               fill="url(#gradientSpend)"
+              dot={false}
+              activeDot={{ r: responsive.activeDotRadius }}
             />
             
-            {/* Receita (E-commerce) ou Conversões como linha */}
+            {/* Receita (E-commerce) ou Conversões como barras */}
             {isEcommerce ? (
               <Area
                 yAxisId="left"
@@ -241,29 +265,31 @@ export default function DailyEvolutionChart({
                 dataKey="revenue"
                 name="Receita"
                 stroke="hsl(142, 76%, 36%)"
-                strokeWidth={2}
+                strokeWidth={responsive.strokeWidth}
                 fill="url(#gradientRevenue)"
+                dot={false}
+                activeDot={{ r: responsive.activeDotRadius }}
               />
             ) : (
               <Bar
-                yAxisId="right"
+                yAxisId={responsive.isMobile ? "left" : "right"}
                 dataKey="conversions"
                 name="Leads"
                 fill="hsl(var(--chart-1))"
-                radius={[4, 4, 0, 0]}
+                radius={responsive.barRadius}
                 opacity={0.8}
               />
             )}
             
-            {/* ROAS ou CPL como linha secundária */}
-            {isEcommerce && (
+            {/* ROAS como linha secundária - hide on mobile for cleaner view */}
+            {isEcommerce && !responsive.isMobile && (
               <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="roas"
                 name="ROAS"
                 stroke="hsl(var(--chart-2))"
-                strokeWidth={2}
+                strokeWidth={responsive.strokeWidth}
                 dot={false}
               />
             )}
