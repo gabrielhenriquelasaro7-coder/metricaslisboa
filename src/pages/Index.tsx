@@ -8,14 +8,14 @@ export default function Index() {
   const [redirected, setRedirected] = useState(false);
 
   useEffect(() => {
-    // Force redirect after 3 seconds even if still loading
+    // Force redirect after 1.5 seconds even if still loading
     const forceRedirectTimeout = setTimeout(() => {
       if (!redirected) {
         console.warn('[Index] Force redirect to /auth after timeout');
         navigate('/auth', { replace: true });
         setRedirected(true);
       }
-    }, 3000);
+    }, 1500);
 
     if (!loading && !redirected) {
       if (user) {
@@ -31,12 +31,10 @@ export default function Index() {
     return () => clearTimeout(forceRedirectTimeout);
   }, [user, loading, navigate, redirected]);
 
+  // Simple spinner without external dependencies
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-        <p className="text-sm text-muted-foreground">Carregando...</p>
-      </div>
+      <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
     </div>
   );
 }

@@ -20,11 +20,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Safety timeout to prevent infinite loading
+    // Safety timeout to prevent infinite loading - reduced to 2 seconds
     const timeoutId = setTimeout(() => {
       console.warn('[useAuth] Auth check timeout - forcing loading to false');
       setLoading(false);
-    }, 5000);
+    }, 2000);
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
