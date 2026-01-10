@@ -549,7 +549,7 @@ export function CustomizableChart({
   return (
     <>
       <div className={cn(
-        'premium-card p-6 transition-all duration-300 group',
+        'premium-card p-3 sm:p-6 transition-all duration-300 group',
         className
       )}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
