@@ -12,6 +12,7 @@ import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { translateCTA } from '@/utils/ctaTranslations';
+import { CatalogImagesCarousel } from '@/components/catalog/CatalogImagesCarousel';
 import { 
   ChevronLeft,
   Image as ImageIcon,
@@ -449,6 +450,11 @@ export default function AdDetail() {
                 </Button>
               )}
             </div>
+
+            {/* Catalog Images Carousel - for dynamic catalog ads */}
+            {isCatalogAd && projectId && (
+              <CatalogImagesCarousel projectId={projectId} />
+            )}
 
             {(ad.headline || ad.primary_text || ad.cta) && (
               <div className="glass-card p-4">
