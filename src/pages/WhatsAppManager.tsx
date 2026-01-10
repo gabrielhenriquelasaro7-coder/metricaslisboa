@@ -197,54 +197,52 @@ export default function WhatsAppManager() {
     <div className="min-h-screen bg-background">
       {/* Header fixo com logo V4 */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link 
               to="/projects"
-              className="flex items-center gap-3 group transition-all duration-300 hover:opacity-80"
+              className="flex items-center gap-2 sm:gap-3 group transition-all duration-300 hover:opacity-80 flex-shrink-0"
             >
               <img 
-                src={v4Logo} 
-                alt="V4 Company" 
-                className="h-10 w-auto"
+                src={whatsappIcon} 
+                alt="WhatsApp" 
+                className="w-7 h-7 sm:w-8 sm:h-8"
               />
+              <span className="text-base sm:text-lg font-semibold text-foreground whitespace-nowrap">
+                WhatsApp Manager
+              </span>
             </Link>
-            <div className="w-px h-8 bg-border/50" />
-            <div className="flex items-center gap-3">
-              <img src={whatsappIcon} alt="WhatsApp" className="w-8 h-8" />
-              <span className="text-lg font-semibold text-foreground">WhatsApp Manager</span>
-            </div>
           </div>
           <Button 
             variant="outline" 
             size="sm"
             onClick={() => navigate('/projects')}
-            className="gap-2"
+            className="gap-1 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm flex-shrink-0"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Voltar para Projetos
+            <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden xs:inline">Voltar para</span> Projetos
           </Button>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto p-6 space-y-8">
+      <div className="max-w-5xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-8">
         {/* Page Header */}
         <div>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Conecte seu WhatsApp e configure envios automáticos de relatórios para todos os seus projetos
           </p>
         </div>
 
         {/* Connections Section */}
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Smartphone className="w-5 h-5" />
-                  Suas Conexões WhatsApp
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="min-w-0">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <span className="truncate">Suas Conexões WhatsApp</span>
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm mt-1">
                   Conecte até {maxInstances} números de WhatsApp
                 </CardDescription>
               </div>
@@ -252,25 +250,25 @@ export default function WhatsAppManager() {
                 onClick={() => setNewInstanceDialogOpen(true)}
                 disabled={!canCreateInstance || creating}
                 size="sm"
-                className="bg-[#25D366] hover:bg-[#20BD5A] text-white"
+                className="bg-[#25D366] hover:bg-[#20BD5A] text-white h-8 sm:h-9 text-xs sm:text-sm w-full sm:w-auto flex-shrink-0"
               >
                 {creating ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Criando...</>
+                  <><Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 animate-spin" /> Criando...</>
                 ) : (
-                  <><Plus className="w-4 h-4 mr-2" /> Nova Conexão</>
+                  <><Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Nova Conexão</>
                 )}
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
             {instances.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Smartphone className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>Nenhuma conexão configurada</p>
-                <p className="text-sm">Clique em "Nova Conexão" para começar</p>
+              <div className="text-center py-6 sm:py-8 text-muted-foreground">
+                <Smartphone className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 opacity-30" />
+                <p className="text-sm sm:text-base">Nenhuma conexão configurada</p>
+                <p className="text-xs sm:text-sm">Clique em "Nova Conexão" para começar</p>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
                 {instances.map(instance => (
                   <ManagerInstanceCard
                     key={instance.id}
@@ -289,22 +287,22 @@ export default function WhatsAppManager() {
 
         {/* Projects Configuration Section */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings2 className="w-5 h-5" />
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Settings2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
               Configurações por Projeto
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm mt-1">
               Configure o envio automático de relatórios para cada projeto
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
             {activeProjects.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Nenhum projeto encontrado</p>
+              <div className="text-center py-6 sm:py-8 text-muted-foreground">
+                <p className="text-sm sm:text-base">Nenhum projeto encontrado</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {activeProjects.map(project => {
                   const { status, config } = getProjectConfigStatus(project.id);
                   const instance = config ? instances.find(i => i.id === config.instance_id) : null;
@@ -312,18 +310,18 @@ export default function WhatsAppManager() {
                   return (
                     <div
                       key={project.id}
-                      className="flex items-center justify-between gap-4 p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium truncate">{project.name}</h4>
+                        <h4 className="font-medium truncate text-sm sm:text-base">{project.name}</h4>
                         {config && (
-                          <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                            <Smartphone className="w-3 h-3" />
-                            <span>{instance?.display_name || 'Sem conexão'}</span>
+                          <div className="flex items-center gap-1.5 sm:gap-2 mt-1 text-xs sm:text-sm text-muted-foreground flex-wrap">
+                            <Smartphone className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{instance?.display_name || 'Sem conexão'}</span>
                             {config.report_enabled && (
                               <>
                                 <span>•</span>
-                                <Calendar className="w-3 h-3" />
+                                <Calendar className="w-3 h-3 flex-shrink-0" />
                                 <span>
                                   {DAYS_OF_WEEK[config.report_day_of_week]} {config.report_time}
                                 </span>
@@ -333,73 +331,75 @@ export default function WhatsAppManager() {
                         )}
                       </div>
 
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <Badge 
-                            variant={status === 'active' ? 'default' : 'secondary'}
-                            className={
-                              status === 'active' ? 'bg-[#25D366]/20 text-[#25D366] border-[#25D366]/30' :
-                              status === 'disconnected' ? 'bg-metric-warning/20 text-metric-warning border-metric-warning/30' :
-                              status === 'disabled' ? 'bg-muted text-muted-foreground' :
-                              ''
-                            }
-                          >
-                            {status === 'active' && <><CheckCircle2 className="w-3 h-3 mr-1" /> Ativo</>}
-                            {status === 'disconnected' && <><AlertTriangle className="w-3 h-3 mr-1" /> Desconectado</>}
-                            {status === 'disabled' && <><XCircle className="w-3 h-3 mr-1" /> Desativado</>}
-                            {status === 'not_configured' && <><Clock className="w-3 h-3 mr-1" /> Não configurado</>}
-                          </Badge>
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap">
+                        <Badge 
+                          variant={status === 'active' ? 'default' : 'secondary'}
+                          className={`text-[10px] sm:text-xs ${
+                            status === 'active' ? 'bg-[#25D366]/20 text-[#25D366] border-[#25D366]/30' :
+                            status === 'disconnected' ? 'bg-metric-warning/20 text-metric-warning border-metric-warning/30' :
+                            status === 'disabled' ? 'bg-muted text-muted-foreground' :
+                            ''
+                          }`}
+                        >
+                          {status === 'active' && <><CheckCircle2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" /> Ativo</>}
+                          {status === 'disconnected' && <><AlertTriangle className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" /> Desconectado</>}
+                          {status === 'disabled' && <><XCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" /> Desativado</>}
+                          {status === 'not_configured' && <><Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" /> <span className="hidden xs:inline">Não </span>config.</>}
+                        </Badge>
 
-                          {/* Toggle Enable/Disable Button */}
-                          {config && status !== 'not_configured' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleToggleConfig(project.id, config.report_enabled)}
-                              disabled={togglingProjectId === project.id}
-                              className={config.report_enabled 
-                                ? 'text-metric-warning hover:bg-metric-warning/10' 
-                                : 'text-[#25D366] hover:bg-[#25D366]/10'
-                              }
-                              title={config.report_enabled ? 'Desativar relatório' : 'Ativar relatório'}
-                            >
-                              {togglingProjectId === project.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : config.report_enabled ? (
-                                <PowerOff className="w-4 h-4" />
-                              ) : (
-                                <Power className="w-4 h-4" />
-                              )}
-                            </Button>
-                          )}
-
-                          {/* Resend Report Button */}
-                          {config && status === 'active' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleResendReport(project.id)}
-                              disabled={resendingProjectId === project.id}
-                              className="text-[#25D366] hover:bg-[#25D366]/10"
-                              title="Reenviar relatório agora"
-                            >
-                              {resendingProjectId === project.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Send className="w-4 h-4" />
-                              )}
-                            </Button>
-                          )}
-
+                        {/* Toggle Enable/Disable Button */}
+                        {config && status !== 'not_configured' && (
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleOpenConfig(project)}
-                            disabled={instances.filter(i => i.instance_status === 'connected').length === 0}
+                            onClick={() => handleToggleConfig(project.id, config.report_enabled)}
+                            disabled={togglingProjectId === project.id}
+                            className={`h-7 sm:h-8 w-7 sm:w-8 p-0 ${config.report_enabled 
+                              ? 'text-metric-warning hover:bg-metric-warning/10' 
+                              : 'text-[#25D366] hover:bg-[#25D366]/10'
+                            }`}
+                            title={config.report_enabled ? 'Desativar relatório' : 'Ativar relatório'}
                           >
-                            <Settings2 className="w-4 h-4 mr-2" />
-                            Configurar
+                            {togglingProjectId === project.id ? (
+                              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                            ) : config.report_enabled ? (
+                              <PowerOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            ) : (
+                              <Power className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            )}
                           </Button>
-                        </div>
+                        )}
+
+                        {/* Resend Report Button */}
+                        {config && status === 'active' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResendReport(project.id)}
+                            disabled={resendingProjectId === project.id}
+                            className="h-7 sm:h-8 w-7 sm:w-8 p-0 text-[#25D366] hover:bg-[#25D366]/10"
+                            title="Reenviar relatório agora"
+                          >
+                            {resendingProjectId === project.id ? (
+                              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                            ) : (
+                              <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            )}
+                          </Button>
+                        )}
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenConfig(project)}
+                          disabled={instances.filter(i => i.instance_status === 'connected').length === 0}
+                          className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
+                        >
+                          <Settings2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                          <span className="hidden xs:inline">Configurar</span>
+                          <span className="xs:hidden">Config</span>
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -407,9 +407,9 @@ export default function WhatsAppManager() {
             )}
 
             {instances.filter(i => i.instance_status === 'connected').length === 0 && activeProjects.length > 0 && (
-              <div className="mt-4 p-4 rounded-lg bg-metric-warning/10 border border-metric-warning/30 text-sm">
+              <div className="mt-3 sm:mt-4 p-3 sm:p-4 rounded-lg bg-metric-warning/10 border border-metric-warning/30 text-xs sm:text-sm">
                 <div className="flex items-center gap-2 text-metric-warning">
-                  <AlertTriangle className="w-4 h-4" />
+                  <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                   <span>Conecte um WhatsApp para configurar os projetos</span>
                 </div>
               </div>
