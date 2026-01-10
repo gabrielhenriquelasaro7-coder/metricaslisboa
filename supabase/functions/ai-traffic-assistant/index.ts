@@ -27,9 +27,9 @@ serve(async (req) => {
     
     console.log('AI Assistant request:', { projectId, startDate, endDate, analysisType, message, skipCache });
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY não configurada');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY não configurada');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -142,35 +142,35 @@ serve(async (req) => {
       totalConversions: aggregatedMetrics.conversions
     };
 
-    // Call Lovable AI Gateway with streaming
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Call Google Gemini API directly
+    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: buildSystemPrompt(!!project.ai_briefing) },
-          { role: 'user', content: `${context}\n\n=== PERGUNTA DO USUÁRIO ===\n${message}\n\nTake a deep breath and work on this problem step-by-step.` }
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `${buildSystemPrompt(!!project.ai_briefing)}\n\n${context}\n\n=== PERGUNTA DO USUÁRIO ===\n${message}\n\nTake a deep breath and work on this problem step-by-step.` }]
+          }
         ],
-        stream: true,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4096,
+        }
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('AI Gateway error:', aiResponse.status, errorText);
+      console.error('Gemini API error:', aiResponse.status, errorText);
       
       if (aiResponse.status === 429) {
         throw new Error('Limite de requisições excedido. Tente novamente em alguns segundos.');
       }
-      if (aiResponse.status === 402) {
-        throw new Error('Créditos de IA esgotados. Adicione mais créditos em Settings.');
-      }
       
-      throw new Error(`Erro no AI Gateway: ${aiResponse.status}`);
+      throw new Error(`Erro na API Gemini: ${aiResponse.status}`);
     }
 
     // Stream the response directly to the client
