@@ -43,15 +43,33 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return hasActiveImport;
   }, []);
 
+  // Quick timeout to prevent infinite loading - runs immediately
   useEffect(() => {
-    const init = async () => {
-      if (loading || roleLoading) return;
-      
-      if (!user) {
-        navigate('/auth');
-        return;
+    const quickTimeout = setTimeout(() => {
+      if (hasProject === null) {
+        console.warn('Quick timeout - setting hasProject to true');
+        setHasProject(true);
       }
+      if (isImporting === null) {
+        console.warn('Quick timeout - setting isImporting to false');
+        setIsImporting(false);
+      }
+    }, 3000); // 3 second timeout
 
+    return () => clearTimeout(quickTimeout);
+  }, []);
+
+  useEffect(() => {
+    // Skip if auth is still loading
+    if (loading || roleLoading) return;
+    
+    // If no user, redirect to auth
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+
+    const init = async () => {
       try {
         let selectedProjectId = localStorage.getItem('selectedProjectId');
         
@@ -114,19 +132,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
     init();
   }, [user, loading, roleLoading, isGuest, navigate, checkImportStatus]);
-
-  // Timeout fallback to prevent infinite loading
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (hasProject === null || isImporting === null) {
-        console.warn('Dashboard init timeout - forcing state');
-        setHasProject(false);
-        setIsImporting(false);
-      }
-    }, 10000); // 10 second timeout
-
-    return () => clearTimeout(timeout);
-  }, [hasProject, isImporting]);
 
   const handleImportComplete = useCallback(() => {
     setIsImporting(false);
