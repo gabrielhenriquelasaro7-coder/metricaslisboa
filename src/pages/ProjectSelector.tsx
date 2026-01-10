@@ -747,13 +747,9 @@ export default function ProjectSelector() {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
               <div className="relative flex-1 sm:flex-none">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar cliente..." 
-                  value={searchQuery} 
-                  onChange={e => setSearchQuery(e.target.value)} 
-                  className="pl-10 h-10 sm:h-10 w-full sm:w-56 lg:w-72 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:ring-primary/20 rounded-xl touch-target" 
-                  style={{ fontFamily: 'Inter, sans-serif' }} 
-                />
+                <Input placeholder="Buscar cliente..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 h-10 sm:h-10 w-full sm:w-56 lg:w-72 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:ring-primary/20 rounded-xl touch-target" style={{
+                fontFamily: 'Inter, sans-serif'
+              }} />
               </div>
               
               <Select value={healthFilter} onValueChange={val => setHealthFilter(val as any)}>
@@ -779,7 +775,7 @@ export default function ProjectSelector() {
                   }}>
                         <Plus className="w-4 h-4" />
                         <span className="hidden sm:inline">Novo Cliente</span>
-                        <span className="sm:hidden">Novo</span>
+                        <span className="sm:hidden">Novo cliente   </span>
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="w-[95vw] max-w-md mx-auto bg-popover backdrop-blur-xl border-border rounded-2xl max-h-[90vh] overflow-y-auto">
