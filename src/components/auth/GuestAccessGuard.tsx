@@ -19,8 +19,6 @@ const GUEST_ALLOWED_ROUTES = [
   '/change-password',
   '/guest-onboarding',
   '/auth',
-  '/onboarding',
-  '/',
   '/optimization-history',
 ];
 
