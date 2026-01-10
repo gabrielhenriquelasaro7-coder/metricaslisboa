@@ -177,12 +177,15 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               />
             </div>
           )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="sidebar-collapse-btn flex-shrink-0"
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
+          {/* Hide collapse button on mobile (when onNavigate is provided) */}
+          {!onNavigate && (
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="sidebar-collapse-btn flex-shrink-0"
+            >
+              {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </button>
+          )}
         </div>
 
         {/* Project Selector */}
