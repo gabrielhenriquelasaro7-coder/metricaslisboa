@@ -51,18 +51,34 @@ export function useProjects() {
 
   const fetchProjects = useCallback(async () => {
     if (!user) {
+      setProjects([]);
       setLoading(false);
       return;
     }
     
+    // Safety timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('[useProjects] Fetch timeout - forcing loading to false');
+      setLoading(false);
+    }, 10000);
+    
     try {
+      setLoading(true);
+      
       // RLS policies handle filtering - guests see only their accessible projects
       const { data, error } = await supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      clearTimeout(timeoutId);
+
+      if (error) {
+        console.error('Error fetching projects:', error);
+        toast.error('Erro ao carregar projetos');
+        setProjects([]);
+        return;
+      }
       
       // Parse sync_progress from JSON
       const parsedProjects = (data || []).map((p: any) => ({
@@ -72,8 +88,10 @@ export function useProjects() {
       
       setProjects(parsedProjects);
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error('Error fetching projects:', error);
       toast.error('Erro ao carregar projetos');
+      setProjects([]);
     } finally {
       setLoading(false);
     }
