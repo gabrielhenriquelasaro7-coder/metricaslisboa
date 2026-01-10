@@ -1091,7 +1091,7 @@ Deno.serve(async (req) => {
     const token = access_token || metaAccessToken;
     if (!token) throw new Error('No Meta access token available');
     
-    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, immediateCache, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id, light_sync, skip_image_cache);
+    const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, immediateCache, creativeThumbnailHDMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id, light_sync, skip_image_cache);
     if (tokenExpired) return new Response(JSON.stringify({ success: false, error: 'Token do Meta expirou.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     
     console.log(`[DEBUG] Entities fetched - campaigns: ${campaigns.length}, adsets: ${adsets.length}, ads: ${ads.length}`);
@@ -1133,6 +1133,9 @@ Deno.serve(async (req) => {
         const cachedData = cachedCreativeMap.get(adId);
         const cachedUrl = immediateCache.get(adId) || cachedData?.cached_url || null;
         
+        // PRIORIDADE: 1) thumbnail HD via endpoint, 2) imageUrl do extractCreativeImage, 3) cached
+        const hdThumbnail = creativeThumbnailHDMap.get(adId);
+        
         dailyRecords.push({
           project_id,
           date,
@@ -1148,7 +1151,7 @@ Deno.serve(async (req) => {
           ad_name: insights.ad_name || ad?.name || 'Unknown',
           ad_status: ad?.status || null,
           creative_id: ad?.creative?.id || null,
-          creative_thumbnail: imageUrl || cachedData?.thumbnail_url || null,
+          creative_thumbnail: hdThumbnail || imageUrl || cachedData?.thumbnail_url || null,
           cached_creative_thumbnail: cachedUrl,
           spend,
           impressions,
@@ -1267,13 +1270,16 @@ Deno.serve(async (req) => {
         const { imageUrl, videoUrl } = extractCreativeImage(ad, adImageMap, videoThumbnailMap);
         const cachedUrl = immediateCache.get(r.ad_id) || cachedData?.cached_url || null;
         
+        // PRIORIDADE: 1) thumbnail HD via endpoint, 2) imageUrl do extractCreativeImage, 3) cached
+        const hdThumbnail = creativeThumbnailHDMap.get(r.ad_id);
+        
         adMetrics.set(r.ad_id, { 
           ...initMetric(r.ad_id, r.ad_name, { status: ad?.status }), 
           campaign_id: r.campaign_id, 
           ad_set_id: r.adset_id,
           creative_id: ad?.creative?.id || null,
-          creative_thumbnail: imageUrl || cachedData?.thumbnail_url || null,
-          creative_image_url: imageUrl || cachedData?.image_url || null,
+          creative_thumbnail: hdThumbnail || imageUrl || cachedData?.thumbnail_url || null,
+          creative_image_url: hdThumbnail || imageUrl || cachedData?.image_url || null,
           creative_video_url: videoUrl || cachedData?.video_url || null,
           cached_image_url: cachedUrl,
           headline: headline || cachedData?.headline || null,
