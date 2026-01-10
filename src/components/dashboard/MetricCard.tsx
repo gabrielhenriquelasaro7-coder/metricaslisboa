@@ -145,7 +145,7 @@ export default function MetricCard({
       </div>
       
       {/* Value */}
-      <p className="text-base sm:text-lg md:text-xl font-bold text-foreground transition-colors duration-300">
+      <p className="text-sm sm:text-base md:text-lg font-bold text-foreground transition-colors duration-300 truncate">
         {animatedValue}
       </p>
       
