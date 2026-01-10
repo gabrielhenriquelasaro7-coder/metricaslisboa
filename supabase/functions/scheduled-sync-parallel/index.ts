@@ -75,8 +75,11 @@ async function syncProject(
         project_id: project.id,
         ad_account_id: project.ad_account_id,
         time_range: { since, until },
-        period_key: 'last_90d', // For backward compatibility
+        period_key: 'last_90d',
         retry_count: retryCount,
+        // IMPORTANTE: Sempre buscar imagens HD no sync agendado
+        light_sync: false,
+        skip_image_cache: false,
       }),
     });
     

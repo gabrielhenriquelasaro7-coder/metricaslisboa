@@ -223,10 +223,13 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   url = `https://graph.facebook.com/v22.0/${adAccountId}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting,promoted_object&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   while (url) { const data = await fetchWithRetry(url, 'ADSETS'); if (isTokenExpiredError(data)) return { campaigns, adsets: [], ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), creativeThumbnailHDMap: new Map(), tokenExpired: true }; if (data.data) adsets.push(...data.data); url = data.paging?.next || null; }
   
-  // ADS - LIGHT: apenas campos essenciais + creative para extração de texto
-  const adsFields = 'id,name,status,adset_id,campaign_id,creative{id,object_story_spec,asset_feed_spec}';
+  // ADS - campos essenciais + creative para extração de texto
+  // Quando lightSync = false, incluímos image_hash para buscar URLs HD
+  const adsFields = lightSync 
+    ? 'id,name,status,adset_id,campaign_id,creative{id,object_story_spec,asset_feed_spec}'
+    : 'id,name,status,adset_id,campaign_id,creative{id,image_hash,object_story_spec,asset_feed_spec}';
   url = `https://graph.facebook.com/v22.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
-  console.log(`[ADS-QUERY] LIGHT SYNC - fetching ads with creative text fields only...`);
+  console.log(`[ADS-QUERY] ${lightSync ? 'LIGHT' : 'FULL'} SYNC - fetching ads...`);
   
   while (url) {
     const data = await fetchWithRetry(url, 'ADS'); 
@@ -239,14 +242,96 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   
   const adImageMap = new Map<string, string>(), videoThumbnailMap = new Map<string, string>(), creativeDataMap = new Map<string, any>(), adPreviewMap = new Map<string, string>(), immediateCache = new Map<string, string>(), creativeThumbnailHDMap = new Map<string, string>();
   
-  // LIGHT SYNC: apenas mapear creatives já existentes, SEM chamadas extras
+  // Mapear creatives dos ads
   for (const ad of ads) {
     if (ad.creative?.id) {
       creativeDataMap.set(ad.creative.id, ad.creative);
     }
   }
   
-  console.log(`[LIGHT-SYNC] Mapped ${creativeDataMap.size} creatives from ads query (no extra API calls)`);
+  // ===========================================================================================
+  // FULL SYNC: Buscar imagens HD via /adimages endpoint
+  // Isso retorna url_1024 que é a versão HD das imagens
+  // ===========================================================================================
+  if (!lightSync) {
+    console.log(`[FULL-SYNC] Fetching HD images via /adimages endpoint...`);
+    
+    // Coletar todos os image_hash únicos dos ads
+    const imageHashes = new Set<string>();
+    for (const ad of ads) {
+      const creative = ad.creative;
+      if (creative?.image_hash) imageHashes.add(creative.image_hash);
+      const oss = creative?.object_story_spec;
+      if (oss?.link_data?.image_hash) imageHashes.add(oss.link_data.image_hash);
+      if (oss?.photo_data?.image_hash) imageHashes.add(oss.photo_data.image_hash);
+      if (oss?.video_data?.image_hash) imageHashes.add(oss.video_data.image_hash);
+    }
+    
+    console.log(`[FULL-SYNC] Found ${imageHashes.size} unique image hashes`);
+    
+    // Buscar URLs HD via /adimages
+    if (imageHashes.size > 0) {
+      let adImagesUrl: string | null = `https://graph.facebook.com/v22.0/${adAccountId}/adimages?fields=hash,url,url_128,url_1024&limit=500&access_token=${token}`;
+      
+      while (adImagesUrl) {
+        const data = await fetchWithRetry(adImagesUrl, 'ADIMAGES');
+        if (data.data) {
+          for (const img of data.data) {
+            if (img.hash && imageHashes.has(img.hash)) {
+              // Preferir url_1024 (HD), fallback para url
+              const hdUrl = img.url_1024 || img.url;
+              if (hdUrl) {
+                adImageMap.set(img.hash, hdUrl);
+              }
+            }
+          }
+        }
+        adImagesUrl = data.paging?.next || null;
+      }
+      
+      console.log(`[FULL-SYNC] Mapped ${adImageMap.size} HD image URLs from /adimages`);
+    }
+    
+    // Buscar video thumbnails HD
+    const videoIds = new Set<string>();
+    for (const ad of ads) {
+      const videoId = ad.creative?.object_story_spec?.video_data?.video_id;
+      if (videoId) videoIds.add(videoId);
+    }
+    
+    if (videoIds.size > 0) {
+      console.log(`[FULL-SYNC] Fetching thumbnails for ${videoIds.size} videos...`);
+      
+      // Buscar thumbnails em batches de 50
+      const videoIdArray = Array.from(videoIds);
+      for (let i = 0; i < videoIdArray.length; i += 50) {
+        const batch = videoIdArray.slice(i, i + 50);
+        const batchIds = batch.join(',');
+        
+        const videoUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,thumbnails{uri,width,height}&access_token=${token}`;
+        const data = await simpleFetch(videoUrl, undefined, 15000);
+        
+        if (data && !data.error) {
+          for (const videoId of batch) {
+            const videoData = data[videoId];
+            if (videoData?.thumbnails?.data?.length > 0) {
+              // Pegar a maior thumbnail disponível
+              const thumbnails = videoData.thumbnails.data.sort((a: any, b: any) => (b.width || 0) - (a.width || 0));
+              if (thumbnails[0]?.uri) {
+                videoThumbnailMap.set(videoId, thumbnails[0].uri);
+              }
+            }
+          }
+        }
+        
+        if (i + 50 < videoIdArray.length) await delay(200);
+      }
+      
+      console.log(`[FULL-SYNC] Mapped ${videoThumbnailMap.size} video thumbnails`);
+    }
+  }
+  
+  console.log(`[${lightSync ? 'LIGHT' : 'FULL'}-SYNC] Mapped ${creativeDataMap.size} creatives`);
   
   // DEBUG: Log do primeiro anúncio para verificar extração de texto
   if (ads.length > 0) {
