@@ -31,7 +31,10 @@ import {
   Megaphone,
   Layers,
   Image,
-  PlayCircle
+  PlayCircle,
+  Search,
+  Zap,
+  Timer
 } from 'lucide-react';
 import { downloadDocumentationAsTxt, downloadDocumentationAsPdf } from '@/utils/generateSystemDocumentation';
 
@@ -50,6 +53,12 @@ interface SyncStatus {
   type: 'campaigns' | 'adsets' | 'ads' | 'creatives' | null;
 }
 
+interface CronJob {
+  jobname: string;
+  schedule: string;
+  description: string;
+}
+
 function AdminContent() {
   const navigate = useNavigate();
   const { logout } = useAdminAuth();
@@ -58,9 +67,57 @@ function AdminContent() {
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ isRunning: false, type: null });
+  const [isRunningGapDetection, setIsRunningGapDetection] = useState(false);
 
   const activeProjects = projects.filter(p => !p.archived);
   const selectedProject = activeProjects.find(p => p.id === selectedProjectId);
+
+  // Cron jobs configuration
+  const cronJobs: CronJob[] = [
+    {
+      jobname: 'daily-meta-sync-02am',
+      schedule: '0 5 * * *',
+      description: 'Sincronização diária às 02:00 AM (horário de Brasília). Busca últimos 90 dias de dados da Meta Ads API.',
+    },
+    {
+      jobname: 'weekly-gap-detection',
+      schedule: '0 3 * * 0',
+      description: 'Verificação semanal de gaps aos domingos às 00:00 AM (horário de Brasília).',
+    },
+  ];
+
+  const parseCronSchedule = (schedule: string) => {
+    const scheduleMap: Record<string, string> = {
+      '0 5 * * *': 'Diariamente às 02:00 AM (Brasília)',
+      '0 3 * * 0': 'Domingos às 00:00 AM (Brasília)',
+    };
+    return scheduleMap[schedule] || schedule;
+  };
+
+  const runGapDetection = async () => {
+    setIsRunningGapDetection(true);
+    toast.info('Iniciando detecção de gaps...');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('detect-and-fix-gaps', {
+        body: { auto_fix: true }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(`Detecção concluída! ${data.gaps_found} gaps encontrados, ${data.gaps_fixed} corrigidos, ${data.records_imported} registros importados.`);
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao detectar gaps';
+      toast.error(errorMessage);
+    } finally {
+      setIsRunningGapDetection(false);
+    }
+  };
+
 
   // Fetch sync logs
   useEffect(() => {
@@ -453,6 +510,93 @@ function AdminContent() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Gap Detection */}
+            <Card className="glass-card">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Search className="w-5 h-5" />
+                      Detecção de Gaps
+                    </CardTitle>
+                    <CardDescription>
+                      Verifica todos os projetos buscando períodos sem dados (gaps ≥3 dias) e reimporta automaticamente.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={runGapDetection}
+                    disabled={isRunningGapDetection}
+                    className="gap-2"
+                  >
+                    {isRunningGapDetection ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Detectando...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4" />
+                        Executar Agora
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                  <h4 className="font-medium text-sm">Como funciona:</h4>
+                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Escaneia todos os projetos ativos buscando dias sem dados</li>
+                    <li>Identifica gaps de 3+ dias consecutivos</li>
+                    <li>Para cada gap encontrado, chama a Meta Ads API e importa os dados</li>
+                    <li>Se a API retorna 0 registros, significa que não havia campanhas ativas</li>
+                  </ol>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Cron Jobs Status */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Timer className="w-5 h-5" />
+                  Tarefas Agendadas (Cron Jobs)
+                </CardTitle>
+                <CardDescription>
+                  Processos automáticos que rodam em intervalos definidos para manter os dados sincronizados.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {cronJobs.map((job) => (
+                  <Card key={job.jobname} className="bg-card/50">
+                    <CardContent className="py-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1">
+                            <CheckCircle2 className="w-5 h-5 text-metric-positive" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold">{job.jobname}</h4>
+                              <Badge variant="outline" className="text-xs">
+                                {parseCronSchedule(job.schedule)}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {job.description}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant="default" className="shrink-0">
+                          Ativo
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* IMPORT TAB */}
