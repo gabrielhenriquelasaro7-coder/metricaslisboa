@@ -19,8 +19,9 @@ import {
   PipelineSelector,
   KanbanFunnel,
   AttributionAnalysis,
-  CompleteDRE
+  CompleteDRE,
 } from '@/components/financial';
+import type { DREPeriod } from '@/components/financial/CompleteDRE';
 import { 
   Users, 
   AlertCircle,
@@ -66,7 +67,15 @@ export default function Financial() {
     selectPipeline
   } = useCRMConnection(selectedProjectId || undefined);
 
-  const { dailyData } = useDailyMetrics(selectedProjectId || undefined, 'last_30d');
+  const [drePeriod, setDrePeriod] = useState<DREPeriod>('last_30d');
+  
+  // Map DRE period to daily metrics period
+  const metricsTimePeriod = drePeriod === 'last_7d' ? 'last_7d' : 
+                            drePeriod === 'last_30d' ? 'last_30d' : 
+                            drePeriod === 'this_month' ? 'this_month' : 
+                            drePeriod === 'last_month' ? 'last_month' : 'last_30d';
+  
+  const { dailyData } = useDailyMetrics(selectedProjectId || undefined, metricsTimePeriod);
   
   // Calculate totals from ads data
   const adsMetrics = useMemo(() => {
@@ -230,7 +239,8 @@ export default function Financial() {
                 grossRevenue={adsMetrics.revenue}
                 adSpend={totalAdSpend}
                 businessModel={businessModel}
-                periodLabel="Últimos 30 dias"
+                period={drePeriod}
+                onPeriodChange={setDrePeriod}
               />
             </TabsContent>
 
