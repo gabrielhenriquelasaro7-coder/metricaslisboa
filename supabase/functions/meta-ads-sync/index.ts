@@ -1433,23 +1433,122 @@ Deno.serve(async (req) => {
 
     console.log(`[AGGREGATE] Building records - campaigns: ${campaignMetrics.size}, adsets: ${adsetMetrics.size}, ads: ${adMetrics.size}`);
     
+    // ===========================================================================================
+    // IMPORTANTE: Incluir TODAS as entidades da API, mesmo sem métricas no período
+    // Isso garante que status, nomes e outros campos sejam sempre atualizados
+    // ===========================================================================================
+    
+    // Adicionar campanhas que não têm métricas mas foram retornadas pela API
+    for (const [campaignId, campaign] of campaignMap) {
+      if (campaignId && !campaignMetrics.has(campaignId)) {
+        campaignMetrics.set(campaignId, {
+          id: campaignId,
+          name: campaign.name || 'Unknown',
+          project_id,
+          status: campaign.status,
+          objective: campaign.objective,
+          spend: 0,
+          impressions: 0,
+          clicks: 0,
+          reach: 0,
+          conversions: 0,
+          conversion_value: 0,
+          messaging_replies: 0,
+          profile_visits: 0,
+          daily_budget: campaign.daily_budget,
+          lifetime_budget: campaign.lifetime_budget,
+        });
+      }
+    }
+    
+    // Adicionar adsets que não têm métricas mas foram retornados pela API
+    for (const [adsetId, adset] of adsetMap) {
+      if (adsetId && !adsetMetrics.has(adsetId)) {
+        adsetMetrics.set(adsetId, {
+          id: adsetId,
+          name: adset.name || 'Unknown',
+          project_id,
+          status: adset.status,
+          campaign_id: extractId(adset.campaign_id),
+          daily_budget: adset.daily_budget,
+          lifetime_budget: adset.lifetime_budget,
+          targeting: adset.targeting || null,
+          spend: 0,
+          impressions: 0,
+          clicks: 0,
+          reach: 0,
+          conversions: 0,
+          conversion_value: 0,
+          messaging_replies: 0,
+          profile_visits: 0,
+        });
+      }
+    }
+    
+    // Adicionar ads que não têm métricas mas foram retornados pela API
+    for (const [adId, ad] of adMap) {
+      if (adId && !adMetrics.has(adId)) {
+        const cachedData = cachedCreativeMap.get(adId);
+        const { primaryText, headline, description, cta } = extractAdCopy(ad);
+        const { imageUrl, videoUrl } = extractCreativeImage(ad, adImageMap, videoThumbnailMap);
+        const cachedUrl = immediateCache.get(adId) || cachedData?.cached_url || null;
+        const hdThumbnail = creativeThumbnailHDMap.get(adId);
+        
+        adMetrics.set(adId, {
+          id: adId,
+          name: ad.name || 'Unknown',
+          project_id,
+          status: ad.status,
+          campaign_id: extractId(ad.campaign_id),
+          ad_set_id: extractId(ad.adset_id),
+          creative_id: ad.creative?.id || null,
+          creative_thumbnail: hdThumbnail || imageUrl || cachedData?.thumbnail_url || null,
+          creative_image_url: hdThumbnail || imageUrl || cachedData?.image_url || null,
+          creative_video_url: videoUrl || cachedData?.video_url || null,
+          cached_image_url: cachedUrl,
+          headline: headline || cachedData?.headline || null,
+          primary_text: primaryText || cachedData?.primary_text || null,
+          cta: cta || cachedData?.cta || null,
+          spend: 0,
+          impressions: 0,
+          clicks: 0,
+          reach: 0,
+          conversions: 0,
+          conversion_value: 0,
+          messaging_replies: 0,
+          profile_visits: 0,
+        });
+      }
+    }
+    
+    console.log(`[AGGREGATE] After including all entities - campaigns: ${campaignMetrics.size}, adsets: ${adsetMetrics.size}, ads: ${adMetrics.size}`);
+    
     const campaignRecords = Array.from(campaignMetrics.values()).map(m => {
       const campaign = campaignMap.get(m.id);
       return calculateDerived({
         ...m,
-        daily_budget: campaign?.daily_budget,
-        lifetime_budget: campaign?.lifetime_budget,
+        status: campaign?.status || m.status,
+        daily_budget: campaign?.daily_budget || m.daily_budget,
+        lifetime_budget: campaign?.lifetime_budget || m.lifetime_budget,
       });
     });
 
     const adsetRecords = Array.from(adsetMetrics.values()).map(m => {
-      const record = calculateDerived(m);
+      const adset = adsetMap.get(m.id);
+      const record = calculateDerived({
+        ...m,
+        status: adset?.status || m.status,
+      });
       delete record.objective;
       return record;
     });
     
     const adRecords = Array.from(adMetrics.values()).map(m => {
-      const record = calculateDerived(m);
+      const ad = adMap.get(m.id);
+      const record = calculateDerived({
+        ...m,
+        status: ad?.status || m.status,
+      });
       delete record.objective;
       return record;
     });
