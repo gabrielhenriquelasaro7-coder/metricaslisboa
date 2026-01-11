@@ -25,11 +25,18 @@ export interface CRMDeal {
   id: string;
   title: string;
   contact_name?: string;
+  contact_email?: string;
   contact_phone?: string;
   value?: number;
   stage_id: string;
+  stage_name?: string;
   created_date?: string;
+  closed_date?: string;
   utm_source?: string;
+  utm_campaign?: string;
+  owner_name?: string;
+  status?: string;
+  lead_source?: string;
 }
 
 export interface CRMConnectionStatus {

@@ -41,11 +41,18 @@ interface DealData {
   id: string;
   title: string;
   contact_name?: string;
+  contact_email?: string;
   contact_phone?: string;
   value?: number;
   stage_id: string;
+  stage_name?: string;
   created_date?: string;
+  closed_date?: string;
   utm_source?: string;
+  utm_campaign?: string;
+  owner_name?: string;
+  status?: string;
+  lead_source?: string;
 }
 
 Deno.serve(async (req) => {
@@ -127,7 +134,7 @@ Deno.serve(async (req) => {
     // Get deal statistics - filter by pipeline if selected
     let dealsQuery = supabase
       .from('crm_deals')
-      .select('id, external_id, title, contact_name, contact_phone, contact_email, value, status, stage_name, external_stage_id, external_pipeline_id, created_date, utm_source, utm_campaign')
+      .select('id, external_id, title, contact_name, contact_phone, contact_email, value, status, stage_name, external_stage_id, external_pipeline_id, created_date, closed_date, utm_source, utm_campaign, lead_source, owner_name')
       .eq('connection_id', connection.id);
     
     if (selectedPipelineId) {
@@ -229,16 +236,23 @@ Deno.serve(async (req) => {
                 total_value: dealCountByStage[String(status.id)]?.value || 0,
               }));
 
-              // Build deals array for kanban
+              // Build deals array for kanban - include all fields for detail drawer
               deals = (allDeals || []).map(deal => ({
                 id: deal.id,
                 title: deal.title,
                 contact_name: deal.contact_name || undefined,
+                contact_email: deal.contact_email || undefined,
                 contact_phone: deal.contact_phone || undefined,
                 value: deal.value || undefined,
                 stage_id: String(deal.external_stage_id),
+                stage_name: deal.stage_name || undefined,
                 created_date: deal.created_date || undefined,
+                closed_date: deal.closed_date || undefined,
                 utm_source: deal.utm_source || undefined,
+                utm_campaign: deal.utm_campaign || undefined,
+                owner_name: deal.owner_name || undefined,
+                status: deal.status || undefined,
+                lead_source: deal.lead_source || undefined,
               }));
 
               // Calculate funnel (open stages only)
