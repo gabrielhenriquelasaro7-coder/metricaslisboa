@@ -150,10 +150,10 @@ export default function Suggestions() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { icon: MessageSquare, label: 'Sugestões Recebidas', value: '47', color: 'text-blue-500' },
-            { icon: Zap, label: 'Implementadas', value: '23', color: 'text-emerald-500' },
-            { icon: Clock, label: 'Em Análise', value: '12', color: 'text-amber-500' },
-            { icon: ThumbsUp, label: 'Aprovadas', value: '8', color: 'text-primary' },
+            { icon: MessageSquare, label: 'Sugestões Recebidas', value: '0', color: 'text-blue-500' },
+            { icon: Zap, label: 'Implementadas', value: '0', color: 'text-emerald-500' },
+            { icon: Clock, label: 'Em Análise', value: '0', color: 'text-amber-500' },
+            { icon: ThumbsUp, label: 'Aprovadas', value: '0', color: 'text-primary' },
           ].map((stat, index) => (
             <Card key={index} className="bg-card/50 backdrop-blur-sm border-border">
               <CardContent className="p-4 flex items-center gap-3">
