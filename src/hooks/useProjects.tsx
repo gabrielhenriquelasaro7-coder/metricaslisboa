@@ -47,9 +47,14 @@ export interface CreateProjectData {
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const fetchProjects = useCallback(async () => {
+    // Wait for auth to finish before deciding
+    if (authLoading) {
+      return;
+    }
+    
     if (!user) {
       setProjects([]);
       setLoading(false);
@@ -95,7 +100,7 @@ export function useProjects() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     fetchProjects();
