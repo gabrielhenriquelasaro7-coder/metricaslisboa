@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { CreativeImage } from '@/components/ui/creative-image';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { DateRange } from 'react-day-picker';
-import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
+import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { 
   Search, 
   Loader2,
@@ -62,12 +62,8 @@ export default function Creatives() {
   const isInsideSales = businessModel === 'inside_sales';
   const isPdv = businessModel === 'pdv';
   
-  // Date range state
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
-    return period ? datePeriodToDateRange(period) : undefined;
-  });
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
+  // Use shared period context - persists across pages
+  const { dateRange, selectedPreset, setDateRange, setSelectedPreset } = usePeriodContext();
 
   const projectTimezone = selectedProject?.timezone || 'America/Sao_Paulo';
 
@@ -80,14 +76,16 @@ export default function Creatives() {
 
   // Handle date range change
   const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
-    setDateRange(range);
+    if (range) {
+      setDateRange(range);
+    }
     setCurrentPage(1);
-  }, []);
+  }, [setDateRange]);
 
   // Handle preset change - load data by period
-  const handlePresetChange = useCallback((preset: DatePresetKey) => {
-    setSelectedPreset(preset);
-  }, []);
+  const handlePresetChange = useCallback((preset: string) => {
+    setSelectedPreset(preset as any);
+  }, [setSelectedPreset]);
 
   const getCampaignName = useCallback((campaignId: string) => {
     const campaign = campaigns.find(c => c.id === campaignId);

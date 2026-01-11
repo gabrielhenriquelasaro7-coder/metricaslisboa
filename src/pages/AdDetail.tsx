@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { LoadingCard } from '@/components/ui/loading-screen';
@@ -6,12 +6,12 @@ import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdSetCharts from '@/components/dashboard/AdSetCharts';
 import { useAdDailyMetrics } from '@/hooks/useAdDailyMetrics';
-import { useAdDateRange } from '@/hooks/useAdDateRange';
+import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
-import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
+import { DatePresetKey } from '@/utils/dateUtils';
 import { translateCTA } from '@/utils/ctaTranslations';
 import { CatalogImagesCarousel } from '@/components/catalog/CatalogImagesCarousel';
 import { 
@@ -92,22 +92,9 @@ export default function AdDetail() {
   const [syncing, setSyncing] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('custom');
-  const [hasAutoSetRange, setHasAutoSetRange] = useState(false);
-
-  // Get available date range for this ad
-  const { suggestedDateRange, loading: dateRangeLoading } = useAdDateRange(adId);
-
-  // Auto-set date range when we have data available
-  useEffect(() => {
-    if (!hasAutoSetRange && suggestedDateRange && !dateRangeLoading) {
-      console.log('[AdDetail] Auto-setting date range to available data range');
-      setDateRange(suggestedDateRange);
-      setSelectedPreset('custom');
-      setHasAutoSetRange(true);
-    }
-  }, [suggestedDateRange, dateRangeLoading, hasAutoSetRange]);
+  
+  // Use shared period context - persists across pages
+  const { dateRange, selectedPreset, setDateRange, setSelectedPreset } = usePeriodContext();
 
   const selectedProject = projects.find(p => p.id === projectId);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
@@ -115,38 +102,6 @@ export default function AdDetail() {
 
   // Fetch real daily metrics for this ad - pass date range for custom period
   const { dailyData: adDailyData, totals: adMetricsTotals, loading: metricsLoading } = useAdDailyMetrics(adId, projectId, dateRange);
-  
-  // Use ad table data as fallback when no daily metrics exist for the selected period
-  const displayMetrics = useMemo(() => {
-    // If we have daily metrics data, use calculated totals
-    if (adDailyData.length > 0) {
-      return adMetricsTotals;
-    }
-    
-    // Fallback to ad table aggregated data
-    if (ad) {
-      return {
-        date: '',
-        spend: ad.spend || 0,
-        impressions: ad.impressions || 0,
-        clicks: ad.clicks || 0,
-        reach: ad.reach || 0,
-        conversions: ad.conversions || 0,
-        conversion_value: ad.conversion_value || 0,
-        profile_visits: 0,
-        ctr: ad.ctr || 0,
-        cpm: ad.cpm || 0,
-        cpc: ad.cpc || 0,
-        roas: ad.roas || 0,
-        cpa: ad.cpa || 0,
-      };
-    }
-    
-    return adMetricsTotals;
-  }, [adDailyData, adMetricsTotals, ad]);
-  
-  // Flag to show warning when using fallback data
-  const usingFallbackData = adDailyData.length === 0 && ad !== null;
 
 
   const fetchAd = useCallback(async () => {
@@ -285,12 +240,14 @@ export default function AdDetail() {
   }, [fetchAd]);
 
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
-    setDateRange(newRange);
-  }, []);
+    if (newRange) {
+      setDateRange(newRange);
+    }
+  }, [setDateRange]);
 
   const handlePresetChange = useCallback((preset: DatePresetKey) => {
     setSelectedPreset(preset);
-  }, []);
+  }, [setSelectedPreset]);
 
   const handleManualSync = useCallback(() => {
     if (dateRange?.from && dateRange?.to) {
@@ -544,7 +501,7 @@ export default function AdDetail() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Compras</p>
-                        <p className="text-2xl font-bold">{displayMetrics.conversions}</p>
+                        <p className="text-2xl font-bold">{adMetricsTotals.conversions}</p>
                       </div>
                     </div>
                   </div>
@@ -557,9 +514,9 @@ export default function AdDetail() {
                         <p className="text-xs text-muted-foreground">ROAS</p>
                         <p className={cn(
                           "text-2xl font-bold",
-                          displayMetrics.roas >= 5 ? 'text-metric-positive' : displayMetrics.roas >= 3 ? 'text-metric-warning' : 'text-metric-negative'
+                          adMetricsTotals.roas >= 5 ? 'text-metric-positive' : adMetricsTotals.roas >= 3 ? 'text-metric-warning' : 'text-metric-negative'
                         )}>
-                          {displayMetrics.roas.toFixed(2)}x
+                          {adMetricsTotals.roas.toFixed(2)}x
                         </p>
                       </div>
                     </div>
@@ -571,7 +528,7 @@ export default function AdDetail() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">CPA</p>
-                        <p className="text-2xl font-bold">{formatCurrency(displayMetrics.cpa)}</p>
+                        <p className="text-2xl font-bold">{formatCurrency(adMetricsTotals.cpa)}</p>
                       </div>
                     </div>
                   </div>
@@ -585,7 +542,7 @@ export default function AdDetail() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Leads</p>
-                        <p className="text-2xl font-bold">{displayMetrics.conversions}</p>
+                        <p className="text-2xl font-bold">{adMetricsTotals.conversions}</p>
                       </div>
                     </div>
                   </div>
@@ -596,7 +553,7 @@ export default function AdDetail() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">CPL</p>
-                        <p className="text-2xl font-bold">{formatCurrency(displayMetrics.cpa)}</p>
+                        <p className="text-2xl font-bold">{formatCurrency(adMetricsTotals.cpa)}</p>
                       </div>
                     </div>
                   </div>
@@ -607,7 +564,7 @@ export default function AdDetail() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Taxa Conversão</p>
-                        <p className="text-2xl font-bold">{displayMetrics.impressions > 0 ? ((displayMetrics.conversions / displayMetrics.impressions) * 100).toFixed(3) : 0}%</p>
+                        <p className="text-2xl font-bold">{adMetricsTotals.impressions > 0 ? ((adMetricsTotals.conversions / adMetricsTotals.impressions) * 100).toFixed(3) : 0}%</p>
                       </div>
                     </div>
                   </div>
@@ -615,61 +572,54 @@ export default function AdDetail() {
               )}
             </div>
 
-            {/* Fallback data warning */}
-            {usingFallbackData && (
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-sm text-yellow-600 dark:text-yellow-400">
-                ⚠️ Mostrando dados totais acumulados. Não há dados diários disponíveis para o período selecionado.
-              </div>
-            )}
-
             {/* Secondary Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <MetricCard 
                 title="CTR" 
-                value={`${displayMetrics.ctr.toFixed(2)}%`} 
+                value={`${adMetricsTotals.ctr.toFixed(2)}%`} 
                 icon={Percent} 
                 tooltip="Click-Through Rate: Taxa de cliques"
               />
               <MetricCard 
                 title="Impressões" 
-                value={formatNumber(displayMetrics.impressions)} 
+                value={formatNumber(adMetricsTotals.impressions)} 
                 icon={Eye} 
                 tooltip="Número total de vezes que este anúncio foi exibido"
               />
               <MetricCard 
                 title="Gasto" 
-                value={formatCurrency(displayMetrics.spend)} 
+                value={formatCurrency(adMetricsTotals.spend)} 
                 icon={DollarSign} 
                 tooltip="Total investido neste anúncio"
               />
               <MetricCard 
                 title="CPM" 
-                value={formatCurrency(displayMetrics.cpm)} 
+                value={formatCurrency(adMetricsTotals.cpm)} 
                 icon={BarChart3} 
                 tooltip="Custo por Mil: Custo para cada 1.000 impressões"
               />
               <MetricCard 
                 title="Alcance" 
-                value={formatNumber(displayMetrics.reach)} 
+                value={formatNumber(adMetricsTotals.reach)} 
                 icon={Users} 
                 tooltip="Número de pessoas únicas que viram este anúncio"
               />
               <MetricCard 
                 title="Cliques" 
-                value={formatNumber(displayMetrics.clicks)} 
+                value={formatNumber(adMetricsTotals.clicks)} 
                 icon={MousePointerClick} 
                 tooltip="Total de cliques neste anúncio"
               />
               <MetricCard 
                 title="CPC" 
-                value={formatCurrency(displayMetrics.cpc)} 
+                value={formatCurrency(adMetricsTotals.cpc)} 
                 icon={Target} 
                 tooltip="Custo Por Clique: Valor médio pago por cada clique"
               />
               {isEcommerce && (
                 <MetricCard 
                   title="Receita" 
-                  value={formatCurrency(displayMetrics.conversion_value)} 
+                  value={formatCurrency(adMetricsTotals.conversion_value)} 
                   icon={TrendingUp} 
                   tooltip="Receita gerada por este anúncio"
                 />
