@@ -74,33 +74,32 @@ export default function SparklineCard({
       transition={{ delay: index * 0.03, duration: 0.3, ease: "easeOut" }}
       whileHover={{ y: -2, transition: { duration: 0.15 } }}
       className={cn(
-        'premium-card group relative cursor-default p-1.5 sm:p-3 overflow-hidden w-full max-w-full box-border',
+        'premium-card group relative cursor-default p-3 sm:p-4',
         className
       )}
-      style={{ minWidth: 0 }}
     >
-      <div className="flex items-start justify-between mb-1 sm:mb-2 relative z-10 w-full">
-        <div className="flex-1 min-w-0 overflow-hidden w-full">
+      <div className="flex items-start justify-between mb-2 sm:mb-3 relative z-10">
+        <div className="flex-1 min-w-0">
           {titleElement}
-          <p className="text-[10px] sm:text-xs md:text-sm font-bold mt-0.5 text-foreground transition-colors duration-300 truncate overflow-hidden w-full">
+          <p className="text-sm sm:text-base md:text-lg font-bold mt-0.5 sm:mt-1 text-foreground transition-colors duration-300 truncate">
             {value}
           </p>
           {previousValue !== undefined && (
-            <p className="text-[8px] sm:text-[10px] text-muted-foreground mt-0.5 truncate overflow-hidden w-full">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
               Anterior: {previousValue}
             </p>
           )}
         </div>
         {Icon && (
-          <div className="premium-icon w-6 h-6 sm:w-9 sm:h-9 flex-shrink-0 ml-1">
-            <Icon className="w-2.5 h-2.5 sm:w-4 sm:h-4 text-primary transition-all duration-300 group-hover:scale-110" />
+          <div className="premium-icon w-9 h-9 sm:w-11 sm:h-11 flex-shrink-0 ml-2 sm:ml-3">
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary transition-all duration-300 group-hover:scale-110" />
           </div>
         )}
       </div>
       
-      {/* Sparkline - Responsive height, smaller on mobile */}
+      {/* Sparkline - Responsive height */}
       {sparklineData.length > 1 && (
-        <div className="h-8 sm:h-14 -mx-0.5 sm:-mx-2 mt-1 sm:mt-2 relative z-10">
+        <div className="h-10 sm:h-14 -mx-1 sm:-mx-2 mt-1 sm:mt-2 relative z-10">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
               <defs>
@@ -131,13 +130,13 @@ export default function SparklineCard({
         </div>
       )}
       
-      {/* Change indicator - Compact on mobile */}
+      {/* Change indicator - Responsive with proper tooltip on mobile */}
       {change !== undefined && (
-        <div className="flex items-center gap-1 sm:gap-2 mt-1 sm:mt-3 relative z-10 flex-wrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-3 relative z-10 flex-wrap">
           <Tooltip delayDuration={100}>
             <TooltipTrigger asChild>
               <div className={cn(
-                'flex items-center gap-0.5 text-[9px] sm:text-xs font-medium px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-full cursor-default',
+                'flex items-center gap-1 text-[10px] sm:text-xs font-medium px-2 py-0.5 sm:px-3 sm:py-1.5 rounded-full cursor-default',
                 'transition-all duration-300 border',
                 displayTrend === 'up' 
                   ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20' 
@@ -145,7 +144,7 @@ export default function SparklineCard({
                     ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20' 
                     : 'bg-muted/50 text-muted-foreground border-muted/30'
               )}>
-                <TrendIcon className="w-2.5 h-2.5 sm:w-4 sm:h-4" />
+                <TrendIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
               </div>
             </TooltipTrigger>

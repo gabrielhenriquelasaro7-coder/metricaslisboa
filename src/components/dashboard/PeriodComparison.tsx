@@ -53,17 +53,17 @@ function ComparisonItem({ label, current, previous, change, isInverse = false, t
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group relative p-4 rounded-xl bg-card/80 border border-border/50 hover:border-border transition-all duration-300"
+      className="group relative p-2.5 sm:p-4 rounded-xl bg-card/80 border border-border/50 hover:border-border transition-all duration-300 overflow-hidden min-w-0"
     >
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1">
-            <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{label}</p>
+      <div className="relative z-10 min-w-0">
+        <div className="flex items-center justify-between mb-1 sm:mb-2 gap-1">
+          <div className="flex items-center gap-1 min-w-0 flex-1">
+            <p className="text-[10px] sm:text-sm text-muted-foreground group-hover:text-foreground transition-colors truncate">{label}</p>
             {tooltip && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help" />
+                    <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help flex-shrink-0" />
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs">
                     <p className="text-xs">{tooltip}</p>
@@ -75,7 +75,7 @@ function ComparisonItem({ label, current, previous, change, isInverse = false, t
           {/* Badge hidden on mobile, visible on sm+ */}
           <div
             className={cn(
-              'hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-300 border',
+              'hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-300 border flex-shrink-0',
               isPositive && 'bg-metric-positive/15 text-metric-positive border-metric-positive/20',
               isNegative && 'bg-metric-negative/15 text-metric-negative border-metric-negative/20',
               isNeutral && 'bg-muted/50 text-muted-foreground border-muted/30'
@@ -92,13 +92,32 @@ function ComparisonItem({ label, current, previous, change, isInverse = false, t
           </div>
         </div>
         
-        <p className="text-xl font-bold transition-colors duration-300">{current}</p>
+        <p className="text-sm sm:text-xl font-bold transition-colors duration-300 truncate">{current}</p>
         
         {previous && (
-          <p className="text-xs text-muted-foreground mt-2">
+          <p className="text-[9px] sm:text-xs text-muted-foreground mt-1 sm:mt-2 truncate">
             Anterior: {previous}
           </p>
         )}
+        
+        {/* Mobile-only compact badge */}
+        <div
+          className={cn(
+            'sm:hidden flex items-center gap-0.5 mt-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-medium w-fit border',
+            isPositive && 'bg-metric-positive/15 text-metric-positive border-metric-positive/20',
+            isNegative && 'bg-metric-negative/15 text-metric-negative border-metric-negative/20',
+            isNeutral && 'bg-muted/50 text-muted-foreground border-muted/30'
+          )}
+        >
+          {isNeutral ? (
+            <Minus className="w-2.5 h-2.5" />
+          ) : isPositive ? (
+            <TrendingUp className="w-2.5 h-2.5" />
+          ) : (
+            <TrendingDown className="w-2.5 h-2.5" />
+          )}
+          <span>{isNeutral ? '0%' : `${change > 0 ? '+' : ''}${change.toFixed(1)}%`}</span>
+        </div>
       </div>
     </motion.div>
   );
