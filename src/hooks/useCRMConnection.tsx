@@ -33,10 +33,15 @@ export interface CRMDeal {
   created_date?: string;
   closed_date?: string;
   utm_source?: string;
+  utm_medium?: string;
   utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
   owner_name?: string;
   status?: string;
   lead_source?: string;
+  custom_fields?: Record<string, string>;
+  company_name?: string;
 }
 
 export interface CRMConnectionStatus {
