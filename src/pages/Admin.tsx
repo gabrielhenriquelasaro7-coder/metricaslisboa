@@ -36,8 +36,11 @@ import {
   Search,
   Zap,
   Shield,
-  LogOut
+  LogOut,
+  FileText,
+  Download
 } from 'lucide-react';
+import { downloadDocumentationAsTxt, downloadDocumentationAsPdf } from '@/utils/generateSystemDocumentation';
 
 interface ImportProgress {
   project_id: string;
@@ -444,7 +447,7 @@ function AdminContent() {
         </div>
 
         <Tabs defaultValue="monitoring" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="monitoring" className="gap-2">
               <Activity className="w-4 h-4" />
               Monitoramento
@@ -456,6 +459,10 @@ function AdminContent() {
             <TabsTrigger value="logs" className="gap-2">
               <Clock className="w-4 h-4" />
               Histórico
+            </TabsTrigger>
+            <TabsTrigger value="docs" className="gap-2">
+              <FileText className="w-4 h-4" />
+              Documentação
             </TabsTrigger>
           </TabsList>
 
@@ -1096,6 +1103,71 @@ function AdminContent() {
                     })}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* DOCUMENTATION TAB */}
+          <TabsContent value="docs" className="space-y-6">
+            <Card className="glass-card border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Documentação do Sistema
+                </CardTitle>
+                <CardDescription>
+                  Gere um documento completo com toda a estrutura, fluxos, endpoints, queries e regras de funcionamento do sistema.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <h4 className="font-medium text-sm">O documento inclui:</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>✓ Visão geral e arquitetura do sistema</li>
+                    <li>✓ Estrutura completa de pastas e componentes</li>
+                    <li>✓ Todas as tabelas do banco de dados</li>
+                    <li>✓ Todos os endpoints (Edge Functions)</li>
+                    <li>✓ Todos os hooks customizados</li>
+                    <li>✓ Todas as páginas da aplicação</li>
+                    <li>✓ Fluxo completo de sincronização</li>
+                    <li>✓ Regras de negócio e cálculos</li>
+                    <li>✓ Configurações de segurança</li>
+                    <li>✓ Integrações externas</li>
+                    <li>✓ Cronograma de jobs automáticos</li>
+                    <li>✓ Guia de troubleshooting</li>
+                    <li>✓ Glossário de termos</li>
+                  </ul>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button
+                    onClick={() => {
+                      downloadDocumentationAsPdf();
+                      toast.success('Documentação PDF gerada com sucesso!');
+                    }}
+                    className="gap-2 flex-1"
+                    size="lg"
+                  >
+                    <Download className="w-5 h-5" />
+                    Baixar como PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      downloadDocumentationAsTxt();
+                      toast.success('Documentação TXT gerada com sucesso!');
+                    }}
+                    className="gap-2 flex-1"
+                    size="lg"
+                  >
+                    <FileText className="w-5 h-5" />
+                    Baixar como TXT
+                  </Button>
+                </div>
+
+                <p className="text-xs text-muted-foreground text-center">
+                  A documentação é gerada com base na estrutura atual do sistema.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
