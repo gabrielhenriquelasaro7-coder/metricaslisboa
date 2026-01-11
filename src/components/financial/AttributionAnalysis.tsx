@@ -12,11 +12,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  Sankey,
-  Layer,
-  Rectangle,
-  PieChart,
-  Pie,
 } from 'recharts';
 import {
   Target,
@@ -28,7 +23,6 @@ import {
   ArrowRight,
   Percent,
   BarChart3,
-  PieChart as PieChartIcon
 } from 'lucide-react';
 import type { FunnelDeal, FunnelStage } from './KanbanFunnel';
 
@@ -472,7 +466,7 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
         </Card>
       </div>
 
-      {/* Sankey Diagram - Funnel Flow */}
+      {/* Custom Flow Diagram - Funnel Flow */}
       {sankeyData && sankeyData.links.length > 0 && (
         <Card>
           <CardHeader>
@@ -485,28 +479,83 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <Sankey
-                data={sankeyData}
-                node={{
-                  fill: 'hsl(var(--primary))',
-                  opacity: 0.8,
-                }}
-                link={{
-                  stroke: 'hsl(var(--muted-foreground))',
-                  strokeOpacity: 0.3,
-                }}
-                margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-              >
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-              </Sankey>
-            </ResponsiveContainer>
+            <div className="relative">
+              {/* Flow diagram */}
+              <div className="flex items-stretch gap-8 min-h-[280px]">
+                {/* Left column - Campaigns */}
+                <div className="flex-1 flex flex-col gap-2">
+                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Campanhas</h4>
+                  {sankeyData.nodes.slice(0, 5).map((node, idx) => {
+                    const totalFromCampaign = sankeyData.links
+                      .filter(l => l.source === idx)
+                      .reduce((sum, l) => sum + l.value, 0);
+                    return (
+                      <div 
+                        key={node.name} 
+                        className="flex items-center gap-2 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                        style={{ borderLeftColor: COLORS[idx % COLORS.length], borderLeftWidth: '4px' }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{node.name}</p>
+                          <p className="text-xs text-muted-foreground">{totalFromCampaign} leads</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Middle - Flow lines */}
+                <div className="flex flex-col items-center justify-center gap-1 py-4">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="flex items-center gap-1">
+                      <div className="w-8 h-0.5 bg-gradient-to-r from-primary/60 to-primary/20" />
+                      <ArrowRight className="h-3 w-3 text-primary/40" />
+                      <div className="w-8 h-0.5 bg-gradient-to-r from-primary/20 to-primary/60" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Right column - Stages */}
+                <div className="flex-1 flex flex-col gap-2">
+                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Etapas</h4>
+                  {sankeyData.nodes.slice(5).map((node, idx) => {
+                    const totalToStage = sankeyData.links
+                      .filter(l => l.target === idx + 5)
+                      .reduce((sum, l) => sum + l.value, 0);
+                    const isWon = node.name === 'Ganho';
+                    const isLost = node.name === 'Perdido';
+                    return (
+                      <div 
+                        key={node.name} 
+                        className={`flex items-center gap-2 p-3 rounded-lg border transition-colors ${
+                          isWon ? 'bg-emerald-500/10 border-emerald-500/30' :
+                          isLost ? 'bg-red-500/10 border-red-500/30' :
+                          'bg-card hover:bg-accent/50'
+                        }`}
+                      >
+                        <div 
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ 
+                            backgroundColor: isWon ? '#10b981' : isLost ? '#ef4444' : COLORS[(idx + 5) % COLORS.length] 
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{node.name}</p>
+                          <p className="text-xs text-muted-foreground">{totalToStage} leads</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Flow summary */}
+              <div className="mt-4 pt-4 border-t flex items-center justify-center gap-6 text-sm text-muted-foreground">
+                <span>Total de conexões: {sankeyData.links.length}</span>
+                <span>•</span>
+                <span>Campanhas rastreadas: {Math.min(5, sankeyData.nodes.filter((_, i) => i < 5).length)}</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
