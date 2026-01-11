@@ -200,7 +200,7 @@ export default function Financial() {
                   </div>
                 </div>
               </div>
-              {/* Show revenue summary based on business model */}
+              {/* Show revenue summary based on business model - ROAS here, ROI only in DRE */}
               {(connectedCRM ? crmMetrics.revenue : adsMetrics.revenue) > 0 && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-card/50 border">
                   <div className="text-center">
@@ -221,7 +221,14 @@ export default function Financial() {
                     <p className="text-3xl font-bold text-metric-positive">
                       {((connectedCRM ? crmMetrics.revenue : adsMetrics.revenue) / (totalAdSpend || 1)).toFixed(1)}x
                     </p>
-                    <p className="text-xs text-muted-foreground">ROAS</p>
+                    <p className="text-xs text-muted-foreground">ROAS Bruto</p>
+                  </div>
+                  <div className="w-px h-12 bg-border" />
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-foreground">
+                      R$ {((connectedCRM ? crmMetrics.revenue : adsMetrics.revenue) - totalAdSpend).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Lucro Bruto</p>
                   </div>
                 </div>
               )}
