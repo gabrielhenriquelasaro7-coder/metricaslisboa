@@ -290,7 +290,7 @@ function StatusGroup({
       </CollapsibleTrigger>
       
       <CollapsibleContent className="pt-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-4">
           {projects.map(project => <ClientCard key={project.id} project={project} showWhatsApp={showWhatsApp} onSelect={onSelect} onEdit={onEdit} onDelete={onDelete} onArchive={onArchive} onUnarchive={onUnarchive} onResync={onResync} onWhatsApp={onWhatsApp} />)}
         </div>
       </CollapsibleContent>
@@ -634,19 +634,19 @@ export default function ProjectSelector() {
         
         {/* Top nav - Responsive */}
         <div className="relative border-b border-border">
-          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-5">
-            <nav className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 sm:justify-between">
+          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-4 lg:py-5">
+            <nav className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 lg:gap-0 md:justify-between">
               {/* Logo Section */}
-              <div className="flex items-center justify-center sm:justify-start gap-3 sm:gap-6 w-full sm:w-auto">
-                <img src={v4Logo} alt="V4 Company" className="h-8 sm:h-12 w-auto dark:brightness-0 dark:invert dark:opacity-95" />
-                <div className="hidden sm:block w-px h-12 bg-gradient-to-b from-transparent via-primary/60 to-transparent" />
+              <div className="flex items-center justify-center md:justify-start gap-3 md:gap-4 lg:gap-6 w-full md:w-auto">
+                <img src={v4Logo} alt="V4 Company" className="h-8 md:h-10 lg:h-12 w-auto dark:brightness-0 dark:invert dark:opacity-95" />
+                <div className="hidden md:block w-px h-10 lg:h-12 bg-gradient-to-b from-transparent via-primary/60 to-transparent" />
                 <div className="flex flex-col">
-                  <span className="text-lg sm:text-2xl font-bold tracking-tight text-foreground leading-tight" style={{
+                  <span className="text-lg md:text-xl lg:text-2xl font-bold tracking-tight text-foreground leading-tight" style={{
                   fontFamily: 'Space Grotesk, sans-serif'
                 }}>
                     ADS<span className="font-light text-foreground/70">MANAGER</span>
                   </span>
-                  <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-muted-foreground hidden sm:block" style={{
+                  <span className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] text-muted-foreground hidden md:block" style={{
                   fontFamily: 'Inter, sans-serif'
                 }}>
                     Painel de Controle
@@ -654,19 +654,19 @@ export default function ProjectSelector() {
                 </div>
               </div>
               
-              {/* Nav items - Horizontal scroll on mobile */}
-              {/* Nav items - Icon only on mobile, full label on desktop */}
-              <div className="flex items-center justify-center sm:justify-start gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 sm:mx-0 sm:px-0 scrollbar-hide w-full sm:w-auto">
-                <button className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-semibold text-foreground bg-secondary hover:bg-secondary/80 transition-all flex items-center gap-1.5 sm:gap-2.5 whitespace-nowrap touch-target border border-border">
-                  <img src={metaIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden sm:inline">META ADS</span>
+              {/* Nav items - Icon only on mobile/tablet, full label on desktop */}
+              <div className="flex items-center justify-center md:justify-end gap-1.5 md:gap-2 overflow-x-auto pb-1 md:pb-0 -mx-1 px-1 md:mx-0 md:px-0 scrollbar-hide w-full md:w-auto flex-wrap md:flex-nowrap">
+                <button className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-semibold text-foreground bg-secondary hover:bg-secondary/80 transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 whitespace-nowrap touch-target border border-border">
+                  <img src={metaIcon} alt="" className="w-4 h-4 md:w-4.5 md:h-4.5 lg:w-5 lg:h-5" />
+                  <span className="hidden lg:inline">META ADS</span>
+                  <span className="hidden md:inline lg:hidden text-[11px]">META</span>
                 </button>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
-                        <img src={googleAdsIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5 opacity-50" />
-                        <span className="hidden sm:inline">GOOGLE</span>
+                      <button className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
+                        <img src={googleAdsIcon} alt="" className="w-4 h-4 md:w-4.5 md:h-4.5 lg:w-5 lg:h-5 opacity-50" />
+                        <span className="hidden lg:inline">GOOGLE</span>
                         <Lock className="w-3 h-3" />
                       </button>
                     </TooltipTrigger>
@@ -675,17 +675,17 @@ export default function ProjectSelector() {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                <button onClick={() => navigate('/whatsapp-manager')} className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
-                  <img src={whatsappIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5 opacity-70" />
-                  <span className="hidden sm:inline">WhatsApp</span>
+                <button onClick={() => navigate('/whatsapp-manager')} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
+                  <img src={whatsappIcon} alt="" className="w-4 h-4 md:w-4.5 md:h-4.5 lg:w-5 lg:h-5 opacity-70" />
+                  <span className="hidden lg:inline">WhatsApp Admin</span>
                 </button>
-                <button onClick={() => navigate('/admin')} className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
+                <button onClick={() => navigate('/admin')} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
                   <Shield className="w-4 h-4" />
-                  <span className="hidden sm:inline">Admin</span>
+                  <span className="hidden lg:inline">Admin</span>
                 </button>
-                <button onClick={() => setSettingsDialogOpen(true)} className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
+                <button onClick={() => setSettingsDialogOpen(true)} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
                   <User className="w-4 h-4" />
-                  <span className="hidden sm:inline">Configurações</span>
+                  <span className="hidden lg:inline">Configurações</span>
                 </button>
               </div>
             </nav>
@@ -745,19 +745,19 @@ export default function ProjectSelector() {
 
       {/* ==================== ACTIONS BAR - Mobile-first ==================== */}
       <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border safe-area-top">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            {/* Search & Filter - Full width on mobile */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-              <div className="relative flex-1 sm:flex-none">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 md:py-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+            {/* Search & Filter - Full width on mobile, inline on tablet+ */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3 w-full md:w-auto">
+              <div className="relative flex-1 md:flex-none">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Buscar cliente..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 h-10 sm:h-10 w-full sm:w-56 lg:w-72 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:ring-primary/20 rounded-xl touch-target" style={{
+                <Input placeholder="Buscar cliente..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 h-10 w-full sm:w-full md:w-48 lg:w-64 xl:w-72 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:ring-primary/20 rounded-xl touch-target" style={{
                 fontFamily: 'Inter, sans-serif'
               }} />
               </div>
               
               <Select value={healthFilter} onValueChange={val => setHealthFilter(val as any)}>
-                <SelectTrigger className="w-full sm:w-32 h-10 bg-secondary border-border text-muted-foreground rounded-xl focus:border-primary/50 touch-target">
+                <SelectTrigger className="w-full sm:w-32 md:w-28 lg:w-32 h-10 bg-secondary border-border text-muted-foreground rounded-xl focus:border-primary/50 touch-target text-sm">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50">
@@ -769,17 +769,17 @@ export default function ProjectSelector() {
               </Select>
             </div>
             
-            {/* Actions - Scrollable on mobile */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 sm:mx-0 sm:px-0">
+            {/* Actions - Scrollable on mobile, inline on tablet+ */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 -mx-1 px-1 md:mx-0 md:px-0 flex-shrink-0">
               {!isGuest && <>
                   <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button className="h-10 px-5 sm:px-6 min-w-[100px] bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-xl shadow-lg shadow-primary/20 gap-1.5 sm:gap-2 transition-all whitespace-nowrap touch-target" style={{
+                      <Button className="h-10 px-4 md:px-5 lg:px-6 min-w-[90px] md:min-w-[100px] bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-xl shadow-lg shadow-primary/20 gap-1.5 md:gap-2 transition-all whitespace-nowrap touch-target text-sm" style={{
                     fontFamily: 'Space Grotesk, sans-serif'
                   }}>
                         <Plus className="w-4 h-4" />
-                        <span className="hidden sm:inline">Novo Cliente</span>
-                        <span className="sm:hidden">Novo cliente   </span>
+                        <span className="hidden md:inline">Novo Cliente</span>
+                        <span className="md:hidden">Novo</span>
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="w-[95vw] max-w-md mx-auto bg-popover backdrop-blur-xl border-border rounded-2xl max-h-[90vh] overflow-y-auto">
@@ -881,17 +881,18 @@ export default function ProjectSelector() {
                     </DialogContent>
                   </Dialog>
                   
-                  <Button onClick={() => setInviteDialogOpen(true)} variant="outline" className="h-10 px-3 sm:px-4 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all gap-1.5 sm:gap-2 whitespace-nowrap touch-target" style={{
+                  <Button onClick={() => setInviteDialogOpen(true)} variant="outline" className="h-10 px-3 md:px-4 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all gap-1.5 md:gap-2 whitespace-nowrap touch-target text-sm" style={{
                 fontFamily: 'Space Grotesk, sans-serif'
               }}>
                     <UserPlus className="w-4 h-4" />
-                    <span className="hidden sm:inline">Convidar Cliente</span>
+                    <span className="hidden lg:inline">Convidar Cliente</span>
+                    <span className="hidden md:inline lg:hidden">Convidar</span>
                   </Button>
                 </>}
               
-              <Button variant="outline" onClick={() => setShowArchived(!showArchived)} className={cn("h-10 px-3 sm:px-4 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all whitespace-nowrap touch-target gap-1.5 sm:gap-2", showArchived && 'bg-secondary text-foreground border-primary/30')}>
+              <Button variant="outline" onClick={() => setShowArchived(!showArchived)} className={cn("h-10 px-3 md:px-4 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all whitespace-nowrap touch-target gap-1.5 md:gap-2 text-sm", showArchived && 'bg-secondary text-foreground border-primary/30')}>
                 <Archive className="w-4 h-4" />
-                <span className="hidden sm:inline">Arquivados</span>
+                <span className="hidden md:inline">Arquivados</span>
               </Button>
             </div>
           </div>
