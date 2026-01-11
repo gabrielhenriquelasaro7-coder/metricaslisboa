@@ -78,8 +78,18 @@ interface CRMConnectionCardProps {
   onConnect: (crmId: string, credentials?: { api_key: string; api_url?: string }) => Promise<void>;
   connectedCRM?: string | null;
   onDisconnect?: () => void;
-  isConnecting?: string | null;
+  isConnecting?: boolean;
   connectionError?: string | null;
+  crmStats?: {
+    total_deals: number;
+    won_deals: number;
+    lost_deals: number;
+    open_deals: number;
+    total_revenue: number;
+    total_pipeline_value: number;
+  };
+  lastSyncAt?: string | null;
+  crmUrl?: string | null;
 }
 
 export function CRMConnectionCard({
@@ -88,7 +98,9 @@ export function CRMConnectionCard({
   connectedCRM,
   onDisconnect,
   isConnecting,
-  connectionError
+  connectionError,
+  crmStats,
+  crmUrl
 }: CRMConnectionCardProps) {
   const [showModal, setShowModal] = useState(false);
   const [selectedCRM, setSelectedCRM] = useState<CRMOption | null>(null);
@@ -159,9 +171,15 @@ export function CRMConnectionCard({
 
   // Connected state
   if (connectedCRM && connectedCRMData) {
+    const formatCurrency = (value: number) => {
+      if (value >= 1000000) return `R$ ${(value / 1000000).toFixed(1)}M`;
+      if (value >= 1000) return `R$ ${(value / 1000).toFixed(0)}k`;
+      return `R$ ${value.toFixed(0)}`;
+    };
+
     return (
       <Card className="border-green-500/30 bg-gradient-to-br from-green-500/5 via-transparent to-transparent">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
           <div className="flex items-center gap-4">
             <div className={cn(
               'w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg',
@@ -183,7 +201,12 @@ export function CRMConnectionCard({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={() => crmUrl && window.open(crmUrl, '_blank')}
+            >
               <ExternalLink className="w-4 h-4" />
               Abrir CRM
             </Button>
@@ -197,6 +220,26 @@ export function CRMConnectionCard({
             </Button>
           </div>
         </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-card border">
+              <p className="text-2xl font-bold text-foreground">{crmStats?.total_deals || 0}</p>
+              <p className="text-sm text-muted-foreground">Deals Total</p>
+            </div>
+            <div className="p-4 rounded-xl bg-card border">
+              <p className="text-2xl font-bold text-green-500">{crmStats?.won_deals || 0}</p>
+              <p className="text-sm text-muted-foreground">Vendas Ganhas</p>
+            </div>
+            <div className="p-4 rounded-xl bg-card border">
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(crmStats?.total_revenue || 0)}</p>
+              <p className="text-sm text-muted-foreground">Faturamento</p>
+            </div>
+            <div className="p-4 rounded-xl bg-card border">
+              <p className="text-2xl font-bold text-primary">{formatCurrency(crmStats?.total_pipeline_value || 0)}</p>
+              <p className="text-sm text-muted-foreground">Pipeline</p>
+            </div>
+          </div>
+        </CardContent>
       </Card>
     );
   }
@@ -269,10 +312,10 @@ export function CRMConnectionCard({
                   
                   <Button 
                     className="w-full gap-2 h-11 font-medium" 
-                    disabled={isConnecting !== null}
+                    disabled={isConnecting}
                     onClick={() => handleOpenModal(crm)}
                   >
-                    {isConnecting === crm.id ? (
+                    {isConnecting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Conectando...

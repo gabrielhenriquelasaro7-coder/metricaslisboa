@@ -201,7 +201,7 @@ export default function Financial() {
             onConnect={handleConnectCRM}
             connectedCRM={connectedCRM}
             onDisconnect={disconnectCRM}
-            isConnecting={isConnecting}
+            isConnecting={!!isConnecting}
             connectionError={connectionError}
           />
         ) : (
@@ -221,8 +221,10 @@ export default function Financial() {
                     onConnect={handleConnectCRM}
                     connectedCRM={connectedCRM}
                     onDisconnect={disconnectCRM}
-                    isConnecting={isConnecting}
+                    isConnecting={!!isConnecting}
                     connectionError={connectionError}
+                    crmStats={crmStatus?.stats}
+                    crmUrl={crmStatus?.api_url}
                   />
                 </div>
                 <SyncStatusCard

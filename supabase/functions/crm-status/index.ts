@@ -100,6 +100,7 @@ Deno.serve(async (req) => {
         status: connection.status,
         connected_at: connection.connected_at,
         last_error: connection.last_error,
+        api_url: connection.api_url,
         sync: latestSync ? {
           id: latestSync.id,
           type: latestSync.sync_type,
