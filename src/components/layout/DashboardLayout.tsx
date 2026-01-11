@@ -135,7 +135,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </Sheet>
           <span className="font-semibold text-foreground text-sm truncate">MetaAds Manager</span>
         </header>
-        <main className="pt-12 min-h-screen relative z-10 overflow-x-hidden safe-area-bottom">
+        <main className="pt-12 min-h-screen relative z-10 overflow-x-hidden safe-area-bottom p-4">
           {children}
         </main>
       </div>
@@ -146,7 +146,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background red-texture-bg grid-background">
       <Sidebar />
-      <main className={cn('ml-72 min-h-screen transition-all duration-300 relative z-10')}>
+      <main className={cn('ml-72 min-h-screen transition-all duration-300 relative z-10 p-6 lg:p-8')}>
         {children}
       </main>
     </div>
