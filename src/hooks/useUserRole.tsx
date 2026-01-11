@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -35,8 +35,17 @@ export function useUserRole(): UserRoleData {
   const [loading, setLoading] = useState(true);
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
   const [guestProjectIds, setGuestProjectIds] = useState<string[]>([]);
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
+    // Safety timeout - force loading to false after 3 seconds
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.warn('[useUserRole] Timeout - forcing loading to false');
+        setLoading(false);
+      }
+    }, 3000);
+
     const fetchUserRole = async () => {
       // Wait for auth to load first
       if (authLoading) {
@@ -49,26 +58,36 @@ export function useUserRole(): UserRoleData {
         return;
       }
 
+      // Prevent duplicate fetches
+      if (fetchedRef.current) {
+        setLoading(false);
+        return;
+      }
+      fetchedRef.current = true;
+
       try {
-        // Fetch user role
+        // Fetch user role with timeout
+        const controller = new AbortController();
+        const fetchTimeout = setTimeout(() => controller.abort(), 5000);
+
         const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
           .maybeSingle();
 
+        clearTimeout(fetchTimeout);
+
         if (roleError) {
           console.error('Error fetching user role:', roleError);
           setRole('gestor');
         } else if (roleData) {
           setRole(roleData.role as AppRole);
-          // Cache the role for faster reloads
           localStorage.setItem('user-role-cache', JSON.stringify({
             userId: user.id,
             role: roleData.role
           }));
         } else {
-          // No role found, default to gestor
           setRole('gestor');
           localStorage.setItem('user-role-cache', JSON.stringify({
             userId: user.id,
@@ -76,7 +95,7 @@ export function useUserRole(): UserRoleData {
           }));
         }
 
-        // If guest, check if password needs to be changed and fetch accessible projects
+        // If guest, check if password needs to be changed
         if (roleData?.role === 'convidado') {
           const { data: invitationData } = await supabase
             .from('guest_invitations')
@@ -88,7 +107,6 @@ export function useUserRole(): UserRoleData {
             setNeedsPasswordChange(!invitationData.password_changed);
           }
 
-          // Fetch guest project access
           const { data: accessData } = await supabase
             .from('guest_project_access')
             .select('project_id')
@@ -106,7 +124,16 @@ export function useUserRole(): UserRoleData {
     };
 
     fetchUserRole();
-  }, [user, authLoading]);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [user, authLoading, loading]);
+
+  // Reset fetch ref when user changes
+  useEffect(() => {
+    fetchedRef.current = false;
+  }, [user?.id]);
 
   return {
     role,

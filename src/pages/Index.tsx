@@ -1,37 +1,57 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Index() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [redirected, setRedirected] = useState(false);
+  const [hasRedirected, setHasRedirected] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
+  const mountedRef = useRef(true);
 
+  // Safety timeout - show fallback after 3 seconds
   useEffect(() => {
-    // Force redirect after 1.5 seconds even if still loading
-    const forceRedirectTimeout = setTimeout(() => {
-      if (!redirected) {
-        console.warn('[Index] Force redirect to /auth after timeout');
-        navigate('/auth', { replace: true });
-        setRedirected(true);
+    const fallbackTimeout = setTimeout(() => {
+      if (mountedRef.current && !hasRedirected) {
+        setShowFallback(true);
       }
-    }, 1500);
+    }, 3000);
 
-    if (!loading && !redirected) {
-      if (user) {
-        console.log('[Index] User found, redirecting to /projects');
-        navigate('/projects', { replace: true });
-      } else {
-        console.log('[Index] No user, redirecting to /auth');
-        navigate('/auth', { replace: true });
-      }
-      setRedirected(true);
+    return () => {
+      clearTimeout(fallbackTimeout);
+      mountedRef.current = false;
+    };
+  }, [hasRedirected]);
+
+  // Handle navigation only after auth is ready
+  useEffect(() => {
+    // Don't redirect if already redirected or still loading
+    if (hasRedirected || loading) return;
+
+    // Only navigate when auth state is determined
+    if (!loading) {
+      const targetPath = user ? '/projects' : '/auth';
+      setHasRedirected(true);
+      navigate(targetPath, { replace: true });
     }
+  }, [user, loading, navigate, hasRedirected]);
 
-    return () => clearTimeout(forceRedirectTimeout);
-  }, [user, loading, navigate, redirected]);
+  // Always render immediately - never block UI
+  if (showFallback && !hasRedirected) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <button 
+          onClick={() => navigate('/auth', { replace: true })}
+          className="text-sm text-primary hover:underline"
+        >
+          Ir para login
+        </button>
+      </div>
+    );
+  }
 
-  // Simple spinner without external dependencies
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
