@@ -44,12 +44,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get connection for this project
+    // Get connection for this project (any connected status for the project)
     const { data: connection, error: connError } = await supabase
       .from('crm_connections')
       .select('*')
       .eq('project_id', projectId)
-      .eq('user_id', user.id)
+      .eq('status', 'connected')
+      .order('connected_at', { ascending: false })
+      .limit(1)
       .single();
 
     if (connError && connError.code !== 'PGRST116') { // PGRST116 = no rows
