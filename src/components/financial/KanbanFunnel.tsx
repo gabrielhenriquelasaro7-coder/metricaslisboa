@@ -138,19 +138,28 @@ export function KanbanFunnel({
     return filterDeals(deals, filters);
   }, [deals, filters]);
 
-  // Group filtered deals by stage
+  // Sort deals by created_date descending (most recent first)
+  const sortedDeals = useMemo(() => {
+    return [...filteredDeals].sort((a, b) => {
+      const dateA = a.created_date ? new Date(a.created_date).getTime() : 0;
+      const dateB = b.created_date ? new Date(b.created_date).getTime() : 0;
+      return dateB - dateA; // Most recent first
+    });
+  }, [filteredDeals]);
+
+  // Group sorted deals by stage
   const dealsByStage = useMemo(() => {
     const map: Record<string, FunnelDeal[]> = {};
     stages.forEach(stage => {
       map[stage.id] = [];
     });
-    filteredDeals.forEach(deal => {
+    sortedDeals.forEach(deal => {
       if (map[deal.stage_id]) {
         map[deal.stage_id].push(deal);
       }
     });
     return map;
-  }, [stages, filteredDeals]);
+  }, [stages, sortedDeals]);
 
   // Filter only open stages (type 0) for display
   const openStages = useMemo(() => {
