@@ -7,6 +7,7 @@ export { FinancialDRECard } from './FinancialDRECard';
 export { PipelineSelector } from './PipelineSelector';
 export { KanbanFunnel } from './KanbanFunnel';
 export { KanbanFilters, defaultFilters, filterDeals } from './KanbanFilters';
+export { AttributionAnalysis } from './AttributionAnalysis';
 export type { Pipeline } from './PipelineSelector';
 export type { FunnelStage, FunnelDeal } from './KanbanFunnel';
 export type { KanbanFiltersState } from './KanbanFilters';
