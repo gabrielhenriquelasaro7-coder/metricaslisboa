@@ -116,8 +116,13 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     if (projectId === selectedProjectId) return;
     setIsChangingProject(true);
     localStorage.setItem('selectedProjectId', projectId);
-    // Sempre navegar para Dashboard ao trocar de projeto
-    window.location.href = '/dashboard';
+    // Navigate without full page reload - use React Router
+    navigate('/dashboard');
+    // Force a small delay then reload state
+    setTimeout(() => {
+      setIsChangingProject(false);
+      window.location.reload();
+    }, 100);
   };
 
   const toggleCampaignExpand = (campaignId: string) => {
