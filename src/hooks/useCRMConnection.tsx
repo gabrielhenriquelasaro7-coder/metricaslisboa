@@ -12,6 +12,7 @@ export interface CRMConnectionStatus {
   status?: string;
   connected_at?: string;
   last_error?: string;
+  api_url?: string;
   sync?: {
     id: string;
     type: string;
