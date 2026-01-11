@@ -15,15 +15,36 @@ interface UserRoleData {
 }
 
 export function useUserRole(): UserRoleData {
-  const { user } = useAuth();
-  const [role, setRole] = useState<AppRole>('gestor');
+  const { user, loading: authLoading } = useAuth();
+  
+  // Try to get cached role to avoid flash
+  const [role, setRole] = useState<AppRole>(() => {
+    try {
+      const cached = localStorage.getItem('user-role-cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.userId === user?.id) {
+          return parsed.role as AppRole;
+        }
+      }
+    } catch {
+      // Ignore
+    }
+    return 'gestor';
+  });
   const [loading, setLoading] = useState(true);
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
   const [guestProjectIds, setGuestProjectIds] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchUserRole = async () => {
+      // Wait for auth to load first
+      if (authLoading) {
+        return;
+      }
+      
       if (!user) {
+        localStorage.removeItem('user-role-cache');
         setLoading(false);
         return;
       }
@@ -41,9 +62,18 @@ export function useUserRole(): UserRoleData {
           setRole('gestor');
         } else if (roleData) {
           setRole(roleData.role as AppRole);
+          // Cache the role for faster reloads
+          localStorage.setItem('user-role-cache', JSON.stringify({
+            userId: user.id,
+            role: roleData.role
+          }));
         } else {
           // No role found, default to gestor
           setRole('gestor');
+          localStorage.setItem('user-role-cache', JSON.stringify({
+            userId: user.id,
+            role: 'gestor'
+          }));
         }
 
         // If guest, check if password needs to be changed and fetch accessible projects
@@ -76,7 +106,7 @@ export function useUserRole(): UserRoleData {
     };
 
     fetchUserRole();
-  }, [user]);
+  }, [user, authLoading]);
 
   return {
     role,

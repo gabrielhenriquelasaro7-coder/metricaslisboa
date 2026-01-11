@@ -15,16 +15,28 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  // Try to get cached session immediately to avoid flash
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const cached = localStorage.getItem('sb-chxetrmrupvxqbuyjvph-auth-token');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return parsed?.user ?? null;
+      }
+    } catch {
+      // Ignore parsing errors
+    }
+    return null;
+  });
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Safety timeout to prevent infinite loading - reduced to 2 seconds
+    // Reduced timeout to 1 second for faster fallback
     const timeoutId = setTimeout(() => {
       console.warn('[useAuth] Auth check timeout - forcing loading to false');
       setLoading(false);
-    }, 2000);
+    }, 1000);
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
