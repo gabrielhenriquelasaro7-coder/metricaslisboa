@@ -128,30 +128,30 @@ export default function MetricCard({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: index * 0.03, duration: 0.3, ease: "easeOut" }}
       whileHover={{ y: -2, transition: { duration: 0.15 } }}
-      className={cn('premium-card group cursor-default p-3 sm:p-4', className)}
+      className={cn('premium-card group cursor-default p-2 sm:p-3 overflow-hidden', className)}
     >
       {/* Header row: Title + Badge aligned, Icon on right */}
-      <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1 relative z-10">
+      <div className="flex items-center justify-between gap-1 mb-0.5 relative z-10">
         {/* Title and Badge container - flex with center alignment */}
-        <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
+        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
           {titleElement}
           {MetricDeltaBadge}
         </div>
         {Icon && (
-          <div className="premium-icon w-7 h-7 sm:w-10 sm:h-10 shrink-0">
-            <Icon className="w-3 h-3 sm:w-4 sm:h-4 text-primary transition-all duration-300 group-hover:scale-110" />
+          <div className="premium-icon w-6 h-6 sm:w-8 sm:h-8 shrink-0">
+            <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary transition-all duration-300 group-hover:scale-110" />
           </div>
         )}
       </div>
       
-      {/* Value */}
-      <p className="text-xs sm:text-sm md:text-base font-bold text-foreground transition-colors duration-300 truncate">
+      {/* Value - smaller font to fit large numbers */}
+      <p className="text-[11px] sm:text-xs md:text-sm font-bold text-foreground transition-colors duration-300 truncate overflow-hidden">
         {animatedValue}
       </p>
       
       {/* Change label (e.g., "Anterior: R$ 1.922,54") */}
       {changeLabel && (
-        <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">
+        <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 truncate overflow-hidden">
           {changeLabel}
         </p>
       )}

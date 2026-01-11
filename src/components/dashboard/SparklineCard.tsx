@@ -74,25 +74,25 @@ export default function SparklineCard({
       transition={{ delay: index * 0.03, duration: 0.3, ease: "easeOut" }}
       whileHover={{ y: -2, transition: { duration: 0.15 } }}
       className={cn(
-        'premium-card group relative cursor-default p-3 sm:p-4',
+        'premium-card group relative cursor-default p-2 sm:p-3 overflow-hidden',
         className
       )}
     >
-      <div className="flex items-start justify-between mb-2 sm:mb-3 relative z-10">
-        <div className="flex-1 min-w-0">
+      <div className="flex items-start justify-between mb-1 sm:mb-2 relative z-10">
+        <div className="flex-1 min-w-0 overflow-hidden">
           {titleElement}
-          <p className="text-sm sm:text-base md:text-lg font-bold mt-0.5 sm:mt-1 text-foreground transition-colors duration-300 truncate">
+          <p className="text-[11px] sm:text-xs md:text-sm font-bold mt-0.5 text-foreground transition-colors duration-300 truncate overflow-hidden">
             {value}
           </p>
           {previousValue !== undefined && (
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 truncate overflow-hidden">
               Anterior: {previousValue}
             </p>
           )}
         </div>
         {Icon && (
-          <div className="premium-icon w-9 h-9 sm:w-11 sm:h-11 flex-shrink-0 ml-2 sm:ml-3">
-            <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary transition-all duration-300 group-hover:scale-110" />
+          <div className="premium-icon w-7 h-7 sm:w-9 sm:h-9 flex-shrink-0 ml-1 sm:ml-2">
+            <Icon className="w-3 h-3 sm:w-4 sm:h-4 text-primary transition-all duration-300 group-hover:scale-110" />
           </div>
         )}
       </div>
