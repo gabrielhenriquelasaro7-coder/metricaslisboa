@@ -172,16 +172,16 @@ function DemographicPieChart({
           </div>
           {title}
         </h4>
-        <div className="flex items-center gap-4">
-          <div className="h-[160px] w-[160px]">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="h-[120px] w-[120px] sm:h-[160px] sm:w-[160px] flex-shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={chartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={40}
-                  outerRadius={70}
+                  innerRadius={30}
+                  outerRadius={55}
                   dataKey="value"
                   strokeWidth={2}
                   stroke="hsl(var(--background))"
