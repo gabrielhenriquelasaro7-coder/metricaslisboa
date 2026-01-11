@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Users, Store, Loader2, LogOut, Archive, Trash2, User, RefreshCw, ChevronRight, ChevronDown, MoreVertical, Pencil, ArchiveRestore, Camera, Lock, Search, Target, GraduationCap, TrendingUp, MessageSquare, ExternalLink, UserPlus, Settings, Sun, Moon } from 'lucide-react';
+import { Plus, Users, Store, Loader2, LogOut, Archive, Trash2, User, RefreshCw, ChevronRight, ChevronDown, MoreVertical, Pencil, ArchiveRestore, Camera, Lock, Search, Target, GraduationCap, TrendingUp, MessageSquare, ExternalLink, UserPlus, Settings, Sun, Moon, Shield } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -678,6 +678,10 @@ export default function ProjectSelector() {
                 <button onClick={() => navigate('/whatsapp-manager')} className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
                   <img src={whatsappIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5 opacity-70" />
                   <span className="hidden sm:inline">WhatsApp</span>
+                </button>
+                <button onClick={() => navigate('/admin')} className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
+                  <Shield className="w-4 h-4" />
+                  <span className="hidden sm:inline">Admin</span>
                 </button>
                 <button onClick={() => setSettingsDialogOpen(true)} className="h-9 sm:h-11 px-3 sm:px-5 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 sm:gap-2.5 border border-border whitespace-nowrap touch-target">
                   <User className="w-4 h-4" />
