@@ -11,6 +11,27 @@ export interface CRMPipeline {
   deals_count: number;
 }
 
+export interface CRMStage {
+  id: string;
+  name: string;
+  color: string;
+  sort: number;
+  type: number;
+  leads_count: number;
+  total_value: number;
+}
+
+export interface CRMDeal {
+  id: string;
+  title: string;
+  contact_name?: string;
+  contact_phone?: string;
+  value?: number;
+  stage_id: string;
+  created_date?: string;
+  utm_source?: string;
+}
+
 export interface CRMConnectionStatus {
   connected: boolean;
   connection_id?: string;
@@ -22,6 +43,8 @@ export interface CRMConnectionStatus {
   api_url?: string;
   selected_pipeline_id?: string | null;
   pipelines?: CRMPipeline[];
+  stages?: CRMStage[];
+  deals?: CRMDeal[];
   sync?: {
     id: string;
     type: string;

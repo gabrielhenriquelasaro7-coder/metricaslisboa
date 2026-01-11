@@ -5,4 +5,6 @@ export { ROASRealCard } from './ROASRealCard';
 export { InsideSalesFunnel } from './InsideSalesFunnel';
 export { FinancialDRECard } from './FinancialDRECard';
 export { PipelineSelector } from './PipelineSelector';
+export { KanbanFunnel } from './KanbanFunnel';
 export type { Pipeline } from './PipelineSelector';
+export type { FunnelStage, FunnelDeal } from './KanbanFunnel';
