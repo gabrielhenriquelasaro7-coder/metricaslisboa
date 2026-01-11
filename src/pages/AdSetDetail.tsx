@@ -394,98 +394,6 @@ export default function AdSetDetail() {
           }
         }
 
-        // Fetch fresh thumbnails from ads_daily_metrics (these are updated on each sync)
-        const { data: freshThumbnails } = await supabase
-          .from('ads_daily_metrics')
-          .select('ad_id, creative_thumbnail, cached_creative_thumbnail')
-          .eq('adset_id', adSetId)
-          .order('date', { ascending: false });
-        
-        // Build map of latest thumbnails per ad_id
-        const thumbnailMap = new Map<string, { thumbnail: string | null; cached: string | null }>();
-        if (freshThumbnails) {
-          for (const t of freshThumbnails) {
-            if (!thumbnailMap.has(t.ad_id)) {
-              thumbnailMap.set(t.ad_id, { 
-                thumbnail: t.creative_thumbnail, 
-                cached: t.cached_creative_thumbnail 
-              });
-            }
-          }
-        }
-
-        // First try to get ads from ads table
-        const { data: adsData } = await supabase
-          .from('ads')
-          .select('*')
-          .eq('ad_set_id', adSetId)
-          .order('spend', { ascending: false });
-        
-        if (adsData && adsData.length > 0) {
-          // Merge fresh thumbnails from daily metrics
-          const adsWithFreshThumbnails = adsData.map(ad => {
-            const fresh = thumbnailMap.get(ad.id);
-            return {
-              ...ad,
-              // Prioritize: cached_image_url > fresh cached > fresh thumbnail > existing
-              cached_image_url: ad.cached_image_url || fresh?.cached || null,
-              creative_thumbnail: fresh?.cached || fresh?.thumbnail || ad.creative_thumbnail,
-              creative_image_url: ad.creative_image_url || fresh?.cached || fresh?.thumbnail || null,
-            };
-          });
-          setAds((adsWithFreshThumbnails as Ad[]) || []);
-        } else {
-          // Fallback: aggregate ads from ads_daily_metrics
-          const { data: metricsAds } = await supabase
-            .from('ads_daily_metrics')
-            .select('ad_id, ad_name, ad_status, spend, impressions, clicks, conversions, conversion_value, ctr, cpm, cpc, roas, cpa, creative_thumbnail, cached_creative_thumbnail')
-            .eq('adset_id', adSetId);
-          
-          if (metricsAds && metricsAds.length > 0) {
-            // Group and aggregate by ad_id
-            const adMap = new Map<string, Ad>();
-            metricsAds.forEach(m => {
-              const existing = adMap.get(m.ad_id);
-              if (existing) {
-                existing.spend += m.spend || 0;
-                existing.impressions += m.impressions || 0;
-                existing.clicks += m.clicks || 0;
-                existing.conversions += m.conversions || 0;
-              } else {
-                adMap.set(m.ad_id, {
-                  id: m.ad_id,
-                  name: m.ad_name,
-                  status: m.ad_status || 'ACTIVE',
-                  spend: m.spend || 0,
-                  impressions: m.impressions || 0,
-                  clicks: m.clicks || 0,
-                  ctr: 0,
-                  cpm: 0,
-                  cpc: 0,
-                  conversions: m.conversions || 0,
-                  roas: 0,
-                  cpa: 0,
-                  creative_thumbnail: m.cached_creative_thumbnail || m.creative_thumbnail || null,
-                  creative_image_url: m.cached_creative_thumbnail || m.creative_thumbnail || null,
-                  creative_video_url: null,
-                  headline: null,
-                });
-              }
-            });
-            // Calculate derived metrics
-            const aggregatedAds = Array.from(adMap.values()).map(ad => ({
-              ...ad,
-              ctr: ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0,
-              cpm: ad.impressions > 0 ? (ad.spend / ad.impressions) * 1000 : 0,
-              cpc: ad.clicks > 0 ? ad.spend / ad.clicks : 0,
-              roas: ad.spend > 0 ? (ad.conversions * 100) / ad.spend : 0, // Approximation
-              cpa: ad.conversions > 0 ? ad.spend / ad.conversions : 0,
-            }));
-            setAds(aggregatedAds.sort((a, b) => b.spend - a.spend));
-          } else {
-            setAds([]);
-          }
-        }
       } catch (error) {
         console.error('Error:', error);
       } finally {
@@ -494,6 +402,106 @@ export default function AdSetDetail() {
     };
     fetchData();
   }, [adSetId]);
+
+  // Fetch ads metrics based on selected date range
+  useEffect(() => {
+    const fetchAdsForPeriod = async () => {
+      if (!adSetId || !dateRange?.from || !dateRange?.to) return;
+      
+      const startDate = dateRange.from.toISOString().split('T')[0];
+      const endDate = dateRange.to.toISOString().split('T')[0];
+      
+      console.log('[AdSetDetail] Fetching ads for period:', startDate, '-', endDate);
+      
+      // Fetch ads metrics from ads_daily_metrics filtered by date range
+      const { data: metricsData } = await supabase
+        .from('ads_daily_metrics')
+        .select('ad_id, ad_name, ad_status, spend, impressions, clicks, conversions, conversion_value, creative_thumbnail, cached_creative_thumbnail')
+        .eq('adset_id', adSetId)
+        .gte('date', startDate)
+        .lte('date', endDate);
+      
+      if (metricsData && metricsData.length > 0) {
+        // Group and aggregate by ad_id
+        const adMap = new Map<string, Ad>();
+        metricsData.forEach(m => {
+          const existing = adMap.get(m.ad_id);
+          if (existing) {
+            existing.spend += m.spend || 0;
+            existing.impressions += m.impressions || 0;
+            existing.clicks += m.clicks || 0;
+            existing.conversions += m.conversions || 0;
+          } else {
+            adMap.set(m.ad_id, {
+              id: m.ad_id,
+              name: m.ad_name,
+              status: m.ad_status || 'ACTIVE',
+              spend: m.spend || 0,
+              impressions: m.impressions || 0,
+              clicks: m.clicks || 0,
+              ctr: 0,
+              cpm: 0,
+              cpc: 0,
+              conversions: m.conversions || 0,
+              roas: 0,
+              cpa: 0,
+              creative_thumbnail: m.cached_creative_thumbnail || m.creative_thumbnail || null,
+              creative_image_url: m.cached_creative_thumbnail || m.creative_thumbnail || null,
+              creative_video_url: null,
+              headline: null,
+            });
+          }
+        });
+        
+        // Calculate derived metrics
+        const aggregatedAds = Array.from(adMap.values()).map(ad => ({
+          ...ad,
+          ctr: ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0,
+          cpm: ad.impressions > 0 ? (ad.spend / ad.impressions) * 1000 : 0,
+          cpc: ad.clicks > 0 ? ad.spend / ad.clicks : 0,
+          roas: ad.spend > 0 && ad.conversions > 0 ? (ad.conversions * 100) / ad.spend : 0,
+          cpa: ad.conversions > 0 ? ad.spend / ad.conversions : 0,
+        }));
+        
+        setAds(aggregatedAds.sort((a, b) => b.spend - a.spend));
+        console.log('[AdSetDetail] Loaded', aggregatedAds.length, 'ads for period');
+      } else {
+        // No data for this period - show empty or try fallback to ads table
+        const { data: adsData } = await supabase
+          .from('ads')
+          .select('*')
+          .eq('ad_set_id', adSetId);
+        
+        if (adsData && adsData.length > 0) {
+          // Show ads with zeroed metrics since no data for this period
+          const adsWithZeroMetrics = adsData.map(ad => ({
+            id: ad.id,
+            name: ad.name,
+            status: ad.status || 'ACTIVE',
+            spend: 0,
+            impressions: 0,
+            clicks: 0,
+            ctr: 0,
+            cpm: 0,
+            cpc: 0,
+            conversions: 0,
+            roas: 0,
+            cpa: 0,
+            creative_thumbnail: ad.creative_thumbnail || null,
+            creative_image_url: ad.creative_image_url || null,
+            creative_video_url: ad.creative_video_url || null,
+            cached_image_url: ad.cached_image_url || null,
+            headline: ad.headline || null,
+          })) as Ad[];
+          setAds(adsWithZeroMetrics);
+        } else {
+          setAds([]);
+        }
+      }
+    };
+    
+    fetchAdsForPeriod();
+  }, [adSetId, dateRange]);
 
   const formatNumber = (n: number) => 
     n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString('pt-BR');
