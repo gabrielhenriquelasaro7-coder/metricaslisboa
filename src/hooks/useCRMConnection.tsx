@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -38,6 +38,7 @@ export function useCRMConnection(projectId: string | undefined) {
   const [status, setStatus] = useState<CRMConnectionStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isConnecting, setIsConnecting] = useState<CRMProvider | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async () => {
     if (!projectId) return;
@@ -45,57 +46,117 @@ export function useCRMConnection(projectId: string | undefined) {
     setIsLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session) {
+        setStatus(null);
+        return;
+      }
 
-      const response = await supabase.functions.invoke('crm-status', {
-        body: null,
-        headers: {},
-      });
-
-      // Use query params approach
       const { data, error } = await supabase.functions.invoke('crm-status', {
         method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: null,
       });
 
-      if (error) throw error;
+      // Try with query params if the above doesn't work
+      if (error) {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crm-status?project_id=${projectId}`,
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch CRM status');
+        }
+
+        const statusData = await response.json();
+        setStatus(statusData);
+        return;
+      }
+
       setStatus(data);
     } catch (error) {
       console.error('Failed to fetch CRM status:', error);
+      setStatus({ connected: false });
     } finally {
       setIsLoading(false);
     }
   }, [projectId]);
 
+  // Fetch status on mount and when projectId changes
+  useEffect(() => {
+    if (projectId) {
+      fetchStatus();
+    }
+  }, [projectId, fetchStatus]);
+
   const connect = useCallback(async (
     provider: CRMProvider,
     options?: { api_key?: string; api_url?: string; config?: Record<string, unknown> }
   ) => {
-    if (!projectId) return;
+    if (!projectId) {
+      throw new Error('Project ID is required');
+    }
     
     setIsConnecting(provider);
-    try {
-      const { data, error } = await supabase.functions.invoke('crm-connect', {
-        body: {
-          project_id: projectId,
-          provider,
-          ...options,
-        },
-      });
+    setConnectionError(null);
 
-      if (error) throw error;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Não autenticado');
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crm-connect`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            project_id: projectId,
+            provider,
+            api_key: options?.api_key,
+            api_url: options?.api_url,
+            config: options?.config,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMsg = data.error || 'Erro ao conectar CRM';
+        setConnectionError(errorMsg);
+        throw new Error(errorMsg);
+      }
 
       if (data.oauth_url) {
         // Redirect to OAuth
         window.location.href = data.oauth_url;
-      } else if (data.success) {
-        toast.success('CRM conectado com sucesso!');
+        return data;
+      }
+
+      if (data.success) {
+        toast.success(data.message || 'CRM conectado com sucesso!');
         await fetchStatus();
       }
 
       return data;
     } catch (error) {
       console.error('Failed to connect CRM:', error);
-      toast.error('Erro ao conectar CRM');
+      const errorMsg = error instanceof Error ? error.message : 'Erro ao conectar CRM';
+      setConnectionError(errorMsg);
+      toast.error(errorMsg);
       throw error;
     } finally {
       setIsConnecting(null);
@@ -114,7 +175,7 @@ export function useCRMConnection(projectId: string | undefined) {
       if (error) throw error;
 
       toast.success('CRM desconectado');
-      setStatus(null);
+      setStatus({ connected: false });
     } catch (error) {
       console.error('Failed to disconnect CRM:', error);
       toast.error('Erro ao desconectar CRM');
@@ -125,29 +186,51 @@ export function useCRMConnection(projectId: string | undefined) {
     if (!projectId || !status?.connection_id) return;
 
     try {
-      const { data, error } = await supabase.functions.invoke('crm-sync', {
-        body: {
-          connection_id: status.connection_id,
-          project_id: projectId,
-          sync_type: syncType,
-        },
-      });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Não autenticado');
+      }
 
-      if (error) throw error;
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crm-sync`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            connection_id: status.connection_id,
+            project_id: projectId,
+            sync_type: syncType,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao sincronizar');
+      }
 
       toast.success('Sincronização iniciada');
+      
+      // Refresh status after a delay to get updated sync info
+      setTimeout(() => fetchStatus(), 2000);
+      
       return data;
     } catch (error) {
       console.error('Failed to trigger sync:', error);
       toast.error('Erro ao sincronizar');
       throw error;
     }
-  }, [projectId, status?.connection_id]);
+  }, [projectId, status?.connection_id, fetchStatus]);
 
   return {
     status,
     isLoading,
     isConnecting,
+    connectionError,
     fetchStatus,
     connect,
     disconnect,
