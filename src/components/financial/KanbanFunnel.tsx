@@ -471,57 +471,65 @@ export function KanbanFunnel({
                   Informações de Contato
                 </h4>
 
-                <div className="space-y-2">
-                  {selectedDeal.contact_name && (
-                    <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
-                      <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Nome</p>
-                        <p className="text-sm font-medium truncate">{selectedDeal.contact_name}</p>
-                      </div>
-                    </div>
-                  )}
+                {(() => {
+                  // Try to get email and phone from custom_fields if not in dedicated fields
+                  const email = selectedDeal.contact_email || selectedDeal.custom_fields?.Email || selectedDeal.custom_fields?.email;
+                  const phone = selectedDeal.contact_phone || selectedDeal.custom_fields?.Phone || selectedDeal.custom_fields?.phone || selectedDeal.custom_fields?.Telefone || selectedDeal.custom_fields?.telefone;
+                  
+                  return (
+                    <div className="space-y-2">
+                      {selectedDeal.contact_name && (
+                        <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                          <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground">Nome</p>
+                            <p className="text-sm font-medium truncate">{selectedDeal.contact_name}</p>
+                          </div>
+                        </div>
+                      )}
 
-                  {selectedDeal.contact_email && (
-                    <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
-                      <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">E-mail comercial</p>
-                        <a 
-                          href={`mailto:${selectedDeal.contact_email}`}
-                          className="text-sm font-medium text-primary hover:underline truncate block"
-                        >
-                          {selectedDeal.contact_email}
-                        </a>
-                      </div>
-                    </div>
-                  )}
+                      {email && (
+                        <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                          <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground">E-mail comercial</p>
+                            <a 
+                              href={`mailto:${email}`}
+                              className="text-sm font-medium text-primary hover:underline truncate block"
+                            >
+                              {email}
+                            </a>
+                          </div>
+                        </div>
+                      )}
 
-                  {selectedDeal.contact_phone && (
-                    <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
-                      <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Tel. comercial</p>
-                        <a 
-                          href={`tel:${selectedDeal.contact_phone}`}
-                          className="text-sm font-medium text-primary hover:underline"
-                        >
-                          {selectedDeal.contact_phone}
-                        </a>
-                      </div>
-                    </div>
-                  )}
+                      {phone && (
+                        <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                          <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground">Tel. comercial</p>
+                            <a 
+                              href={`tel:${phone}`}
+                              className="text-sm font-medium text-primary hover:underline"
+                            >
+                              {phone}
+                            </a>
+                          </div>
+                        </div>
+                      )}
 
-                  {selectedDeal.company_name && (
-                    <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
-                      <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Empresa</p>
-                        <p className="text-sm font-medium truncate">{selectedDeal.company_name}</p>
-                      </div>
+                      {selectedDeal.company_name && (
+                        <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                          <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground">Empresa</p>
+                            <p className="text-sm font-medium truncate">{selectedDeal.company_name}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
               </div>
 
               <Separator />
