@@ -49,10 +49,15 @@ interface DealData {
   created_date?: string;
   closed_date?: string;
   utm_source?: string;
+  utm_medium?: string;
   utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
   owner_name?: string;
   status?: string;
   lead_source?: string;
+  custom_fields?: Record<string, string>;
+  company_name?: string;
 }
 
 Deno.serve(async (req) => {
@@ -134,7 +139,7 @@ Deno.serve(async (req) => {
     // Get deal statistics - filter by pipeline if selected
     let dealsQuery = supabase
       .from('crm_deals')
-      .select('id, external_id, title, contact_name, contact_phone, contact_email, value, status, stage_name, external_stage_id, external_pipeline_id, created_date, closed_date, utm_source, utm_campaign, lead_source, owner_name')
+      .select('id, external_id, title, contact_name, contact_phone, contact_email, value, status, stage_name, external_stage_id, external_pipeline_id, created_date, closed_date, utm_source, utm_medium, utm_campaign, utm_content, utm_term, lead_source, owner_name, custom_fields')
       .eq('connection_id', connection.id);
     
     if (selectedPipelineId) {
@@ -225,7 +230,7 @@ Deno.serve(async (req) => {
                 dealCountByStage[stageId].value += (deal.value || 0);
               });
 
-              // Build stages array
+              // Build stages array - ALL stages from Kommo, not just 4
               stages = sortedStatuses.map(status => ({
                 id: String(status.id),
                 name: status.name,
@@ -236,24 +241,36 @@ Deno.serve(async (req) => {
                 total_value: dealCountByStage[String(status.id)]?.value || 0,
               }));
 
-              // Build deals array for kanban - include all fields for detail drawer
-              deals = (allDeals || []).map(deal => ({
-                id: deal.id,
-                title: deal.title,
-                contact_name: deal.contact_name || undefined,
-                contact_email: deal.contact_email || undefined,
-                contact_phone: deal.contact_phone || undefined,
-                value: deal.value || undefined,
-                stage_id: String(deal.external_stage_id),
-                stage_name: deal.stage_name || undefined,
-                created_date: deal.created_date || undefined,
-                closed_date: deal.closed_date || undefined,
-                utm_source: deal.utm_source || undefined,
-                utm_campaign: deal.utm_campaign || undefined,
-                owner_name: deal.owner_name || undefined,
-                status: deal.status || undefined,
-                lead_source: deal.lead_source || undefined,
-              }));
+              // Build deals array with ALL UTMs and custom fields
+              deals = (allDeals || []).map(deal => {
+                // Parse custom fields if they exist
+                let customFields: Record<string, string> = {};
+                if (deal.custom_fields && typeof deal.custom_fields === 'object') {
+                  customFields = deal.custom_fields as Record<string, string>;
+                }
+
+                return {
+                  id: deal.id,
+                  title: deal.title,
+                  contact_name: deal.contact_name || undefined,
+                  contact_email: deal.contact_email || undefined,
+                  contact_phone: deal.contact_phone || undefined,
+                  value: deal.value || undefined,
+                  stage_id: String(deal.external_stage_id),
+                  stage_name: deal.stage_name || undefined,
+                  created_date: deal.created_date || undefined,
+                  closed_date: deal.closed_date || undefined,
+                  utm_source: deal.utm_source || undefined,
+                  utm_medium: deal.utm_medium || undefined,
+                  utm_campaign: deal.utm_campaign || undefined,
+                  utm_content: deal.utm_content || undefined,
+                  utm_term: deal.utm_term || undefined,
+                  owner_name: deal.owner_name || undefined,
+                  status: deal.status || undefined,
+                  lead_source: deal.lead_source || undefined,
+                  custom_fields: Object.keys(customFields).length > 0 ? customFields : undefined,
+                };
+              });
 
               // Calculate funnel (open stages only)
               const openStatuses = sortedStatuses.filter(s => s.type === 0);
@@ -325,8 +342,8 @@ Deno.serve(async (req) => {
         api_url: connection.api_url,
         selected_pipeline_id: selectedPipelineId,
         pipelines,
-        stages, // Stages for kanban
-        deals,  // Deals for kanban
+        stages, // ALL stages from Kommo
+        deals,  // Deals with all UTMs and custom fields
         sync: latestSync ? {
           id: latestSync.id,
           type: latestSync.sync_type,
