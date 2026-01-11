@@ -372,6 +372,7 @@ export default function Financial() {
                     sql={crmMetrics.sql}
                     sales={crmMetrics.sales}
                     revenue={crmMetrics.revenue}
+                    hasCRMData={crmStatus?.connected && (crmMetrics.mql > 0 || crmMetrics.sql > 0 || crmMetrics.sales > 0)}
                   />
                 ) : (
                   <FinancialDRECard {...dreData} />
@@ -395,6 +396,7 @@ export default function Financial() {
                   sql={crmMetrics.sql}
                   sales={crmMetrics.sales}
                   revenue={crmMetrics.revenue}
+                  hasCRMData={crmStatus?.connected && (crmMetrics.mql > 0 || crmMetrics.sql > 0 || crmMetrics.sales > 0)}
                 />
               )}
             </TabsContent>
