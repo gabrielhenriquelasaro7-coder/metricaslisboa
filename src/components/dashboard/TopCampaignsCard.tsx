@@ -156,64 +156,75 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Search */}
-            <div className="relative">
+          {/* Mobile: Stack vertically, Desktop: Row */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            {/* Search - Full width on mobile */}
+            <div className="relative w-full sm:w-auto">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar campanha..."
+                placeholder="Buscar campanha"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-9 w-[180px]"
+                className="pl-8 h-9 w-full sm:w-[180px]"
               />
             </div>
 
-            {/* Status Filter */}
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-              <SelectTrigger className="w-[130px] h-9">
-                <Filter className="h-3.5 w-3.5 mr-1" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas ({campaigns.length})</SelectItem>
-                <SelectItem value="ACTIVE">Ativas ({activeCount})</SelectItem>
-                <SelectItem value="PAUSED">Pausadas ({pausedCount})</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Filters row - 3 items on same row on mobile */}
+            <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-2">
+              {/* Status Filter */}
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                <SelectTrigger className="h-9 text-[11px] sm:text-sm sm:w-[130px]">
+                  <Filter className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 flex-shrink-0" />
+                  <span className="truncate">
+                    <SelectValue />
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas ({campaigns.length})</SelectItem>
+                  <SelectItem value="ACTIVE">Ativas ({activeCount})</SelectItem>
+                  <SelectItem value="PAUSED">Pausadas ({pausedCount})</SelectItem>
+                </SelectContent>
+              </Select>
 
-            {/* Sort By */}
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-              <SelectTrigger className="w-[160px] h-9">
-                <TrendingUp className="h-3.5 w-3.5 mr-1" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {sortOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    <div className="flex items-center gap-2">
-                      {opt.icon}
-                      {opt.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {/* Sort By */}
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                <SelectTrigger className="h-9 text-[11px] sm:text-sm sm:w-[160px]">
+                  <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 flex-shrink-0" />
+                  <span className="truncate">
+                    <SelectValue />
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  {sortOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <div className="flex items-center gap-2">
+                        {opt.icon}
+                        {opt.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            {/* Limit */}
-            <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
-              <SelectTrigger className="w-[80px] h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">Top 5</SelectItem>
-                <SelectItem value="10">Top 10</SelectItem>
-                <SelectItem value="15">Top 15</SelectItem>
-                <SelectItem value="20">Top 20</SelectItem>
-              </SelectContent>
-            </Select>
+              {/* Limit */}
+              <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
+                <SelectTrigger className="h-9 text-[11px] sm:text-sm sm:w-[80px]">
+                  <span className="truncate">
+                    <SelectValue />
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">Top 5</SelectItem>
+                  <SelectItem value="10">Top 10</SelectItem>
+                  <SelectItem value="15">Top 15</SelectItem>
+                  <SelectItem value="20">Top 20</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Link to="/campaigns">
-              <Button variant="outline" size="sm">Ver todas</Button>
+            {/* Ver todas - separate row on mobile */}
+            <Link to="/campaigns" className="w-full sm:w-auto">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">Ver todas</Button>
             </Link>
           </div>
         </div>
