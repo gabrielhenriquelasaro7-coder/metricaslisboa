@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -30,29 +30,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    // Reduced timeout to 1 second for faster fallback
+    // Prevent re-initialization on hot reload
+    if (initializedRef.current) {
+      return;
+    }
+    initializedRef.current = true;
+
+    // Safety timeout - force loading to false after 2 seconds
     const timeoutId = setTimeout(() => {
       console.warn('[useAuth] Auth check timeout - forcing loading to false');
       setLoading(false);
-    }, 1000);
+    }, 2000);
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (event, currentSession) => {
         clearTimeout(timeoutId);
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
         setLoading(false);
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
       clearTimeout(timeoutId);
-      setSession(session);
-      setUser(session?.user ?? null);
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
       setLoading(false);
     }).catch((error) => {
       console.error('[useAuth] Error getting session:', error);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -48,6 +48,7 @@ export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading } = useAuth();
+  const fetchedRef = useRef(false);
 
   const fetchProjects = useCallback(async () => {
     // Wait for auth to finish before deciding
@@ -61,11 +62,18 @@ export function useProjects() {
       return;
     }
     
-    // Safety timeout to prevent infinite loading
+    // Prevent duplicate fetches during hot reload
+    if (fetchedRef.current) {
+      setLoading(false);
+      return;
+    }
+    fetchedRef.current = true;
+    
+    // Safety timeout to prevent infinite loading - reduced to 5 seconds
     const timeoutId = setTimeout(() => {
       console.warn('[useProjects] Fetch timeout - forcing loading to false');
       setLoading(false);
-    }, 10000);
+    }, 5000);
     
     try {
       setLoading(true);
@@ -105,6 +113,11 @@ export function useProjects() {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  // Reset fetch ref when user changes
+  useEffect(() => {
+    fetchedRef.current = false;
+  }, [user?.id]);
 
   // Subscribe to realtime updates for sync progress
   useEffect(() => {
