@@ -139,6 +139,16 @@ export function GuidedTour({ onComplete, onSkip }: GuidedTourProps) {
   const [tooltipPos, setTooltipPos] = useState<TooltipPosition>({ top: 0, left: 0 });
   const tooltipRef = useRef<HTMLDivElement>(null);
 
+  // Block body scroll while tour is active
+  useEffect(() => {
+    if (isVisible) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isVisible]);
+
   const step = tourSteps[currentStep];
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === tourSteps.length - 1;
@@ -248,16 +258,27 @@ export function GuidedTour({ onComplete, onSkip }: GuidedTourProps) {
     setTimeout(onSkip, 300);
   }, [onSkip]);
 
-  // Keyboard navigation
+  // Keyboard navigation - only Escape explicitly skips
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'Enter') handleNext();
-      else if (e.key === 'ArrowLeft') handlePrev();
-      else if (e.key === 'Escape') handleSkip();
+      // Prevent default behavior to stop other components from responding
+      if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleNext();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        e.stopPropagation();
+        handlePrev();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleSkip();
+      }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true); // Use capture phase
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [handleNext, handlePrev, handleSkip]);
 
   if (!isVisible) return null;
@@ -266,18 +287,23 @@ export function GuidedTour({ onComplete, onSkip }: GuidedTourProps) {
     <AnimatePresence>
       {isVisible && (
         <>
-          {/* Dark overlay with spotlight cutout */}
+          {/* Dark overlay with spotlight cutout - clicking outside does NOT close tour */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9998] pointer-events-auto"
+            className="fixed inset-0 z-[9998]"
             style={{
               background: spotlight
                 ? `radial-gradient(ellipse ${spotlight.width + 60}px ${spotlight.height + 60}px at ${spotlight.left + spotlight.width / 2}px ${spotlight.top + spotlight.height / 2}px, transparent 0%, rgba(0,0,0,0.85) 100%)`
                 : 'rgba(0,0,0,0.85)',
+              pointerEvents: 'all', // Block interactions with underlying elements
             }}
-            onClick={handleSkip}
+            onClick={(e) => {
+              // Prevent clicks from propagating but do NOT skip tour
+              e.stopPropagation();
+              e.preventDefault();
+            }}
           />
 
           {/* Spotlight border with PULSE animation */}
