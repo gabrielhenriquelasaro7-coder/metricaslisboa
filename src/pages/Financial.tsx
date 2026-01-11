@@ -15,7 +15,8 @@ import {
   SyncStatusCard,
   ROASRealCard,
   InsideSalesFunnel,
-  FinancialDRECard
+  FinancialDRECard,
+  PipelineSelector
 } from '@/components/financial';
 import { 
   Users, 
@@ -55,7 +56,8 @@ export default function Financial() {
     connectionError,
     connect: connectCRM, 
     disconnect: disconnectCRM,
-    triggerSync 
+    triggerSync,
+    selectPipeline
   } = useCRMConnection(selectedProjectId || undefined);
 
   const { dailyData } = useDailyMetrics(selectedProjectId || undefined, 'last_30d');
@@ -205,12 +207,24 @@ export default function Financial() {
           />
         ) : (
           <Tabs defaultValue="overview" className="space-y-6">
+          <div className="flex items-center justify-between">
             <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
               <TabsTrigger value="overview" className="gap-2"><LayoutDashboard className="w-4 h-4" /><span className="hidden sm:inline">Visão Geral</span></TabsTrigger>
               <TabsTrigger value="funnel" className="gap-2"><BarChart3 className="w-4 h-4" /><span className="hidden sm:inline">Funil</span></TabsTrigger>
               <TabsTrigger value="roas" className="gap-2"><TrendingUp className="w-4 h-4" /><span className="hidden sm:inline">ROAS</span></TabsTrigger>
               <TabsTrigger value="dre" className="gap-2"><PieChart className="w-4 h-4" /><span className="hidden sm:inline">DRE</span></TabsTrigger>
             </TabsList>
+            
+            {/* Pipeline Selector - only show for Kommo with multiple pipelines */}
+            {crmStatus?.provider === 'kommo' && (crmStatus?.pipelines?.length || 0) > 0 && (
+              <PipelineSelector
+                pipelines={crmStatus.pipelines || []}
+                selectedPipelineId={crmStatus.selected_pipeline_id || null}
+                onSelect={selectPipeline}
+                isLoading={crmLoading}
+              />
+            )}
+          </div>
 
             <TabsContent value="overview" className="space-y-6">
               <div className="grid gap-6 lg:grid-cols-3">

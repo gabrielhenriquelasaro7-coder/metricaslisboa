@@ -4,6 +4,13 @@ import { toast } from 'sonner';
 
 export type CRMProvider = 'kommo' | 'hubspot' | 'gohighlevel' | 'bitrix24' | 'rdstation' | 'outros';
 
+export interface CRMPipeline {
+  id: string;
+  name: string;
+  is_main: boolean;
+  deals_count: number;
+}
+
 export interface CRMConnectionStatus {
   connected: boolean;
   connection_id?: string;
@@ -13,6 +20,8 @@ export interface CRMConnectionStatus {
   connected_at?: string;
   last_error?: string;
   api_url?: string;
+  selected_pipeline_id?: string | null;
+  pipelines?: CRMPipeline[];
   sync?: {
     id: string;
     type: string;
@@ -223,6 +232,32 @@ export function useCRMConnection(projectId: string | undefined) {
     }
   }, [projectId, status?.connection_id, fetchStatus]);
 
+  const selectPipeline = useCallback(async (pipelineId: string) => {
+    if (!projectId || !status?.connection_id) return;
+
+    try {
+      // Update the connection config with selected pipeline
+      const { error } = await supabase
+        .from('crm_connections')
+        .update({ 
+          config: { 
+            ...(typeof status === 'object' ? {} : {}),
+            selected_pipeline_id: pipelineId 
+          } 
+        })
+        .eq('id', status.connection_id);
+
+      if (error) throw error;
+
+      toast.success('Funil selecionado com sucesso');
+      await fetchStatus();
+    } catch (error) {
+      console.error('Failed to select pipeline:', error);
+      toast.error('Erro ao selecionar funil');
+      throw error;
+    }
+  }, [projectId, status?.connection_id, fetchStatus]);
+
   return {
     status,
     isLoading,
@@ -232,5 +267,6 @@ export function useCRMConnection(projectId: string | undefined) {
     connect,
     disconnect,
     triggerSync,
+    selectPipeline,
   };
 }
