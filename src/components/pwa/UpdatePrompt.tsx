@@ -8,6 +8,11 @@ export function UpdatePrompt() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
 
   useEffect(() => {
+    // Skip service worker handling in development to avoid HMR conflicts
+    if (import.meta.env.DEV) {
+      return;
+    }
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then(registration => {
         // Check for waiting worker on load
@@ -28,6 +33,8 @@ export function UpdatePrompt() {
             });
           }
         });
+      }).catch(err => {
+        console.log('[PWA] Service worker not ready:', err);
       });
 
       // Handle controller change (new SW activated)
