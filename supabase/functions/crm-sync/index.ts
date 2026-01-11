@@ -264,6 +264,9 @@ async function fetchKommoDeals(
   let page = 1;
   const limit = 250;
 
+  // Cache for contact details
+  const contactCache: Record<string, { email?: string; phone?: string; name?: string }> = {};
+
   while (true) {
     const url = new URL(`${apiUrl}/api/v4/leads`);
     url.searchParams.set('page', String(page));
@@ -286,8 +289,78 @@ async function fetchKommoDeals(
 
     if (leads.length === 0) break;
 
+    // Collect contact IDs to fetch details
+    const contactIds: number[] = [];
+    for (const lead of leads) {
+      const contactId = lead._embedded?.contacts?.[0]?.id;
+      if (contactId && !contactCache[String(contactId)]) {
+        contactIds.push(contactId);
+      }
+    }
+
+    // Fetch contact details in batch (if we have contact IDs)
+    if (contactIds.length > 0) {
+      try {
+        const contactUrl = new URL(`${apiUrl}/api/v4/contacts`);
+        contactUrl.searchParams.set('filter[id]', contactIds.join(','));
+        contactUrl.searchParams.set('with', 'contacts');
+
+        const contactResponse = await fetch(contactUrl.toString(), {
+          headers: { 'Authorization': `Bearer ${apiKey}` },
+        });
+
+        if (contactResponse.ok) {
+          const contactData = await contactResponse.json();
+          const contacts = contactData._embedded?.contacts || [];
+          
+          for (const contact of contacts) {
+            const email = contact.custom_fields_values?.find((cf: { field_code?: string }) => cf.field_code === 'EMAIL')?.values?.[0]?.value;
+            const phone = contact.custom_fields_values?.find((cf: { field_code?: string }) => cf.field_code === 'PHONE')?.values?.[0]?.value;
+            
+            contactCache[String(contact.id)] = {
+              name: contact.name,
+              email,
+              phone,
+            };
+          }
+        }
+      } catch (contactError) {
+        console.error('[CRM Sync] Error fetching contacts:', contactError);
+      }
+    }
+
     for (const lead of leads) {
       const contact = lead._embedded?.contacts?.[0];
+      const contactId = contact?.id ? String(contact.id) : null;
+      const contactDetails = contactId ? contactCache[contactId] : null;
+      
+      // Extract ALL custom fields including UTMs and form questions
+      const customFields: Record<string, string> = {};
+      let utmSource: string | undefined;
+      let utmMedium: string | undefined;
+      let utmCampaign: string | undefined;
+      
+      if (lead.custom_fields_values) {
+        for (const cf of lead.custom_fields_values) {
+          const fieldName = cf.field_name || cf.field_code;
+          const value = cf.values?.[0]?.value;
+          
+          if (fieldName && value !== undefined && value !== null) {
+            // Store in custom_fields
+            customFields[fieldName] = String(value);
+            
+            // Also extract UTMs to dedicated columns
+            const lowerName = fieldName.toLowerCase();
+            if (lowerName === 'utm_source' || lowerName.includes('utm_source')) {
+              utmSource = String(value);
+            } else if (lowerName === 'utm_medium' || lowerName.includes('utm_medium')) {
+              utmMedium = String(value);
+            } else if (lowerName === 'utm_campaign' || lowerName.includes('utm_campaign')) {
+              utmCampaign = String(value);
+            }
+          }
+        }
+      }
       
       deals.push({
         external_id: String(lead.id),
@@ -301,13 +374,13 @@ async function fetchKommoDeals(
         created_date: new Date(lead.created_at * 1000).toISOString(),
         closed_date: lead.closed_at ? new Date(lead.closed_at * 1000).toISOString() : undefined,
         owner_name: lead.responsible_user?.name,
-        contact_name: contact?.name,
-        custom_fields: lead.custom_fields_values?.reduce((acc: Record<string, unknown>, cf: { field_name?: string; values?: Array<{ value?: unknown }> }) => {
-          if (cf.field_name && cf.values && cf.values[0]) {
-            acc[cf.field_name] = cf.values[0].value;
-          }
-          return acc;
-        }, {} as Record<string, unknown>),
+        contact_name: contactDetails?.name || contact?.name,
+        contact_email: contactDetails?.email,
+        contact_phone: contactDetails?.phone,
+        utm_source: utmSource,
+        utm_medium: utmMedium,
+        utm_campaign: utmCampaign,
+        custom_fields: Object.keys(customFields).length > 0 ? customFields : undefined,
       });
     }
 
