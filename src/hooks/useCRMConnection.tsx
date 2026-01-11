@@ -51,36 +51,25 @@ export function useCRMConnection(projectId: string | undefined) {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('crm-status', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: null,
-      });
-
-      // Try with query params if the above doesn't work
-      if (error) {
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crm-status?project_id=${projectId}`,
-          {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch CRM status');
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crm-status?project_id=${projectId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
         }
+      );
 
-        const statusData = await response.json();
-        setStatus(statusData);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('CRM status error:', errorData);
+        setStatus({ connected: false });
         return;
       }
 
+      const data = await response.json();
       setStatus(data);
     } catch (error) {
       console.error('Failed to fetch CRM status:', error);
