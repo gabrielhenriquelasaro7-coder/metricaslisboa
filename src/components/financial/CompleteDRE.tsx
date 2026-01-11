@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   TrendingUp,
   TrendingDown,
   MinusCircle,
@@ -26,6 +33,10 @@ import {
   Calculator,
   BarChart3,
   Wallet,
+  Calendar,
+  Edit3,
+  Check,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -35,18 +46,35 @@ import {
 } from '@/components/ui/tooltip';
 
 interface DREConfig {
+  // Main values (editable)
+  grossRevenue: number;
+  adSpend: number;
+  // Percentage deductions
   platformFeePercent: number;
   taxPercent: number;
   refundPercent: number;
+  // Fixed costs
   fixedCosts: number;
   otherCosts: number;
+  // Product costs (for ecommerce/pdv)
+  productCosts: number;
+  // Team costs
+  teamCosts: number;
+  // Tool/software costs
+  toolCosts: number;
 }
 
+export type DREPeriod = 'last_7d' | 'last_30d' | 'this_month' | 'last_month' | 'custom';
+
 interface CompleteDREProps {
-  // Revenue sources
+  // Revenue sources (default values from ads)
   grossRevenue: number;
   adSpend: number;
   businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | 'infoproduto';
+  
+  // Period
+  period?: DREPeriod;
+  onPeriodChange?: (period: DREPeriod) => void;
   
   // Optional overrides
   platformFeePercent?: number;
@@ -54,6 +82,9 @@ interface CompleteDREProps {
   refundPercent?: number;
   fixedCosts?: number;
   otherCosts?: number;
+  productCosts?: number;
+  teamCosts?: number;
+  toolCosts?: number;
   
   // Metadata
   periodLabel?: string;
@@ -62,11 +93,19 @@ interface CompleteDREProps {
 }
 
 // Default platform fees by business model
-const PLATFORM_DEFAULTS: Record<string, { fee: number; tax: number; refund: number }> = {
-  infoproduto: { fee: 9.9, tax: 6.38, refund: 5 }, // Hotmart/Kiwify típico
-  ecommerce: { fee: 4.99, tax: 9.25, refund: 3 }, // Stripe/PagSeguro típico
-  inside_sales: { fee: 0, tax: 6.38, refund: 2 }, // Sem plataforma
-  pdv: { fee: 2.5, tax: 9.25, refund: 1 }, // Maquininha típica
+const PLATFORM_DEFAULTS: Record<string, { fee: number; tax: number; refund: number; productCost: number }> = {
+  infoproduto: { fee: 9.9, tax: 6.38, refund: 5, productCost: 0 },
+  ecommerce: { fee: 4.99, tax: 9.25, refund: 3, productCost: 30 },
+  inside_sales: { fee: 0, tax: 6.38, refund: 2, productCost: 0 },
+  pdv: { fee: 2.5, tax: 9.25, refund: 1, productCost: 40 },
+};
+
+const PERIOD_LABELS: Record<DREPeriod, string> = {
+  'last_7d': 'Últimos 7 dias',
+  'last_30d': 'Últimos 30 dias',
+  'this_month': 'Este mês',
+  'last_month': 'Mês passado',
+  'custom': 'Personalizado',
 };
 
 const formatCurrency = (value: number): string => {
@@ -83,31 +122,55 @@ const formatPercent = (value: number): string => {
 };
 
 export function CompleteDRE({
-  grossRevenue,
-  adSpend,
+  grossRevenue: initialRevenue,
+  adSpend: initialAdSpend,
   businessModel,
+  period = 'last_30d',
+  onPeriodChange,
   platformFeePercent,
   taxPercent,
   refundPercent,
   fixedCosts = 0,
   otherCosts = 0,
-  periodLabel = 'Período atual',
+  productCosts = 0,
+  teamCosts = 0,
+  toolCosts = 0,
+  periodLabel,
   isLoading,
   onConfigChange,
 }: CompleteDREProps) {
   const defaults = PLATFORM_DEFAULTS[businessModel] || PLATFORM_DEFAULTS.infoproduto;
   
   const [showConfig, setShowConfig] = useState(false);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [tempEditValue, setTempEditValue] = useState<string>('');
+  
   const [config, setConfig] = useState<DREConfig>({
+    grossRevenue: initialRevenue,
+    adSpend: initialAdSpend,
     platformFeePercent: platformFeePercent ?? defaults.fee,
     taxPercent: taxPercent ?? defaults.tax,
     refundPercent: refundPercent ?? defaults.refund,
     fixedCosts,
     otherCosts,
+    productCosts: productCosts || (initialRevenue * defaults.productCost / 100),
+    teamCosts,
+    toolCosts,
   });
+
+  // Update config when props change
+  useEffect(() => {
+    setConfig(prev => ({
+      ...prev,
+      grossRevenue: initialRevenue,
+      adSpend: initialAdSpend,
+    }));
+  }, [initialRevenue, initialAdSpend]);
 
   // Calculate DRE items
   const dreData = useMemo(() => {
+    const { grossRevenue, adSpend } = config;
+    
     const platformFee = grossRevenue * (config.platformFeePercent / 100);
     const taxes = grossRevenue * (config.taxPercent / 100);
     const refunds = grossRevenue * (config.refundPercent / 100);
@@ -115,15 +178,20 @@ export function CompleteDRE({
     const totalDeductions = platformFee + taxes + refunds;
     const netRevenue = grossRevenue - totalDeductions;
     
+    // Product costs (CMV)
+    const cmv = config.productCosts;
+    const grossProfit = netRevenue - cmv;
+    const grossProfitPercent = grossRevenue > 0 ? (grossProfit / grossRevenue) * 100 : 0;
+    
     // Marketing costs (CAC)
     const marketingCost = adSpend;
     
-    // Contribution margin
-    const contributionMargin = netRevenue - marketingCost;
+    // Contribution margin (after marketing)
+    const contributionMargin = grossProfit - marketingCost;
     const contributionMarginPercent = grossRevenue > 0 ? (contributionMargin / grossRevenue) * 100 : 0;
     
     // Operating expenses
-    const totalOperatingExpenses = config.fixedCosts + config.otherCosts;
+    const totalOperatingExpenses = config.fixedCosts + config.otherCosts + config.teamCosts + config.toolCosts;
     
     // EBITDA
     const ebitda = contributionMargin - totalOperatingExpenses;
@@ -134,9 +202,6 @@ export function CompleteDRE({
     const roasReal = adSpend > 0 ? netRevenue / adSpend : 0;
     const roi = adSpend > 0 ? ((ebitda / adSpend) * 100) : 0;
     
-    // CPL/CPA approximation
-    const cpl = grossRevenue > 0 && adSpend > 0 ? adSpend / (grossRevenue / 100) : 0; // Rough estimate
-    
     return {
       grossRevenue,
       platformFee,
@@ -144,9 +209,14 @@ export function CompleteDRE({
       refunds,
       totalDeductions,
       netRevenue,
+      cmv,
+      grossProfit,
+      grossProfitPercent,
       marketingCost,
       contributionMargin,
       contributionMarginPercent,
+      teamCosts: config.teamCosts,
+      toolCosts: config.toolCosts,
       fixedCosts: config.fixedCosts,
       otherCosts: config.otherCosts,
       totalOperatingExpenses,
@@ -156,11 +226,28 @@ export function CompleteDRE({
       roasReal,
       roi,
     };
-  }, [grossRevenue, adSpend, config]);
+  }, [config]);
 
   const handleSaveConfig = () => {
     onConfigChange?.(config);
     setShowConfig(false);
+  };
+
+  const startEditing = (field: string, currentValue: number) => {
+    setEditingField(field);
+    setTempEditValue(currentValue.toString());
+  };
+
+  const saveEdit = (field: keyof DREConfig) => {
+    const value = parseFloat(tempEditValue) || 0;
+    setConfig(prev => ({ ...prev, [field]: value }));
+    setEditingField(null);
+    setTempEditValue('');
+  };
+
+  const cancelEdit = () => {
+    setEditingField(null);
+    setTempEditValue('');
   };
 
   if (isLoading) {
@@ -179,23 +266,81 @@ export function CompleteDRE({
     );
   }
 
+  const EditableValue = ({ 
+    field, 
+    value, 
+    isPercent = false,
+    className = ''
+  }: { 
+    field: keyof DREConfig; 
+    value: number; 
+    isPercent?: boolean;
+    className?: string;
+  }) => {
+    const isEditing = editingField === field;
+    
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            step={isPercent ? "0.1" : "0.01"}
+            value={tempEditValue}
+            onChange={e => setTempEditValue(e.target.value)}
+            className="h-7 w-24 text-right text-sm"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') saveEdit(field);
+              if (e.key === 'Escape') cancelEdit();
+            }}
+          />
+          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => saveEdit(field)}>
+            <Check className="h-3 w-3 text-metric-positive" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={cancelEdit}>
+            <X className="h-3 w-3 text-destructive" />
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <button
+        onClick={() => startEditing(field, value)}
+        className={cn(
+          'group flex items-center gap-1 hover:bg-muted/50 rounded px-2 py-0.5 transition-colors',
+          className
+        )}
+      >
+        <span className="tabular-nums">
+          {isPercent ? formatPercent(value) : formatCurrency(value)}
+        </span>
+        <Edit3 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+      </button>
+    );
+  };
+
   const DRELine = ({ 
     label, 
     value, 
+    editableField,
     isSubtraction = false, 
     isTotal = false, 
     highlight = false,
     indent = 0,
     percentage,
+    percentageField,
     tooltip,
   }: {
     label: string;
     value: number;
+    editableField?: keyof DREConfig;
     isSubtraction?: boolean;
     isTotal?: boolean;
     highlight?: boolean;
     indent?: number;
     percentage?: number;
+    percentageField?: keyof DREConfig;
     tooltip?: string;
   }) => (
     <div
@@ -231,23 +376,40 @@ export function CompleteDRE({
         )}
       </div>
       <div className="flex items-center gap-3">
-        {percentage !== undefined && (
+        {percentage !== undefined && percentageField && (
+          <EditableValue field={percentageField} value={percentage} isPercent />
+        )}
+        {percentage !== undefined && !percentageField && (
           <Badge variant="outline" className="text-xs font-normal">
             {formatPercent(percentage)}
           </Badge>
         )}
-        <span
-          className={cn(
-            'tabular-nums text-right min-w-[100px]',
-            isSubtraction && 'text-muted-foreground',
-            isTotal && 'font-semibold',
-            highlight && 'font-bold text-lg',
-            highlight && value >= 0 && 'text-metric-positive',
-            highlight && value < 0 && 'text-destructive'
-          )}
-        >
-          {formatCurrency(value)}
-        </span>
+        {editableField ? (
+          <EditableValue 
+            field={editableField} 
+            value={value}
+            className={cn(
+              isSubtraction && 'text-muted-foreground',
+              isTotal && 'font-semibold',
+              highlight && 'font-bold text-lg',
+              highlight && value >= 0 && 'text-metric-positive',
+              highlight && value < 0 && 'text-destructive'
+            )}
+          />
+        ) : (
+          <span
+            className={cn(
+              'tabular-nums text-right min-w-[100px]',
+              isSubtraction && 'text-muted-foreground',
+              isTotal && 'font-semibold',
+              highlight && 'font-bold text-lg',
+              highlight && value >= 0 && 'text-metric-positive',
+              highlight && value < 0 && 'text-destructive'
+            )}
+          >
+            {formatCurrency(value)}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -263,10 +425,23 @@ export function CompleteDRE({
                 <CardTitle>DRE Completo</CardTitle>
               </div>
               <CardDescription className="mt-1">
-                Demonstração de Resultado do Exercício • {periodLabel}
+                Demonstração de Resultado • Clique em qualquer valor para editar
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              {/* Period Selector */}
+              <Select value={period} onValueChange={(v) => onPeriodChange?.(v as DREPeriod)}>
+                <SelectTrigger className="w-[160px] h-9">
+                  <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Período" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PERIOD_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
               <Badge variant="outline" className="gap-1">
                 <BarChart3 className="w-3 h-3" />
                 {businessModel === 'infoproduto' ? 'Infoproduto' :
@@ -284,12 +459,13 @@ export function CompleteDRE({
           </div>
         </CardHeader>
         <CardContent className="space-y-1">
-          {/* Gross Revenue */}
+          {/* Gross Revenue - EDITABLE */}
           <DRELine
             label="Receita Bruta de Vendas"
             value={dreData.grossRevenue}
+            editableField="grossRevenue"
             highlight
-            tooltip="Valor total de vendas no período (conversion_value dos anúncios ou dados do CRM)"
+            tooltip="Valor total de vendas no período. Clique para editar."
           />
 
           {/* Deductions Section */}
@@ -303,7 +479,8 @@ export function CompleteDRE({
               isSubtraction
               indent={1}
               percentage={config.platformFeePercent}
-              tooltip="Taxa cobrada pela plataforma de vendas (Hotmart, Kiwify, Stripe, etc.)"
+              percentageField="platformFeePercent"
+              tooltip="Taxa cobrada pela plataforma de vendas"
             />
             <DRELine
               label="Impostos sobre Vendas"
@@ -311,7 +488,8 @@ export function CompleteDRE({
               isSubtraction
               indent={1}
               percentage={config.taxPercent}
-              tooltip="ISS, PIS, COFINS e outros impostos sobre o faturamento"
+              percentageField="taxPercent"
+              tooltip="ISS, PIS, COFINS e outros impostos"
             />
             <DRELine
               label="Devoluções e Chargebacks"
@@ -319,7 +497,8 @@ export function CompleteDRE({
               isSubtraction
               indent={1}
               percentage={config.refundPercent}
-              tooltip="Reembolsos, estornos e chargebacks do período"
+              percentageField="refundPercent"
+              tooltip="Reembolsos e estornos"
             />
           </div>
 
@@ -333,17 +512,47 @@ export function CompleteDRE({
             tooltip="Receita bruta menos todas as deduções"
           />
 
+          {/* CMV/Product Costs (for ecommerce/pdv) */}
+          {(businessModel === 'ecommerce' || businessModel === 'pdv') && (
+            <>
+              <div className="pt-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-2">
+                  Custo das Mercadorias Vendidas (CMV)
+                </p>
+                <DRELine
+                  label="Custo dos Produtos"
+                  value={dreData.cmv}
+                  editableField="productCosts"
+                  isSubtraction
+                  indent={1}
+                  tooltip="Custo de aquisição/produção dos produtos vendidos"
+                />
+              </div>
+
+              <Separator className="my-3" />
+
+              <DRELine
+                label="Lucro Bruto"
+                value={dreData.grossProfit}
+                isTotal
+                percentage={dreData.grossProfitPercent}
+                tooltip="Receita líquida menos custos dos produtos"
+              />
+            </>
+          )}
+
           {/* Marketing Costs */}
           <div className="pt-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-2">
-              Custos de Aquisição
+              Custos de Marketing
             </p>
             <DRELine
               label="Investimento em Mídia (Ads)"
               value={dreData.marketingCost}
+              editableField="adSpend"
               isSubtraction
               indent={1}
-              tooltip="Total gasto em anúncios Meta Ads + Google Ads"
+              tooltip="Total gasto em anúncios. Clique para editar."
             />
           </div>
 
@@ -355,37 +564,49 @@ export function CompleteDRE({
             value={dreData.contributionMargin}
             isTotal
             percentage={dreData.contributionMarginPercent}
-            tooltip="Receita líquida menos custos de aquisição de clientes"
+            tooltip="Receita líquida menos custos variáveis"
           />
 
           {/* Operating Expenses */}
-          {(dreData.fixedCosts > 0 || dreData.otherCosts > 0) && (
-            <>
-              <div className="pt-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-2">
-                  Despesas Operacionais
-                </p>
-                {dreData.fixedCosts > 0 && (
-                  <DRELine
-                    label="Custos Fixos"
-                    value={dreData.fixedCosts}
-                    isSubtraction
-                    indent={1}
-                    tooltip="Salários, aluguel, ferramentas, etc."
-                  />
-                )}
-                {dreData.otherCosts > 0 && (
-                  <DRELine
-                    label="Outras Despesas"
-                    value={dreData.otherCosts}
-                    isSubtraction
-                    indent={1}
-                  />
-                )}
-              </div>
-              <Separator className="my-3" />
-            </>
-          )}
+          <div className="pt-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-2">
+              Despesas Operacionais
+            </p>
+            <DRELine
+              label="Equipe / Pessoal"
+              value={dreData.teamCosts}
+              editableField="teamCosts"
+              isSubtraction
+              indent={1}
+              tooltip="Salários, freelancers, comissões"
+            />
+            <DRELine
+              label="Ferramentas / Software"
+              value={dreData.toolCosts}
+              editableField="toolCosts"
+              isSubtraction
+              indent={1}
+              tooltip="SaaS, ferramentas de marketing, etc."
+            />
+            <DRELine
+              label="Custos Fixos"
+              value={dreData.fixedCosts}
+              editableField="fixedCosts"
+              isSubtraction
+              indent={1}
+              tooltip="Aluguel, internet, energia, etc."
+            />
+            <DRELine
+              label="Outras Despesas"
+              value={dreData.otherCosts}
+              editableField="otherCosts"
+              isSubtraction
+              indent={1}
+              tooltip="Despesas variáveis diversas"
+            />
+          </div>
+
+          <Separator className="my-3" />
 
           {/* EBITDA */}
           <DRELine
@@ -433,20 +654,54 @@ export function CompleteDRE({
         </CardContent>
       </Card>
 
-      {/* Config Dialog */}
+      {/* Config Dialog for batch editing */}
       <Dialog open={showConfig} onOpenChange={setShowConfig}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              Configurar Deduções do DRE
+              Configurar DRE Completo
             </DialogTitle>
             <DialogDescription>
-              Ajuste as taxas e custos de acordo com seu negócio
+              Ajuste todos os valores e taxas do seu DRE
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-6 py-4">
+          <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto">
+            {/* Main Values */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" />
+                Valores Principais
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="grossRevenue">Receita Bruta (R$)</Label>
+                  <Input
+                    id="grossRevenue"
+                    type="number"
+                    value={config.grossRevenue}
+                    onChange={e => setConfig(c => ({ ...c, grossRevenue: parseFloat(e.target.value) || 0 }))}
+                  />
+                  <p className="text-xs text-muted-foreground">Faturamento total</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="adSpend">Investimento Ads (R$)</Label>
+                  <Input
+                    id="adSpend"
+                    type="number"
+                    value={config.adSpend}
+                    onChange={e => setConfig(c => ({ ...c, adSpend: parseFloat(e.target.value) || 0 }))}
+                  />
+                  <p className="text-xs text-muted-foreground">Meta + Google Ads</p>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Percentage Deductions */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <Percent className="h-4 w-4 text-primary" />
@@ -490,15 +745,60 @@ export function CompleteDRE({
               </div>
             </div>
 
+            {/* Product Costs */}
+            {(businessModel === 'ecommerce' || businessModel === 'pdv') && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-primary" />
+                    Custo dos Produtos (CMV)
+                  </h4>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="productCosts">Custo dos Produtos (R$)</Label>
+                    <Input
+                      id="productCosts"
+                      type="number"
+                      value={config.productCosts}
+                      onChange={e => setConfig(c => ({ ...c, productCosts: parseFloat(e.target.value) || 0 }))}
+                    />
+                    <p className="text-xs text-muted-foreground">Custo de aquisição/produção</p>
+                  </div>
+                </div>
+              </>
+            )}
+
             <Separator />
 
+            {/* Operating Expenses */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-primary" />
-                Custos Fixos (Opcional)
+                <Calculator className="h-4 w-4 text-primary" />
+                Despesas Operacionais
               </h4>
               
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="teamCosts">Equipe / Pessoal (R$)</Label>
+                  <Input
+                    id="teamCosts"
+                    type="number"
+                    value={config.teamCosts}
+                    onChange={e => setConfig(c => ({ ...c, teamCosts: parseFloat(e.target.value) || 0 }))}
+                  />
+                  <p className="text-xs text-muted-foreground">Salários, freelancers</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="toolCosts">Ferramentas (R$)</Label>
+                  <Input
+                    id="toolCosts"
+                    type="number"
+                    value={config.toolCosts}
+                    onChange={e => setConfig(c => ({ ...c, toolCosts: parseFloat(e.target.value) || 0 }))}
+                  />
+                  <p className="text-xs text-muted-foreground">SaaS, softwares</p>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="fixedCosts">Custos Fixos (R$)</Label>
                   <Input
@@ -507,7 +807,7 @@ export function CompleteDRE({
                     value={config.fixedCosts}
                     onChange={e => setConfig(c => ({ ...c, fixedCosts: parseFloat(e.target.value) || 0 }))}
                   />
-                  <p className="text-xs text-muted-foreground">Salários, ferramentas, etc.</p>
+                  <p className="text-xs text-muted-foreground">Aluguel, energia, etc.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="otherCosts">Outras Despesas (R$)</Label>
