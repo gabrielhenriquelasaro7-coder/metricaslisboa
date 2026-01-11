@@ -173,65 +173,26 @@ export default function Financial() {
   return (
     <DashboardLayout>
       <div className="space-y-8 pb-8">
-        {/* Hero Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-6 md:p-8">
-          <div className="relative z-10">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div className="flex items-start gap-4">
-                <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20">
-                  <Wallet className="w-8 h-8 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Central Financeira de Vendas</h1>
-                  <p className="text-muted-foreground mt-2 max-w-xl">
-                    Acompanhe faturamento, ticket médio, conversão e ROI real do seu projeto.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 mt-4">
-                    <Badge className="gap-1.5 px-3 py-1.5 bg-primary/10 text-primary border-primary/20">
-                      <BusinessModelIcon className="w-3.5 h-3.5" />
-                      {businessModelInfo?.label}
-                    </Badge>
-                    {connectedCRM && (
-                      <Badge className="gap-1.5 px-3 py-1.5 bg-metric-positive/10 text-metric-positive border-metric-positive/20">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        CRM Conectado
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+        {/* Hero Header - Clean & Minimal */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+              <Wallet className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight">Central Financeira</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="outline" className="gap-1.5 text-xs">
+                  <BusinessModelIcon className="w-3 h-3" />
+                  {businessModelInfo?.label}
+                </Badge>
+                {connectedCRM && (
+                  <Badge variant="outline" className="gap-1.5 text-xs text-metric-positive border-metric-positive/30">
+                    <Sparkles className="w-3 h-3" />
+                    CRM
+                  </Badge>
+                )}
               </div>
-              {/* Show revenue summary based on business model - ROAS here, ROI only in DRE */}
-              {(connectedCRM ? crmMetrics.revenue : adsMetrics.revenue) > 0 && (
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-card/50 border">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-primary">
-                      R$ {((connectedCRM ? crmMetrics.revenue : adsMetrics.revenue) / 1000).toFixed(0)}k
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {connectedCRM ? 'Faturamento CRM' : 'Receita (Ads)'} • {
-                        drePeriod === 'last_7d' ? '7 dias' :
-                        drePeriod === 'last_30d' ? '30 dias' :
-                        drePeriod === 'this_month' ? 'Este mês' :
-                        drePeriod === 'last_month' ? 'Mês passado' : 'Período'
-                      }
-                    </p>
-                  </div>
-                  <div className="w-px h-12 bg-border" />
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-metric-positive">
-                      {((connectedCRM ? crmMetrics.revenue : adsMetrics.revenue) / (totalAdSpend || 1)).toFixed(1)}x
-                    </p>
-                    <p className="text-xs text-muted-foreground">ROAS Bruto</p>
-                  </div>
-                  <div className="w-px h-12 bg-border" />
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-foreground">
-                      R$ {((connectedCRM ? crmMetrics.revenue : adsMetrics.revenue) - totalAdSpend).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Lucro Bruto</p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -239,32 +200,20 @@ export default function Financial() {
         {/* Content based on business model */}
         {/* For infoproduto/ecommerce - show DRE without CRM requirement */}
         {(businessModel === 'infoproduto' || businessModel === 'ecommerce') && !connectedCRM ? (
-          <Tabs defaultValue="dre" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
-              <TabsTrigger value="dre" className="gap-2"><PieChart className="w-4 h-4" /><span className="hidden sm:inline">DRE Completo</span></TabsTrigger>
-              <TabsTrigger value="roas" className="gap-2"><TrendingUp className="w-4 h-4" /><span className="hidden sm:inline">ROAS</span></TabsTrigger>
+          <Tabs defaultValue="overview" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex">
               <TabsTrigger value="overview" className="gap-2"><LayoutDashboard className="w-4 h-4" /><span className="hidden sm:inline">Visão Geral</span></TabsTrigger>
+              <TabsTrigger value="dre" className="gap-2"><PieChart className="w-4 h-4" /><span className="hidden sm:inline">DRE Completo</span></TabsTrigger>
             </TabsList>
 
-            <TabsContent value="dre" className="space-y-6">
-              <CompleteDRE
-                grossRevenue={adsMetrics.revenue}
-                adSpend={totalAdSpend}
-                businessModel={businessModel}
-                period={drePeriod}
-                onPeriodChange={setDrePeriod}
-              />
-            </TabsContent>
-
-            <TabsContent value="roas" className="space-y-6">
+            <TabsContent value="overview" className="space-y-6">
+              {/* ROASRealCard at top */}
               <ROASRealCard 
                 adSpend={totalAdSpend || 0} 
                 crmRevenue={adsMetrics.revenue} 
                 periodLabel="Últimos 30 dias" 
               />
-            </TabsContent>
 
-            <TabsContent value="overview" className="space-y-6">
               {/* Overview metrics from ads */}
               <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
                 <Card className="bg-gradient-to-br from-blue-600/20 to-blue-900/30 border-blue-500/30">
@@ -345,6 +294,16 @@ export default function Financial() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="dre" className="space-y-6">
+              <CompleteDRE
+                grossRevenue={adsMetrics.revenue}
+                adSpend={totalAdSpend}
+                businessModel={businessModel}
+                period={drePeriod}
+                onPeriodChange={setDrePeriod}
+              />
             </TabsContent>
           </Tabs>
         ) : !connectedCRM ? (
