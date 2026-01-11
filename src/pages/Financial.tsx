@@ -16,7 +16,8 @@ import {
   ROASRealCard,
   InsideSalesFunnel,
   FinancialDRECard,
-  PipelineSelector
+  PipelineSelector,
+  KanbanFunnel
 } from '@/components/financial';
 import { 
   Users, 
@@ -267,13 +268,23 @@ export default function Financial() {
             </TabsContent>
 
             <TabsContent value="funnel" className="space-y-6">
-              <InsideSalesFunnel 
-                leads={crmMetrics.leads}
-                mql={crmMetrics.mql}
-                sql={crmMetrics.sql}
-                sales={crmMetrics.sales}
-                revenue={crmMetrics.revenue}
-              />
+              {/* Kanban Funnel with real stages */}
+              {crmStatus?.stages && crmStatus.stages.length > 0 ? (
+                <KanbanFunnel
+                  stages={crmStatus.stages}
+                  deals={crmStatus.deals || []}
+                  isLoading={crmLoading}
+                  crmUrl={crmStatus.api_url || undefined}
+                />
+              ) : (
+                <InsideSalesFunnel 
+                  leads={crmMetrics.leads}
+                  mql={crmMetrics.mql}
+                  sql={crmMetrics.sql}
+                  sales={crmMetrics.sales}
+                  revenue={crmMetrics.revenue}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="roas" className="space-y-6">

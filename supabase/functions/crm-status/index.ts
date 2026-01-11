@@ -27,6 +27,27 @@ interface KommoPipeline {
   };
 }
 
+interface StageData {
+  id: string;
+  name: string;
+  color: string;
+  sort: number;
+  type: number;
+  leads_count: number;
+  total_value: number;
+}
+
+interface DealData {
+  id: string;
+  title: string;
+  contact_name?: string;
+  contact_phone?: string;
+  value?: number;
+  stage_id: string;
+  created_date?: string;
+  utm_source?: string;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -66,7 +87,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get connection for this project (any connected status for the project)
+    // Get connection for this project
     const { data: connection, error: connError } = await supabase
       .from('crm_connections')
       .select('*')
@@ -76,7 +97,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .single();
 
-    if (connError && connError.code !== 'PGRST116') { // PGRST116 = no rows
+    if (connError && connError.code !== 'PGRST116') {
       throw connError;
     }
 
@@ -106,26 +127,26 @@ Deno.serve(async (req) => {
     // Get deal statistics - filter by pipeline if selected
     let dealsQuery = supabase
       .from('crm_deals')
-      .select('status, value, stage_name, external_stage_id, external_pipeline_id')
+      .select('id, external_id, title, contact_name, contact_phone, contact_email, value, status, stage_name, external_stage_id, external_pipeline_id, created_date, utm_source, utm_campaign')
       .eq('connection_id', connection.id);
     
     if (selectedPipelineId) {
       dealsQuery = dealsQuery.eq('external_pipeline_id', selectedPipelineId);
     }
 
-    const { data: dealStats } = await dealsQuery;
+    const { data: allDeals } = await dealsQuery;
 
     // Basic stats
     const stats = {
-      total_deals: dealStats?.length || 0,
-      won_deals: dealStats?.filter(d => d.status === 'won').length || 0,
-      lost_deals: dealStats?.filter(d => d.status === 'lost').length || 0,
-      open_deals: dealStats?.filter(d => d.status === 'open').length || 0,
-      total_revenue: dealStats?.filter(d => d.status === 'won').reduce((sum, d) => sum + (d.value || 0), 0) || 0,
-      total_pipeline_value: dealStats?.filter(d => d.status === 'open').reduce((sum, d) => sum + (d.value || 0), 0) || 0,
+      total_deals: allDeals?.length || 0,
+      won_deals: allDeals?.filter(d => d.status === 'won').length || 0,
+      lost_deals: allDeals?.filter(d => d.status === 'lost').length || 0,
+      open_deals: allDeals?.filter(d => d.status === 'open').length || 0,
+      total_revenue: allDeals?.filter(d => d.status === 'won').reduce((sum, d) => sum + (d.value || 0), 0) || 0,
+      total_pipeline_value: allDeals?.filter(d => d.status === 'open').reduce((sum, d) => sum + (d.value || 0), 0) || 0,
     };
 
-    // Get funnel data and pipelines from Kommo
+    // Initialize funnel and stages data
     let funnel = {
       leads: stats.total_deals,
       mql: 0,
@@ -135,6 +156,8 @@ Deno.serve(async (req) => {
     };
 
     let pipelines: Array<{ id: string; name: string; is_main: boolean; deals_count: number }> = [];
+    let stages: StageData[] = [];
+    let deals: DealData[] = [];
 
     // Try to get real data from Kommo API
     if (connection.provider === 'kommo' && connection.status === 'connected') {
@@ -174,30 +197,62 @@ Deno.serve(async (req) => {
               deals_count: dealCountByPipeline[String(p.id)] || 0,
             }));
 
-            // Build stage mapping for selected pipeline (or first main one)
+            // Get target pipeline
             const targetPipelineId = selectedPipelineId || String(kommoPipelines.find(p => p.is_main)?.id) || String(kommoPipelines[0]?.id);
             const targetPipeline = kommoPipelines.find(p => String(p.id) === targetPipelineId);
 
             if (targetPipeline) {
               const statuses = targetPipeline._embedded?.statuses || [];
               
-              // Sort stages by sort order, exclude won/lost
-              const openStatuses = statuses
-                .filter(s => s.type === 0) // Only open statuses
-                .sort((a, b) => a.sort - b.sort);
+              // Sort stages by sort order
+              const sortedStatuses = [...statuses].sort((a, b) => a.sort - b.sort);
 
+              // Count deals per stage
+              const dealCountByStage: Record<string, { count: number; value: number }> = {};
+              allDeals?.forEach(deal => {
+                const stageId = String(deal.external_stage_id);
+                if (!dealCountByStage[stageId]) {
+                  dealCountByStage[stageId] = { count: 0, value: 0 };
+                }
+                dealCountByStage[stageId].count++;
+                dealCountByStage[stageId].value += (deal.value || 0);
+              });
+
+              // Build stages array
+              stages = sortedStatuses.map(status => ({
+                id: String(status.id),
+                name: status.name,
+                color: status.color || '#cccccc',
+                sort: status.sort,
+                type: status.type,
+                leads_count: dealCountByStage[String(status.id)]?.count || 0,
+                total_value: dealCountByStage[String(status.id)]?.value || 0,
+              }));
+
+              // Build deals array for kanban
+              deals = (allDeals || []).map(deal => ({
+                id: deal.id,
+                title: deal.title,
+                contact_name: deal.contact_name || undefined,
+                contact_phone: deal.contact_phone || undefined,
+                value: deal.value || undefined,
+                stage_id: String(deal.external_stage_id),
+                created_date: deal.created_date || undefined,
+                utm_source: deal.utm_source || undefined,
+              }));
+
+              // Calculate funnel (open stages only)
+              const openStatuses = sortedStatuses.filter(s => s.type === 0);
               const stageCount = openStatuses.length;
 
               if (stageCount > 0) {
-                // Divide stages into Lead (first 1/3), MQL (middle 1/3), SQL (last 1/3)
                 const leadStageIds = new Set(openStatuses.slice(0, Math.ceil(stageCount / 3)).map(s => String(s.id)));
                 const mqlStageIds = new Set(openStatuses.slice(Math.ceil(stageCount / 3), Math.ceil(stageCount * 2 / 3)).map(s => String(s.id)));
                 const sqlStageIds = new Set(openStatuses.slice(Math.ceil(stageCount * 2 / 3)).map(s => String(s.id)));
 
                 console.log('Stage mapping - Lead stages:', leadStageIds.size, 'MQL:', mqlStageIds.size, 'SQL:', sqlStageIds.size);
 
-                // Count deals in each funnel stage
-                const openDeals = dealStats?.filter(d => d.status === 'open') || [];
+                const openDeals = allDeals?.filter(d => d.status === 'open') || [];
                 let leadCount = 0;
                 let mqlCount = 0;
                 let sqlCount = 0;
@@ -209,7 +264,6 @@ Deno.serve(async (req) => {
                   else if (sqlStageIds.has(stageId)) sqlCount++;
                 }
 
-                // Funnel is cumulative
                 funnel = {
                   leads: stats.total_deals,
                   mql: mqlCount + sqlCount + stats.won_deals,
@@ -227,7 +281,6 @@ Deno.serve(async (req) => {
         }
       } catch (funnelError) {
         console.error('Error fetching funnel data:', funnelError);
-        // Keep default funnel based on basic stats
         funnel = {
           leads: stats.total_deals,
           mql: Math.round(stats.total_deals * 0.6),
@@ -237,7 +290,6 @@ Deno.serve(async (req) => {
         };
       }
     } else {
-      // For other CRMs, estimate funnel
       funnel = {
         leads: stats.total_deals,
         mql: Math.round(stats.total_deals * 0.6),
@@ -258,7 +310,9 @@ Deno.serve(async (req) => {
         last_error: connection.last_error,
         api_url: connection.api_url,
         selected_pipeline_id: selectedPipelineId,
-        pipelines, // Available pipelines
+        pipelines,
+        stages, // Stages for kanban
+        deals,  // Deals for kanban
         sync: latestSync ? {
           id: latestSync.id,
           type: latestSync.sync_type,
