@@ -1,4 +1,5 @@
 export { FinancialMetricsGrid } from './FinancialMetricsGrid';
+export { CompleteDRE } from './CompleteDRE';
 export { CRMConnectionCard } from './CRMConnectionCard';
 export { SyncStatusCard } from './SyncStatusCard';
 export { ROASRealCard } from './ROASRealCard';
