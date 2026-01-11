@@ -265,7 +265,12 @@ async function fetchKommoDeals(
   const limit = 250;
 
   // Cache for contact details
-  const contactCache: Record<string, { email?: string; phone?: string; name?: string }> = {};
+  const contactCache: Record<string, { 
+    email?: string; 
+    phone?: string; 
+    name?: string;
+    custom_fields?: Record<string, string>;
+  }> = {};
 
   while (true) {
     const url = new URL(`${apiUrl}/api/v4/leads`);
@@ -317,10 +322,23 @@ async function fetchKommoDeals(
             const email = contact.custom_fields_values?.find((cf: { field_code?: string }) => cf.field_code === 'EMAIL')?.values?.[0]?.value;
             const phone = contact.custom_fields_values?.find((cf: { field_code?: string }) => cf.field_code === 'PHONE')?.values?.[0]?.value;
             
+            // Extract ALL custom fields from contact (including form questions)
+            const contactCustomFields: Record<string, string> = {};
+            if (contact.custom_fields_values) {
+              for (const cf of contact.custom_fields_values) {
+                const fieldName = cf.field_name || cf.field_code;
+                const value = cf.values?.[0]?.value;
+                if (fieldName && value !== undefined && value !== null && fieldName !== 'EMAIL' && fieldName !== 'PHONE') {
+                  contactCustomFields[fieldName] = String(value);
+                }
+              }
+            }
+            
             contactCache[String(contact.id)] = {
               name: contact.name,
               email,
               phone,
+              custom_fields: Object.keys(contactCustomFields).length > 0 ? contactCustomFields : undefined,
             };
           }
         }
@@ -380,7 +398,11 @@ async function fetchKommoDeals(
         utm_source: utmSource,
         utm_medium: utmMedium,
         utm_campaign: utmCampaign,
-        custom_fields: Object.keys(customFields).length > 0 ? customFields : undefined,
+        // Merge lead custom fields with contact custom fields
+        custom_fields: (() => {
+          const merged = { ...customFields, ...(contactDetails?.custom_fields || {}) };
+          return Object.keys(merged).length > 0 ? merged : undefined;
+        })(),
       });
     }
 
