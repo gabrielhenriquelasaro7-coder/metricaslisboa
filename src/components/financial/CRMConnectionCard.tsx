@@ -26,12 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 
 interface CRMOption {
@@ -44,77 +38,40 @@ interface CRMOption {
   authType: 'api_key' | 'oauth';
   requiresUrl?: boolean;
   urlPlaceholder?: string;
-  urlHelp?: string;
 }
 
 const CRM_OPTIONS: CRMOption[] = [
   {
     id: 'kommo',
     name: 'Kommo',
-    description: 'CRM focado em vendas com automação de WhatsApp e funis visuais',
+    description: 'CRM focado em vendas com automação de WhatsApp',
     color: 'bg-blue-500',
     badge: 'popular',
-    features: ['WhatsApp integrado', 'Pipeline visual', 'Automações'],
+    features: ['WhatsApp', 'Pipeline', 'Automações'],
     authType: 'api_key',
     requiresUrl: true,
-    urlPlaceholder: 'suaempresa',
-    urlHelp: 'Digite apenas o subdomínio (ex: suaempresa)'
+    urlPlaceholder: 'suaempresa'
   },
   {
     id: 'hubspot',
     name: 'HubSpot',
-    description: 'Plataforma completa de marketing, vendas e atendimento ao cliente',
+    description: 'Plataforma completa de marketing e vendas',
     color: 'bg-orange-500',
     badge: 'recommended',
-    features: ['CRM gratuito', 'Marketing Hub', 'Sales Hub'],
-    authType: 'oauth'
-  },
-  {
-    id: 'gohighlevel',
-    name: 'GoHighLevel',
-    description: 'CRM white-label com automação de marketing integrada',
-    color: 'bg-green-500',
-    features: ['White-label', 'Funis', 'Automação'],
+    features: ['CRM gratuito', 'Marketing', 'Sales'],
     authType: 'oauth'
   },
   {
     id: 'bitrix24',
     name: 'Bitrix24',
-    description: 'Suite completa de colaboração com CRM, projetos e comunicação',
+    description: 'Suite de colaboração com CRM integrado',
     color: 'bg-cyan-500',
     features: ['Colaboração', 'Projetos', 'Telefonia'],
     authType: 'api_key',
     requiresUrl: true,
-    urlPlaceholder: 'suaempresa.bitrix24.com.br',
-    urlHelp: 'Digite a URL do seu Bitrix24'
-  },
-  {
-    id: 'rdstation',
-    name: 'RD Station',
-    description: 'Plataforma brasileira líder em automação de marketing digital',
-    color: 'bg-purple-500',
-    badge: 'new',
-    features: ['Marketing', 'Leads scoring', 'Email marketing'],
-    authType: 'oauth'
-  },
-  {
-    id: 'outros',
-    name: 'Outro CRM',
-    description: 'Conexão personalizada via API ou Webhooks com seu CRM atual',
-    color: 'bg-muted',
-    features: ['API REST', 'Webhooks', 'Suporte técnico'],
-    authType: 'api_key',
-    requiresUrl: true,
-    urlPlaceholder: 'https://api.seucrm.com',
-    urlHelp: 'Informe a URL da API do seu CRM'
+    urlPlaceholder: 'suaempresa.bitrix24.com.br'
   },
 ];
-
-const BADGE_CONFIG = {
-  popular: { label: 'Mais usado', icon: Star, className: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
-  recommended: { label: 'Recomendado', icon: Zap, className: 'bg-primary/10 text-primary border-primary/20' },
-  new: { label: 'Novo', icon: null, className: 'bg-green-500/10 text-green-500 border-green-500/20' },
-};
 
 interface CRMConnectionCardProps {
   projectName: string;
@@ -133,31 +90,38 @@ export function CRMConnectionCard({
   isConnecting,
   connectionError
 }: CRMConnectionCardProps) {
+  const [showModal, setShowModal] = useState(false);
   const [selectedCRM, setSelectedCRM] = useState<CRMOption | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [apiUrl, setApiUrl] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const connectedCRMData = CRM_OPTIONS.find(c => c.id === connectedCRM);
 
-  const openConnectionDialog = (crm: CRMOption) => {
-    console.log('Opening dialog for:', crm.id);
-    if (crm.authType === 'api_key') {
-      setSelectedCRM(crm);
-      setApiKey('');
-      setApiUrl('');
-      setLocalError(null);
-      setIsDialogOpen(true);
-    } else {
-      // OAuth - direct connection
+  const handleOpenModal = (crm: CRMOption) => {
+    if (crm.authType === 'oauth') {
       onConnect(crm.id);
+      return;
     }
+    
+    setSelectedCRM(crm);
+    setApiKey('');
+    setApiUrl('');
+    setLocalError(null);
+    setShowModal(true);
   };
 
-  const handleSubmitCredentials = async () => {
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedCRM(null);
+    setApiKey('');
+    setApiUrl('');
+    setLocalError(null);
+  };
+
+  const handleSubmit = async () => {
     if (!selectedCRM) return;
 
     if (!apiKey.trim()) {
@@ -174,10 +138,8 @@ export function CRMConnectionCard({
     setIsSubmitting(true);
 
     try {
-      // Format URL for Kommo
       let formattedUrl = apiUrl.trim();
       if (selectedCRM.id === 'kommo' && formattedUrl) {
-        // Remove .kommo.com if user included it
         formattedUrl = formattedUrl.replace(/\.kommo\.com\/?$/i, '');
         formattedUrl = `https://${formattedUrl}.kommo.com`;
       }
@@ -187,10 +149,7 @@ export function CRMConnectionCard({
         api_url: formattedUrl || undefined
       });
       
-      setIsDialogOpen(false);
-      setApiKey('');
-      setApiUrl('');
-      setSelectedCRM(null);
+      handleCloseModal();
     } catch (error) {
       console.error('Connection error:', error);
     } finally {
@@ -198,17 +157,10 @@ export function CRMConnectionCard({
     }
   };
 
-  const closeDialog = () => {
-    setIsDialogOpen(false);
-    setApiKey('');
-    setApiUrl('');
-    setLocalError(null);
-    setSelectedCRM(null);
-  };
-
+  // Connected state
   if (connectedCRM && connectedCRMData) {
     return (
-      <Card className="border-metric-positive/30 bg-gradient-to-br from-metric-positive/5 via-transparent to-transparent">
+      <Card className="border-green-500/30 bg-gradient-to-br from-green-500/5 via-transparent to-transparent">
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="flex items-center gap-4">
             <div className={cn(
@@ -220,13 +172,13 @@ export function CRMConnectionCard({
             <div>
               <div className="flex items-center gap-2">
                 <CardTitle className="text-xl">{connectedCRMData.name}</CardTitle>
-                <Badge className="gap-1 bg-metric-positive/10 text-metric-positive border-metric-positive/20">
+                <Badge className="gap-1 bg-green-500/10 text-green-500 border-green-500/20">
                   <CheckCircle2 className="w-3 h-3" />
                   Conectado
                 </Badge>
               </div>
               <CardDescription className="mt-1">
-                Sincronizando dados com <strong>{projectName}</strong>
+                Sincronizando com <strong>{projectName}</strong>
               </CardDescription>
             </div>
           </div>
@@ -245,17 +197,6 @@ export function CRMConnectionCard({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-6 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="w-2 h-2 rounded-full bg-metric-positive animate-pulse" />
-              <span>Última sincronização: agora</span>
-            </div>
-            <div className="text-muted-foreground">
-              Próxima sync: em 5 minutos
-            </div>
-          </div>
-        </CardContent>
       </Card>
     );
   }
@@ -264,107 +205,94 @@ export function CRMConnectionCard({
     <>
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
-                  1
-                </span>
-                Conecte seu CRM
-              </CardTitle>
-              <CardDescription className="mt-2 ml-11">
-                Sincronize automaticamente os dados de vendas de <strong>{projectName}</strong>
-              </CardDescription>
-            </div>
-          </div>
+          <CardTitle className="flex items-center gap-3 text-xl">
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+              1
+            </span>
+            Conecte seu CRM
+          </CardTitle>
+          <CardDescription className="ml-11">
+            Sincronize os dados de vendas de <strong>{projectName}</strong>
+          </CardDescription>
         </CardHeader>
-        <CardContent className="pt-2">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {CRM_OPTIONS.map((crm) => {
-              const badgeConfig = crm.badge ? BADGE_CONFIG[crm.badge] : null;
-              const BadgeIcon = badgeConfig?.icon;
-              
-              return (
-                <Card 
-                  key={crm.id}
-                  className={cn(
-                    'relative transition-all duration-300 hover:shadow-lg hover:border-primary/40 group',
-                    isConnecting === crm.id && 'opacity-75'
-                  )}
-                >
-                  {badgeConfig && (
-                    <div className="absolute -top-2 -right-2 z-10">
-                      <Badge className={cn('gap-1 shadow-sm', badgeConfig.className)}>
-                        {BadgeIcon && <BadgeIcon className="w-3 h-3" />}
-                        {badgeConfig.label}
-                      </Badge>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3">
+            {CRM_OPTIONS.map((crm) => (
+              <Card key={crm.id} className="relative hover:shadow-lg hover:border-primary/40 transition-all">
+                {crm.badge && (
+                  <div className="absolute -top-2 -right-2 z-10">
+                    <Badge className={cn(
+                      'gap-1 shadow-sm',
+                      crm.badge === 'popular' && 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+                      crm.badge === 'recommended' && 'bg-primary/10 text-primary border-primary/20'
+                    )}>
+                      {crm.badge === 'popular' && <Star className="w-3 h-3" />}
+                      {crm.badge === 'recommended' && <Zap className="w-3 h-3" />}
+                      {crm.badge === 'popular' ? 'Mais usado' : 'Recomendado'}
+                    </Badge>
+                  </div>
+                )}
+                
+                <CardHeader className="pb-3 pt-5">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      'w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md',
+                      crm.color
+                    )}>
+                      {crm.name.charAt(0)}
                     </div>
-                  )}
-                  
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg" />
-                  
-                  <CardHeader className="pb-3 pt-5">
-                    <div className="flex items-center gap-4">
-                      <div className={cn(
-                        'w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md transition-transform group-hover:scale-105',
-                        crm.color
-                      )}>
-                        {crm.name.charAt(0)}
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">{crm.name}</CardTitle>
-                        {crm.authType === 'api_key' && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Key className="w-3 h-3" />
-                            Via Token/API
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0 pb-5 space-y-4">
-                    <p className="text-sm text-muted-foreground leading-relaxed min-h-[48px]">
-                      {crm.description}
-                    </p>
-                    
-                    {crm.features && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {crm.features.map((feature) => (
-                          <Badge key={feature} variant="secondary" className="text-xs font-normal">
-                            {feature}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    
-                    <Button 
-                      className="w-full gap-2 h-11 font-medium" 
-                      variant={crm.id === 'outros' ? 'outline' : 'default'}
-                      onClick={() => openConnectionDialog(crm)}
-                      disabled={isConnecting !== null}
-                    >
-                      {isConnecting === crm.id ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Conectando...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4" />
-                          Conectar e importar dados
-                        </>
+                    <div>
+                      <CardTitle className="text-lg">{crm.name}</CardTitle>
+                      {crm.authType === 'api_key' && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Key className="w-3 h-3" />
+                          Via Token
+                        </span>
                       )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0 pb-5 space-y-4">
+                  <p className="text-sm text-muted-foreground min-h-[40px]">
+                    {crm.description}
+                  </p>
+                  
+                  {crm.features && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {crm.features.map((feature) => (
+                        <Badge key={feature} variant="secondary" className="text-xs font-normal">
+                          {feature}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <Button 
+                    className="w-full gap-2 h-11 font-medium" 
+                    disabled={isConnecting !== null}
+                    onClick={() => handleOpenModal(crm)}
+                  >
+                    {isConnecting === crm.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Conectando...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Conectar
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Connection Dialog - Simple Form Like Create Project */}
-      <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
+      {/* Modal de Conexão */}
+      <Dialog open={showModal} onOpenChange={(open) => { if (!open) handleCloseModal(); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <div className="flex items-center gap-3">
@@ -379,45 +307,35 @@ export function CRMConnectionCard({
               <div>
                 <DialogTitle className="text-xl">Conectar {selectedCRM?.name}</DialogTitle>
                 <DialogDescription>
-                  Preencha os dados abaixo para importar automaticamente
+                  Preencha os dados para importar automaticamente
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
           
           <div className="space-y-6 py-4">
-            {/* Tutorial Section - Kommo Specific */}
+            {/* Tutorial Kommo */}
             {selectedCRM?.id === 'kommo' && (
-              <Accordion type="single" collapsible className="border rounded-lg">
-                <AccordionItem value="tutorial" className="border-0">
-                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <HelpCircle className="w-4 h-4 text-primary" />
-                      Como obter o Token do Kommo?
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-4 pb-4">
-                    <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-                      <li>Acesse seu Kommo e vá em <strong>Configurações</strong></li>
-                      <li>Clique em <strong>Integrações</strong></li>
-                      <li>Clique em <strong>Tokens de API</strong> (ou API Keys)</li>
-                      <li>Clique em <strong>Criar Token</strong></li>
-                      <li>Dê um nome (ex: "V4 Dashboard") e copie o token gerado</li>
-                    </ol>
-                    <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-600 dark:text-amber-400">
-                      ⚠️ Guarde o token em local seguro. Ele só é exibido uma vez!
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+              <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
+                <div className="flex items-center gap-2 font-medium text-sm">
+                  <HelpCircle className="w-4 h-4 text-primary" />
+                  Como obter o Token do Kommo
+                </div>
+                <ol className="space-y-1 text-sm text-muted-foreground list-decimal list-inside pl-1">
+                  <li>Acesse <strong>Configurações → Integrações</strong></li>
+                  <li>Clique em <strong>Tokens de API</strong></li>
+                  <li>Clique em <strong>Criar Token</strong></li>
+                  <li>Copie o token gerado</li>
+                </ol>
+              </div>
             )}
 
-            {/* Subdomain/URL Field */}
+            {/* Campo Subdomínio */}
             {selectedCRM?.requiresUrl && (
               <div className="space-y-2">
                 <Label htmlFor="api_url" className="flex items-center gap-2">
                   <Link2 className="w-4 h-4 text-muted-foreground" />
-                  {selectedCRM.id === 'kommo' ? 'Subdomínio do Kommo' : `URL do ${selectedCRM.name}`}
+                  {selectedCRM.id === 'kommo' ? 'Subdomínio' : 'URL'}
                 </Label>
                 {selectedCRM.id === 'kommo' ? (
                   <div className="flex items-center">
@@ -429,7 +347,7 @@ export function CRMConnectionCard({
                       placeholder={selectedCRM.urlPlaceholder}
                       value={apiUrl}
                       onChange={(e) => setApiUrl(e.target.value)}
-                      className="rounded-l-none rounded-r-none border-r-0"
+                      className="rounded-none border-x-0"
                     />
                     <span className="px-3 py-2 bg-muted border border-l-0 rounded-r-md text-sm text-muted-foreground">
                       .kommo.com
@@ -441,29 +359,25 @@ export function CRMConnectionCard({
                     placeholder={selectedCRM.urlPlaceholder}
                     value={apiUrl}
                     onChange={(e) => setApiUrl(e.target.value)}
-                    className="font-mono text-sm"
                   />
                 )}
-                <p className="text-xs text-muted-foreground">
-                  {selectedCRM.urlHelp}
-                </p>
               </div>
             )}
 
-            {/* API Token Field */}
+            {/* Campo Token */}
             <div className="space-y-2">
               <Label htmlFor="api_key" className="flex items-center gap-2">
                 <Key className="w-4 h-4 text-muted-foreground" />
-                Token de Acesso (API Key)
+                Token de Acesso
               </Label>
               <div className="relative">
                 <Input
                   id="api_key"
                   type={showApiKey ? 'text' : 'password'}
-                  placeholder="Cole seu token de acesso aqui"
+                  placeholder="Cole seu token aqui"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  className="font-mono text-sm pr-10"
+                  className="pr-10"
                 />
                 <Button
                   type="button"
@@ -472,16 +386,12 @@ export function CRMConnectionCard({
                   className="absolute right-0 top-0 h-full px-3"
                   onClick={() => setShowApiKey(!showApiKey)}
                 >
-                  {showApiKey ? (
-                    <EyeOff className="w-4 h-4 text-muted-foreground" />
-                  ) : (
-                    <Eye className="w-4 h-4 text-muted-foreground" />
-                  )}
+                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
               </div>
             </div>
 
-            {/* Error Display */}
+            {/* Erro */}
             {(localError || connectionError) && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
                 <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -491,11 +401,11 @@ export function CRMConnectionCard({
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={closeDialog} disabled={isSubmitting}>
+            <Button variant="outline" onClick={handleCloseModal} disabled={isSubmitting}>
               Cancelar
             </Button>
             <Button 
-              onClick={handleSubmitCredentials}
+              onClick={handleSubmit}
               disabled={isSubmitting || !apiKey.trim() || (selectedCRM?.requiresUrl && !apiUrl.trim())}
               className="gap-2"
             >
@@ -507,7 +417,7 @@ export function CRMConnectionCard({
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  Conectar e Importar Dados
+                  Conectar e Importar
                 </>
               )}
             </Button>
