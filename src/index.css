@@ -98,6 +98,40 @@
     }
   }
   
+  /* Larger cards grid for Results section - 4 columns max on desktop */
+  .metric-grid-results {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  
+  @media (min-width: 360px) {
+    .metric-grid-results {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.625rem;
+    }
+  }
+  
+  @media (min-width: 640px) {
+    .metric-grid-results {
+      gap: 0.875rem;
+    }
+  }
+  
+  @media (min-width: 768px) {
+    .metric-grid-results {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .metric-grid-results {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  
   /* Mobile-optimized chart container */
   .chart-container-mobile {
     width: 100%;
