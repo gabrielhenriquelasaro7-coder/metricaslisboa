@@ -5,10 +5,11 @@ import MetricCard from '@/components/dashboard/MetricCard';
 import AdSetCharts from '@/components/dashboard/AdSetCharts';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { useAdSetDailyMetrics } from '@/hooks/useAdSetDailyMetrics';
+import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
 import { DateRange } from 'react-day-picker';
-import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
+import { DatePresetKey } from '@/utils/dateUtils';
 import { 
   ChevronLeft,
   Layers,
@@ -292,12 +293,8 @@ export default function AdSetDetail() {
   const [loading, setLoading] = useState(true);
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
   
-  // Date range state
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
-    return period ? datePeriodToDateRange(period) : undefined;
-  });
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
+  // Use shared period context - persists across pages
+  const { dateRange, selectedPreset, setDateRange, setSelectedPreset } = usePeriodContext();
 
   const selectedProject = projects.find(p => p.id === projectId);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
@@ -311,12 +308,14 @@ export default function AdSetDetail() {
 
   // Handle date range change
   const handleDateRangeChange = useCallback((newRange: DateRange | undefined) => {
-    setDateRange(newRange);
-  }, []);
+    if (newRange) {
+      setDateRange(newRange);
+    }
+  }, [setDateRange]);
 
   const handlePresetChange = useCallback((preset: DatePresetKey) => {
     setSelectedPreset(preset);
-  }, []);
+  }, [setSelectedPreset]);
 
   // Calculate date range from daily data for display
   const dataDateRange = useMemo(() => {
