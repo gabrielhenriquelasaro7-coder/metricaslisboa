@@ -177,31 +177,31 @@ export default function Financial() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-8 pb-8">
         {/* Header */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <DollarSign className="w-6 h-6 text-primary" />
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-primary/10">
+              <DollarSign className="w-7 h-7 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Financeiro</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Financeiro</h1>
+              <p className="text-muted-foreground mt-1">
                 Conecte seu CRM para monitorar vendas, MQL, SQL e métricas financeiras
               </p>
             </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="gap-1.5">
+          <div className="flex flex-wrap items-center gap-3 mt-2">
+            <Badge variant="outline" className="gap-1.5 px-3 py-1">
               <AlertCircle className="w-3 h-3" />
               Em desenvolvimento
             </Badge>
-            <Badge variant="secondary" className="gap-1.5">
+            <Badge variant="secondary" className="gap-1.5 px-3 py-1">
               <BusinessModelIcon className="w-3 h-3" />
               {businessModelInfo?.label}
             </Badge>
-            <Badge className="gap-1.5 bg-primary/10 text-primary border-primary/20">
+            <Badge className="gap-1.5 px-3 py-1 bg-primary/10 text-primary border-primary/20">
               {selectedProject.name}
             </Badge>
           </div>
@@ -209,16 +209,16 @@ export default function Financial() {
 
         {/* Modelo de negócio detectado */}
         <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-lg bg-primary text-primary-foreground">
-                <BusinessModelIcon className="w-5 h-5" />
+          <CardHeader className="py-5">
+            <div className="flex items-center gap-4">
+              <div className="p-4 rounded-xl bg-primary text-primary-foreground">
+                <BusinessModelIcon className="w-6 h-6" />
               </div>
-              <div>
-                <CardTitle className="text-lg">{businessModelInfo?.label}</CardTitle>
-                <CardDescription>{businessModelInfo?.description}</CardDescription>
+              <div className="flex-1">
+                <CardTitle className="text-xl">{businessModelInfo?.label}</CardTitle>
+                <CardDescription className="mt-1">{businessModelInfo?.description}</CardDescription>
               </div>
-              <CheckCircle2 className="w-5 h-5 text-metric-positive ml-auto" />
+              <CheckCircle2 className="w-6 h-6 text-metric-positive" />
             </div>
           </CardHeader>
         </Card>
@@ -337,46 +337,46 @@ export default function Financial() {
             </Card>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Conectar CRM */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3 text-xl">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
                     1
                   </span>
                   Conectar CRM
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="mt-2 ml-11">
                   Escolha o CRM utilizado por <strong>{selectedProject.name}</strong> para sincronizar os dados de vendas
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <CardContent className="pt-2">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {CRM_OPTIONS.map((crm) => (
                     <Card 
                       key={crm.id}
                       className={cn(
-                        'cursor-pointer transition-all duration-200 hover:shadow-md',
+                        'cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-primary/30',
                         isConnecting === crm.id && 'opacity-75'
                       )}
                     >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center gap-3">
-                          <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold', crm.color)}>
+                      <CardHeader className="pb-3 pt-5">
+                        <div className="flex items-center gap-4">
+                          <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg', crm.color)}>
                             {crm.name.charAt(0)}
                           </div>
                           <div>
-                            <CardTitle className="text-base">{crm.name}</CardTitle>
+                            <CardTitle className="text-lg">{crm.name}</CardTitle>
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="pt-0">
-                        <p className="text-sm text-muted-foreground mb-4">
+                      <CardContent className="pt-0 pb-5">
+                        <p className="text-sm text-muted-foreground mb-5 min-h-[40px]">
                           {crm.description}
                         </p>
                         <Button 
-                          className="w-full gap-2" 
+                          className="w-full gap-2 h-11" 
                           variant={crm.id === 'outros' ? 'outline' : 'default'}
                           onClick={() => handleConnectCRM(crm.id)}
                           disabled={isConnecting !== null}
