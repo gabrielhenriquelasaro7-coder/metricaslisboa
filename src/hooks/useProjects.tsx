@@ -50,7 +50,7 @@ export function useProjects() {
   const { user, loading: authLoading } = useAuth();
   const fetchedRef = useRef(false);
 
-  const fetchProjects = useCallback(async () => {
+  const fetchProjects = useCallback(async (force = false) => {
     // Wait for auth to finish before deciding
     if (authLoading) {
       return;
@@ -62,8 +62,8 @@ export function useProjects() {
       return;
     }
     
-    // Prevent duplicate fetches during hot reload
-    if (fetchedRef.current) {
+    // Prevent duplicate fetches during hot reload (unless forced)
+    if (fetchedRef.current && !force) {
       setLoading(false);
       return;
     }
