@@ -360,27 +360,27 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
 
       {/* Footer Summary */}
       {filteredAndSortedCampaigns.length > 0 && (
-        <div className="p-4 bg-secondary/20 border-t border-border">
-          <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
-            <div className="flex items-center gap-6">
-              <div>
-                <span className="text-muted-foreground">Total Gasto:</span>
-                <span className="ml-2 font-semibold">{formatCurrency(filteredAndSortedCampaigns.reduce((sum, c) => sum + c.spend, 0))}</span>
+        <div className="p-3 sm:p-4 bg-secondary/20 border-t border-border">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2 sm:gap-4 text-xs sm:text-sm">
+            <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-6 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row sm:items-center">
+                <span className="text-muted-foreground text-[10px] sm:text-sm">Total Gasto:</span>
+                <span className="font-semibold text-xs sm:text-sm sm:ml-2 truncate">{formatCurrency(filteredAndSortedCampaigns.reduce((sum, c) => sum + c.spend, 0))}</span>
               </div>
-              <div>
-                <span className="text-muted-foreground">Total {getResultLabel()}:</span>
-                <span className="ml-2 font-semibold">{filteredAndSortedCampaigns.reduce((sum, c) => sum + c.conversions, 0)}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center">
+                <span className="text-muted-foreground text-[10px] sm:text-sm">Total {getResultLabel()}:</span>
+                <span className="font-semibold text-xs sm:text-sm sm:ml-2">{filteredAndSortedCampaigns.reduce((sum, c) => sum + c.conversions, 0)}</span>
               </div>
               {(isEcommerce || isInfoproduto) && (
-                <div>
-                  <span className="text-muted-foreground">Total Receita:</span>
-                  <span className="ml-2 font-semibold text-metric-positive">
+                <div className="flex flex-col sm:flex-row sm:items-center">
+                  <span className="text-muted-foreground text-[10px] sm:text-sm">Total Receita:</span>
+                  <span className="font-semibold text-xs sm:text-sm text-metric-positive sm:ml-2 truncate">
                     {formatCurrency(filteredAndSortedCampaigns.reduce((sum, c) => sum + c.conversion_value, 0))}
                   </span>
                 </div>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
               Ordenado por: {sortOptions.find(o => o.value === sortBy)?.label}
             </p>
           </div>
