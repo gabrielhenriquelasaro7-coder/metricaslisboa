@@ -208,7 +208,12 @@ export default function Financial() {
                       R$ {((connectedCRM ? crmMetrics.revenue : adsMetrics.revenue) / 1000).toFixed(0)}k
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {connectedCRM ? 'Faturamento CRM' : 'Receita (Ads)'}
+                      {connectedCRM ? 'Faturamento CRM' : 'Receita (Ads)'} • {
+                        drePeriod === 'last_7d' ? '7 dias' :
+                        drePeriod === 'last_30d' ? '30 dias' :
+                        drePeriod === 'this_month' ? 'Este mês' :
+                        drePeriod === 'last_month' ? 'Mês passado' : 'Período'
+                      }
                     </p>
                   </div>
                   <div className="w-px h-12 bg-border" />

@@ -37,6 +37,7 @@ import {
   Edit3,
   Check,
   X,
+  Type,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -63,6 +64,40 @@ interface DREConfig {
   // Tool/software costs
   toolCosts: number;
 }
+
+interface DRELabels {
+  grossRevenue: string;
+  platformFee: string;
+  taxes: string;
+  refunds: string;
+  netRevenue: string;
+  productCosts: string;
+  grossProfit: string;
+  adSpend: string;
+  contributionMargin: string;
+  teamCosts: string;
+  toolCosts: string;
+  fixedCosts: string;
+  otherCosts: string;
+  ebitda: string;
+}
+
+const DEFAULT_LABELS: DRELabels = {
+  grossRevenue: 'Receita Bruta de Vendas',
+  platformFee: 'Taxa da Plataforma',
+  taxes: 'Impostos sobre Vendas',
+  refunds: 'Devoluções e Chargebacks',
+  netRevenue: 'Receita Líquida',
+  productCosts: 'Custo dos Produtos',
+  grossProfit: 'Lucro Bruto',
+  adSpend: 'Investimento em Mídia (Ads)',
+  contributionMargin: 'Margem de Contribuição',
+  teamCosts: 'Equipe / Pessoal',
+  toolCosts: 'Ferramentas / Software',
+  fixedCosts: 'Custos Fixos',
+  otherCosts: 'Outras Despesas',
+  ebitda: 'EBITDA (Lucro Operacional)',
+};
 
 export type DREPeriod = 'last_7d' | 'last_30d' | 'this_month' | 'last_month' | 'custom';
 
@@ -143,6 +178,7 @@ export function CompleteDRE({
   
   const [showConfig, setShowConfig] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState<string | null>(null);
   const [tempEditValue, setTempEditValue] = useState<string>('');
   
   const [config, setConfig] = useState<DREConfig>({
@@ -157,6 +193,8 @@ export function CompleteDRE({
     teamCosts,
     toolCosts,
   });
+
+  const [labels, setLabels] = useState<DRELabels>(DEFAULT_LABELS);
 
   // Update config when props change
   useEffect(() => {
@@ -245,8 +283,20 @@ export function CompleteDRE({
     setTempEditValue('');
   };
 
+  const startEditingLabel = (field: string, currentLabel: string) => {
+    setEditingLabel(field);
+    setTempEditValue(currentLabel);
+  };
+
+  const saveLabel = (field: keyof DRELabels) => {
+    setLabels(prev => ({ ...prev, [field]: tempEditValue }));
+    setEditingLabel(null);
+    setTempEditValue('');
+  };
+
   const cancelEdit = () => {
     setEditingField(null);
+    setEditingLabel(null);
     setTempEditValue('');
   };
 
@@ -320,8 +370,57 @@ export function CompleteDRE({
     );
   };
 
+  const EditableLabel = ({ 
+    field, 
+    children,
+    className = ''
+  }: { 
+    field: keyof DRELabels; 
+    children: string;
+    className?: string;
+  }) => {
+    const isEditing = editingLabel === field;
+    
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-1">
+          <Input
+            type="text"
+            value={tempEditValue}
+            onChange={e => setTempEditValue(e.target.value)}
+            className="h-7 w-40 text-sm"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') saveLabel(field);
+              if (e.key === 'Escape') cancelEdit();
+            }}
+          />
+          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => saveLabel(field)}>
+            <Check className="h-3 w-3 text-metric-positive" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={cancelEdit}>
+            <X className="h-3 w-3 text-destructive" />
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <button
+        onClick={() => startEditingLabel(field, children)}
+        className={cn(
+          'group flex items-center gap-1 hover:bg-muted/30 rounded px-1 py-0.5 transition-colors text-left',
+          className
+        )}
+      >
+        <span>{children}</span>
+        <Type className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0" />
+      </button>
+    );
+  };
+
   const DRELine = ({ 
-    label, 
+    labelField,
     value, 
     editableField,
     isSubtraction = false, 
@@ -332,7 +431,7 @@ export function CompleteDRE({
     percentageField,
     tooltip,
   }: {
-    label: string;
+    labelField: keyof DRELabels;
     value: number;
     editableField?: keyof DREConfig;
     isSubtraction?: boolean;
@@ -355,14 +454,16 @@ export function CompleteDRE({
         {indent > 0 && <ChevronRight className="w-4 h-4 text-muted-foreground/50" />}
         <span
           className={cn(
-            'text-sm',
+            'text-sm flex items-center gap-1',
             isSubtraction && 'text-muted-foreground',
             isTotal && 'font-semibold',
             highlight && 'font-bold'
           )}
         >
           {isSubtraction && '(-) '}
-          {label}
+          <EditableLabel field={labelField}>
+            {labels[labelField]}
+          </EditableLabel>
         </span>
         {tooltip && (
           <Tooltip>
@@ -425,7 +526,7 @@ export function CompleteDRE({
                 <CardTitle>DRE Completo</CardTitle>
               </div>
               <CardDescription className="mt-1">
-                Demonstração de Resultado • Clique em qualquer valor para editar
+                Clique nos nomes ou valores para editar
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -461,7 +562,7 @@ export function CompleteDRE({
         <CardContent className="space-y-1">
           {/* Gross Revenue - EDITABLE */}
           <DRELine
-            label="Receita Bruta de Vendas"
+            labelField="grossRevenue"
             value={dreData.grossRevenue}
             editableField="grossRevenue"
             highlight
@@ -474,7 +575,7 @@ export function CompleteDRE({
               Deduções da Receita
             </p>
             <DRELine
-              label="Taxa da Plataforma"
+              labelField="platformFee"
               value={dreData.platformFee}
               isSubtraction
               indent={1}
@@ -483,7 +584,7 @@ export function CompleteDRE({
               tooltip="Taxa cobrada pela plataforma de vendas"
             />
             <DRELine
-              label="Impostos sobre Vendas"
+              labelField="taxes"
               value={dreData.taxes}
               isSubtraction
               indent={1}
@@ -492,7 +593,7 @@ export function CompleteDRE({
               tooltip="ISS, PIS, COFINS e outros impostos"
             />
             <DRELine
-              label="Devoluções e Chargebacks"
+              labelField="refunds"
               value={dreData.refunds}
               isSubtraction
               indent={1}
@@ -506,7 +607,7 @@ export function CompleteDRE({
 
           {/* Net Revenue */}
           <DRELine
-            label="Receita Líquida"
+            labelField="netRevenue"
             value={dreData.netRevenue}
             isTotal
             tooltip="Receita bruta menos todas as deduções"
@@ -520,7 +621,7 @@ export function CompleteDRE({
                   Custo das Mercadorias Vendidas (CMV)
                 </p>
                 <DRELine
-                  label="Custo dos Produtos"
+                  labelField="productCosts"
                   value={dreData.cmv}
                   editableField="productCosts"
                   isSubtraction
@@ -532,7 +633,7 @@ export function CompleteDRE({
               <Separator className="my-3" />
 
               <DRELine
-                label="Lucro Bruto"
+                labelField="grossProfit"
                 value={dreData.grossProfit}
                 isTotal
                 percentage={dreData.grossProfitPercent}
@@ -547,7 +648,7 @@ export function CompleteDRE({
               Custos de Marketing
             </p>
             <DRELine
-              label="Investimento em Mídia (Ads)"
+              labelField="adSpend"
               value={dreData.marketingCost}
               editableField="adSpend"
               isSubtraction
@@ -560,7 +661,7 @@ export function CompleteDRE({
 
           {/* Contribution Margin */}
           <DRELine
-            label="Margem de Contribuição"
+            labelField="contributionMargin"
             value={dreData.contributionMargin}
             isTotal
             percentage={dreData.contributionMarginPercent}
@@ -573,7 +674,7 @@ export function CompleteDRE({
               Despesas Operacionais
             </p>
             <DRELine
-              label="Equipe / Pessoal"
+              labelField="teamCosts"
               value={dreData.teamCosts}
               editableField="teamCosts"
               isSubtraction
@@ -581,7 +682,7 @@ export function CompleteDRE({
               tooltip="Salários, freelancers, comissões"
             />
             <DRELine
-              label="Ferramentas / Software"
+              labelField="toolCosts"
               value={dreData.toolCosts}
               editableField="toolCosts"
               isSubtraction
@@ -589,7 +690,7 @@ export function CompleteDRE({
               tooltip="SaaS, ferramentas de marketing, etc."
             />
             <DRELine
-              label="Custos Fixos"
+              labelField="fixedCosts"
               value={dreData.fixedCosts}
               editableField="fixedCosts"
               isSubtraction
@@ -597,7 +698,7 @@ export function CompleteDRE({
               tooltip="Aluguel, internet, energia, etc."
             />
             <DRELine
-              label="Outras Despesas"
+              labelField="otherCosts"
               value={dreData.otherCosts}
               editableField="otherCosts"
               isSubtraction
@@ -610,7 +711,7 @@ export function CompleteDRE({
 
           {/* EBITDA */}
           <DRELine
-            label="EBITDA (Lucro Operacional)"
+            labelField="ebitda"
             value={dreData.ebitda}
             isTotal
             highlight
@@ -819,6 +920,33 @@ export function CompleteDRE({
                   />
                   <p className="text-xs text-muted-foreground">Despesas variáveis</p>
                 </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Label Customization */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Type className="h-4 w-4 text-primary" />
+                Personalizar Nomes dos Campos
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                {Object.entries(labels).map(([key, value]) => (
+                  <div key={key} className="space-y-2">
+                    <Label htmlFor={`label-${key}`} className="text-xs text-muted-foreground capitalize">
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </Label>
+                    <Input
+                      id={`label-${key}`}
+                      type="text"
+                      value={value}
+                      onChange={e => setLabels(l => ({ ...l, [key]: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
