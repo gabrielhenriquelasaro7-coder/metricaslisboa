@@ -30,7 +30,8 @@ import {
   Sun,
   Moon,
   User,
-  KeyRound
+  KeyRound,
+  Lightbulb
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
@@ -495,6 +496,19 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               >
                 <Database className="w-5 h-5 flex-shrink-0" />
                 {!collapsed && <span>Administração</span>}
+              </Link>
+
+              {/* Suggestions */}
+              <Link
+                to="/suggestions"
+                onClick={onNavigate}
+                className={cn(
+                  'sidebar-item',
+                  location.pathname === '/suggestions' && 'active'
+                )}
+              >
+                <Lightbulb className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>Sugestões</span>}
               </Link>
 
               {/* Settings */}
