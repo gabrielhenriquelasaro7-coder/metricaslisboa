@@ -82,15 +82,14 @@ export default function Financial() {
   }, [authLoading, isAuthorized, navigate]);
 
   const crmMetrics = useMemo(() => ({
-    revenue: crmStatus?.stats?.total_revenue || 0,
-    sales: crmStatus?.stats?.won_deals || 0,
+    revenue: crmStatus?.funnel?.revenue || crmStatus?.stats?.total_revenue || 0,
+    sales: crmStatus?.funnel?.sales || crmStatus?.stats?.won_deals || 0,
     averageTicket: crmStatus?.stats?.won_deals ? (crmStatus.stats.total_revenue / crmStatus.stats.won_deals) : 0,
     conversionRate: crmStatus?.stats?.total_deals ? (crmStatus.stats.won_deals / crmStatus.stats.total_deals * 100) : 0,
-    leadsReceived: crmStatus?.stats?.total_deals || 0,
-    leadsContacted: Math.round((crmStatus?.stats?.total_deals || 0) * 0.83),
-    meetingsScheduled: Math.round((crmStatus?.stats?.total_deals || 0) * 0.24),
-    proposalsSent: Math.round((crmStatus?.stats?.total_deals || 0) * 0.16),
-    dealsClosed: crmStatus?.stats?.won_deals || 0,
+    // Funnel data
+    leads: crmStatus?.funnel?.leads || crmStatus?.stats?.total_deals || 0,
+    mql: crmStatus?.funnel?.mql || 0,
+    sql: crmStatus?.funnel?.sql || 0,
   }), [crmStatus]);
 
   const dreData = useMemo(() => ({
@@ -240,7 +239,13 @@ export default function Financial() {
               <div className="grid gap-6 lg:grid-cols-2">
                 <ROASRealCard adSpend={totalAdSpend || 0} crmRevenue={crmMetrics.revenue} periodLabel="Últimos 30 dias" />
                 {businessModel === 'inside_sales' ? (
-                  <InsideSalesFunnel {...crmMetrics} />
+                  <InsideSalesFunnel 
+                    leads={crmMetrics.leads}
+                    mql={crmMetrics.mql}
+                    sql={crmMetrics.sql}
+                    sales={crmMetrics.sales}
+                    revenue={crmMetrics.revenue}
+                  />
                 ) : (
                   <FinancialDRECard {...dreData} />
                 )}
@@ -248,7 +253,13 @@ export default function Financial() {
             </TabsContent>
 
             <TabsContent value="funnel" className="space-y-6">
-              <InsideSalesFunnel {...crmMetrics} />
+              <InsideSalesFunnel 
+                leads={crmMetrics.leads}
+                mql={crmMetrics.mql}
+                sql={crmMetrics.sql}
+                sales={crmMetrics.sales}
+                revenue={crmMetrics.revenue}
+              />
             </TabsContent>
 
             <TabsContent value="roas" className="space-y-6">
