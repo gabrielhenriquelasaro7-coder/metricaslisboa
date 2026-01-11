@@ -120,7 +120,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <header className="fixed top-0 left-0 right-0 z-50 h-12 bg-sidebar/95 backdrop-blur-lg border-b border-sidebar-border flex items-center px-3 safe-area-top">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="mr-2 h-9 w-9 touch-target">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="mr-2 h-9 w-9 touch-target"
+                data-tour="mobile-menu"
+              >
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>

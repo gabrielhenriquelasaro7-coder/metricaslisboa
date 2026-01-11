@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface TourStep {
   id: string;
@@ -12,7 +13,8 @@ interface TourStep {
   position: 'top' | 'bottom' | 'left' | 'right';
 }
 
-const tourSteps: TourStep[] = [
+// Desktop tour steps (full tour with sidebar)
+const desktopTourSteps: TourStep[] = [
   {
     id: 'sidebar',
     title: 'Menu de Navegação',
@@ -71,6 +73,45 @@ const tourSteps: TourStep[] = [
   },
 ];
 
+// Mobile tour steps (simplified, no sidebar elements)
+const mobileTourSteps: TourStep[] = [
+  {
+    id: 'mobile-menu',
+    title: 'Menu de Navegação',
+    description: 'Toque aqui para abrir o menu e acessar Dashboard, Campanhas, Criativos e mais opções.',
+    targetSelector: '[data-tour="mobile-menu"]',
+    position: 'bottom',
+  },
+  {
+    id: 'date-picker',
+    title: 'Período de Análise',
+    description: 'Selecione o período que deseja analisar: hoje, últimos 7 dias, este mês ou datas personalizadas.',
+    targetSelector: '[data-tour="date-picker"]',
+    position: 'bottom',
+  },
+  {
+    id: 'metrics',
+    title: 'Métricas Principais',
+    description: 'Cards com as métricas mais importantes: Gasto, Impressões, Cliques, CTR, CPM e CPC.',
+    targetSelector: '[data-tour="metrics"]',
+    position: 'bottom',
+  },
+  {
+    id: 'charts',
+    title: 'Gráficos de Performance',
+    description: 'Acompanhe a evolução das métricas ao longo do tempo através de gráficos interativos.',
+    targetSelector: '[data-tour="charts"]',
+    position: 'top',
+  },
+  {
+    id: 'pdf-export',
+    title: 'Exportar Relatório PDF',
+    description: 'Gere relatórios profissionais em PDF com todas as métricas e gráficos.',
+    targetSelector: '[data-tour="pdf-export"]',
+    position: 'bottom',
+  },
+];
+
 interface SpotlightPosition {
   top: number;
   left: number;
@@ -89,6 +130,9 @@ interface GuidedTourProps {
 }
 
 export function GuidedTour({ onComplete, onSkip }: GuidedTourProps) {
+  const isMobile = useIsMobile();
+  const tourSteps = isMobile ? mobileTourSteps : desktopTourSteps;
+  
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
   const [spotlight, setSpotlight] = useState<SpotlightPosition | null>(null);
