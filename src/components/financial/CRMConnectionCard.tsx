@@ -319,8 +319,12 @@ export function CRMConnectionCard({
                     <Button 
                       className="w-full gap-2 h-11 font-medium" 
                       variant={crm.id === 'outros' ? 'outline' : 'default'}
-                      onClick={() => handleCRMSelect(crm)}
-                      disabled={isConnecting !== null}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleCRMSelect(crm);
+                      }}
+                      disabled={!!isConnecting}
                     >
                       {isConnecting === crm.id ? (
                         <>
@@ -343,7 +347,7 @@ export function CRMConnectionCard({
       </Card>
 
       {/* API Key Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={handleCloseDialog}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3">
