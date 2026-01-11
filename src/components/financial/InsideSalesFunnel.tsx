@@ -1,10 +1,11 @@
 import { 
   Users, 
-  Phone, 
-  Calendar, 
-  FileText, 
+  Target, 
+  Handshake, 
   CheckCircle2,
-  ArrowRight
+  ArrowDown,
+  TrendingUp,
+  DollarSign
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -15,115 +16,147 @@ interface FunnelStage {
   value: number;
   icon: React.ElementType;
   color: string;
+  bgColor: string;
 }
 
 interface InsideSalesFunnelProps {
-  leadsReceived?: number;
-  leadsContacted?: number;
-  meetingsScheduled?: number;
-  proposalsSent?: number;
-  dealsClosed?: number;
+  leads?: number;
+  mql?: number;
+  sql?: number;
+  sales?: number;
+  revenue?: number;
 }
 
 export function InsideSalesFunnel({
-  leadsReceived = 0,
-  leadsContacted = 0,
-  meetingsScheduled = 0,
-  proposalsSent = 0,
-  dealsClosed = 0
+  leads = 0,
+  mql = 0,
+  sql = 0,
+  sales = 0,
+  revenue = 0,
 }: InsideSalesFunnelProps) {
   const stages: FunnelStage[] = [
-    { id: 'leads', label: 'Leads Recebidos', value: leadsReceived, icon: Users, color: 'bg-blue-500' },
-    { id: 'contacted', label: 'Contatados', value: leadsContacted, icon: Phone, color: 'bg-cyan-500' },
-    { id: 'meetings', label: 'Reuniões', value: meetingsScheduled, icon: Calendar, color: 'bg-purple-500' },
-    { id: 'proposals', label: 'Propostas', value: proposalsSent, icon: FileText, color: 'bg-orange-500' },
-    { id: 'deals', label: 'Vendas', value: dealsClosed, icon: CheckCircle2, color: 'bg-metric-positive' },
+    { id: 'leads', label: 'Leads', value: leads, icon: Users, color: 'text-blue-500', bgColor: 'bg-blue-500' },
+    { id: 'mql', label: 'MQL', value: mql, icon: Target, color: 'text-cyan-500', bgColor: 'bg-cyan-500' },
+    { id: 'sql', label: 'SQL', value: sql, icon: Handshake, color: 'text-purple-500', bgColor: 'bg-purple-500' },
+    { id: 'sales', label: 'Vendas', value: sales, icon: CheckCircle2, color: 'text-metric-positive', bgColor: 'bg-metric-positive' },
   ];
 
   const maxValue = Math.max(...stages.map(s => s.value), 1);
 
-  const getConversionRate = (current: number, previous: number) => {
-    if (previous === 0) return 0;
+  const getConversionRate = (current: number, previous: number): string => {
+    if (previous === 0) return '0';
     return ((current / previous) * 100).toFixed(1);
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          Funil de Vendas
-        </CardTitle>
-        <CardDescription>
-          Acompanhe a conversão em cada etapa do processo comercial
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {stages.map((stage, index) => {
-          const Icon = stage.icon;
-          const widthPercent = Math.max((stage.value / maxValue) * 100, 15);
-          const previousStage = index > 0 ? stages[index - 1] : null;
-          const conversionRate = previousStage 
-            ? getConversionRate(stage.value, previousStage.value)
-            : null;
+  const conversions = [
+    { from: 'Lead', to: 'MQL', rate: getConversionRate(mql, leads) },
+    { from: 'MQL', to: 'SQL', rate: getConversionRate(sql, mql) },
+    { from: 'SQL', to: 'Venda', rate: getConversionRate(sales, sql) },
+  ];
 
-          return (
-            <div key={stage.id} className="space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <div className={cn('p-1.5 rounded-lg', stage.color.replace('bg-', 'bg-') + '/20')}>
-                    <Icon className={cn('w-4 h-4', stage.color.replace('bg-', 'text-'))} />
+  const overallConversion = getConversionRate(sales, leads);
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              Funil de Vendas
+            </CardTitle>
+            <CardDescription>
+              Acompanhe a conversão em cada etapa
+            </CardDescription>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-primary">
+              R$ {(revenue / 1000).toFixed(revenue >= 1000 ? 0 : 1)}k
+            </p>
+            <p className="text-xs text-muted-foreground">Receita</p>
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        {/* Funnel Bars */}
+        <div className="space-y-3">
+          {stages.map((stage, index) => {
+            const Icon = stage.icon;
+            const widthPercent = Math.max((stage.value / maxValue) * 100, 20);
+            const prevStage = index > 0 ? stages[index - 1] : null;
+
+            return (
+              <div key={stage.id} className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className={cn('p-1.5 rounded-lg bg-opacity-20', stage.bgColor.replace('bg-', 'bg-') + '/20')}>
+                      <Icon className={cn('w-4 h-4', stage.color)} />
+                    </div>
+                    <span className="font-medium">{stage.label}</span>
                   </div>
-                  <span className="font-medium">{stage.label}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  {conversionRate !== null && (
-                    <span className="text-xs text-muted-foreground">
-                      {conversionRate}% conversão
-                    </span>
-                  )}
                   <span className="font-bold text-lg tabular-nums">
                     {stage.value.toLocaleString('pt-BR')}
                   </span>
                 </div>
-              </div>
-              
-              <div className="relative h-8 bg-muted/30 rounded-lg overflow-hidden">
-                <div 
-                  className={cn(
-                    'absolute inset-y-0 left-0 rounded-lg transition-all duration-500 ease-out flex items-center justify-end pr-3',
-                    stage.color
-                  )}
-                  style={{ width: `${widthPercent}%` }}
-                >
-                  {widthPercent > 20 && (
-                    <span className="text-xs font-medium text-white">
-                      {stage.value > 0 ? `${((stage.value / maxValue) * 100).toFixed(0)}%` : ''}
-                    </span>
-                  )}
+                
+                <div className="relative h-10 bg-muted/30 rounded-lg overflow-hidden">
+                  <div 
+                    className={cn(
+                      'absolute inset-y-0 left-0 rounded-lg transition-all duration-700 ease-out flex items-center justify-end pr-3',
+                      stage.bgColor
+                    )}
+                    style={{ width: `${widthPercent}%` }}
+                  >
+                    {widthPercent > 25 && (
+                      <span className="text-sm font-semibold text-white">
+                        {((stage.value / maxValue) * 100).toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {index < stages.length - 1 && (
-                <div className="flex justify-center py-1">
-                  <ArrowRight className="w-4 h-4 text-muted-foreground/50 rotate-90" />
-                </div>
-              )}
+                {/* Conversion arrow between stages */}
+                {prevStage && (
+                  <div className="flex items-center justify-center gap-2 py-1 text-xs text-muted-foreground">
+                    <ArrowDown className="w-3 h-3" />
+                    <span>{getConversionRate(stage.value, prevStage.value)}% conversão</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Conversion Summary */}
+        <div className="grid grid-cols-3 gap-2 pt-4 border-t">
+          {conversions.map((conv, idx) => (
+            <div key={idx} className="text-center p-2 rounded-lg bg-muted/30">
+              <p className="text-xs text-muted-foreground mb-1">
+                {conv.from} → {conv.to}
+              </p>
+              <p className="text-lg font-bold text-foreground">
+                {conv.rate}%
+              </p>
             </div>
-          );
-        })}
+          ))}
+        </div>
 
-        {/* Taxa de conversão geral */}
-        <div className="mt-6 p-4 rounded-lg bg-primary/5 border border-primary/20">
+        {/* Overall Conversion */}
+        <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Taxa de conversão geral</p>
-              <p className="text-xs text-muted-foreground">Lead → Venda</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/20">
+                <DollarSign className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Conversão Geral</p>
+                <p className="text-xs text-muted-foreground">Lead → Venda</p>
+              </div>
             </div>
-            <div className="text-right">
-              <span className="text-3xl font-bold text-primary">
-                {getConversionRate(dealsClosed, leadsReceived)}%
-              </span>
-            </div>
+            <span className="text-3xl font-bold text-primary">
+              {overallConversion}%
+            </span>
           </div>
         </div>
       </CardContent>

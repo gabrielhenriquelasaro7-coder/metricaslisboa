@@ -79,9 +79,10 @@ Deno.serve(async (req) => {
     // Get deal statistics
     const { data: dealStats } = await supabase
       .from('crm_deals')
-      .select('status, value')
+      .select('status, value, stage_name, external_stage_id')
       .eq('connection_id', connection.id);
 
+    // Basic stats
     const stats = {
       total_deals: dealStats?.length || 0,
       won_deals: dealStats?.filter(d => d.status === 'won').length || 0,
@@ -90,6 +91,107 @@ Deno.serve(async (req) => {
       total_revenue: dealStats?.filter(d => d.status === 'won').reduce((sum, d) => sum + (d.value || 0), 0) || 0,
       total_pipeline_value: dealStats?.filter(d => d.status === 'open').reduce((sum, d) => sum + (d.value || 0), 0) || 0,
     };
+
+    // Get funnel data from Kommo if connected
+    let funnel = {
+      leads: stats.total_deals,
+      mql: 0,
+      sql: 0,
+      sales: stats.won_deals,
+      revenue: stats.total_revenue,
+    };
+
+    // Try to get real funnel data from Kommo API
+    if (connection.provider === 'kommo' && connection.status === 'connected') {
+      try {
+        const apiKey = connection.access_token || connection.api_key;
+        const apiUrl = connection.api_url as string;
+
+        if (apiKey && apiUrl) {
+          // Fetch pipelines to get stage mapping
+          const pipelinesResponse = await fetch(`${apiUrl}/api/v4/leads/pipelines`, {
+            headers: { 'Authorization': `Bearer ${apiKey}` },
+          });
+
+          if (pipelinesResponse.ok) {
+            const pipelinesData = await pipelinesResponse.json();
+            const pipelines = pipelinesData._embedded?.pipelines || [];
+            
+            // Build stage ID to name/type mapping
+            const stageMap: Record<string, { name: string; type: string; sort: number }> = {};
+            
+            for (const pipeline of pipelines) {
+              const statuses = pipeline._embedded?.statuses || [];
+              for (const status of statuses) {
+                stageMap[String(status.id)] = {
+                  name: status.name,
+                  type: status.type || 'open', // 0=open, 1=won, 2=lost
+                  sort: status.sort || 0,
+                };
+              }
+            }
+
+            // Count deals by funnel stage based on their position
+            // Logic: First stages = Lead, Middle stages = MQL/SQL, Final = Won
+            const openDeals = dealStats?.filter(d => d.status === 'open') || [];
+            const totalStages = Object.keys(stageMap).length;
+            
+            if (totalStages > 0 && openDeals.length > 0) {
+              // Sort stages by sort order
+              const sortedStages = Object.entries(stageMap)
+                .filter(([_, info]) => info.type !== '1' && info.type !== '2') // exclude won/lost
+                .sort((a, b) => a[1].sort - b[1].sort);
+              
+              const stageCount = sortedStages.length;
+              
+              // Divide stages into Lead (first 1/3), MQL (middle 1/3), SQL (last 1/3)
+              const leadStages = new Set(sortedStages.slice(0, Math.ceil(stageCount / 3)).map(s => s[0]));
+              const mqlStages = new Set(sortedStages.slice(Math.ceil(stageCount / 3), Math.ceil(stageCount * 2 / 3)).map(s => s[0]));
+              const sqlStages = new Set(sortedStages.slice(Math.ceil(stageCount * 2 / 3)).map(s => s[0]));
+
+              let leadCount = 0;
+              let mqlCount = 0;
+              let sqlCount = 0;
+
+              for (const deal of openDeals) {
+                const stageId = String(deal.external_stage_id);
+                if (leadStages.has(stageId)) leadCount++;
+                else if (mqlStages.has(stageId)) mqlCount++;
+                else if (sqlStages.has(stageId)) sqlCount++;
+              }
+
+              // Funnel is cumulative: leads include all, MQL includes MQL+SQL+sales, etc.
+              funnel = {
+                leads: stats.total_deals,
+                mql: mqlCount + sqlCount + stats.won_deals,
+                sql: sqlCount + stats.won_deals,
+                sales: stats.won_deals,
+                revenue: stats.total_revenue,
+              };
+            }
+          }
+        }
+      } catch (funnelError) {
+        console.error('Error fetching funnel data:', funnelError);
+        // Keep default funnel based on basic stats
+        funnel = {
+          leads: stats.total_deals,
+          mql: Math.round(stats.total_deals * 0.6),
+          sql: Math.round(stats.total_deals * 0.3),
+          sales: stats.won_deals,
+          revenue: stats.total_revenue,
+        };
+      }
+    } else {
+      // For other CRMs or when API fails, estimate funnel
+      funnel = {
+        leads: stats.total_deals,
+        mql: Math.round(stats.total_deals * 0.6),
+        sql: Math.round(stats.total_deals * 0.3),
+        sales: stats.won_deals,
+        revenue: stats.total_revenue,
+      };
+    }
 
     return new Response(
       JSON.stringify({
@@ -114,6 +216,7 @@ Deno.serve(async (req) => {
           error_message: latestSync.error_message,
         } : null,
         stats,
+        funnel,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

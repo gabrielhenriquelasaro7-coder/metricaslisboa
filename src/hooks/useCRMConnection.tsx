@@ -33,6 +33,13 @@ export interface CRMConnectionStatus {
     total_revenue: number;
     total_pipeline_value: number;
   };
+  funnel?: {
+    leads: number;
+    mql: number;
+    sql: number;
+    sales: number;
+    revenue: number;
+  };
 }
 
 export function useCRMConnection(projectId: string | undefined) {
