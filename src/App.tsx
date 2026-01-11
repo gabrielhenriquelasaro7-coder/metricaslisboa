@@ -36,6 +36,7 @@ import GoogleCampaigns from "./pages/GoogleCampaigns";
 import PredictiveAnalysis from "./pages/PredictiveAnalysis";
 import OptimizationHistory from "./pages/OptimizationHistory";
 import Suggestions from "./pages/Suggestions";
+import Financial from "./pages/Financial";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -81,6 +82,7 @@ function AnimatedRoutes() {
           <Route path="/predictive-analysis" element={<PredictiveAnalysis />} />
           <Route path="/optimization-history" element={<OptimizationHistory />} />
           <Route path="/suggestions" element={<Suggestions />} />
+          <Route path="/financeiro" element={<Financial />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </motion.div>
