@@ -27,6 +27,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { KanbanFilters, defaultFilters, filterDeals, type KanbanFiltersState } from './KanbanFilters';
 
 export interface FunnelStage {
   id: string;
@@ -130,29 +131,35 @@ export function KanbanFunnel({
   const [selectedDeal, setSelectedDeal] = useState<FunnelDeal | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [filters, setFilters] = useState<KanbanFiltersState>(defaultFilters);
 
-  // Group deals by stage
+  // Apply filters to deals
+  const filteredDeals = useMemo(() => {
+    return filterDeals(deals, filters);
+  }, [deals, filters]);
+
+  // Group filtered deals by stage
   const dealsByStage = useMemo(() => {
     const map: Record<string, FunnelDeal[]> = {};
     stages.forEach(stage => {
       map[stage.id] = [];
     });
-    deals.forEach(deal => {
+    filteredDeals.forEach(deal => {
       if (map[deal.stage_id]) {
         map[deal.stage_id].push(deal);
       }
     });
     return map;
-  }, [stages, deals]);
+  }, [stages, filteredDeals]);
 
   // Filter only open stages (type 0) for display
   const openStages = useMemo(() => {
     return stages.filter(s => s.type === 0).sort((a, b) => a.sort - b.sort);
   }, [stages]);
 
-  // Calculate total leads and conversion rate
-  const totalLeads = useMemo(() => deals.length, [deals]);
-  const totalValue = useMemo(() => deals.reduce((sum, d) => sum + (d.value || 0), 0), [deals]);
+  // Calculate total leads and conversion rate (using filtered deals)
+  const totalLeads = useMemo(() => filteredDeals.length, [filteredDeals]);
+  const totalValue = useMemo(() => filteredDeals.reduce((sum, d) => sum + (d.value || 0), 0), [filteredDeals]);
 
   // Calculate conversion rates between stages
   const conversionRates = useMemo(() => {
@@ -231,17 +238,29 @@ export function KanbanFunnel({
 
   return (
     <div className="space-y-6">
+      {/* Filters */}
+      <KanbanFilters 
+        deals={deals} 
+        filters={filters} 
+        onFiltersChange={setFilters} 
+      />
+
       {/* Overview Cards - Kommo Style */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-blue-600/20 to-blue-900/30 border-blue-500/30">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-blue-200 uppercase tracking-wider">LEADS NO TOTAL</span>
+              <span className="text-xs font-medium text-blue-200 uppercase tracking-wider">
+                LEADS {filteredDeals.length !== deals.length && '(FILTRADO)'}
+              </span>
               <MessageSquare className="h-4 w-4 text-blue-400" />
             </div>
             <p className="text-3xl font-bold text-blue-100">{totalLeads}</p>
             <p className="text-xs text-blue-300/70 mt-1">
-              {formatCurrency(totalValue)} em pipeline
+              {filteredDeals.length !== deals.length 
+                ? `de ${deals.length} total • ${formatCurrency(totalValue)} em pipeline`
+                : `${formatCurrency(totalValue)} em pipeline`
+              }
             </p>
           </CardContent>
         </Card>
@@ -253,7 +272,7 @@ export function KanbanFunnel({
               <Timer className="h-4 w-4 text-amber-400" />
             </div>
             <p className="text-3xl font-bold text-amber-100">
-              {deals.filter(d => d.status === 'open').length}
+              {filteredDeals.filter(d => d.status === 'open').length}
             </p>
             <p className="text-xs text-amber-300/70 mt-1">leads ativos</p>
           </CardContent>
@@ -289,7 +308,7 @@ export function KanbanFunnel({
         <div className="flex items-center gap-3">
           <h3 className="font-semibold text-lg">Funil de Vendas</h3>
           <Badge variant="outline" className="text-xs">
-            {totalLeads} leads no total
+            {totalLeads} leads {filteredDeals.length !== deals.length && `de ${deals.length}`}
           </Badge>
         </div>
         <div className="flex items-center gap-2">
@@ -310,12 +329,34 @@ export function KanbanFunnel({
         </div>
       </div>
 
+      {/* No results message when filtered */}
+      {filteredDeals.length === 0 && deals.length > 0 && (
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-muted/30 rounded-xl">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+            <AlertCircle className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <h4 className="font-medium mb-1">Nenhum lead encontrado</h4>
+          <p className="text-sm text-muted-foreground max-w-md">
+            Nenhum lead corresponde aos filtros selecionados. Tente ajustar os filtros ou limpar a busca.
+          </p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-4"
+            onClick={() => setFilters(defaultFilters)}
+          >
+            Limpar filtros
+          </Button>
+        </div>
+      )}
+
       {/* Horizontal Kanban - ONLY this scrolls horizontally */}
-      <div 
-        ref={scrollContainerRef}
-        className="overflow-x-auto pb-4 -mx-4 px-4"
-        style={{ scrollbarWidth: 'thin' }}
-      >
+      {filteredDeals.length > 0 && (
+        <div 
+          ref={scrollContainerRef}
+          className="overflow-x-auto pb-4 -mx-4 px-4"
+          style={{ scrollbarWidth: 'thin' }}
+        >
         <div className="flex gap-3 min-w-max">
           {openStages.map((stage, stageIndex) => {
             const stageDeals = dealsByStage[stage.id] || [];
@@ -430,7 +471,7 @@ export function KanbanFunnel({
           })}
         </div>
       </div>
-
+      )}
       {/* Lead Detail Drawer */}
       <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
