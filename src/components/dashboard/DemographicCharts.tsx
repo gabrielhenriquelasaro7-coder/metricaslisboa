@@ -194,14 +194,14 @@ function DemographicPieChart({
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 space-y-1 sm:space-y-2 min-w-0">
             {chartData.map((item, index) => (
-              <div key={index} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+              <div key={index} className="flex items-center justify-between text-[10px] sm:text-sm gap-1">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                   <span className="truncate">{item.name}</span>
                 </div>
-                <span className="text-muted-foreground">{item.percent}%</span>
+                <span className="text-muted-foreground flex-shrink-0">{item.percent}%</span>
               </div>
             ))}
           </div>
