@@ -9,7 +9,7 @@ import { AdminAuthProvider } from "@/hooks/useAdminAuth";
 import { GuestAccessGuard } from "@/components/auth/GuestAccessGuard";
 import { PWAProvider } from "@/components/pwa/PWAProvider";
 import { AnimatePresence, motion } from "framer-motion";
-import Index from "./pages/Index";
+import { Navigate } from "react-router-dom";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import ProjectSelector from "./pages/ProjectSelector";
@@ -54,7 +54,7 @@ function AnimatedRoutes() {
         className="w-full min-h-screen"
       >
         <Routes location={location}>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Navigate to="/auth" replace />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/projects" element={<ProjectSelector />} />
