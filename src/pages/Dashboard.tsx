@@ -450,7 +450,7 @@ export default function Dashboard() {
               </div>
               
               {/* E-commerce Metrics */}
-              {isEcommerce && <div className="metric-grid-mobile">
+              {isEcommerce && <div className="metric-grid-results">
                   <SparklineCard title="ROAS" value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />
                   <SparklineCard title="Compras" value={formatNumberCompact(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases.length > 0 ? sparklineData.purchases : sparklineData.conversions} tooltip="Total de compras via pixel" />
                   <SparklineCard title="Receita" value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />
@@ -462,7 +462,7 @@ export default function Dashboard() {
               const totalLeads = metrics.totalConversions;
               const cpl = totalLeads > 0 ? metrics.totalSpend / totalLeads : 0;
               const convRate = metrics.totalClicks > 0 ? totalLeads / metrics.totalClicks * 100 : 0;
-              return <div className="metric-grid-mobile">
+              return <div className="metric-grid-results">
                     <SparklineCard title="Leads" value={formatNumberCompact(totalLeads)} change={changes?.conversions} icon={Users} sparklineData={sparklineData.leads.length > 0 ? sparklineData.leads : sparklineData.conversions} className="border-l-4 border-l-chart-1" tooltip="Total de resultados" />
                     <SparklineCard title="CPL" value={formatCurrency(cpl)} change={changes?.cpa} icon={Receipt} sparklineData={sparklineData.cpl} invertTrend />
                     <SparklineCard title="Conv." value={`${convRate.toFixed(2)}%`} icon={Activity} />
@@ -471,7 +471,7 @@ export default function Dashboard() {
             })()}
 
               {/* Infoproduto Metrics */}
-              {isInfoproduto && <div className="metric-grid-mobile">
+              {isInfoproduto && <div className="metric-grid-results">
                   <SparklineCard title="Vendas" value={formatNumberCompact(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases} className="border-l-4 border-l-metric-positive" tooltip="Compras via pixel" />
                   <SparklineCard title="Receita" value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />
                   <SparklineCard title="ROAS" value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />
@@ -479,7 +479,7 @@ export default function Dashboard() {
                 </div>}
 
               {/* PDV Metrics */}
-              {isPdv && <div className="metric-grid-mobile">
+              {isPdv && <div className="metric-grid-results">
                   <SparklineCard title="Visitas" value={formatNumberCompact(metrics.totalConversions)} change={changes?.conversions} icon={Store} sparklineData={sparklineData.conversions} sparklineColor="hsl(var(--chart-2))" className="border-l-4 border-l-chart-2" />
                   <SparklineCard title="Custo/Visita" value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={DollarSign} sparklineData={sparklineData.cpl} sparklineColor="hsl(var(--chart-3))" invertTrend />
                   <MetricCard title="Alcance" value={formatNumberCompact(metrics.totalReach)} icon={Users} trend="neutral" />
