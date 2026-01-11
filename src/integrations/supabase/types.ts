@@ -735,6 +735,309 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_connections: {
+        Row: {
+          access_token: string | null
+          api_key: string | null
+          api_url: string | null
+          config: Json | null
+          connected_at: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string
+          last_error: string | null
+          project_id: string
+          provider: Database["public"]["Enums"]["crm_provider"]
+          refresh_token: string | null
+          status: Database["public"]["Enums"]["crm_connection_status"] | null
+          token_expires_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          api_key?: string | null
+          api_url?: string | null
+          config?: Json | null
+          connected_at?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          last_error?: string | null
+          project_id: string
+          provider: Database["public"]["Enums"]["crm_provider"]
+          refresh_token?: string | null
+          status?: Database["public"]["Enums"]["crm_connection_status"] | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          api_key?: string | null
+          api_url?: string | null
+          config?: Json | null
+          connected_at?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          last_error?: string | null
+          project_id?: string
+          provider?: Database["public"]["Enums"]["crm_provider"]
+          refresh_token?: string | null
+          status?: Database["public"]["Enums"]["crm_connection_status"] | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_connections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deals: {
+        Row: {
+          closed_date: string | null
+          connection_id: string
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string | null
+          created_date: string | null
+          currency: string | null
+          custom_fields: Json | null
+          expected_close_date: string | null
+          external_id: string
+          external_pipeline_id: string | null
+          external_stage_id: string | null
+          id: string
+          lead_source: string | null
+          owner_email: string | null
+          owner_name: string | null
+          pipeline_id: string | null
+          project_id: string
+          stage_name: string | null
+          status: Database["public"]["Enums"]["crm_deal_status"] | null
+          synced_at: string | null
+          title: string
+          updated_at: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          value: number | null
+        }
+        Insert: {
+          closed_date?: string | null
+          connection_id: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          created_date?: string | null
+          currency?: string | null
+          custom_fields?: Json | null
+          expected_close_date?: string | null
+          external_id: string
+          external_pipeline_id?: string | null
+          external_stage_id?: string | null
+          id?: string
+          lead_source?: string | null
+          owner_email?: string | null
+          owner_name?: string | null
+          pipeline_id?: string | null
+          project_id: string
+          stage_name?: string | null
+          status?: Database["public"]["Enums"]["crm_deal_status"] | null
+          synced_at?: string | null
+          title: string
+          updated_at?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          value?: number | null
+        }
+        Update: {
+          closed_date?: string | null
+          connection_id?: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          created_date?: string | null
+          currency?: string | null
+          custom_fields?: Json | null
+          expected_close_date?: string | null
+          external_id?: string
+          external_pipeline_id?: string | null
+          external_stage_id?: string | null
+          id?: string
+          lead_source?: string | null
+          owner_email?: string | null
+          owner_name?: string | null
+          pipeline_id?: string | null
+          project_id?: string
+          stage_name?: string | null
+          status?: Database["public"]["Enums"]["crm_deal_status"] | null
+          synced_at?: string | null
+          title?: string
+          updated_at?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deals_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_pipelines: {
+        Row: {
+          connection_id: string
+          created_at: string | null
+          external_id: string
+          external_name: string
+          id: string
+          is_default: boolean | null
+          project_id: string
+          stages: Json | null
+          synced_at: string | null
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string | null
+          external_id: string
+          external_name: string
+          id?: string
+          is_default?: boolean | null
+          project_id: string
+          stages?: Json | null
+          synced_at?: string | null
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string | null
+          external_id?: string
+          external_name?: string
+          id?: string
+          is_default?: boolean | null
+          project_id?: string
+          stages?: Json | null
+          synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_pipelines_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_pipelines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_sync_logs: {
+        Row: {
+          completed_at: string | null
+          connection_id: string
+          created_at: string | null
+          error_details: Json | null
+          error_message: string | null
+          id: string
+          project_id: string
+          records_created: number | null
+          records_failed: number | null
+          records_processed: number | null
+          records_updated: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["crm_sync_status"] | null
+          sync_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          connection_id: string
+          created_at?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          id?: string
+          project_id: string
+          records_created?: number | null
+          records_failed?: number | null
+          records_processed?: number | null
+          records_updated?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["crm_sync_status"] | null
+          sync_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          connection_id?: string
+          created_at?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          id?: string
+          project_id?: string
+          records_created?: number | null
+          records_failed?: number | null
+          records_processed?: number | null
+          records_updated?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["crm_sync_status"] | null
+          sync_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_sync_logs_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_sync_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       demographic_insights: {
         Row: {
           breakdown_type: string
@@ -2203,6 +2506,21 @@ export type Database = {
         | "pdv"
         | "custom"
         | "infoproduto"
+      crm_connection_status:
+        | "pending"
+        | "connected"
+        | "error"
+        | "expired"
+        | "disconnected"
+      crm_deal_status: "open" | "won" | "lost"
+      crm_provider:
+        | "kommo"
+        | "hubspot"
+        | "gohighlevel"
+        | "bitrix24"
+        | "rdstation"
+        | "outros"
+      crm_sync_status: "idle" | "syncing" | "completed" | "failed"
       user_cargo:
         | "gestor_trafego"
         | "account_manager"
@@ -2343,6 +2661,23 @@ export const Constants = {
         "custom",
         "infoproduto",
       ],
+      crm_connection_status: [
+        "pending",
+        "connected",
+        "error",
+        "expired",
+        "disconnected",
+      ],
+      crm_deal_status: ["open", "won", "lost"],
+      crm_provider: [
+        "kommo",
+        "hubspot",
+        "gohighlevel",
+        "bitrix24",
+        "rdstation",
+        "outros",
+      ],
+      crm_sync_status: ["idle", "syncing", "completed", "failed"],
       user_cargo: [
         "gestor_trafego",
         "account_manager",

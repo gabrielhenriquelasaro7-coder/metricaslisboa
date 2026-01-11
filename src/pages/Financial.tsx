@@ -67,7 +67,7 @@ export default function Financial() {
   const businessModel = selectedProject?.business_model as 'inside_sales' | 'ecommerce' | 'pdv' | undefined;
 
   // Fetch ad spend data from daily metrics
-  const { dailyData } = useDailyMetrics(selectedProjectId || undefined, 'thisMonth');
+  const { dailyData } = useDailyMetrics(selectedProjectId || undefined, 'last_30d');
   
   const totalAdSpend = useMemo(() => {
     if (!dailyData?.length) return 0;
