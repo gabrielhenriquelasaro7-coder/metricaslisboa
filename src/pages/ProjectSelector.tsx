@@ -621,7 +621,15 @@ export default function ProjectSelector() {
       toast.error('Erro ao sair');
     }
   };
-  if (authLoading || projectsLoading) {
+  // Show loading only briefly - max 1.5 seconds
+  const [forceShow, setForceShow] = useState(false);
+  
+  useEffect(() => {
+    const timeout = setTimeout(() => setForceShow(true), 1500);
+    return () => clearTimeout(timeout);
+  }, []);
+  
+  if ((authLoading || projectsLoading) && !forceShow) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>;
