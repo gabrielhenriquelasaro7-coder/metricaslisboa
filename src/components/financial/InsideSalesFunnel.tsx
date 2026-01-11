@@ -25,6 +25,7 @@ interface InsideSalesFunnelProps {
   sql?: number;
   sales?: number;
   revenue?: number;
+  hasCRMData?: boolean; // Indica se há dados reais do CRM
 }
 
 export function InsideSalesFunnel({
@@ -33,13 +34,20 @@ export function InsideSalesFunnel({
   sql = 0,
   sales = 0,
   revenue = 0,
+  hasCRMData = false,
 }: InsideSalesFunnelProps) {
-  const stages: FunnelStage[] = [
+  // Se não tem dados do CRM, mostrar apenas Leads
+  const allStages: FunnelStage[] = [
     { id: 'leads', label: 'Leads', value: leads, icon: Users, color: 'text-blue-500', bgColor: 'bg-blue-500' },
     { id: 'mql', label: 'MQL', value: mql, icon: Target, color: 'text-cyan-500', bgColor: 'bg-cyan-500' },
     { id: 'sql', label: 'SQL', value: sql, icon: Handshake, color: 'text-purple-500', bgColor: 'bg-purple-500' },
     { id: 'sales', label: 'Vendas', value: sales, icon: CheckCircle2, color: 'text-metric-positive', bgColor: 'bg-metric-positive' },
   ];
+
+  // Só mostrar estágios além de Leads se houver dados reais do CRM
+  const stages = hasCRMData 
+    ? allStages 
+    : allStages.filter(s => s.id === 'leads');
 
   const maxValue = Math.max(...stages.map(s => s.value), 1);
 
@@ -48,11 +56,12 @@ export function InsideSalesFunnel({
     return ((current / previous) * 100).toFixed(1);
   };
 
-  const conversions = [
+  // Só calcular conversões se tiver dados do CRM
+  const conversions = hasCRMData ? [
     { from: 'Lead', to: 'MQL', rate: getConversionRate(mql, leads) },
     { from: 'MQL', to: 'SQL', rate: getConversionRate(sql, mql) },
     { from: 'SQL', to: 'Venda', rate: getConversionRate(sales, sql) },
-  ];
+  ] : [];
 
   const overallConversion = getConversionRate(sales, leads);
 
@@ -128,37 +137,50 @@ export function InsideSalesFunnel({
           })}
         </div>
 
-        {/* Conversion Summary */}
-        <div className="grid grid-cols-3 gap-2 pt-4 border-t">
-          {conversions.map((conv, idx) => (
-            <div key={idx} className="text-center p-2 rounded-lg bg-muted/30">
-              <p className="text-xs text-muted-foreground mb-1">
-                {conv.from} → {conv.to}
-              </p>
-              <p className="text-lg font-bold text-foreground">
-                {conv.rate}%
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Overall Conversion */}
-        <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <DollarSign className="w-5 h-5 text-primary" />
+        {/* Conversion Summary - only show if CRM data exists */}
+        {hasCRMData && conversions.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 pt-4 border-t">
+            {conversions.map((conv, idx) => (
+              <div key={idx} className="text-center p-2 rounded-lg bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">
+                  {conv.from} → {conv.to}
+                </p>
+                <p className="text-lg font-bold text-foreground">
+                  {conv.rate}%
+                </p>
               </div>
-              <div>
-                <p className="text-sm font-medium">Conversão Geral</p>
-                <p className="text-xs text-muted-foreground">Lead → Venda</p>
-              </div>
-            </div>
-            <span className="text-3xl font-bold text-primary">
-              {overallConversion}%
-            </span>
+            ))}
           </div>
-        </div>
+        )}
+
+        {/* Overall Conversion - only show if CRM data exists */}
+        {hasCRMData && (
+          <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/20">
+                  <DollarSign className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Conversão Geral</p>
+                  <p className="text-xs text-muted-foreground">Lead → Venda</p>
+                </div>
+              </div>
+              <span className="text-3xl font-bold text-primary">
+                {overallConversion}%
+              </span>
+            </div>
+          </div>
+        )}
+        
+        {/* Message when no CRM connected */}
+        {!hasCRMData && (
+          <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
+            <p className="text-sm text-muted-foreground">
+              Conecte seu CRM para visualizar MQL, SQL e vendas
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
