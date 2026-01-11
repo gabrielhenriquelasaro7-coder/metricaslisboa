@@ -6,6 +6,7 @@ import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import AdSetCharts from '@/components/dashboard/AdSetCharts';
 import { useAdDailyMetrics } from '@/hooks/useAdDailyMetrics';
+import { useAdDateRange } from '@/hooks/useAdDateRange';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjects } from '@/hooks/useProjects';
 import { DateRange } from 'react-day-picker';
@@ -91,11 +92,22 @@ export default function AdDetail() {
   const [syncing, setSyncing] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
-    return period ? datePeriodToDateRange(period) : undefined;
-  });
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('custom');
+  const [hasAutoSetRange, setHasAutoSetRange] = useState(false);
+
+  // Get available date range for this ad
+  const { suggestedDateRange, loading: dateRangeLoading } = useAdDateRange(adId);
+
+  // Auto-set date range when we have data available
+  useEffect(() => {
+    if (!hasAutoSetRange && suggestedDateRange && !dateRangeLoading) {
+      console.log('[AdDetail] Auto-setting date range to available data range');
+      setDateRange(suggestedDateRange);
+      setSelectedPreset('custom');
+      setHasAutoSetRange(true);
+    }
+  }, [suggestedDateRange, dateRangeLoading, hasAutoSetRange]);
 
   const selectedProject = projects.find(p => p.id === projectId);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
@@ -103,6 +115,7 @@ export default function AdDetail() {
 
   // Fetch real daily metrics for this ad - pass date range for custom period
   const { dailyData: adDailyData, totals: adMetricsTotals } = useAdDailyMetrics(adId, projectId, dateRange);
+
 
   const fetchAd = useCallback(async () => {
     if (!adId) return;
