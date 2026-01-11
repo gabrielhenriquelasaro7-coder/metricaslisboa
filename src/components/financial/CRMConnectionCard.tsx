@@ -364,11 +364,13 @@ export function CRMConnectionCard({
                   <HelpCircle className="w-4 h-4 text-primary" />
                   Como obter o Token do Kommo
                 </div>
-                <ol className="space-y-1 text-sm text-muted-foreground list-decimal list-inside pl-1">
-                  <li>Acesse <strong>Configurações → Integrações</strong></li>
-                  <li>Clique em <strong>Tokens de API</strong></li>
-                  <li>Clique em <strong>Criar Token</strong></li>
-                  <li>Copie o token gerado</li>
+                <ol className="space-y-1.5 text-sm text-muted-foreground list-decimal list-inside pl-1">
+                  <li>Dentro do Kommo vá em <strong>Configurações</strong></li>
+                  <li>Clique em <strong>Integrações</strong></li>
+                  <li>Abra a integração que você criou</li>
+                  <li>Ache a opção <strong>"Token de longa duração"</strong></li>
+                  <li>Clique em <strong>Gerar</strong> (1 ano ou mais)</li>
+                  <li>Copie o token</li>
                 </ol>
               </div>
             )}
