@@ -138,28 +138,22 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
       .slice(0, 8);
   }, [deals]);
 
-  // Sankey data for funnel flow
+  // Sankey data for funnel flow - separated campaigns and stages
   const sankeyData = useMemo(() => {
-    const openStages = stages.filter(s => s.type === 0).sort((a, b) => a.sort - b.sort);
-    const wonStage = stages.find(s => s.type === 1);
-    const lostStage = stages.find(s => s.type === 2);
-
-    if (openStages.length === 0) return null;
-
     // Group deals by campaign and stage
     const campaignStageMap = new Map<string, Map<string, number>>();
     
     deals.forEach(deal => {
-      const campaign = deal.utm_campaign || deal.custom_fields?.utm_campaign;
-      if (!campaign) return;
-      
-      const shortCampaign = campaign.length > 20 ? campaign.slice(0, 17) + '...' : campaign;
+      // Get campaign name from UTM or use a default
+      const campaign = deal.utm_campaign || deal.custom_fields?.utm_campaign || 'Desconhecido';
+      const shortCampaign = campaign.length > 25 ? campaign.slice(0, 22) + '...' : campaign;
       
       if (!campaignStageMap.has(shortCampaign)) {
         campaignStageMap.set(shortCampaign, new Map());
       }
       
-      let stageName = deal.stage_name || 'Desconhecido';
+      // Determine stage name
+      let stageName = deal.stage_name || 'Lead';
       if (deal.status === 'won') stageName = 'Ganho';
       if (deal.status === 'lost') stageName = 'Perdido';
       
@@ -167,51 +161,55 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
       stageMap.set(stageName, (stageMap.get(stageName) || 0) + 1);
     });
 
-    // Build nodes and links
-    const nodes: { name: string }[] = [];
-    const nodeIndex = new Map<string, number>();
-    const links: { source: number; target: number; value: number }[] = [];
+    if (campaignStageMap.size === 0) return null;
 
-    // Add campaign nodes
+    // Get top campaigns by lead count
     const topCampaigns = Array.from(campaignStageMap.entries())
-      .sort((a, b) => {
-        const sumA = Array.from(a[1].values()).reduce((s, v) => s + v, 0);
-        const sumB = Array.from(b[1].values()).reduce((s, v) => s + v, 0);
-        return sumB - sumA;
-      })
+      .map(([name, stageMap]) => ({
+        name,
+        total: Array.from(stageMap.values()).reduce((s, v) => s + v, 0),
+        stageMap
+      }))
+      .sort((a, b) => b.total - a.total)
       .slice(0, 5);
 
-    topCampaigns.forEach(([campaign]) => {
-      nodeIndex.set(`campaign:${campaign}`, nodes.length);
-      nodes.push({ name: campaign });
-    });
-
-    // Add stage nodes
-    const stageNames = new Set<string>();
-    topCampaigns.forEach(([, stageMap]) => {
-      stageMap.forEach((_, stage) => stageNames.add(stage));
-    });
-
-    stageNames.forEach(stage => {
-      nodeIndex.set(`stage:${stage}`, nodes.length);
-      nodes.push({ name: stage });
-    });
-
-    // Add links
-    topCampaigns.forEach(([campaign, stageMap]) => {
+    // Collect all unique stages across all campaigns
+    const allStages = new Map<string, number>();
+    topCampaigns.forEach(({ stageMap }) => {
       stageMap.forEach((count, stage) => {
-        const sourceIdx = nodeIndex.get(`campaign:${campaign}`);
-        const targetIdx = nodeIndex.get(`stage:${stage}`);
-        if (sourceIdx !== undefined && targetIdx !== undefined && count > 0) {
-          links.push({ source: sourceIdx, target: targetIdx, value: count });
+        allStages.set(stage, (allStages.get(stage) || 0) + count);
+      });
+    });
+
+    // Sort stages: regular stages first, then Ganho, then Perdido
+    const sortedStages = Array.from(allStages.entries())
+      .sort((a, b) => {
+        if (a[0] === 'Ganho') return 1;
+        if (b[0] === 'Ganho') return -1;
+        if (a[0] === 'Perdido') return 1;
+        if (b[0] === 'Perdido') return -1;
+        return b[1] - a[1]; // Sort by count descending
+      });
+
+    // Build links between campaigns and stages
+    const links: { campaignIdx: number; stageIdx: number; value: number }[] = [];
+    topCampaigns.forEach((campaign, campIdx) => {
+      sortedStages.forEach(([stageName], stageIdx) => {
+        const count = campaign.stageMap.get(stageName) || 0;
+        if (count > 0) {
+          links.push({ campaignIdx: campIdx, stageIdx, value: count });
         }
       });
     });
 
     if (links.length === 0) return null;
 
-    return { nodes, links };
-  }, [deals, stages]);
+    return {
+      campaigns: topCampaigns.map(c => ({ name: c.name, total: c.total })),
+      stages: sortedStages.map(([name, count]) => ({ name, count })),
+      links
+    };
+  }, [deals]);
 
   // Overview metrics
   const overviewMetrics = useMemo(() => {
@@ -485,28 +483,23 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
                 {/* Left column - Campaigns */}
                 <div className="flex-1 flex flex-col gap-2">
                   <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Campanhas</h4>
-                  {sankeyData.nodes.slice(0, 5).map((node, idx) => {
-                    const totalFromCampaign = sankeyData.links
-                      .filter(l => l.source === idx)
-                      .reduce((sum, l) => sum + l.value, 0);
-                    return (
-                      <div 
-                        key={node.name} 
-                        className="flex items-center gap-2 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                        style={{ borderLeftColor: COLORS[idx % COLORS.length], borderLeftWidth: '4px' }}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{node.name}</p>
-                          <p className="text-xs text-muted-foreground">{totalFromCampaign} leads</p>
-                        </div>
+                  {sankeyData.campaigns.map((campaign, idx) => (
+                    <div 
+                      key={campaign.name} 
+                      className="flex items-center gap-2 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                      style={{ borderLeftColor: COLORS[idx % COLORS.length], borderLeftWidth: '4px' }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{campaign.name}</p>
+                        <p className="text-xs text-muted-foreground">{campaign.total} leads</p>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
 
                 {/* Middle - Flow lines */}
                 <div className="flex flex-col items-center justify-center gap-1 py-4">
-                  {[1, 2, 3, 4, 5].map(i => (
+                  {sankeyData.stages.slice(0, 5).map((_, i) => (
                     <div key={i} className="flex items-center gap-1">
                       <div className="w-8 h-0.5 bg-gradient-to-r from-primary/60 to-primary/20" />
                       <ArrowRight className="h-3 w-3 text-primary/40" />
@@ -518,15 +511,12 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
                 {/* Right column - Stages */}
                 <div className="flex-1 flex flex-col gap-2">
                   <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Etapas</h4>
-                  {sankeyData.nodes.slice(5).map((node, idx) => {
-                    const totalToStage = sankeyData.links
-                      .filter(l => l.target === idx + 5)
-                      .reduce((sum, l) => sum + l.value, 0);
-                    const isWon = node.name === 'Ganho';
-                    const isLost = node.name === 'Perdido';
+                  {sankeyData.stages.map((stage, idx) => {
+                    const isWon = stage.name === 'Ganho';
+                    const isLost = stage.name === 'Perdido';
                     return (
                       <div 
-                        key={node.name} 
+                        key={stage.name} 
                         className={`flex items-center gap-2 p-3 rounded-lg border transition-colors ${
                           isWon ? 'bg-emerald-500/10 border-emerald-500/30' :
                           isLost ? 'bg-red-500/10 border-red-500/30' :
@@ -536,12 +526,12 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
                         <div 
                           className="w-3 h-3 rounded-full flex-shrink-0"
                           style={{ 
-                            backgroundColor: isWon ? '#10b981' : isLost ? '#ef4444' : COLORS[(idx + 5) % COLORS.length] 
+                            backgroundColor: isWon ? '#10b981' : isLost ? '#ef4444' : COLORS[idx % COLORS.length] 
                           }}
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{node.name}</p>
-                          <p className="text-xs text-muted-foreground">{totalToStage} leads</p>
+                          <p className="text-sm font-medium truncate">{stage.name}</p>
+                          <p className="text-xs text-muted-foreground">{stage.count} leads</p>
                         </div>
                       </div>
                     );
@@ -553,7 +543,7 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
               <div className="mt-4 pt-4 border-t flex items-center justify-center gap-6 text-sm text-muted-foreground">
                 <span>Total de conexões: {sankeyData.links.length}</span>
                 <span>•</span>
-                <span>Campanhas rastreadas: {Math.min(5, sankeyData.nodes.filter((_, i) => i < 5).length)}</span>
+                <span>Campanhas rastreadas: {sankeyData.campaigns.length}</span>
               </div>
             </div>
           </CardContent>
