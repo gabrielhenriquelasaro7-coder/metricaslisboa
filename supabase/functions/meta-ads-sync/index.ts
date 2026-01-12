@@ -1353,9 +1353,144 @@ Deno.serve(async (req) => {
     if (time_range) { since = time_range.since; until = time_range.until; }
     else { const today = new Date(); until = today.toISOString().split('T')[0]; const daysMap: Record<string, number> = { yesterday: 1, today: 0, last_7d: 7, last_14d: 14, last_30d: 30, last_90d: 90 }; const days = daysMap[date_preset || 'last_90d'] || 90; const sinceDate = new Date(today); sinceDate.setDate(sinceDate.getDate() - days); since = sinceDate.toISOString().split('T')[0]; }
     
-    console.log(`[SYNC] Project: ${project_id}, Range: ${since} to ${until}, light_sync: ${light_sync}, skip_cache: ${skip_image_cache}`);
+    console.log(`[SYNC] Project: ${project_id}, Range: ${since} to ${until}, light_sync: ${light_sync}, skip_cache: ${skip_image_cache}, syncOnly: ${syncOnly || 'all'}`);
     const token = access_token || metaAccessToken;
     if (!token) throw new Error('No Meta access token available');
+    
+    // ===========================================================================================
+    // MODO ESPECIAL: syncOnly === 'creatives'
+    // Busca apenas criativos para ads existentes no banco, sem refazer toda a sincronização
+    // ===========================================================================================
+    if (syncOnly === 'creatives') {
+      console.log(`[CREATIVES-ONLY] Starting creatives-only sync for project ${project_id}`);
+      await updateSyncProgress(supabase, project_id, 'creatives', 'Buscando anúncios existentes...', 1, 4);
+      
+      // Buscar todos os ads do projeto que precisam de criativo
+      const { data: existingAds, error: adsError } = await supabase
+        .from('ads')
+        .select('id, creative_id, creative_thumbnail, creative_image_url, cached_image_url, headline, primary_text, cta')
+        .eq('project_id', project_id);
+      
+      if (adsError) throw adsError;
+      
+      // Filtrar ads que precisam de atualização (sem imagem ou sem texto)
+      const adsNeedingCreative = (existingAds || []).filter((ad: any) => 
+        !ad.cached_image_url || !ad.headline || !ad.primary_text
+      );
+      
+      console.log(`[CREATIVES-ONLY] Found ${existingAds?.length || 0} ads, ${adsNeedingCreative.length} need creative update`);
+      
+      if (adsNeedingCreative.length === 0) {
+        await updateSyncProgress(supabase, project_id, 'complete', 'Todos os criativos já estão atualizados');
+        return new Response(JSON.stringify({ success: true, message: 'Todos os criativos já estão atualizados', updated: 0 }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      
+      await updateSyncProgress(supabase, project_id, 'creatives', `Buscando dados de ${adsNeedingCreative.length} criativos na API...`, 2, 4);
+      
+      // Buscar creative IDs únicos
+      const adIds = adsNeedingCreative.map((ad: any) => ad.id);
+      let updatedCount = 0;
+      
+      // Buscar ads da API em batches de 50 para pegar creative data
+      for (let i = 0; i < adIds.length; i += 50) {
+        const batch = adIds.slice(i, i + 50);
+        const batchIds = batch.join(',');
+        
+        const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,image_hash,object_story_spec,asset_feed_spec,thumbnail_url,body,title,call_to_action_type}&access_token=${token}`;
+        const adsData = await simpleFetch(adsUrl, undefined, 30000);
+        
+        if (adsData?.error) {
+          console.log(`[CREATIVES-ONLY] Batch ${Math.floor(i/50) + 1} error: ${adsData.error.message?.substring(0, 100)}`);
+          continue;
+        }
+        
+        // Processar cada ad do batch
+        for (const adId of batch) {
+          const adData = adsData[adId];
+          if (!adData?.creative) continue;
+          
+          const creative = adData.creative;
+          let primaryText: string | null = null;
+          let headline: string | null = null;
+          let cta: string | null = null;
+          
+          // Extrair texto do asset_feed_spec (prioridade)
+          if (creative.asset_feed_spec) {
+            const afs = creative.asset_feed_spec;
+            if (afs.bodies?.length > 0) primaryText = afs.bodies[0].text;
+            if (afs.titles?.length > 0) headline = afs.titles[0].text;
+            if (afs.call_to_action_types?.length > 0) cta = afs.call_to_action_types[0];
+          }
+          
+          // Fallback para object_story_spec
+          const oss = creative.object_story_spec;
+          if (oss?.link_data) {
+            if (!primaryText && oss.link_data.message) primaryText = oss.link_data.message;
+            if (!headline && oss.link_data.name) headline = oss.link_data.name;
+            if (!cta && oss.link_data.call_to_action?.type) cta = oss.link_data.call_to_action.type;
+          }
+          if (oss?.video_data) {
+            if (!primaryText && oss.video_data.message) primaryText = oss.video_data.message;
+            if (!headline && oss.video_data.title) headline = oss.video_data.title;
+            if (!cta && oss.video_data.call_to_action?.type) cta = oss.video_data.call_to_action.type;
+          }
+          
+          // Fallback para campos diretos do creative
+          if (!primaryText && creative.body) primaryText = creative.body;
+          if (!headline && creative.title) headline = creative.title;
+          if (!cta && creative.call_to_action_type) cta = creative.call_to_action_type;
+          
+          // Buscar thumbnail HD se tiver creative ID
+          let cachedUrl: string | null = null;
+          if (creative.id) {
+            const hdThumbnail = await fetchCreativeThumbnailHD(creative.id, token);
+            if (hdThumbnail) {
+              cachedUrl = await cacheCreativeImage(supabase, project_id, adId, hdThumbnail, true);
+            }
+          }
+          
+          // Atualizar o ad no banco
+          const updateData: any = {
+            creative_id: creative.id || null,
+            synced_at: new Date().toISOString()
+          };
+          
+          if (primaryText) updateData.primary_text = primaryText;
+          if (headline) updateData.headline = headline;
+          if (cta) updateData.cta = cta;
+          if (cachedUrl) updateData.cached_image_url = cachedUrl;
+          if (creative.thumbnail_url) updateData.creative_thumbnail = creative.thumbnail_url;
+          
+          const { error: updateError } = await supabase
+            .from('ads')
+            .update(updateData)
+            .eq('id', adId);
+          
+          if (!updateError) updatedCount++;
+        }
+        
+        console.log(`[CREATIVES-ONLY] Batch ${Math.floor(i/50) + 1}/${Math.ceil(adIds.length/50)} processed`);
+        if (i + 50 < adIds.length) await delay(500);
+      }
+      
+      await updateSyncProgress(supabase, project_id, 'complete', `Criativos atualizados: ${updatedCount}`, 4, 4);
+      
+      // Atualizar last_sync_at do projeto
+      await supabase.from('projects').update({ last_sync_at: new Date().toISOString() }).eq('id', project_id);
+      
+      console.log(`[CREATIVES-ONLY] Completed - updated ${updatedCount} ads`);
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: `Criativos atualizados: ${updatedCount}`,
+        updated: updatedCount,
+        total: adsNeedingCreative.length
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    
+    // ===========================================================================================
+    // MODO NORMAL: Sincronização completa
+    // ===========================================================================================
     
     // Step 1: Fetch entities
     await updateSyncProgress(supabase, project_id, 'campaigns', 'Buscando campanhas, conjuntos e anúncios...', 1, 5);
