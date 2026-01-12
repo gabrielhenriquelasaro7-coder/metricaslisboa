@@ -95,6 +95,7 @@ export default function Financial() {
   const businessModel = selectedProject?.business_model as 'inside_sales' | 'ecommerce' | 'pdv' | 'infoproduto' | undefined;
 
   const [drePeriod, setDrePeriod] = useState<DREPeriod>('last_30d');
+  const [showDREHistory, setShowDREHistory] = useState(false);
   
   // Calculate date range from period for CRM filtering
   const crmDateRange = useMemo(() => getDateRangeFromPeriod(drePeriod), [drePeriod]);
@@ -212,7 +213,6 @@ export default function Financial() {
 
   const BusinessModelIcon = businessModelInfo?.icon || Users;
 
-  const [showDREHistory, setShowDREHistory] = useState(false);
 
   return (
     <DashboardLayout>
