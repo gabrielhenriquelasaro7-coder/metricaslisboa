@@ -171,6 +171,20 @@ Deno.serve(async (req) => {
     
     console.log(`[MONTH-IMPORT] Project: ${project.name}`);
     
+    // Verificar tamanho da conta para decidir light_sync
+    // REGRA ABSOLUTA:
+    // - CONTAS GRANDES (>200 ads): light_sync = true, depois puxa criativos separado
+    // - CONTAS PEQUENAS (<=200 ads): light_sync = false, puxa TUDO em HD de uma vez
+    const { count: adsCount } = await supabase
+      .from('ads')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', project_id);
+    
+    const isLargeAccount = (adsCount || 0) > 200;
+    const useLightSync = isLargeAccount;
+    
+    console.log(`[MONTH-IMPORT] Conta: ${adsCount} ads - ${isLargeAccount ? 'GRANDE (light_sync)' : 'PEQUENA (HD completo)'}`);
+    
     // Calculate date range for the month
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
@@ -179,11 +193,10 @@ Deno.serve(async (req) => {
     const since = formatDate(firstDay);
     const until = formatDate(lastDay);
     
-    console.log(`[MONTH-IMPORT] Syncing ${since} to ${until}`);
+    console.log(`[MONTH-IMPORT] Syncing ${since} to ${until} | light_sync: ${useLightSync}`);
     
     // Call meta-ads-sync for the entire month
-    // REGRA: light_sync SEMPRE true na importação mês a mês
-    // Após importar TODOS os meses, puxa criativos HD separadamente
+    // REGRA: light_sync baseado no tamanho da conta
     const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
       method: 'POST',
       headers: {
@@ -194,8 +207,8 @@ Deno.serve(async (req) => {
         project_id,
         ad_account_id: accountId,
         time_range: { since, until },
-        light_sync: true,
-        skip_image_cache: true,
+        light_sync: useLightSync,
+        skip_image_cache: useLightSync,
       }),
     });
     
