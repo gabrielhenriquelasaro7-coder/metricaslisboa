@@ -342,6 +342,7 @@ export default function ProjectSelector() {
   const [showImportModeDialog, setShowImportModeDialog] = useState(false);
   const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
   const [pendingProjectName, setPendingProjectName] = useState('');
+  const [pendingProjectBusinessModel, setPendingProjectBusinessModel] = useState<BusinessModel>('ecommerce');
 
   // Filters
   const [showArchived, setShowArchived] = useState(false);
@@ -444,7 +445,11 @@ export default function ProjectSelector() {
         setCreateDialogOpen(false);
         setPendingProjectId(project.id);
         setPendingProjectName(formData.name);
+        setPendingProjectBusinessModel(formData.business_model);
         setShowImportModeDialog(true);
+        
+        // Refresh project list immediately
+        refetch();
         
         setFormData({
           name: '',
@@ -456,11 +461,6 @@ export default function ProjectSelector() {
           avatar_url: null
         });
         setAvatarPreview(null);
-        
-        // If custom, navigate to setup after import mode selection
-        if (formData.business_model === 'custom') {
-          // Will handle after import starts
-        }
       }
     } catch (error) {
       console.error('Error creating project:', error);
@@ -473,6 +473,9 @@ export default function ProjectSelector() {
   const handleStartImport = async (mode: 'light' | 'full') => {
     if (!pendingProjectId) return;
 
+    const projectId = pendingProjectId;
+    const isCustom = pendingProjectBusinessModel === 'custom';
+    
     setShowImportModeDialog(false);
 
     // Update project sync status
@@ -483,12 +486,12 @@ export default function ProjectSelector() {
         message: mode === 'light' ? 'Iniciando Light Sync...' : 'Iniciando Importação Total HD...', 
         started_at: new Date().toISOString() 
       },
-    }).eq('id', pendingProjectId);
+    }).eq('id', projectId);
 
     try {
       const { error } = await supabase.functions.invoke('import-month-by-month', {
         body: {
-          project_id: pendingProjectId,
+          project_id: projectId,
           year: 2025,
           month: 1,
           continue_chain: true,
@@ -502,7 +505,16 @@ export default function ProjectSelector() {
         toast.error('Erro ao iniciar importação');
       } else {
         toast.success(`Importação ${mode === 'light' ? 'Light' : 'Total HD'} iniciada!`);
-        console.log(`[IMPORT] Started ${mode} import for project ${pendingProjectId}`);
+        console.log(`[IMPORT] Started ${mode} import for project ${projectId}`);
+        
+        // Refresh list and navigate to setup if custom
+        refetch();
+        
+        if (isCustom) {
+          // Navigate to metric configuration for custom projects
+          localStorage.setItem('selectedProjectId', projectId);
+          navigate('/project-setup');
+        }
       }
     } catch (error) {
       console.error('Error starting import:', error);
@@ -510,6 +522,7 @@ export default function ProjectSelector() {
     } finally {
       setPendingProjectId(null);
       setPendingProjectName('');
+      setPendingProjectBusinessModel('ecommerce');
     }
   };
 
@@ -517,6 +530,7 @@ export default function ProjectSelector() {
     setShowImportModeDialog(false);
     setPendingProjectId(null);
     setPendingProjectName('');
+    setPendingProjectBusinessModel('ecommerce');
   };
   const handleEditClick = (project: Project) => {
     setSelectedProject(project);
