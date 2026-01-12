@@ -104,14 +104,14 @@ export const METRIC_TEMPLATES = {
   },
   custom: {
     result_metric: 'leads',
-    result_metric_label: 'Conversões',
-    result_metrics: ['leads'],
-    result_metrics_labels: { leads: 'Leads' },
-    cost_metrics: ['cpa'],
-    efficiency_metrics: ['roas', 'ctr'],
+    result_metric_label: 'Leads',
+    result_metrics: ['leads', 'purchases'],
+    result_metrics_labels: { leads: 'Leads', purchases: 'Vendas' },
+    cost_metrics: ['cpl', 'cpa', 'cpp'],
+    efficiency_metrics: ['roas', 'ctr', 'conversion_rate'],
     primary_metrics: ['spend', 'impressions', 'clicks', 'ctr', 'cpm', 'cpc'],
     chart_primary_metric: 'spend',
-    chart_secondary_metric: 'conversions',
+    chart_secondary_metric: 'leads',
   },
 };
 
