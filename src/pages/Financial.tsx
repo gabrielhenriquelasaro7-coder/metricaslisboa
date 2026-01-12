@@ -171,9 +171,9 @@ export default function Financial() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 pb-8">
+      <div className="space-y-8 pb-8 pt-4 sm:pt-0">
         {/* Hero Header - Clean & Minimal */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-2 sm:mt-0">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
               <Wallet className="w-6 h-6 text-primary" />
