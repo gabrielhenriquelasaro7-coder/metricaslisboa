@@ -13,14 +13,35 @@ interface MonthImportRequest {
   safe_mode?: boolean;
 }
 
-function getMonthDateRange(year: number, month: number): { since: string; until: string } {
+// Get weeks for a month (to split large requests)
+function getWeeksInMonth(year: number, month: number): Array<{ since: string; until: string }> {
+  const weeks: Array<{ since: string; until: string }> = [];
   const firstDay = new Date(year, month - 1, 1);
   const lastDay = new Date(year, month, 0);
+  
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
-  return {
-    since: formatDate(firstDay),
-    until: formatDate(lastDay),
-  };
+  
+  let currentStart = new Date(firstDay);
+  
+  while (currentStart <= lastDay) {
+    // Each week is 7 days
+    const weekEnd = new Date(currentStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    
+    // Don't go past month end
+    const actualEnd = weekEnd > lastDay ? lastDay : weekEnd;
+    
+    weeks.push({
+      since: formatDate(currentStart),
+      until: formatDate(actualEnd),
+    });
+    
+    // Move to next week
+    currentStart = new Date(actualEnd);
+    currentStart.setDate(currentStart.getDate() + 1);
+  }
+  
+  return weeks;
 }
 
 function getNextMonth(year: number, month: number): { year: number; month: number } | null {
@@ -46,6 +67,10 @@ function getNextMonth(year: number, month: number): { year: number; month: numbe
 function getMonthName(month: number): string {
   const names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   return names[month - 1] || 'Unknown';
+}
+
+async function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 Deno.serve(async (req) => {
@@ -92,7 +117,6 @@ Deno.serve(async (req) => {
     
     // Create or update the month record - UPSERT pattern
     if (existingMonth) {
-      // Update existing record
       await supabase
         .from('project_import_months')
         .update({
@@ -102,7 +126,6 @@ Deno.serve(async (req) => {
         })
         .eq('id', existingMonth.id);
     } else {
-      // Create new record
       console.log(`[MONTH-IMPORT] Creating new record for ${monthName} ${year}`);
       await supabase
         .from('project_import_months')
@@ -130,90 +153,98 @@ Deno.serve(async (req) => {
     
     console.log(`[MONTH-IMPORT] Project: ${project.name}`);
     
-    // Get date range
-    const { since, until } = getMonthDateRange(year, month);
-    console.log(`[MONTH-IMPORT] Date range: ${since} to ${until}`);
+    // Split month into weeks to avoid "Your request timed out" error from Meta API
+    const weeks = getWeeksInMonth(year, month);
+    console.log(`[MONTH-IMPORT] Splitting ${monthName} ${year} into ${weeks.length} weeks`);
     
-    // Call meta-ads-sync with light_sync=true for faster historical imports
-    // light_sync skips HD images, video thumbnails, and image caching
-    const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-      },
-      body: JSON.stringify({
-        project_id,
-        ad_account_id: project.ad_account_id,
-        time_range: { since, until },
-        light_sync: true, // FAST MODE: Skip images/creatives for historical import
-        skip_image_cache: true, // Skip downloading images to storage
-      }),
-    });
+    let totalRecords = 0;
+    let totalConversions = 0;
+    let successfulWeeks = 0;
+    let failedWeeks = 0;
     
-    const syncResult = await syncResponse.json();
-    
-    if (!syncResponse.ok || !syncResult.success) {
-      throw new Error(syncResult.error || `Sync failed with status ${syncResponse.status}`);
+    // Process each week sequentially with delays
+    for (let i = 0; i < weeks.length; i++) {
+      const week = weeks[i];
+      console.log(`[MONTH-IMPORT] Week ${i + 1}/${weeks.length}: ${week.since} to ${week.until}`);
+      
+      try {
+        const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            project_id,
+            ad_account_id: project.ad_account_id,
+            time_range: { since: week.since, until: week.until },
+            light_sync: true,
+            skip_image_cache: true,
+          }),
+        });
+        
+        const syncResult = await syncResponse.json();
+        
+        if (syncResponse.ok && syncResult.success) {
+          const weekRecords = syncResult.summary?.records || syncResult.records || 0;
+          const weekConversions = syncResult.summary?.conversions || 0;
+          totalRecords += weekRecords;
+          totalConversions += weekConversions;
+          successfulWeeks++;
+          console.log(`[MONTH-IMPORT] Week ${i + 1} ✓: ${weekRecords} records`);
+        } else {
+          failedWeeks++;
+          console.log(`[MONTH-IMPORT] Week ${i + 1} ✗: ${syncResult.error || 'Unknown error'}`);
+        }
+      } catch (weekError) {
+        failedWeeks++;
+        console.log(`[MONTH-IMPORT] Week ${i + 1} ✗: ${weekError instanceof Error ? weekError.message : 'Unknown error'}`);
+      }
+      
+      // Delay between weeks to avoid rate limiting
+      if (i < weeks.length - 1) {
+        await delay(2000);
+      }
     }
     
-    // O meta-ads-sync retorna os dados em summary.records
-    const recordsCount = syncResult.summary?.records || syncResult.records || syncResult.count || 0;
-    const conversionsCount = syncResult.summary?.conversions || 0;
-    console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${recordsCount} records, ${conversionsCount} conversions`);
+    console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${totalRecords} records total (${successfulWeeks}/${weeks.length} weeks ok)`);
     
-    // Update status to success
+    // Update status based on results
+    const finalStatus = failedWeeks === weeks.length ? 'error' : 'success';
+    
     await supabase
       .from('project_import_months')
       .update({
-        status: 'success',
-        records_count: recordsCount,
+        status: finalStatus,
+        records_count: totalRecords,
         completed_at: new Date().toISOString(),
-        error_message: null,
+        error_message: failedWeeks > 0 ? `${failedWeeks}/${weeks.length} weeks failed` : null,
       })
       .eq('project_id', project_id)
       .eq('year', year)
       .eq('month', month);
     
-    // Update retry count (optional)
-    const { data: monthRecord } = await supabase
-      .from('project_import_months')
-      .select('retry_count')
-      .eq('project_id', project_id)
-      .eq('year', year)
-      .eq('month', month)
-      .maybeSingle();
-    
-    if (monthRecord) {
-      await supabase
-        .from('project_import_months')
-        .update({ retry_count: (monthRecord.retry_count || 0) + 1 })
-        .eq('project_id', project_id)
-        .eq('year', year)
-        .eq('month', month);
-    }
-    
     // Log success
     await supabase.from('sync_logs').insert({
       project_id,
-      status: 'success',
+      status: finalStatus,
       message: JSON.stringify({
         type: 'month_import',
         month: `${year}-${month}`,
         month_name: `${monthName} ${year}`,
-        records: recordsCount,
+        records: totalRecords,
+        weeks: { total: weeks.length, success: successfulWeeks, failed: failedWeeks },
       }),
     });
     
-    // If continue_chain is true, trigger next month in a SEPARATE request
-    // This avoids the timeout issues with waitUntil
+    // If continue_chain is true, trigger next month
     let nextMonthTriggered = false;
     if (continue_chain) {
       const nextMonth = getNextMonth(year, month);
       if (nextMonth) {
         console.log(`[MONTH-IMPORT] Triggering next: ${getMonthName(nextMonth.month)} ${nextMonth.year}`);
         
-        // Fire and forget - don't await
+        // Fire and forget
         fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
           method: 'POST',
           headers: {
@@ -241,7 +272,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         message: `${monthName} ${year} imported successfully`,
-        records: recordsCount,
+        records: totalRecords,
+        weeks: { total: weeks.length, success: successfulWeeks, failed: failedWeeks },
         next_month_triggered: nextMonthTriggered,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
