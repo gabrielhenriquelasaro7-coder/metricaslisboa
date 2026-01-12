@@ -181,7 +181,9 @@ Deno.serve(async (req) => {
     
     console.log(`[MONTH-IMPORT] Syncing ${since} to ${until}`);
     
-    // Call meta-ads-sync for the entire month (full sync)
+    // Call meta-ads-sync for the entire month
+    // REGRA: light_sync SEMPRE true na importação mês a mês
+    // Após importar TODOS os meses, puxa criativos HD separadamente
     const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
       method: 'POST',
       headers: {
@@ -192,8 +194,8 @@ Deno.serve(async (req) => {
         project_id,
         ad_account_id: accountId,
         time_range: { since, until },
-        light_sync: false,
-        skip_image_cache: false,
+        light_sync: true,
+        skip_image_cache: true,
       }),
     });
     
