@@ -24,6 +24,7 @@ import {
   Percent,
   BarChart3,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { FunnelDeal, FunnelStage } from './KanbanFunnel';
 
 interface AttributionAnalysisProps {
@@ -242,15 +243,15 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
         </Card>
       </div>
 
-      {/* Campaign Performance */}
+      {/* Campaign Performance - Performance por Campanha */}
       <Card>
         <CardHeader className="p-3 sm:p-6">
           <div className="flex items-center gap-2">
             <Megaphone className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-            <CardTitle className="text-sm sm:text-base">Por Campanha</CardTitle>
+            <CardTitle className="text-sm sm:text-base">Performance por Campanha</CardTitle>
           </div>
           <CardDescription className="text-xs sm:text-sm">
-            Ranking por volume de leads
+            Ranking de campanhas por volume de leads e conversão
           </CardDescription>
         </CardHeader>
         <CardContent className="p-3 sm:p-6 pt-0">
@@ -260,13 +261,21 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
               <p className="text-xs sm:text-sm text-muted-foreground">Nenhuma campanha com UTM</p>
             </div>
           ) : (
-            <div className="space-y-3 sm:space-y-4">
-              {campaignData.slice(0, 5).map((campaign, index) => (
-                <div key={campaign.fullName} className="space-y-1.5 sm:space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="space-y-3">
+              {/* Header row */}
+              <div className="grid grid-cols-12 gap-2 px-2 text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <div className="col-span-5 sm:col-span-6">Campanha</div>
+                <div className="col-span-2 text-center">Leads</div>
+                <div className="col-span-2 text-center">Vendas</div>
+                <div className="col-span-3 sm:col-span-2 text-right">Conv.</div>
+              </div>
+              
+              {campaignData.slice(0, 10).map((campaign, index) => (
+                <div key={campaign.fullName} className="space-y-1">
+                  <div className="grid grid-cols-12 gap-2 items-center p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="col-span-5 sm:col-span-6 flex items-center gap-2 min-w-0">
                       <span 
-                        className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold flex-shrink-0"
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
                         style={{ backgroundColor: COLORS[index % COLORS.length] + '30', color: COLORS[index % COLORS.length] }}
                       >
                         {index + 1}
@@ -275,21 +284,27 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
                         {campaign.name}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm flex-shrink-0">
-                      <span className="text-muted-foreground">
-                        {campaign.leads}
-                      </span>
-                      <Badge variant={campaign.won > 0 ? 'default' : 'secondary'} className="text-[10px] sm:text-xs px-1.5 sm:px-2">
-                        {campaign.won}
+                    <div className="col-span-2 text-center">
+                      <span className="text-xs sm:text-sm font-medium">{campaign.leads}</span>
+                      <span className="text-[10px] text-muted-foreground ml-1">leads</span>
+                    </div>
+                    <div className="col-span-2 text-center">
+                      <Badge variant={campaign.won > 0 ? 'default' : 'secondary'} className="text-[10px] px-1.5">
+                        {campaign.won} vendas
                       </Badge>
-                      <span className="font-medium w-10 sm:w-16 text-right">
-                        {campaign.conversionRate.toFixed(0)}%
+                    </div>
+                    <div className="col-span-3 sm:col-span-2 text-right">
+                      <span className={cn(
+                        "text-xs sm:text-sm font-semibold",
+                        campaign.conversionRate > 0 ? "text-metric-positive" : "text-muted-foreground"
+                      )}>
+                        {campaign.conversionRate.toFixed(1)}%
                       </span>
                     </div>
                   </div>
                   <Progress 
                     value={(campaign.leads / (campaignData[0]?.leads || 1)) * 100} 
-                    className="h-1.5 sm:h-2"
+                    className="h-1 mx-2"
                   />
                 </div>
               ))}

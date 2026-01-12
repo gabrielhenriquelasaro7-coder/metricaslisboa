@@ -330,7 +330,7 @@ export default function Financial() {
             {/* Header with tabs and pipeline selector */}
             <div className="flex flex-col gap-2">
               {/* Tabs - fixed grid, no scroll needed */}
-              <TabsList className="grid w-full grid-cols-5 h-auto p-1 bg-muted/50">
+              <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted/50">
                 <TabsTrigger value="overview" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
                   <LayoutDashboard className="w-4 h-4" />
                   <span>Geral</span>
@@ -342,10 +342,6 @@ export default function Financial() {
                 <TabsTrigger value="attribution" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
                   <Target className="w-4 h-4" />
                   <span>Atrib.</span>
-                </TabsTrigger>
-                <TabsTrigger value="roas" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
-                  <TrendingUp className="w-4 h-4" />
-                  <span>ROAS</span>
                 </TabsTrigger>
                 <TabsTrigger value="dre" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
                   <PieChart className="w-4 h-4" />
@@ -433,10 +429,6 @@ export default function Financial() {
                 adSpend={totalAdSpend}
                 isLoading={crmLoading}
               />
-            </TabsContent>
-
-            <TabsContent value="roas" className="space-y-6">
-              <ROASRealCard adSpend={totalAdSpend || 0} crmRevenue={crmMetrics.revenue} periodLabel="Últimos 30 dias" />
             </TabsContent>
 
             <TabsContent value="dre" className="space-y-6">
