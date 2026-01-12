@@ -55,7 +55,7 @@ interface DynamicResultMetricsProps {
 const RESULT_ICONS: Record<string, LucideIcon> = {
   leads: Users,
   purchases: ShoppingCart,
-  initiate_checkout: ShoppingCart,
+  initiate_checkout: Target,
   registrations: Target,
   store_visits: Store,
   appointments: Calendar,
@@ -212,8 +212,10 @@ export function DynamicResultMetrics({
     const Icon = RESULT_ICONS[metricKey] || Target;
     const metricSparkline = getSparklineData(metricKey);
     
-    // Only show if there's data
-    if (value > 0) {
+    // Always show configured metrics (even if 0), but hide purchases if 0
+    const shouldShow = metricKey !== 'purchases' || value > 0;
+    
+    if (shouldShow) {
       allCards.push(
         <SparklineCard
           key={`result-${metricKey}`}
