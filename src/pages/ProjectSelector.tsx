@@ -476,20 +476,35 @@ export default function ProjectSelector() {
     const projectId = pendingProjectId;
     const isCustom = pendingProjectBusinessModel === 'custom';
     
+    // Close dialog and show toast IMMEDIATELY
     setShowImportModeDialog(false);
+    toast.success(`Importação ${mode === 'light' ? 'Light' : 'Total HD'} iniciada para ${pendingProjectName}!`);
+    
+    // Clear pending state
+    setPendingProjectId(null);
+    setPendingProjectName('');
+    setPendingProjectBusinessModel('ecommerce');
+    
+    // Navigate immediately if custom
+    if (isCustom) {
+      localStorage.setItem('selectedProjectId', projectId);
+      navigate('/project-setup');
+    }
+    
+    // Refresh list
+    refetch();
 
-    // Update project sync status
-    await supabase.from('projects').update({
+    // Update project sync status and start import in background (don't await)
+    supabase.from('projects').update({
       sync_progress: { 
         status: 'importing', 
         progress: 0, 
         message: mode === 'light' ? 'Iniciando Light Sync...' : 'Iniciando Importação Total HD...', 
         started_at: new Date().toISOString() 
       },
-    }).eq('id', projectId);
-
-    try {
-      const { error } = await supabase.functions.invoke('import-month-by-month', {
+    }).eq('id', projectId).then(() => {
+      // Fire and forget - start the import
+      supabase.functions.invoke('import-month-by-month', {
         body: {
           project_id: projectId,
           year: 2025,
@@ -498,32 +513,15 @@ export default function ProjectSelector() {
           force_light_sync: mode === 'light',
           safe_mode: true,
         },
-      });
-      
-      if (error) {
-        console.error('Error starting import:', error);
-        toast.error('Erro ao iniciar importação');
-      } else {
-        toast.success(`Importação ${mode === 'light' ? 'Light' : 'Total HD'} iniciada!`);
-        console.log(`[IMPORT] Started ${mode} import for project ${projectId}`);
-        
-        // Refresh list and navigate to setup if custom
-        refetch();
-        
-        if (isCustom) {
-          // Navigate to metric configuration for custom projects
-          localStorage.setItem('selectedProjectId', projectId);
-          navigate('/project-setup');
+      }).then(({ error }) => {
+        if (error) {
+          console.error('Error starting import:', error);
+          toast.error('Erro ao iniciar importação');
+        } else {
+          console.log(`[IMPORT] Started ${mode} import for project ${projectId}`);
         }
-      }
-    } catch (error) {
-      console.error('Error starting import:', error);
-      toast.error('Erro ao iniciar importação');
-    } finally {
-      setPendingProjectId(null);
-      setPendingProjectName('');
-      setPendingProjectBusinessModel('ecommerce');
-    }
+      });
+    });
   };
 
   const handleImportModeClose = () => {
