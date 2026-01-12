@@ -98,7 +98,7 @@ export interface CRMConnectionStatus {
   };
 }
 
-export function useCRMConnection(projectId: string | undefined) {
+export function useCRMConnection(projectId: string | undefined, dateRange?: { startDate?: string; endDate?: string }) {
   const [status, setStatus] = useState<CRMConnectionStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isConnecting, setIsConnecting] = useState<CRMProvider | null>(null);
@@ -115,16 +115,23 @@ export function useCRMConnection(projectId: string | undefined) {
         return;
       }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crm-status?project_id=${projectId}`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      // Build URL with optional date parameters
+      let url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crm-status?project_id=${projectId}`;
+      
+      if (dateRange?.startDate) {
+        url += `&start_date=${dateRange.startDate}`;
+      }
+      if (dateRange?.endDate) {
+        url += `&end_date=${dateRange.endDate}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -141,7 +148,7 @@ export function useCRMConnection(projectId: string | undefined) {
     } finally {
       setIsLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, dateRange?.startDate, dateRange?.endDate]);
 
   // Fetch status on mount and when projectId changes
   useEffect(() => {
