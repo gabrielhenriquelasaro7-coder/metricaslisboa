@@ -12,6 +12,10 @@ interface MonthImportRequest {
   continue_chain?: boolean;
   ad_account_id?: string;
   force_light_sync?: boolean; // Se definido, usa esse valor. Se não, decide automaticamente
+  // Parallel processing params
+  parallel_next_month?: number | null;
+  parallel_batch_size?: number;
+  max_month?: number;
 }
 
 function getNextMonth(year: number, month: number): { year: number; month: number } | null {
@@ -75,7 +79,17 @@ Deno.serve(async (req) => {
   
   try {
     const body: MonthImportRequest = await req.json();
-    const { project_id, year, month, continue_chain = false, ad_account_id, force_light_sync } = body;
+    const { 
+      project_id, 
+      year, 
+      month, 
+      continue_chain = false, 
+      ad_account_id, 
+      force_light_sync,
+      parallel_next_month,
+      parallel_batch_size = 3,
+      max_month
+    } = body;
     
     if (!project_id || !year || !month) {
       return new Response(
@@ -329,18 +343,58 @@ Deno.serve(async (req) => {
       }),
     });
     
-    // Trigger next month if chain mode is enabled
+    // Trigger next month - PARALLEL mode or chain mode
     let nextMonthTriggered = false;
-    if (continue_chain && status === 'success') {
-      const nextMonth = getNextMonth(year, month);
-      if (nextMonth) {
-        // Shorter delay (10 seconds) since rate limit check is at the start
-        const delayTime = totalRecords > 0 ? 15000 : 5000;
-        console.log(`[MONTH-IMPORT] Waiting ${delayTime/1000}s before next month...`);
+    
+    // PARALLEL MODE: Dispara o próximo mês do batch (mês atual + batch_size)
+    if (parallel_next_month && status === 'success') {
+      const effectiveMaxMonth = max_month || 12;
+      
+      if (parallel_next_month <= effectiveMaxMonth) {
+        // Delay curto para não sobrecarregar a API
+        const delayTime = 3000; // 3s entre batches
+        console.log(`[MONTH-IMPORT] PARALLEL: Waiting ${delayTime/1000}s before month ${parallel_next_month}...`);
         
         await delay(delayTime);
         
-        console.log(`[MONTH-IMPORT] Triggering next: ${getMonthName(nextMonth.month)} ${nextMonth.year}`);
+        console.log(`[MONTH-IMPORT] PARALLEL: Triggering month ${parallel_next_month} of ${year}`);
+        
+        fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({
+            project_id,
+            ad_account_id: accountId,
+            year,
+            month: parallel_next_month,
+            continue_chain: false,
+            force_light_sync: force_light_sync,
+            parallel_next_month: parallel_next_month + parallel_batch_size <= effectiveMaxMonth 
+              ? parallel_next_month + parallel_batch_size 
+              : null,
+            parallel_batch_size,
+            max_month: effectiveMaxMonth,
+          }),
+        }).catch(err => console.error('[MONTH-IMPORT] Failed to trigger parallel:', err));
+        
+        nextMonthTriggered = true;
+      } else {
+        console.log(`[MONTH-IMPORT] PARALLEL: Batch complete for track starting at month ${month}`);
+      }
+    }
+    // LEGACY CHAIN MODE: Sequential processing
+    else if (continue_chain && status === 'success') {
+      const nextMonth = getNextMonth(year, month);
+      if (nextMonth) {
+        const delayTime = totalRecords > 0 ? 15000 : 5000;
+        console.log(`[MONTH-IMPORT] CHAIN: Waiting ${delayTime/1000}s before next month...`);
+        
+        await delay(delayTime);
+        
+        console.log(`[MONTH-IMPORT] CHAIN: Triggering next: ${getMonthName(nextMonth.month)} ${nextMonth.year}`);
         
         fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
           method: 'POST',
@@ -354,13 +408,13 @@ Deno.serve(async (req) => {
             year: nextMonth.year,
             month: nextMonth.month,
             continue_chain: true,
-            force_light_sync: force_light_sync, // Passa o mesmo modo para o próximo mês
+            force_light_sync: force_light_sync,
           }),
         }).catch(err => console.error('[MONTH-IMPORT] Failed to trigger next:', err));
         
         nextMonthTriggered = true;
       } else {
-        console.log('[MONTH-IMPORT] Reached current month, chain complete');
+        console.log('[MONTH-IMPORT] CHAIN: Reached current month, complete');
       }
     }
     

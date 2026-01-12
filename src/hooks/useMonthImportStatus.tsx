@@ -208,30 +208,44 @@ export function useMonthImportStatus(projectId: string | null) {
     }
   };
 
-  // Sync entire year with mode selection
+  // Sync entire year with mode selection - PARALLEL processing (3 months at once)
   const syncEntireYear = async (year: number, lightSync: boolean = true) => {
     if (!projectId) return;
 
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
     const maxMonth = year === currentYear ? currentMonth : 12;
+    
+    // Processar 3 meses em paralelo para ser ~3x mais rápido
+    const PARALLEL_MONTHS = 3;
+    const monthsToSync = Array.from({ length: maxMonth }, (_, i) => i + 1);
 
     try {
-      const { error } = await supabase.functions.invoke('import-month-by-month', {
-        body: {
-          project_id: projectId,
-          year,
-          month: 1,
-          continue_chain: true,
-          safe_mode: true,
-          force_light_sync: lightSync,
-        },
-      });
-
-      if (error) throw error;
+      // Disparar os primeiros 3 meses em paralelo
+      const firstBatch = monthsToSync.slice(0, PARALLEL_MONTHS);
       
-      const modeLabel = lightSync ? 'Light' : 'HD Completo';
-      toast.success(`Sincronização ${modeLabel} de ${year} iniciada (Jan a ${maxMonth === 12 ? 'Dez' : ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][maxMonth - 1]})`);
+      const promises = firstBatch.map((month, index) => 
+        supabase.functions.invoke('import-month-by-month', {
+          body: {
+            project_id: projectId,
+            year,
+            month,
+            continue_chain: false, // Não usa chain, nós controlamos aqui
+            safe_mode: true,
+            force_light_sync: lightSync,
+            // Cada mês sabe qual é o próximo para disparar quando terminar
+            parallel_next_month: month + PARALLEL_MONTHS <= maxMonth ? month + PARALLEL_MONTHS : null,
+            parallel_batch_size: PARALLEL_MONTHS,
+            max_month: maxMonth,
+          },
+        })
+      );
+      
+      await Promise.all(promises);
+      
+      const modeLabel = lightSync ? 'Light ⚡' : 'HD Completo 🖼️';
+      const estimatedTime = lightSync ? '~8-15 min' : '~25-45 min';
+      toast.success(`Sincronização ${modeLabel} de ${year} iniciada em paralelo (${estimatedTime})`);
     } catch (error) {
       toast.error('Erro ao iniciar sincronização do ano');
       console.error('Sync year error:', error);
