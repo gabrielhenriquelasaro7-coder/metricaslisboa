@@ -265,10 +265,18 @@ export default function BatchCreateProjectDialog({ onSuccess }: BatchCreateProje
 
   const progress = projects.length > 0 ? (processedCount / projects.length) * 100 : 0;
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      setOpen(true);
+    } else {
+      handleClose();
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Criar em Lote
         </Button>
