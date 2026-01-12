@@ -746,9 +746,11 @@ export type Database = {
           display_name: string | null
           id: string
           last_error: string | null
+          mql_stage_ids: string[] | null
           project_id: string
           provider: Database["public"]["Enums"]["crm_provider"]
           refresh_token: string | null
+          sql_stage_ids: string[] | null
           status: Database["public"]["Enums"]["crm_connection_status"] | null
           token_expires_at: string | null
           updated_at: string | null
@@ -764,9 +766,11 @@ export type Database = {
           display_name?: string | null
           id?: string
           last_error?: string | null
+          mql_stage_ids?: string[] | null
           project_id: string
           provider: Database["public"]["Enums"]["crm_provider"]
           refresh_token?: string | null
+          sql_stage_ids?: string[] | null
           status?: Database["public"]["Enums"]["crm_connection_status"] | null
           token_expires_at?: string | null
           updated_at?: string | null
@@ -782,9 +786,11 @@ export type Database = {
           display_name?: string | null
           id?: string
           last_error?: string | null
+          mql_stage_ids?: string[] | null
           project_id?: string
           provider?: Database["public"]["Enums"]["crm_provider"]
           refresh_token?: string | null
+          sql_stage_ids?: string[] | null
           status?: Database["public"]["Enums"]["crm_connection_status"] | null
           token_expires_at?: string | null
           updated_at?: string | null

@@ -54,6 +54,8 @@ export interface CRMConnectionStatus {
   last_error?: string;
   api_url?: string;
   selected_pipeline_id?: string | null;
+  mql_stage_ids?: string[];
+  sql_stage_ids?: string[];
   pipelines?: CRMPipeline[];
   stages?: CRMStage[];
   deals?: CRMDeal[];

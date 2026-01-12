@@ -135,6 +135,11 @@ Deno.serve(async (req) => {
 
     // Get selected pipeline from config
     const selectedPipelineId = (connection.config as Record<string, unknown>)?.selected_pipeline_id as string | null;
+    
+    // Get custom MQL/SQL stage mapping
+    const customMqlStages = connection.mql_stage_ids as string[] | null;
+    const customSqlStages = connection.sql_stage_ids as string[] | null;
+    const hasCustomMapping = (customMqlStages && customMqlStages.length > 0) || (customSqlStages && customSqlStages.length > 0);
 
     // Get deal statistics - filter by pipeline if selected
     // Limit to most recent 500 deals for performance, ordered by created_date DESC
@@ -291,16 +296,33 @@ Deno.serve(async (req) => {
                 };
               });
 
-              // Calculate funnel (open stages only)
+              // Calculate funnel based on custom mapping or auto-divide
               const openStatuses = sortedStatuses.filter(s => s.type === 0);
               const stageCount = openStatuses.length;
 
               if (stageCount > 0) {
-                const leadStageIds = new Set(openStatuses.slice(0, Math.ceil(stageCount / 3)).map(s => String(s.id)));
-                const mqlStageIds = new Set(openStatuses.slice(Math.ceil(stageCount / 3), Math.ceil(stageCount * 2 / 3)).map(s => String(s.id)));
-                const sqlStageIds = new Set(openStatuses.slice(Math.ceil(stageCount * 2 / 3)).map(s => String(s.id)));
+                let mqlStageIds: Set<string>;
+                let sqlStageIds: Set<string>;
+                let leadStageIds: Set<string>;
 
-                console.log('Stage mapping - Lead stages:', leadStageIds.size, 'MQL:', mqlStageIds.size, 'SQL:', sqlStageIds.size);
+                if (hasCustomMapping) {
+                  // Use custom mapping from database
+                  mqlStageIds = new Set(customMqlStages || []);
+                  sqlStageIds = new Set(customSqlStages || []);
+                  // Everything else is a lead
+                  leadStageIds = new Set(
+                    openStatuses
+                      .filter(s => !mqlStageIds.has(String(s.id)) && !sqlStageIds.has(String(s.id)))
+                      .map(s => String(s.id))
+                  );
+                  console.log('Using CUSTOM stage mapping - MQL:', mqlStageIds.size, 'SQL:', sqlStageIds.size);
+                } else {
+                  // Auto-divide into 3 parts (legacy behavior)
+                  leadStageIds = new Set(openStatuses.slice(0, Math.ceil(stageCount / 3)).map(s => String(s.id)));
+                  mqlStageIds = new Set(openStatuses.slice(Math.ceil(stageCount / 3), Math.ceil(stageCount * 2 / 3)).map(s => String(s.id)));
+                  sqlStageIds = new Set(openStatuses.slice(Math.ceil(stageCount * 2 / 3)).map(s => String(s.id)));
+                  console.log('Using AUTO stage mapping - Lead:', leadStageIds.size, 'MQL:', mqlStageIds.size, 'SQL:', sqlStageIds.size);
+                }
 
                 const openDeals = allDeals?.filter(d => d.status === 'open') || [];
                 let leadCount = 0;
@@ -360,6 +382,8 @@ Deno.serve(async (req) => {
         last_error: connection.last_error,
         api_url: connection.api_url,
         selected_pipeline_id: selectedPipelineId,
+        mql_stage_ids: customMqlStages || [],
+        sql_stage_ids: customSqlStages || [],
         pipelines,
         stages, // ALL stages from Kommo
         deals,  // Deals with all UTMs and custom fields
