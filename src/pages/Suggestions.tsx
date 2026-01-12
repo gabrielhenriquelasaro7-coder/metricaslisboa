@@ -126,75 +126,75 @@ export default function Suggestions() {
 
   return (
     <div className="min-h-screen bg-background red-texture-bg grid-background">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
+        {/* Header - Mobile Optimized */}
+        <div className="flex items-center gap-2 sm:gap-4 mb-4 sm:mb-8">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate(-1)}
-            className="rounded-xl"
+            className="rounded-xl h-8 w-8 sm:h-10 sm:w-10"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+            <h1 className="text-lg sm:text-2xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
               Central de Sugestões
             </h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-xs sm:text-sm">
               Ajude-nos a melhorar o MetaAds Manager
             </p>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {/* Stats Cards - Mobile Optimized */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
           {[
-            { icon: MessageSquare, label: 'Sugestões Recebidas', value: '0', color: 'text-blue-500' },
+            { icon: MessageSquare, label: 'Recebidas', value: '0', color: 'text-blue-500' },
             { icon: Zap, label: 'Implementadas', value: '0', color: 'text-emerald-500' },
             { icon: Clock, label: 'Em Análise', value: '0', color: 'text-amber-500' },
             { icon: ThumbsUp, label: 'Aprovadas', value: '0', color: 'text-primary' },
           ].map((stat, index) => (
             <Card key={index} className="bg-card/50 backdrop-blur-sm border-border">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`p-2 rounded-lg bg-secondary ${stat.color}`}>
-                  <stat.icon className="w-4 h-4" />
+              <CardContent className="p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3">
+                <div className={`p-1.5 sm:p-2 rounded-lg bg-secondary ${stat.color}`}>
+                  <stat.icon className="w-3 h-3 sm:w-4 sm:h-4" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold">{stat.value}</p>
-                  <p className="text-[10px] text-muted-foreground leading-tight">{stat.label}</p>
+                  <p className="text-base sm:text-xl font-bold">{stat.value}</p>
+                  <p className="text-[10px] sm:text-[10px] text-muted-foreground leading-tight truncate">{stat.label}</p>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Main Form */}
+        {/* Main Form - Mobile Optimized */}
         <Card className="bg-card/80 backdrop-blur-sm border-border overflow-hidden">
-          <CardHeader className="border-b border-border bg-secondary/30">
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
+          <CardHeader className="border-b border-border bg-secondary/30 p-3 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
               Enviar Sugestão
             </CardTitle>
-            <CardDescription>
-              Sua opinião é muito importante para nós. Descreva sua ideia ou reporte um problema.
+            <CardDescription className="text-xs sm:text-sm">
+              Sua opinião é muito importante para nós.
             </CardDescription>
           </CardHeader>
           
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <AnimatePresence mode="wait">
               {submitted ? (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="flex flex-col items-center justify-center py-12 text-center"
+                  className="flex flex-col items-center justify-center py-8 sm:py-12 text-center"
                 >
-                  <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 sm:mb-4">
+                    <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-500" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">Sugestão Enviada!</h3>
-                  <p className="text-muted-foreground text-sm max-w-sm">
+                  <h3 className="text-base sm:text-lg font-semibold mb-2">Sugestão Enviada!</h3>
+                  <p className="text-muted-foreground text-xs sm:text-sm max-w-sm">
                     Obrigado por contribuir! Vamos analisar sua sugestão e responderemos em breve.
                   </p>
                 </motion.div>
@@ -204,11 +204,11 @@ export default function Suggestions() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onSubmit={handleSubmit}
-                  className="space-y-6"
+                  className="space-y-4 sm:space-y-6"
                 >
-                  {/* Type Selection */}
+                  {/* Type Selection - Mobile Optimized */}
                   <div>
-                    <Label className="text-sm font-medium mb-3 block">Tipo de Sugestão</Label>
+                    <Label className="text-xs sm:text-sm font-medium mb-2 sm:mb-3 block">Tipo de Sugestão</Label>
                     <Tabs value={activeTab} onValueChange={(v) => handleTypeChange(v as SuggestionType)}>
                       <TabsList className="w-full grid grid-cols-3 h-auto p-1 bg-secondary/50">
                         {(Object.keys(typeConfig) as SuggestionType[]).map((type) => {
@@ -218,10 +218,10 @@ export default function Suggestions() {
                             <TabsTrigger
                               key={type}
                               value={type}
-                              className="flex items-center gap-2 py-3 data-[state=active]:bg-card"
+                              className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-3 data-[state=active]:bg-card text-xs sm:text-sm"
                             >
-                              <Icon className={`w-4 h-4 ${config.color}`} />
-                              <span className="hidden sm:inline text-sm">{config.label}</span>
+                              <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${config.color}`} />
+                              <span className="hidden xs:inline text-xs sm:text-sm">{config.label}</span>
                             </TabsTrigger>
                           );
                         })}
@@ -229,53 +229,53 @@ export default function Suggestions() {
                     </Tabs>
                   </div>
 
-                  {/* Title */}
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Título</Label>
+                  {/* Title - Mobile Optimized */}
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label htmlFor="title" className="text-xs sm:text-sm">Título</Label>
                     <Input
                       id="title"
                       placeholder={
                         form.type === 'bug' 
-                          ? 'Ex: Loading infinito na página de projetos'
+                          ? 'Ex: Loading infinito na página'
                           : form.type === 'feature'
-                          ? 'Ex: Adicionar integração com TikTok Ads'
-                          : 'Ex: Melhorar visualização dos gráficos'
+                          ? 'Ex: Integração com TikTok'
+                          : 'Ex: Melhorar gráficos'
                       }
                       value={form.title}
                       onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                      className="bg-secondary/50 border-border"
+                      className="bg-secondary/50 border-border h-9 sm:h-10 text-sm"
                     />
                   </div>
 
-                  {/* Description */}
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Descrição Detalhada</Label>
+                  {/* Description - Mobile Optimized */}
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label htmlFor="description" className="text-xs sm:text-sm">Descrição Detalhada</Label>
                     <Textarea
                       id="description"
                       placeholder={
                         form.type === 'bug'
-                          ? 'Descreva o problema: O que acontece? Quando acontece? Passos para reproduzir...'
+                          ? 'Descreva o problema: O que acontece? Quando?'
                           : form.type === 'feature'
-                          ? 'Descreva a funcionalidade: O que ela faria? Como ajudaria no seu dia a dia?'
-                          : 'Descreva a melhoria: O que poderia ser melhor? Como você imagina?'
+                          ? 'Descreva: O que faria? Como ajudaria?'
+                          : 'O que poderia ser melhor?'
                       }
                       value={form.description}
                       onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                      className="bg-secondary/50 border-border min-h-[120px] resize-none"
+                      className="bg-secondary/50 border-border min-h-[100px] sm:min-h-[120px] resize-none text-sm"
                     />
                   </div>
 
-                  {/* Priority */}
-                  <div className="space-y-2">
-                    <Label>Prioridade</Label>
-                    <div className="flex gap-2">
+                  {/* Priority - Mobile Optimized */}
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label className="text-xs sm:text-sm">Prioridade</Label>
+                    <div className="flex gap-1.5 sm:gap-2">
                       {(Object.keys(priorityConfig) as Array<keyof typeof priorityConfig>).map((priority) => (
                         <button
                           key={priority}
                           type="button"
                           onClick={() => setForm(prev => ({ ...prev, priority }))}
                           className={`
-                            px-4 py-2 rounded-lg text-sm font-medium transition-all
+                            flex-1 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all
                             ${form.priority === priority 
                               ? `${priorityConfig[priority].color} ring-2 ring-offset-2 ring-offset-background ring-primary/50` 
                               : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'}
@@ -287,15 +287,15 @@ export default function Suggestions() {
                     </div>
                   </div>
 
-                  {/* Submit */}
-                  <div className="flex items-center justify-between pt-4 border-t border-border">
-                    <p className="text-xs text-muted-foreground">
-                      Logado como: {user?.email}
+                  {/* Submit - Mobile Optimized */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 sm:pt-4 border-t border-border">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate order-2 sm:order-1">
+                      Logado: {user?.email}
                     </p>
                     <Button 
                       type="submit" 
                       disabled={isSubmitting}
-                      className="gap-2"
+                      className="gap-2 w-full sm:w-auto order-1 sm:order-2 h-9 sm:h-10"
                     >
                       {isSubmitting ? (
                         <>
@@ -305,7 +305,7 @@ export default function Suggestions() {
                       ) : (
                         <>
                           <Send className="w-4 h-4" />
-                          Enviar Sugestão
+                          Enviar
                         </>
                       )}
                     </Button>
@@ -316,33 +316,33 @@ export default function Suggestions() {
           </CardContent>
         </Card>
 
-        {/* Tips */}
-        <div className="mt-8 grid md:grid-cols-3 gap-4">
+        {/* Tips - Mobile Optimized */}
+        <div className="mt-4 sm:mt-8 grid sm:grid-cols-3 gap-2 sm:gap-4">
           {[
             {
               title: 'Seja Específico',
-              description: 'Quanto mais detalhes, melhor conseguimos entender e implementar.',
+              description: 'Quanto mais detalhes, melhor.',
               icon: Lightbulb,
             },
             {
               title: 'Inclua Exemplos',
-              description: 'Se possível, descreva cenários de uso ou anexe prints.',
+              description: 'Descreva cenários de uso.',
               icon: MessageSquare,
             },
             {
               title: 'Priorize',
-              description: 'Marque como alta prioridade apenas problemas críticos.',
+              description: 'Alta prioridade = crítico.',
               icon: Zap,
             },
           ].map((tip, index) => (
             <Card key={index} className="bg-card/30 border-border">
-              <CardContent className="p-4 flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <tip.icon className="w-4 h-4" />
+              <CardContent className="p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0">
+                  <tip.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <div>
-                  <h4 className="font-medium text-sm">{tip.title}</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">{tip.description}</p>
+                <div className="min-w-0">
+                  <h4 className="font-medium text-xs sm:text-sm">{tip.title}</h4>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{tip.description}</p>
                 </div>
               </CardContent>
             </Card>
