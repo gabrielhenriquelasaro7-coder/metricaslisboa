@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Project } from '@/hooks/useProjects';
-import { ArrowLeft, Database, Activity, RefreshCw, Clock, Loader2, Megaphone, Layers, FileText, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Database, Activity, RefreshCw, Clock, Loader2, Megaphone, Layers, FileText, Image as ImageIcon, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { format, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -24,6 +25,16 @@ interface SyncLog {
   created_at: string;
 }
 
+interface SyncProgressData {
+  status: 'idle' | 'importing' | 'syncing' | 'success' | 'partial' | 'error';
+  progress: number;
+  message: string;
+  started_at?: string;
+  current?: number;
+  total?: number;
+  step?: string;
+}
+
 export default function ProjectAdmin() {
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<Project | null>(null);
@@ -31,6 +42,100 @@ export default function ProjectAdmin() {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [recentLogs, setRecentLogs] = useState<SyncLog[]>([]);
   const [syncingType, setSyncingType] = useState<SyncType | null>(null);
+  const [syncProgress, setSyncProgress] = useState<SyncProgressData | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [syncStartTime, setSyncStartTime] = useState<Date | null>(null);
+
+  // Poll for sync progress
+  const pollSyncProgress = useCallback(async () => {
+    if (!id) return;
+    
+    const { data } = await supabase
+      .from('projects')
+      .select('sync_progress')
+      .eq('id', id)
+      .single();
+    
+    if (data?.sync_progress && typeof data.sync_progress === 'object' && !Array.isArray(data.sync_progress)) {
+      const rawProgress = data.sync_progress as Record<string, unknown>;
+      if ('status' in rawProgress && 'progress' in rawProgress) {
+        const progress = rawProgress as unknown as SyncProgressData;
+        setSyncProgress(progress);
+      
+        // Stop polling when complete or error
+        if (progress.status === 'success' || progress.status === 'error' || progress.status === 'partial') {
+          setSyncingType(null);
+          
+          // Refresh logs after completion
+          const { data: logsData } = await supabase
+            .from('sync_logs')
+            .select('*')
+            .eq('project_id', id)
+            .order('created_at', { ascending: false })
+            .limit(15);
+          
+          if (logsData) {
+            setRecentLogs(logsData);
+          }
+          
+          // Update last sync time
+          const { data: projectData } = await supabase
+            .from('projects')
+            .select('last_sync_at')
+            .eq('id', id)
+            .single();
+          
+          if (projectData?.last_sync_at) {
+            setLastSync(new Date(projectData.last_sync_at));
+          }
+        }
+      }
+    }
+  }, [id]);
+
+  // Start polling when sync starts
+  useEffect(() => {
+    if (!syncingType) {
+      setSyncProgress(null);
+      setElapsedTime(0);
+      setSyncStartTime(null);
+      return;
+    }
+
+    setSyncStartTime(new Date());
+    const pollInterval = setInterval(pollSyncProgress, 2000);
+    
+    return () => clearInterval(pollInterval);
+  }, [syncingType, pollSyncProgress]);
+
+  // Timer for elapsed time
+  useEffect(() => {
+    if (!syncStartTime || !syncingType) return;
+
+    const timer = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - syncStartTime.getTime()) / 1000));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [syncStartTime, syncingType]);
+
+  // Format elapsed time
+  const formatElapsedTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
+
+  // Estimate remaining time based on progress
+  const getEstimatedRemaining = () => {
+    if (!syncProgress?.progress || syncProgress.progress <= 5 || elapsedTime < 5) return null;
+    
+    const estimatedTotal = (elapsedTime * 100) / syncProgress.progress;
+    const remaining = Math.max(0, estimatedTotal - elapsedTime);
+    
+    if (remaining < 5) return 'Finalizando...';
+    return `~${formatElapsedTime(Math.round(remaining))} restantes`;
+  };
 
   useEffect(() => {
     const fetchProjectData = async () => {
@@ -370,6 +475,46 @@ export default function ProjectAdmin() {
                     </div>
                   </Button>
                 </div>
+
+                {/* Progress Indicator */}
+                {syncingType && (
+                  <div className="mt-4 p-4 rounded-lg bg-secondary/50 border border-border/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span className="font-medium text-sm">
+                          {syncProgress?.message || 'Iniciando sincronização...'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Timer className="w-3.5 h-3.5" />
+                          <span>{formatElapsedTime(elapsedTime)}</span>
+                        </div>
+                        {getEstimatedRemaining() && (
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                            {getEstimatedRemaining()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <Progress value={syncProgress?.progress || 5} className="h-2" />
+                    
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        {syncProgress?.step && `Etapa: ${syncProgress.step}`}
+                      </span>
+                      <span>{syncProgress?.progress || 0}%</span>
+                    </div>
+                    
+                    {syncProgress?.current !== undefined && syncProgress?.total !== undefined && (
+                      <p className="text-xs text-muted-foreground">
+                        Processando {syncProgress.current} de {syncProgress.total} registros
+                      </p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
