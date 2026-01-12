@@ -1241,6 +1241,19 @@ async function detectAndSendAnomalyAlerts(supabase: any, projectId: string, chan
   }
 }
 
+// Helper to update sync progress in projects table
+async function updateSyncProgress(supabase: any, projectId: string, step: string, message: string, current?: number, total?: number) {
+  if (!projectId) return;
+  try {
+    const progress: Record<string, any> = { step, message, updated_at: new Date().toISOString() };
+    if (current !== undefined) progress.current = current;
+    if (total !== undefined) progress.total = total;
+    await supabase.from('projects').update({ sync_progress: progress }).eq('id', projectId);
+  } catch (e) {
+    console.log(`[PROGRESS] Failed to update: ${e}`);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   const startTime = Date.now();
@@ -1273,16 +1286,28 @@ Deno.serve(async (req) => {
     const token = access_token || metaAccessToken;
     if (!token) throw new Error('No Meta access token available');
     
+    // Step 1: Fetch entities
+    await updateSyncProgress(supabase, project_id, 'campaigns', 'Buscando campanhas, conjuntos e anúncios...', 1, 5);
+    
     const { campaigns, adsets, ads, adImageMap, videoThumbnailMap, creativeDataMap, cachedCreativeMap, immediateCache, creativeThumbnailHDMap, tokenExpired } = await fetchEntities(ad_account_id, token, supabase, project_id, light_sync, skip_image_cache);
-    if (tokenExpired) return new Response(JSON.stringify({ success: false, error: 'Token do Meta expirou.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (tokenExpired) {
+      await updateSyncProgress(supabase, project_id, 'error', 'Token do Meta expirou');
+      return new Response(JSON.stringify({ success: false, error: 'Token do Meta expirou.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     
     console.log(`[DEBUG] Entities fetched - campaigns: ${campaigns.length}, adsets: ${adsets.length}, ads: ${ads.length}`);
+    
+    // Step 2: Build maps
+    await updateSyncProgress(supabase, project_id, 'adsets', `Processando ${campaigns.length} campanhas, ${adsets.length} conjuntos, ${ads.length} anúncios...`, 2, 5);
     
     const campaignMap = new Map(campaigns.map(c => [extractId(c.id), c]));
     const adsetMap = new Map(adsets.map(a => [extractId(a.id), a]));
     const adMap = new Map(ads.map(a => [extractId(a.id), a]));
     
     console.log(`[DEBUG] Maps - campaignMap: ${campaignMap.size}, adsetMap: ${adsetMap.size}, adMap: ${adMap.size}`);
+    
+    // Step 3: Fetch insights
+    await updateSyncProgress(supabase, project_id, 'insights', 'Buscando métricas diárias...', 3, 5);
     
     const dailyInsights = await fetchDailyInsights(ad_account_id, token, since, until);
     
@@ -1364,7 +1389,9 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: false, error: 'Validation failed', retry: true }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     
-    // Upsert daily records
+    // Step 4: Upsert daily records
+    await updateSyncProgress(supabase, project_id, 'saving', `Salvando ${dailyRecords.length} registros diários...`, 4, 5);
+    
     if (dailyRecords.length > 0) {
       for (let i = 0; i < dailyRecords.length; i += 500) {
         const batch = dailyRecords.slice(i, i + 500);
@@ -1667,10 +1694,14 @@ Deno.serve(async (req) => {
       else console.log(`[UPSERT] Ads upserted successfully: ${adRecords.length}`);
     }
 
-    // Update project sync time
-    await supabase.from('projects').update({ last_sync_at: new Date().toISOString(), webhook_status: 'active' }).eq('id', project_id);
-
+    // Step 5: Complete - Update project sync time and clear progress
     const duration = Date.now() - startTime;
+    await supabase.from('projects').update({ 
+      last_sync_at: new Date().toISOString(), 
+      webhook_status: 'active',
+      sync_progress: { step: 'complete', message: `Sincronização concluída em ${Math.round(duration / 1000)}s`, current: 5, total: 5 }
+    }).eq('id', project_id);
+
     console.log(`[SYNC] Completed in ${duration}ms - Records: ${dailyRecords.length}, Conversions: ${validation.totalConversions}`);
 
     return new Response(JSON.stringify({
@@ -1689,6 +1720,18 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('[SYNC] Error:', error);
+    // Try to update progress with error
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const body = await req.clone().json().catch(() => ({}));
+      if (body.project_id) {
+        await supabase.from('projects').update({ 
+          sync_progress: { step: 'error', message: error instanceof Error ? error.message : 'Erro desconhecido' }
+        }).eq('id', body.project_id);
+      }
+    } catch {}
     return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
