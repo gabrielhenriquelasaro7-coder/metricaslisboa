@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { format, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -18,7 +19,8 @@ import {
   Megaphone,
   Layers,
   FileText,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Timer
 } from 'lucide-react';
 import { toast } from 'sonner';
 import SyncHistoryChart from './SyncHistoryChart';
@@ -44,6 +46,15 @@ interface ImportMonth {
   completed_at: string | null;
 }
 
+interface SyncProgressData {
+  step?: string;
+  current?: number;
+  total?: number;
+  message?: string;
+  started_at?: string;
+  elapsed_seconds?: number;
+}
+
 type SyncType = 'all' | 'campaigns' | 'adsets' | 'ads' | 'creatives';
 
 export default function ProjectAdminTab({ projectId, projectName }: ProjectAdminTabProps) {
@@ -52,6 +63,9 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
   const [importMonths, setImportMonths] = useState<ImportMonth[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncingType, setSyncingType] = useState<SyncType | null>(null);
+  const [syncProgress, setSyncProgress] = useState<SyncProgressData | null>(null);
+  const [syncStartTime, setSyncStartTime] = useState<Date | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
 
   useEffect(() => {
     // Reset state when projectId changes
@@ -103,8 +117,105 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
     fetchData();
   }, [projectId]);
 
+  // Polling for sync progress
+  const pollSyncProgress = useCallback(async () => {
+    const { data } = await supabase
+      .from('projects')
+      .select('sync_progress, last_sync_at')
+      .eq('id', projectId)
+      .single();
+    
+    if (data?.sync_progress) {
+      const progress = data.sync_progress as SyncProgressData;
+      setSyncProgress(progress);
+      
+      // Check if sync completed
+      if (progress.step === 'complete' || progress.step === 'error') {
+        setSyncingType(null);
+        setSyncProgress(null);
+        setSyncStartTime(null);
+        
+        // Refresh logs
+        const { data: logsData } = await supabase
+          .from('sync_logs')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (logsData) {
+          setRecentLogs(logsData);
+        }
+        
+        if (data.last_sync_at) {
+          setLastSync(new Date(data.last_sync_at));
+        }
+        
+        return true; // Stop polling
+      }
+    }
+    return false; // Continue polling
+  }, [projectId]);
+
+  // Timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (syncingType && syncStartTime) {
+      interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - syncStartTime.getTime()) / 1000));
+      }, 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [syncingType, syncStartTime]);
+
+  // Polling effect
+  useEffect(() => {
+    let pollInterval: NodeJS.Timeout;
+    
+    if (syncingType) {
+      pollInterval = setInterval(async () => {
+        const shouldStop = await pollSyncProgress();
+        if (shouldStop) {
+          clearInterval(pollInterval);
+        }
+      }, 2000);
+    }
+    
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [syncingType, pollSyncProgress]);
+
+  const formatElapsedTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
+
+  const getEstimatedRemaining = () => {
+    if (!syncProgress?.current || !syncProgress?.total || !elapsedTime || syncProgress.current === 0) {
+      return null;
+    }
+    
+    const progressRatio = syncProgress.current / syncProgress.total;
+    if (progressRatio === 0) return null;
+    
+    const estimatedTotal = elapsedTime / progressRatio;
+    const remaining = Math.max(0, Math.round(estimatedTotal - elapsedTime));
+    
+    return formatElapsedTime(remaining);
+  };
+
   const handleSync = async (type: SyncType) => {
     setSyncingType(type);
+    setSyncStartTime(new Date());
+    setElapsedTime(0);
+    setSyncProgress({ step: 'starting', message: 'Iniciando sincronização...' });
+    
     try {
       const body: Record<string, unknown> = { projectId };
       
@@ -129,36 +240,13 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
       
       toast.success(`Sincronização de ${typeLabels[type]} iniciada`);
       
-      // Refresh data after a delay
-      setTimeout(async () => {
-        const { data } = await supabase
-          .from('projects')
-          .select('last_sync_at')
-          .eq('id', projectId)
-          .single();
-        
-        if (data?.last_sync_at) {
-          setLastSync(new Date(data.last_sync_at));
-        }
-        
-        // Refresh logs
-        const { data: logsData } = await supabase
-          .from('sync_logs')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('created_at', { ascending: false })
-          .limit(10);
-        
-        if (logsData) {
-          setRecentLogs(logsData);
-        }
-        
-        setSyncingType(null);
-      }, 5000);
+      // Polling will handle the rest
     } catch (error) {
       console.error('Erro na sincronização:', error);
       toast.error('Erro ao iniciar sincronização');
       setSyncingType(null);
+      setSyncProgress(null);
+      setSyncStartTime(null);
     }
   };
 
@@ -246,6 +334,52 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
           <CardDescription>Sincronize dados específicos ou tudo de uma vez</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Sync Progress Indicator */}
+          {syncingType && (
+            <div className="p-4 rounded-lg bg-primary/10 border border-primary/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  <span className="font-medium text-primary">
+                    {syncProgress?.message || 'Sincronizando...'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Timer className="w-4 h-4" />
+                  <span>{formatElapsedTime(elapsedTime)}</span>
+                </div>
+              </div>
+              
+              {syncProgress?.current !== undefined && syncProgress?.total !== undefined && (
+                <>
+                  <Progress 
+                    value={(syncProgress.current / syncProgress.total) * 100} 
+                    className="h-2" 
+                  />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>
+                      {syncProgress.step === 'campaigns' && 'Buscando campanhas...'}
+                      {syncProgress.step === 'adsets' && 'Buscando conjuntos...'}
+                      {syncProgress.step === 'ads' && 'Buscando anúncios...'}
+                      {syncProgress.step === 'insights' && 'Processando métricas...'}
+                      {syncProgress.step === 'saving' && 'Salvando no banco...'}
+                      {!syncProgress.step && `${syncProgress.current} de ${syncProgress.total}`}
+                    </span>
+                    <span>
+                      {syncProgress.current} / {syncProgress.total}
+                      {getEstimatedRemaining() && (
+                        <span className="ml-2">• Restante: ~{getEstimatedRemaining()}</span>
+                      )}
+                    </span>
+                  </div>
+                </>
+              )}
+              
+              {!syncProgress?.total && (
+                <Progress value={30} className="h-2 animate-pulse" />
+              )}
+            </div>
+          )}
           {/* Full Sync */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
             <div>
