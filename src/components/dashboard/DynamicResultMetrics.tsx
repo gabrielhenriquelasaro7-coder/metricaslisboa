@@ -37,11 +37,14 @@ interface DynamicResultMetricsProps {
     totalProfileVisits?: number;
     totalLeadsConversions?: number;
     totalSalesConversions?: number;
+    totalInitiateCheckout?: number;
   };
   previousMetrics?: {
     totalConversions: number;
     totalMessages?: number;
     totalLeadsConversions?: number;
+    totalSalesConversions?: number;
+    totalInitiateCheckout?: number;
     totalSpend?: number;
   } | null;
   changes: Record<string, number> | null;
@@ -52,6 +55,7 @@ interface DynamicResultMetricsProps {
 const RESULT_ICONS: Record<string, LucideIcon> = {
   leads: Users,
   purchases: ShoppingCart,
+  initiate_checkout: ShoppingCart,
   registrations: Target,
   store_visits: Store,
   appointments: Calendar,
@@ -61,9 +65,10 @@ const RESULT_ICONS: Record<string, LucideIcon> = {
 
 // Mapeamento de qual campo do banco usar para cada tipo de métrica
 // Agora usa os campos separados por objetivo de campanha
-const METRIC_DATA_SOURCE: Record<string, 'leads' | 'purchases' | 'messages' | 'profile_visits' | 'conversions'> = {
+const METRIC_DATA_SOURCE: Record<string, 'leads' | 'purchases' | 'initiate_checkout' | 'messages' | 'profile_visits' | 'conversions'> = {
   leads: 'leads', // OUTCOME_LEADS conversions
   purchases: 'purchases', // OUTCOME_SALES conversions
+  initiate_checkout: 'initiate_checkout', // Initiate Checkout events
   messages: 'messages',
   registrations: 'leads', // Similar to leads
   store_visits: 'profile_visits',
@@ -106,6 +111,8 @@ export function DynamicResultMetrics({
         return metrics.totalLeadsConversions || 0;
       case 'purchases':
         return metrics.totalSalesConversions || 0;
+      case 'initiate_checkout':
+        return metrics.totalInitiateCheckout || 0;
       case 'messages':
         return metrics.totalMessages || 0;
       case 'profile_visits':
@@ -124,6 +131,8 @@ export function DynamicResultMetrics({
         return sparklineData.leads || [];
       case 'purchases':
         return sparklineData.purchases || [];
+      case 'initiate_checkout':
+        return sparklineData.initiate_checkout || [];
       case 'messages':
         return sparklineData.messages || [];
       case 'profile_visits':
@@ -195,31 +204,30 @@ export function DynamicResultMetrics({
   // Build all metrics for a unified grid (same as predefined models)
   const allCards: JSX.Element[] = [];
 
-  // 1. Single "Leads" card showing the TOTAL of all result metrics combined
-  // User wants ONE card that sums everything, not separate cards for each type
-  const totalResults = getTotalResults();
-  const previousTotalResults = getPreviousTotalResults();
-  
-  // Use the first metric's sparkline or fallback to conversions
-  const primarySparkline = resultMetrics.length > 0 
-    ? getSparklineData(resultMetrics[0]) 
-    : sparklineData.conversions || [];
-  
-  allCards.push(
-    <SparklineCard
-      key="result-total"
-      title="Leads"
-      value={totalResults.toLocaleString('pt-BR')}
-      previousValue={previousTotalResults > 0 ? previousTotalResults.toLocaleString('pt-BR') : undefined}
-      change={changes?.conversions}
-      changeLabel="vs anterior"
-      icon={Users}
-      sparklineData={primarySparkline.length > 0 ? primarySparkline : (sparklineData.conversions || [])}
-      sparklineColor="hsl(var(--chart-1))"
-      className="border-l-4 border-l-chart-1"
-      tooltip="Total de resultados (formulários + mensagens)"
-    />
-  );
+  // 1. SEPARATE cards for each result metric (not summed)
+  // Show each configured metric as a separate card
+  for (const metricKey of resultMetrics) {
+    const value = getMetricValue(metricKey);
+    const label = resultMetricsLabels[metricKey] || metricKey;
+    const Icon = RESULT_ICONS[metricKey] || Target;
+    const metricSparkline = getSparklineData(metricKey);
+    
+    // Only show if there's data
+    if (value > 0) {
+      allCards.push(
+        <SparklineCard
+          key={`result-${metricKey}`}
+          title={label}
+          value={value.toLocaleString('pt-BR')}
+          changeLabel="vs anterior"
+          icon={Icon}
+          sparklineData={metricSparkline.length > 0 ? metricSparkline : (sparklineData.conversions || [])}
+          sparklineColor="hsl(var(--chart-1))"
+          className="border-l-4 border-l-chart-1"
+        />
+      );
+    }
+  }
 
   // 2. Cost metrics
   if (config.cost_metrics && config.cost_metrics.length > 0) {

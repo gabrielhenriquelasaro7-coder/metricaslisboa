@@ -17,6 +17,7 @@ export interface DailyMetric {
   // Conversions by campaign objective
   leads_conversions: number; // OUTCOME_LEADS
   sales_conversions: number; // OUTCOME_SALES
+  initiate_checkout_conversions: number; // Initiate Checkout events
   ctr: number;
   cpm: number;
   cpc: number;
@@ -214,6 +215,7 @@ function aggregateDaily(rows: any[]): DailyMetric[] {
         profile_visits: 0,
         leads_conversions: 0,
         sales_conversions: 0,
+        initiate_checkout_conversions: 0,
         ctr: 0,
         cpm: 0,
         cpc: 0,
@@ -235,9 +237,10 @@ function aggregateDaily(rows: any[]): DailyMetric[] {
     agg.messaging_replies += Number(row.messaging_replies) || 0;
     agg.profile_visits += Number(row.profile_visits) || 0;
     
-    // SEPARAÇÃO: leads_count e purchases_count (novos campos)
+    // SEPARAÇÃO: leads_count, purchases_count e initiate_checkout_count
     agg.leads_conversions += Number(row.leads_count) || 0;
     agg.sales_conversions += Number(row.purchases_count) || 0;
+    agg.initiate_checkout_conversions += Number(row.initiate_checkout_count) || 0;
   }
   
   // Calculate derived metrics
@@ -268,13 +271,14 @@ function calculateTotals(data: DailyMetric[]): DailyMetric {
       profile_visits: acc.profile_visits + d.profile_visits,
       leads_conversions: acc.leads_conversions + d.leads_conversions,
       sales_conversions: acc.sales_conversions + d.sales_conversions,
+      initiate_checkout_conversions: acc.initiate_checkout_conversions + d.initiate_checkout_conversions,
       ctr: 0,
       cpm: 0,
       cpc: 0,
       roas: 0,
       cpa: 0,
     }),
-    { date: '', spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, messaging_replies: 0, profile_visits: 0, leads_conversions: 0, sales_conversions: 0, ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0 }
+    { date: '', spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, messaging_replies: 0, profile_visits: 0, leads_conversions: 0, sales_conversions: 0, initiate_checkout_conversions: 0, ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0 }
   );
   
   // Calculate derived
@@ -337,7 +341,7 @@ export function useDailyMetrics(
       while (true) {
         const { data, error } = await supabase
           .from('ads_daily_metrics')
-          .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits, campaign_objective, leads_count, purchases_count')
+          .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits, campaign_objective, leads_count, purchases_count, initiate_checkout_count')
           .eq('project_id', projectId)
           .gte('date', since)
           .lte('date', until)
@@ -373,7 +377,7 @@ export function useDailyMetrics(
         while (true) {
           const { data, error } = await supabase
             .from('ads_daily_metrics')
-            .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits, campaign_objective, leads_count, purchases_count')
+            .select('date, spend, impressions, clicks, reach, conversions, conversion_value, messaging_replies, profile_visits, campaign_objective, leads_count, purchases_count, initiate_checkout_count')
             .eq('project_id', projectId)
             .gte('date', previousDates.since)
             .lte('date', previousDates.until)

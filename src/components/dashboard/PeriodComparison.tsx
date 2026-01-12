@@ -10,6 +10,8 @@ interface Metrics {
   totalConversions: number;
   totalConversionValue: number;
   totalSalesConversions?: number; // Purchases (for infoproduto)
+  totalLeadsConversions?: number; // Leads
+  totalInitiateCheckout?: number; // Initiate Checkout
   ctr: number;
   cpm: number;
   cpc: number;
@@ -23,6 +25,8 @@ interface PeriodComparisonProps {
   currentPeriodLabel?: string;
   previousPeriodLabel?: string;
   currency?: string;
+  resultMetrics?: string[]; // For custom business model
+  resultMetricsLabels?: Record<string, string>; // Labels for custom metrics
 }
 interface ComparisonItemProps {
   label: string;
@@ -95,7 +99,9 @@ export default function PeriodComparison({
   businessModel,
   currentPeriodLabel = 'Período Atual',
   previousPeriodLabel = 'Período Anterior',
-  currency = 'BRL'
+  currency = 'BRL',
+  resultMetrics,
+  resultMetricsLabels
 }: PeriodComparisonProps) {
   const formatCurrencyValue = (value: number) => {
     const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
@@ -258,23 +264,58 @@ export default function PeriodComparison({
         isInverse: true
       });
     } else if (businessModel === 'custom') {
-      // For custom, show generic conversions and cost metrics
+      // For custom, show separate cards for each result metric based on configuration
+      // Default to showing leads, initiate_checkout, and sales separately (if they exist)
+      const metricsToShow = resultMetrics || ['leads', 'initiate_checkout', 'purchases'];
+      const labels: Record<string, string> = resultMetricsLabels || {
+        leads: 'Leads',
+        initiate_checkout: 'Initiate Checkout',
+        purchases: 'Vendas'
+      };
+      
+      // Get current and previous values for each metric
+      const getMetricValue = (m: Metrics, key: string): number => {
+        switch (key) {
+          case 'leads': return m.totalLeadsConversions || 0;
+          case 'initiate_checkout': return m.totalInitiateCheckout || 0;
+          case 'purchases': return m.totalSalesConversions || 0;
+          default: return 0;
+        }
+      };
+
+      for (const metric of metricsToShow) {
+        const currentValue = getMetricValue(currentMetrics, metric);
+        const previousValue = getMetricValue(previousMetrics, metric);
+        
+        // Only show if there's data (current > 0) OR if it's explicitly configured
+        if (currentValue > 0 || previousValue > 0) {
+          items.push({
+            label: labels[metric] || metric,
+            current: formatNumber(currentValue),
+            previous: formatNumber(previousValue),
+            change: calculateChange(currentValue, previousValue),
+            isInverse: false
+          });
+        }
+      }
+
+      // Calculate CPL based on total results
+      const totalCurrentResults = metricsToShow.reduce((sum, key) => sum + getMetricValue(currentMetrics, key), 0);
+      const totalPreviousResults = metricsToShow.reduce((sum, key) => sum + getMetricValue(previousMetrics, key), 0);
+      
+      const currentCpl = totalCurrentResults > 0 ? currentMetrics.totalSpend / totalCurrentResults : 0;
+      const previousCpl = totalPreviousResults > 0 ? previousMetrics.totalSpend / totalPreviousResults : 0;
+
       items.push({
-        label: 'Conversões',
-        current: formatNumber(currentMetrics.totalConversions),
-        previous: formatNumber(previousMetrics.totalConversions),
-        change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
-        isInverse: false
-      }, {
-        label: 'CPA',
-        current: formatCurrencyValue(currentMetrics.cpa),
-        previous: formatCurrencyValue(previousMetrics.cpa),
-        change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
+        label: 'CPL',
+        current: formatCurrencyValue(currentCpl),
+        previous: formatCurrencyValue(previousCpl),
+        change: calculateChange(currentCpl, previousCpl),
         isInverse: true
       });
     }
     return items;
-  }, [currentMetrics, previousMetrics, businessModel]);
+  }, [currentMetrics, previousMetrics, businessModel, resultMetrics, resultMetricsLabels]);
 
   // Check if previous period has no data (all zeros)
   const hasPreviousData = previousMetrics && (previousMetrics.totalSpend > 0 || previousMetrics.totalImpressions > 0 || previousMetrics.totalClicks > 0);
@@ -356,12 +397,39 @@ export default function PeriodComparison({
         value: formatCurrencyValue(cpaSales)
       });
     } else if (businessModel === 'custom') {
+      // For custom, show separate metrics based on configuration
+      const metricsToShow = resultMetrics || ['leads', 'initiate_checkout', 'purchases'];
+      const labels: Record<string, string> = resultMetricsLabels || {
+        leads: 'Leads',
+        initiate_checkout: 'Initiate Checkout',
+        purchases: 'Vendas'
+      };
+      
+      const getMetricValue = (key: string): number => {
+        switch (key) {
+          case 'leads': return currentMetrics.totalLeadsConversions || 0;
+          case 'initiate_checkout': return currentMetrics.totalInitiateCheckout || 0;
+          case 'purchases': return currentMetrics.totalSalesConversions || 0;
+          default: return 0;
+        }
+      };
+
+      let totalResults = 0;
+      for (const metric of metricsToShow) {
+        const value = getMetricValue(metric);
+        if (value > 0) {
+          currentOnlyItems.push({
+            label: labels[metric] || metric,
+            value: formatNumber(value)
+          });
+          totalResults += value;
+        }
+      }
+
+      const cpl = totalResults > 0 ? currentMetrics.totalSpend / totalResults : 0;
       currentOnlyItems.push({
-        label: 'Conversões',
-        value: formatNumber(currentMetrics.totalConversions)
-      }, {
-        label: 'CPA',
-        value: formatCurrencyValue(currentMetrics.cpa)
+        label: 'CPL',
+        value: formatCurrencyValue(cpl)
       });
     }
     return <div className="glass-card p-6">
