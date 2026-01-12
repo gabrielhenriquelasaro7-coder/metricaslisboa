@@ -217,6 +217,7 @@ export default function Dashboard() {
         totalProfileVisits: curr.profile_visits,
         totalLeadsConversions: curr.leads_conversions,
         totalSalesConversions: curr.sales_conversions,
+        totalInitiateCheckout: curr.initiate_checkout_conversions,
         ctr: curr.ctr,
         cpm: curr.cpm,
         cpc: curr.cpc,
@@ -232,7 +233,8 @@ export default function Dashboard() {
       totalMessages: 0,
       totalProfileVisits: 0,
       totalLeadsConversions: 0,
-      totalSalesConversions: 0
+      totalSalesConversions: 0,
+      totalInitiateCheckout: 0
     };
   }, [periodComparison, campaigns]);
 
@@ -251,6 +253,7 @@ export default function Dashboard() {
       totalProfileVisits: prev.profile_visits,
       totalLeadsConversions: prev.leads_conversions,
       totalSalesConversions: prev.sales_conversions,
+      totalInitiateCheckout: prev.initiate_checkout_conversions,
       ctr: prev.ctr,
       cpm: prev.cpm,
       cpc: prev.cpc,
@@ -270,6 +273,7 @@ export default function Dashboard() {
       profile_visits: [],
       leads: [],
       purchases: [],
+      initiate_checkout: [],
       revenue: [],
       clicks: [],
       impressions: [],
@@ -284,6 +288,7 @@ export default function Dashboard() {
       profile_visits: dailyData.map(d => d.profile_visits),
       leads: dailyData.map(d => d.leads_conversions),
       purchases: dailyData.map(d => d.sales_conversions),
+      initiate_checkout: dailyData.map(d => d.initiate_checkout_conversions),
       revenue: dailyData.map(d => d.conversion_value),
       clicks: dailyData.map(d => d.clicks),
       impressions: dailyData.map(d => d.impressions),
@@ -398,7 +403,7 @@ export default function Dashboard() {
             </div>
 
             {/* Period Comparison */}
-            {showComparison && hasSelectedProject && <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? '7 dias' : selectedPreset === 'last_30d' ? '30 dias' : 'Atual'} previousPeriodLabel={selectedPreset === 'this_month' ? 'Anterior' : selectedPreset === 'last_7d' ? 'Anterior' : selectedPreset === 'last_30d' ? 'Anterior' : 'Anterior'} currency={selectedProject?.currency || 'BRL'} />}
+            {showComparison && hasSelectedProject && <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? '7 dias' : selectedPreset === 'last_30d' ? '30 dias' : 'Atual'} previousPeriodLabel={selectedPreset === 'this_month' ? 'Anterior' : selectedPreset === 'last_7d' ? 'Anterior' : selectedPreset === 'last_30d' ? 'Anterior' : 'Anterior'} currency={selectedProject?.currency || 'BRL'} resultMetrics={metricConfig?.result_metrics} resultMetricsLabels={metricConfig?.result_metrics_labels} />}
 
             {/* Metrics Grid - Responsive */}
             <div data-tour="metrics">

@@ -97,6 +97,7 @@ function aggregateByMonth(data: DailyMetric[]): DailyMetric[] {
         profile_visits: 0,
         leads_conversions: 0,
         sales_conversions: 0,
+        initiate_checkout_conversions: 0,
         ctr: 0,
         cpm: 0,
         cpc: 0,
