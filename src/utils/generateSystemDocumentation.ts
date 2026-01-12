@@ -822,52 +822,310 @@ custom: Configuração personalizada
 - Geração de sugestões
 
 ================================================================================
-14. CONFIGURAÇÃO DE MÉTRICAS
+14. INTEGRAÇÃO COM CRM (KOMMO E OUTROS)
 ================================================================================
 
-14.1 MÉTRICAS PRIMÁRIAS (Cards grandes)
+14.1 VISÃO GERAL
+----------------
+O sistema possui integração com CRMs para criar um funil de vendas completo,
+conectando dados de tráfego pago com conversões reais do CRM.
+
+PROVEDORES SUPORTADOS:
+- Kommo (antigo amoCRM) - Principal, totalmente implementado
+- HubSpot - OAuth implementado
+- RD Station - OAuth implementado
+- GoHighLevel - OAuth implementado
+- Bitrix24 - API Key
+- Outros (genérico) - API Key
+
+14.2 TABELAS DO CRM
+-------------------
+TABELA: crm_connections
+- Armazena conexões de CRM por projeto
+- Campos principais:
+  - id, project_id, user_id
+  - provider: kommo, hubspot, rdstation, gohighlevel, bitrix24, outros
+  - status: pending, connected, disconnected, error
+  - access_token, refresh_token (para OAuth)
+  - api_key, api_url (para API Key)
+  - mql_stage_ids: Array de IDs de etapas MQL
+  - sql_stage_ids: Array de IDs de etapas SQL
+  - config: JSONB com selected_pipeline_id
+
+TABELA: crm_deals
+- Leads/Oportunidades sincronizados do CRM
+- Campos principais:
+  - id, external_id (ID no CRM)
+  - connection_id, project_id
+  - title, contact_name, contact_email, contact_phone
+  - value: Valor do negócio (em reais, não centavos)
+  - status: open, won, lost
+  - stage_name, external_stage_id, external_pipeline_id
+  - UTMs: utm_source, utm_medium, utm_campaign, utm_content, utm_term
+  - created_date, closed_date
+  - owner_name, lead_source
+  - custom_fields: JSONB com campos personalizados
+
+TABELA: crm_pipelines
+- Funis/Pipelines sincronizados do CRM
+- external_id, external_name, stages (JSONB)
+
+TABELA: crm_sync_logs
+- Logs de sincronização
+- sync_type: full, incremental
+- records_processed, records_created, records_updated, records_failed
+
+14.3 EDGE FUNCTIONS DO CRM
+--------------------------
+FUNÇÃO: crm-connect
+- Inicia conexão com CRM
+- API Key: valida e salva diretamente
+- OAuth: retorna oauth_url para redirecionamento
+
+FUNÇÃO: crm-callback
+- Callback do OAuth
+- Troca code por access_token
+- Dispara sync inicial
+
+FUNÇÃO: crm-sync
+- Sincronização de dados do CRM
+- POST: { connection_id, project_id, sync_type: 'full' | 'incremental' }
+- Busca pipelines, etapas e leads
+- Extrai UTMs dos campos personalizados
+- IMPORTANTE: Valores do Kommo já vêm em reais (não divide por 100)
+
+FUNÇÃO: crm-status
+- Retorna status completo da conexão
+- Pipelines, etapas com contagem de leads
+- Deals com UTMs e campos customizados
+- Funil calculado (leads → MQL → SQL → vendas)
+- Stats: total_deals, won_deals, lost_deals, revenue
+
+14.4 MAPEAMENTO MQL/SQL
+-----------------------
+O sistema suporta dois modos de cálculo do funil:
+
+MODO AUTOMÁTICO (padrão):
+- Divide etapas abertas (type=0) em 3 partes iguais
+- Primeiro 1/3: Leads
+- Segundo 1/3: MQL (Marketing Qualified Lead)
+- Terceiro 1/3: SQL (Sales Qualified Lead)
+
+MODO CUSTOMIZADO:
+- Configurado via campos mql_stage_ids e sql_stage_ids na crm_connections
+- Interface em Financial.tsx → StagesMappingConfig
+- Permite selecionar quais etapas são MQL e SQL manualmente
+- Etapas não mapeadas são contadas como Leads
+
+CÁLCULO DO FUNIL:
+- Leads: Total de deals no CRM
+- MQL: Deals em etapas MQL + SQL + Vendas ganhas
+- SQL: Deals em etapas SQL + Vendas ganhas
+- Vendas: Deals com status 'won'
+- Receita: Soma dos valores de deals ganhos
+
+14.5 FLUXO DE DADOS KOMMO
+-------------------------
+1. Usuário conecta via API Key (subdomínio + token)
+2. crm-connect valida credenciais testando /api/v4/account
+3. crm-sync busca:
+   - GET /api/v4/leads/pipelines (funis e etapas)
+   - GET /api/v4/leads?with=contacts (leads com contatos)
+   - Para cada lead, busca campos customizados para UTMs
+4. Salva em crm_deals com:
+   - value = lead.price (já em reais, NÃO dividir por 100)
+   - UTMs extraídos dos custom_fields
+5. crm-status calcula funil e retorna para frontend
+
+14.6 EXTRAÇÃO DE UTMs
+---------------------
+UTMs são extraídos de campos personalizados do Kommo:
+- Busca campos com nomes contendo: utm_source, utm_medium, etc.
+- Também busca: source, medium, campaign, content, term
+- Salva em colunas dedicadas para análise
+
+================================================================================
+15. QUERIES SQL DE MÉTRICAS
+================================================================================
+
+15.1 MÉTRICAS DIÁRIAS (Dashboard Principal)
+-------------------------------------------
+HOOK: useDailyMetrics.tsx
+
+Query para período atual:
+SELECT 
+  date, 
+  spend, 
+  impressions, 
+  clicks, 
+  reach, 
+  conversions, 
+  conversion_value, 
+  messaging_replies, 
+  profile_visits, 
+  campaign_objective, 
+  leads_count, 
+  purchases_count
+FROM ads_daily_metrics
+WHERE project_id = :projectId
+  AND date >= :since
+  AND date <= :until
+ORDER BY date ASC
+
+Agregação diária:
+- Soma todos os campos numéricos por data
+- leads_conversions = soma de leads_count
+- sales_conversions = soma de purchases_count
+- conversions = soma de conversions (total)
+
+Cálculo de métricas derivadas:
+- CTR = (clicks / impressions) * 100
+- CPM = (spend / impressions) * 1000
+- CPC = spend / clicks
+- CPA = spend / conversions
+- ROAS = conversion_value / spend
+
+15.2 COMPARAÇÃO DE PERÍODOS
+---------------------------
+Período anterior calculado por tipo:
+- same_length: Mesmo número de dias antes do período atual
+- previous_month: Mês anterior (para "Este Mês")
+- two_months_ago: 2 meses atrás (para "Mês Passado")
+- previous_year: Mesmo período ano anterior (para "Este Ano")
+
+Variação percentual:
+change = ((atual - anterior) / anterior) * 100
+
+15.3 MÉTRICAS DE CAMPANHA
+-------------------------
+HOOK: useMetaAdsData.tsx
+
+Query de campanhas:
+SELECT *
+FROM campaigns
+WHERE project_id = :projectId
+ORDER BY spend DESC
+
+Query de Ad Sets:
+SELECT *
+FROM ad_sets
+WHERE project_id = :projectId
+  AND campaign_id = :campaignId
+ORDER BY spend DESC
+
+Query de Ads:
+SELECT *
+FROM ads
+WHERE project_id = :projectId
+ORDER BY spend DESC
+
+15.4 MÉTRICAS DE CRM
+--------------------
+HOOK: useCRMConnection.tsx
+EDGE FUNCTION: crm-status
+
+Query de deals:
+SELECT 
+  id, external_id, title, 
+  contact_name, contact_phone, contact_email, 
+  value, status, stage_name, 
+  external_stage_id, external_pipeline_id, 
+  created_date, closed_date, 
+  utm_source, utm_medium, utm_campaign, utm_content, utm_term, 
+  lead_source, owner_name, custom_fields
+FROM crm_deals
+WHERE connection_id = :connectionId
+ORDER BY created_date DESC
+LIMIT 500
+
+Stats por status:
+SELECT status, value
+FROM crm_deals
+WHERE connection_id = :connectionId
+
+Contagem por pipeline:
+SELECT external_pipeline_id, COUNT(*) as count
+FROM crm_deals
+WHERE connection_id = :connectionId
+GROUP BY external_pipeline_id
+
+15.5 MÉTRICAS DO GOOGLE ADS
+---------------------------
+HOOK: useGoogleAdsData.tsx
+
+Query principal:
+SELECT *
+FROM google_ads_daily_metrics
+WHERE project_id = :projectId
+  AND date >= :since
+  AND date <= :until
+ORDER BY date ASC
+
+15.6 INSIGHTS DEMOGRÁFICOS
+--------------------------
+HOOK: useDemographicInsights.tsx
+
+Query:
+SELECT 
+  breakdown_type, 
+  breakdown_value, 
+  SUM(spend) as spend, 
+  SUM(impressions) as impressions, 
+  SUM(clicks) as clicks, 
+  SUM(conversions) as conversions
+FROM demographic_insights
+WHERE project_id = :projectId
+  AND date >= :since
+  AND date <= :until
+GROUP BY breakdown_type, breakdown_value
+
+================================================================================
+16. CONFIGURAÇÃO DE MÉTRICAS
+================================================================================
+
+16.1 MÉTRICAS PRIMÁRIAS (Cards grandes)
 ---------------------------------------
 Configurável por projeto via project_metric_config.primary_metrics:
 - spend, impressions, clicks, reach, conversions, leads, purchases
 
-14.2 MÉTRICAS DE RESULTADO
+16.2 MÉTRICAS DE RESULTADO
 --------------------------
 result_metrics: Métricas de conversão (leads, purchases, conversions)
 result_metric: Métrica principal para cálculo de CPL
 
-14.3 MÉTRICAS DE CUSTO
+16.3 MÉTRICAS DE CUSTO
 ----------------------
 cost_metrics: CPM, CPC, CPA, CPL
 
-14.4 MÉTRICAS DE EFICIÊNCIA
+16.4 MÉTRICAS DE EFICIÊNCIA
 ---------------------------
 efficiency_metrics: CTR, ROAS, Frequency
 
 ================================================================================
-15. RESPONSIVIDADE E UI
+17. RESPONSIVIDADE E UI
 ================================================================================
 
-15.1 BREAKPOINTS
+17.1 BREAKPOINTS
 ----------------
 - Mobile: < 768px
 - Tablet: 768px - 1024px
 - Desktop: > 1024px
 
-15.2 REGRAS CSS
+17.2 REGRAS CSS
 ---------------
 - Grid responsiva com auto-fit / minmax
 - Nenhuma largura fixa em px para containers
 - overflow controlado em todos os cards
 - Números grandes com truncamento
 
-15.3 TEMAS
+17.3 TEMAS
 ----------
 - Light mode e Dark mode
 - Variáveis CSS em index.css
 - Cores semânticas (--primary, --background, etc.)
 
 ================================================================================
-16. PWA (Progressive Web App)
+18. PWA (Progressive Web App)
 ================================================================================
 
 - Manifest.json configurado
@@ -877,44 +1135,56 @@ efficiency_metrics: CTR, ROAS, Frequency
 - Prompt de instalação
 
 ================================================================================
-17. CRONOGRAMA DE JOBS
+19. CRONOGRAMA DE JOBS
 ================================================================================
 
-17.1 DIÁRIO
+19.1 DIÁRIO
 -----------
 Cron: 0 5 * * * (02:00 AM Brasília)
 - Sincronização de todos os projetos
 - Detecção e correção de gaps
 - Envio de alertas de saldo
 
-17.2 SEMANAL
+19.2 SEMANAL
 ------------
 Cron: 0 3 * * 0 (Domingo 00:00 AM Brasília)
 - Verificação profunda de gaps
 - Relatórios semanais WhatsApp
 
 ================================================================================
-18. TROUBLESHOOTING
+20. TROUBLESHOOTING
 ================================================================================
 
-18.1 SYNC NÃO FUNCIONA
+20.1 SYNC NÃO FUNCIONA
 ----------------------
 - Verificar META_ACCESS_TOKEN não expirado
 - Verificar permissões da conta de anúncios
 - Checar rate limits
 
-18.2 MÉTRICAS ZERADAS
+20.2 MÉTRICAS ZERADAS
 ---------------------
 - Verificar se há dados em ads_daily_metrics para o período
 - Verificar filtros de status (ACTIVE vs todos)
 
-18.3 IMAGENS NÃO CARREGAM
+20.3 IMAGENS NÃO CARREGAM
 -------------------------
 - URLs do Meta expiram após tempo
 - Usar cached_image_url do bucket creative-images
 
+20.4 CRM NÃO SINCRONIZA
+-----------------------
+- Verificar token de acesso válido
+- Checar URL da API (com https://)
+- Verificar permissões no Kommo
+
+20.5 VALORES DO CRM ERRADOS
+---------------------------
+- Kommo retorna valores em REAIS (não centavos)
+- NÃO dividir lead.price por 100
+- Verificar se sync foi executado após correção
+
 ================================================================================
-19. GLOSSÁRIO
+21. GLOSSÁRIO
 ================================================================================
 
 CTR: Click-Through Rate (Taxa de Cliques)
@@ -926,11 +1196,16 @@ ROAS: Return On Ad Spend (Retorno sobre Gasto)
 RLS: Row Level Security
 Edge Function: Função serverless do Supabase
 Upsert: Insert or Update
+MQL: Marketing Qualified Lead (Lead Qualificado pelo Marketing)
+SQL: Sales Qualified Lead (Lead Qualificado para Vendas)
+CRM: Customer Relationship Management
+UTM: Urchin Tracking Module (parâmetros de rastreamento)
 
 ================================================================================
 FIM DA DOCUMENTAÇÃO
 ================================================================================
-Versão: 1.0
+Versão: 2.0
+Atualização: Adicionada documentação CRM/Kommo e Queries SQL
 Data de Geração: ${new Date().toLocaleString('pt-BR')}
 ================================================================================
 `;
