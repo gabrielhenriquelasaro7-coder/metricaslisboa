@@ -299,20 +299,56 @@ export default function PeriodComparison({
         }
       }
 
-      // Calculate CPL based on total results
-      const totalCurrentResults = metricsToShow.reduce((sum, key) => sum + getMetricValue(currentMetrics, key), 0);
-      const totalPreviousResults = metricsToShow.reduce((sum, key) => sum + getMetricValue(previousMetrics, key), 0);
+      // Calculate CPL based on leads only
+      const currentLeads = getMetricValue(currentMetrics, 'leads');
+      const previousLeads = getMetricValue(previousMetrics, 'leads');
       
-      const currentCpl = totalCurrentResults > 0 ? currentMetrics.totalSpend / totalCurrentResults : 0;
-      const previousCpl = totalPreviousResults > 0 ? previousMetrics.totalSpend / totalPreviousResults : 0;
+      if (currentLeads > 0 || previousLeads > 0) {
+        const currentCpl = currentLeads > 0 ? currentMetrics.totalSpend / currentLeads : 0;
+        const previousCpl = previousLeads > 0 ? previousMetrics.totalSpend / previousLeads : 0;
 
-      items.push({
-        label: 'CPL',
-        current: formatCurrencyValue(currentCpl),
-        previous: formatCurrencyValue(previousCpl),
-        change: calculateChange(currentCpl, previousCpl),
-        isInverse: true
-      });
+        items.push({
+          label: 'CPL',
+          current: formatCurrencyValue(currentCpl),
+          previous: formatCurrencyValue(previousCpl),
+          change: calculateChange(currentCpl, previousCpl),
+          isInverse: true
+        });
+      }
+
+      // Calculate Cost per Initiate Checkout
+      const currentIC = getMetricValue(currentMetrics, 'initiate_checkout');
+      const previousIC = getMetricValue(previousMetrics, 'initiate_checkout');
+      
+      if (currentIC > 0 || previousIC > 0) {
+        const currentCpic = currentIC > 0 ? currentMetrics.totalSpend / currentIC : 0;
+        const previousCpic = previousIC > 0 ? previousMetrics.totalSpend / previousIC : 0;
+
+        items.push({
+          label: 'Custo/Init. Checkout',
+          current: formatCurrencyValue(currentCpic),
+          previous: formatCurrencyValue(previousCpic),
+          change: calculateChange(currentCpic, previousCpic),
+          isInverse: true
+        });
+      }
+
+      // Calculate CPP (Cost per Purchase) only if there are purchases
+      const currentPurchases = getMetricValue(currentMetrics, 'purchases');
+      const previousPurchases = getMetricValue(previousMetrics, 'purchases');
+      
+      if (currentPurchases > 0 || previousPurchases > 0) {
+        const currentCpp = currentPurchases > 0 ? currentMetrics.totalSpend / currentPurchases : 0;
+        const previousCpp = previousPurchases > 0 ? previousMetrics.totalSpend / previousPurchases : 0;
+
+        items.push({
+          label: 'CPP',
+          current: formatCurrencyValue(currentCpp),
+          previous: formatCurrencyValue(previousCpp),
+          change: calculateChange(currentCpp, previousCpp),
+          isInverse: true
+        });
+      }
     }
     return items;
   }, [currentMetrics, previousMetrics, businessModel, resultMetrics, resultMetricsLabels]);
@@ -414,23 +450,46 @@ export default function PeriodComparison({
         }
       };
 
-      let totalResults = 0;
       for (const metric of metricsToShow) {
         const value = getMetricValue(metric);
-        if (value > 0) {
+        // Show leads and initiate_checkout always if configured, purchases only if > 0
+        if (metric !== 'purchases' || value > 0) {
           currentOnlyItems.push({
             label: labels[metric] || metric,
             value: formatNumber(value)
           });
-          totalResults += value;
         }
       }
 
-      const cpl = totalResults > 0 ? currentMetrics.totalSpend / totalResults : 0;
-      currentOnlyItems.push({
-        label: 'CPL',
-        value: formatCurrencyValue(cpl)
-      });
+      // CPL based on leads
+      const leads = getMetricValue('leads');
+      if (leads > 0) {
+        const cpl = currentMetrics.totalSpend / leads;
+        currentOnlyItems.push({
+          label: 'CPL',
+          value: formatCurrencyValue(cpl)
+        });
+      }
+
+      // Cost per Initiate Checkout
+      const ic = getMetricValue('initiate_checkout');
+      if (ic > 0) {
+        const cpic = currentMetrics.totalSpend / ic;
+        currentOnlyItems.push({
+          label: 'Custo/Init. Checkout',
+          value: formatCurrencyValue(cpic)
+        });
+      }
+
+      // CPP only if there are purchases
+      const purchases = getMetricValue('purchases');
+      if (purchases > 0) {
+        const cpp = currentMetrics.totalSpend / purchases;
+        currentOnlyItems.push({
+          label: 'CPP',
+          value: formatCurrencyValue(cpp)
+        });
+      }
     }
     return <div className="glass-card p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
