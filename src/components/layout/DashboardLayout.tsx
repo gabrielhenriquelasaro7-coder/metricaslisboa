@@ -24,8 +24,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
 
+  // Check if user dismissed the import screen
+  const importDismissedKey = projectInfo ? `import_dismissed_${projectInfo.id}` : null;
   const checkImportStatus = useCallback(async (projectId: string) => {
     try {
+      // Check if user dismissed the import screen for this project
+      const dismissed = localStorage.getItem(`import_dismissed_${projectId}`);
+      if (dismissed === 'true') {
+        return false;
+      }
+
       const { data: months } = await supabase
         .from('project_import_months')
         .select('status')
@@ -98,8 +106,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [user, loading, roleLoading, isGuest, navigate, checkImportStatus]);
 
   const handleImportComplete = useCallback(() => {
+    // Mark as dismissed so it doesn't show again on navigation
+    if (projectInfo) {
+      localStorage.setItem(`import_dismissed_${projectInfo.id}`, 'true');
+    }
     setIsImporting(false);
-  }, []);
+  }, [projectInfo]);
 
   // Show import screen only when actively importing
   if (isImporting && projectInfo) {
