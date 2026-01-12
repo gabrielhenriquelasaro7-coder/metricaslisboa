@@ -11,31 +11,74 @@ interface ExportProgress {
   currentTable: string;
 }
 
+// TODAS as tabelas do banco para exportação completa
 const TABLES_TO_EXPORT = [
+  // Projetos e configurações
   'projects',
+  'profiles',
+  'user_roles',
+  'project_metric_config',
+  'project_import_months',
+  
+  // Meta Ads
   'campaigns',
   'ad_sets',
   'ads',
   'ads_daily_metrics',
+  
+  // Google Ads
   'google_campaigns',
   'google_ad_groups',
   'google_ads',
   'google_ads_daily_metrics',
+  
+  // Leads e Formulários
   'leads',
   'leadgen_forms',
+  
+  // CRM
   'crm_connections',
   'crm_pipelines',
   'crm_deals',
+  'crm_sync_logs',
+  
+  // Metas e Objetivos
   'account_goals',
   'campaign_goals',
+  
+  // Insights e Demografia
   'demographic_insights',
+  
+  // Financeiro / DRE
   'dre_history',
+  
+  // Otimizações e Histórico
   'optimization_history',
+  'period_metrics',
+  
+  // Alertas e Anomalias
   'anomaly_alerts',
   'anomaly_alert_config',
-  'project_metric_config',
+  
+  // Cache de IA
+  'ai_analysis_cache',
+  
+  // Preferências
+  'chart_preferences',
+  
+  // Convidados
+  'guest_invitations',
+  'guest_project_access',
+  
+  // Sugestões
+  'suggestion_actions',
+  
+  // WhatsApp
+  'whatsapp_instances',
+  'whatsapp_report_config',
+  
+  // Sync Logs
   'sync_logs',
-  'project_import_months',
 ];
 
 export function ExportDataButton() {
