@@ -24,11 +24,9 @@ function getWeeksInMonth(year: number, month: number): Array<{ since: string; un
   let currentStart = new Date(firstDay);
   
   while (currentStart <= lastDay) {
-    // Each week is 7 days
     const weekEnd = new Date(currentStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
     
-    // Don't go past month end
     const actualEnd = weekEnd > lastDay ? lastDay : weekEnd;
     
     weeks.push({
@@ -36,7 +34,6 @@ function getWeeksInMonth(year: number, month: number): Array<{ since: string; un
       until: formatDate(actualEnd),
     });
     
-    // Move to next week
     currentStart = new Date(actualEnd);
     currentStart.setDate(currentStart.getDate() + 1);
   }
@@ -69,8 +66,47 @@ function getMonthName(month: number): string {
   return names[month - 1] || 'Unknown';
 }
 
-async function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+// Fetch a single week - returns result object
+async function fetchWeek(
+  supabaseUrl: string, 
+  supabaseServiceKey: string, 
+  project_id: string, 
+  ad_account_id: string, 
+  week: { since: string; until: string },
+  weekIndex: number
+): Promise<{ success: boolean; records: number; conversions: number; error?: string }> {
+  try {
+    const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify({
+        project_id,
+        ad_account_id,
+        time_range: { since: week.since, until: week.until },
+        light_sync: true,
+        skip_image_cache: true,
+      }),
+    });
+    
+    const syncResult = await syncResponse.json();
+    
+    if (syncResponse.ok && syncResult.success) {
+      const records = syncResult.summary?.records || syncResult.records || 0;
+      const conversions = syncResult.summary?.conversions || 0;
+      console.log(`[MONTH-IMPORT] Week ${weekIndex + 1} ✓: ${records} records`);
+      return { success: true, records, conversions };
+    } else {
+      console.log(`[MONTH-IMPORT] Week ${weekIndex + 1} ✗: ${syncResult.error || 'Unknown'}`);
+      return { success: false, records: 0, conversions: 0, error: syncResult.error };
+    }
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    console.log(`[MONTH-IMPORT] Week ${weekIndex + 1} ✗: ${errMsg}`);
+    return { success: false, records: 0, conversions: 0, error: errMsg };
+  }
 }
 
 Deno.serve(async (req) => {
@@ -115,7 +151,7 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Create or update the month record - UPSERT pattern
+    // Create or update the month record
     if (existingMonth) {
       await supabase
         .from('project_import_months')
@@ -153,63 +189,36 @@ Deno.serve(async (req) => {
     
     console.log(`[MONTH-IMPORT] Project: ${project.name}`);
     
-    // Split month into weeks to avoid "Your request timed out" error from Meta API
+    // Split month into weeks
     const weeks = getWeeksInMonth(year, month);
-    console.log(`[MONTH-IMPORT] Splitting ${monthName} ${year} into ${weeks.length} weeks`);
+    console.log(`[MONTH-IMPORT] Processing ${monthName} ${year} in PARALLEL (${weeks.length} weeks)`);
     
+    // 🚀 PARALLEL EXECUTION - All weeks at once!
+    const weekPromises = weeks.map((week, index) => 
+      fetchWeek(supabaseUrl, supabaseServiceKey, project_id, project.ad_account_id, week, index)
+    );
+    
+    const results = await Promise.all(weekPromises);
+    
+    // Aggregate results
     let totalRecords = 0;
     let totalConversions = 0;
     let successfulWeeks = 0;
     let failedWeeks = 0;
     
-    // Process each week sequentially with delays
-    for (let i = 0; i < weeks.length; i++) {
-      const week = weeks[i];
-      console.log(`[MONTH-IMPORT] Week ${i + 1}/${weeks.length}: ${week.since} to ${week.until}`);
-      
-      try {
-        const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            project_id,
-            ad_account_id: project.ad_account_id,
-            time_range: { since: week.since, until: week.until },
-            light_sync: true,
-            skip_image_cache: true,
-          }),
-        });
-        
-        const syncResult = await syncResponse.json();
-        
-        if (syncResponse.ok && syncResult.success) {
-          const weekRecords = syncResult.summary?.records || syncResult.records || 0;
-          const weekConversions = syncResult.summary?.conversions || 0;
-          totalRecords += weekRecords;
-          totalConversions += weekConversions;
-          successfulWeeks++;
-          console.log(`[MONTH-IMPORT] Week ${i + 1} ✓: ${weekRecords} records`);
-        } else {
-          failedWeeks++;
-          console.log(`[MONTH-IMPORT] Week ${i + 1} ✗: ${syncResult.error || 'Unknown error'}`);
-        }
-      } catch (weekError) {
+    for (const result of results) {
+      if (result.success) {
+        totalRecords += result.records;
+        totalConversions += result.conversions;
+        successfulWeeks++;
+      } else {
         failedWeeks++;
-        console.log(`[MONTH-IMPORT] Week ${i + 1} ✗: ${weekError instanceof Error ? weekError.message : 'Unknown error'}`);
-      }
-      
-      // Delay between weeks to avoid rate limiting
-      if (i < weeks.length - 1) {
-        await delay(2000);
       }
     }
     
-    console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${totalRecords} records total (${successfulWeeks}/${weeks.length} weeks ok)`);
+    console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${totalRecords} records (${successfulWeeks}/${weeks.length} weeks ok)`);
     
-    // Update status based on results
+    // Update status
     const finalStatus = failedWeeks === weeks.length ? 'error' : 'success';
     
     await supabase
@@ -229,7 +238,7 @@ Deno.serve(async (req) => {
       project_id,
       status: finalStatus,
       message: JSON.stringify({
-        type: 'month_import',
+        type: 'month_import_parallel',
         month: `${year}-${month}`,
         month_name: `${monthName} ${year}`,
         records: totalRecords,
@@ -237,14 +246,13 @@ Deno.serve(async (req) => {
       }),
     });
     
-    // If continue_chain is true, trigger next month
+    // Trigger next month immediately (no delay needed since parallel is fast)
     let nextMonthTriggered = false;
     if (continue_chain) {
       const nextMonth = getNextMonth(year, month);
       if (nextMonth) {
         console.log(`[MONTH-IMPORT] Triggering next: ${getMonthName(nextMonth.month)} ${nextMonth.year}`);
         
-        // Fire and forget
         fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
           method: 'POST',
           headers: {
@@ -266,12 +274,12 @@ Deno.serve(async (req) => {
       }
     }
     
-    console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year} completed successfully`);
+    console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year} completed in PARALLEL mode`);
     
     return new Response(
       JSON.stringify({
         success: true,
-        message: `${monthName} ${year} imported successfully`,
+        message: `${monthName} ${year} imported (parallel)`,
         records: totalRecords,
         weeks: { total: weeks.length, success: successfulWeeks, failed: failedWeeks },
         next_month_triggered: nextMonthTriggered,
@@ -283,7 +291,6 @@ Deno.serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[MONTH-IMPORT] Error:', errorMessage);
     
-    // Try to update status to error
     try {
       const body = await req.clone().json();
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -299,7 +306,6 @@ Deno.serve(async (req) => {
         .eq('year', body.year)
         .eq('month', body.month);
       
-      // If chain mode, still try to continue with next month
       if (body.continue_chain) {
         const nextMonth = getNextMonth(body.year, body.month);
         if (nextMonth) {
