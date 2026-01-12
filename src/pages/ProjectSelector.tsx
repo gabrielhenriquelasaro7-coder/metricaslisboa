@@ -24,7 +24,7 @@ import v4Logo from '@/assets/v4-logo-full.png';
 import metaIcon from '@/assets/meta-icon.png';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
-import BatchCreateProjectDialog from '@/components/projects/BatchCreateProjectDialog';
+
 const cargoOptions: {
   value: UserCargo;
   label: string;
@@ -882,7 +882,7 @@ export default function ProjectSelector() {
                     </DialogContent>
                   </Dialog>
                   
-                  <BatchCreateProjectDialog onSuccess={refetch} />
+                  
                   
                   <Button onClick={() => setInviteDialogOpen(true)} variant="outline" className="h-10 px-3 md:px-4 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all gap-1.5 md:gap-2 whitespace-nowrap touch-target text-sm" style={{
                 fontFamily: 'Space Grotesk, sans-serif'
