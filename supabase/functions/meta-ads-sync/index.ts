@@ -648,7 +648,20 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 const FORM_LEAD_ACTION_TYPES = ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead', 'fb_pixel_lead'];
 const CONTACT_LEAD_ACTION_TYPES = ['contact_total', 'contact_website', 'contact', 'omni_complete_registration', 'complete_registration', 'submit_application', 'submit_application_total'];
 const MESSAGE_LEAD_ACTION_TYPES = ['messaging_conversation_started_7d', 'onsite_conversion.messaging_conversation_started_7d'];
-const PURCHASE_ACTION_TYPES = ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'onsite_web_purchase', 'onsite_web_app_purchase', 'web_in_store_purchase', 'web_app_in_store_purchase'];
+// IMPORTANT: Include ALL Meta purchase action types - "offsite_conversion.purchase" is the most common!
+const PURCHASE_ACTION_TYPES = [
+  'purchase', 
+  'omni_purchase', 
+  'offsite_conversion.purchase',  // Common for pixel-tracked purchases!
+  'offsite_conversion.fb_pixel_purchase', 
+  'onsite_conversion.purchase',
+  'onsite_web_purchase', 
+  'onsite_web_app_purchase', 
+  'web_in_store_purchase', 
+  'web_app_in_store_purchase',
+  'app_custom_event.fb_mobile_purchase',
+  'mobile_app_purchase',
+];
 const ALL_LEAD_ACTION_TYPES = [...FORM_LEAD_ACTION_TYPES, ...CONTACT_LEAD_ACTION_TYPES, ...MESSAGE_LEAD_ACTION_TYPES];
 const CONVERSION_ACTION_TYPES = [...ALL_LEAD_ACTION_TYPES, ...PURCHASE_ACTION_TYPES];
 const TRAFFIC_OBJECTIVES = ['OUTCOME_TRAFFIC', 'LINK_CLICKS', 'TRAFFIC', 'POST_ENGAGEMENT'];
@@ -719,7 +732,8 @@ function extractConversions(row: any, campaignObjective?: string): {
   
   // FONTE 2: Campo "actions" (fallback)
   if (conversions === 0 && Array.isArray(row.actions) && row.actions.length > 0) {
-    let formLeadValue = 0, contactLeadValue = 0, messageLeadValue = 0, purchaseValue = 0, omniPurchaseValue = 0;
+    let formLeadValue = 0, contactLeadValue = 0, messageLeadValue = 0;
+    let maxPurchaseValue = 0;
     
     for (const action of row.actions) {
       const actionType = action.action_type || '';
@@ -728,23 +742,27 @@ function extractConversions(row: any, campaignObjective?: string): {
         if (actionType === 'lead' || actionType === 'onsite_conversion.lead_grouped') formLeadValue = val;
         else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType) && val > contactLeadValue) contactLeadValue = val;
         else if (actionType === 'messaging_conversation_started_7d' || actionType === 'onsite_conversion.messaging_conversation_started_7d') messageLeadValue = val;
-        else if (actionType === 'purchase') purchaseValue = val;
-        else if (actionType === 'omni_purchase') omniPurchaseValue = val;
+        // Check ALL purchase action types
+        else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
+          if (val > maxPurchaseValue) maxPurchaseValue = val;
+        }
       }
     }
     
-    purchasesCount = omniPurchaseValue > 0 ? omniPurchaseValue : purchaseValue;
+    purchasesCount = maxPurchaseValue;
     const maxLead = Math.max(formLeadValue, contactLeadValue, messageLeadValue);
     if (maxLead > 0) {
       leadsCount = maxLead;
       source = 'actions';
     }
+    if (purchasesCount > 0) source = 'actions';
     conversions = leadsCount + purchasesCount;
   }
 
   // FONTE 3: Campo "conversions" (fallback legado)
   if (conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
-    let formLeadConv = 0, contactLeadConv = 0, messageLeadConv = 0, purchaseConv = 0, omniPurchaseConv = 0;
+    let formLeadConv = 0, contactLeadConv = 0, messageLeadConv = 0;
+    let maxPurchaseConv = 0;
     
     for (const c of row.conversions) {
       const actionType = c.action_type || '';
@@ -753,17 +771,20 @@ function extractConversions(row: any, campaignObjective?: string): {
         if (actionType === 'lead' || actionType === 'onsite_conversion.lead_grouped') formLeadConv = val;
         else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType) && val > contactLeadConv) contactLeadConv = val;
         else if (actionType === 'messaging_conversation_started_7d' || actionType === 'onsite_conversion.messaging_conversation_started_7d') messageLeadConv = val;
-        else if (actionType === 'purchase') purchaseConv = val;
-        else if (actionType === 'omni_purchase') omniPurchaseConv = val;
+        // Check ALL purchase action types
+        else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
+          if (val > maxPurchaseConv) maxPurchaseConv = val;
+        }
       }
     }
     
-    purchasesCount = omniPurchaseConv > 0 ? omniPurchaseConv : purchaseConv;
+    purchasesCount = maxPurchaseConv;
     const maxLeadConv = Math.max(formLeadConv, contactLeadConv, messageLeadConv);
     if (maxLeadConv > 0) {
       leadsCount = maxLeadConv;
       source = 'conversions_legacy';
     }
+    if (purchasesCount > 0) source = 'conversions_legacy';
     conversions = leadsCount + purchasesCount;
   }
 
