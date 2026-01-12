@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, BusinessModel, CreateProjectData } from '@/hooks/useProjects';
-import { Plus, Loader2, Settings2, Users, ShoppingCart, Store, GraduationCap } from 'lucide-react';
+import { Plus, Loader2, Settings2, Users, ShoppingCart, Store, GraduationCap, Zap, Image, Clock, Sparkles } from 'lucide-react';
 import { z } from 'zod';
 import { ImportProgressDialog } from './ImportProgressDialog';
 import { MetricConfigPanel, type MetricConfigData } from './MetricConfigPanel';
@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { METRIC_TEMPLATES } from '@/hooks/useProjectMetricConfig';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(100),
@@ -55,6 +56,12 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { createProject } = useProjects();
   const [customConfigOpen, setCustomConfigOpen] = useState(false);
+
+  // Import mode selection step
+  const [showImportModeDialog, setShowImportModeDialog] = useState(false);
+  const [selectedImportMode, setSelectedImportMode] = useState<'light' | 'full' | null>(null);
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
+  const [pendingProjectName, setPendingProjectName] = useState('');
 
   const [showImportProgress, setShowImportProgress] = useState(false);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
@@ -123,10 +130,11 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
         });
       }
       
+      // Close the create dialog and show import mode selection
       setOpen(false);
-      setCreatedProjectId(project.id);
-      setCreatedProjectName(formData.name);
-      setShowImportProgress(true);
+      setPendingProjectId(project.id);
+      setPendingProjectName(formData.name);
+      setShowImportModeDialog(true);
       
       setFormData({
         name: '',
@@ -142,11 +150,50 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     }
   };
 
-  const handleImportProgressClose = (openState: boolean) => {
+  // Start import with selected mode
+  const handleStartImport = async (mode: 'light' | 'full') => {
+    if (!pendingProjectId) return;
+
+    setSelectedImportMode(mode);
+    setShowImportModeDialog(false);
+    setCreatedProjectId(pendingProjectId);
+    setCreatedProjectName(pendingProjectName);
+    setShowImportProgress(true);
+
+    // Start the import with the selected mode
+    const currentYear = new Date().getFullYear();
+    const lightSync = mode === 'light';
+
+    try {
+      await supabase.functions.invoke('import-month-by-month', {
+        body: {
+          project_id: pendingProjectId,
+          year: currentYear,
+          month: 1,
+          continue_chain: true,
+          force_light_sync: lightSync,
+        },
+      });
+    } catch (error) {
+      console.error('Error starting import:', error);
+    }
+  };
+
+  const handleImportModeClose = () => {
+    setShowImportModeDialog(false);
+    setPendingProjectId(null);
+    setPendingProjectName('');
+    onSuccess?.();
+  };
+
+  const handleImportProgressCloseHandler = (openState: boolean) => {
     setShowImportProgress(openState);
     if (!openState) {
       setCreatedProjectId(null);
       setCreatedProjectName('');
+      setPendingProjectId(null);
+      setPendingProjectName('');
+      setSelectedImportMode(null);
       onSuccess?.();
     }
   };
@@ -299,9 +346,101 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
         </DialogContent>
       </Dialog>
 
+      {/* Import Mode Selection Dialog */}
+      <Dialog open={showImportModeDialog} onOpenChange={(open) => !open && handleImportModeClose()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              Escolha o tipo de importação
+            </DialogTitle>
+            <DialogDescription>
+              Projeto <strong>{pendingProjectName}</strong> criado com sucesso! Escolha como deseja importar os dados.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-4 py-4">
+            {/* Light Sync Option */}
+            <button
+              onClick={() => handleStartImport('light')}
+              className={cn(
+                "p-6 rounded-xl border-2 text-left transition-all hover:scale-[1.02]",
+                "bg-gradient-to-br from-yellow-500/10 to-amber-500/5",
+                "border-yellow-500/30 hover:border-yellow-500/60",
+                "hover:shadow-lg hover:shadow-yellow-500/10"
+              )}
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-yellow-500/20">
+                  <Zap className="w-6 h-6 text-yellow-500" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg flex items-center gap-2">
+                    Light Sync
+                    <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-500">
+                      Recomendado
+                    </span>
+                  </h3>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    Importação rápida com dados básicos de métricas
+                  </p>
+                  <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      ~5-10 min
+                    </span>
+                    <span>• Sem criativos HD</span>
+                    <span>• Todas as métricas</span>
+                  </div>
+                </div>
+              </div>
+            </button>
+
+            {/* HD Total Option */}
+            <button
+              onClick={() => handleStartImport('full')}
+              className={cn(
+                "p-6 rounded-xl border-2 text-left transition-all hover:scale-[1.02]",
+                "bg-gradient-to-br from-primary/10 to-violet-500/5",
+                "border-primary/30 hover:border-primary/60",
+                "hover:shadow-lg hover:shadow-primary/10"
+              )}
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-primary/20">
+                  <Image className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg">
+                    Importação Total (HD)
+                  </h3>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    Importação completa com criativos em alta definição
+                  </p>
+                  <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      ~20-60 min
+                    </span>
+                    <span>• Criativos HD</span>
+                    <span>• Dados completos</span>
+                  </div>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <div className="flex justify-center pt-2">
+            <Button variant="ghost" size="sm" onClick={handleImportModeClose}>
+              Pular importação por agora
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <ImportProgressDialog
         open={showImportProgress}
-        onOpenChange={handleImportProgressClose}
+        onOpenChange={handleImportProgressCloseHandler}
         projectId={createdProjectId}
         projectName={createdProjectName}
       />
