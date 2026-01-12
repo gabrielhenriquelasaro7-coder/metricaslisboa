@@ -503,11 +503,15 @@ export default function Dashboard() {
               totalReach: metrics.totalReach,
               totalMessages: metrics.totalMessages,
               totalProfileVisits: metrics.totalProfileVisits,
-              totalLeadsConversions: metrics.totalLeadsConversions
+              totalLeadsConversions: metrics.totalLeadsConversions,
+              totalSalesConversions: metrics.totalSalesConversions,
+              totalInitiateCheckout: metrics.totalInitiateCheckout
             }} previousMetrics={previousMetrics ? {
               totalConversions: previousMetrics.totalConversions,
               totalMessages: previousMetrics.totalMessages,
               totalLeadsConversions: previousMetrics.totalLeadsConversions,
+              totalSalesConversions: previousMetrics.totalSalesConversions,
+              totalInitiateCheckout: previousMetrics.totalInitiateCheckout,
               totalSpend: previousMetrics.totalSpend
             } : null} changes={changes} sparklineData={sparklineData} currency={selectedProject?.currency || 'BRL'} />}
             </div>}
