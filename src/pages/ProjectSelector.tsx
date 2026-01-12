@@ -11,7 +11,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Users, Store, Loader2, LogOut, Archive, Trash2, User, RefreshCw, ChevronRight, ChevronDown, MoreVertical, Pencil, ArchiveRestore, Camera, Lock, Search, Target, GraduationCap, TrendingUp, MessageSquare, ExternalLink, UserPlus, Settings, Sun, Moon, Shield } from 'lucide-react';
+import { Plus, Users, Store, Loader2, LogOut, Archive, Trash2, User, RefreshCw, ChevronRight, ChevronDown, MoreVertical, Pencil, ArchiveRestore, Camera, Lock, Search, Target, GraduationCap, TrendingUp, MessageSquare, ExternalLink, UserPlus, Settings, Sun, Moon, Shield, Zap, Image, Clock, Sparkles } from 'lucide-react';
+import { DialogDescription } from '@/components/ui/dialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -337,6 +338,11 @@ export default function ProjectSelector() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
+  // Import mode selection states
+  const [showImportModeDialog, setShowImportModeDialog] = useState(false);
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
+  const [pendingProjectName, setPendingProjectName] = useState('');
+
   // Filters
   const [showArchived, setShowArchived] = useState(false);
   const [healthFilter, setHealthFilter] = useState<ExtendedHealthScore | 'all'>('all');
@@ -434,7 +440,12 @@ export default function ProjectSelector() {
         ad_account_id: adAccountId
       });
       if (project) {
+        // Close create dialog and open import mode selection
         setCreateDialogOpen(false);
+        setPendingProjectId(project.id);
+        setPendingProjectName(formData.name);
+        setShowImportModeDialog(true);
+        
         setFormData({
           name: '',
           ad_account_id: '',
@@ -445,8 +456,10 @@ export default function ProjectSelector() {
           avatar_url: null
         });
         setAvatarPreview(null);
+        
+        // If custom, navigate to setup after import mode selection
         if (formData.business_model === 'custom') {
-          navigate(`/project-setup/${project.id}`);
+          // Will handle after import starts
         }
       }
     } catch (error) {
@@ -454,6 +467,56 @@ export default function ProjectSelector() {
     } finally {
       setIsCreating(false);
     }
+  };
+
+  // Start import with selected mode
+  const handleStartImport = async (mode: 'light' | 'full') => {
+    if (!pendingProjectId) return;
+
+    setShowImportModeDialog(false);
+
+    // Update project sync status
+    await supabase.from('projects').update({
+      sync_progress: { 
+        status: 'importing', 
+        progress: 0, 
+        message: mode === 'light' ? 'Iniciando Light Sync...' : 'Iniciando Importação Total HD...', 
+        started_at: new Date().toISOString() 
+      },
+    }).eq('id', pendingProjectId);
+
+    try {
+      const { error } = await supabase.functions.invoke('import-month-by-month', {
+        body: {
+          project_id: pendingProjectId,
+          year: 2025,
+          month: 1,
+          continue_chain: true,
+          force_light_sync: mode === 'light',
+          safe_mode: true,
+        },
+      });
+      
+      if (error) {
+        console.error('Error starting import:', error);
+        toast.error('Erro ao iniciar importação');
+      } else {
+        toast.success(`Importação ${mode === 'light' ? 'Light' : 'Total HD'} iniciada!`);
+        console.log(`[IMPORT] Started ${mode} import for project ${pendingProjectId}`);
+      }
+    } catch (error) {
+      console.error('Error starting import:', error);
+      toast.error('Erro ao iniciar importação');
+    } finally {
+      setPendingProjectId(null);
+      setPendingProjectName('');
+    }
+  };
+
+  const handleImportModeClose = () => {
+    setShowImportModeDialog(false);
+    setPendingProjectId(null);
+    setPendingProjectName('');
   };
   const handleEditClick = (project: Project) => {
     setSelectedProject(project);
@@ -1132,5 +1195,91 @@ export default function ProjectSelector() {
 
       {/* Invite Guest Dialog */}
       <InviteGuestDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} onSuccess={refetch} />
+
+      {/* Import Mode Selection Dialog */}
+      <Dialog open={showImportModeDialog} onOpenChange={(open) => !open && handleImportModeClose()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              Escolha o tipo de importação
+            </DialogTitle>
+            <DialogDescription>
+              Projeto <strong>{pendingProjectName}</strong> criado com sucesso! Escolha como deseja importar os dados.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-4 py-4">
+            {/* Light Sync Option */}
+            <button
+              onClick={() => handleStartImport('light')}
+              className={cn(
+                "p-6 rounded-xl border-2 text-left transition-all hover:scale-[1.02]",
+                "bg-gradient-to-br from-yellow-500/10 to-amber-500/5",
+                "border-yellow-500/30 hover:border-yellow-500/60",
+                "hover:shadow-lg hover:shadow-yellow-500/10"
+              )}
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-yellow-500/20">
+                  <Zap className="w-6 h-6 text-yellow-500" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg flex items-center gap-2">
+                    Light Sync
+                    <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-500">
+                      Recomendado
+                    </span>
+                  </h3>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    Importação rápida com dados básicos de métricas
+                  </p>
+                  <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      ~5-10 min
+                    </span>
+                    <span>• Sem criativos HD</span>
+                    <span>• Todas as métricas</span>
+                  </div>
+                </div>
+              </div>
+            </button>
+
+            {/* HD Total Option */}
+            <button
+              onClick={() => handleStartImport('full')}
+              className={cn(
+                "p-6 rounded-xl border-2 text-left transition-all hover:scale-[1.02]",
+                "bg-gradient-to-br from-primary/10 to-violet-500/5",
+                "border-primary/30 hover:border-primary/60",
+                "hover:shadow-lg hover:shadow-primary/10"
+              )}
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-primary/20">
+                  <Image className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg">
+                    Importação Total (HD)
+                  </h3>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    Importação completa com criativos em alta definição
+                  </p>
+                  <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      ~20-60 min
+                    </span>
+                    <span>• Criativos HD</span>
+                    <span>• Dados completos</span>
+                  </div>
+                </div>
+              </div>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>;
 }
