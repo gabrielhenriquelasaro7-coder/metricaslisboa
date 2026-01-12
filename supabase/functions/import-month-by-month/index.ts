@@ -10,6 +10,7 @@ interface MonthImportRequest {
   year: number;
   month: number;
   continue_chain?: boolean;
+  ad_account_id?: string;
 }
 
 function getNextMonth(year: number, month: number): { year: number; month: number } | null {
@@ -37,6 +38,30 @@ function getMonthName(month: number): string {
   return names[month - 1] || 'Unknown';
 }
 
+// Delay helper
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Check if we hit rate limit by testing a simple API call
+async function checkRateLimit(adAccountId: string, accessToken: string): Promise<boolean> {
+  try {
+    const url = `https://graph.facebook.com/v22.0/${adAccountId}?fields=id&access_token=${accessToken}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (data.error?.code === 4 || data.error?.message?.includes('request limit')) {
+      console.log('[RATE-LIMIT] API rate limit still active');
+      return true; // Rate limited
+    }
+    
+    return false; // OK to proceed
+  } catch (e) {
+    console.log('[RATE-LIMIT] Check failed:', e);
+    return false; // Assume OK
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -45,10 +70,11 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const metaAccessToken = Deno.env.get('META_ACCESS_TOKEN') || '';
   
   try {
     const body: MonthImportRequest = await req.json();
-    const { project_id, year, month, continue_chain = false } = body;
+    const { project_id, year, month, continue_chain = false, ad_account_id } = body;
     
     if (!project_id || !year || !month) {
       return new Response(
@@ -61,6 +87,46 @@ Deno.serve(async (req) => {
     const monthName = getMonthName(month);
     
     console.log(`[MONTH-IMPORT] Starting ${monthName} ${year} for project ${project_id}`);
+    
+    // Get project details
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('ad_account_id, name')
+      .eq('id', project_id)
+      .single();
+    
+    if (projectError || !project) {
+      throw new Error(`Project not found: ${projectError?.message}`);
+    }
+    
+    const accountId = ad_account_id || project.ad_account_id;
+    
+    // Check rate limit before proceeding
+    const isRateLimited = await checkRateLimit(accountId, metaAccessToken);
+    if (isRateLimited) {
+      console.log(`[MONTH-IMPORT] Rate limited, will retry in 5 minutes`);
+      
+      // Update status to show we're waiting
+      await supabase
+        .from('project_import_months')
+        .upsert({
+          project_id,
+          year,
+          month,
+          status: 'pending',
+          error_message: 'Rate limit - aguardando reset (tentar novamente em 5-10 min)',
+          retry_count: 1,
+        }, { onConflict: 'project_id,year,month' });
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Rate limit active - try again in 5-10 minutes',
+          rate_limited: true 
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // Check if already importing
     const { data: existingMonth } = await supabase
@@ -103,17 +169,6 @@ Deno.serve(async (req) => {
         });
     }
     
-    // Get project details
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('ad_account_id, name')
-      .eq('id', project_id)
-      .single();
-    
-    if (projectError || !project) {
-      throw new Error(`Project not found: ${projectError?.message}`);
-    }
-    
     console.log(`[MONTH-IMPORT] Project: ${project.name}`);
     
     // Calculate date range for the month
@@ -126,7 +181,7 @@ Deno.serve(async (req) => {
     
     console.log(`[MONTH-IMPORT] Syncing ${since} to ${until}`);
     
-    // Call meta-ads-sync for the entire month (simple, sequential)
+    // Call meta-ads-sync for the entire month
     const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
       method: 'POST',
       headers: {
@@ -135,7 +190,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         project_id,
-        ad_account_id: project.ad_account_id,
+        ad_account_id: accountId,
         time_range: { since, until },
         light_sync: true,
         skip_image_cache: true,
@@ -152,9 +207,16 @@ Deno.serve(async (req) => {
       totalRecords = syncResult.summary?.records || syncResult.records || 0;
       console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${totalRecords} records`);
     } else {
-      status = 'error';
-      errorMessage = syncResult.error || 'Sync failed';
-      console.log(`[MONTH-IMPORT] ✗ ${monthName} ${year}: ${errorMessage}`);
+      // Check if rate limited in sync response
+      if (syncResult.error?.includes('rate') || syncResult.error?.includes('limit') || syncResult.records === 0) {
+        status = 'pending';
+        errorMessage = 'Rate limit detectado - será retentado';
+        console.log(`[MONTH-IMPORT] Rate limit detected, marking for retry`);
+      } else {
+        status = 'error';
+        errorMessage = syncResult.error || 'Sync failed';
+        console.log(`[MONTH-IMPORT] ✗ ${monthName} ${year}: ${errorMessage}`);
+      }
     }
     
     // Update the month record
@@ -163,7 +225,7 @@ Deno.serve(async (req) => {
       .update({
         status,
         records_count: totalRecords,
-        completed_at: new Date().toISOString(),
+        completed_at: status === 'success' ? new Date().toISOString() : null,
         error_message: errorMessage,
       })
       .eq('project_id', project_id)
@@ -184,13 +246,15 @@ Deno.serve(async (req) => {
     
     // Trigger next month if chain mode is enabled
     let nextMonthTriggered = false;
-    if (continue_chain && status === 'success') {
+    if (continue_chain && status === 'success' && totalRecords > 0) {
       const nextMonth = getNextMonth(year, month);
       if (nextMonth) {
-        console.log(`[MONTH-IMPORT] Triggering next: ${getMonthName(nextMonth.month)} ${nextMonth.year}`);
+        console.log(`[MONTH-IMPORT] Waiting 30s before next month...`);
         
-        // Small delay to avoid rate limits
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Longer delay (30 seconds) to avoid rate limits
+        await delay(30000);
+        
+        console.log(`[MONTH-IMPORT] Triggering next: ${getMonthName(nextMonth.month)} ${nextMonth.year}`);
         
         fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
           method: 'POST',
@@ -200,6 +264,7 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             project_id,
+            ad_account_id: accountId,
             year: nextMonth.year,
             month: nextMonth.month,
             continue_chain: true,
@@ -210,13 +275,16 @@ Deno.serve(async (req) => {
       } else {
         console.log('[MONTH-IMPORT] Reached current month, chain complete');
       }
+    } else if (continue_chain && totalRecords === 0) {
+      // If 0 records, stop the chain - likely rate limited
+      console.log('[MONTH-IMPORT] 0 records returned, stopping chain to avoid rate limit issues');
     }
     
     console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year} completed`);
     
     return new Response(
       JSON.stringify({
-        success: true,
+        success: status === 'success',
         message: `${monthName} ${year} imported`,
         records: totalRecords,
         next_month_triggered: nextMonthTriggered,
