@@ -288,6 +288,7 @@ export type Database = {
           frequency: number | null
           id: string
           impressions: number
+          initiate_checkout_count: number | null
           leads_count: number | null
           messaging_replies: number | null
           profile_visits: number | null
@@ -325,6 +326,7 @@ export type Database = {
           frequency?: number | null
           id?: string
           impressions?: number
+          initiate_checkout_count?: number | null
           leads_count?: number | null
           messaging_replies?: number | null
           profile_visits?: number | null
@@ -362,6 +364,7 @@ export type Database = {
           frequency?: number | null
           id?: string
           impressions?: number
+          initiate_checkout_count?: number | null
           leads_count?: number | null
           messaging_replies?: number | null
           profile_visits?: number | null
