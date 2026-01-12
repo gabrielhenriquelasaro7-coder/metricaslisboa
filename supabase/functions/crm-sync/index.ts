@@ -421,9 +421,11 @@ async function fetchKommoDeals(
         }
       }
       
-      // Calculate value - Kommo stores value in units (NOT cents!)
-      // According to Kommo API docs: price is the actual value in currency units
-      const dealValue = Number(lead.price || 0);
+      // Calculate value - Kommo stores value in CENTS!
+      // The API returns price in smallest currency units (centavos for BRL)
+      // So we need to divide by 100 to get the actual value
+      const rawPrice = Number(lead.price || 0);
+      const dealValue = rawPrice / 100;
       
       // Determine status based on pipeline stages AND value
       // IMPORTANT: Only consider as "won" if value >= 0.01
