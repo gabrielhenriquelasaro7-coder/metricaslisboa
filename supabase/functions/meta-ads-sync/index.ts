@@ -61,7 +61,8 @@ function isTokenExpiredError(data: any): boolean {
   return code === 190 || code === '190' || subcode === 463 || subcode === 467 || (msg.includes('access token') && (msg.includes('expired') || msg.includes('invalid')));
 }
 
-async function simpleFetch(url: string, options?: RequestInit, timeoutMs = 30000): Promise<any> {
+// Increased timeout for large accounts (760+ ads)
+async function simpleFetch(url: string, options?: RequestInit, timeoutMs = 60000): Promise<any> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -69,20 +70,38 @@ async function simpleFetch(url: string, options?: RequestInit, timeoutMs = 30000
     clearTimeout(timeoutId);
     return await res.json();
   } catch (error) {
-    return { error: { message: error instanceof Error ? error.message : 'Fetch failed' } };
+    const errMsg = error instanceof Error ? error.message : 'Fetch failed';
+    console.log(`[FETCH] Error: ${errMsg}`);
+    return { error: { message: errMsg } };
   }
 }
 
-async function fetchWithRetry(url: string, entityName: string): Promise<any> {
+// Extended retry logic with longer timeouts for large accounts
+async function fetchWithRetry(url: string, entityName: string, customTimeoutMs?: number): Promise<any> {
+  const timeoutMs = customTimeoutMs || (entityName === 'INSIGHTS' ? 90000 : 60000);
+  
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const data = await simpleFetch(url);
+    const data = await simpleFetch(url, undefined, timeoutMs);
     if (!data.error) {
       if ((!data.data || data.data.length === 0) && entityName !== 'ADIMAGES') {
         console.log(`[${entityName}] Empty response - no data returned`);
       }
       return data;
     }
-    console.log(`[${entityName}] API Error: ${JSON.stringify(data.error).substring(0, 300)}`);
+    
+    const errMsg = data.error?.message || '';
+    console.log(`[${entityName}] API Error (attempt ${attempt + 1}): ${JSON.stringify(data.error).substring(0, 300)}`);
+    
+    // Handle abort/timeout errors with retry
+    if (errMsg.includes('aborted') || errMsg.includes('timeout')) {
+      if (attempt < MAX_RETRIES) {
+        const waitTime = VALIDATION_RETRY_DELAYS[attempt] || 30000;
+        console.log(`[${entityName}] Timeout, retry ${attempt + 1}/${MAX_RETRIES} in ${waitTime / 1000}s...`);
+        await delay(waitTime);
+        continue;
+      }
+    }
+    
     if (isTokenExpiredError(data)) return data;
     if (isRateLimitError(data) && attempt < MAX_RETRIES) {
       const waitTime = VALIDATION_RETRY_DELAYS[attempt] || 30000;
@@ -552,13 +571,32 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
   const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,results,cost_per_result,actions,action_values,conversions,cost_per_action_type,website_ctr,inline_link_clicks,outbound_clicks,instagram_profile_visits';
   
   const timeRange = JSON.stringify({ since, until });
-  let url = `https://graph.facebook.com/v22.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&action_breakdowns=action_type&access_token=${token}`;
+  let url: string | null = `https://graph.facebook.com/v22.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&action_breakdowns=action_type&access_token=${token}`;
   
   let totalRows = 0;
   let firstRowLogged = false;
+  let pageCount = 0;
+  
+  console.log(`[INSIGHTS] Starting fetch for period ${since} to ${until}...`);
   
   while (url) {
-    const data = await fetchWithRetry(url, 'INSIGHTS');
+    pageCount++;
+    console.log(`[INSIGHTS] Fetching page ${pageCount}...`);
+    
+    const data = await fetchWithRetry(url, 'INSIGHTS', 90000);
+    
+    // Handle errors gracefully
+    if (data.error) {
+      console.log(`[INSIGHTS] Error on page ${pageCount}: ${data.error.message}`);
+      // Continue with what we have if we got some data
+      if (totalRows > 0) {
+        console.log(`[INSIGHTS] Partial data: ${totalRows} rows from ${pageCount - 1} pages`);
+        break;
+      }
+      // Return empty if we have no data at all
+      return dailyInsights;
+    }
+    
     if (data.data) {
       for (const row of data.data) {
         // Log ALL action_types from every row to find profile visits
@@ -595,9 +633,11 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
           totalRows++;
         }
       }
+      console.log(`[INSIGHTS] Page ${pageCount} processed: ${data.data.length} rows, total: ${totalRows}`);
     }
+    
     url = data.paging?.next || null;
-    if (url) await delay(200);
+    if (url) await delay(300); // Slightly longer delay between pages for large accounts
   }
   
   console.log(`[INSIGHTS] Total rows: ${totalRows}, Unique ads: ${dailyInsights.size}`);
