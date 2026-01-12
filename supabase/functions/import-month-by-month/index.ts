@@ -246,13 +246,14 @@ Deno.serve(async (req) => {
     
     // Trigger next month if chain mode is enabled
     let nextMonthTriggered = false;
-    if (continue_chain && status === 'success' && totalRecords > 0) {
+    if (continue_chain && status === 'success') {
       const nextMonth = getNextMonth(year, month);
       if (nextMonth) {
-        console.log(`[MONTH-IMPORT] Waiting 30s before next month...`);
+        // Shorter delay (10 seconds) since rate limit check is at the start
+        const delayTime = totalRecords > 0 ? 15000 : 5000;
+        console.log(`[MONTH-IMPORT] Waiting ${delayTime/1000}s before next month...`);
         
-        // Longer delay (30 seconds) to avoid rate limits
-        await delay(30000);
+        await delay(delayTime);
         
         console.log(`[MONTH-IMPORT] Triggering next: ${getMonthName(nextMonth.month)} ${nextMonth.year}`);
         
@@ -275,9 +276,6 @@ Deno.serve(async (req) => {
       } else {
         console.log('[MONTH-IMPORT] Reached current month, chain complete');
       }
-    } else if (continue_chain && totalRecords === 0) {
-      // If 0 records, stop the chain - likely rate limited
-      console.log('[MONTH-IMPORT] 0 records returned, stopping chain to avoid rate limit issues');
     }
     
     console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year} completed`);
