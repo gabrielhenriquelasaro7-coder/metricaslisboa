@@ -139,6 +139,7 @@ Deno.serve(async (req) => {
     // Get custom MQL/SQL stage mapping
     const customMqlStages = connection.mql_stage_ids as string[] | null;
     const customSqlStages = connection.sql_stage_ids as string[] | null;
+    const funnelCardsConfig = connection.funnel_cards_config;
     const hasCustomMapping = (customMqlStages && customMqlStages.length > 0) || (customSqlStages && customSqlStages.length > 0);
 
     // Get deal statistics - filter by pipeline if selected
@@ -384,6 +385,7 @@ Deno.serve(async (req) => {
         selected_pipeline_id: selectedPipelineId,
         mql_stage_ids: customMqlStages || [],
         sql_stage_ids: customSqlStages || [],
+        funnel_cards_config: funnelCardsConfig || null,
         pipelines,
         stages, // ALL stages from Kommo
         deals,  // Deals with all UTMs and custom fields

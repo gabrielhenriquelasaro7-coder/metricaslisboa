@@ -67,6 +67,7 @@ interface FunnelCardsConfigProps {
   connectionId: string;
   stages: Stage[];
   currentConfig?: FunnelCard[];
+  totalDeals?: number; // Total real de deals no CRM
   onSave?: () => void;
 }
 
@@ -126,6 +127,7 @@ export function FunnelCardsConfig({
   connectionId,
   stages,
   currentConfig,
+  totalDeals,
   onSave
 }: FunnelCardsConfigProps) {
   const [open, setOpen] = useState(false);
@@ -224,8 +226,9 @@ export function FunnelCardsConfig({
 
   const getTotalLeadsForCard = (card: FunnelCard) => {
     if (card.id === 'leads') {
-      // For leads card, count all leads or sum all stages
-      return stages.reduce((sum, s) => sum + (s.leads_count || 0), 0);
+      // For leads card, use totalDeals from CRM stats (real total)
+      // Fallback to sum of all stages if totalDeals not available
+      return totalDeals ?? stages.reduce((sum, s) => sum + (s.leads_count || 0), 0);
     }
     if (card.id === 'sales') {
       // For sales, count won deals (type 1)

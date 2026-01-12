@@ -40,6 +40,7 @@ interface InsideSalesFunnelProps {
   hasCRMData?: boolean;
   funnelConfig?: FunnelCard[];
   crmStages?: Stage[];
+  totalDeals?: number; // Total real de deals do CRM
   onRefresh?: () => void;
   isRefreshing?: boolean;
 }
@@ -53,6 +54,7 @@ export function InsideSalesFunnel({
   hasCRMData = false,
   funnelConfig,
   crmStages = [],
+  totalDeals,
   onRefresh,
   isRefreshing = false,
 }: InsideSalesFunnelProps) {
@@ -83,8 +85,10 @@ export function InsideSalesFunnel({
         let value = 0;
         
         if (card.id === 'leads') {
-          value = leads || crmStages.reduce((sum, s) => sum + (s.leads_count || 0), 0);
+          // Leads Recebidos = total de deals no CRM (não apenas os "não classificados")
+          value = totalDeals ?? leads ?? crmStages.reduce((sum, s) => sum + (s.leads_count || 0), 0);
         } else if (card.id === 'sales') {
+          // Vendas = deals ganhos
           value = sales || crmStages.filter(s => s.type === 1).reduce((sum, s) => sum + (s.leads_count || 0), 0);
         } else {
           // Sum leads from associated CRM stages

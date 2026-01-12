@@ -371,6 +371,7 @@ export default function Financial() {
                         connectionId={crmStatus.connection_id}
                         stages={crmStatus.stages}
                         currentConfig={crmStatus.funnel_cards_config as FunnelCard[] | undefined}
+                        totalDeals={crmStatus?.stats?.total_deals}
                         onSave={() => {
                           setTimeout(() => fetchStatus(), 500);
                         }}
@@ -415,6 +416,7 @@ export default function Financial() {
                   hasCRMData={crmStatus?.connected && (crmMetrics.mql > 0 || crmMetrics.sql > 0 || crmMetrics.sales > 0)}
                   funnelConfig={crmStatus?.funnel_cards_config as FunnelCard[] | undefined}
                   crmStages={crmStatus?.stages}
+                  totalDeals={crmStatus?.stats?.total_deals}
                   onRefresh={() => fetchStatus()}
                   isRefreshing={crmLoading}
                 />
