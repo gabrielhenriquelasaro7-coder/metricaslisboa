@@ -1103,6 +1103,122 @@ export type Database = {
           },
         ]
       }
+      dre_history: {
+        Row: {
+          ad_spend_google: number | null
+          ad_spend_meta: number | null
+          ad_spend_other: number | null
+          average_ticket: number | null
+          cac: number | null
+          closed_at: string | null
+          contribution_margin: number | null
+          conversion_rate: number | null
+          cpl: number | null
+          created_at: string
+          custom_deductions: Json | null
+          custom_expenses: Json | null
+          deductions: number | null
+          ebitda: number | null
+          gross_revenue: number | null
+          id: string
+          month: number
+          net_revenue: number | null
+          notes: string | null
+          operational_expenses: number | null
+          period_end: string
+          period_start: string
+          project_id: string
+          roas: number | null
+          status: string
+          total_ad_spend: number | null
+          total_leads: number | null
+          total_mql: number | null
+          total_sales: number | null
+          total_sql: number | null
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          ad_spend_google?: number | null
+          ad_spend_meta?: number | null
+          ad_spend_other?: number | null
+          average_ticket?: number | null
+          cac?: number | null
+          closed_at?: string | null
+          contribution_margin?: number | null
+          conversion_rate?: number | null
+          cpl?: number | null
+          created_at?: string
+          custom_deductions?: Json | null
+          custom_expenses?: Json | null
+          deductions?: number | null
+          ebitda?: number | null
+          gross_revenue?: number | null
+          id?: string
+          month: number
+          net_revenue?: number | null
+          notes?: string | null
+          operational_expenses?: number | null
+          period_end: string
+          period_start: string
+          project_id: string
+          roas?: number | null
+          status?: string
+          total_ad_spend?: number | null
+          total_leads?: number | null
+          total_mql?: number | null
+          total_sales?: number | null
+          total_sql?: number | null
+          updated_at?: string
+          user_id: string
+          year: number
+        }
+        Update: {
+          ad_spend_google?: number | null
+          ad_spend_meta?: number | null
+          ad_spend_other?: number | null
+          average_ticket?: number | null
+          cac?: number | null
+          closed_at?: string | null
+          contribution_margin?: number | null
+          conversion_rate?: number | null
+          cpl?: number | null
+          created_at?: string
+          custom_deductions?: Json | null
+          custom_expenses?: Json | null
+          deductions?: number | null
+          ebitda?: number | null
+          gross_revenue?: number | null
+          id?: string
+          month?: number
+          net_revenue?: number | null
+          notes?: string | null
+          operational_expenses?: number | null
+          period_end?: string
+          period_start?: string
+          project_id?: string
+          roas?: number | null
+          status?: string
+          total_ad_spend?: number | null
+          total_leads?: number | null
+          total_mql?: number | null
+          total_sales?: number | null
+          total_sql?: number | null
+          updated_at?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_ad_groups: {
         Row: {
           campaign_id: string

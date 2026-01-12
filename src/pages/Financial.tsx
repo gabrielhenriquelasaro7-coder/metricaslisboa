@@ -21,6 +21,8 @@ import {
   CompleteDRE,
   StagesMappingConfig,
   FunnelCardsConfig,
+  DREPeriodSelector,
+  DREHistoryDialog,
 } from '@/components/financial';
 import type { FunnelCard } from '@/components/financial';
 import type { DREPeriod } from '@/components/financial/CompleteDRE';
@@ -72,6 +74,7 @@ function getDateRangeFromPeriod(period: DREPeriod): { startDate: string; endDate
       start = startOfMonth(lastMonth);
       end = endOfMonth(lastMonth);
       break;
+    case 'custom':
     default:
       start = subDays(today, 30);
   }
@@ -209,6 +212,8 @@ export default function Financial() {
 
   const BusinessModelIcon = businessModelInfo?.icon || Users;
 
+  const [showDREHistory, setShowDREHistory] = useState(false);
+
   return (
     <DashboardLayout>
       <div className="space-y-8 pb-8 pt-4 sm:pt-0">
@@ -234,7 +239,23 @@ export default function Financial() {
               </div>
             </div>
           </div>
+          
+          {/* Period Selector */}
+          <DREPeriodSelector 
+            value={drePeriod} 
+            onChange={setDrePeriod}
+            onOpenHistory={() => setShowDREHistory(true)}
+          />
         </div>
+
+        {/* DRE History Dialog */}
+        {selectedProjectId && (
+          <DREHistoryDialog
+            open={showDREHistory}
+            onOpenChange={setShowDREHistory}
+            projectId={selectedProjectId}
+          />
+        )}
 
         {/* Content based on business model */}
         {/* For infoproduto/ecommerce - show DRE without CRM requirement */}
