@@ -245,17 +245,76 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
   // ADS - campos essenciais + creative para extração de texto e imagem
   // Inclui thumbnail_url, image_url, effective_object_story_id para fallback de imagens
   // body, title, call_to_action_type são campos diretos do creative para fallback de texto
-  const adsFields = lightSync 
-    ? 'id,name,status,adset_id,campaign_id,creative{id,object_story_spec,asset_feed_spec,thumbnail_url,body,title,call_to_action_type}'
-    : 'id,name,status,adset_id,campaign_id,creative{id,image_hash,object_story_spec,asset_feed_spec,thumbnail_url,image_url,body,title,call_to_action_type}';
+  const adsFieldsFull = 'id,name,status,adset_id,campaign_id,creative{id,image_hash,object_story_spec,asset_feed_spec,thumbnail_url,image_url,body,title,call_to_action_type}';
+  const adsFieldsLight = 'id,name,status,adset_id,campaign_id,creative{id,object_story_spec,asset_feed_spec,thumbnail_url,body,title,call_to_action_type}';
+  const adsFieldsMinimal = 'id,name,status,adset_id,campaign_id,creative{id}';
+  
+  let adsFields = lightSync ? adsFieldsLight : adsFieldsFull;
+  let needsSeparateCreativeFetch = false;
+  
   url = `https://graph.facebook.com/v22.0/${adAccountId}/ads?fields=${adsFields}&limit=200&effective_status=${effectiveStatusFilter}&access_token=${token}`;
   console.log(`[ADS-QUERY] ${lightSync ? 'LIGHT' : 'FULL'} SYNC - fetching ads...`);
   
   while (url) {
     const data = await fetchWithRetry(url, 'ADS'); 
     if (isTokenExpiredError(data)) return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), creativeThumbnailHDMap: new Map(), tokenExpired: true }; 
+    
+    // Se erro de payload muito grande, tentar com campos mínimos
+    if (data.error?.code === 1 || data.error?.message?.includes('reduce the amount of data')) {
+      console.log(`[ADS] Payload too large, retrying with minimal fields...`);
+      needsSeparateCreativeFetch = true;
+      
+      // Reset e tentar com campos mínimos
+      url = `https://graph.facebook.com/v22.0/${adAccountId}/ads?fields=${adsFieldsMinimal}&limit=500&effective_status=${effectiveStatusFilter}&access_token=${token}`;
+      
+      while (url) {
+        const minimalData = await fetchWithRetry(url, 'ADS-MINIMAL');
+        if (isTokenExpiredError(minimalData)) return { campaigns, adsets, ads: [], adImageMap: new Map(), videoThumbnailMap: new Map(), creativeDataMap: new Map(), cachedCreativeMap, adPreviewMap: new Map(), immediateCache: new Map(), creativeThumbnailHDMap: new Map(), tokenExpired: true };
+        if (minimalData.data) ads.push(...minimalData.data);
+        url = minimalData.paging?.next || null;
+      }
+      break; // Sair do loop principal
+    }
+    
     if (data.data) ads.push(...data.data); 
     url = data.paging?.next || null; 
+  }
+  
+  // ===========================================================================================
+  // SE PRECISOU USAR CAMPOS MÍNIMOS, BUSCAR CRIATIVOS SEPARADAMENTE
+  // Busca dados de criativo para cada ad individualmente em batches
+  // ===========================================================================================
+  if (needsSeparateCreativeFetch && ads.length > 0 && !lightSync) {
+    console.log(`[CREATIVE-BATCH] Fetching creative details for ${ads.length} ads...`);
+    
+    // Buscar criativos em batches de 50
+    const creativeIds = ads.map(ad => ad.creative?.id).filter(Boolean);
+    const uniqueCreativeIds = [...new Set(creativeIds)];
+    
+    console.log(`[CREATIVE-BATCH] Found ${uniqueCreativeIds.length} unique creative IDs`);
+    
+    for (let i = 0; i < uniqueCreativeIds.length; i += 50) {
+      const batch = uniqueCreativeIds.slice(i, i + 50);
+      const batchIds = batch.join(',');
+      
+      const creativeUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,image_hash,object_story_spec,asset_feed_spec,thumbnail_url,body,title,call_to_action_type&access_token=${token}`;
+      const creativeData = await simpleFetch(creativeUrl, undefined, 30000);
+      
+      if (creativeData && !creativeData.error) {
+        // Mapear criativos de volta para os ads
+        for (const ad of ads) {
+          const creativeId = ad.creative?.id;
+          if (creativeId && creativeData[creativeId]) {
+            ad.creative = { ...ad.creative, ...creativeData[creativeId] };
+          }
+        }
+        console.log(`[CREATIVE-BATCH] Batch ${Math.floor(i/50) + 1}: enriched ${batch.length} creatives`);
+      } else if (creativeData?.error) {
+        console.log(`[CREATIVE-BATCH] Batch error: ${creativeData.error.message?.substring(0, 100)}`);
+      }
+      
+      if (i + 50 < uniqueCreativeIds.length) await delay(300);
+    }
   }
 
   console.log(`[ENTITIES] Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}`);
