@@ -160,16 +160,16 @@ export function FinancialMetricsGrid({
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid gap-2 sm:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {[1, 2, 3, 4, 5].map((i) => (
           <Card key={i} className="animate-pulse">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div className="h-4 w-24 bg-muted rounded" />
-              <div className="h-4 w-4 bg-muted rounded" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-4">
+              <div className="h-3 sm:h-4 w-16 sm:w-24 bg-muted rounded" />
+              <div className="h-3 sm:h-4 w-3 sm:w-4 bg-muted rounded" />
             </CardHeader>
-            <CardContent>
-              <div className="h-8 w-32 bg-muted rounded mb-2" />
-              <div className="h-3 w-20 bg-muted rounded" />
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <div className="h-6 sm:h-8 w-24 sm:w-32 bg-muted rounded mb-1 sm:mb-2" />
+              <div className="h-2.5 sm:h-3 w-16 sm:w-20 bg-muted rounded" />
             </CardContent>
           </Card>
         ))}
@@ -178,7 +178,7 @@ export function FinancialMetricsGrid({
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+    <div className="grid gap-2 sm:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {displayMetrics.map((metric) => {
         const Icon = metric.icon;
         const TrendIcon = metric.trend === 'up' ? ArrowUpRight : ArrowDownRight;
@@ -189,30 +189,30 @@ export function FinancialMetricsGrid({
             className="relative overflow-hidden group hover:border-primary/30 transition-colors"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-4">
+              <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground truncate pr-2">
                 {metric.label}
               </CardTitle>
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Icon className="h-4 w-4 text-primary" />
+              <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 flex-shrink-0">
+                <Icon className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold tracking-tight">
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <div className="text-base sm:text-2xl font-bold tracking-tight truncate">
                 {metric.value}
               </div>
               {metric.change !== undefined && (
-                <div className="flex items-center gap-1 mt-1">
+                <div className="flex items-center gap-0.5 sm:gap-1 mt-0.5 sm:mt-1">
                   <div className={cn(
-                    "flex items-center gap-0.5 text-xs font-medium",
+                    "flex items-center gap-0.5 text-[10px] sm:text-xs font-medium",
                     metric.trend === 'up' && "text-metric-positive",
                     metric.trend === 'down' && "text-metric-negative",
                     metric.trend === 'neutral' && "text-muted-foreground"
                   )}>
-                    <TrendIcon className="h-3 w-3" />
+                    <TrendIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                     {Math.abs(metric.change)}%
                   </div>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">
                     {metric.changeLabel}
                   </span>
                 </div>

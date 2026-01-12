@@ -130,16 +130,16 @@ export function KanbanFilters({ deals, filters, onFiltersChange }: KanbanFilters
   };
 
   return (
-    <div className="space-y-3">
-      {/* Search and Quick Actions */}
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
+    <div className="space-y-2 sm:space-y-3">
+      {/* Search and Quick Actions - Mobile Optimized */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        {/* Search - Full width on mobile */}
+        <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-xs">
           <Input
             placeholder="Buscar lead..."
             value={filters.search}
             onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
-            className="h-9 pr-8"
+            className="h-8 sm:h-9 pr-8 text-sm"
           />
           {filters.search && (
             <button
@@ -151,267 +151,280 @@ export function KanbanFilters({ deals, filters, onFiltersChange }: KanbanFilters
           )}
         </div>
 
-        {/* Date Range Filter */}
-        <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
-          <PopoverTrigger asChild>
-            <Button 
-              variant={filters.dateRange.from ? "secondary" : "outline"} 
-              size="sm" 
-              className="h-9 gap-2"
-            >
-              <Calendar className="h-4 w-4" />
-              {filters.dateRange.from ? formatDateRange() : 'Período'}
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <div className="flex">
-              {/* Quick Options */}
-              <div className="border-r p-2 space-y-1">
-                <p className="text-xs font-medium text-muted-foreground px-2 py-1">Atalhos</p>
-                {QUICK_DATE_OPTIONS.map((option) => (
-                  <button
-                    key={option.label}
-                    onClick={() => handleQuickDate(option)}
-                    className="w-full text-left px-2 py-1.5 text-sm hover:bg-muted rounded-md transition-colors"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-                <button
-                  onClick={() => {
-                    onFiltersChange({ ...filters, dateRange: { from: undefined, to: undefined } });
-                    setIsDateOpen(false);
-                  }}
-                  className="w-full text-left px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted rounded-md transition-colors"
+        {/* Filter buttons - horizontal scroll on mobile */}
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-max">
+            {/* Date Range Filter */}
+            <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant={filters.dateRange.from ? "secondary" : "outline"} 
+                  size="sm" 
+                  className="h-7 sm:h-9 gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3"
                 >
-                  Limpar período
-                </button>
-              </div>
-              {/* Calendar */}
-              <div className="p-2">
-                <CalendarComponent
-                  mode="range"
-                  selected={{ from: filters.dateRange.from, to: filters.dateRange.to }}
-                  onSelect={(range) => {
-                    onFiltersChange({ 
-                      ...filters, 
-                      dateRange: { from: range?.from, to: range?.to } 
-                    });
-                  }}
-                  locale={ptBR}
-                  numberOfMonths={1}
-                />
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+                  <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">{filters.dateRange.from ? formatDateRange() : 'Período'}</span>
+                  <span className="sm:hidden">{filters.dateRange.from ? formatDateRange() : 'Data'}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <div className="flex flex-col sm:flex-row">
+                  {/* Quick Options */}
+                  <div className="border-b sm:border-b-0 sm:border-r p-2 space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground px-2 py-1">Atalhos</p>
+                    {QUICK_DATE_OPTIONS.map((option) => (
+                      <button
+                        key={option.label}
+                        onClick={() => handleQuickDate(option)}
+                        className="w-full text-left px-2 py-1.5 text-sm hover:bg-muted rounded-md transition-colors"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => {
+                        onFiltersChange({ ...filters, dateRange: { from: undefined, to: undefined } });
+                        setIsDateOpen(false);
+                      }}
+                      className="w-full text-left px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted rounded-md transition-colors"
+                    >
+                      Limpar período
+                    </button>
+                  </div>
+                  {/* Calendar */}
+                  <div className="p-2">
+                    <CalendarComponent
+                      mode="range"
+                      selected={{ from: filters.dateRange.from, to: filters.dateRange.to }}
+                      onSelect={(range) => {
+                        onFiltersChange({ 
+                          ...filters, 
+                          dateRange: { from: range?.from, to: range?.to } 
+                        });
+                      }}
+                      locale={ptBR}
+                      numberOfMonths={1}
+                    />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
-        {/* Status Filter */}
-        <Select
-          value={filters.status}
-          onValueChange={(value: 'all' | 'open' | 'won' | 'lost') => 
-            onFiltersChange({ ...filters, status: value })
-          }
-        >
-          <SelectTrigger className={cn(
-            "h-9 w-[130px]",
-            filters.status !== 'all' && "bg-secondary"
-          )}>
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="open">Em Aberto</SelectItem>
-            <SelectItem value="won">Ganhos</SelectItem>
-            <SelectItem value="lost">Perdidos</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Owner Filter */}
-        {filterOptions.owners.length > 0 && (
-          <Select
-            value={filters.owner || 'all'}
-            onValueChange={(value) => 
-              onFiltersChange({ ...filters, owner: value === 'all' ? null : value })
-            }
-          >
-            <SelectTrigger className={cn(
-              "h-9 w-[160px]",
-              filters.owner && "bg-secondary"
-            )}>
-              <User className="h-4 w-4 mr-2 shrink-0" />
-              <SelectValue placeholder="Responsável" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {filterOptions.owners.map((owner) => (
-                <SelectItem key={owner} value={owner}>{owner}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {/* UTM Campaign Filter */}
-        {filterOptions.utmCampaigns.length > 0 && (
-          <Select
-            value={filters.utmCampaign || 'all'}
-            onValueChange={(value) => 
-              onFiltersChange({ ...filters, utmCampaign: value === 'all' ? null : value })
-            }
-          >
-            <SelectTrigger className={cn(
-              "h-9 w-[180px]",
-              filters.utmCampaign && "bg-secondary"
-            )}>
-              <Tag className="h-4 w-4 mr-2 shrink-0" />
-              <span className="truncate">
-                {filters.utmCampaign ? filters.utmCampaign.slice(0, 20) + '...' : 'Campanha'}
-              </span>
-            </SelectTrigger>
-            <SelectContent className="max-w-[400px]">
-              <SelectItem value="all">Todas as Campanhas</SelectItem>
-              {filterOptions.utmCampaigns.map((campaign) => (
-                <SelectItem key={campaign} value={campaign} className="truncate">
-                  {campaign}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {/* Value Range Filter */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button 
-              variant={(filters.valueMin !== null || filters.valueMax !== null) ? "secondary" : "outline"} 
-              size="sm" 
-              className="h-9 gap-2"
+            {/* Status Filter */}
+            <Select
+              value={filters.status}
+              onValueChange={(value: 'all' | 'open' | 'won' | 'lost') => 
+                onFiltersChange({ ...filters, status: value })
+              }
             >
-              <DollarSign className="h-4 w-4" />
-              Valor
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-64 p-4" align="start">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="valueMin">Valor mínimo (R$)</Label>
-                <Input
-                  id="valueMin"
-                  type="number"
-                  placeholder="0"
-                  value={filters.valueMin ?? ''}
-                  onChange={(e) => onFiltersChange({ 
-                    ...filters, 
-                    valueMin: e.target.value ? Number(e.target.value) : null 
-                  })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="valueMax">Valor máximo (R$)</Label>
-                <Input
-                  id="valueMax"
-                  type="number"
-                  placeholder="Sem limite"
-                  value={filters.valueMax ?? ''}
-                  onChange={(e) => onFiltersChange({ 
-                    ...filters, 
-                    valueMax: e.target.value ? Number(e.target.value) : null 
-                  })}
-                />
-              </div>
+              <SelectTrigger className={cn(
+                "h-7 sm:h-9 w-[90px] sm:w-[130px] text-xs sm:text-sm",
+                filters.status !== 'all' && "bg-secondary"
+              )}>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="open">Em Aberto</SelectItem>
+                <SelectItem value="won">Ganhos</SelectItem>
+                <SelectItem value="lost">Perdidos</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Owner Filter - Hidden on small mobile */}
+            {filterOptions.owners.length > 0 && (
+              <Select
+                value={filters.owner || 'all'}
+                onValueChange={(value) => 
+                  onFiltersChange({ ...filters, owner: value === 'all' ? null : value })
+                }
+              >
+                <SelectTrigger className={cn(
+                  "h-7 sm:h-9 w-[100px] sm:w-[160px] text-xs sm:text-sm",
+                  filters.owner && "bg-secondary"
+                )}>
+                  <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2 shrink-0" />
+                  <span className="truncate">
+                    <SelectValue placeholder="Resp." />
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {filterOptions.owners.map((owner) => (
+                    <SelectItem key={owner} value={owner}>{owner}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* UTM Campaign Filter - Hidden on mobile */}
+            {filterOptions.utmCampaigns.length > 0 && (
+              <Select
+                value={filters.utmCampaign || 'all'}
+                onValueChange={(value) => 
+                  onFiltersChange({ ...filters, utmCampaign: value === 'all' ? null : value })
+                }
+              >
+                <SelectTrigger className={cn(
+                  "h-7 sm:h-9 w-[100px] sm:w-[180px] text-xs sm:text-sm hidden xs:flex",
+                  filters.utmCampaign && "bg-secondary"
+                )}>
+                  <Tag className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2 shrink-0" />
+                  <span className="truncate">
+                    {filters.utmCampaign ? filters.utmCampaign.slice(0, 12) + '...' : 'Camp.'}
+                  </span>
+                </SelectTrigger>
+                <SelectContent className="max-w-[300px] sm:max-w-[400px]">
+                  <SelectItem value="all">Todas</SelectItem>
+                  {filterOptions.utmCampaigns.map((campaign) => (
+                    <SelectItem key={campaign} value={campaign} className="truncate">
+                      {campaign}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Value Range Filter */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant={(filters.valueMin !== null || filters.valueMax !== null) ? "secondary" : "outline"} 
+                  size="sm" 
+                  className="h-7 sm:h-9 gap-1 text-xs sm:text-sm px-2 sm:px-3"
+                >
+                  <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Valor</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 sm:w-64 p-3 sm:p-4" align="start">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="valueMin" className="text-xs sm:text-sm">Valor mínimo (R$)</Label>
+                    <Input
+                      id="valueMin"
+                      type="number"
+                      placeholder="0"
+                      className="h-8 sm:h-9"
+                      value={filters.valueMin ?? ''}
+                      onChange={(e) => onFiltersChange({ 
+                        ...filters, 
+                        valueMin: e.target.value ? Number(e.target.value) : null 
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="valueMax" className="text-xs sm:text-sm">Valor máximo (R$)</Label>
+                    <Input
+                      id="valueMax"
+                      type="number"
+                      placeholder="Sem limite"
+                      className="h-8 sm:h-9"
+                      value={filters.valueMax ?? ''}
+                      onChange={(e) => onFiltersChange({ 
+                        ...filters, 
+                        valueMax: e.target.value ? Number(e.target.value) : null 
+                      })}
+                    />
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full h-8"
+                    onClick={() => onFiltersChange({ ...filters, valueMin: null, valueMax: null })}
+                  >
+                    Limpar
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Clear All Filters */}
+            {activeFilterCount > 0 && (
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="w-full"
-                onClick={() => onFiltersChange({ ...filters, valueMin: null, valueMax: null })}
+                className="h-7 sm:h-9 gap-1 text-xs sm:text-sm text-muted-foreground hover:text-foreground px-2"
+                onClick={clearAllFilters}
               >
-                Limpar
+                <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Limpar</span>
+                ({activeFilterCount})
               </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        {/* Clear All Filters */}
-        {activeFilterCount > 0 && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-9 gap-2 text-muted-foreground hover:text-foreground"
-            onClick={clearAllFilters}
-          >
-            <X className="h-4 w-4" />
-            Limpar ({activeFilterCount})
-          </Button>
-        )}
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Active Filters Display */}
+      {/* Active Filters Display - Mobile Optimized */}
       {activeFilterCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground">Filtros ativos:</span>
-          
-          {filters.dateRange.from && (
-            <Badge variant="secondary" className="gap-1 text-xs">
-              <Calendar className="h-3 w-3" />
-              {formatDateRange()}
-              <button onClick={() => onFiltersChange({ ...filters, dateRange: { from: undefined, to: undefined } })}>
-                <X className="h-3 w-3 ml-1" />
-              </button>
-            </Badge>
-          )}
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-max">
+            <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">Filtros:</span>
+            
+            {filters.dateRange.from && (
+              <Badge variant="secondary" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
+                <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                {formatDateRange()}
+                <button onClick={() => onFiltersChange({ ...filters, dateRange: { from: undefined, to: undefined } })}>
+                  <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-0.5" />
+                </button>
+              </Badge>
+            )}
 
-          {filters.status !== 'all' && (
-            <Badge variant="secondary" className="gap-1 text-xs">
-              <CheckCircle2 className="h-3 w-3" />
-              {filters.status === 'open' ? 'Em Aberto' : filters.status === 'won' ? 'Ganhos' : 'Perdidos'}
-              <button onClick={() => onFiltersChange({ ...filters, status: 'all' })}>
-                <X className="h-3 w-3 ml-1" />
-              </button>
-            </Badge>
-          )}
+            {filters.status !== 'all' && (
+              <Badge variant="secondary" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
+                <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                {filters.status === 'open' ? 'Aberto' : filters.status === 'won' ? 'Ganhos' : 'Perdidos'}
+                <button onClick={() => onFiltersChange({ ...filters, status: 'all' })}>
+                  <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-0.5" />
+                </button>
+              </Badge>
+            )}
 
-          {filters.owner && (
-            <Badge variant="secondary" className="gap-1 text-xs">
-              <User className="h-3 w-3" />
-              {filters.owner}
-              <button onClick={() => onFiltersChange({ ...filters, owner: null })}>
-                <X className="h-3 w-3 ml-1" />
-              </button>
-            </Badge>
-          )}
+            {filters.owner && (
+              <Badge variant="secondary" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 max-w-[100px] sm:max-w-none">
+                <User className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+                <span className="truncate">{filters.owner}</span>
+                <button onClick={() => onFiltersChange({ ...filters, owner: null })}>
+                  <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-0.5 shrink-0" />
+                </button>
+              </Badge>
+            )}
 
-          {filters.utmCampaign && (
-            <Badge variant="secondary" className="gap-1 text-xs max-w-[200px] truncate">
-              <Tag className="h-3 w-3 shrink-0" />
-              <span className="truncate">{filters.utmCampaign}</span>
-              <button onClick={() => onFiltersChange({ ...filters, utmCampaign: null })}>
-                <X className="h-3 w-3 ml-1 shrink-0" />
-              </button>
-            </Badge>
-          )}
+            {filters.utmCampaign && (
+              <Badge variant="secondary" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 max-w-[120px] sm:max-w-[200px]">
+                <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+                <span className="truncate">{filters.utmCampaign}</span>
+                <button onClick={() => onFiltersChange({ ...filters, utmCampaign: null })}>
+                  <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-0.5 shrink-0" />
+                </button>
+              </Badge>
+            )}
 
-          {(filters.valueMin !== null || filters.valueMax !== null) && (
-            <Badge variant="secondary" className="gap-1 text-xs">
-              <DollarSign className="h-3 w-3" />
-              {filters.valueMin !== null && `Min: R$${filters.valueMin}`}
-              {filters.valueMin !== null && filters.valueMax !== null && ' - '}
-              {filters.valueMax !== null && `Max: R$${filters.valueMax}`}
-              <button onClick={() => onFiltersChange({ ...filters, valueMin: null, valueMax: null })}>
-                <X className="h-3 w-3 ml-1" />
-              </button>
-            </Badge>
-          )}
+            {(filters.valueMin !== null || filters.valueMax !== null) && (
+              <Badge variant="secondary" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
+                <DollarSign className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                {filters.valueMin !== null && `${filters.valueMin}`}
+                {filters.valueMin !== null && filters.valueMax !== null && '-'}
+                {filters.valueMax !== null && `${filters.valueMax}`}
+                <button onClick={() => onFiltersChange({ ...filters, valueMin: null, valueMax: null })}>
+                  <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-0.5" />
+                </button>
+              </Badge>
+            )}
 
-          {filters.search && (
-            <Badge variant="secondary" className="gap-1 text-xs">
-              Busca: "{filters.search}"
-              <button onClick={() => onFiltersChange({ ...filters, search: '' })}>
-                <X className="h-3 w-3 ml-1" />
-              </button>
-            </Badge>
-          )}
+            {filters.search && (
+              <Badge variant="secondary" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 max-w-[100px] sm:max-w-none">
+                <span className="truncate">"{filters.search}"</span>
+                <button onClick={() => onFiltersChange({ ...filters, search: '' })}>
+                  <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-0.5" />
+                </button>
+              </Badge>
+            )}
+          </div>
         </div>
       )}
     </div>

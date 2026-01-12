@@ -201,9 +201,17 @@ export default function Financial() {
         {/* For infoproduto/ecommerce - show DRE without CRM requirement */}
         {(businessModel === 'infoproduto' || businessModel === 'ecommerce') && !connectedCRM ? (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex">
-              <TabsTrigger value="overview" className="gap-2"><LayoutDashboard className="w-4 h-4" /><span className="hidden sm:inline">Visão Geral</span></TabsTrigger>
-              <TabsTrigger value="dre" className="gap-2"><PieChart className="w-4 h-4" /><span className="hidden sm:inline">DRE Completo</span></TabsTrigger>
+            <TabsList className="inline-flex w-full sm:w-auto gap-1 p-1">
+              <TabsTrigger value="overview" className="flex-1 sm:flex-none gap-2 px-3 py-2 text-xs sm:text-sm">
+                <LayoutDashboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Visão Geral</span>
+                <span className="xs:hidden">Geral</span>
+              </TabsTrigger>
+              <TabsTrigger value="dre" className="flex-1 sm:flex-none gap-2 px-3 py-2 text-xs sm:text-sm">
+                <PieChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">DRE Completo</span>
+                <span className="sm:hidden">DRE</span>
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -214,64 +222,64 @@ export default function Financial() {
                 periodLabel="Últimos 30 dias" 
               />
 
-              {/* Overview metrics from ads */}
-              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+              {/* Overview metrics from ads - responsive grid */}
+              <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-4">
                 <Card className="bg-gradient-to-br from-blue-600/20 to-blue-900/30 border-blue-500/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-blue-200 uppercase tracking-wider">Receita Bruta</span>
-                      <DollarSign className="h-4 w-4 text-blue-400" />
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                      <span className="text-[10px] sm:text-xs font-medium text-blue-200 uppercase tracking-wider truncate">Receita</span>
+                      <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-400 flex-shrink-0" />
                     </div>
-                    <p className="text-2xl font-bold text-blue-100">
+                    <p className="text-lg sm:text-2xl font-bold text-blue-100">
                       R$ {(adsMetrics.revenue / 1000).toFixed(1)}k
                     </p>
-                    <p className="text-xs text-blue-300/70 mt-1">
-                      Conversion Value (Ads)
+                    <p className="text-[10px] sm:text-xs text-blue-300/70 mt-0.5 sm:mt-1 truncate">
+                      Conversion Value
                     </p>
                   </CardContent>
                 </Card>
 
                 <Card className="bg-gradient-to-br from-amber-600/20 to-amber-900/30 border-amber-500/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-amber-200 uppercase tracking-wider">Investimento</span>
-                      <Wallet className="h-4 w-4 text-amber-400" />
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                      <span className="text-[10px] sm:text-xs font-medium text-amber-200 uppercase tracking-wider truncate">Investido</span>
+                      <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-400 flex-shrink-0" />
                     </div>
-                    <p className="text-2xl font-bold text-amber-100">
+                    <p className="text-lg sm:text-2xl font-bold text-amber-100">
                       R$ {(totalAdSpend / 1000).toFixed(1)}k
                     </p>
-                    <p className="text-xs text-amber-300/70 mt-1">
-                      Meta + Google Ads
+                    <p className="text-[10px] sm:text-xs text-amber-300/70 mt-0.5 sm:mt-1 truncate">
+                      Meta + Google
                     </p>
                   </CardContent>
                 </Card>
 
                 <Card className="bg-gradient-to-br from-emerald-600/20 to-emerald-900/30 border-emerald-500/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-emerald-200 uppercase tracking-wider">ROAS</span>
-                      <TrendingUp className="h-4 w-4 text-emerald-400" />
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                      <span className="text-[10px] sm:text-xs font-medium text-emerald-200 uppercase tracking-wider">ROAS</span>
+                      <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-400 flex-shrink-0" />
                     </div>
-                    <p className="text-2xl font-bold text-emerald-100">
+                    <p className="text-lg sm:text-2xl font-bold text-emerald-100">
                       {(adsMetrics.revenue / (totalAdSpend || 1)).toFixed(2)}x
                     </p>
-                    <p className="text-xs text-emerald-300/70 mt-1">
-                      Retorno sobre investimento
+                    <p className="text-[10px] sm:text-xs text-emerald-300/70 mt-0.5 sm:mt-1 truncate">
+                      Retorno
                     </p>
                   </CardContent>
                 </Card>
 
                 <Card className="bg-gradient-to-br from-purple-600/20 to-purple-900/30 border-purple-500/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-purple-200 uppercase tracking-wider">Conversões</span>
-                      <ShoppingCart className="h-4 w-4 text-purple-400" />
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                      <span className="text-[10px] sm:text-xs font-medium text-purple-200 uppercase tracking-wider truncate">Conversões</span>
+                      <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-400 flex-shrink-0" />
                     </div>
-                    <p className="text-2xl font-bold text-purple-100">
+                    <p className="text-lg sm:text-2xl font-bold text-purple-100">
                       {adsMetrics.conversions.toLocaleString('pt-BR')}
                     </p>
-                    <p className="text-xs text-purple-300/70 mt-1">
-                      Vendas registradas
+                    <p className="text-[10px] sm:text-xs text-purple-300/70 mt-0.5 sm:mt-1 truncate">
+                      Vendas
                     </p>
                   </CardContent>
                 </Card>
@@ -319,23 +327,46 @@ export default function Financial() {
         ) : (
           /* With CRM connected - full experience */
           <Tabs defaultValue="overview" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
-                <TabsTrigger value="overview" className="gap-2"><LayoutDashboard className="w-4 h-4" /><span className="hidden sm:inline">Visão Geral</span></TabsTrigger>
-                <TabsTrigger value="funnel" className="gap-2"><BarChart3 className="w-4 h-4" /><span className="hidden sm:inline">Funil</span></TabsTrigger>
-                <TabsTrigger value="attribution" className="gap-2"><Target className="w-4 h-4" /><span className="hidden sm:inline">Atribuição</span></TabsTrigger>
-                <TabsTrigger value="roas" className="gap-2"><TrendingUp className="w-4 h-4" /><span className="hidden sm:inline">ROAS</span></TabsTrigger>
-                <TabsTrigger value="dre" className="gap-2"><PieChart className="w-4 h-4" /><span className="hidden sm:inline">DRE</span></TabsTrigger>
-              </TabsList>
+            {/* Header with tabs and pipeline selector */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {/* Tabs - horizontal scroll on mobile */}
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <TabsList className="inline-flex w-auto min-w-max gap-1 p-1">
+                  <TabsTrigger value="overview" className="gap-1.5 px-3 py-2 text-xs sm:text-sm">
+                    <LayoutDashboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline sm:inline">Visão Geral</span>
+                    <span className="xs:hidden">Geral</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="funnel" className="gap-1.5 px-3 py-2 text-xs sm:text-sm">
+                    <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>Funil</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="attribution" className="gap-1.5 px-3 py-2 text-xs sm:text-sm">
+                    <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Atribuição</span>
+                    <span className="sm:hidden">Atrib.</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="roas" className="gap-1.5 px-3 py-2 text-xs sm:text-sm">
+                    <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>ROAS</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="dre" className="gap-1.5 px-3 py-2 text-xs sm:text-sm">
+                    <PieChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>DRE</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
               
               {/* Pipeline Selector - only show for Kommo with multiple pipelines */}
               {crmStatus?.provider === 'kommo' && (crmStatus?.pipelines?.length || 0) > 0 && (
-                <PipelineSelector
-                  pipelines={crmStatus.pipelines || []}
-                  selectedPipelineId={crmStatus.selected_pipeline_id || null}
-                  onSelect={selectPipeline}
-                  isLoading={crmLoading}
-                />
+                <div className="flex-shrink-0">
+                  <PipelineSelector
+                    pipelines={crmStatus.pipelines || []}
+                    selectedPipelineId={crmStatus.selected_pipeline_id || null}
+                    onSelect={selectPipeline}
+                    isLoading={crmLoading}
+                  />
+                </div>
               )}
             </div>
 

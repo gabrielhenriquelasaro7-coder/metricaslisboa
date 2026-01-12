@@ -254,84 +254,85 @@ export function KanbanFunnel({
         onFiltersChange={setFilters} 
       />
 
-      {/* Overview Cards - Kommo Style */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Overview Cards - Kommo Style - Mobile Optimized */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
         <Card className="bg-gradient-to-br from-blue-600/20 to-blue-900/30 border-blue-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-blue-200 uppercase tracking-wider">
-                LEADS {filteredDeals.length !== deals.length && '(FILTRADO)'}
+          <CardContent className="p-2.5 sm:p-4">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-medium text-blue-200 uppercase tracking-wider truncate">
+                LEADS {filteredDeals.length !== deals.length && '(FILT.)'}
               </span>
-              <MessageSquare className="h-4 w-4 text-blue-400" />
+              <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 text-blue-400 flex-shrink-0" />
             </div>
-            <p className="text-3xl font-bold text-blue-100">{totalLeads}</p>
-            <p className="text-xs text-blue-300/70 mt-1">
+            <p className="text-xl sm:text-3xl font-bold text-blue-100">{totalLeads}</p>
+            <p className="text-[10px] sm:text-xs text-blue-300/70 mt-0.5 sm:mt-1 truncate">
               {filteredDeals.length !== deals.length 
-                ? `de ${deals.length} total • ${formatCurrency(totalValue)} em pipeline`
-                : `${formatCurrency(totalValue)} em pipeline`
+                ? `de ${deals.length} total`
+                : formatCurrency(totalValue)
               }
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-amber-600/20 to-amber-900/30 border-amber-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-amber-200 uppercase tracking-wider">EM NEGOCIAÇÃO</span>
-              <Timer className="h-4 w-4 text-amber-400" />
+          <CardContent className="p-2.5 sm:p-4">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-medium text-amber-200 uppercase tracking-wider truncate">NEGOCIAÇÃO</span>
+              <Timer className="h-3 w-3 sm:h-4 sm:w-4 text-amber-400 flex-shrink-0" />
             </div>
-            <p className="text-3xl font-bold text-amber-100">
+            <p className="text-xl sm:text-3xl font-bold text-amber-100">
               {filteredDeals.filter(d => d.status === 'open').length}
             </p>
-            <p className="text-xs text-amber-300/70 mt-1">leads ativos</p>
+            <p className="text-[10px] sm:text-xs text-amber-300/70 mt-0.5 sm:mt-1">leads ativos</p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-purple-600/20 to-purple-900/30 border-purple-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-purple-200 uppercase tracking-wider">ETAPAS DO FUNIL</span>
-              <AlertCircle className="h-4 w-4 text-purple-400" />
+          <CardContent className="p-2.5 sm:p-4">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-medium text-purple-200 uppercase tracking-wider truncate">ETAPAS</span>
+              <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-purple-400 flex-shrink-0" />
             </div>
-            <p className="text-3xl font-bold text-purple-100">{openStages.length}</p>
-            <p className="text-xs text-purple-300/70 mt-1">etapas configuradas</p>
+            <p className="text-xl sm:text-3xl font-bold text-purple-100">{openStages.length}</p>
+            <p className="text-[10px] sm:text-xs text-purple-300/70 mt-0.5 sm:mt-1 truncate">configuradas</p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-emerald-600/20 to-emerald-900/30 border-emerald-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-emerald-200 uppercase tracking-wider">VALOR TOTAL</span>
-              <DollarSign className="h-4 w-4 text-emerald-400" />
+          <CardContent className="p-2.5 sm:p-4">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-medium text-emerald-200 uppercase tracking-wider truncate">VALOR</span>
+              <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-400 flex-shrink-0" />
             </div>
-            <p className="text-3xl font-bold text-emerald-100">
+            <p className="text-xl sm:text-3xl font-bold text-emerald-100">
               {formatCurrency(totalValue)}
             </p>
-            <p className="text-xs text-emerald-300/70 mt-1">em oportunidades</p>
+            <p className="text-[10px] sm:text-xs text-emerald-300/70 mt-0.5 sm:mt-1 truncate">oportunidades</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Funnel Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h3 className="font-semibold text-lg">Funil de Vendas</h3>
-          <Badge variant="outline" className="text-xs">
-            {totalLeads} leads {filteredDeals.length !== deals.length && `de ${deals.length}`}
+      {/* Funnel Header - Mobile Optimized */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <h3 className="font-semibold text-base sm:text-lg">Funil de Vendas</h3>
+          <Badge variant="outline" className="text-[10px] sm:text-xs">
+            {totalLeads} {filteredDeals.length !== deals.length && `/ ${deals.length}`}
           </Badge>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={scrollLeft} className="h-8 w-8">
-            <ChevronLeft className="h-4 w-4" />
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Button variant="outline" size="icon" onClick={scrollLeft} className="h-7 w-7 sm:h-8 sm:w-8">
+            <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={scrollRight} className="h-8 w-8">
-            <ChevronRight className="h-4 w-4" />
+          <Button variant="outline" size="icon" onClick={scrollRight} className="h-7 w-7 sm:h-8 sm:w-8">
+            <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
           {crmUrl && (
-            <Button variant="outline" size="sm" className="gap-2" asChild>
+            <Button variant="outline" size="sm" className="gap-1.5 h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3" asChild>
               <a href={crmUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4" />
-                Abrir Kommo
+                <ExternalLink className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Abrir Kommo</span>
+                <span className="sm:hidden">Kommo</span>
               </a>
             </Button>
           )}
