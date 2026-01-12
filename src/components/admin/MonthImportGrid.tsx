@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMonthImportStatus, MonthImportRecord, MonthStatus } from '@/hooks/useMonthImportStatus';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -77,17 +77,36 @@ function MonthCell({
   month,
   monthIndex,
   year,
-  onRetry, 
+  onRetryLight,
+  onRetryHD,
   isRetrying,
   isFuture
 }: { 
   month: MonthImportRecord | null;
   monthIndex: number;
   year: number;
-  onRetry?: () => void;
+  onRetryLight?: () => void;
+  onRetryHD?: () => void;
   isRetrying?: boolean;
   isFuture?: boolean;
 }) {
+  const [showOptions, setShowOptions] = useState(false);
+  const optionsRef = useRef<HTMLDivElement>(null);
+  
+  // Close options when clicking outside
+  useEffect(() => {
+    if (!showOptions) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
+        setShowOptions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showOptions]);
+  
   if (isFuture) {
     return (
       <div className="flex flex-col items-center">
@@ -99,16 +118,30 @@ function MonthCell({
     );
   }
 
+  const handleClick = () => {
+    if (isRetrying) return;
+    setShowOptions(true);
+  };
+
+  const handleOptionClick = (mode: 'light' | 'hd') => {
+    setShowOptions(false);
+    if (mode === 'light') {
+      onRetryLight?.();
+    } else {
+      onRetryHD?.();
+    }
+  };
+
   // Se não tem registro do mês, ainda pode importar
   if (!month) {
     return (
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center relative">
               <span className="text-[10px] text-muted-foreground/70 mb-1 font-medium">{MONTH_NAMES[monthIndex]}</span>
               <button
-                onClick={onRetry}
+                onClick={handleClick}
                 disabled={isRetrying}
                 className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-xl border border-dashed border-border/50 bg-muted/10 hover:bg-primary/10 hover:border-primary/50 transition-all cursor-pointer hover:scale-110"
               >
@@ -118,6 +151,24 @@ function MonthCell({
                   <Play className="w-4 h-4 text-muted-foreground hover:text-primary" />
                 )}
               </button>
+              {showOptions && (
+                <div ref={optionsRef} className="absolute top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg p-1 flex flex-col gap-0.5 min-w-[100px]">
+                  <button
+                    onClick={() => handleOptionClick('light')}
+                    className="flex items-center gap-1.5 px-2 py-1.5 text-xs rounded hover:bg-muted/50 text-left"
+                  >
+                    <Zap className="w-3 h-3 text-yellow-500" />
+                    Light
+                  </button>
+                  <button
+                    onClick={() => handleOptionClick('hd')}
+                    className="flex items-center gap-1.5 px-2 py-1.5 text-xs rounded hover:bg-muted/50 text-left font-medium"
+                  >
+                    <Image className="w-3 h-3 text-primary" />
+                    HD Total
+                  </button>
+                </div>
+              )}
             </div>
           </TooltipTrigger>
           <TooltipContent side="top" className="bg-popover/95 backdrop-blur-sm">
@@ -126,7 +177,7 @@ function MonthCell({
               <p className="text-xs text-muted-foreground">Nunca importado</p>
               <p className="text-xs text-primary font-medium flex items-center gap-1">
                 <Play className="w-3 h-3" />
-                Clique para importar
+                Clique para escolher modo
               </p>
             </div>
           </TooltipContent>
@@ -142,7 +193,7 @@ function MonthCell({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center relative">
             <span className={cn("text-[10px] mb-1 font-medium", styles.text)}>{MONTH_NAMES[monthIndex]}</span>
             <button
               className={cn(
@@ -153,7 +204,7 @@ function MonthCell({
                 isImporting && 'cursor-not-allowed',
                 styles.glow && `hover:shadow-lg ${styles.glow}`
               )}
-              onClick={!isImporting ? onRetry : undefined}
+              onClick={!isImporting ? handleClick : undefined}
               disabled={isRetrying || isImporting}
             >
               {isRetrying ? (
@@ -174,6 +225,24 @@ function MonthCell({
                   ? `${(month.records_count / 1000).toFixed(1)}k` 
                   : month.records_count}
               </span>
+            )}
+            {showOptions && !isImporting && (
+              <div ref={optionsRef} className="absolute top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg p-1 flex flex-col gap-0.5 min-w-[100px]">
+                <button
+                  onClick={() => handleOptionClick('light')}
+                  className="flex items-center gap-1.5 px-2 py-1.5 text-xs rounded hover:bg-muted/50 text-left"
+                >
+                  <Zap className="w-3 h-3 text-yellow-500" />
+                  Light
+                </button>
+                <button
+                  onClick={() => handleOptionClick('hd')}
+                  className="flex items-center gap-1.5 px-2 py-1.5 text-xs rounded hover:bg-muted/50 text-left font-medium"
+                >
+                  <Image className="w-3 h-3 text-primary" />
+                  HD Total
+                </button>
+              </div>
             )}
           </div>
         </TooltipTrigger>
@@ -203,7 +272,7 @@ function MonthCell({
             {!isImporting && (
               <p className="text-xs text-primary font-medium pt-1 flex items-center gap-1">
                 <RotateCcw className="w-3 h-3" />
-                Clique para reimportar
+                Clique para escolher modo
               </p>
             )}
           </div>
@@ -426,7 +495,8 @@ function ProjectMonthGrid({ projectId, projectName }: { projectId: string; proje
                     month={monthRecord || null}
                     monthIndex={i}
                     year={year}
-                    onRetry={() => retryMonth(year, monthNum)}
+                    onRetryLight={() => retryMonth(year, monthNum, true)}
+                    onRetryHD={() => retryMonth(year, monthNum, false)}
                     isRetrying={isRetrying === retryKey}
                     isFuture={isFuture}
                   />
