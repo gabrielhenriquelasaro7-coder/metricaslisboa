@@ -2497,6 +2497,10 @@ export type Database = {
         Returns: boolean
       }
       trigger_whatsapp_weekly_reports: { Args: never; Returns: undefined }
+      user_has_project_access: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "gestor" | "convidado"
