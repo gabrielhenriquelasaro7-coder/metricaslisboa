@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import MonthImportGrid from '@/components/admin/MonthImportGrid';
 import SyncHealthMonitor from '@/components/admin/SyncHealthMonitor';
 import SyncHistoryChart from '@/components/admin/SyncHistoryChart';
+import { ExportDataButton } from '@/components/admin/ExportDataButton';
 import { 
   Database, 
   CheckCircle2, 
@@ -746,6 +747,41 @@ function AdminContent() {
 
                 <p className="text-xs text-muted-foreground text-center">
                   A documentação é gerada com base na estrutura atual do sistema.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Export Data Card */}
+            <Card className="glass-card border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="w-5 h-5 text-primary" />
+                  Exportar Dados do Sistema
+                </CardTitle>
+                <CardDescription>
+                  Exporte todos os dados do banco de dados em formato JSON para backup ou migração.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <h4 className="font-medium text-sm">A exportação inclui:</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>✓ Todos os projetos e configurações</li>
+                    <li>✓ Campanhas, Conjuntos e Anúncios</li>
+                    <li>✓ Métricas diárias (Meta e Google)</li>
+                    <li>✓ Leads e formulários</li>
+                    <li>✓ Conexões CRM e deals</li>
+                    <li>✓ Histórico de otimizações</li>
+                    <li>✓ Configurações de metas</li>
+                    <li>✓ Insights demográficos</li>
+                    <li>✓ Histórico DRE</li>
+                  </ul>
+                </div>
+
+                <ExportDataButton />
+
+                <p className="text-xs text-muted-foreground text-center">
+                  ⚠️ A exportação pode demorar alguns minutos dependendo do volume de dados.
                 </p>
               </CardContent>
             </Card>
