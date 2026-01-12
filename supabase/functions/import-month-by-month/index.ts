@@ -201,30 +201,78 @@ Deno.serve(async (req) => {
     
     console.log(`[MONTH-IMPORT] Syncing ${since} to ${until} | light_sync: ${useLightSync}`);
     
-    // Call meta-ads-sync for the entire month
-    // REGRA: light_sync baseado no tamanho da conta
-    const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-      },
-      body: JSON.stringify({
-        project_id,
-        ad_account_id: accountId,
-        time_range: { since, until },
-        light_sync: useLightSync,
-        skip_image_cache: useLightSync,
-      }),
-    });
+    // Call meta-ads-sync for the entire month with extended timeout
+    // HD sync pode demorar muito para cachear imagens
+    const controller = new AbortController();
+    const timeoutMs = useLightSync ? 120000 : 300000; // 2min for light, 5min for HD
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
-    const syncResult = await syncResponse.json();
+    let syncResponse: Response;
+    let syncResult: any;
+    
+    try {
+      syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          project_id,
+          ad_account_id: accountId,
+          time_range: { since, until },
+          light_sync: useLightSync,
+          skip_image_cache: useLightSync,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      
+      const responseText = await syncResponse.text();
+      try {
+        syncResult = JSON.parse(responseText);
+      } catch {
+        // Se não conseguiu parsear JSON mas o status é ok, considerar sucesso
+        console.log(`[MONTH-IMPORT] Response not JSON (status ${syncResponse.status}): ${responseText.substring(0, 200)}`);
+        syncResult = syncResponse.ok ? { success: true, records: 0 } : { success: false, error: 'Invalid response' };
+      }
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      
+      if (fetchError.name === 'AbortError') {
+        // Timeout - mas a sync pode ainda estar rodando no background
+        console.log(`[MONTH-IMPORT] Request timeout after ${timeoutMs/1000}s - sync may still be running`);
+        
+        // Verificar se há records no banco para esse período
+        await delay(5000); // Esperar 5s para dar tempo de salvar
+        
+        const { count: recordsCount } = await supabase
+          .from('ads_daily_metrics')
+          .select('*', { count: 'exact', head: true })
+          .eq('project_id', project_id)
+          .gte('date', since)
+          .lte('date', until);
+        
+        if ((recordsCount || 0) > 0) {
+          console.log(`[MONTH-IMPORT] Found ${recordsCount} records in DB despite timeout - considering success`);
+          syncResult = { success: true, records: recordsCount };
+          syncResponse = new Response(null, { status: 200 });
+        } else {
+          syncResult = { success: false, error: 'Timeout - no records found' };
+          syncResponse = new Response(null, { status: 408 });
+        }
+      } else {
+        console.log(`[MONTH-IMPORT] Fetch error: ${fetchError.message}`);
+        syncResult = { success: false, error: fetchError.message };
+        syncResponse = new Response(null, { status: 500 });
+      }
+    }
     
     let totalRecords = 0;
     let status = 'success';
     let errorMessage = null;
     
-    if (syncResponse.ok && syncResult.success) {
+    if (syncResponse.ok && syncResult.success !== false) {
       totalRecords = syncResult.summary?.records || syncResult.records || 0;
       console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${totalRecords} records`);
     } else {
