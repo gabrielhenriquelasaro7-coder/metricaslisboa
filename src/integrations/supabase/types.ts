@@ -744,6 +744,7 @@ export type Database = {
           connected_at: string | null
           created_at: string | null
           display_name: string | null
+          funnel_cards_config: Json | null
           id: string
           last_error: string | null
           mql_stage_ids: string[] | null
@@ -764,6 +765,7 @@ export type Database = {
           connected_at?: string | null
           created_at?: string | null
           display_name?: string | null
+          funnel_cards_config?: Json | null
           id?: string
           last_error?: string | null
           mql_stage_ids?: string[] | null
@@ -784,6 +786,7 @@ export type Database = {
           connected_at?: string | null
           created_at?: string | null
           display_name?: string | null
+          funnel_cards_config?: Json | null
           id?: string
           last_error?: string | null
           mql_stage_ids?: string[] | null

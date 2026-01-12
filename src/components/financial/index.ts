@@ -1,4 +1,6 @@
 export { FinancialMetricsGrid } from './FinancialMetricsGrid';
+export { FunnelCardsConfig, getIconComponent, getColorClasses } from './FunnelCardsConfig';
+export type { FunnelCard } from './FunnelCardsConfig';
 export { CompleteDRE } from './CompleteDRE';
 export { CRMConnectionCard } from './CRMConnectionCard';
 export { SyncStatusCard } from './SyncStatusCard';

@@ -5,10 +5,13 @@ import {
   CheckCircle2,
   ArrowDown,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { FunnelCard, getIconComponent, getColorClasses } from './FunnelCardsConfig';
 
 interface FunnelStage {
   id: string;
@@ -19,13 +22,26 @@ interface FunnelStage {
   bgColor: string;
 }
 
+interface Stage {
+  id: string;
+  name: string;
+  color: string;
+  sort: number;
+  type: number;
+  leads_count: number;
+}
+
 interface InsideSalesFunnelProps {
   leads?: number;
   mql?: number;
   sql?: number;
   sales?: number;
   revenue?: number;
-  hasCRMData?: boolean; // Indica se há dados reais do CRM
+  hasCRMData?: boolean;
+  funnelConfig?: FunnelCard[];
+  crmStages?: Stage[];
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export function InsideSalesFunnel({
@@ -35,20 +51,62 @@ export function InsideSalesFunnel({
   sales = 0,
   revenue = 0,
   hasCRMData = false,
+  funnelConfig,
+  crmStages = [],
+  onRefresh,
+  isRefreshing = false,
 }: InsideSalesFunnelProps) {
-  // Se não tem dados do CRM, mostrar apenas Leads
-  const allStages: FunnelStage[] = [
-    { id: 'leads', label: 'Leads', value: leads, icon: Users, color: 'text-blue-500', bgColor: 'bg-blue-500' },
-    { id: 'mql', label: 'MQL', value: mql, icon: Target, color: 'text-cyan-500', bgColor: 'bg-cyan-500' },
-    { id: 'sql', label: 'SQL', value: sql, icon: Handshake, color: 'text-purple-500', bgColor: 'bg-purple-500' },
-    { id: 'sales', label: 'Vendas', value: sales, icon: CheckCircle2, color: 'text-metric-positive', bgColor: 'bg-metric-positive' },
-  ];
+  
+  // Build stages from config or use defaults
+  const buildStagesFromConfig = (): FunnelStage[] => {
+    if (!funnelConfig || funnelConfig.length === 0) {
+      // Default stages
+      const defaultStages: FunnelStage[] = [
+        { id: 'leads', label: 'Leads', value: leads, icon: Users, color: 'text-blue-500', bgColor: 'bg-blue-500' },
+      ];
+      
+      if (hasCRMData) {
+        defaultStages.push(
+          { id: 'mql', label: 'MQL', value: mql, icon: Target, color: 'text-cyan-500', bgColor: 'bg-cyan-500' },
+          { id: 'sql', label: 'SQL', value: sql, icon: Handshake, color: 'text-purple-500', bgColor: 'bg-purple-500' },
+          { id: 'sales', label: 'Vendas', value: sales, icon: CheckCircle2, color: 'text-metric-positive', bgColor: 'bg-metric-positive' },
+        );
+      }
+      
+      return defaultStages;
+    }
 
-  // Só mostrar estágios além de Leads se houver dados reais do CRM
-  const stages = hasCRMData 
-    ? allStages 
-    : allStages.filter(s => s.id === 'leads');
+    // Build from custom config
+    return funnelConfig
+      .filter(card => card.enabled)
+      .map(card => {
+        let value = 0;
+        
+        if (card.id === 'leads') {
+          value = leads || crmStages.reduce((sum, s) => sum + (s.leads_count || 0), 0);
+        } else if (card.id === 'sales') {
+          value = sales || crmStages.filter(s => s.type === 1).reduce((sum, s) => sum + (s.leads_count || 0), 0);
+        } else {
+          // Sum leads from associated CRM stages
+          value = crmStages
+            .filter(s => card.stage_ids.includes(s.id))
+            .reduce((sum, s) => sum + (s.leads_count || 0), 0);
+        }
 
+        const colorClasses = getColorClasses(card.color);
+        
+        return {
+          id: card.id,
+          label: card.label,
+          value,
+          icon: getIconComponent(card.icon),
+          color: colorClasses.text,
+          bgColor: colorClasses.bg,
+        };
+      });
+  };
+
+  const stages = buildStagesFromConfig();
   const maxValue = Math.max(...stages.map(s => s.value), 1);
 
   const getConversionRate = (current: number, previous: number): string => {
@@ -56,14 +114,18 @@ export function InsideSalesFunnel({
     return ((current / previous) * 100).toFixed(1);
   };
 
-  // Só calcular conversões se tiver dados do CRM
-  const conversions = hasCRMData ? [
-    { from: 'Lead', to: 'MQL', rate: getConversionRate(mql, leads) },
-    { from: 'MQL', to: 'SQL', rate: getConversionRate(sql, mql) },
-    { from: 'SQL', to: 'Venda', rate: getConversionRate(sales, sql) },
-  ] : [];
+  // Calculate conversions between stages
+  const conversions = stages.length > 1 ? stages.slice(1).map((stage, index) => ({
+    from: stages[index].label,
+    to: stage.label,
+    rate: getConversionRate(stage.value, stages[index].value)
+  })) : [];
 
-  const overallConversion = getConversionRate(sales, leads);
+  const firstStage = stages[0];
+  const lastStage = stages[stages.length - 1];
+  const overallConversion = stages.length > 1 
+    ? getConversionRate(lastStage.value, firstStage.value)
+    : '0';
 
   return (
     <Card className="overflow-hidden">
@@ -78,11 +140,24 @@ export function InsideSalesFunnel({
               Acompanhe a conversão em cada etapa
             </CardDescription>
           </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-primary">
-              R$ {(revenue / 1000).toFixed(revenue >= 1000 ? 0 : 1)}k
-            </p>
-            <p className="text-xs text-muted-foreground">Receita</p>
+          <div className="flex items-center gap-3">
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="h-8 w-8"
+              >
+                <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+              </Button>
+            )}
+            <div className="text-right">
+              <p className="text-2xl font-bold text-primary">
+                R$ {(revenue / 1000).toFixed(revenue >= 1000 ? 0 : 1)}k
+              </p>
+              <p className="text-xs text-muted-foreground">Receita</p>
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -137,9 +212,12 @@ export function InsideSalesFunnel({
           })}
         </div>
 
-        {/* Conversion Summary - only show if CRM data exists */}
-        {hasCRMData && conversions.length > 0 && (
-          <div className="grid grid-cols-3 gap-2 pt-4 border-t">
+        {/* Conversion Summary */}
+        {conversions.length > 0 && (
+          <div className={cn(
+            "grid gap-2 pt-4 border-t",
+            conversions.length <= 3 ? `grid-cols-${conversions.length}` : "grid-cols-2 sm:grid-cols-3"
+          )}>
             {conversions.map((conv, idx) => (
               <div key={idx} className="text-center p-2 rounded-lg bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">
@@ -153,8 +231,8 @@ export function InsideSalesFunnel({
           </div>
         )}
 
-        {/* Overall Conversion - only show if CRM data exists */}
-        {hasCRMData && (
+        {/* Overall Conversion */}
+        {stages.length > 1 && (
           <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -163,7 +241,7 @@ export function InsideSalesFunnel({
                 </div>
                 <div>
                   <p className="text-sm font-medium">Conversão Geral</p>
-                  <p className="text-xs text-muted-foreground">Lead → Venda</p>
+                  <p className="text-xs text-muted-foreground">{firstStage.label} → {lastStage.label}</p>
                 </div>
               </div>
               <span className="text-3xl font-bold text-primary">
@@ -174,10 +252,10 @@ export function InsideSalesFunnel({
         )}
         
         {/* Message when no CRM connected */}
-        {!hasCRMData && (
+        {!hasCRMData && !funnelConfig && (
           <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
             <p className="text-sm text-muted-foreground">
-              Conecte seu CRM para visualizar MQL, SQL e vendas
+              Conecte seu CRM para visualizar mais etapas do funil
             </p>
           </div>
         )}
