@@ -39,6 +39,7 @@ interface MetricConfigPanelProps {
 
 const RESULT_ICONS: Record<string, React.ElementType> = {
   leads: Users,
+  initiate_checkout: Zap,
   purchases: ShoppingCart,
   registrations: Target,
   store_visits: Store,

@@ -33,6 +33,7 @@ export interface ProjectMetricConfig {
 // Opções de métricas de resultado
 export const RESULT_METRIC_OPTIONS: MetricOption[] = [
   { key: 'leads', label: 'Leads', description: 'Formulários e cadastros', category: 'result' },
+  { key: 'initiate_checkout', label: 'Início Checkout', description: 'Inicializações de compra', category: 'result' },
   { key: 'purchases', label: 'Compras', description: 'Vendas online', category: 'result' },
   { key: 'registrations', label: 'Cadastros', description: 'Cadastros completos', category: 'result' },
   { key: 'store_visits', label: 'Visitas à Loja', description: 'Tráfego para loja física', category: 'result' },
@@ -46,6 +47,7 @@ export const COST_METRIC_OPTIONS: MetricOption[] = [
   { key: 'cpa', label: 'CPA', description: 'Custo por Aquisição', category: 'cost' },
   { key: 'cac', label: 'CAC', description: 'Custo de Aquisição de Cliente', category: 'cost' },
   { key: 'cpp', label: 'CPP', description: 'Custo por Compra', category: 'cost' },
+  { key: 'cpic', label: 'Custo/Init. Checkout', description: 'Custo por Inicialização de Compra', category: 'cost' },
 ];
 
 // Opções de métricas de eficiência
