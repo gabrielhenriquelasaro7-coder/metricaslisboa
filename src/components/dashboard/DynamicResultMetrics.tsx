@@ -76,11 +76,12 @@ const METRIC_DATA_SOURCE: Record<string, 'leads' | 'purchases' | 'initiate_check
   conversions: 'conversions', // All conversions combined
 };
 
-const COST_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
-  cpl: { label: "CPL", icon: DollarSign },
-  cpa: { label: "CPA", icon: DollarSign },
-  cac: { label: "CAC", icon: BadgeDollarSign },
-  cpp: { label: "CPP", icon: DollarSign },
+const COST_CONFIG: Record<string, { label: string; icon: LucideIcon; basedOn?: 'leads' | 'purchases' | 'initiate_checkout' | 'total' }> = {
+  cpl: { label: "CPL", icon: DollarSign, basedOn: 'leads' },
+  cpa: { label: "CPA", icon: DollarSign, basedOn: 'total' },
+  cac: { label: "CAC", icon: BadgeDollarSign, basedOn: 'total' },
+  cpp: { label: "CPP", icon: DollarSign, basedOn: 'purchases' },
+  cpic: { label: "Custo/Init. Checkout", icon: DollarSign, basedOn: 'initiate_checkout' },
 };
 
 const EFFICIENCY_CONFIG: Record<string, { label: string; icon: LucideIcon; format: 'currency' | 'percentage' | 'multiplier' }> = {
@@ -158,18 +159,47 @@ export function DynamicResultMetrics({
       : previousMetrics.totalConversions || 0;
   };
   
-  // Calcular métricas de custo usando o total de resultados
+  // Calcular métricas de custo - cada uma baseada no seu resultado específico
   const getCostValue = (metric: string): number => {
-    const totalResults = getTotalResults();
-    if (totalResults === 0) return 0;
-    switch (metric) {
-      case 'cpl':
-      case 'cpa':
-      case 'cac':
-      case 'cpp':
-        return metrics.totalSpend / totalResults;
+    const costConfig = COST_CONFIG[metric];
+    if (!costConfig) return 0;
+    
+    switch (costConfig.basedOn) {
+      case 'leads': {
+        const leads = metrics.totalLeadsConversions || 0;
+        return leads > 0 ? metrics.totalSpend / leads : 0;
+      }
+      case 'purchases': {
+        const purchases = metrics.totalSalesConversions || 0;
+        return purchases > 0 ? metrics.totalSpend / purchases : 0;
+      }
+      case 'initiate_checkout': {
+        const ic = metrics.totalInitiateCheckout || 0;
+        return ic > 0 ? metrics.totalSpend / ic : 0;
+      }
+      case 'total':
+      default: {
+        const totalResults = getTotalResults();
+        return totalResults > 0 ? metrics.totalSpend / totalResults : 0;
+      }
+    }
+  };
+
+  // Verificar se deve mostrar a métrica de custo (esconde se o resultado base for 0)
+  const shouldShowCostMetric = (metric: string): boolean => {
+    const costConfig = COST_CONFIG[metric];
+    if (!costConfig) return false;
+    
+    switch (costConfig.basedOn) {
+      case 'purchases':
+        return (metrics.totalSalesConversions || 0) > 0;
+      case 'initiate_checkout':
+        return (metrics.totalInitiateCheckout || 0) > 0;
+      case 'leads':
+        return (metrics.totalLeadsConversions || 0) > 0;
+      case 'total':
       default:
-        return 0;
+        return getTotalResults() > 0;
     }
   };
 
@@ -231,11 +261,14 @@ export function DynamicResultMetrics({
     }
   }
 
-  // 2. Cost metrics
+  // 2. Cost metrics - only show if the base result exists
   if (config.cost_metrics && config.cost_metrics.length > 0) {
     config.cost_metrics.forEach(metric => {
       const costConfig = COST_CONFIG[metric];
       if (!costConfig) return;
+      
+      // Skip if the base result is 0
+      if (!shouldShowCostMetric(metric)) return;
       
       const value = getCostValue(metric);
       const formattedValue = new Intl.NumberFormat('pt-BR', { 
