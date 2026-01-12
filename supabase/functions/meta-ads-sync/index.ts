@@ -648,22 +648,24 @@ async function fetchDailyInsights(adAccountId: string, token: string, since: str
 const FORM_LEAD_ACTION_TYPES = ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead', 'fb_pixel_lead'];
 const CONTACT_LEAD_ACTION_TYPES = ['contact_total', 'contact_website', 'contact', 'omni_complete_registration', 'complete_registration', 'submit_application', 'submit_application_total'];
 const MESSAGE_LEAD_ACTION_TYPES = ['messaging_conversation_started_7d', 'onsite_conversion.messaging_conversation_started_7d'];
-// IMPORTANT: Include ALL Meta purchase action types - "offsite_conversion.purchase" is the most common!
+// Purchase action types (for e-commerce)
 const PURCHASE_ACTION_TYPES = [
   'purchase', 
   'omni_purchase', 
-  'offsite_conversion.purchase',  // Common for pixel-tracked purchases!
   'offsite_conversion.fb_pixel_purchase', 
-  'onsite_conversion.purchase',
   'onsite_web_purchase', 
-  'onsite_web_app_purchase', 
-  'web_in_store_purchase', 
-  'web_app_in_store_purchase',
-  'app_custom_event.fb_mobile_purchase',
-  'mobile_app_purchase',
 ];
+
+// Initiate checkout action types
+const INITIATE_CHECKOUT_ACTION_TYPES = [
+  'initiate_checkout',
+  'omni_initiated_checkout',
+  'offsite_conversion.fb_pixel_initiate_checkout',
+  'onsite_conversion.initiate_checkout',
+];
+
 const ALL_LEAD_ACTION_TYPES = [...FORM_LEAD_ACTION_TYPES, ...CONTACT_LEAD_ACTION_TYPES, ...MESSAGE_LEAD_ACTION_TYPES];
-const CONVERSION_ACTION_TYPES = [...ALL_LEAD_ACTION_TYPES, ...PURCHASE_ACTION_TYPES];
+const CONVERSION_ACTION_TYPES = [...ALL_LEAD_ACTION_TYPES, ...PURCHASE_ACTION_TYPES, ...INITIATE_CHECKOUT_ACTION_TYPES];
 const TRAFFIC_OBJECTIVES = ['OUTCOME_TRAFFIC', 'LINK_CLICKS', 'TRAFFIC', 'POST_ENGAGEMENT'];
 
 const ENGAGEMENT_INDICATORS = ['post_engagement', 'page_engagement', 'post_reaction', 'post_interaction_gross', 'page_like', 'post_like', 'post_share', 'post_comment', 'link_click', 'video_view', 'landing_page_view'];
@@ -675,11 +677,12 @@ function extractConversions(row: any, campaignObjective?: string): {
   source: string;
   leadsCount: number;
   purchasesCount: number;
+  initiateCheckoutCount: number;
 } {
   const isTrafficCampaign = campaignObjective && TRAFFIC_OBJECTIVES.includes(campaignObjective.toUpperCase());
   
   if (isTrafficCampaign) {
-    return { conversions: 0, costPerResult: 0, conversionValue: 0, source: 'traffic_campaign', leadsCount: 0, purchasesCount: 0 };
+    return { conversions: 0, costPerResult: 0, conversionValue: 0, source: 'traffic_campaign', leadsCount: 0, purchasesCount: 0, initiateCheckoutCount: 0 };
   }
   
   let conversions = 0;
@@ -688,6 +691,7 @@ function extractConversions(row: any, campaignObjective?: string): {
   let source = 'none';
   let leadsCount = 0;
   let purchasesCount = 0;
+  let initiateCheckoutCount = 0;
 
   // FONTE 1: Campo "results"
   if (Array.isArray(row.results) && row.results.length > 0) {
@@ -707,6 +711,8 @@ function extractConversions(row: any, campaignObjective?: string): {
         else if (actionType === 'offsite_conversion.fb_pixel_purchase') pixelPurchaseCount = val;
         else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
           if (val > otherPurchaseCount) otherPurchaseCount = val;
+        } else if (INITIATE_CHECKOUT_ACTION_TYPES.includes(actionType)) {
+          if (val > initiateCheckoutCount) initiateCheckoutCount = val;
         } else if (ALL_LEAD_ACTION_TYPES.includes(actionType) || MESSAGE_LEAD_ACTION_TYPES.includes(actionType)) {
           leadsCount += val;
         }
@@ -733,7 +739,7 @@ function extractConversions(row: any, campaignObjective?: string): {
   // FONTE 2: Campo "actions" (fallback)
   if (conversions === 0 && Array.isArray(row.actions) && row.actions.length > 0) {
     let formLeadValue = 0, contactLeadValue = 0, messageLeadValue = 0;
-    let maxPurchaseValue = 0;
+    let maxPurchaseValue = 0, maxCheckoutValue = 0;
     
     for (const action of row.actions) {
       const actionType = action.action_type || '';
@@ -742,27 +748,30 @@ function extractConversions(row: any, campaignObjective?: string): {
         if (actionType === 'lead' || actionType === 'onsite_conversion.lead_grouped') formLeadValue = val;
         else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType) && val > contactLeadValue) contactLeadValue = val;
         else if (actionType === 'messaging_conversation_started_7d' || actionType === 'onsite_conversion.messaging_conversation_started_7d') messageLeadValue = val;
-        // Check ALL purchase action types
         else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
           if (val > maxPurchaseValue) maxPurchaseValue = val;
+        }
+        else if (INITIATE_CHECKOUT_ACTION_TYPES.includes(actionType)) {
+          if (val > maxCheckoutValue) maxCheckoutValue = val;
         }
       }
     }
     
     purchasesCount = maxPurchaseValue;
+    initiateCheckoutCount = maxCheckoutValue;
     const maxLead = Math.max(formLeadValue, contactLeadValue, messageLeadValue);
     if (maxLead > 0) {
       leadsCount = maxLead;
       source = 'actions';
     }
-    if (purchasesCount > 0) source = 'actions';
-    conversions = leadsCount + purchasesCount;
+    if (purchasesCount > 0 || initiateCheckoutCount > 0) source = 'actions';
+    conversions = leadsCount + purchasesCount + initiateCheckoutCount;
   }
 
   // FONTE 3: Campo "conversions" (fallback legado)
   if (conversions === 0 && Array.isArray(row.conversions) && row.conversions.length > 0) {
     let formLeadConv = 0, contactLeadConv = 0, messageLeadConv = 0;
-    let maxPurchaseConv = 0;
+    let maxPurchaseConv = 0, maxCheckoutConv = 0;
     
     for (const c of row.conversions) {
       const actionType = c.action_type || '';
@@ -771,21 +780,24 @@ function extractConversions(row: any, campaignObjective?: string): {
         if (actionType === 'lead' || actionType === 'onsite_conversion.lead_grouped') formLeadConv = val;
         else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType) && val > contactLeadConv) contactLeadConv = val;
         else if (actionType === 'messaging_conversation_started_7d' || actionType === 'onsite_conversion.messaging_conversation_started_7d') messageLeadConv = val;
-        // Check ALL purchase action types
         else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
           if (val > maxPurchaseConv) maxPurchaseConv = val;
+        }
+        else if (INITIATE_CHECKOUT_ACTION_TYPES.includes(actionType)) {
+          if (val > maxCheckoutConv) maxCheckoutConv = val;
         }
       }
     }
     
     purchasesCount = maxPurchaseConv;
+    initiateCheckoutCount = maxCheckoutConv;
     const maxLeadConv = Math.max(formLeadConv, contactLeadConv, messageLeadConv);
     if (maxLeadConv > 0) {
       leadsCount = maxLeadConv;
       source = 'conversions_legacy';
     }
-    if (purchasesCount > 0) source = 'conversions_legacy';
-    conversions = leadsCount + purchasesCount;
+    if (purchasesCount > 0 || initiateCheckoutCount > 0) source = 'conversions_legacy';
+    conversions = leadsCount + purchasesCount + initiateCheckoutCount;
   }
 
   // CPA
@@ -816,7 +828,7 @@ function extractConversions(row: any, campaignObjective?: string): {
     conversionValue = omniPurchaseValue > 0 ? omniPurchaseValue : purchaseValue;
   }
 
-  return { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount };
+  return { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount, initiateCheckoutCount };
 }
 
 function extractMessagingReplies(insights: any): number {
@@ -1321,7 +1333,7 @@ Deno.serve(async (req) => {
         const campaign = campaignId ? campaignMap.get(campaignId) : null;
         
         const campaignObjective = campaign?.objective || null;
-        const { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount } = extractConversions(insights, campaignObjective);
+        const { conversions, costPerResult, conversionValue, source, leadsCount, purchasesCount, initiateCheckoutCount } = extractConversions(insights, campaignObjective);
         const messagingReplies = extractMessagingReplies(insights);
         const profileVisits = extractProfileVisits(insights);
         
@@ -1376,6 +1388,7 @@ Deno.serve(async (req) => {
           profile_visits: profileVisits,
           leads_count: leadsCount,
           purchases_count: purchasesCount,
+          initiate_checkout_count: initiateCheckoutCount,
           synced_at: new Date().toISOString()
         });
       }

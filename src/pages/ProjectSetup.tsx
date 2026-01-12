@@ -30,6 +30,7 @@ import v4LogoIcon from '@/assets/v4-logo-icon-small.png';
 const RESULT_METRICS = [
   { key: 'leads', label: 'Leads', description: 'Formulários preenchidos, cadastros', icon: Users },
   { key: 'purchases', label: 'Vendas', description: 'Compras realizadas', icon: ShoppingCart },
+  { key: 'initiate_checkout', label: 'Início de Checkout', description: 'Pessoas que iniciaram o checkout', icon: ShoppingCart },
   { key: 'registrations', label: 'Registros', description: 'Inscrições, sign-ups', icon: CheckCircle2 },
   { key: 'conversions', label: 'Conversões', description: 'Ações de conversão genéricas', icon: Target },
   { key: 'messages', label: 'Mensagens', description: 'Contatos via chat/WhatsApp', icon: Zap },
