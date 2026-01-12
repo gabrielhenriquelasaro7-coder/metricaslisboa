@@ -474,27 +474,34 @@ export default function ProjectSelector() {
     if (!pendingProjectId) return;
 
     const projectId = pendingProjectId;
+    const projectName = pendingProjectName;
     const isCustom = pendingProjectBusinessModel === 'custom';
     
-    // Close dialog and show toast IMMEDIATELY
+    // Close dialog immediately
     setShowImportModeDialog(false);
-    toast.success(`Importação ${mode === 'light' ? 'Light' : 'Total HD'} iniciada para ${pendingProjectName}!`);
     
     // Clear pending state
     setPendingProjectId(null);
     setPendingProjectName('');
     setPendingProjectBusinessModel('ecommerce');
     
-    // Navigate immediately if custom
+    // If custom, navigate to setup FIRST (before import)
+    // The import will be started from ProjectSetup after config
     if (isCustom) {
+      toast.info('Configure as métricas do projeto antes de iniciar a importação');
       localStorage.setItem('selectedProjectId', projectId);
-      navigate('/project-setup');
+      localStorage.setItem('pendingImportMode', mode); // Store import mode for later
+      navigate(`/project-setup/${projectId}`);
+      return;
     }
+    
+    // For non-custom projects, show toast and start import immediately
+    toast.success(`Importação ${mode === 'light' ? 'Light' : 'Total HD'} iniciada para ${projectName}!`);
     
     // Refresh list
     refetch();
 
-    // Update project sync status and start import in background (don't await)
+    // Update project sync status and start import in background
     supabase.from('projects').update({
       sync_progress: { 
         status: 'importing', 
