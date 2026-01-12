@@ -260,6 +260,51 @@ async function fetchKommoDeals(
     throw new Error('Credenciais do Kommo não configuradas');
   }
 
+  // Fetch all pipelines and their stages to correctly identify won/lost statuses
+  const wonStatusIds = new Set<number>();
+  const lostStatusIds = new Set<number>();
+  const stageNames: Record<number, string> = {};
+  
+  try {
+    const pipelinesUrl = `${apiUrl}/api/v4/leads/pipelines`;
+    const pipelinesResponse = await fetch(pipelinesUrl, {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+    });
+    
+    if (pipelinesResponse.ok) {
+      const pipelinesData = await pipelinesResponse.json();
+      const pipelines = pipelinesData._embedded?.pipelines || [];
+      
+      for (const pipeline of pipelines) {
+        const statuses = pipeline._embedded?.statuses || [];
+        for (const status of statuses) {
+          stageNames[status.id] = status.name;
+          
+          // Kommo uses type to indicate special statuses
+          // type 0 = regular, type 1 = unsorted, type 2 = won, type 3 = lost
+          if (status.type === 2 || status.is_editable === false && status.name?.toLowerCase().includes('gan')) {
+            wonStatusIds.add(status.id);
+            console.log(`[CRM Sync] Detected WON status: ${status.id} - ${status.name}`);
+          } else if (status.type === 3 || status.is_editable === false && (status.name?.toLowerCase().includes('perd') || status.name?.toLowerCase().includes('lost'))) {
+            lostStatusIds.add(status.id);
+            console.log(`[CRM Sync] Detected LOST status: ${status.id} - ${status.name}`);
+          }
+        }
+      }
+    }
+  } catch (pipelineError) {
+    console.error('[CRM Sync] Error fetching pipelines:', pipelineError);
+    // Continue with default mapping if pipeline fetch fails
+  }
+
+  // Fallback to standard Kommo IDs if no pipelines found
+  if (wonStatusIds.size === 0) {
+    wonStatusIds.add(142); // Default Kommo won status
+  }
+  if (lostStatusIds.size === 0) {
+    lostStatusIds.add(143); // Default Kommo lost status
+  }
+
   const deals: CRMDeal[] = [];
   let page = 1;
   const limit = 250;
@@ -380,15 +425,36 @@ async function fetchKommoDeals(
         }
       }
       
+      // Calculate value - Kommo stores in cents
+      const dealValue = (lead.price || 0) / 100;
+      
+      // Determine status based on pipeline stages AND value
+      // IMPORTANT: Only consider as "won" if value >= 0.01
+      let status: 'open' | 'won' | 'lost' = 'open';
+      const statusId = lead.status_id;
+      
+      if (lostStatusIds.has(statusId)) {
+        status = 'lost';
+      } else if (wonStatusIds.has(statusId)) {
+        // Only mark as won if has a meaningful value
+        if (dealValue >= 0.01) {
+          status = 'won';
+        } else {
+          // Has won status but no value - keep as open (incomplete sale)
+          status = 'open';
+          console.log(`[CRM Sync] Lead ${lead.id} in won status but value ${dealValue} < 0.01, marking as open`);
+        }
+      }
+      
       deals.push({
         external_id: String(lead.id),
         external_pipeline_id: String(lead.pipeline_id),
         external_stage_id: String(lead.status_id),
         title: lead.name || 'Sem título',
-        value: (lead.price || 0) / 100, // Kommo stores in cents
+        value: dealValue,
         currency: 'BRL',
-        status: mapKommoStatus(lead.status_id),
-        stage_name: lead.status?.name,
+        status,
+        stage_name: stageNames[statusId] || lead.status?.name,
         created_date: new Date(lead.created_at * 1000).toISOString(),
         closed_date: lead.closed_at ? new Date(lead.closed_at * 1000).toISOString() : undefined,
         owner_name: lead.responsible_user?.name,
@@ -413,14 +479,9 @@ async function fetchKommoDeals(
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
+  console.log(`[CRM Sync] Processed ${deals.length} deals. Won: ${deals.filter(d => d.status === 'won').length}, Lost: ${deals.filter(d => d.status === 'lost').length}, Open: ${deals.filter(d => d.status === 'open').length}`);
+  
   return deals;
-}
-
-function mapKommoStatus(statusId: number): 'open' | 'won' | 'lost' {
-  // Kommo status 142 = won, 143 = lost (these are standard IDs)
-  if (statusId === 142) return 'won';
-  if (statusId === 143) return 'lost';
-  return 'open';
 }
 
 // HubSpot integration
