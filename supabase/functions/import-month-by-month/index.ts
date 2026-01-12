@@ -202,9 +202,9 @@ Deno.serve(async (req) => {
     console.log(`[MONTH-IMPORT] Syncing ${since} to ${until} | light_sync: ${useLightSync}`);
     
     // Call meta-ads-sync for the entire month with extended timeout
-    // HD sync pode demorar muito para cachear imagens
+    // HD sync pode demorar muito para cachear imagens - timeout de 10min para HD
     const controller = new AbortController();
-    const timeoutMs = useLightSync ? 120000 : 300000; // 2min for light, 5min for HD
+    const timeoutMs = useLightSync ? 180000 : 600000; // 3min for light, 10min for HD
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
     let syncResponse: Response;
@@ -240,11 +240,11 @@ Deno.serve(async (req) => {
       clearTimeout(timeoutId);
       
       if (fetchError.name === 'AbortError') {
-        // Timeout - mas a sync pode ainda estar rodando no background
-        console.log(`[MONTH-IMPORT] Request timeout after ${timeoutMs/1000}s - sync may still be running`);
+        // Timeout - verificar se há records salvos no banco
+        console.log(`[MONTH-IMPORT] Request timeout after ${timeoutMs/1000}s - checking for saved records...`);
         
-        // Verificar se há records no banco para esse período
-        await delay(5000); // Esperar 5s para dar tempo de salvar
+        // Esperar um pouco mais para garantir que os dados foram salvos
+        await delay(10000); // 10s extra
         
         const { count: recordsCount } = await supabase
           .from('ads_daily_metrics')
@@ -254,12 +254,28 @@ Deno.serve(async (req) => {
           .lte('date', until);
         
         if ((recordsCount || 0) > 0) {
-          console.log(`[MONTH-IMPORT] Found ${recordsCount} records in DB despite timeout - considering success`);
+          console.log(`[MONTH-IMPORT] Found ${recordsCount} records in DB despite timeout - SUCCESS`);
           syncResult = { success: true, records: recordsCount };
           syncResponse = new Response(null, { status: 200 });
         } else {
-          syncResult = { success: false, error: 'Timeout - no records found' };
-          syncResponse = new Response(null, { status: 408 });
+          // Tentar uma segunda verificação após mais 10s
+          await delay(10000);
+          
+          const { count: recordsCount2 } = await supabase
+            .from('ads_daily_metrics')
+            .select('*', { count: 'exact', head: true })
+            .eq('project_id', project_id)
+            .gte('date', since)
+            .lte('date', until);
+          
+          if ((recordsCount2 || 0) > 0) {
+            console.log(`[MONTH-IMPORT] Found ${recordsCount2} records on second check - SUCCESS`);
+            syncResult = { success: true, records: recordsCount2 };
+            syncResponse = new Response(null, { status: 200 });
+          } else {
+            syncResult = { success: false, error: 'Timeout - nenhum registro encontrado' };
+            syncResponse = new Response(null, { status: 408 });
+          }
         }
       } else {
         console.log(`[MONTH-IMPORT] Fetch error: ${fetchError.message}`);
