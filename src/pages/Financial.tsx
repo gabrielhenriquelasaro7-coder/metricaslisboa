@@ -326,52 +326,46 @@ export default function Financial() {
           />
         ) : (
           /* With CRM connected - full experience */
-          <Tabs defaultValue="overview" className="space-y-6">
+          <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
             {/* Header with tabs and pipeline selector */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              {/* Tabs - horizontal scroll on mobile */}
-              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                <TabsList className="inline-flex w-auto min-w-max gap-1 p-1">
-                  <TabsTrigger value="overview" className="gap-1.5 px-3 py-2 text-xs sm:text-sm">
-                    <LayoutDashboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="hidden xs:inline sm:inline">Visão Geral</span>
-                    <span className="xs:hidden">Geral</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="funnel" className="gap-1.5 px-3 py-2 text-xs sm:text-sm">
-                    <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span>Funil</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="attribution" className="gap-1.5 px-3 py-2 text-xs sm:text-sm">
-                    <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Atribuição</span>
-                    <span className="sm:hidden">Atrib.</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="roas" className="gap-1.5 px-3 py-2 text-xs sm:text-sm">
-                    <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span>ROAS</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="dre" className="gap-1.5 px-3 py-2 text-xs sm:text-sm">
-                    <PieChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span>DRE</span>
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+            <div className="flex flex-col gap-2">
+              {/* Tabs - fixed grid, no scroll needed */}
+              <TabsList className="grid w-full grid-cols-5 h-auto p-1 bg-muted/50">
+                <TabsTrigger value="overview" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span>Geral</span>
+                </TabsTrigger>
+                <TabsTrigger value="funnel" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Funil</span>
+                </TabsTrigger>
+                <TabsTrigger value="attribution" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
+                  <Target className="w-4 h-4" />
+                  <span>Atrib.</span>
+                </TabsTrigger>
+                <TabsTrigger value="roas" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>ROAS</span>
+                </TabsTrigger>
+                <TabsTrigger value="dre" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
+                  <PieChart className="w-4 h-4" />
+                  <span>DRE</span>
+                </TabsTrigger>
+              </TabsList>
               
               {/* Pipeline Selector - only show for Kommo with multiple pipelines */}
               {crmStatus?.provider === 'kommo' && (crmStatus?.pipelines?.length || 0) > 0 && (
-                <div className="flex-shrink-0">
-                  <PipelineSelector
-                    pipelines={crmStatus.pipelines || []}
-                    selectedPipelineId={crmStatus.selected_pipeline_id || null}
-                    onSelect={selectPipeline}
-                    isLoading={crmLoading}
-                  />
-                </div>
+                <PipelineSelector
+                  pipelines={crmStatus.pipelines || []}
+                  selectedPipelineId={crmStatus.selected_pipeline_id || null}
+                  onSelect={selectPipeline}
+                  isLoading={crmLoading}
+                />
               )}
             </div>
 
-            <TabsContent value="overview" className="space-y-6">
-              <div className="grid gap-6 lg:grid-cols-3">
+            <TabsContent value="overview" className="space-y-4 sm:space-y-6">
+              <div className="grid gap-3 sm:gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2">
                   <CRMConnectionCard
                     projectName={selectedProject.name}
@@ -394,7 +388,7 @@ export default function Financial() {
                 />
               </div>
               <FinancialMetricsGrid businessModel={businessModel!} metrics={crmMetrics} />
-              <div className="grid gap-6 lg:grid-cols-2">
+              <div className="grid gap-3 sm:gap-6 lg:grid-cols-2">
                 <ROASRealCard adSpend={totalAdSpend || 0} crmRevenue={crmMetrics.revenue} periodLabel="Últimos 30 dias" />
                 {businessModel === 'inside_sales' ? (
                   <InsideSalesFunnel 

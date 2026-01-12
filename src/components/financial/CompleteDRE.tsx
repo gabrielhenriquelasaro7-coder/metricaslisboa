@@ -444,44 +444,44 @@ export function CompleteDRE({
   }) => (
     <div
       className={cn(
-        'flex items-center justify-between py-3 px-4 rounded-lg transition-colors',
+        'flex items-center justify-between py-2 sm:py-3 px-2 sm:px-4 rounded-lg transition-colors',
         isTotal && 'bg-muted/50 font-medium',
         highlight && 'bg-primary/10 border border-primary/20',
         !isTotal && !highlight && 'hover:bg-muted/30'
       )}
     >
-      <div className="flex items-center gap-2">
-        {indent > 0 && <ChevronRight className="w-4 h-4 text-muted-foreground/50" />}
+      <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
+        {indent > 0 && <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground/50 flex-shrink-0" />}
         <span
           className={cn(
-            'text-sm flex items-center gap-1',
+            'text-xs sm:text-sm flex items-center gap-1 truncate',
             isSubtraction && 'text-muted-foreground',
             isTotal && 'font-semibold',
             highlight && 'font-bold'
           )}
         >
           {isSubtraction && '(-) '}
-          <EditableLabel field={labelField}>
-            {labels[labelField]}
-          </EditableLabel>
+          <span className="truncate">{labels[labelField]}</span>
         </span>
         {tooltip && (
           <Tooltip>
-            <TooltipTrigger>
-              <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/50" />
+            <TooltipTrigger className="hidden sm:flex">
+              <HelpCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground/50 flex-shrink-0" />
             </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-xs">
+            <TooltipContent side="right" className="max-w-xs bg-popover">
               <p className="text-xs">{tooltip}</p>
             </TooltipContent>
           </Tooltip>
         )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
         {percentage !== undefined && percentageField && (
-          <EditableValue field={percentageField} value={percentage} isPercent />
+          <span className="text-[10px] sm:text-xs text-muted-foreground tabular-nums">
+            {formatPercent(percentage)}
+          </span>
         )}
         {percentage !== undefined && !percentageField && (
-          <Badge variant="outline" className="text-xs font-normal">
+          <Badge variant="outline" className="text-[10px] sm:text-xs font-normal px-1 sm:px-2">
             {formatPercent(percentage)}
           </Badge>
         )}
@@ -490,9 +490,10 @@ export function CompleteDRE({
             field={editableField} 
             value={value}
             className={cn(
+              'text-xs sm:text-sm',
               isSubtraction && 'text-muted-foreground',
               isTotal && 'font-semibold',
-              highlight && 'font-bold text-lg',
+              highlight && 'font-bold text-sm sm:text-lg',
               highlight && value >= 0 && 'text-metric-positive',
               highlight && value < 0 && 'text-destructive'
             )}
@@ -500,10 +501,10 @@ export function CompleteDRE({
         ) : (
           <span
             className={cn(
-              'tabular-nums text-right min-w-[100px]',
+              'tabular-nums text-right text-xs sm:text-sm min-w-[70px] sm:min-w-[100px]',
               isSubtraction && 'text-muted-foreground',
               isTotal && 'font-semibold',
-              highlight && 'font-bold text-lg',
+              highlight && 'font-bold text-sm sm:text-lg',
               highlight && value >= 0 && 'text-metric-positive',
               highlight && value < 0 && 'text-destructive'
             )}
@@ -518,32 +519,32 @@ export function CompleteDRE({
   return (
     <>
       <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
+        <CardHeader className="p-3 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <Calculator className="h-5 w-5 text-primary" />
-                <CardTitle>DRE Completo</CardTitle>
+                <Calculator className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <CardTitle className="text-base sm:text-lg">DRE Completo</CardTitle>
               </div>
-              <CardDescription className="mt-1">
-                Clique nos nomes ou valores para editar
+              <CardDescription className="mt-1 text-xs sm:text-sm">
+                Clique nos valores para editar
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {/* Period Selector */}
               <Select value={period} onValueChange={(v) => onPeriodChange?.(v as DREPeriod)}>
-                <SelectTrigger className="w-[160px] h-9">
-                  <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectTrigger className="w-[130px] sm:w-[160px] h-8 sm:h-9 text-xs sm:text-sm">
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-muted-foreground" />
                   <SelectValue placeholder="Período" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-popover">
                   {Object.entries(PERIOD_LABELS).map(([key, label]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               
-              <Badge variant="outline" className="gap-1">
+              <Badge variant="outline" className="gap-1 text-[10px] sm:text-xs hidden sm:flex">
                 <BarChart3 className="w-3 h-3" />
                 {businessModel === 'infoproduto' ? 'Infoproduto' :
                  businessModel === 'ecommerce' ? 'E-commerce' :
@@ -552,6 +553,7 @@ export function CompleteDRE({
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-8 w-8 sm:h-9 sm:w-9"
                 onClick={() => setShowConfig(true)}
               >
                 <Settings className="h-4 w-4" />
@@ -559,7 +561,7 @@ export function CompleteDRE({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-1">
+        <CardContent className="p-3 sm:p-6 pt-0 space-y-1">
           {/* Gross Revenue - EDITABLE */}
           <DRELine
             labelField="grossRevenue"
