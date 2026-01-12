@@ -13,7 +13,6 @@ import {
   FinancialMetricsGrid,
   CRMConnectionCard,
   SyncStatusCard,
-  ROASRealCard,
   InsideSalesFunnel,
   FinancialDRECard,
   PipelineSelector,
@@ -215,13 +214,6 @@ export default function Financial() {
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
-              {/* ROASRealCard at top */}
-              <ROASRealCard 
-                adSpend={totalAdSpend || 0} 
-                crmRevenue={adsMetrics.revenue} 
-                periodLabel="Últimos 30 dias" 
-              />
-
               {/* Overview metrics from ads - responsive grid */}
               <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-4">
                 <Card className="bg-gradient-to-br from-blue-600/20 to-blue-900/30 border-blue-500/30">
@@ -384,21 +376,18 @@ export default function Financial() {
                 />
               </div>
               <FinancialMetricsGrid businessModel={businessModel!} metrics={crmMetrics} />
-              <div className="grid gap-3 sm:gap-6 lg:grid-cols-2">
-                <ROASRealCard adSpend={totalAdSpend || 0} crmRevenue={crmMetrics.revenue} periodLabel="Últimos 30 dias" />
-                {businessModel === 'inside_sales' ? (
-                  <InsideSalesFunnel 
-                    leads={crmMetrics.leads}
-                    mql={crmMetrics.mql}
-                    sql={crmMetrics.sql}
-                    sales={crmMetrics.sales}
-                    revenue={crmMetrics.revenue}
-                    hasCRMData={crmStatus?.connected && (crmMetrics.mql > 0 || crmMetrics.sql > 0 || crmMetrics.sales > 0)}
-                  />
-                ) : (
-                  <FinancialDRECard {...dreData} />
-                )}
-              </div>
+              {businessModel === 'inside_sales' ? (
+                <InsideSalesFunnel 
+                  leads={crmMetrics.leads}
+                  mql={crmMetrics.mql}
+                  sql={crmMetrics.sql}
+                  sales={crmMetrics.sales}
+                  revenue={crmMetrics.revenue}
+                  hasCRMData={crmStatus?.connected && (crmMetrics.mql > 0 || crmMetrics.sql > 0 || crmMetrics.sales > 0)}
+                />
+              ) : (
+                <FinancialDRECard {...dreData} />
+              )}
             </TabsContent>
 
             <TabsContent value="funnel" className="space-y-6">
