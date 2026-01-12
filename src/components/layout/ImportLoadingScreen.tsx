@@ -89,8 +89,8 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
     const hasImporting = months.some(m => m.status === 'importing' || m.status === 'pending');
     
     if (!hasImporting) {
-      // All done - clear the dismissed flag so future imports can show the screen
-      localStorage.removeItem(`import_dismissed_${projectId}`);
+      // All done - set dismissed flag FIRST to prevent reappearing, then call onComplete
+      localStorage.setItem(`import_dismissed_${projectId}`, 'true');
       // Wait a moment then complete
       const timer = setTimeout(() => {
         onComplete();
