@@ -19,6 +19,7 @@ import {
   KanbanFunnel,
   AttributionAnalysis,
   CompleteDRE,
+  StagesMappingConfig,
 } from '@/components/financial';
 import type { DREPeriod } from '@/components/financial/CompleteDRE';
 import { 
@@ -341,14 +342,32 @@ export default function Financial() {
                 </TabsTrigger>
               </TabsList>
               
-              {/* Pipeline Selector - only show for Kommo with multiple pipelines */}
-              {crmStatus?.provider === 'kommo' && (crmStatus?.pipelines?.length || 0) > 0 && (
-                <PipelineSelector
-                  pipelines={crmStatus.pipelines || []}
-                  selectedPipelineId={crmStatus.selected_pipeline_id || null}
-                  onSelect={selectPipeline}
-                  isLoading={crmLoading}
-                />
+              {/* Pipeline Selector and Stage Mapping - only show for Kommo with stages */}
+              {crmStatus?.provider === 'kommo' && (
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  {(crmStatus?.pipelines?.length || 0) > 0 && (
+                    <PipelineSelector
+                      pipelines={crmStatus.pipelines || []}
+                      selectedPipelineId={crmStatus.selected_pipeline_id || null}
+                      onSelect={selectPipeline}
+                      isLoading={crmLoading}
+                    />
+                  )}
+                  {crmStatus?.stages && crmStatus.stages.length > 0 && crmStatus.connection_id && (
+                    <StagesMappingConfig
+                      connectionId={crmStatus.connection_id}
+                      stages={crmStatus.stages}
+                      currentMqlStages={crmStatus.mql_stage_ids || []}
+                      currentSqlStages={crmStatus.sql_stage_ids || []}
+                      onSave={() => {
+                        // Refresh status after saving
+                        setTimeout(() => {
+                          window.location.reload();
+                        }, 500);
+                      }}
+                    />
+                  )}
+                </div>
               )}
             </div>
 
