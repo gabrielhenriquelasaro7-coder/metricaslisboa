@@ -116,8 +116,8 @@ export function useMonthImportStatus(projectId: string | null) {
     ? ((stats.success + stats.skipped) / stats.total) * 100 
     : 0;
 
-  // Retry a single month
-  const retryMonth = async (year: number, month: number) => {
+  // Retry a single month with light_sync option
+  const retryMonth = async (year: number, month: number, lightSync: boolean = true) => {
     if (!projectId) return;
     
     const monthKey = `${year}-${month}`;
@@ -131,13 +131,15 @@ export function useMonthImportStatus(projectId: string | null) {
           month,
           continue_chain: false,
           safe_mode: true,
+          force_light_sync: lightSync,
         },
       });
 
       if (error) throw error;
       
       const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-      toast.success(`Reimportação iniciada para ${monthNames[month - 1]} ${year}`);
+      const modeLabel = lightSync ? '(Light)' : '(HD Completo)';
+      toast.success(`Reimportação ${modeLabel} iniciada para ${monthNames[month - 1]} ${year}`);
     } catch (error) {
       toast.error('Erro ao iniciar reimportação');
       console.error('Retry error:', error);
@@ -180,7 +182,7 @@ export function useMonthImportStatus(projectId: string | null) {
   };
 
   // Start import from a specific month with chain
-  const startChainedImport = async (year: number, month: number) => {
+  const startChainedImport = async (year: number, month: number, lightSync: boolean = true) => {
     if (!projectId) return;
 
     try {
@@ -191,21 +193,23 @@ export function useMonthImportStatus(projectId: string | null) {
           month,
           continue_chain: true,
           safe_mode: true,
+          force_light_sync: lightSync,
         },
       });
 
       if (error) throw error;
       
       const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-      toast.success(`Importação encadeada iniciada a partir de ${monthNames[month - 1]} ${year}`);
+      const modeLabel = lightSync ? '(Light - Rápido)' : '(HD Completo - Demorado)';
+      toast.success(`Importação ${modeLabel} iniciada a partir de ${monthNames[month - 1]} ${year}`);
     } catch (error) {
       toast.error('Erro ao iniciar importação');
       console.error('Start chain error:', error);
     }
   };
 
-  // Sync entire year (all 12 months or up to current month if current year)
-  const syncEntireYear = async (year: number) => {
+  // Sync entire year with mode selection
+  const syncEntireYear = async (year: number, lightSync: boolean = true) => {
     if (!projectId) return;
 
     const currentYear = new Date().getFullYear();
@@ -213,7 +217,6 @@ export function useMonthImportStatus(projectId: string | null) {
     const maxMonth = year === currentYear ? currentMonth : 12;
 
     try {
-      // Start from January with chain enabled - it will continue through all months
       const { error } = await supabase.functions.invoke('import-month-by-month', {
         body: {
           project_id: projectId,
@@ -221,12 +224,14 @@ export function useMonthImportStatus(projectId: string | null) {
           month: 1,
           continue_chain: true,
           safe_mode: true,
+          force_light_sync: lightSync,
         },
       });
 
       if (error) throw error;
       
-      toast.success(`Sincronização de ${year} iniciada (Jan a ${maxMonth === 12 ? 'Dez' : ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][maxMonth - 1]})`);
+      const modeLabel = lightSync ? 'Light' : 'HD Completo';
+      toast.success(`Sincronização ${modeLabel} de ${year} iniciada (Jan a ${maxMonth === 12 ? 'Dez' : ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][maxMonth - 1]})`);
     } catch (error) {
       toast.error('Erro ao iniciar sincronização do ano');
       console.error('Sync year error:', error);
