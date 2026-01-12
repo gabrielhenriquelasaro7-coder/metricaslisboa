@@ -261,51 +261,41 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
               <p className="text-xs sm:text-sm text-muted-foreground">Nenhuma campanha com UTM</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {/* Header row */}
-              <div className="grid grid-cols-12 gap-2 px-2 text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                <div className="col-span-5 sm:col-span-6">Campanha</div>
-                <div className="col-span-2 text-center">Leads</div>
-                <div className="col-span-2 text-center">Vendas</div>
-                <div className="col-span-3 sm:col-span-2 text-right">Conv.</div>
-              </div>
-              
+            <div className="space-y-2">
               {campaignData.slice(0, 10).map((campaign, index) => (
-                <div key={campaign.fullName} className="space-y-1">
-                  <div className="grid grid-cols-12 gap-2 items-center p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="col-span-5 sm:col-span-6 flex items-center gap-2 min-w-0">
-                      <span 
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-                        style={{ backgroundColor: COLORS[index % COLORS.length] + '30', color: COLORS[index % COLORS.length] }}
-                      >
-                        {index + 1}
-                      </span>
-                      <span className="text-xs sm:text-sm font-medium truncate" title={campaign.fullName}>
-                        {campaign.name}
-                      </span>
+                <div key={campaign.fullName} className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span 
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] + '30', color: COLORS[index % COLORS.length] }}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="text-sm font-medium truncate flex-1" title={campaign.fullName}>
+                      {campaign.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 ml-9">
+                    <div className="flex items-center gap-4">
+                      <div className="text-center">
+                        <p className="text-lg font-bold">{campaign.leads}</p>
+                        <p className="text-[10px] text-muted-foreground">leads</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-bold">{campaign.won}</p>
+                        <p className="text-[10px] text-muted-foreground">vendas</p>
+                      </div>
                     </div>
-                    <div className="col-span-2 text-center">
-                      <span className="text-xs sm:text-sm font-medium">{campaign.leads}</span>
-                      <span className="text-[10px] text-muted-foreground ml-1">leads</span>
-                    </div>
-                    <div className="col-span-2 text-center">
-                      <Badge variant={campaign.won > 0 ? 'default' : 'secondary'} className="text-[10px] px-1.5">
-                        {campaign.won} vendas
-                      </Badge>
-                    </div>
-                    <div className="col-span-3 sm:col-span-2 text-right">
+                    <div className="text-right">
                       <span className={cn(
-                        "text-xs sm:text-sm font-semibold",
+                        "text-base font-bold",
                         campaign.conversionRate > 0 ? "text-metric-positive" : "text-muted-foreground"
                       )}>
                         {campaign.conversionRate.toFixed(1)}%
                       </span>
+                      <p className="text-[10px] text-muted-foreground">conversão</p>
                     </div>
                   </div>
-                  <Progress 
-                    value={(campaign.leads / (campaignData[0]?.leads || 1)) * 100} 
-                    className="h-1 mx-2"
-                  />
                 </div>
               ))}
             </div>
@@ -313,99 +303,50 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-        {/* Creative Performance */}
-        <Card>
-          <CardHeader className="p-3 sm:p-6">
-            <div className="flex items-center gap-2">
-              <Palette className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-              <CardTitle className="text-sm sm:text-lg">Por Criativo</CardTitle>
+      {/* Creative Performance - Full Width */}
+      <Card>
+        <CardHeader className="p-3 sm:p-6">
+          <div className="flex items-center gap-2">
+            <Palette className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <CardTitle className="text-sm sm:text-lg">Por Criativo</CardTitle>
+          </div>
+          <CardDescription className="text-xs sm:text-sm">
+            Análise por utm_term
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-3 sm:p-6 pt-0">
+          {creativeData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center">
+              <Palette className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground mb-2" />
+              <p className="text-xs sm:text-sm text-muted-foreground">Sem dados de criativos</p>
             </div>
-            <CardDescription className="text-xs sm:text-sm">
-              Análise por utm_term
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            {creativeData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center">
-                <Palette className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground mb-2" />
-                <p className="text-xs sm:text-sm text-muted-foreground">Sem dados de criativos</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={creativeData.slice(0, 5)} layout="vertical" margin={{ left: 0, right: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    width={80} 
-                    stroke="hsl(var(--muted-foreground))" 
-                    fontSize={9}
-                    tickLine={false}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                    formatter={(value: number, name: string) => [value, name === 'leads' ? 'Leads' : 'Vendas']}
-                  />
-                  <Bar dataKey="leads" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Audience Performance */}
-        <Card>
-          <CardHeader className="p-3 sm:p-6">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-              <CardTitle className="text-sm sm:text-lg">Por Público</CardTitle>
-            </div>
-            <CardDescription className="text-xs sm:text-sm">
-              Análise por utm_medium
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            {audienceData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center">
-                <Users className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground mb-2" />
-                <p className="text-xs sm:text-sm text-muted-foreground">Sem dados de públicos</p>
-              </div>
-            ) : (
-              <div className="space-y-2 sm:space-y-3">
-                {audienceData.slice(0, 5).map((audience, index) => (
-                  <div key={audience.fullName} className="flex items-center gap-2 sm:gap-3">
-                    <div 
-                      className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs sm:text-sm font-medium truncate" title={audience.fullName}>
-                        {audience.name}
-                      </p>
-                      <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
-                        <span>{audience.leads} leads</span>
-                        <span>•</span>
-                        <span>{audience.won} vendas</span>
-                        <span className="hidden sm:inline">•</span>
-                        <span className="hidden sm:inline">{audience.conversionRate.toFixed(0)}%</span>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-base sm:text-lg font-bold">{audience.leads}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={creativeData.slice(0, 5)} layout="vertical" margin={{ left: 0, right: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  width={80} 
+                  stroke="hsl(var(--muted-foreground))" 
+                  fontSize={9}
+                  tickLine={false}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                  formatter={(value: number, name: string) => [value, name === 'leads' ? 'Leads' : 'Vendas']}
+                />
+                <Bar dataKey="leads" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
 
       {/* UTM Coverage Warning */}
