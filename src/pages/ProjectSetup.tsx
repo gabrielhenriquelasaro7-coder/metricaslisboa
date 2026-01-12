@@ -95,14 +95,15 @@ export default function ProjectSetup() {
   const [isSaving, setIsSaving] = useState(false);
   const [projectName, setProjectName] = useState('');
   
+  // Default config with LEADS + VENDAS pre-selected for custom projects
   const [config, setConfig] = useState<MetricConfig>({
     result_metric: 'leads',
     result_metric_label: 'Leads',
-    result_metrics: ['leads'],
-    result_metrics_labels: { leads: 'Leads' },
+    result_metrics: ['leads', 'purchases'],
+    result_metrics_labels: { leads: 'Leads', purchases: 'Vendas' },
     base_metrics: ['spend', 'impressions', 'clicks', 'cpm', 'cpc'],
-    cost_metrics: ['cpl', 'cpa'],
-    efficiency_metrics: ['roas', 'ctr'],
+    cost_metrics: ['cpl', 'cpa', 'cpp'],
+    efficiency_metrics: ['roas', 'ctr', 'conversion_rate'],
     chart_primary_metric: 'spend',
     chart_secondary_metric: 'leads',
   });
