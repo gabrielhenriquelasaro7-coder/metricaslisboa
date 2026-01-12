@@ -83,20 +83,20 @@ interface DRELabels {
 }
 
 const DEFAULT_LABELS: DRELabels = {
-  grossRevenue: 'Receita Bruta de Vendas',
-  platformFee: 'Taxa da Plataforma',
-  taxes: 'Impostos sobre Vendas',
-  refunds: 'Devoluções e Chargebacks',
+  grossRevenue: 'Receita Bruta',
+  platformFee: 'Taxa Plataforma',
+  taxes: 'Impostos',
+  refunds: 'Devoluções',
   netRevenue: 'Receita Líquida',
-  productCosts: 'Custo dos Produtos',
+  productCosts: 'Custo Produtos',
   grossProfit: 'Lucro Bruto',
-  adSpend: 'Investimento em Mídia (Ads)',
-  contributionMargin: 'Margem de Contribuição',
-  teamCosts: 'Equipe / Pessoal',
-  toolCosts: 'Ferramentas / Software',
+  adSpend: 'Investimento Mídia',
+  contributionMargin: 'Margem Contrib.',
+  teamCosts: 'Equipe/Pessoal',
+  toolCosts: 'Ferramentas/Soft',
   fixedCosts: 'Custos Fixos',
   otherCosts: 'Outras Despesas',
-  ebitda: 'EBITDA (Lucro Operacional)',
+  ebitda: 'EBITDA (Lucro Op.)',
 };
 
 export type DREPeriod = 'last_7d' | 'last_30d' | 'this_month' | 'last_month' | 'custom';

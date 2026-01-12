@@ -168,10 +168,10 @@ export function KanbanFilters({ deals, filters, onFiltersChange }: KanbanFilters
                   <ChevronDown className="h-3 w-3" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <div className="flex flex-col sm:flex-row">
+              <PopoverContent className="w-[280px] sm:w-auto p-0" align="start" side="bottom" sideOffset={4}>
+                <div className="flex flex-col">
                   {/* Quick Options */}
-                  <div className="border-b sm:border-b-0 sm:border-r p-2 space-y-1">
+                  <div className="border-b p-2 space-y-0.5">
                     <p className="text-xs font-medium text-muted-foreground px-2 py-1">Atalhos</p>
                     {QUICK_DATE_OPTIONS.map((option) => (
                       <button
@@ -205,6 +205,7 @@ export function KanbanFilters({ deals, filters, onFiltersChange }: KanbanFilters
                       }}
                       locale={ptBR}
                       numberOfMonths={1}
+                      className="text-sm"
                     />
                   </div>
                 </div>

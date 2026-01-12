@@ -90,47 +90,49 @@ export function SyncStatusCard({
 
   return (
     <Card className={cn('transition-colors', config.borderColor)}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={cn('p-2 rounded-lg', config.bgColor)}>
-              <StatusIcon className={cn('w-5 h-5', config.color, status === 'syncing' && 'animate-spin')} />
+      <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className={cn('p-1.5 sm:p-2 rounded-lg flex-shrink-0', config.bgColor)}>
+              <StatusIcon className={cn('w-4 h-4 sm:w-5 sm:h-5', config.color, status === 'syncing' && 'animate-spin')} />
             </div>
-            <div>
-              <CardTitle className="text-base">Status da Sincronização</CardTitle>
+            <div className="min-w-0">
+              <CardTitle className="text-sm sm:text-base">Status da Sincronização</CardTitle>
               <CardDescription className="flex items-center gap-2 mt-0.5">
-                <Badge variant="outline" className={cn('font-medium', config.color, config.bgColor)}>
+                <Badge variant="outline" className={cn('font-medium text-[10px] sm:text-xs', config.color, config.bgColor)}>
                   {config.label}
                 </Badge>
               </CardDescription>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {status === 'error' && onRetry && (
-              <Button variant="outline" size="sm" onClick={onRetry} className="gap-2">
-                <RefreshCw className="w-4 h-4" />
-                Tentar novamente
+              <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5 h-7 sm:h-8 text-xs sm:text-sm">
+                <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Tentar novamente</span>
+                <span className="sm:hidden">Tentar</span>
               </Button>
             )}
             {status === 'synced' && onForceSync && (
-              <Button variant="ghost" size="sm" onClick={onForceSync} className="gap-2 text-muted-foreground">
-                <RefreshCw className="w-4 h-4" />
-                Sincronizar agora
+              <Button variant="ghost" size="sm" onClick={onForceSync} className="gap-1.5 text-muted-foreground h-7 sm:h-8 text-xs sm:text-sm">
+                <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Sincronizar agora</span>
+                <span className="sm:hidden">Sync</span>
               </Button>
             )}
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-3 sm:p-6 pt-0 space-y-3 sm:space-y-4">
         {status === 'syncing' && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-xs sm:text-sm">
               <span className="text-muted-foreground">Importando dados...</span>
               <span className="font-medium">{progress}%</span>
             </div>
-            <Progress value={progress} className="h-2" />
+            <Progress value={progress} className="h-1.5 sm:h-2" />
             {recordsSynced > 0 && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
                 {recordsSynced.toLocaleString('pt-BR')} registros importados
               </p>
             )}
@@ -138,19 +140,19 @@ export function SyncStatusCard({
         )}
 
         {status === 'error' && errorMessage && (
-          <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/20">
-            <p className="text-sm text-destructive">{errorMessage}</p>
+          <div className="p-2 sm:p-3 rounded-lg bg-destructive/5 border border-destructive/20">
+            <p className="text-xs sm:text-sm text-destructive">{errorMessage}</p>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4 pt-2">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-1 sm:pt-2">
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Última sincronização</p>
-            <p className="text-sm font-medium">{formatDate(lastSyncAt)}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Última sincronização</p>
+            <p className="text-xs sm:text-sm font-medium">{formatDate(lastSyncAt)}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Próxima sincronização</p>
-            <p className="text-sm font-medium">{formatRelativeTime(nextSyncAt)}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Próxima sincronização</p>
+            <p className="text-xs sm:text-sm font-medium">{formatRelativeTime(nextSyncAt)}</p>
           </div>
         </div>
       </CardContent>
