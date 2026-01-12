@@ -184,59 +184,59 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Overview Metrics */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card className="bg-gradient-to-br from-blue-600/20 to-blue-900/30 border-blue-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-blue-200 uppercase tracking-wider">Cobertura UTM</span>
-              <Target className="h-4 w-4 text-blue-400" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-medium text-blue-200 uppercase tracking-wider truncate">Cobertura UTM</span>
+              <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-400 flex-shrink-0" />
             </div>
-            <p className="text-3xl font-bold text-blue-100">{overviewMetrics.utmCoverage.toFixed(0)}%</p>
-            <p className="text-xs text-blue-300/70 mt-1">
-              {overviewMetrics.withUtm} de {overviewMetrics.totalLeads} leads
+            <p className="text-lg sm:text-3xl font-bold text-blue-100">{overviewMetrics.utmCoverage.toFixed(0)}%</p>
+            <p className="text-[10px] sm:text-xs text-blue-300/70 mt-0.5 sm:mt-1 truncate">
+              {overviewMetrics.withUtm}/{overviewMetrics.totalLeads} leads
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-emerald-600/20 to-emerald-900/30 border-emerald-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-emerald-200 uppercase tracking-wider">ROAS Real</span>
-              <TrendingUp className="h-4 w-4 text-emerald-400" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-medium text-emerald-200 uppercase tracking-wider">ROAS</span>
+              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-400 flex-shrink-0" />
             </div>
-            <p className="text-3xl font-bold text-emerald-100">{overviewMetrics.roas.toFixed(2)}x</p>
-            <p className="text-xs text-emerald-300/70 mt-1">
-              {formatCurrency(overviewMetrics.revenue)} faturado
+            <p className="text-lg sm:text-3xl font-bold text-emerald-100">{overviewMetrics.roas.toFixed(2)}x</p>
+            <p className="text-[10px] sm:text-xs text-emerald-300/70 mt-0.5 sm:mt-1 truncate">
+              {formatCurrency(overviewMetrics.revenue)}
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-amber-600/20 to-amber-900/30 border-amber-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-amber-200 uppercase tracking-wider">CPL Real</span>
-              <DollarSign className="h-4 w-4 text-amber-400" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-medium text-amber-200 uppercase tracking-wider">CPL</span>
+              <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-400 flex-shrink-0" />
             </div>
-            <p className="text-3xl font-bold text-amber-100">{formatCurrency(overviewMetrics.cpl)}</p>
-            <p className="text-xs text-amber-300/70 mt-1">
+            <p className="text-lg sm:text-3xl font-bold text-amber-100">{formatCurrency(overviewMetrics.cpl)}</p>
+            <p className="text-[10px] sm:text-xs text-amber-300/70 mt-0.5 sm:mt-1 truncate">
               Gasto: {formatCurrency(adSpend)}
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-purple-600/20 to-purple-900/30 border-purple-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-purple-200 uppercase tracking-wider">CAC</span>
-              <Users className="h-4 w-4 text-purple-400" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-medium text-purple-200 uppercase tracking-wider">CAC</span>
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-400 flex-shrink-0" />
             </div>
-            <p className="text-3xl font-bold text-purple-100">
+            <p className="text-lg sm:text-3xl font-bold text-purple-100">
               {overviewMetrics.cac > 0 ? formatCurrency(overviewMetrics.cac) : '-'}
             </p>
-            <p className="text-xs text-purple-300/70 mt-1">
-              {overviewMetrics.wonDeals} vendas • {overviewMetrics.conversionRate.toFixed(1)}% conv.
+            <p className="text-[10px] sm:text-xs text-purple-300/70 mt-0.5 sm:mt-1 truncate">
+              {overviewMetrics.wonDeals} vendas • {overviewMetrics.conversionRate.toFixed(0)}%
             </p>
           </CardContent>
         </Card>
@@ -244,52 +244,52 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
 
       {/* Campaign Performance */}
       <Card>
-        <CardHeader>
+        <CardHeader className="p-3 sm:p-6">
           <div className="flex items-center gap-2">
-            <Megaphone className="h-5 w-5 text-primary" />
-            <CardTitle>Performance por Campanha</CardTitle>
+            <Megaphone className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <CardTitle className="text-sm sm:text-base">Por Campanha</CardTitle>
           </div>
-          <CardDescription>
-            Ranking de campanhas por volume de leads e conversão
+          <CardDescription className="text-xs sm:text-sm">
+            Ranking por volume de leads
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 sm:p-6 pt-0">
           {campaignData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Target className="h-12 w-12 text-muted-foreground mb-3" />
-              <p className="text-muted-foreground">Nenhuma campanha com UTM encontrada</p>
+            <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-center">
+              <Target className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mb-2 sm:mb-3" />
+              <p className="text-xs sm:text-sm text-muted-foreground">Nenhuma campanha com UTM</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {campaignData.map((campaign, index) => (
-                <div key={campaign.fullName} className="space-y-2">
-                  <div className="flex items-center justify-between">
+            <div className="space-y-3 sm:space-y-4">
+              {campaignData.slice(0, 5).map((campaign, index) => (
+                <div key={campaign.fullName} className="space-y-1.5 sm:space-y-2">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span 
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                        className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold flex-shrink-0"
                         style={{ backgroundColor: COLORS[index % COLORS.length] + '30', color: COLORS[index % COLORS.length] }}
                       >
                         {index + 1}
                       </span>
-                      <span className="font-medium truncate" title={campaign.fullName}>
+                      <span className="text-xs sm:text-sm font-medium truncate" title={campaign.fullName}>
                         {campaign.name}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm flex-shrink-0">
                       <span className="text-muted-foreground">
-                        {campaign.leads} leads
+                        {campaign.leads}
                       </span>
-                      <Badge variant={campaign.won > 0 ? 'default' : 'secondary'}>
-                        {campaign.won} vendas
+                      <Badge variant={campaign.won > 0 ? 'default' : 'secondary'} className="text-[10px] sm:text-xs px-1.5 sm:px-2">
+                        {campaign.won}
                       </Badge>
-                      <span className="font-medium w-16 text-right">
-                        {campaign.conversionRate.toFixed(1)}%
+                      <span className="font-medium w-10 sm:w-16 text-right">
+                        {campaign.conversionRate.toFixed(0)}%
                       </span>
                     </div>
                   </div>
                   <Progress 
                     value={(campaign.leads / (campaignData[0]?.leads || 1)) * 100} 
-                    className="h-2"
+                    className="h-1.5 sm:h-2"
                   />
                 </div>
               ))}
@@ -298,35 +298,35 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Creative Performance */}
         <Card>
-          <CardHeader>
+          <CardHeader className="p-3 sm:p-6">
             <div className="flex items-center gap-2">
-              <Palette className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Performance por Criativo</CardTitle>
+              <Palette className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <CardTitle className="text-sm sm:text-lg">Por Criativo</CardTitle>
             </div>
-            <CardDescription>
-              Análise por utm_term (criativo/copy)
+            <CardDescription className="text-xs sm:text-sm">
+              Análise por utm_term
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-6 pt-0">
             {creativeData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Palette className="h-10 w-10 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Sem dados de criativos</p>
+              <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center">
+                <Palette className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground mb-2" />
+                <p className="text-xs sm:text-sm text-muted-foreground">Sem dados de criativos</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={creativeData} layout="vertical" margin={{ left: 10, right: 10 }}>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={creativeData.slice(0, 5)} layout="vertical" margin={{ left: 0, right: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} />
                   <YAxis 
                     dataKey="name" 
                     type="category" 
-                    width={120} 
+                    width={80} 
                     stroke="hsl(var(--muted-foreground))" 
-                    fontSize={11}
+                    fontSize={9}
                     tickLine={false}
                   />
                   <Tooltip 
@@ -346,43 +346,43 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
 
         {/* Audience Performance */}
         <Card>
-          <CardHeader>
+          <CardHeader className="p-3 sm:p-6">
             <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Performance por Público</CardTitle>
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <CardTitle className="text-sm sm:text-lg">Por Público</CardTitle>
             </div>
-            <CardDescription>
-              Análise por utm_medium (segmentação)
+            <CardDescription className="text-xs sm:text-sm">
+              Análise por utm_medium
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-6 pt-0">
             {audienceData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Users className="h-10 w-10 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Sem dados de públicos</p>
+              <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center">
+                <Users className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground mb-2" />
+                <p className="text-xs sm:text-sm text-muted-foreground">Sem dados de públicos</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {audienceData.slice(0, 5).map((audience, index) => (
-                  <div key={audience.fullName} className="flex items-center gap-3">
+                  <div key={audience.fullName} className="flex items-center gap-2 sm:gap-3">
                     <div 
-                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
                       style={{ backgroundColor: COLORS[index % COLORS.length] }}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" title={audience.fullName}>
+                      <p className="text-xs sm:text-sm font-medium truncate" title={audience.fullName}>
                         {audience.name}
                       </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
                         <span>{audience.leads} leads</span>
                         <span>•</span>
                         <span>{audience.won} vendas</span>
-                        <span>•</span>
-                        <span>{audience.conversionRate.toFixed(1)}% conv.</span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className="hidden sm:inline">{audience.conversionRate.toFixed(0)}%</span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold">{audience.leads}</p>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-base sm:text-lg font-bold">{audience.leads}</p>
                     </div>
                   </div>
                 ))}
