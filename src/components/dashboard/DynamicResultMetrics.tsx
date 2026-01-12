@@ -298,6 +298,9 @@ export function DynamicResultMetrics({
       const effConfig = EFFICIENCY_CONFIG[metric];
       if (!effConfig) return;
       
+      // ROAS only shows if there are sales
+      if (metric === 'roas' && (metrics.totalSalesConversions || 0) === 0) return;
+      
       const value = getEfficiencyValue(metric);
       const formattedValue = formatEfficiency(value, effConfig.format);
 
