@@ -44,6 +44,15 @@ export interface CRMDeal {
   company_name?: string;
 }
 
+export interface FunnelCardConfig {
+  id: string;
+  label: string;
+  stage_ids: string[];
+  icon: string;
+  enabled: boolean;
+  color: string;
+}
+
 export interface CRMConnectionStatus {
   connected: boolean;
   connection_id?: string;
@@ -56,6 +65,7 @@ export interface CRMConnectionStatus {
   selected_pipeline_id?: string | null;
   mql_stage_ids?: string[];
   sql_stage_ids?: string[];
+  funnel_cards_config?: FunnelCardConfig[];
   pipelines?: CRMPipeline[];
   stages?: CRMStage[];
   deals?: CRMDeal[];

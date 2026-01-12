@@ -20,7 +20,9 @@ import {
   AttributionAnalysis,
   CompleteDRE,
   StagesMappingConfig,
+  FunnelCardsConfig,
 } from '@/components/financial';
+import type { FunnelCard } from '@/components/financial';
 import type { DREPeriod } from '@/components/financial/CompleteDRE';
 import { 
   Users, 
@@ -64,7 +66,8 @@ export default function Financial() {
     connect: connectCRM, 
     disconnect: disconnectCRM,
     triggerSync,
-    selectPipeline
+    selectPipeline,
+    fetchStatus
   } = useCRMConnection(selectedProjectId || undefined);
 
   const [drePeriod, setDrePeriod] = useState<DREPeriod>('last_30d');
@@ -344,7 +347,7 @@ export default function Financial() {
               
               {/* Pipeline Selector and Stage Mapping - only show for Kommo with stages */}
               {crmStatus?.provider === 'kommo' && (
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center flex-wrap">
                   {(crmStatus?.pipelines?.length || 0) > 0 && (
                     <PipelineSelector
                       pipelines={crmStatus.pipelines || []}
@@ -354,18 +357,25 @@ export default function Financial() {
                     />
                   )}
                   {crmStatus?.stages && crmStatus.stages.length > 0 && crmStatus.connection_id && (
-                    <StagesMappingConfig
-                      connectionId={crmStatus.connection_id}
-                      stages={crmStatus.stages}
-                      currentMqlStages={crmStatus.mql_stage_ids || []}
-                      currentSqlStages={crmStatus.sql_stage_ids || []}
-                      onSave={() => {
-                        // Refresh status after saving
-                        setTimeout(() => {
-                          window.location.reload();
-                        }, 500);
-                      }}
-                    />
+                    <>
+                      <StagesMappingConfig
+                        connectionId={crmStatus.connection_id}
+                        stages={crmStatus.stages}
+                        currentMqlStages={crmStatus.mql_stage_ids || []}
+                        currentSqlStages={crmStatus.sql_stage_ids || []}
+                        onSave={() => {
+                          setTimeout(() => fetchStatus(), 500);
+                        }}
+                      />
+                      <FunnelCardsConfig
+                        connectionId={crmStatus.connection_id}
+                        stages={crmStatus.stages}
+                        currentConfig={crmStatus.funnel_cards_config as FunnelCard[] | undefined}
+                        onSave={() => {
+                          setTimeout(() => fetchStatus(), 500);
+                        }}
+                      />
+                    </>
                   )}
                 </div>
               )}
@@ -403,6 +413,10 @@ export default function Financial() {
                   sales={crmMetrics.sales}
                   revenue={crmMetrics.revenue}
                   hasCRMData={crmStatus?.connected && (crmMetrics.mql > 0 || crmMetrics.sql > 0 || crmMetrics.sales > 0)}
+                  funnelConfig={crmStatus?.funnel_cards_config as FunnelCard[] | undefined}
+                  crmStages={crmStatus?.stages}
+                  onRefresh={() => fetchStatus()}
+                  isRefreshing={crmLoading}
                 />
               ) : (
                 <FinancialDRECard {...dreData} />
