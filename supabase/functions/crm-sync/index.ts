@@ -97,68 +97,64 @@ Deno.serve(async (req) => {
       
       console.log(`[CRM Sync] Fetched ${deals.length} deals from ${connection.provider}`);
 
-      // Process deals
-      let created = 0;
-      let updated = 0;
-      let failed = 0;
+      // Process deals in batches for performance
+      const BATCH_SIZE = 100;
+      let totalProcessed = 0;
+      let totalFailed = 0;
 
-      for (const deal of deals) {
-        try {
-          const dealData = {
-            connection_id,
-            project_id,
-            external_id: deal.external_id,
-            external_pipeline_id: deal.external_pipeline_id,
-            external_stage_id: deal.external_stage_id,
-            title: deal.title,
-            value: deal.value || 0,
-            currency: deal.currency || 'BRL',
-            status: deal.status || 'open',
-            stage_name: deal.stage_name,
-            created_date: deal.created_date,
-            closed_date: deal.closed_date,
-            owner_name: deal.owner_name,
-            owner_email: deal.owner_email,
-            contact_name: deal.contact_name,
-            contact_email: deal.contact_email,
-            contact_phone: deal.contact_phone,
-            lead_source: deal.lead_source,
-            utm_source: deal.utm_source,
-            utm_medium: deal.utm_medium,
-            utm_campaign: deal.utm_campaign,
-            custom_fields: deal.custom_fields || {},
-            synced_at: new Date().toISOString(),
-          };
+      for (let i = 0; i < deals.length; i += BATCH_SIZE) {
+        const batch = deals.slice(i, i + BATCH_SIZE);
+        
+        const batchData = batch.map(deal => ({
+          connection_id,
+          project_id,
+          external_id: deal.external_id,
+          external_pipeline_id: deal.external_pipeline_id,
+          external_stage_id: deal.external_stage_id,
+          title: deal.title,
+          value: deal.value || 0,
+          currency: deal.currency || 'BRL',
+          status: deal.status || 'open',
+          stage_name: deal.stage_name,
+          created_date: deal.created_date,
+          closed_date: deal.closed_date,
+          owner_name: deal.owner_name,
+          owner_email: deal.owner_email,
+          contact_name: deal.contact_name,
+          contact_email: deal.contact_email,
+          contact_phone: deal.contact_phone,
+          lead_source: deal.lead_source,
+          utm_source: deal.utm_source,
+          utm_medium: deal.utm_medium,
+          utm_campaign: deal.utm_campaign,
+          custom_fields: deal.custom_fields || {},
+          synced_at: new Date().toISOString(),
+        }));
 
-          // Upsert deal
-          const { error: upsertError } = await supabase
-            .from('crm_deals')
-            .upsert(dealData, { 
-              onConflict: 'connection_id,external_id',
-              ignoreDuplicates: false 
-            });
+        // Batch upsert
+        const { error: upsertError } = await supabase
+          .from('crm_deals')
+          .upsert(batchData, { 
+            onConflict: 'connection_id,external_id',
+            ignoreDuplicates: false 
+          });
 
-          if (upsertError) {
-            console.error(`[CRM Sync] Failed to upsert deal ${deal.external_id}:`, upsertError);
-            failed++;
-          } else {
-            // Check if it was created or updated (simplified - count as created if no prior record)
-            const { data: existing } = await supabase
-              .from('crm_deals')
-              .select('id')
-              .eq('connection_id', connection_id)
-              .eq('external_id', deal.external_id)
-              .single();
-            
-            if (existing) {
-              updated++;
-            } else {
-              created++;
-            }
-          }
-        } catch (dealError) {
-          console.error(`[CRM Sync] Error processing deal:`, dealError);
-          failed++;
+        if (upsertError) {
+          console.error(`[CRM Sync] Batch ${Math.floor(i/BATCH_SIZE)+1} failed:`, upsertError);
+          totalFailed += batch.length;
+        } else {
+          totalProcessed += batch.length;
+        }
+
+        // Update progress every 5 batches
+        if ((i / BATCH_SIZE) % 5 === 0) {
+          await supabase
+            .from('crm_sync_logs')
+            .update({
+              records_processed: totalProcessed + totalFailed,
+            })
+            .eq('id', syncLog.id);
+          console.log(`[CRM Sync] Progress: ${totalProcessed + totalFailed}/${deals.length}`);
         }
       }
 
@@ -169,22 +165,22 @@ Deno.serve(async (req) => {
           status: 'completed',
           completed_at: new Date().toISOString(),
           records_processed: deals.length,
-          records_created: created,
-          records_updated: updated,
-          records_failed: failed,
+          records_created: 0, // We can't distinguish with batch upsert
+          records_updated: totalProcessed,
+          records_failed: totalFailed,
         })
         .eq('id', syncLog.id);
 
-      console.log(`[CRM Sync] Completed: ${created} created, ${updated} updated, ${failed} failed`);
+      console.log(`[CRM Sync] Completed: ${totalProcessed} processed, ${totalFailed} failed`);
 
       return new Response(
         JSON.stringify({
           success: true,
           sync_id: syncLog.id,
           records_processed: deals.length,
-          records_created: created,
-          records_updated: updated,
-          records_failed: failed,
+          records_created: 0,
+          records_updated: totalProcessed,
+          records_failed: totalFailed,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

@@ -137,10 +137,13 @@ Deno.serve(async (req) => {
     const selectedPipelineId = (connection.config as Record<string, unknown>)?.selected_pipeline_id as string | null;
 
     // Get deal statistics - filter by pipeline if selected
+    // Limit to most recent 500 deals for performance, ordered by created_date DESC
     let dealsQuery = supabase
       .from('crm_deals')
       .select('id, external_id, title, contact_name, contact_phone, contact_email, value, status, stage_name, external_stage_id, external_pipeline_id, created_date, closed_date, utm_source, utm_medium, utm_campaign, utm_content, utm_term, lead_source, owner_name, custom_fields')
-      .eq('connection_id', connection.id);
+      .eq('connection_id', connection.id)
+      .order('created_date', { ascending: false })
+      .limit(500);
     
     if (selectedPipelineId) {
       dealsQuery = dealsQuery.eq('external_pipeline_id', selectedPipelineId);
@@ -148,14 +151,30 @@ Deno.serve(async (req) => {
 
     const { data: allDeals } = await dealsQuery;
 
+    // Get total counts for stats (faster query without all fields)
+    const { count: totalCount } = await supabase
+      .from('crm_deals')
+      .select('id', { count: 'exact', head: true })
+      .eq('connection_id', connection.id);
+    
+    // Get counts by status
+    const { data: statusCounts } = await supabase
+      .from('crm_deals')
+      .select('status, value')
+      .eq('connection_id', connection.id);
+
+    const wonDeals = statusCounts?.filter(d => d.status === 'won') || [];
+    const lostDeals = statusCounts?.filter(d => d.status === 'lost') || [];
+    const openDeals = statusCounts?.filter(d => d.status === 'open') || [];
+
     // Basic stats
     const stats = {
-      total_deals: allDeals?.length || 0,
-      won_deals: allDeals?.filter(d => d.status === 'won').length || 0,
-      lost_deals: allDeals?.filter(d => d.status === 'lost').length || 0,
-      open_deals: allDeals?.filter(d => d.status === 'open').length || 0,
-      total_revenue: allDeals?.filter(d => d.status === 'won').reduce((sum, d) => sum + (d.value || 0), 0) || 0,
-      total_pipeline_value: allDeals?.filter(d => d.status === 'open').reduce((sum, d) => sum + (d.value || 0), 0) || 0,
+      total_deals: totalCount || 0,
+      won_deals: wonDeals.length,
+      lost_deals: lostDeals.length,
+      open_deals: openDeals.length,
+      total_revenue: wonDeals.reduce((sum, d) => sum + (d.value || 0), 0),
+      total_pipeline_value: openDeals.reduce((sum, d) => sum + (d.value || 0), 0),
     };
 
     // Initialize funnel and stages data
