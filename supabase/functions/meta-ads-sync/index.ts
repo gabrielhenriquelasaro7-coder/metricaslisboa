@@ -319,6 +319,21 @@ async function fetchEntities(adAccountId: string, token: string, supabase?: any,
 
   console.log(`[ENTITIES] Campaigns: ${campaigns.length}, Adsets: ${adsets.length}, Ads: ${ads.length}`);
   
+  // DEBUG: Log sample ad creative data
+  if (ads.length > 0) {
+    const sampleAd = ads.find((a: any) => a.creative?.asset_feed_spec || a.creative?.object_story_spec) || ads[0];
+    const c = sampleAd.creative;
+    console.log(`[CREATIVE-SAMPLE] Ad ${sampleAd.id}: creative_id=${c?.id || 'NULL'}`);
+    console.log(`[CREATIVE-SAMPLE] has asset_feed_spec: ${!!c?.asset_feed_spec}, has object_story_spec: ${!!c?.object_story_spec}`);
+    if (c?.asset_feed_spec) {
+      console.log(`[CREATIVE-SAMPLE] asset_feed_spec bodies: ${c.asset_feed_spec.bodies?.length || 0}, titles: ${c.asset_feed_spec.titles?.length || 0}`);
+    }
+    if (c?.object_story_spec) {
+      console.log(`[CREATIVE-SAMPLE] object_story_spec: link_data=${!!c.object_story_spec.link_data}, video_data=${!!c.object_story_spec.video_data}, photo_data=${!!c.object_story_spec.photo_data}`);
+    }
+    console.log(`[CREATIVE-SAMPLE] body="${c?.body?.substring(0, 50) || 'NULL'}", title="${c?.title || 'NULL'}"`);
+  }
+
   const adImageMap = new Map<string, string>(), videoThumbnailMap = new Map<string, string>(), creativeDataMap = new Map<string, any>(), adPreviewMap = new Map<string, string>(), immediateCache = new Map<string, string>(), creativeThumbnailHDMap = new Map<string, string>();
   
   // Mapear creatives dos ads
