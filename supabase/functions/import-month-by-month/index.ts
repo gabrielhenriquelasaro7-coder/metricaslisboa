@@ -11,6 +11,7 @@ interface MonthImportRequest {
   month: number;
   continue_chain?: boolean;
   ad_account_id?: string;
+  force_light_sync?: boolean; // Se definido, usa esse valor. Se não, decide automaticamente
 }
 
 function getNextMonth(year: number, month: number): { year: number; month: number } | null {
@@ -74,7 +75,7 @@ Deno.serve(async (req) => {
   
   try {
     const body: MonthImportRequest = await req.json();
-    const { project_id, year, month, continue_chain = false, ad_account_id } = body;
+    const { project_id, year, month, continue_chain = false, ad_account_id, force_light_sync } = body;
     
     if (!project_id || !year || !month) {
       return new Response(
@@ -171,20 +172,25 @@ Deno.serve(async (req) => {
     
     console.log(`[MONTH-IMPORT] Project: ${project.name}`);
     
-    // Verificar tamanho da conta para decidir light_sync
-    // REGRA ABSOLUTA:
-    // - CONTAS GRANDES (>200 ads): light_sync = true, depois puxa criativos separado
-    // - CONTAS PEQUENAS (<=200 ads): light_sync = false, puxa TUDO em HD de uma vez
-    const { count: adsCount } = await supabase
-      .from('ads')
-      .select('*', { count: 'exact', head: true })
-      .eq('project_id', project_id);
+    // Decidir light_sync:
+    // 1. Se force_light_sync foi definido, usa esse valor
+    // 2. Se não, decide automaticamente baseado no tamanho da conta
+    let useLightSync: boolean;
     
-    const isLargeAccount = (adsCount || 0) > 200;
-    const useLightSync = isLargeAccount;
-    
-    console.log(`[MONTH-IMPORT] Conta: ${adsCount} ads - ${isLargeAccount ? 'GRANDE (light_sync)' : 'PEQUENA (HD completo)'}`);
-    
+    if (force_light_sync !== undefined) {
+      useLightSync = force_light_sync;
+      console.log(`[MONTH-IMPORT] Modo forçado: ${useLightSync ? 'LIGHT SYNC' : 'HD COMPLETO'}`);
+    } else {
+      // Verificar tamanho da conta para decidir automaticamente
+      const { count: adsCount } = await supabase
+        .from('ads')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', project_id);
+      
+      const isLargeAccount = (adsCount || 0) > 200;
+      useLightSync = isLargeAccount;
+      console.log(`[MONTH-IMPORT] Modo auto: ${adsCount} ads - ${isLargeAccount ? 'LIGHT SYNC' : 'HD COMPLETO'}`);
+    }
     // Calculate date range for the month
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
@@ -284,6 +290,7 @@ Deno.serve(async (req) => {
             year: nextMonth.year,
             month: nextMonth.month,
             continue_chain: true,
+            force_light_sync: force_light_sync, // Passa o mesmo modo para o próximo mês
           }),
         }).catch(err => console.error('[MONTH-IMPORT] Failed to trigger next:', err));
         

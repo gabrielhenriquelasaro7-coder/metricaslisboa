@@ -19,7 +19,9 @@ import {
   AlertCircle,
   Zap,
   Plus,
-  RefreshCw
+  RefreshCw,
+  Download,
+  Image
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Project } from '@/hooks/useProjects';
@@ -226,6 +228,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
 function ProjectMonthGrid({ projectId, projectName }: { projectId: string; projectName: string }) {
   const [selectedYearToAdd, setSelectedYearToAdd] = useState<number | null>(null);
   const [syncingYear, setSyncingYear] = useState<number | null>(null);
+  const [syncMode, setSyncMode] = useState<'light' | 'full' | null>(null);
   
   const {
     monthsByYear,
@@ -370,18 +373,42 @@ function ProjectMonthGrid({ projectId, projectName }: { projectId: string; proje
                   size="sm"
                   onClick={async () => {
                     setSyncingYear(year);
-                    await syncEntireYear(year);
+                    setSyncMode('light');
+                    await syncEntireYear(year, true);
                     setSyncingYear(null);
+                    setSyncMode(null);
                   }}
-                  disabled={syncingYear === year || stats.importing > 0}
+                  disabled={syncingYear !== null || stats.importing > 0}
                   className="gap-1.5 h-7 text-xs"
+                  title="Rápido - Sem criativos HD"
                 >
-                  {syncingYear === year ? (
+                  {syncingYear === year && syncMode === 'light' ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
-                    <RefreshCw className="w-3 h-3" />
+                    <Zap className="w-3 h-3 text-yellow-500" />
                   )}
-                  Sync {year}
+                  Light
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={async () => {
+                    setSyncingYear(year);
+                    setSyncMode('full');
+                    await syncEntireYear(year, false);
+                    setSyncingYear(null);
+                    setSyncMode(null);
+                  }}
+                  disabled={syncingYear !== null || stats.importing > 0}
+                  className="gap-1.5 h-7 text-xs"
+                  title="Completo - Com criativos HD"
+                >
+                  {syncingYear === year && syncMode === 'full' ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Image className="w-3 h-3" />
+                  )}
+                  HD Total
                 </Button>
               </div>
             </div>
@@ -416,20 +443,34 @@ function ProjectMonthGrid({ projectId, projectName }: { projectId: string; proje
           <span className="text-sm text-muted-foreground font-medium">Adicionar ano:</span>
           <div className="flex flex-wrap gap-2">
             {availableYearsToAdd.map(year => (
-              <Button 
-                key={year}
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSelectedYearToAdd(year);
-                  // Inicia a importação do primeiro mês desse ano
-                  startChainedImport(year, 1);
-                }}
-                className="gap-1.5"
-              >
-                <Plus className="w-3 h-3" />
-                {year}
-              </Button>
+              <div key={year} className="flex items-center gap-1">
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedYearToAdd(year);
+                    startChainedImport(year, 1, true);
+                  }}
+                  className="gap-1.5"
+                  title="Light Sync - Rápido"
+                >
+                  <Zap className="w-3 h-3 text-yellow-500" />
+                  {year} Light
+                </Button>
+                <Button 
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedYearToAdd(year);
+                    startChainedImport(year, 1, false);
+                  }}
+                  className="gap-1.5"
+                  title="HD Total - Completo"
+                >
+                  <Image className="w-3 h-3" />
+                  {year} HD
+                </Button>
+              </div>
             ))}
           </div>
         </div>
