@@ -91,6 +91,8 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     const projectId = url.searchParams.get('project_id');
+    const startDate = url.searchParams.get('start_date'); // YYYY-MM-DD
+    const endDate = url.searchParams.get('end_date'); // YYYY-MM-DD
 
     if (!projectId) {
       return new Response(
@@ -98,6 +100,8 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('Period filter:', { startDate, endDate });
 
     // Get connection for this project
     const { data: connection, error: connError } = await supabase
@@ -142,7 +146,7 @@ Deno.serve(async (req) => {
     const funnelCardsConfig = connection.funnel_cards_config;
     const hasCustomMapping = (customMqlStages && customMqlStages.length > 0) || (customSqlStages && customSqlStages.length > 0);
 
-    // Get deal statistics - filter by pipeline if selected
+    // Get deal statistics - filter by pipeline AND period if provided
     // Limit to most recent 500 deals for performance, ordered by created_date DESC
     let dealsQuery = supabase
       .from('crm_deals')
@@ -155,19 +159,51 @@ Deno.serve(async (req) => {
       dealsQuery = dealsQuery.eq('external_pipeline_id', selectedPipelineId);
     }
 
+    // Apply date filter if provided
+    if (startDate) {
+      dealsQuery = dealsQuery.gte('created_date', `${startDate}T00:00:00`);
+    }
+    if (endDate) {
+      dealsQuery = dealsQuery.lte('created_date', `${endDate}T23:59:59`);
+    }
+
     const { data: allDeals } = await dealsQuery;
 
-    // Get total counts for stats (faster query without all fields)
-    const { count: totalCount } = await supabase
+    // Get total counts for stats (faster query without all fields) - WITH period filter
+    let totalCountQuery = supabase
       .from('crm_deals')
       .select('id', { count: 'exact', head: true })
       .eq('connection_id', connection.id);
     
-    // Get counts by status
-    const { data: statusCounts } = await supabase
+    if (selectedPipelineId) {
+      totalCountQuery = totalCountQuery.eq('external_pipeline_id', selectedPipelineId);
+    }
+    if (startDate) {
+      totalCountQuery = totalCountQuery.gte('created_date', `${startDate}T00:00:00`);
+    }
+    if (endDate) {
+      totalCountQuery = totalCountQuery.lte('created_date', `${endDate}T23:59:59`);
+    }
+    
+    const { count: totalCount } = await totalCountQuery;
+    
+    // Get counts by status - WITH period filter
+    let statusCountsQuery = supabase
       .from('crm_deals')
       .select('status, value')
       .eq('connection_id', connection.id);
+    
+    if (selectedPipelineId) {
+      statusCountsQuery = statusCountsQuery.eq('external_pipeline_id', selectedPipelineId);
+    }
+    if (startDate) {
+      statusCountsQuery = statusCountsQuery.gte('created_date', `${startDate}T00:00:00`);
+    }
+    if (endDate) {
+      statusCountsQuery = statusCountsQuery.lte('created_date', `${endDate}T23:59:59`);
+    }
+    
+    const { data: statusCounts } = await statusCountsQuery;
 
     const wonDeals = statusCounts?.filter(d => d.status === 'won') || [];
     const lostDeals = statusCounts?.filter(d => d.status === 'lost') || [];
@@ -214,11 +250,20 @@ Deno.serve(async (req) => {
             
             console.log('Found Kommo pipelines:', kommoPipelines.length);
 
-            // Get deal counts per pipeline from our database
-            const { data: pipelineDeals } = await supabase
+            // Get deal counts per pipeline from our database (WITH period filter)
+            let pipelineDealsQuery = supabase
               .from('crm_deals')
               .select('external_pipeline_id')
               .eq('connection_id', connection.id);
+            
+            if (startDate) {
+              pipelineDealsQuery = pipelineDealsQuery.gte('created_date', `${startDate}T00:00:00`);
+            }
+            if (endDate) {
+              pipelineDealsQuery = pipelineDealsQuery.lte('created_date', `${endDate}T23:59:59`);
+            }
+            
+            const { data: pipelineDeals } = await pipelineDealsQuery;
 
             const dealCountByPipeline: Record<string, number> = {};
             pipelineDeals?.forEach(deal => {

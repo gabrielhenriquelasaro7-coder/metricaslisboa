@@ -39,6 +39,7 @@ import {
   Target,
   DollarSign
 } from 'lucide-react';
+import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 const BUSINESS_MODEL_LABELS: Record<string, { label: string; icon: React.ElementType; description: string }> = {
   inside_sales: { label: 'Inside Sales', icon: Users, description: 'Vendas consultivas B2B ou B2C' },
@@ -49,6 +50,38 @@ const BUSINESS_MODEL_LABELS: Record<string, { label: string; icon: React.Element
 
 const ALLOWED_BUSINESS_MODELS = ['inside_sales', 'ecommerce', 'pdv', 'infoproduto'];
 
+// Helper function to calculate date range from period
+function getDateRangeFromPeriod(period: DREPeriod): { startDate: string; endDate: string } {
+  const today = new Date();
+  let start: Date;
+  let end: Date = today;
+  
+  switch (period) {
+    case 'last_7d':
+      start = subDays(today, 7);
+      break;
+    case 'last_30d':
+      start = subDays(today, 30);
+      break;
+    case 'this_month':
+      start = startOfMonth(today);
+      end = today;
+      break;
+    case 'last_month':
+      const lastMonth = subMonths(today, 1);
+      start = startOfMonth(lastMonth);
+      end = endOfMonth(lastMonth);
+      break;
+    default:
+      start = subDays(today, 30);
+  }
+  
+  return {
+    startDate: format(start, 'yyyy-MM-dd'),
+    endDate: format(end, 'yyyy-MM-dd'),
+  };
+}
+
 export default function Financial() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -57,6 +90,11 @@ export default function Financial() {
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
   const businessModel = selectedProject?.business_model as 'inside_sales' | 'ecommerce' | 'pdv' | 'infoproduto' | undefined;
+
+  const [drePeriod, setDrePeriod] = useState<DREPeriod>('last_30d');
+  
+  // Calculate date range from period for CRM filtering
+  const crmDateRange = useMemo(() => getDateRangeFromPeriod(drePeriod), [drePeriod]);
 
   const { 
     status: crmStatus, 
@@ -68,16 +106,14 @@ export default function Financial() {
     triggerSync,
     selectPipeline,
     fetchStatus
-  } = useCRMConnection(selectedProjectId || undefined);
-
-  const [drePeriod, setDrePeriod] = useState<DREPeriod>('last_30d');
+  } = useCRMConnection(selectedProjectId || undefined, crmDateRange);
   
   // Map DRE period to daily metrics period
   const metricsTimePeriod = drePeriod === 'last_7d' ? 'last_7d' : 
                             drePeriod === 'last_30d' ? 'last_30d' : 
                             drePeriod === 'this_month' ? 'this_month' : 
                             drePeriod === 'last_month' ? 'last_month' : 'last_30d';
-  
+
   const { dailyData } = useDailyMetrics(selectedProjectId || undefined, metricsTimePeriod);
   
   // Calculate totals from ads data
