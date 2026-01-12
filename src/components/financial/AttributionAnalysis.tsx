@@ -334,11 +334,17 @@ export function AttributionAnalysis({ deals, stages, adSpend, isLoading }: Attri
                   tickLine={false}
                 />
                 <Tooltip 
+                  wrapperStyle={{ zIndex: 1000 }}
                   contentStyle={{ 
                     backgroundColor: 'hsl(var(--card))', 
                     border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
+                    borderRadius: '8px',
+                    maxWidth: '200px',
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word'
                   }}
+                  position={{ x: 0, y: 0 }}
+                  offset={10}
                   formatter={(value: number, name: string) => [value, name === 'leads' ? 'Leads' : 'Vendas']}
                 />
                 <Bar dataKey="leads" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
