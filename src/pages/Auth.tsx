@@ -118,7 +118,8 @@ export default function Auth() {
           }
         } else {
           toast.success('Login realizado com sucesso!');
-          navigate('/projects');
+          // Force navigation with replace to avoid back button issues
+          window.location.href = '/projects';
         }
       } else {
         const { error } = await signUp(email, password, fullName);
