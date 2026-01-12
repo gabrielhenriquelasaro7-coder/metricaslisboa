@@ -116,12 +116,11 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     if (projectId === selectedProjectId) return;
     setIsChangingProject(true);
     localStorage.setItem('selectedProjectId', projectId);
-    // Navigate without full page reload - use React Router
+    // Navigate without full page reload - use React Router only
     navigate('/dashboard');
-    // Force a small delay then reload state
+    // Reset state after navigation
     setTimeout(() => {
       setIsChangingProject(false);
-      window.location.reload();
     }, 100);
   };
 
