@@ -149,9 +149,55 @@ export default function ProjectSetup() {
       
       toast.success('Configuração salva com sucesso!');
       
-      // Navigate to campaigns page
+      // Check if there's a pending import mode
+      const pendingImportMode = localStorage.getItem('pendingImportMode') as 'light' | 'full' | null;
+      
+      if (pendingImportMode) {
+        // Clear the pending mode
+        localStorage.removeItem('pendingImportMode');
+        
+        // Fetch project name for toast
+        const { data: projectData } = await supabase
+          .from('projects')
+          .select('name')
+          .eq('id', projectId)
+          .single();
+        
+        toast.success(`Importação ${pendingImportMode === 'light' ? 'Light' : 'Total HD'} iniciada para ${projectData?.name || 'projeto'}!`);
+        
+        // Update project sync status and start import
+        await supabase.from('projects').update({
+          sync_progress: { 
+            status: 'importing', 
+            progress: 0, 
+            message: pendingImportMode === 'light' ? 'Iniciando Light Sync...' : 'Iniciando Importação Total HD...', 
+            started_at: new Date().toISOString() 
+          },
+        }).eq('id', projectId);
+
+        // Start the import in background
+        supabase.functions.invoke('import-month-by-month', {
+          body: {
+            project_id: projectId,
+            year: 2025,
+            month: 1,
+            continue_chain: true,
+            force_light_sync: pendingImportMode === 'light',
+            safe_mode: true,
+          },
+        }).then(({ error: importError }) => {
+          if (importError) {
+            console.error('Error starting import:', importError);
+            toast.error('Erro ao iniciar importação');
+          } else {
+            console.log(`[IMPORT] Started ${pendingImportMode} import for project ${projectId}`);
+          }
+        });
+      }
+      
+      // Navigate to dashboard
       localStorage.setItem('selectedProjectId', projectId);
-      navigate('/campaigns');
+      navigate('/dashboard');
     } catch (error) {
       console.error('Error saving config:', error);
       toast.error('Erro ao salvar configuração');
