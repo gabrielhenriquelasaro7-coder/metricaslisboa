@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
     
     console.log(`[MONTH-IMPORT] Syncing ${since} to ${until}`);
     
-    // Call meta-ads-sync for the entire month
+    // Call meta-ads-sync for the entire month (full sync)
     const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
       method: 'POST',
       headers: {
@@ -192,8 +192,8 @@ Deno.serve(async (req) => {
         project_id,
         ad_account_id: accountId,
         time_range: { since, until },
-        light_sync: true,
-        skip_image_cache: true,
+        light_sync: false,
+        skip_image_cache: false,
       }),
     });
     
