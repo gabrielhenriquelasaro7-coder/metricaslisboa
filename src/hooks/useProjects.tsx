@@ -165,7 +165,7 @@ export function useProjects() {
         .insert({
           user_id: user.id,
           ...data,
-          sync_progress: { status: 'importing', progress: 0, message: 'Iniciando importação...', started_at: new Date().toISOString() },
+          sync_progress: { status: 'idle', progress: 0, message: 'Aguardando seleção do tipo de importação...', started_at: null },
         })
         .select()
         .single();
@@ -186,9 +186,9 @@ export function useProjects() {
         console.error('Webhook error:', webhookError);
       }
 
-      // Create month records and start chained import
+      // Create month records but DO NOT start import - wait for user to choose import mode
       try {
-        console.log('[PROJECT] Setting up month-by-month import for new project:', project.id);
+        console.log('[PROJECT] Setting up month records for new project:', project.id);
         
         const currentYear = new Date().getFullYear();
         const currentMonth = new Date().getMonth() + 1;
@@ -218,30 +218,11 @@ export function useProjects() {
           if (monthsError) {
             console.error('[PROJECT] Error creating month records:', monthsError);
           } else {
-            console.log(`[PROJECT] Created ${monthRecords.length} month records`);
-            
-            // Start chained import from January
-            supabase.functions.invoke('import-month-by-month', {
-              body: {
-                project_id: project.id,
-                year: startYear,
-                month: 1,
-                continue_chain: true,
-                safe_mode: true,
-              },
-            }).then(result => {
-              if (result.error) {
-                console.error('[PROJECT] Month import error:', result.error);
-              } else {
-                console.log('[PROJECT] Month-by-month import started:', result.data);
-              }
-            }).catch(err => {
-              console.error('[PROJECT] Month import invoke error:', err);
-            });
+            console.log(`[PROJECT] Created ${monthRecords.length} month records - waiting for import mode selection`);
           }
         }
         
-        // Also trigger demographic sync
+        // Trigger demographic sync
         supabase.functions.invoke('sync-demographics', {
           body: {
             project_id: project.id,
@@ -255,7 +236,7 @@ export function useProjects() {
       }
 
       await fetchProjects();
-      toast.success('Projeto criado! Importação mês a mês iniciada.');
+      // Don't show toast here - let the dialog handle it after import mode selection
       return project as unknown as Project;
     } catch (error) {
       toast.error('Erro ao criar projeto');

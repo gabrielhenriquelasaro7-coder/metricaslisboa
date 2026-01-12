@@ -161,19 +161,36 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     setShowImportProgress(true);
 
     // Start the import with the selected mode
-    const currentYear = new Date().getFullYear();
+    const startYear = 2025;
     const lightSync = mode === 'light';
 
+    // Update project sync status
+    await supabase.from('projects').update({
+      sync_progress: { 
+        status: 'importing', 
+        progress: 0, 
+        message: lightSync ? 'Iniciando Light Sync...' : 'Iniciando Importação Total HD...', 
+        started_at: new Date().toISOString() 
+      },
+    }).eq('id', pendingProjectId);
+
     try {
-      await supabase.functions.invoke('import-month-by-month', {
+      const { error } = await supabase.functions.invoke('import-month-by-month', {
         body: {
           project_id: pendingProjectId,
-          year: currentYear,
+          year: startYear,
           month: 1,
           continue_chain: true,
           force_light_sync: lightSync,
+          safe_mode: true,
         },
       });
+      
+      if (error) {
+        console.error('Error starting import:', error);
+      } else {
+        console.log(`[IMPORT] Started ${mode} import for project ${pendingProjectId}`);
+      }
     } catch (error) {
       console.error('Error starting import:', error);
     }
