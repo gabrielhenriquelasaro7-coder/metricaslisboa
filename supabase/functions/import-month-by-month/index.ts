@@ -5,6 +5,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ===========================================================================================
+// NOVA ARQUITETURA DE IMPORTAÇÃO MENSAL
+// 
+// Full Sync = Month Base Sync → Creative Sync → HD Image Sync (não bloqueante)
+//
+// 1️⃣ Month Base Sync: métricas + estrutura (mês inteiro, SEM divisão)
+// 2️⃣ Creative Sync: conteúdo dos anúncios (executar após base sync)
+// 3️⃣ HD Image Sync: imagens em alta resolução (assíncrono, não bloqueia UI)
+//
+// ⚠️ REMOVIDO: lógica de importação quinzenal/semanal/diária
+// ===========================================================================================
+
 interface MonthImportRequest {
   project_id: string;
   year: number;
@@ -12,7 +24,7 @@ interface MonthImportRequest {
   continue_chain?: boolean;
   ad_account_id?: string;
   max_month?: number;
-  fetch_creatives_only?: boolean; // Nova flag para só puxar criativos
+  phase?: 'base' | 'creatives' | 'hd_images';
 }
 
 function getNextMonth(year: number, month: number): { year: number; month: number } | null {
@@ -44,10 +56,10 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Calcular delay baseado no tamanho da conta
-function calculateDelay(adsCount: number): number {
-  if (adsCount > 500) return 15000;
-  if (adsCount > 300) return 10000;
+// Delay baseado no tamanho da conta para encadeamento
+function calculateChainDelay(adsCount: number): number {
+  if (adsCount > 500) return 10000;
+  if (adsCount > 300) return 7000;
   if (adsCount > 100) return 5000;
   return 3000;
 }
@@ -69,7 +81,7 @@ Deno.serve(async (req) => {
       continue_chain = false, 
       ad_account_id, 
       max_month,
-      fetch_creatives_only = false,
+      phase = 'base',
     } = body;
     
     if (!project_id || !year || !month) {
@@ -81,77 +93,6 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const monthName = getMonthName(month);
-    
-    // ========================================================================
-    // MODO ESPECIAL: Só puxar criativos (fase final)
-    // ========================================================================
-    if (fetch_creatives_only) {
-      console.log(`[MONTH-IMPORT] 🎨 CREATIVES ONLY MODE - Fetching HD creatives for project ${project_id}`);
-      
-      // Buscar projeto
-      const { data: project, error: projectError } = await supabase
-        .from('projects')
-        .select('ad_account_id, name')
-        .eq('id', project_id)
-        .single();
-      
-      if (projectError || !project) {
-        throw new Error(`Project not found: ${projectError?.message}`);
-      }
-      
-      // Chamar meta-ads-sync com syncOnly=creatives para só puxar imagens HD
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 min para criativos
-      
-      try {
-        const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            project_id,
-            ad_account_id: ad_account_id || project.ad_account_id,
-            date_preset: 'last_7d', // Período irrelevante para criativos
-            light_sync: false, // Full sync para pegar criativos HD
-            syncOnly: 'creatives', // NOVO: só puxar criativos
-          }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        
-        const result = await syncResponse.json().catch(() => ({ success: true }));
-        
-        console.log(`[MONTH-IMPORT] 🎨 Creatives sync completed for ${project.name}`);
-        
-        // Atualizar last_sync_at
-        await supabase.from('projects').update({
-          last_sync_at: new Date().toISOString(),
-        }).eq('id', project_id);
-        
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: 'Creatives HD fetched',
-            phase: 'creatives_complete',
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        console.log(`[MONTH-IMPORT] 🎨 Creatives fetch error: ${fetchError.message}`);
-        return new Response(
-          JSON.stringify({ success: false, error: fetchError.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-    
-    // ========================================================================
-    // MODO NORMAL: Light Sync de métricas diárias
-    // ========================================================================
-    console.log(`[MONTH-IMPORT] 📊 LIGHT SYNC - ${monthName} ${year} for project ${project_id}`);
     
     // Buscar projeto
     const { data: project, error: projectError } = await supabase
@@ -166,15 +107,141 @@ Deno.serve(async (req) => {
     
     const accountId = ad_account_id || project.ad_account_id;
     
-    // Contar ads para calcular delay
+    // ========================================================================
+    // FASE 2: CREATIVE SYNC (após base sync de todos os meses)
+    // ========================================================================
+    if (phase === 'creatives') {
+      console.log(`[MONTH-IMPORT] 📝 CREATIVE SYNC for ${project.name}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min
+      
+      try {
+        const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            project_id,
+            ad_account_id: accountId,
+            syncMode: 'creatives',
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        
+        const result = await syncResponse.json().catch(() => ({ success: true }));
+        
+        console.log(`[MONTH-IMPORT] ✓ Creative sync completed: ${result.updated || 0} ads`);
+        
+        // Encadear HD Image Sync (não bloqueante)
+        console.log(`[MONTH-IMPORT] 🖼️ Starting HD Image Sync (async)...`);
+        
+        fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            project_id,
+            year,
+            month,
+            ad_account_id: accountId,
+            phase: 'hd_images',
+          }),
+        }).catch(e => console.log(`[MONTH-IMPORT] HD chain error: ${e}`));
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            phase: 'creatives',
+            updated: result.updated || 0,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        console.log(`[MONTH-IMPORT] Creative sync error: ${fetchError.message}`);
+        return new Response(
+          JSON.stringify({ success: false, error: fetchError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    
+    // ========================================================================
+    // FASE 3: HD IMAGE SYNC (assíncrono, não bloqueia UI)
+    // ========================================================================
+    if (phase === 'hd_images') {
+      console.log(`[MONTH-IMPORT] 🖼️ HD IMAGE SYNC for ${project.name}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 min (imagens demoram)
+      
+      try {
+        const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            project_id,
+            ad_account_id: accountId,
+            syncMode: 'hd_images',
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        
+        const result = await syncResponse.json().catch(() => ({ success: true }));
+        
+        console.log(`[MONTH-IMPORT] ✓ HD Image sync completed: ${result.cached || 0}/${result.total || 0}`);
+        
+        // Atualizar last_sync_at
+        await supabase.from('projects').update({
+          last_sync_at: new Date().toISOString(),
+        }).eq('id', project_id);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            phase: 'hd_images',
+            cached: result.cached || 0,
+            total: result.total || 0,
+            errors: result.errors || 0,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        // Falhas de HD Image NÃO interrompem o sistema (conforme especificação)
+        console.log(`[MONTH-IMPORT] HD Image sync error (non-blocking): ${fetchError.message}`);
+        return new Response(
+          JSON.stringify({ success: true, phase: 'hd_images', error: fetchError.message, non_blocking: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    
+    // ========================================================================
+    // FASE 1: MONTH BASE SYNC (métricas + estrutura)
+    // Mês inteiro, SEM divisão quinzenal/semanal
+    // ========================================================================
+    console.log(`[MONTH-IMPORT] 📊 BASE SYNC - ${monthName} ${year} for ${project.name}`);
+    
+    // Contar ads para delay de encadeamento
     const { count: adsCount } = await supabase
       .from('ads')
       .select('*', { count: 'exact', head: true })
       .eq('project_id', project_id);
     
-    const effectiveDelay = calculateDelay(adsCount || 0);
+    const chainDelay = calculateChainDelay(adsCount || 0);
     
-    console.log(`[MONTH-IMPORT] Project: ${project.name} (${adsCount || 0} ads, delay: ${effectiveDelay/1000}s)`);
+    console.log(`[MONTH-IMPORT] Project: ${project.name} (${adsCount || 0} ads)`);
     
     // Verificar se já está importando
     const { data: existingMonth } = await supabase
@@ -217,124 +284,89 @@ Deno.serve(async (req) => {
         });
     }
     
-    // Calcular range de datas
+    // Calcular range do MÊS INTEIRO (SEM divisão)
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
     const formatDate = (d: Date) => d.toISOString().split('T')[0];
     
-    // ========================================================================
-    // SEMPRE dividir em quinzenas para evitar erro 1504018
-    // ========================================================================
-    const midDay = new Date(year, month - 1, 15);
-    const midDayNext = new Date(year, month - 1, 16);
+    const since = formatDate(firstDay);
+    const until = formatDate(lastDay);
     
-    const periods = [
-      { since: formatDate(firstDay), until: formatDate(midDay), label: '1ª quinzena' },
-      { since: formatDate(midDayNext), until: formatDate(lastDay), label: '2ª quinzena' },
-    ];
+    console.log(`[MONTH-IMPORT] Range: ${since} to ${until} (full month)`);
     
-    console.log(`[MONTH-IMPORT] Splitting ${monthName} ${year} into 2 fortnights`);
+    // Chamar meta-ads-sync com syncMode: 'base'
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min para o mês inteiro
     
-    let totalRecords = 0;
+    let syncResult: any = null;
     let hasError = false;
-    let lastError: string | null = null;
+    let errorMessage: string | null = null;
     
-    // Processar cada quinzena
-    for (let i = 0; i < periods.length; i++) {
-      const period = periods[i];
-      console.log(`[MONTH-IMPORT] Processing ${period.label} (${period.since} to ${period.until})`);
+    try {
+      const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          project_id,
+          ad_account_id: accountId,
+          time_range: { since, until },
+          syncMode: 'base',
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 min por quinzena
+      const responseText = await syncResponse.text();
       
       try {
-        const syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            project_id,
-            ad_account_id: accountId,
-            time_range: { since: period.since, until: period.until },
-            light_sync: true, // SEMPRE light sync para métricas
-            skip_image_cache: true, // Não puxar imagens agora
-          }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        
-        const responseText = await syncResponse.text();
-        let syncResult: any;
-        
-        try {
-          syncResult = JSON.parse(responseText);
-        } catch {
-          console.log(`[MONTH-IMPORT] Response not JSON (status ${syncResponse.status})`);
-          syncResult = syncResponse.ok ? { success: true, records: 0 } : { success: false, error: 'Invalid response' };
-        }
-        
-        if (syncResponse.ok && syncResult.success !== false) {
-          const periodRecords = syncResult.summary?.records || syncResult.records || 0;
-          totalRecords += periodRecords;
-          console.log(`[MONTH-IMPORT] ✓ ${period.label}: ${periodRecords} records`);
-        } else {
-          hasError = true;
-          lastError = syncResult.error || 'Sync failed';
-          console.log(`[MONTH-IMPORT] ✗ ${period.label}: ${lastError}`);
-          
-          // Se rate limit ou query muito grande, parar
-          if (lastError?.includes('rate') || lastError?.includes('limit') || lastError?.includes('1504018') || lastError?.includes('expirou')) {
-            console.log(`[MONTH-IMPORT] Stopping due to API limit`);
-            break;
-          }
-        }
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        
-        if (fetchError.name === 'AbortError') {
-          console.log(`[MONTH-IMPORT] Timeout on ${period.label} - checking DB...`);
-          
-          await delay(5000);
-          
-          const { count: recordsCount } = await supabase
-            .from('ads_daily_metrics')
-            .select('*', { count: 'exact', head: true })
-            .eq('project_id', project_id)
-            .gte('date', period.since)
-            .lte('date', period.until);
-          
-          if ((recordsCount || 0) > 0) {
-            console.log(`[MONTH-IMPORT] Found ${recordsCount} records in DB - SUCCESS`);
-            totalRecords += recordsCount || 0;
-          } else {
-            hasError = true;
-            lastError = 'Timeout';
-          }
-        } else {
-          console.log(`[MONTH-IMPORT] Fetch error: ${fetchError.message}`);
-          hasError = true;
-          lastError = fetchError.message;
-        }
+        syncResult = JSON.parse(responseText);
+      } catch {
+        syncResult = syncResponse.ok ? { success: true, summary: { records: 0 } } : { success: false, error: 'Invalid response' };
       }
       
-      // Delay entre quinzenas
-      if (i < periods.length - 1) {
-        console.log(`[MONTH-IMPORT] Waiting 8s before next period...`);
-        await delay(8000);
+      if (!syncResponse.ok || syncResult.success === false) {
+        hasError = true;
+        errorMessage = syncResult.error || 'Sync failed';
+      }
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      hasError = true;
+      
+      if (fetchError.name === 'AbortError') {
+        errorMessage = 'Timeout';
+        console.log(`[MONTH-IMPORT] Timeout on ${monthName} ${year}`);
+      } else {
+        errorMessage = fetchError.message;
+        console.log(`[MONTH-IMPORT] Fetch error: ${fetchError.message}`);
+      }
+    }
+    
+    // Determinar registros salvos
+    let totalRecords = syncResult?.summary?.records || 0;
+    
+    // Se timeout, verificar banco
+    if (errorMessage === 'Timeout') {
+      await delay(5000);
+      const { count: recordsCount } = await supabase
+        .from('ads_daily_metrics')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', project_id)
+        .gte('date', since)
+        .lte('date', until);
+      
+      if ((recordsCount || 0) > 0) {
+        console.log(`[MONTH-IMPORT] Found ${recordsCount} records in DB after timeout - SUCCESS`);
+        totalRecords = recordsCount || 0;
+        hasError = false;
+        errorMessage = null;
       }
     }
     
     // Determinar status final
     let status = hasError ? 'error' : 'success';
-    let errorMessage = lastError;
-    
-    // Se rate limited, marcar para retry
-    if (lastError?.includes('rate') || lastError?.includes('limit')) {
-      status = 'pending';
-      errorMessage = 'Rate limit - retry later';
-    }
     
     // Atualizar registro do mês
     await supabase
@@ -349,14 +381,14 @@ Deno.serve(async (req) => {
       .eq('year', year)
       .eq('month', month);
     
-    console.log(`[MONTH-IMPORT] ${monthName} ${year} completed - status: ${status}, records: ${totalRecords}`);
+    console.log(`[MONTH-IMPORT] ${monthName} ${year} - status: ${status}, records: ${totalRecords}`);
     
     // Log de sync
     await supabase.from('sync_logs').insert({
       project_id,
       status,
       message: JSON.stringify({
-        type: 'month_import_light',
+        type: 'month_base_sync',
         month: `${year}-${month}`,
         month_name: `${monthName} ${year}`,
         records: totalRecords,
@@ -364,7 +396,7 @@ Deno.serve(async (req) => {
     });
     
     // ========================================================================
-    // ENCADEAR PRÓXIMO MÊS
+    // ENCADEAMENTO
     // ========================================================================
     const effectiveMaxMonth = max_month || 12;
     const nextMonthData = getNextMonth(year, month);
@@ -372,11 +404,11 @@ Deno.serve(async (req) => {
     if (continue_chain && status === 'success' && nextMonthData) {
       // Verificar se próximo mês está dentro do limite
       if (nextMonthData.month <= effectiveMaxMonth || nextMonthData.year > year) {
-        console.log(`[MONTH-IMPORT] Chaining to ${getMonthName(nextMonthData.month)} ${nextMonthData.year} in ${effectiveDelay/1000}s...`);
+        console.log(`[MONTH-IMPORT] Chaining to ${getMonthName(nextMonthData.month)} ${nextMonthData.year} in ${chainDelay/1000}s...`);
         
-        await delay(effectiveDelay);
+        await delay(chainDelay);
         
-        // Disparar próximo mês (fire and forget)
+        // Próximo mês (base sync)
         fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
           method: 'POST',
           headers: {
@@ -390,18 +422,19 @@ Deno.serve(async (req) => {
             continue_chain: true,
             ad_account_id: accountId,
             max_month: effectiveMaxMonth,
+            phase: 'base',
           }),
         }).catch(e => console.log(`[MONTH-IMPORT] Chain error: ${e}`));
         
       } else {
         // ========================================================================
-        // FASE FINAL: Todos os meses importados, puxar criativos HD
+        // TODOS OS MESES IMPORTADOS - Iniciar Creative Sync
         // ========================================================================
-        console.log(`[MONTH-IMPORT] 🎉 All months imported! Now fetching HD creatives...`);
+        console.log(`[MONTH-IMPORT] 🎉 All months imported! Starting Creative Sync...`);
         
         await delay(5000);
         
-        // Chamar com fetch_creatives_only
+        // Chamar fase de criativos
         fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
           method: 'POST',
           headers: {
@@ -413,7 +446,7 @@ Deno.serve(async (req) => {
             year,
             month,
             ad_account_id: accountId,
-            fetch_creatives_only: true,
+            phase: 'creatives',
           }),
         }).catch(e => console.log(`[MONTH-IMPORT] Creatives chain error: ${e}`));
       }
@@ -422,6 +455,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: status === 'success',
+        phase: 'base',
         month: `${monthName} ${year}`,
         records: totalRecords,
         status,
