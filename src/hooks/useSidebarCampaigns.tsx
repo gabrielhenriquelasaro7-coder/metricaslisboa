@@ -6,6 +6,7 @@ interface SidebarCampaign {
   name: string;
   status: string;
   spend: number;
+  lastDate: string | null;
 }
 
 interface SidebarAdSet {
@@ -49,15 +50,23 @@ export function useSidebarCampaigns(projectId: string | null) {
         // Using a larger limit to ensure we get all ad sets
         const { data: dailyMetrics } = await supabase
           .from('ads_daily_metrics')
-          .select('adset_id, adset_name, adset_status, campaign_id, spend')
+          .select('adset_id, adset_name, adset_status, campaign_id, spend, date')
           .eq('project_id', projectId)
           .order('date', { ascending: false })
           .limit(10000);
 
-        // Aggregate ad sets from daily metrics
+        // Build campaign last date map and aggregate ad sets
+        const campaignLastDateMap = new Map<string, string>();
         const adSetMap = new Map<string, SidebarAdSet>();
+        
         if (dailyMetrics) {
           for (const row of dailyMetrics) {
+            // Track last date per campaign
+            if (!campaignLastDateMap.has(row.campaign_id) || row.date > campaignLastDateMap.get(row.campaign_id)!) {
+              campaignLastDateMap.set(row.campaign_id, row.date);
+            }
+            
+            // Aggregate ad sets
             if (!adSetMap.has(row.adset_id)) {
               adSetMap.set(row.adset_id, {
                 id: row.adset_id,
@@ -76,8 +85,14 @@ export function useSidebarCampaigns(projectId: string | null) {
           .sort((a, b) => b.spend - a.spend)
           .slice(0, 50);
 
+        // Enrich campaigns with last date
+        const enrichedCampaigns: SidebarCampaign[] = (campaignsRes.data || []).map((c: any) => ({
+          ...c,
+          lastDate: campaignLastDateMap.get(c.id) || null,
+        }));
+
         if (isMounted) {
-          setCampaigns((campaignsRes.data as SidebarCampaign[]) || []);
+          setCampaigns(enrichedCampaigns);
           setAdSets(aggregatedAdSets);
         }
       } catch (error) {
@@ -94,13 +109,25 @@ export function useSidebarCampaigns(projectId: string | null) {
     };
   }, [projectId]);
 
-  // Sort campaigns: active first, then by spend
+  // Sort campaigns: active first, then by most recent data, then by spend
   const sortedCampaigns = useMemo(() => {
     return [...campaigns].sort((a, b) => {
-      const statusOrder: Record<string, number> = { 'ACTIVE': 0, 'PAUSED': 1 };
-      const orderA = statusOrder[a.status] ?? 2;
-      const orderB = statusOrder[b.status] ?? 2;
+      // 1. Active campaigns first
+      const statusOrder: Record<string, number> = { 'ACTIVE': 0, 'PAUSED': 1, 'ARCHIVED': 2 };
+      const orderA = statusOrder[a.status] ?? 3;
+      const orderB = statusOrder[b.status] ?? 3;
       if (orderA !== orderB) return orderA - orderB;
+      
+      // 2. Then by most recent data date
+      if (a.lastDate && b.lastDate) {
+        if (a.lastDate !== b.lastDate) return b.lastDate.localeCompare(a.lastDate);
+      } else if (a.lastDate && !b.lastDate) {
+        return -1; // a has data, b doesn't
+      } else if (!a.lastDate && b.lastDate) {
+        return 1; // b has data, a doesn't
+      }
+      
+      // 3. Finally by spend
       return (b.spend || 0) - (a.spend || 0);
     });
   }, [campaigns]);
