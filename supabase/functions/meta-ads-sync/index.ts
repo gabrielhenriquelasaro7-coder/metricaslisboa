@@ -414,31 +414,49 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
 // 3️⃣ HD IMAGE SYNC - Busca imagens em resolução adequada
 // Campos válidos do AdCreative: thumbnail_url, object_story_spec
 // Fallback: usar creative_thumbnail já salvo no banco
+// MELHORIAS: Processa até 300 ads, retry para URLs expiradas, retorna estatísticas completas
 // ===========================================================================================
-async function syncHDImages(supabase: any, projectId: string, adAccountId: string, token: string): Promise<{ cached: number; total: number; errors: number }> {
+async function syncHDImages(supabase: any, projectId: string, adAccountId: string, token: string): Promise<{ cached: number; total: number; errors: number; pending: number; totalAds: number }> {
   console.log(`[HD-IMAGE-SYNC] Starting for project ${projectId}`);
   
+  // Primeiro, contar estatísticas gerais
+  const { count: totalAds } = await supabase
+    .from('ads')
+    .select('id', { count: 'exact', head: true })
+    .eq('project_id', projectId);
+  
+  const { count: cachedAds } = await supabase
+    .from('ads')
+    .select('id', { count: 'exact', head: true })
+    .eq('project_id', projectId)
+    .not('cached_image_url', 'is', null);
+  
+  console.log(`[HD-IMAGE-SYNC] Stats: ${cachedAds || 0}/${totalAds || 0} already cached`);
+  
   // Buscar ads que têm creative_thumbnail mas não têm cached_image_url
+  // AUMENTADO PARA 300 por execução
   const { data: adsNeedingCache, error: adsError } = await supabase
     .from('ads')
     .select('id, creative_id, creative_thumbnail')
     .eq('project_id', projectId)
     .is('cached_image_url', null)
     .not('creative_thumbnail', 'is', null)
-    .limit(100);
+    .limit(300);
   
   if (adsError) throw adsError;
   
-  console.log(`[HD-IMAGE-SYNC] Found ${adsNeedingCache?.length || 0} ads with thumbnails needing cache`);
+  const pendingCount = (totalAds || 0) - (cachedAds || 0);
+  
+  console.log(`[HD-IMAGE-SYNC] Found ${adsNeedingCache?.length || 0} ads to process this batch (${pendingCount} total pending)`);
   
   if (!adsNeedingCache || adsNeedingCache.length === 0) {
-    return { cached: 0, total: 0, errors: 0 };
+    return { cached: 0, total: 0, errors: 0, pending: pendingCount, totalAds: totalAds || 0 };
   }
   
   let cachedCount = 0;
   let errorsCount = 0;
   
-  // Mapa de creative_id -> melhor URL disponível (da API ou fallback)
+  // Mapa de ad_id -> melhor URL disponível (da API ou fallback)
   const adToUrlMap = new Map<string, string>();
   
   // Coletar creative IDs únicos para tentar buscar URLs melhores da API
@@ -448,12 +466,14 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
     console.log(`[HD-IMAGE-SYNC] Trying to fetch better URLs for ${creativeIds.length} creatives`);
     
     const batchSize = 50;
+    const totalBatches = Math.ceil(creativeIds.length / batchSize);
+    
     for (let i = 0; i < creativeIds.length; i += batchSize) {
       const batch = creativeIds.slice(i, i + batchSize);
       const batchIds = batch.join(',');
       const batchNumber = Math.floor(i / batchSize) + 1;
       
-      await updateSyncProgress(supabase, projectId, 'hd_images', `Buscando URLs: batch ${batchNumber}`, 50, 100);
+      await updateSyncProgress(supabase, projectId, 'hd_images', `Buscando URLs: ${batchNumber}/${totalBatches}`, 20 + Math.round((batchNumber / totalBatches) * 30), 100);
       
       // Usar apenas campos VÁLIDOS: thumbnail_url e object_story_spec
       const creativesUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,thumbnail_url,object_story_spec&access_token=${token}`;
@@ -484,9 +504,7 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
           // 2. thumbnail_url (geralmente pequeno, mas usável)
           if (!bestUrl && creative.thumbnail_url) {
             // Tentar modificar a URL para pegar resolução maior
-            // Facebook thumbnails podem ter parâmetros de tamanho
             let thumbUrl = creative.thumbnail_url;
-            // Remover limitações de tamanho da URL se existirem
             thumbUrl = thumbUrl.replace(/p64x64/g, 'p720x720');
             thumbUrl = thumbUrl.replace(/c0\.5000x0\.5000f_dst-emg0_p64x64/g, 'dst-jpg');
             bestUrl = thumbUrl;
@@ -506,7 +524,7 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
       }
       
       if (i + batchSize < creativeIds.length) {
-        await delay(300);
+        await delay(200);
       }
     }
   }
@@ -522,20 +540,20 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
   
   console.log(`[HD-IMAGE-SYNC] Total ${adToUrlMap.size} ads to cache (API + fallback)`);
   
-  // Fazer cache das imagens
+  // Fazer cache das imagens - processar em batches menores para melhor UX
   const adsToCache = adsNeedingCache.filter((ad: any) => adToUrlMap.has(ad.id));
   
   for (let k = 0; k < adsToCache.length; k += 5) {
     const adBatch = adsToCache.slice(k, k + 5);
-    const progressPercent = 60 + Math.round((k / adsToCache.length) * 40);
-    await updateSyncProgress(supabase, projectId, 'hd_images', `Salvando: ${k}/${adsToCache.length}`, progressPercent, 100);
+    const progressPercent = 50 + Math.round((k / adsToCache.length) * 50);
+    await updateSyncProgress(supabase, projectId, 'hd_images', `Salvando: ${k + cachedCount}/${adsToCache.length}`, progressPercent, 100);
     
     const promises = adBatch.map(async (ad: any) => {
       const imageUrl = adToUrlMap.get(ad.id);
       if (!imageUrl) return;
       
       try {
-        const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, imageUrl);
+        const cachedUrl = await cacheCreativeImageWithRetry(supabase, projectId, ad.id, imageUrl, ad.creative_id, token);
         if (cachedUrl) {
           await supabase
             .from('ads')
@@ -546,6 +564,8 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
             })
             .eq('id', ad.id);
           cachedCount++;
+        } else {
+          errorsCount++;
         }
       } catch (e) {
         console.log(`[HD-IMAGE-SYNC] Cache error for ad ${ad.id}: ${e}`);
@@ -555,8 +575,57 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
     await Promise.all(promises);
   }
   
-  console.log(`[HD-IMAGE-SYNC] Completed - cached: ${cachedCount}, errors: ${errorsCount}`);
-  return { cached: cachedCount, total: adsNeedingCache.length, errors: errorsCount };
+  const newPending = pendingCount - cachedCount;
+  console.log(`[HD-IMAGE-SYNC] Completed - cached: ${cachedCount}, errors: ${errorsCount}, remaining: ${newPending}`);
+  return { cached: cachedCount, total: adsToCache.length, errors: errorsCount, pending: newPending, totalAds: totalAds || 0 };
+}
+
+// Cache de imagem HD com retry para URLs expiradas
+async function cacheCreativeImageWithRetry(
+  supabase: any, 
+  projectId: string, 
+  adId: string, 
+  imageUrl: string, 
+  creativeId: string | null, 
+  token: string
+): Promise<string | null> {
+  // Primeira tentativa com a URL fornecida
+  const result = await cacheCreativeImage(supabase, projectId, adId, imageUrl);
+  if (result) return result;
+  
+  // Se falhou e temos creative_id, tentar buscar URL fresca da API
+  if (creativeId) {
+    console.log(`[CACHE-RETRY] First attempt failed for ${adId}, trying fresh URL from API`);
+    try {
+      const freshUrl = `https://graph.facebook.com/v22.0/${creativeId}?fields=thumbnail_url,object_story_spec&access_token=${token}`;
+      const freshData = await simpleFetch(freshUrl, undefined, 10000);
+      
+      if (!freshData?.error) {
+        let newUrl: string | null = null;
+        
+        // Tentar object_story_spec primeiro
+        if (freshData.object_story_spec) {
+          const oss = freshData.object_story_spec;
+          if (oss.link_data?.picture) newUrl = oss.link_data.picture;
+          else if (oss.video_data?.image_url) newUrl = oss.video_data.image_url;
+        }
+        
+        // Fallback para thumbnail
+        if (!newUrl && freshData.thumbnail_url) {
+          newUrl = freshData.thumbnail_url.replace(/p64x64/g, 'p720x720');
+        }
+        
+        if (newUrl && newUrl !== imageUrl) {
+          console.log(`[CACHE-RETRY] Got fresh URL for ${adId}, trying again`);
+          return await cacheCreativeImage(supabase, projectId, adId, newUrl);
+        }
+      }
+    } catch (e) {
+      console.log(`[CACHE-RETRY] Fresh URL fetch failed for ${adId}: ${e}`);
+    }
+  }
+  
+  return null;
 }
 
 // Cache de imagem HD
@@ -949,7 +1018,8 @@ Deno.serve(async (req) => {
       const hdResult = await syncHDImages(supabase, project_id, ad_account_id, token);
       console.log(`[SYNC] HD image sync completed: ${hdResult.cached}/${hdResult.total} images cached`);
       
-      await updateSyncProgress(supabase, project_id, 'complete', `Criativos: ${creativeResult.updated} textos, ${hdResult.cached} imagens HD`, 100, 100);
+      const cachedNow = hdResult.totalAds - hdResult.pending;
+      await updateSyncProgress(supabase, project_id, 'complete', `Criativos: ${creativeResult.updated} textos, ${cachedNow}/${hdResult.totalAds} imagens (${hdResult.cached} novas)`, 100, 100);
       
       return new Response(JSON.stringify({ 
         success: true, 
@@ -961,7 +1031,9 @@ Deno.serve(async (req) => {
         hdImages: {
           cached: hdResult.cached,
           total: hdResult.total,
-          errors: hdResult.errors
+          errors: hdResult.errors,
+          pending: hdResult.pending,
+          totalAds: hdResult.totalAds
         },
         duration: Date.now() - startTime
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -976,7 +1048,8 @@ Deno.serve(async (req) => {
       
       const result = await syncHDImages(supabase, project_id, ad_account_id, token);
       
-      await updateSyncProgress(supabase, project_id, 'complete', `Imagens HD: ${result.cached}/${result.total}`, 2, 2);
+      const cachedTotal = result.totalAds - result.pending;
+      await updateSyncProgress(supabase, project_id, 'complete', `Imagens HD: ${cachedTotal}/${result.totalAds} (${result.cached} novas)`, 2, 2);
       
       return new Response(JSON.stringify({ 
         success: true, 
@@ -984,6 +1057,8 @@ Deno.serve(async (req) => {
         cached: result.cached,
         total: result.total,
         errors: result.errors,
+        pending: result.pending,
+        totalAds: result.totalAds,
         duration: Date.now() - startTime
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
