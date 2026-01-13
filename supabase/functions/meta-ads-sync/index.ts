@@ -433,12 +433,14 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
   let cachedCount = 0;
   let errorsCount = 0;
   
-  const totalBatches = Math.ceil(creativeIds.length / 20);
+  // Batch maior (50) e sem delay longo - Edge Functions têm timeout
+  const batchSize = 50;
+  const totalBatches = Math.ceil(creativeIds.length / batchSize);
   
-  // Buscar image_hash de cada creative em batches de 20 (conforme especificação)
-  for (let i = 0; i < creativeIds.length; i += 20) {
-    const batchNumber = Math.floor(i / 20) + 1;
-    const batch = creativeIds.slice(i, i + 20);
+  // Buscar image_hash de cada creative em batches
+  for (let i = 0; i < creativeIds.length; i += batchSize) {
+    const batchNumber = Math.floor(i / batchSize) + 1;
+    const batch = creativeIds.slice(i, i + batchSize);
     const batchIds = batch.join(',');
     
     // Update progress (50-100% range for HD phase)
@@ -523,11 +525,9 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
       }
     }
     
-    // Delay entre batches: 30-60 segundos (conforme especificação)
-    if (i + 20 < creativeIds.length) {
-      const delayMs = 30000 + Math.random() * 30000; // 30-60s
-      console.log(`[HD-IMAGE-SYNC] Waiting ${Math.round(delayMs/1000)}s before next batch...`);
-      await delay(delayMs);
+    // Delay curto entre batches para evitar rate limit
+    if (i + batchSize < creativeIds.length) {
+      await delay(2000 + Math.random() * 1000); // 2-3s
     }
   }
   
