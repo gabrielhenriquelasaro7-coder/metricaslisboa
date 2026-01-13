@@ -406,10 +406,11 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
     const hashToCreativeMap = new Map<string, string>();
     
     for (const creativeId of batch) {
-      const creativeData = (creativesData as Record<string, any>)[creativeId];
+      const creativeIdStr = String(creativeId);
+      const creativeData = (creativesData as Record<string, any>)[creativeIdStr];
       if (creativeData?.image_hash) {
         imageHashes.push(creativeData.image_hash);
-        hashToCreativeMap.set(creativeData.image_hash, creativeId as string);
+        hashToCreativeMap.set(creativeData.image_hash, creativeIdStr);
       }
     }
     
