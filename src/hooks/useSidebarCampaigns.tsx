@@ -43,16 +43,20 @@ export function useSidebarCampaigns(projectId: string | null) {
           .select('id, name, status, spend')
           .eq('project_id', projectId)
           .order('spend', { ascending: false })
-          .limit(15);
+          .limit(50);
 
         // Fetch unique ad sets from ads_daily_metrics (most reliable source)
-        // Group by adset_id to get unique ad sets with aggregated spend
+        // Use RPC or multiple queries to get all unique ad sets
+        // First get the most recent 30 days of data to get current ad sets
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
         const { data: dailyMetrics } = await supabase
           .from('ads_daily_metrics')
           .select('adset_id, adset_name, adset_status, campaign_id, spend')
           .eq('project_id', projectId)
-          .order('date', { ascending: false })
-          .limit(1000);
+          .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
+          .order('date', { ascending: false });
 
         // Aggregate ad sets from daily metrics
         const adSetMap = new Map<string, SidebarAdSet>();
