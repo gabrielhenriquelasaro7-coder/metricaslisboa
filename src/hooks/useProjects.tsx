@@ -119,12 +119,42 @@ export function useProjects() {
     fetchedRef.current = false;
   }, [user?.id]);
 
-  // Subscribe to realtime updates for sync progress
+  // Subscribe to realtime updates for sync progress AND new projects
   useEffect(() => {
     if (!user) return;
 
     const channel = supabase
-      .channel('projects-sync-progress')
+      .channel('projects-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'projects',
+        },
+        (payload) => {
+          const newProject = payload.new as any;
+          // Only add if it's our project and not already in the list
+          if (newProject.user_id === user.id) {
+            setProjects(prev => {
+              // Check if already exists (avoid duplicates)
+              if (prev.some(p => p.id === newProject.id)) {
+                return prev;
+              }
+              const parsedProject = {
+                ...newProject,
+                sync_progress: newProject.sync_progress 
+                  ? (typeof newProject.sync_progress === 'string' 
+                      ? JSON.parse(newProject.sync_progress) 
+                      : newProject.sync_progress) 
+                  : null 
+              } as Project;
+              // Add at the beginning (newest first)
+              return [parsedProject, ...prev];
+            });
+          }
+        }
+      )
       .on(
         'postgres_changes',
         {
@@ -147,6 +177,18 @@ export function useProjects() {
                 }
               : p
           ));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'projects',
+        },
+        (payload) => {
+          const deleted = payload.old as any;
+          setProjects(prev => prev.filter(p => p.id !== deleted.id));
         }
       )
       .subscribe();
