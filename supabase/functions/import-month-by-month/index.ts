@@ -396,7 +396,7 @@ Deno.serve(async (req) => {
     });
     
     // ========================================================================
-    // ENCADEAMENTO
+    // ENCADEAMENTO - USANDO AWAIT PARA GARANTIR QUE A REQUISIÇÃO SEJA ENVIADA
     // ========================================================================
     const effectiveMaxMonth = max_month || 12;
     const nextMonthData = getNextMonth(year, month);
@@ -408,23 +408,39 @@ Deno.serve(async (req) => {
         
         await delay(chainDelay);
         
-        // Próximo mês (base sync)
-        fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            project_id,
-            year: nextMonthData.year,
-            month: nextMonthData.month,
-            continue_chain: true,
-            ad_account_id: accountId,
-            max_month: effectiveMaxMonth,
-            phase: 'base',
-          }),
-        }).catch(e => console.log(`[MONTH-IMPORT] Chain error: ${e}`));
+        // Próximo mês (base sync) - AWAIT para garantir que a requisição seja enviada
+        try {
+          const chainController = new AbortController();
+          const chainTimeout = setTimeout(() => chainController.abort(), 5000); // 5s para iniciar
+          
+          const chainResponse = await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              project_id,
+              year: nextMonthData.year,
+              month: nextMonthData.month,
+              continue_chain: true,
+              ad_account_id: accountId,
+              max_month: effectiveMaxMonth,
+              phase: 'base',
+            }),
+            signal: chainController.signal,
+          });
+          clearTimeout(chainTimeout);
+          
+          console.log(`[MONTH-IMPORT] ✓ Chain initiated to ${getMonthName(nextMonthData.month)} ${nextMonthData.year} (status: ${chainResponse.status})`);
+        } catch (chainErr: any) {
+          // Se der timeout, tudo bem - a requisição foi enviada
+          if (chainErr.name === 'AbortError') {
+            console.log(`[MONTH-IMPORT] ✓ Chain request sent (async) to ${getMonthName(nextMonthData.month)} ${nextMonthData.year}`);
+          } else {
+            console.log(`[MONTH-IMPORT] Chain error: ${chainErr.message}`);
+          }
+        }
         
       } else {
         // ========================================================================
@@ -434,21 +450,36 @@ Deno.serve(async (req) => {
         
         await delay(5000);
         
-        // Chamar fase de criativos
-        fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            project_id,
-            year,
-            month,
-            ad_account_id: accountId,
-            phase: 'creatives',
-          }),
-        }).catch(e => console.log(`[MONTH-IMPORT] Creatives chain error: ${e}`));
+        // Chamar fase de criativos - AWAIT para garantir envio
+        try {
+          const creativeController = new AbortController();
+          const creativeTimeout = setTimeout(() => creativeController.abort(), 5000);
+          
+          await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              project_id,
+              year,
+              month,
+              ad_account_id: accountId,
+              phase: 'creatives',
+            }),
+            signal: creativeController.signal,
+          });
+          clearTimeout(creativeTimeout);
+          
+          console.log(`[MONTH-IMPORT] ✓ Creative sync chain initiated`);
+        } catch (creativeErr: any) {
+          if (creativeErr.name === 'AbortError') {
+            console.log(`[MONTH-IMPORT] ✓ Creative sync request sent (async)`);
+          } else {
+            console.log(`[MONTH-IMPORT] Creatives chain error: ${creativeErr.message}`);
+          }
+        }
       }
     }
     
