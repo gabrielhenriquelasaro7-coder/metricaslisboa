@@ -53,8 +53,8 @@ serve(async (req) => {
 
       console.log(`[SYNC-COPIES] Processing batch ${i / batchSize + 1}, ads: ${batch.length}`);
 
-      // Buscar dados de todos os ads do batch
-      const url = `https://graph.facebook.com/v21.0/?ids=${adIds}&fields=id,name,creative{id,name,body,title,call_to_action_type,object_story_spec,effective_object_story_id}&access_token=${accessToken}`;
+      // Buscar dados de todos os ads do batch - IMPORTANTE: usar thumbnail_width=1080 e thumbnail_height=1080 para HD
+      const url = `https://graph.facebook.com/v22.0/?ids=${adIds}&fields=id,name,creative{id,name,body,title,call_to_action_type,thumbnail_url,object_story_spec,effective_object_story_id}&thumbnail_width=1080&thumbnail_height=1080&access_token=${accessToken}`;
 
       const response = await fetch(url);
       const data = await response.json();
@@ -103,7 +103,7 @@ serve(async (req) => {
         // 3. Se tem effective_object_story_id, buscar o post
         if ((!primaryText || !headline) && creative.effective_object_story_id) {
           try {
-            const postUrl = `https://graph.facebook.com/v21.0/${creative.effective_object_story_id}?fields=message,name,description&access_token=${accessToken}`;
+            const postUrl = `https://graph.facebook.com/v22.0/${creative.effective_object_story_id}?fields=message,name,description,full_picture&access_token=${accessToken}`;
             const postResponse = await fetch(postUrl);
             const postData = await postResponse.json();
 

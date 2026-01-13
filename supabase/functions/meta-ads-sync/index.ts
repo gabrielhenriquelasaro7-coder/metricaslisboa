@@ -330,8 +330,8 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
     const progressPercent = Math.round((batchNumber / totalBatches) * 50);
     await updateSyncProgress(supabase, projectId, 'creatives', `Textos: batch ${batchNumber}/${totalBatches}`, progressPercent, 100);
     
-    // Campos do creative
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,body,title,call_to_action_type,thumbnail_url,object_story_spec,asset_feed_spec}&access_token=${token}`;
+    // Campos do creative - IMPORTANTE: usar thumbnail_width=1080 e thumbnail_height=1080 para HD
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,body,title,call_to_action_type,thumbnail_url,object_story_spec,asset_feed_spec}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
     const adsData = await simpleFetch(adsUrl, undefined, 20000); // Reduced timeout
     
     if (adsData?.error) {
@@ -611,8 +611,8 @@ async function cacheCreativeImageRobust(
   if (creativeId) {
     console.log(`[CACHE-RETRY] First attempt failed for ${adId}, trying alternatives`);
     try {
-      // Buscar effective_object_story_id
-      const creativeUrl = `https://graph.facebook.com/v22.0/${creativeId}?fields=effective_object_story_id,thumbnail_url&access_token=${token}`;
+      // Buscar effective_object_story_id - usar thumbnail_width=1080 para HD
+      const creativeUrl = `https://graph.facebook.com/v22.0/${creativeId}?fields=effective_object_story_id,thumbnail_url&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
       const creativeData = await simpleFetch(creativeUrl, undefined, 10000);
       
       if (!creativeData?.error) {
