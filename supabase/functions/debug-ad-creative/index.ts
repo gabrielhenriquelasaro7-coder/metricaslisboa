@@ -28,9 +28,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Buscar o anúncio com TODOS os campos possíveis de creative
+    // Buscar o anúncio com TODOS os campos possíveis de creative - usar thumbnail_width=1080 para HD
     const adFields = 'id,name,status,creative{id,name,body,title,call_to_action_type,object_story_spec,asset_feed_spec,thumbnail_url,image_url,image_hash}';
-    const adUrl = `https://graph.facebook.com/v22.0/${ad_id}?fields=${adFields}&access_token=${token}`;
+    const adUrl = `https://graph.facebook.com/v22.0/${ad_id}?fields=${adFields}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
     
     console.log(`[DEBUG] Fetching ad ${ad_id}...`);
     
