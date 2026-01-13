@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Project } from '@/hooks/useProjects';
-import { ArrowLeft, Database, Activity, RefreshCw, Clock, Loader2, Megaphone, Layers, FileText, Image as ImageIcon, Timer } from 'lucide-react';
+import { ArrowLeft, Database, Activity, RefreshCw, Clock, Loader2, Megaphone, Layers, FileText, Image as ImageIcon, Timer, Images, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import SyncHistoryChart from '@/components/admin/SyncHistoryChart';
 import MonthImportGrid from '@/components/admin/MonthImportGrid';
 
-type SyncType = 'all' | 'campaigns' | 'adsets' | 'ads' | 'creatives';
+type SyncType = 'all' | 'campaigns' | 'adsets' | 'ads' | 'creatives' | 'hd_images_batch';
 
 interface SyncLog {
   id: string;
@@ -36,6 +36,13 @@ interface SyncProgressData {
   updated_at?: string;
 }
 
+interface ImageStats {
+  totalAds: number;
+  cachedAds: number;
+  pendingAds: number;
+  percentage: number;
+}
+
 export default function ProjectAdmin() {
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<Project | null>(null);
@@ -46,6 +53,8 @@ export default function ProjectAdmin() {
   const [syncProgress, setSyncProgress] = useState<SyncProgressData | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [syncStartTime, setSyncStartTime] = useState<Date | null>(null);
+  const [imageStats, setImageStats] = useState<ImageStats | null>(null);
+  const [batchSyncProgress, setBatchSyncProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Poll for sync progress
   const pollSyncProgress = useCallback(async () => {
@@ -165,6 +174,29 @@ export default function ProjectAdmin() {
     return `~${formatElapsedTime(Math.round(remaining))} restantes`;
   };
 
+  // Fetch image stats
+  const fetchImageStats = useCallback(async () => {
+    if (!id) return;
+    
+    const { count: totalAds } = await supabase
+      .from('ads')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', id);
+    
+    const { count: cachedAds } = await supabase
+      .from('ads')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', id)
+      .not('cached_image_url', 'is', null);
+    
+    const total = totalAds || 0;
+    const cached = cachedAds || 0;
+    const pending = total - cached;
+    const percentage = total > 0 ? Math.round((cached / total) * 100) : 0;
+    
+    setImageStats({ totalAds: total, cachedAds: cached, pendingAds: pending, percentage });
+  }, [id]);
+
   useEffect(() => {
     const fetchProjectData = async () => {
       if (!id) return;
@@ -200,11 +232,14 @@ export default function ProjectAdmin() {
         setRecentLogs(logsData);
       }
       
+      // Fetch image stats
+      await fetchImageStats();
+      
       setLoading(false);
     };
 
     fetchProjectData();
-  }, [id]);
+  }, [id, fetchImageStats]);
 
   const handleSync = async (type: SyncType) => {
     if (!id || !project) return;
@@ -222,6 +257,9 @@ export default function ProjectAdmin() {
       // 'creatives' -> syncMode: 'creatives' (only creative content)
       if (type === 'creatives') {
         body.syncMode = 'creatives';
+      } else if (type === 'hd_images_batch') {
+        // Batch sync for HD images - will run multiple times
+        body.syncMode = 'hd_images';
       } else if (type !== 'all') {
         // For campaigns, adsets, ads - use base sync with date_preset
         body.date_preset = 'last_7d';
@@ -232,7 +270,8 @@ export default function ProjectAdmin() {
         campaigns: 'Campanhas',
         adsets: 'Conjuntos',
         ads: 'Anúncios',
-        creatives: 'Criativos'
+        creatives: 'Criativos',
+        hd_images_batch: 'Imagens HD'
       };
       
       toast.success(`Sincronização de ${typeLabels[type]} iniciada`);
@@ -247,6 +286,8 @@ export default function ProjectAdmin() {
             toast.error(`Erro na sincronização: ${error.message || 'Erro desconhecido'}`);
           } else {
             console.log('Sync completed:', data);
+            // Refresh image stats after sync
+            fetchImageStats();
           }
         })
         .catch((err) => {
@@ -266,6 +307,73 @@ export default function ProjectAdmin() {
         setSyncingType(null);
       }, 3000);
     }
+  };
+
+  // Batch sync for all pending HD images
+  const handleBatchImageSync = async () => {
+    if (!id || !project || !imageStats) return;
+    
+    const pendingImages = imageStats.pendingAds;
+    if (pendingImages === 0) {
+      toast.info('Todas as imagens já estão cacheadas!');
+      return;
+    }
+    
+    setSyncingType('hd_images_batch');
+    setBatchSyncProgress({ current: 0, total: pendingImages });
+    
+    let totalCached = 0;
+    let iterations = 0;
+    const maxIterations = Math.ceil(pendingImages / 300) + 2; // +2 for safety margin
+    
+    toast.success(`Iniciando sync de ${pendingImages} imagens pendentes...`);
+    
+    while (iterations < maxIterations) {
+      iterations++;
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
+          body: {
+            project_id: id,
+            ad_account_id: project.ad_account_id,
+            syncMode: 'hd_images'
+          }
+        });
+        
+        if (error) {
+          console.error('Batch sync error:', error);
+          toast.error(`Erro no lote ${iterations}: ${error.message}`);
+          break;
+        }
+        
+        const cached = data?.cached || 0;
+        const pending = data?.pending || 0;
+        totalCached += cached;
+        
+        setBatchSyncProgress({ current: totalCached, total: pendingImages });
+        
+        console.log(`Batch ${iterations}: cached ${cached}, pending ${pending}, total cached: ${totalCached}`);
+        
+        // If no more pending or no progress this round, stop
+        if (pending === 0 || cached === 0) {
+          break;
+        }
+        
+        // Small delay between batches
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (err) {
+        console.error('Batch sync exception:', err);
+        break;
+      }
+    }
+    
+    // Refresh stats and cleanup
+    await fetchImageStats();
+    setSyncingType(null);
+    setBatchSyncProgress(null);
+    
+    toast.success(`Sync completo! ${totalCached} novas imagens cacheadas.`);
   };
 
   const getSyncStatus = () => {
@@ -352,7 +460,7 @@ export default function ProjectAdmin() {
           {/* MONITORING TAB */}
           <TabsContent value="monitoring" className="space-y-6">
             {/* Status Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="glass-card">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -393,6 +501,36 @@ export default function ProjectAdmin() {
                       <p className="font-semibold mt-1">{recentLogs.length} registros</p>
                     </div>
                     <Database className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Image Cache Status Card */}
+              <Card className="glass-card">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Imagens HD</p>
+                      {imageStats ? (
+                        <div className="mt-1">
+                          <p className="font-semibold">
+                            {imageStats.cachedAds}/{imageStats.totalAds} 
+                            <span className="text-xs text-muted-foreground ml-1">
+                              ({imageStats.percentage}%)
+                            </span>
+                          </p>
+                          {imageStats.pendingAds > 0 && (
+                            <p className="text-xs text-amber-500 flex items-center gap-1 mt-0.5">
+                              <AlertCircle className="w-3 h-3" />
+                              {imageStats.pendingAds} pendentes
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <Skeleton className="h-5 w-20 mt-1" />
+                      )}
+                    </div>
+                    <Images className="w-8 h-8 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -502,6 +640,54 @@ export default function ProjectAdmin() {
                     </div>
                   </Button>
                 </div>
+                
+                {/* HD Images Batch Sync */}
+                {imageStats && imageStats.pendingAds > 0 && (
+                  <div className="mt-4 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div>
+                        <h4 className="font-medium flex items-center gap-2">
+                          <Images className="w-4 h-4 text-amber-500" />
+                          Sync de Imagens HD em Lote
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {imageStats.pendingAds} imagens aguardando cache. Clique para sincronizar todas.
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={handleBatchImageSync}
+                        disabled={syncingType !== null}
+                        variant="outline"
+                        className="border-amber-500/50 hover:bg-amber-500/20"
+                      >
+                        {syncingType === 'hd_images_batch' ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            {batchSyncProgress 
+                              ? `${batchSyncProgress.current}/${batchSyncProgress.total}`
+                              : 'Iniciando...'}
+                          </>
+                        ) : (
+                          <>
+                            <Images className="w-4 h-4 mr-2" />
+                            Sincronizar Todas
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {batchSyncProgress && (
+                      <div className="mt-3">
+                        <Progress 
+                          value={(batchSyncProgress.current / batchSyncProgress.total) * 100} 
+                          className="h-2" 
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {batchSyncProgress.current} de {batchSyncProgress.total} imagens processadas
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Progress Indicator - show if syncing OR if there's recent progress */}
                 {(syncingType || syncProgress) && (
