@@ -323,8 +323,9 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
     const batch = adIds.slice(i, i + 50);
     const batchIds = batch.join(',');
     
-    // Update progress for this batch
-    await updateSyncProgress(supabase, projectId, 'creatives', `Processando batch ${batchNumber}/${totalBatches}...`, batchNumber, totalBatches);
+    // Update progress for this batch (0-50% range for text phase)
+    const progressPercent = Math.round((batchNumber / totalBatches) * 50);
+    await updateSyncProgress(supabase, projectId, 'creatives', `Etapa 1/2: Textos - batch ${batchNumber}/${totalBatches}`, progressPercent, 100);
     
     // Campos do creative conforme especificação:
     // creative_id, body (primary_text), title (headline), call_to_action, thumbnail_url
@@ -432,12 +433,19 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
   let cachedCount = 0;
   let errorsCount = 0;
   
+  const totalBatches = Math.ceil(creativeIds.length / 20);
+  
   // Buscar image_hash de cada creative em batches de 20 (conforme especificação)
   for (let i = 0; i < creativeIds.length; i += 20) {
+    const batchNumber = Math.floor(i / 20) + 1;
     const batch = creativeIds.slice(i, i + 20);
     const batchIds = batch.join(',');
     
-    console.log(`[HD-IMAGE-SYNC] Fetching batch ${Math.floor(i/20) + 1}/${Math.ceil(creativeIds.length/20)}`);
+    // Update progress (50-100% range for HD phase)
+    const progressPercent = 50 + Math.round((batchNumber / totalBatches) * 50);
+    await updateSyncProgress(supabase, projectId, 'hd_images', `Etapa 2/2: Imagens HD - batch ${batchNumber}/${totalBatches}`, progressPercent, 100);
+    
+    console.log(`[HD-IMAGE-SYNC] Fetching batch ${batchNumber}/${totalBatches}`);
     
     // Buscar image_hash dos creatives
     const creativesUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,image_hash&access_token=${token}`;
@@ -901,21 +909,35 @@ Deno.serve(async (req) => {
     console.log(`[SYNC] Mode: ${syncMode}, Project: ${project_id}`);
     
     // ===========================================================================================
-    // 2️⃣ CREATIVE SYNC MODE
+    // 2️⃣ CREATIVE SYNC MODE (busca texto + depois HD automaticamente)
     // ===========================================================================================
     if (syncMode === 'creatives') {
       console.log(`[SYNC] Starting CREATIVE SYNC for project ${project_id}`);
-      await updateSyncProgress(supabase, project_id, 'creatives', 'Buscando conteúdo dos anúncios...', 1, 2);
       
-      const result = await syncCreatives(supabase, project_id, ad_account_id, token);
+      // Etapa 1: Buscar texto (headline, primary_text, cta, thumbnail baixa res)
+      await updateSyncProgress(supabase, project_id, 'creatives', 'Etapa 1/2: Buscando textos dos anúncios...', 0, 100);
+      const creativeResult = await syncCreatives(supabase, project_id, ad_account_id, token);
+      console.log(`[SYNC] Creative text sync completed: ${creativeResult.updated} ads updated`);
       
-      await updateSyncProgress(supabase, project_id, 'complete', `Criativos atualizados: ${result.updated}`, 2, 2);
+      // Etapa 2: Buscar imagens HD
+      await updateSyncProgress(supabase, project_id, 'hd_images', 'Etapa 2/2: Buscando imagens em alta resolução...', 50, 100);
+      const hdResult = await syncHDImages(supabase, project_id, ad_account_id, token);
+      console.log(`[SYNC] HD image sync completed: ${hdResult.cached}/${hdResult.total} images cached`);
+      
+      await updateSyncProgress(supabase, project_id, 'complete', `Criativos: ${creativeResult.updated} textos, ${hdResult.cached} imagens HD`, 100, 100);
       
       return new Response(JSON.stringify({ 
         success: true, 
         syncMode: 'creatives',
-        updated: result.updated,
-        total: result.total,
+        creatives: {
+          updated: creativeResult.updated,
+          total: creativeResult.total
+        },
+        hdImages: {
+          cached: hdResult.cached,
+          total: hdResult.total,
+          errors: hdResult.errors
+        },
         duration: Date.now() - startTime
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
