@@ -996,7 +996,7 @@ Deno.serve(async (req) => {
         const reach = parseInt(insights.reach) || 0;
         
         dailyRecords.push({
-          id: `${project_id}_${adId}_${date}`,
+          // id é gerado automaticamente pelo banco (gen_random_uuid)
           project_id,
           ad_account_id,
           date,
@@ -1043,12 +1043,33 @@ Deno.serve(async (req) => {
     // Step 4: Upsert daily records
     await updateSyncProgress(supabase, project_id, 'saving', `Salvando ${dailyRecords.length} registros diários...`, 4, 5);
     
+    let savedCount = 0;
+    let saveErrors: string[] = [];
+    
     if (dailyRecords.length > 0) {
       for (let i = 0; i < dailyRecords.length; i += 500) {
         const batch = dailyRecords.slice(i, i + 500);
-        await supabase.from('ads_daily_metrics').upsert(batch, { onConflict: 'project_id,ad_id,date' });
+        const { error: upsertError, count } = await supabase
+          .from('ads_daily_metrics')
+          .upsert(batch, { 
+            onConflict: 'id',  // Use ID único ao invés de constraint composta
+            ignoreDuplicates: false 
+          })
+          .select();
+        
+        if (upsertError) {
+          console.log(`[UPSERT ERROR] Batch ${Math.floor(i/500) + 1}: ${upsertError.message}`);
+          saveErrors.push(upsertError.message);
+        } else {
+          savedCount += batch.length;
+        }
       }
     }
+    
+    if (saveErrors.length > 0) {
+      console.log(`[UPSERT] Errors: ${saveErrors.slice(0, 3).join('; ')}`);
+    }
+    console.log(`[UPSERT] Saved ${savedCount}/${dailyRecords.length} records`);
     
     // Aggregate metrics for entities
     const campaignMetrics = new Map<string, any>();
