@@ -1251,15 +1251,15 @@ export default function ProjectSelector() {
                     </span>
                   </h3>
                   <p className="text-muted-foreground text-sm mt-1">
-                    Importação rápida com dados básicos de métricas
+                    Apenas métricas e estrutura de campanhas
                   </p>
                   <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      ~5-10 min
+                      ~2-5 min
                     </span>
-                    <span>• Sem criativos HD</span>
-                    <span>• Todas as métricas</span>
+                    <span>• Métricas completas</span>
+                    <span>• Sem criativos</span>
                   </div>
                 </div>
               </div>
@@ -1281,18 +1281,18 @@ export default function ProjectSelector() {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-lg">
-                    Importação Total (HD)
+                    Importação Completa
                   </h3>
                   <p className="text-muted-foreground text-sm mt-1">
-                    Importação completa com criativos em alta definição
+                    Métricas + criativos + imagens HD em background
                   </p>
                   <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      ~20-60 min
+                      ~5-15 min
                     </span>
-                    <span>• Criativos HD</span>
-                    <span>• Dados completos</span>
+                    <span>• HD em background</span>
+                    <span>• Não bloqueia UI</span>
                   </div>
                 </div>
               </div>
