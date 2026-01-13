@@ -313,7 +313,16 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                         return (
                           <div key={campaign.id} className="group/campaign">
                             <button
-                              onClick={() => toggleCampaignExpand(campaign.id)}
+                              onClick={() => {
+                                if (campaignAdSets.length === 0) {
+                                  // No ad sets - navigate to campaign page
+                                  navigate(`/campaign/${campaign.id}`);
+                                  onNavigate?.();
+                                } else {
+                                  // Has ad sets - toggle expand
+                                  toggleCampaignExpand(campaign.id);
+                                }
+                              }}
                               className="w-full flex items-center gap-2 px-3 py-2 pl-8 text-sm rounded-lg transition-colors duration-200 hover:bg-secondary"
                             >
                               <span className={cn(
@@ -321,13 +330,15 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                                 getStatusColor(campaign.status)
                               )} />
                               <span className="truncate flex-1 text-left text-muted-foreground group-hover/campaign:text-foreground transition-colors">{campaign.name}</span>
-                              {campaignAdSets.length > 0 && (
+                              {campaignAdSets.length > 0 ? (
                                 <span className={cn(
                                   'transition-transform duration-200',
                                   isExpanded && 'rotate-180'
                                 )}>
                                   <ChevronDown className="w-3 h-3 flex-shrink-0" />
                                 </span>
+                              ) : (
+                                <ChevronRight className="w-3 h-3 flex-shrink-0 opacity-50" />
                               )}
                             </button>
                             
