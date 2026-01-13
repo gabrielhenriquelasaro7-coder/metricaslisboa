@@ -315,8 +315,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                             <button
                               onClick={() => {
                                 if (campaignAdSets.length === 0) {
-                                  // No ad sets - navigate to campaign page
-                                  navigate(`/campaign/${campaign.id}`);
+                                  // No ad sets - navigate to campaign ad sets page
+                                  navigate(`/campaign/${campaign.id}/adsets`);
                                   onNavigate?.();
                                 } else {
                                   // Has ad sets - toggle expand
