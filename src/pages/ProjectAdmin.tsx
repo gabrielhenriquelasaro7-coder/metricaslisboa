@@ -108,12 +108,12 @@ export default function ProjectAdmin() {
   // Start polling when sync starts
   useEffect(() => {
     if (!syncingType) {
-      // Delay clearing progress to show final status
+      // Keep progress visible for longer to show final status
       const timeout = setTimeout(() => {
         setSyncProgress(null);
         setElapsedTime(0);
         setSyncStartTime(null);
-      }, 500);
+      }, 5000); // Show for 5 seconds after completion
       return () => clearTimeout(timeout);
     }
 
@@ -503,12 +503,22 @@ export default function ProjectAdmin() {
                   </Button>
                 </div>
 
-                {/* Progress Indicator */}
-                {syncingType && (
+                {/* Progress Indicator - show if syncing OR if there's recent progress */}
+                {(syncingType || syncProgress) && (
                   <div className="mt-4 p-4 rounded-lg bg-secondary/50 border border-border/50 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        {syncProgress?.status === 'success' ? (
+                          <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                            <span className="text-white text-xs">✓</span>
+                          </div>
+                        ) : syncProgress?.status === 'error' ? (
+                          <div className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                            <span className="text-white text-xs">✕</span>
+                          </div>
+                        ) : (
+                          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        )}
                         <span className="font-medium text-sm">
                           {syncProgress?.message || 'Iniciando sincronização...'}
                         </span>
@@ -518,7 +528,7 @@ export default function ProjectAdmin() {
                           <Timer className="w-3.5 h-3.5" />
                           <span>{formatElapsedTime(elapsedTime)}</span>
                         </div>
-                        {getEstimatedRemaining() && (
+                        {getEstimatedRemaining() && syncingType && (
                           <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                             {getEstimatedRemaining()}
                           </span>
@@ -526,16 +536,21 @@ export default function ProjectAdmin() {
                       </div>
                     </div>
                     
-                    <Progress value={syncProgress?.current || syncProgress?.progress || 5} className="h-2" />
+                    <Progress 
+                      value={syncProgress?.status === 'success' ? 100 : (syncProgress?.current || syncProgress?.progress || 5)} 
+                      className="h-2" 
+                    />
                     
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>
                         {syncProgress?.step && syncProgress.step !== 'complete' && syncProgress.step !== 'error' && `Etapa: ${syncProgress.step}`}
+                        {syncProgress?.status === 'success' && 'Sincronização concluída!'}
+                        {syncProgress?.status === 'error' && 'Erro na sincronização'}
                       </span>
-                      <span>{syncProgress?.current || syncProgress?.progress || 0}%</span>
+                      <span>{syncProgress?.status === 'success' ? 100 : (syncProgress?.current || syncProgress?.progress || 0)}%</span>
                     </div>
                     
-                    {syncProgress?.current !== undefined && syncProgress?.total !== undefined && (
+                    {syncProgress?.current !== undefined && syncProgress?.total !== undefined && syncProgress.status !== 'success' && (
                       <p className="text-xs text-muted-foreground">
                         Processando {syncProgress.current} de {syncProgress.total} registros
                       </p>
