@@ -11,11 +11,19 @@ interface MonthImportRequest {
   month: number;
   continue_chain?: boolean;
   ad_account_id?: string;
-  force_light_sync?: boolean; // Se definido, usa esse valor. Se não, decide automaticamente
-  // Parallel processing params
+  force_light_sync?: boolean;
   parallel_next_month?: number | null;
-  parallel_batch_size?: number;
+  parallel_batch_size?: number; // Se não definido, será calculado automaticamente
   max_month?: number;
+  safe_mode?: boolean;
+}
+
+interface AccountSizeInfo {
+  adSetsCount: number;
+  adsCount: number;
+  recommendedBatchSize: number;
+  recommendedDelay: number;
+  isLargeAccount: boolean;
 }
 
 function getNextMonth(year: number, month: number): { year: number; month: number } | null {
@@ -43,27 +51,86 @@ function getMonthName(month: number): string {
   return names[month - 1] || 'Unknown';
 }
 
-// Delay helper
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Check if we hit rate limit by testing a simple API call
+// Calculate optimal batch size and delay based on account size
+function calculateAccountStrategy(adSetsCount: number, adsCount: number): AccountSizeInfo {
+  const totalEntities = adSetsCount + adsCount;
+  
+  // MUITO GRANDE: > 200 adsets ou > 500 ads - 1 mês por vez, delay longo
+  if (adSetsCount > 200 || adsCount > 500 || totalEntities > 600) {
+    return {
+      adSetsCount,
+      adsCount,
+      recommendedBatchSize: 1, // Sequencial
+      recommendedDelay: 20000, // 20s entre meses
+      isLargeAccount: true,
+    };
+  }
+  
+  // GRANDE: 100-200 adsets ou 200-500 ads - 2 meses paralelos, delay médio
+  if (adSetsCount > 100 || adsCount > 200 || totalEntities > 300) {
+    return {
+      adSetsCount,
+      adsCount,
+      recommendedBatchSize: 2,
+      recommendedDelay: 10000, // 10s entre batches
+      isLargeAccount: true,
+    };
+  }
+  
+  // MÉDIA: 50-100 adsets ou 100-200 ads - 3 meses paralelos
+  if (adSetsCount > 50 || adsCount > 100 || totalEntities > 150) {
+    return {
+      adSetsCount,
+      adsCount,
+      recommendedBatchSize: 3,
+      recommendedDelay: 5000, // 5s entre batches
+      isLargeAccount: false,
+    };
+  }
+  
+  // PEQUENA: < 50 adsets - 4 meses paralelos, delay curto
+  return {
+    adSetsCount,
+    adsCount,
+    recommendedBatchSize: 4,
+    recommendedDelay: 3000, // 3s
+    isLargeAccount: false,
+  };
+}
+
+// Get account size from database
+async function getAccountSize(supabase: any, projectId: string): Promise<AccountSizeInfo> {
+  const [adSetsResult, adsResult] = await Promise.all([
+    supabase.from('ad_sets').select('*', { count: 'exact', head: true }).eq('project_id', projectId),
+    supabase.from('ads').select('*', { count: 'exact', head: true }).eq('project_id', projectId),
+  ]);
+  
+  const adSetsCount = adSetsResult.count || 0;
+  const adsCount = adsResult.count || 0;
+  
+  return calculateAccountStrategy(adSetsCount, adsCount);
+}
+
+// Check rate limit
 async function checkRateLimit(adAccountId: string, accessToken: string): Promise<boolean> {
   try {
     const url = `https://graph.facebook.com/v22.0/${adAccountId}?fields=id&access_token=${accessToken}`;
     const response = await fetch(url);
     const data = await response.json();
     
-    if (data.error?.code === 4 || data.error?.message?.includes('request limit')) {
-      console.log('[RATE-LIMIT] API rate limit still active');
-      return true; // Rate limited
+    if (data.error?.code === 4 || data.error?.code === 80004 || data.error?.message?.includes('request limit') || data.error?.message?.includes('too many calls')) {
+      console.log('[RATE-LIMIT] API rate limit detected');
+      return true;
     }
     
-    return false; // OK to proceed
+    return false;
   } catch (e) {
     console.log('[RATE-LIMIT] Check failed:', e);
-    return false; // Assume OK
+    return false;
   }
 }
 
@@ -87,8 +154,9 @@ Deno.serve(async (req) => {
       ad_account_id, 
       force_light_sync,
       parallel_next_month,
-      parallel_batch_size = 3,
-      max_month
+      parallel_batch_size: requestedBatchSize,
+      max_month,
+      safe_mode = false,
     } = body;
     
     if (!project_id || !year || !month) {
@@ -116,12 +184,20 @@ Deno.serve(async (req) => {
     
     const accountId = ad_account_id || project.ad_account_id;
     
+    // Get account size and calculate optimal strategy
+    const accountInfo = await getAccountSize(supabase, project_id);
+    const effectiveBatchSize = requestedBatchSize || accountInfo.recommendedBatchSize;
+    const effectiveDelay = accountInfo.recommendedDelay;
+    
+    console.log(`[MONTH-IMPORT] Project: ${project.name}`);
+    console.log(`[MONTH-IMPORT] Account size: ${accountInfo.adSetsCount} adsets, ${accountInfo.adsCount} ads`);
+    console.log(`[MONTH-IMPORT] Strategy: batch_size=${effectiveBatchSize}, delay=${effectiveDelay}ms, large=${accountInfo.isLargeAccount}`);
+    
     // Check rate limit before proceeding
     const isRateLimited = await checkRateLimit(accountId, metaAccessToken);
     if (isRateLimited) {
-      console.log(`[MONTH-IMPORT] Rate limited, will retry in 5 minutes`);
+      console.log(`[MONTH-IMPORT] Rate limited, will retry later`);
       
-      // Update status to show we're waiting
       await supabase
         .from('project_import_months')
         .upsert({
@@ -129,7 +205,7 @@ Deno.serve(async (req) => {
           year,
           month,
           status: 'pending',
-          error_message: 'Rate limit - aguardando reset (tentar novamente em 5-10 min)',
+          error_message: 'Rate limit - aguardando reset (5-10 min)',
           retry_count: 1,
         }, { onConflict: 'project_id,year,month' });
       
@@ -137,7 +213,8 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           success: false, 
           error: 'Rate limit active - try again in 5-10 minutes',
-          rate_limited: true 
+          rate_limited: true,
+          account_info: accountInfo,
         }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -184,28 +261,19 @@ Deno.serve(async (req) => {
         });
     }
     
-    console.log(`[MONTH-IMPORT] Project: ${project.name}`);
-    
-    // Decidir light_sync:
-    // 1. Se force_light_sync foi definido, usa esse valor
-    // 2. Se não, decide automaticamente baseado no tamanho da conta
+    // Decide light_sync mode
     let useLightSync: boolean;
     
     if (force_light_sync !== undefined) {
       useLightSync = force_light_sync;
       console.log(`[MONTH-IMPORT] Modo forçado: ${useLightSync ? 'LIGHT SYNC' : 'HD COMPLETO'}`);
     } else {
-      // Verificar tamanho da conta para decidir automaticamente
-      const { count: adsCount } = await supabase
-        .from('ads')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', project_id);
-      
-      const isLargeAccount = (adsCount || 0) > 200;
-      useLightSync = isLargeAccount;
-      console.log(`[MONTH-IMPORT] Modo auto: ${adsCount} ads - ${isLargeAccount ? 'LIGHT SYNC' : 'HD COMPLETO'}`);
+      // Auto-decide based on account size
+      useLightSync = accountInfo.isLargeAccount;
+      console.log(`[MONTH-IMPORT] Modo auto: ${accountInfo.isLargeAccount ? 'LIGHT SYNC (conta grande)' : 'HD COMPLETO (conta pequena)'}`);
     }
-    // Calculate date range for the month
+    
+    // Calculate date range
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
     const formatDate = (d: Date) => d.toISOString().split('T')[0];
@@ -215,10 +283,9 @@ Deno.serve(async (req) => {
     
     console.log(`[MONTH-IMPORT] Syncing ${since} to ${until} | light_sync: ${useLightSync}`);
     
-    // Call meta-ads-sync for the entire month with extended timeout
-    // HD sync pode demorar muito para cachear imagens - timeout de 10min para HD
+    // Call meta-ads-sync with extended timeout
     const controller = new AbortController();
-    const timeoutMs = useLightSync ? 180000 : 600000; // 3min for light, 10min for HD
+    const timeoutMs = useLightSync ? 180000 : 600000; // 3min light, 10min HD
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
     let syncResponse: Response;
@@ -246,7 +313,6 @@ Deno.serve(async (req) => {
       try {
         syncResult = JSON.parse(responseText);
       } catch {
-        // Se não conseguiu parsear JSON mas o status é ok, considerar sucesso
         console.log(`[MONTH-IMPORT] Response not JSON (status ${syncResponse.status}): ${responseText.substring(0, 200)}`);
         syncResult = syncResponse.ok ? { success: true, records: 0 } : { success: false, error: 'Invalid response' };
       }
@@ -254,11 +320,9 @@ Deno.serve(async (req) => {
       clearTimeout(timeoutId);
       
       if (fetchError.name === 'AbortError') {
-        // Timeout - verificar se há records salvos no banco
         console.log(`[MONTH-IMPORT] Request timeout after ${timeoutMs/1000}s - checking for saved records...`);
         
-        // Esperar um pouco mais para garantir que os dados foram salvos
-        await delay(10000); // 10s extra
+        await delay(10000);
         
         const { count: recordsCount } = await supabase
           .from('ads_daily_metrics')
@@ -272,7 +336,6 @@ Deno.serve(async (req) => {
           syncResult = { success: true, records: recordsCount };
           syncResponse = new Response(null, { status: 200 });
         } else {
-          // Tentar uma segunda verificação após mais 10s
           await delay(10000);
           
           const { count: recordsCount2 } = await supabase
@@ -306,8 +369,8 @@ Deno.serve(async (req) => {
       totalRecords = syncResult.summary?.records || syncResult.records || 0;
       console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${totalRecords} records`);
     } else {
-      // Check if rate limited in sync response
-      if (syncResult.error?.includes('rate') || syncResult.error?.includes('limit') || syncResult.records === 0) {
+      // Check if rate limited
+      if (syncResult.error?.includes('rate') || syncResult.error?.includes('limit') || syncResult.error?.includes('too many')) {
         status = 'pending';
         errorMessage = 'Rate limit detectado - será retentado';
         console.log(`[MONTH-IMPORT] Rate limit detected, marking for retry`);
@@ -318,7 +381,7 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Update the month record
+    // Update month record
     await supabase
       .from('project_import_months')
       .update({
@@ -340,22 +403,22 @@ Deno.serve(async (req) => {
         month: `${year}-${month}`,
         month_name: `${monthName} ${year}`,
         records: totalRecords,
+        account_info: accountInfo,
       }),
     });
     
-    // Trigger next month - PARALLEL mode or chain mode
+    // Trigger next month - with SMART PARALLELISM
     let nextMonthTriggered = false;
     
-    // PARALLEL MODE: Dispara o próximo mês do batch (mês atual + batch_size)
+    // PARALLEL MODE with adaptive batch size
     if (parallel_next_month && status === 'success') {
       const effectiveMaxMonth = max_month || 12;
       
       if (parallel_next_month <= effectiveMaxMonth) {
-        // Delay curto para não sobrecarregar a API
-        const delayTime = 3000; // 3s entre batches
-        console.log(`[MONTH-IMPORT] PARALLEL: Waiting ${delayTime/1000}s before month ${parallel_next_month}...`);
+        // Use calculated delay based on account size
+        console.log(`[MONTH-IMPORT] PARALLEL: Waiting ${effectiveDelay/1000}s before month ${parallel_next_month}...`);
         
-        await delay(delayTime);
+        await delay(effectiveDelay);
         
         console.log(`[MONTH-IMPORT] PARALLEL: Triggering month ${parallel_next_month} of ${year}`);
         
@@ -372,11 +435,12 @@ Deno.serve(async (req) => {
             month: parallel_next_month,
             continue_chain: false,
             force_light_sync: force_light_sync,
-            parallel_next_month: parallel_next_month + parallel_batch_size <= effectiveMaxMonth 
-              ? parallel_next_month + parallel_batch_size 
+            parallel_next_month: parallel_next_month + effectiveBatchSize <= effectiveMaxMonth 
+              ? parallel_next_month + effectiveBatchSize 
               : null,
-            parallel_batch_size,
+            parallel_batch_size: effectiveBatchSize,
             max_month: effectiveMaxMonth,
+            safe_mode,
           }),
         }).catch(err => console.error('[MONTH-IMPORT] Failed to trigger parallel:', err));
         
@@ -385,14 +449,15 @@ Deno.serve(async (req) => {
         console.log(`[MONTH-IMPORT] PARALLEL: Batch complete for track starting at month ${month}`);
       }
     }
-    // LEGACY CHAIN MODE: Sequential processing
+    // CHAIN MODE (sequential) - with smart delays
     else if (continue_chain && status === 'success') {
       const nextMonth = getNextMonth(year, month);
       if (nextMonth) {
-        const delayTime = totalRecords > 0 ? 15000 : 5000;
-        console.log(`[MONTH-IMPORT] CHAIN: Waiting ${delayTime/1000}s before next month...`);
+        // Use larger delay for large accounts
+        const chainDelay = accountInfo.isLargeAccount ? 20000 : (totalRecords > 0 ? 15000 : 5000);
+        console.log(`[MONTH-IMPORT] CHAIN: Waiting ${chainDelay/1000}s before next month...`);
         
-        await delay(delayTime);
+        await delay(chainDelay);
         
         console.log(`[MONTH-IMPORT] CHAIN: Triggering next: ${getMonthName(nextMonth.month)} ${nextMonth.year}`);
         
@@ -409,6 +474,7 @@ Deno.serve(async (req) => {
             month: nextMonth.month,
             continue_chain: true,
             force_light_sync: force_light_sync,
+            safe_mode,
           }),
         }).catch(err => console.error('[MONTH-IMPORT] Failed to trigger next:', err));
         
@@ -426,6 +492,8 @@ Deno.serve(async (req) => {
         message: `${monthName} ${year} imported`,
         records: totalRecords,
         next_month_triggered: nextMonthTriggered,
+        account_info: accountInfo,
+        effective_batch_size: effectiveBatchSize,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
