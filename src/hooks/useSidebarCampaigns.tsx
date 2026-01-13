@@ -37,25 +37,48 @@ export function useSidebarCampaigns(projectId: string | null) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch only essential fields for sidebar
-        const [campaignsRes, adSetsRes] = await Promise.all([
-          supabase
-            .from('campaigns')
-            .select('id, name, status, spend')
-            .eq('project_id', projectId)
-            .order('spend', { ascending: false })
-            .limit(15),
-          supabase
-            .from('ad_sets')
-            .select('id, name, status, campaign_id, spend')
-            .eq('project_id', projectId)
-            .order('spend', { ascending: false })
-            .limit(50),
-        ]);
+        // Fetch campaigns from campaigns table
+        const campaignsRes = await supabase
+          .from('campaigns')
+          .select('id, name, status, spend')
+          .eq('project_id', projectId)
+          .order('spend', { ascending: false })
+          .limit(15);
+
+        // Fetch unique ad sets from ads_daily_metrics (most reliable source)
+        // Group by adset_id to get unique ad sets with aggregated spend
+        const { data: dailyMetrics } = await supabase
+          .from('ads_daily_metrics')
+          .select('adset_id, adset_name, adset_status, campaign_id, spend')
+          .eq('project_id', projectId)
+          .order('date', { ascending: false })
+          .limit(1000);
+
+        // Aggregate ad sets from daily metrics
+        const adSetMap = new Map<string, SidebarAdSet>();
+        if (dailyMetrics) {
+          for (const row of dailyMetrics) {
+            if (!adSetMap.has(row.adset_id)) {
+              adSetMap.set(row.adset_id, {
+                id: row.adset_id,
+                name: row.adset_name,
+                status: row.adset_status || 'UNKNOWN',
+                campaign_id: row.campaign_id,
+                spend: 0,
+              });
+            }
+            const adSet = adSetMap.get(row.adset_id)!;
+            adSet.spend += Number(row.spend) || 0;
+          }
+        }
+
+        const aggregatedAdSets = Array.from(adSetMap.values())
+          .sort((a, b) => b.spend - a.spend)
+          .slice(0, 50);
 
         if (isMounted) {
           setCampaigns((campaignsRes.data as SidebarCampaign[]) || []);
-          setAdSets((adSetsRes.data as SidebarAdSet[]) || []);
+          setAdSets(aggregatedAdSets);
         }
       } catch (error) {
         console.error('Error fetching sidebar campaigns:', error);
