@@ -134,25 +134,23 @@ export function useProjects() {
         },
         (payload) => {
           const newProject = payload.new as any;
-          // Only add if it's our project and not already in the list
-          if (newProject.user_id === user.id) {
-            setProjects(prev => {
-              // Check if already exists (avoid duplicates)
-              if (prev.some(p => p.id === newProject.id)) {
-                return prev;
-              }
-              const parsedProject = {
-                ...newProject,
-                sync_progress: newProject.sync_progress 
-                  ? (typeof newProject.sync_progress === 'string' 
-                      ? JSON.parse(newProject.sync_progress) 
-                      : newProject.sync_progress) 
-                  : null 
-              } as Project;
-              // Add at the beginning (newest first)
-              return [parsedProject, ...prev];
-            });
-          }
+          // Add new project to the list (RLS already filters access)
+          setProjects(prev => {
+            // Check if already exists (avoid duplicates)
+            if (prev.some(p => p.id === newProject.id)) {
+              return prev;
+            }
+            const parsedProject = {
+              ...newProject,
+              sync_progress: newProject.sync_progress 
+                ? (typeof newProject.sync_progress === 'string' 
+                    ? JSON.parse(newProject.sync_progress) 
+                    : newProject.sync_progress) 
+                : null 
+            } as Project;
+            // Add at the beginning (newest first)
+            return [parsedProject, ...prev];
+          });
         }
       )
       .on(
