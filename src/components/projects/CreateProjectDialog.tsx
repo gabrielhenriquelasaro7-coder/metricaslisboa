@@ -150,7 +150,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     }
   };
 
-  // Start import with selected mode - PARALLEL PROCESSING (3 months at a time)
+  // Start import with selected mode - SMART PARALLEL PROCESSING (auto-adjusts based on account size)
   const handleStartImport = async (mode: 'light' | 'full') => {
     if (!pendingProjectId) return;
 
@@ -169,20 +169,24 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       sync_progress: { 
         status: 'importing', 
         progress: 0, 
-        message: lightSync ? 'Iniciando Light Sync Paralelo (3x)...' : 'Iniciando Importação Total HD Paralela (3x)...', 
+        message: lightSync ? 'Iniciando Light Sync Inteligente...' : 'Iniciando Importação HD Inteligente...', 
         started_at: new Date().toISOString() 
       },
     }).eq('id', pendingProjectId);
 
     try {
-      // Use parallel_batch_size: 3 to process 3 months simultaneously
-      const { error } = await supabase.functions.invoke('import-month-by-month', {
+      // Don't specify parallel_batch_size - let the edge function auto-calculate based on account size
+      // Small accounts: 4 months parallel
+      // Medium accounts: 3 months parallel  
+      // Large accounts: 2 months parallel
+      // Very large accounts: 1 month (sequential)
+      const { error, data } = await supabase.functions.invoke('import-month-by-month', {
         body: {
           project_id: pendingProjectId,
           year: startYear,
           month: 1,
           continue_chain: true,
-          parallel_batch_size: 3, // Process 3 months in parallel!
+          // parallel_batch_size not set = auto-calculate based on account size!
           force_light_sync: lightSync,
           safe_mode: true,
         },
@@ -191,7 +195,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       if (error) {
         console.error('Error starting import:', error);
       } else {
-        console.log(`[IMPORT] Started PARALLEL ${mode} import (3 months at a time) for project ${pendingProjectId}`);
+        console.log(`[IMPORT] Started SMART import for project ${pendingProjectId}`, data);
       }
     } catch (error) {
       console.error('Error starting import:', error);
