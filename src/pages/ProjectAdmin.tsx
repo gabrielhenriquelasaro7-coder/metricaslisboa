@@ -188,8 +188,13 @@ export default function ProjectAdmin() {
         ad_account_id: project.ad_account_id
       };
       
-      if (type !== 'all') {
-        body.syncOnly = type;
+      // Map sync type to syncMode for edge function
+      // 'creatives' -> syncMode: 'creatives' (only creative content)
+      if (type === 'creatives') {
+        body.syncMode = 'creatives';
+      } else if (type !== 'all') {
+        // For campaigns, adsets, ads - use base sync with date_preset
+        body.date_preset = 'last_7d';
       }
       
       const { error } = await supabase.functions.invoke('meta-ads-sync', {

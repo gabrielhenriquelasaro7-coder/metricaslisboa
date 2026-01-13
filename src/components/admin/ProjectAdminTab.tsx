@@ -217,11 +217,20 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
     setSyncProgress({ step: 'starting', message: 'Iniciando sincronização...' });
     
     try {
-      const body: Record<string, unknown> = { projectId };
+      // Build request body with correct parameter names for edge function
+      const body: Record<string, unknown> = { 
+        project_id: projectId 
+      };
       
-      // Add specific sync type options
-      if (type !== 'all') {
-        body.syncOnly = type;
+      // Map sync type to syncMode for edge function
+      // 'creatives' -> syncMode: 'creatives' (only creative content)
+      // 'hd_images' -> syncMode: 'hd_images' (only HD images)
+      // Others use base sync
+      if (type === 'creatives') {
+        body.syncMode = 'creatives';
+      } else if (type !== 'all') {
+        // For campaigns, adsets, ads - use base sync with date_preset
+        body.date_preset = 'last_7d';
       }
       
       const { error } = await supabase.functions.invoke('meta-ads-sync', {
@@ -362,8 +371,13 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
                       {syncProgress.step === 'adsets' && 'Buscando conjuntos...'}
                       {syncProgress.step === 'ads' && 'Buscando anúncios...'}
                       {syncProgress.step === 'insights' && 'Processando métricas...'}
+                      {syncProgress.step === 'processing' && 'Processando dados...'}
                       {syncProgress.step === 'saving' && 'Salvando no banco...'}
-                      {!syncProgress.step && `${syncProgress.current} de ${syncProgress.total}`}
+                      {syncProgress.step === 'creatives' && 'Buscando criativos...'}
+                      {syncProgress.step === 'hd_images' && 'Buscando imagens HD...'}
+                      {syncProgress.step === 'complete' && 'Concluído!'}
+                      {!['campaigns', 'adsets', 'ads', 'insights', 'processing', 'saving', 'creatives', 'hd_images', 'complete'].includes(syncProgress.step || '') && 
+                        `${syncProgress.current} de ${syncProgress.total}`}
                     </span>
                     <span>
                       {syncProgress.current} / {syncProgress.total}
