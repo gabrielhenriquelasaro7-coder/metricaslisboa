@@ -278,95 +278,155 @@ Deno.serve(async (req) => {
     const lastDay = new Date(year, month, 0);
     const formatDate = (d: Date) => d.toISOString().split('T')[0];
     
-    const since = formatDate(firstDay);
-    const until = formatDate(lastDay);
+    // ========================================================================
+    // SPLIT LARGE ACCOUNTS INTO 2 PERIODS (FORTNIGHTS) TO AVOID ERROR 1504018
+    // "Sua solicitação expirou - Tente um intervalo de datas menor"
+    // ========================================================================
+    const needsSplit = accountInfo.adsCount > 400 || accountInfo.adSetsCount > 150;
     
-    console.log(`[MONTH-IMPORT] Syncing ${since} to ${until} | light_sync: ${useLightSync}`);
+    let periods: Array<{ since: string; until: string; label: string }>;
     
-    // Call meta-ads-sync with extended timeout
-    const controller = new AbortController();
-    const timeoutMs = useLightSync ? 180000 : 600000; // 3min light, 10min HD
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    
-    let syncResponse: Response;
-    let syncResult: any;
-    
-    try {
-      syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({
-          project_id,
-          ad_account_id: accountId,
-          time_range: { since, until },
-          light_sync: useLightSync,
-          skip_image_cache: useLightSync,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+    if (needsSplit) {
+      // Split month into 2 fortnights
+      const midDay = new Date(year, month - 1, 15);
+      const midDayNext = new Date(year, month - 1, 16);
       
-      const responseText = await syncResponse.text();
+      periods = [
+        { since: formatDate(firstDay), until: formatDate(midDay), label: '1ª quinzena' },
+        { since: formatDate(midDayNext), until: formatDate(lastDay), label: '2ª quinzena' },
+      ];
+      console.log(`[MONTH-IMPORT] SPLIT MODE: Dividindo ${monthName} ${year} em 2 quinzenas (conta com ${accountInfo.adsCount} ads)`);
+    } else {
+      periods = [
+        { since: formatDate(firstDay), until: formatDate(lastDay), label: 'mês completo' },
+      ];
+      console.log(`[MONTH-IMPORT] Syncing ${formatDate(firstDay)} to ${formatDate(lastDay)} | light_sync: ${useLightSync}`);
+    }
+    
+    let totalRecordsFromPeriods = 0;
+    let hasError = false;
+    let lastError: string | null = null;
+    
+    // Process each period
+    for (let i = 0; i < periods.length; i++) {
+      const period = periods[i];
+      console.log(`[MONTH-IMPORT] Processing period ${i + 1}/${periods.length}: ${period.label} (${period.since} to ${period.until})`);
+      
+      // Call meta-ads-sync with extended timeout
+      const controller = new AbortController();
+      const timeoutMs = useLightSync ? 180000 : 600000; // 3min light, 10min HD
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      let syncResponse: Response;
+      let syncResult: any;
+      
       try {
-        syncResult = JSON.parse(responseText);
-      } catch {
-        console.log(`[MONTH-IMPORT] Response not JSON (status ${syncResponse.status}): ${responseText.substring(0, 200)}`);
-        syncResult = syncResponse.ok ? { success: true, records: 0 } : { success: false, error: 'Invalid response' };
-      }
-    } catch (fetchError: any) {
-      clearTimeout(timeoutId);
-      
-      if (fetchError.name === 'AbortError') {
-        console.log(`[MONTH-IMPORT] Request timeout after ${timeoutMs/1000}s - checking for saved records...`);
+        syncResponse = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            project_id,
+            ad_account_id: accountId,
+            time_range: { since: period.since, until: period.until },
+            light_sync: useLightSync,
+            skip_image_cache: useLightSync,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
         
-        await delay(10000);
+        const responseText = await syncResponse.text();
+        try {
+          syncResult = JSON.parse(responseText);
+        } catch {
+          console.log(`[MONTH-IMPORT] Response not JSON (status ${syncResponse.status}): ${responseText.substring(0, 200)}`);
+          syncResult = syncResponse.ok ? { success: true, records: 0 } : { success: false, error: 'Invalid response' };
+        }
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
         
-        const { count: recordsCount } = await supabase
-          .from('ads_daily_metrics')
-          .select('*', { count: 'exact', head: true })
-          .eq('project_id', project_id)
-          .gte('date', since)
-          .lte('date', until);
-        
-        if ((recordsCount || 0) > 0) {
-          console.log(`[MONTH-IMPORT] Found ${recordsCount} records in DB despite timeout - SUCCESS`);
-          syncResult = { success: true, records: recordsCount };
-          syncResponse = new Response(null, { status: 200 });
-        } else {
+        if (fetchError.name === 'AbortError') {
+          console.log(`[MONTH-IMPORT] Request timeout after ${timeoutMs/1000}s - checking for saved records...`);
+          
           await delay(10000);
           
-          const { count: recordsCount2 } = await supabase
+          const { count: recordsCount } = await supabase
             .from('ads_daily_metrics')
             .select('*', { count: 'exact', head: true })
             .eq('project_id', project_id)
-            .gte('date', since)
-            .lte('date', until);
+            .gte('date', period.since)
+            .lte('date', period.until);
           
-          if ((recordsCount2 || 0) > 0) {
-            console.log(`[MONTH-IMPORT] Found ${recordsCount2} records on second check - SUCCESS`);
-            syncResult = { success: true, records: recordsCount2 };
+          if ((recordsCount || 0) > 0) {
+            console.log(`[MONTH-IMPORT] Found ${recordsCount} records in DB despite timeout - SUCCESS`);
+            syncResult = { success: true, records: recordsCount };
             syncResponse = new Response(null, { status: 200 });
           } else {
-            syncResult = { success: false, error: 'Timeout - nenhum registro encontrado' };
-            syncResponse = new Response(null, { status: 408 });
+            await delay(10000);
+            
+            const { count: recordsCount2 } = await supabase
+              .from('ads_daily_metrics')
+              .select('*', { count: 'exact', head: true })
+              .eq('project_id', project_id)
+              .gte('date', period.since)
+              .lte('date', period.until);
+            
+            if ((recordsCount2 || 0) > 0) {
+              console.log(`[MONTH-IMPORT] Found ${recordsCount2} records on second check - SUCCESS`);
+              syncResult = { success: true, records: recordsCount2 };
+              syncResponse = new Response(null, { status: 200 });
+            } else {
+              syncResult = { success: false, error: 'Timeout - nenhum registro encontrado' };
+              syncResponse = new Response(null, { status: 408 });
+            }
           }
+        } else {
+          console.log(`[MONTH-IMPORT] Fetch error: ${fetchError.message}`);
+          syncResult = { success: false, error: fetchError.message };
+          syncResponse = new Response(null, { status: 500 });
         }
+      }
+      
+      // Check result for this period
+      if (syncResponse.ok && syncResult.success !== false) {
+        const periodRecords = syncResult.summary?.records || syncResult.records || 0;
+        totalRecordsFromPeriods += periodRecords;
+        console.log(`[MONTH-IMPORT] ✓ ${period.label}: ${periodRecords} records`);
       } else {
-        console.log(`[MONTH-IMPORT] Fetch error: ${fetchError.message}`);
-        syncResult = { success: false, error: fetchError.message };
-        syncResponse = new Response(null, { status: 500 });
+        hasError = true;
+        lastError = syncResult.error || 'Sync failed';
+        console.log(`[MONTH-IMPORT] ✗ ${period.label}: ${lastError}`);
+        
+        // If rate limited or query too large, stop and mark for retry
+        if (lastError?.includes('rate') || lastError?.includes('limit') || lastError?.includes('1504018') || lastError?.includes('expirou')) {
+          console.log(`[MONTH-IMPORT] Stopping due to API limit`);
+          break;
+        }
+      }
+      
+      // Delay between periods to avoid rate limit
+      if (i < periods.length - 1) {
+        const periodDelay = accountInfo.isLargeAccount ? 10000 : 5000;
+        console.log(`[MONTH-IMPORT] Waiting ${periodDelay/1000}s before next period...`);
+        await delay(periodDelay);
       }
     }
+    
+    // Use combined results
+    let syncResponse = { ok: !hasError } as Response;
+    let syncResult = hasError 
+      ? { success: false, error: lastError }
+      : { success: true, records: totalRecordsFromPeriods };
     
     let totalRecords = 0;
     let status = 'success';
     let errorMessage = null;
     
     if (syncResponse.ok && syncResult.success !== false) {
-      totalRecords = syncResult.summary?.records || syncResult.records || 0;
+      totalRecords = syncResult.records || 0;
       console.log(`[MONTH-IMPORT] ✓ ${monthName} ${year}: ${totalRecords} records`);
     } else {
       // Check if rate limited
