@@ -194,54 +194,97 @@ async function fetchEntitiesBase(adAccountId: string, token: string): Promise<{
 }
 
 // Fetch daily insights - campos básicos apenas
+// Divide em chunks de 7 dias para evitar erro 1504018 em contas grandes
 async function fetchDailyInsights(adAccountId: string, token: string, since: string, until: string): Promise<Map<string, Map<string, any>>> {
   const dailyInsights = new Map<string, Map<string, any>>();
   
   // Campos básicos conforme especificação
   const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values,conversions,cost_per_action_type,results,cost_per_result';
   
-  const timeRange = JSON.stringify({ since, until });
-  let url: string | null = `https://graph.facebook.com/v22.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&action_breakdowns=action_type&access_token=${token}`;
+  // Dividir período em chunks de 7 dias para evitar timeout da API
+  const chunks = splitDateRangeIntoChunks(since, until, 7);
+  console.log(`[INSIGHTS] Splitting ${since} to ${until} into ${chunks.length} chunks of max 7 days`);
   
   let totalRows = 0;
-  let pageCount = 0;
   
-  console.log(`[INSIGHTS] Fetching for period ${since} to ${until}...`);
-  
-  while (url) {
-    pageCount++;
-    console.log(`[INSIGHTS] Fetching page ${pageCount}...`);
+  for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
+    const chunk = chunks[chunkIdx];
+    console.log(`[INSIGHTS] Chunk ${chunkIdx + 1}/${chunks.length}: ${chunk.since} to ${chunk.until}`);
     
-    const data = await fetchWithRetry(url, 'INSIGHTS', 120000);
+    const timeRange = JSON.stringify({ since: chunk.since, until: chunk.until });
+    let url: string | null = `https://graph.facebook.com/v22.0/${adAccountId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=ad&limit=500&action_breakdowns=action_type&access_token=${token}`;
     
-    if (data.error) {
-      console.log(`[INSIGHTS] Error on page ${pageCount}: ${data.error.message}`);
-      if (totalRows > 0) {
-        console.log(`[INSIGHTS] Partial data: ${totalRows} rows from ${pageCount - 1} pages`);
+    let pageCount = 0;
+    let chunkRows = 0;
+    
+    while (url) {
+      pageCount++;
+      
+      const data = await fetchWithRetry(url, 'INSIGHTS', 120000);
+      
+      if (data.error) {
+        console.log(`[INSIGHTS] Error on chunk ${chunkIdx + 1}, page ${pageCount}: ${data.error.message}`);
+        // Continue to next chunk instead of failing completely
         break;
       }
-      return dailyInsights;
-    }
-    
-    if (data.data) {
-      for (const row of data.data) {
-        const adId = extractId(row.ad_id);
-        const dateKey = row.date_start;
-        if (adId && dateKey) {
-          if (!dailyInsights.has(adId)) dailyInsights.set(adId, new Map());
-          dailyInsights.get(adId)!.set(dateKey, row);
-          totalRows++;
+      
+      if (data.data) {
+        for (const row of data.data) {
+          const adId = extractId(row.ad_id);
+          const dateKey = row.date_start;
+          if (adId && dateKey) {
+            if (!dailyInsights.has(adId)) dailyInsights.set(adId, new Map());
+            dailyInsights.get(adId)!.set(dateKey, row);
+            totalRows++;
+            chunkRows++;
+          }
         }
       }
-      console.log(`[INSIGHTS] Page ${pageCount}: ${data.data.length} rows, total: ${totalRows}`);
+      
+      url = data.paging?.next || null;
+      if (url) await delay(200);
     }
     
-    url = data.paging?.next || null;
-    if (url) await delay(300);
+    console.log(`[INSIGHTS] Chunk ${chunkIdx + 1} completed: ${chunkRows} rows`);
+    
+    // Delay entre chunks para evitar rate limit
+    if (chunkIdx < chunks.length - 1) {
+      await delay(500);
+    }
   }
   
   console.log(`[INSIGHTS] Total rows: ${totalRows}, Unique ads: ${dailyInsights.size}`);
   return dailyInsights;
+}
+
+// Helper: divide date range into chunks of N days
+function splitDateRangeIntoChunks(since: string, until: string, maxDays: number): Array<{ since: string; until: string }> {
+  const chunks: Array<{ since: string; until: string }> = [];
+  const startDate = new Date(since);
+  const endDate = new Date(until);
+  
+  let currentStart = new Date(startDate);
+  
+  while (currentStart <= endDate) {
+    const currentEnd = new Date(currentStart);
+    currentEnd.setDate(currentEnd.getDate() + maxDays - 1);
+    
+    // Don't exceed the original end date
+    if (currentEnd > endDate) {
+      currentEnd.setTime(endDate.getTime());
+    }
+    
+    chunks.push({
+      since: currentStart.toISOString().split('T')[0],
+      until: currentEnd.toISOString().split('T')[0]
+    });
+    
+    // Move to next chunk
+    currentStart = new Date(currentEnd);
+    currentStart.setDate(currentStart.getDate() + 1);
+  }
+  
+  return chunks;
 }
 
 // ===========================================================================================
