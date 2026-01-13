@@ -411,13 +411,14 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
 }
 
 // ===========================================================================================
-// 3️⃣ HD IMAGE SYNC - Busca imagens em alta resolução (ASSÍNCRONO)
+// 3️⃣ HD IMAGE SYNC - Busca imagens em alta resolução
+// Abordagem: Buscar image_url diretamente do adcreative (campos image_url, picture, thumbnail_url)
+// A API /adimages com hashes não está retornando dados consistentemente
 // ===========================================================================================
 async function syncHDImages(supabase: any, projectId: string, adAccountId: string, token: string): Promise<{ cached: number; total: number; errors: number }> {
   console.log(`[HD-IMAGE-SYNC] Starting for project ${projectId}`);
   
   // Buscar ads que têm creative_id mas não têm cached_image_url
-  // Limit to 100 ads per sync to avoid timeout
   const { data: adsNeedingHD, error: adsError } = await supabase
     .from('ads')
     .select('id, creative_id, creative_thumbnail')
@@ -445,20 +446,22 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
   const batchSize = 50;
   const totalBatches = Math.ceil(creativeIds.length / batchSize);
   
+  // Mapa de creative_id -> melhor URL disponível
+  const creativeToUrlMap = new Map<string, string>();
+  
   for (let i = 0; i < creativeIds.length; i += batchSize) {
     const batchNumber = Math.floor(i / batchSize) + 1;
     const batch = creativeIds.slice(i, i + batchSize);
     const batchIds = batch.join(',');
     
-    // Update progress (50-100% range for HD phase)
-    const progressPercent = 50 + Math.round((batchNumber / totalBatches) * 50);
-    await updateSyncProgress(supabase, projectId, 'hd_images', `Imagens HD: batch ${batchNumber}/${totalBatches}`, progressPercent, 100);
+    await updateSyncProgress(supabase, projectId, 'hd_images', `Buscando criativos: batch ${batchNumber}/${totalBatches}`, 50 + Math.round((batchNumber / totalBatches) * 25), 100);
     
     console.log(`[HD-IMAGE-SYNC] Fetching batch ${batchNumber}/${totalBatches}`);
     
-    // Buscar campos do creative para pegar image_hash (para URLs HD via adimages)
-    const creativesUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,image_hash,object_story_spec&access_token=${token}`;
-    const creativesData = await simpleFetch(creativesUrl, undefined, 20000);
+    // Buscar TODOS os campos de imagem disponíveis do creative
+    // image_url geralmente tem 720px, picture pode variar, thumbnail_url é 64px
+    const creativesUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,image_url,picture,thumbnail_url,object_story_spec&access_token=${token}`;
+    const creativesData = await simpleFetch(creativesUrl, undefined, 30000);
     
     if (creativesData?.error) {
       console.log(`[HD-IMAGE-SYNC] Batch error: ${creativesData.error.message?.substring(0, 100)}`);
@@ -466,107 +469,86 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
       continue;
     }
     
-    // Coletar image_hashes - as URLs diretas do creative são thumbnails pequenos, não servem
-    const imageHashes: string[] = [];
-    const hashToCreativeMap = new Map<string, string>();
-    
+    // Extrair a melhor URL disponível para cada creative
     for (const creativeId of batch) {
       const creativeIdStr = String(creativeId);
-      const creativeData = (creativesData as Record<string, any>)[creativeIdStr];
+      const creative = (creativesData as Record<string, any>)[creativeIdStr];
       
-      if (creativeData?.image_hash) {
-        imageHashes.push(creativeData.image_hash);
-        hashToCreativeMap.set(creativeData.image_hash, creativeIdStr);
-      } else if (creativeData?.object_story_spec?.link_data?.image_hash) {
-        const hash = creativeData.object_story_spec.link_data.image_hash;
-        imageHashes.push(hash);
-        hashToCreativeMap.set(hash, creativeIdStr);
-      } else if (creativeData?.object_story_spec?.video_data?.image_hash) {
-        const hash = creativeData.object_story_spec.video_data.image_hash;
-        imageHashes.push(hash);
-        hashToCreativeMap.set(hash, creativeIdStr);
+      if (!creative) continue;
+      
+      // Prioridade: image_url (720px) > picture > object_story_spec images > thumbnail_url
+      let bestUrl: string | null = null;
+      
+      // 1. image_url - geralmente a melhor resolução
+      if (creative.image_url && !creative.image_url.includes('p64x64')) {
+        bestUrl = creative.image_url;
+      }
+      
+      // 2. picture - pode ser boa resolução
+      if (!bestUrl && creative.picture && !creative.picture.includes('p64x64')) {
+        bestUrl = creative.picture;
+      }
+      
+      // 3. object_story_spec - pode ter URLs de imagem
+      if (!bestUrl && creative.object_story_spec) {
+        const oss = creative.object_story_spec;
+        if (oss.link_data?.image_url) bestUrl = oss.link_data.image_url;
+        else if (oss.link_data?.picture) bestUrl = oss.link_data.picture;
+        else if (oss.video_data?.image_url) bestUrl = oss.video_data.image_url;
+        else if (oss.photo_data?.images?.[0]?.url) bestUrl = oss.photo_data.images[0].url;
+      }
+      
+      // 4. thumbnail_url como último recurso (mas evitar as de 64px)
+      if (!bestUrl && creative.thumbnail_url && !creative.thumbnail_url.includes('p64x64')) {
+        bestUrl = creative.thumbnail_url;
+      }
+      
+      if (bestUrl) {
+        creativeToUrlMap.set(creativeIdStr, bestUrl);
       }
     }
     
-    console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: ${imageHashes.length} image hashes found`);
+    console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: ${creativeToUrlMap.size} image URLs found so far`);
     
-    if (imageHashes.length === 0) {
-      // Tentar buscar via /adcreatives para pegar hashes adicionais
-      console.log(`[HD-IMAGE-SYNC] No hashes in batch ${batchNumber}, skipping`);
-      continue;
-    }
-    
-    // Buscar URLs HD via /adimages
-    const adImagesUrl = `https://graph.facebook.com/v22.0/${adAccountId}/adimages?fields=hash,url_1024&hashes=${encodeURIComponent(JSON.stringify(imageHashes))}&access_token=${token}`;
-    const adImagesData = await simpleFetch(adImagesUrl, undefined, 20000);
-    
-    if (adImagesData?.error) {
-      console.log(`[HD-IMAGE-SYNC] AdImages error: ${adImagesData.error.message?.substring(0, 100)}`);
-      errorsCount += imageHashes.length;
-    } else if (adImagesData?.data) {
-      const hashToUrlMap = new Map<string, string>();
-      for (const img of adImagesData.data) {
-        if (img.hash && img.url_1024) {
-          hashToUrlMap.set(img.hash, img.url_1024);
-        }
-      }
-      
-      console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: ${hashToUrlMap.size} HD URLs retrieved from adimages`);
-      
-      // Helper to extract image_hash from creative data
-      const getImageHash = (creativeData: any): string | null => {
-        if (!creativeData) return null;
-        if (creativeData.image_hash) return creativeData.image_hash;
-        if (creativeData.object_story_spec?.link_data?.image_hash) return creativeData.object_story_spec.link_data.image_hash;
-        if (creativeData.object_story_spec?.video_data?.image_hash) return creativeData.object_story_spec.video_data.image_hash;
-        return null;
-      };
-      
-      // Process ALL ads that have a creative in this batch
-      const hashAds = adsNeedingHD.filter((ad: any) => {
-        const creativeIdStr = String(ad.creative_id);
-        const creativeData = (creativesData as Record<string, any>)[creativeIdStr];
-        const hash = getImageHash(creativeData);
-        return hash && hashToUrlMap.has(hash);
-      });
-      
-      console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: ${hashAds.length} ads matched with HD URLs`);
-      
-      for (let k = 0; k < hashAds.length; k += 5) {
-        const adBatch = hashAds.slice(k, k + 5);
-        const promises = adBatch.map(async (ad: any) => {
-          const creativeIdStr = String(ad.creative_id);
-          const creativeData = (creativesData as Record<string, any>)[creativeIdStr];
-          const hash = getImageHash(creativeData);
-          const hdUrl = hash ? hashToUrlMap.get(hash) : null;
-          if (!hdUrl) return;
-          
-          try {
-            const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, hdUrl);
-            if (cachedUrl) {
-              await supabase
-                .from('ads')
-                .update({ 
-                  cached_image_url: cachedUrl,
-                  creative_image_url: hdUrl,
-                  synced_at: new Date().toISOString()
-                })
-                .eq('id', ad.id);
-              cachedCount++;
-            }
-          } catch (e) {
-            console.log(`[HD-IMAGE-SYNC] Cache error for ad ${ad.id}: ${e}`);
-            errorsCount++;
-          }
-        });
-        await Promise.all(promises);
-      }
-    }
-    
-    // Reduced delay between batches
     if (i + batchSize < creativeIds.length) {
-      await delay(500);
+      await delay(300);
     }
+  }
+  
+  console.log(`[HD-IMAGE-SYNC] Total ${creativeToUrlMap.size} creatives with image URLs`);
+  
+  // Agora fazer cache das imagens encontradas
+  const adsWithUrls = adsNeedingHD.filter((ad: any) => creativeToUrlMap.has(String(ad.creative_id)));
+  console.log(`[HD-IMAGE-SYNC] ${adsWithUrls.length} ads matched with image URLs`);
+  
+  for (let k = 0; k < adsWithUrls.length; k += 5) {
+    const adBatch = adsWithUrls.slice(k, k + 5);
+    const progressPercent = 75 + Math.round((k / adsWithUrls.length) * 25);
+    await updateSyncProgress(supabase, projectId, 'hd_images', `Salvando imagens: ${k}/${adsWithUrls.length}`, progressPercent, 100);
+    
+    const promises = adBatch.map(async (ad: any) => {
+      const imageUrl = creativeToUrlMap.get(String(ad.creative_id));
+      if (!imageUrl) return;
+      
+      try {
+        const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, imageUrl);
+        if (cachedUrl) {
+          await supabase
+            .from('ads')
+            .update({ 
+              cached_image_url: cachedUrl,
+              creative_image_url: imageUrl,
+              synced_at: new Date().toISOString()
+            })
+            .eq('id', ad.id);
+          cachedCount++;
+        }
+      } catch (e) {
+        console.log(`[HD-IMAGE-SYNC] Cache error for ad ${ad.id}: ${e}`);
+        errorsCount++;
+      }
+    });
+    await Promise.all(promises);
   }
   
   console.log(`[HD-IMAGE-SYNC] Completed - cached: ${cachedCount}, errors: ${errorsCount}`);
