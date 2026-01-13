@@ -449,8 +449,8 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
     
     console.log(`[HD-IMAGE-SYNC] Fetching batch ${batchNumber}/${totalBatches}`);
     
-    // Buscar image_hash dos creatives
-    const creativesUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,image_hash&access_token=${token}`;
+    // Buscar mais campos do creative para pegar imagem HD de qualquer tipo
+    const creativesUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,image_hash,image_url,thumbnail_url,object_story_spec&access_token=${token}`;
     const creativesData = await simpleFetch(creativesUrl, undefined, 30000);
     
     if (creativesData?.error) {
@@ -459,22 +459,62 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
       continue;
     }
     
-    // Coletar image_hashes
+    // Coletar image_hashes E URLs diretas
     const imageHashes: string[] = [];
     const hashToCreativeMap = new Map<string, string>();
+    const directUrls = new Map<string, string>(); // creative_id -> url HD
     
     for (const creativeId of batch) {
       const creativeIdStr = String(creativeId);
       const creativeData = (creativesData as Record<string, any>)[creativeIdStr];
+      
       if (creativeData?.image_hash) {
         imageHashes.push(creativeData.image_hash);
         hashToCreativeMap.set(creativeData.image_hash, creativeIdStr);
+      } else if (creativeData?.image_url) {
+        // Imagem direta disponível
+        directUrls.set(creativeIdStr, creativeData.image_url);
+      } else if (creativeData?.thumbnail_url) {
+        // Thumbnail de vídeo/carrossel
+        directUrls.set(creativeIdStr, creativeData.thumbnail_url);
+      } else if (creativeData?.object_story_spec?.video_data?.image_url) {
+        // Thumbnail de vídeo no object_story_spec
+        directUrls.set(creativeIdStr, creativeData.object_story_spec.video_data.image_url);
+      } else if (creativeData?.object_story_spec?.link_data?.image_hash) {
+        // Image hash no link_data
+        imageHashes.push(creativeData.object_story_spec.link_data.image_hash);
+        hashToCreativeMap.set(creativeData.object_story_spec.link_data.image_hash, creativeIdStr);
+      }
+    }
+    
+    console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: ${imageHashes.length} hashes, ${directUrls.size} direct URLs`);
+    
+    // Processar URLs diretas primeiro
+    for (const [creativeId, hdUrl] of directUrls) {
+      const ad = adsNeedingHD.find((a: any) => String(a.creative_id) === creativeId);
+      if (!ad) continue;
+      
+      try {
+        const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, hdUrl);
+        if (cachedUrl) {
+          await supabase
+            .from('ads')
+            .update({ 
+              cached_image_url: cachedUrl,
+              creative_image_url: hdUrl,
+              synced_at: new Date().toISOString()
+            })
+            .eq('id', ad.id);
+          cachedCount++;
+        }
+      } catch (e) {
+        console.log(`[HD-IMAGE-SYNC] Direct URL cache error for ad ${ad.id}: ${e}`);
+        errorsCount++;
       }
     }
     
     if (imageHashes.length === 0) {
-      console.log(`[HD-IMAGE-SYNC] No image hashes found in batch`);
-      continue;
+      continue; // Skip adimages lookup if no hashes
     }
     
     // Buscar URLs HD via /adimages
