@@ -511,17 +511,34 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
         }
       }
       
-      // Process hash-based images in parallel
+      console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: ${hashToUrlMap.size} HD URLs retrieved from adimages`);
+      
+      // Helper to extract image_hash from creative data
+      const getImageHash = (creativeData: any): string | null => {
+        if (!creativeData) return null;
+        if (creativeData.image_hash) return creativeData.image_hash;
+        if (creativeData.object_story_spec?.link_data?.image_hash) return creativeData.object_story_spec.link_data.image_hash;
+        if (creativeData.object_story_spec?.video_data?.image_hash) return creativeData.object_story_spec.video_data.image_hash;
+        return null;
+      };
+      
+      // Process ALL ads that have a creative in this batch
       const hashAds = adsNeedingHD.filter((ad: any) => {
-        const creativeData = creativesData[ad.creative_id];
-        return creativeData?.image_hash && hashToUrlMap.has(creativeData.image_hash);
+        const creativeIdStr = String(ad.creative_id);
+        const creativeData = (creativesData as Record<string, any>)[creativeIdStr];
+        const hash = getImageHash(creativeData);
+        return hash && hashToUrlMap.has(hash);
       });
+      
+      console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: ${hashAds.length} ads matched with HD URLs`);
       
       for (let k = 0; k < hashAds.length; k += 5) {
         const adBatch = hashAds.slice(k, k + 5);
         const promises = adBatch.map(async (ad: any) => {
-          const creativeData = creativesData[ad.creative_id];
-          const hdUrl = hashToUrlMap.get(creativeData.image_hash);
+          const creativeIdStr = String(ad.creative_id);
+          const creativeData = (creativesData as Record<string, any>)[creativeIdStr];
+          const hash = getImageHash(creativeData);
+          const hdUrl = hash ? hashToUrlMap.get(hash) : null;
           if (!hdUrl) return;
           
           try {
