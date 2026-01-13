@@ -43,14 +43,16 @@ export function useSidebarCampaigns(projectId: string | null) {
           .select('id, name, status, spend')
           .eq('project_id', projectId)
           .order('spend', { ascending: false })
-          .limit(50);
+          .limit(100);
 
         // Fetch unique ad sets from ads_daily_metrics (all periods)
+        // Using a larger limit to ensure we get all ad sets
         const { data: dailyMetrics } = await supabase
           .from('ads_daily_metrics')
           .select('adset_id, adset_name, adset_status, campaign_id, spend')
           .eq('project_id', projectId)
-          .order('date', { ascending: false });
+          .order('date', { ascending: false })
+          .limit(10000);
 
         // Aggregate ad sets from daily metrics
         const adSetMap = new Map<string, SidebarAdSet>();
