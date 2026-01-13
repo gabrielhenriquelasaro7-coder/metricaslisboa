@@ -456,8 +456,8 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
     
     console.log(`[HD-IMAGE-SYNC] Fetching batch ${batchNumber}/${totalBatches}`);
     
-    // Buscar campos do creative para pegar imagem HD
-    const creativesUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,image_hash,image_url,thumbnail_url,object_story_spec&access_token=${token}`;
+    // Buscar campos do creative para pegar image_hash (para URLs HD via adimages)
+    const creativesUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,image_hash,object_story_spec&access_token=${token}`;
     const creativesData = await simpleFetch(creativesUrl, undefined, 20000);
     
     if (creativesData?.error) {
@@ -466,10 +466,9 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
       continue;
     }
     
-    // Coletar image_hashes E URLs diretas
+    // Coletar image_hashes - as URLs diretas do creative são thumbnails pequenos, não servem
     const imageHashes: string[] = [];
     const hashToCreativeMap = new Map<string, string>();
-    const directUrls = new Map<string, string>();
     
     for (const creativeId of batch) {
       const creativeIdStr = String(creativeId);
@@ -478,50 +477,22 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
       if (creativeData?.image_hash) {
         imageHashes.push(creativeData.image_hash);
         hashToCreativeMap.set(creativeData.image_hash, creativeIdStr);
-      } else if (creativeData?.image_url) {
-        directUrls.set(creativeIdStr, creativeData.image_url);
-      } else if (creativeData?.thumbnail_url) {
-        directUrls.set(creativeIdStr, creativeData.thumbnail_url);
-      } else if (creativeData?.object_story_spec?.video_data?.image_url) {
-        directUrls.set(creativeIdStr, creativeData.object_story_spec.video_data.image_url);
       } else if (creativeData?.object_story_spec?.link_data?.image_hash) {
-        imageHashes.push(creativeData.object_story_spec.link_data.image_hash);
-        hashToCreativeMap.set(creativeData.object_story_spec.link_data.image_hash, creativeIdStr);
+        const hash = creativeData.object_story_spec.link_data.image_hash;
+        imageHashes.push(hash);
+        hashToCreativeMap.set(hash, creativeIdStr);
+      } else if (creativeData?.object_story_spec?.video_data?.image_hash) {
+        const hash = creativeData.object_story_spec.video_data.image_hash;
+        imageHashes.push(hash);
+        hashToCreativeMap.set(hash, creativeIdStr);
       }
     }
     
-    console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: ${imageHashes.length} hashes, ${directUrls.size} direct URLs`);
-    
-    // Process direct URLs in parallel (limit concurrency to 5)
-    const directUrlEntries = Array.from(directUrls.entries());
-    for (let j = 0; j < directUrlEntries.length; j += 5) {
-      const urlBatch = directUrlEntries.slice(j, j + 5);
-      const promises = urlBatch.map(async ([creativeId, hdUrl]) => {
-        const ad = adsNeedingHD.find((a: any) => String(a.creative_id) === creativeId);
-        if (!ad) return;
-        
-        try {
-          const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, hdUrl);
-          if (cachedUrl) {
-            await supabase
-              .from('ads')
-              .update({ 
-                cached_image_url: cachedUrl,
-                creative_image_url: hdUrl,
-                synced_at: new Date().toISOString()
-              })
-              .eq('id', ad.id);
-            cachedCount++;
-          }
-        } catch (e) {
-          console.log(`[HD-IMAGE-SYNC] Direct URL cache error for ad ${ad.id}: ${e}`);
-          errorsCount++;
-        }
-      });
-      await Promise.all(promises);
-    }
+    console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: ${imageHashes.length} image hashes found`);
     
     if (imageHashes.length === 0) {
+      // Tentar buscar via /adcreatives para pegar hashes adicionais
+      console.log(`[HD-IMAGE-SYNC] No hashes in batch ${batchNumber}, skipping`);
       continue;
     }
     
@@ -591,11 +562,11 @@ async function cacheCreativeImage(supabase: any, projectId: string, adId: string
   try {
     const fileName = `${projectId}/${adId}.jpg`;
     
-    // Verificar se já existe
+    // Verificar se já existe com tamanho adequado
     const { data: existingFile } = await supabase.storage.from('creative-images').list(projectId, { limit: 1, search: `${adId}.jpg` });
     if (existingFile?.length > 0) {
       const fileSize = existingFile[0]?.metadata?.size || 0;
-      if (fileSize > 10000) {
+      if (fileSize > 5000) {
         const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
         if (publicUrlData?.publicUrl) {
           return publicUrlData.publicUrl;
@@ -604,7 +575,7 @@ async function cacheCreativeImage(supabase: any, projectId: string, adId: string
     }
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased timeout
     const response = await fetch(imageUrl, { 
       headers: { 
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 
@@ -616,13 +587,14 @@ async function cacheCreativeImage(supabase: any, projectId: string, adId: string
     clearTimeout(timeoutId);
     
     if (!response.ok) {
-      console.log(`[CACHE] Fetch failed (${response.status}) for ${adId}`);
+      console.log(`[CACHE] Fetch failed (${response.status}) for ${adId}: ${imageUrl.substring(0, 80)}`);
       return null;
     }
     
     const imageBuffer = await response.arrayBuffer();
     
-    if (imageBuffer.byteLength < 5000) {
+    // Reduced minimum size to 3KB (some valid images can be small)
+    if (imageBuffer.byteLength < 3000) {
       console.log(`[CACHE] Image too small (${imageBuffer.byteLength} bytes): ${adId}`);
       return null;
     }
@@ -638,7 +610,7 @@ async function cacheCreativeImage(supabase: any, projectId: string, adId: string
     }
     
     const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
-    console.log(`[CACHE] Cached HD image (${imageBuffer.byteLength} bytes): ${adId}`);
+    console.log(`[CACHE] Cached HD image (${Math.round(imageBuffer.byteLength/1024)}KB): ${adId}`);
     return publicUrlData?.publicUrl || null;
   } catch (e) { 
     console.log(`[CACHE] Error caching ${adId}: ${e}`);
