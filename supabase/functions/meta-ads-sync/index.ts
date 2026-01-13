@@ -314,12 +314,17 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
   
   const adIds = adsNeedingCreative.map((ad: any) => ad.id);
   let updatedCount = 0;
+  const totalBatches = Math.ceil(adIds.length / 50);
   
   // Buscar creative data da API em batches de 50
   // SEM time_range - apenas dados do criativo
   for (let i = 0; i < adIds.length; i += 50) {
+    const batchNumber = Math.floor(i / 50) + 1;
     const batch = adIds.slice(i, i + 50);
     const batchIds = batch.join(',');
+    
+    // Update progress for this batch
+    await updateSyncProgress(supabase, projectId, 'creatives', `Processando batch ${batchNumber}/${totalBatches}...`, batchNumber, totalBatches);
     
     // Campos do creative conforme especificação:
     // creative_id, body (primary_text), title (headline), call_to_action, thumbnail_url
@@ -327,7 +332,7 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
     const adsData = await simpleFetch(adsUrl, undefined, 30000);
     
     if (adsData?.error) {
-      console.log(`[CREATIVE-SYNC] Batch ${Math.floor(i/50) + 1} error: ${adsData.error.message?.substring(0, 100)}`);
+      console.log(`[CREATIVE-SYNC] Batch ${batchNumber} error: ${adsData.error.message?.substring(0, 100)}`);
       continue;
     }
     
@@ -389,7 +394,7 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
       if (!updateError) updatedCount++;
     }
     
-    console.log(`[CREATIVE-SYNC] Batch ${Math.floor(i/50) + 1}/${Math.ceil(adIds.length/50)} processed`);
+    console.log(`[CREATIVE-SYNC] Batch ${batchNumber}/${totalBatches} processed`);
     if (i + 50 < adIds.length) await delay(500);
   }
   
