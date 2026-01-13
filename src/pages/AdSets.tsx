@@ -93,8 +93,17 @@ export default function AdSets() {
         return { since: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: yesterday };
       case 'this_month':
         return { since: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0], until: today };
+      case 'last_month': {
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+        return { since: lastMonth.toISOString().split('T')[0], until: lastDayLastMonth.toISOString().split('T')[0] };
+      }
       case 'this_year':
         return { since: new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0], until: today };
+      case 'last_year': {
+        const lastYear = now.getFullYear() - 1;
+        return { since: `${lastYear}-01-01`, until: `${lastYear}-12-31` };
+      }
       default:
         return { since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], until: today };
     }
