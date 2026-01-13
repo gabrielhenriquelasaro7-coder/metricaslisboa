@@ -411,12 +411,15 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
 }
 
 // ===========================================================================================
-// 3️⃣ HD IMAGE SYNC - Busca imagens em resolução adequada
-// Estratégias em ordem de prioridade:
+// 3️⃣ HD IMAGE SYNC - Busca imagens em HD usando thumbnail_url com width/height 1080
+// 
+// ESTRATÉGIA PRINCIPAL: Usar parâmetros thumbnail_width=1080 e thumbnail_height=1080
+// na query de ads para obter thumbnails em alta resolução diretamente da API.
+// 
+// Fallbacks:
 // 1. effective_object_story_id -> full_picture (imagem do post original)
-// 2. object_story_spec -> link_data.picture, video_data.image_url, photo_data.images
-// 3. image_hash via adimages API (imagem em alta resolução)
-// 4. thumbnail_url modificada para maior resolução
+// 2. object_story_spec -> link_data.picture, video_data.image_url
+// 
 // IMPORTANTE: Aceita imagens a partir de 500 bytes para não perder thumbnails válidas
 // ===========================================================================================
 async function syncHDImages(supabase: any, projectId: string, adAccountId: string, token: string): Promise<{ cached: number; total: number; errors: number; pending: number; totalAds: number }> {
@@ -457,7 +460,7 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
   let cachedCount = 0;
   let errorsCount = 0;
   
-  // Buscar diretamente da API de Ads com campos expandidos do creative
+  // Buscar diretamente da API de Ads com thumbnail_url em HD (1080x1080)
   const adIds = adsNeedingCache.map((ad: any) => ad.id);
   const adToUrlMap = new Map<string, string>();
   
@@ -469,10 +472,11 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
     const batchIds = batch.join(',');
     const batchNumber = Math.floor(i / batchSize) + 1;
     
-    await updateSyncProgress(supabase, projectId, 'hd_images', `Buscando URLs: ${batchNumber}/${totalBatches}`, 10 + Math.round((batchNumber / totalBatches) * 40), 100);
+    await updateSyncProgress(supabase, projectId, 'hd_images', `Buscando URLs HD: ${batchNumber}/${totalBatches}`, 10 + Math.round((batchNumber / totalBatches) * 40), 100);
     
-    // Buscar ad com effective_object_story_id e object_story_spec do creative
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,effective_object_story_id,object_story_spec,thumbnail_url}&access_token=${token}`;
+    // QUERY PRINCIPAL: Usar thumbnail_url com thumbnail_width=1080 e thumbnail_height=1080
+    // Isso retorna o thumbnail em alta resolução diretamente
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,thumbnail_url,effective_object_story_id,object_story_spec}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
     const adsData = await simpleFetch(adsUrl, undefined, 30000);
     
     if (adsData?.error) {
@@ -480,7 +484,7 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
       continue;
     }
     
-    // Processar cada ad para extrair melhor URL
+    // Processar cada ad para extrair melhor URL HD
     for (const adId of batch) {
       const adData = (adsData as Record<string, any>)[adId];
       if (!adData?.creative) continue;
@@ -488,20 +492,29 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
       const creative = adData.creative;
       let bestUrl: string | null = null;
       
-      // 1. Tentar buscar imagem do post original (mais estável)
-      if (creative.effective_object_story_id && !bestUrl) {
+      // 1. PRINCIPAL: thumbnail_url com resolução HD (já vem com 1080x1080 pelos parâmetros)
+      if (creative.thumbnail_url) {
+        bestUrl = creative.thumbnail_url;
+        console.log(`[HD-IMAGE-SYNC] Got HD thumbnail (1080px) for ad ${adId}`);
+      }
+      
+      // 2. Fallback: Tentar buscar imagem do post original (mais estável para videos)
+      if (!bestUrl && creative.effective_object_story_id) {
         try {
           const storyUrl = `https://graph.facebook.com/v22.0/${creative.effective_object_story_id}?fields=full_picture,picture&access_token=${token}`;
           const storyData = await simpleFetch(storyUrl, undefined, 10000);
           if (!storyData?.error) {
             bestUrl = storyData.full_picture || storyData.picture;
+            if (bestUrl) {
+              console.log(`[HD-IMAGE-SYNC] Got story picture for ad ${adId}`);
+            }
           }
         } catch (e) {
           // Ignore - will try fallbacks
         }
       }
       
-      // 2. object_story_spec pode ter URLs de imagem
+      // 3. Fallback: object_story_spec pode ter URLs de imagem
       if (!bestUrl && creative.object_story_spec) {
         const oss = creative.object_story_spec;
         if (oss.link_data?.picture) {
@@ -511,15 +524,9 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
         } else if (oss.photo_data?.images?.[0]?.url) {
           bestUrl = oss.photo_data.images[0].url;
         }
-      }
-      
-      // 3. thumbnail_url como último recurso
-      if (!bestUrl && creative.thumbnail_url) {
-        // Tentar aumentar resolução
-        let thumbUrl = creative.thumbnail_url;
-        thumbUrl = thumbUrl.replace(/p64x64/g, 'p720x720');
-        thumbUrl = thumbUrl.replace(/s64x64/g, 's720x720');
-        bestUrl = thumbUrl;
+        if (bestUrl) {
+          console.log(`[HD-IMAGE-SYNC] Got object_story_spec image for ad ${adId}`);
+        }
       }
       
       if (bestUrl) {
@@ -532,7 +539,7 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
     }
   }
   
-  console.log(`[HD-IMAGE-SYNC] Got ${adToUrlMap.size} URLs from API`);
+  console.log(`[HD-IMAGE-SYNC] Got ${adToUrlMap.size} HD URLs from API`);
   
   // Para ads sem URL da API, usar o creative_thumbnail salvo (fallback)
   for (const ad of adsNeedingCache) {
@@ -549,7 +556,7 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
   for (let k = 0; k < adsToCache.length; k += 5) {
     const adBatch = adsToCache.slice(k, k + 5);
     const progressPercent = 50 + Math.round((k / adsToCache.length) * 50);
-    await updateSyncProgress(supabase, projectId, 'hd_images', `Cacheando: ${k}/${adsToCache.length}`, progressPercent, 100);
+    await updateSyncProgress(supabase, projectId, 'hd_images', `Cacheando HD: ${k}/${adsToCache.length}`, progressPercent, 100);
     
     const promises = adBatch.map(async (ad: any) => {
       const imageUrl = adToUrlMap.get(ad.id);
@@ -582,7 +589,7 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
   console.log(`[HD-IMAGE-SYNC] Completed - cached: ${cachedCount}, errors: ${errorsCount}, remaining: ${newPending}`);
   
   // Update progress to complete
-  await updateSyncProgress(supabase, projectId, 'hd_images', `Concluído: ${cachedCount} imagens cacheadas`, 100, 100);
+  await updateSyncProgress(supabase, projectId, 'hd_images', `Concluído: ${cachedCount} imagens HD cacheadas`, 100, 100);
   
   return { cached: cachedCount, total: adsToCache.length, errors: errorsCount, pending: newPending, totalAds: totalAds || 0 };
 }
