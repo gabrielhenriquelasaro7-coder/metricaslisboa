@@ -27,12 +27,13 @@ interface SyncLog {
 
 interface SyncProgressData {
   status: 'idle' | 'importing' | 'syncing' | 'success' | 'partial' | 'error';
-  progress: number;
+  progress?: number;
   message: string;
   started_at?: string;
   current?: number;
   total?: number;
   step?: string;
+  updated_at?: string;
 }
 
 export default function ProjectAdmin() {
@@ -58,8 +59,19 @@ export default function ProjectAdmin() {
     
     if (data?.sync_progress && typeof data.sync_progress === 'object' && !Array.isArray(data.sync_progress)) {
       const rawProgress = data.sync_progress as Record<string, unknown>;
-      if ('status' in rawProgress && 'progress' in rawProgress) {
-        const progress = rawProgress as unknown as SyncProgressData;
+      // Accept either 'step' (edge function format) or 'status' (legacy format)
+      if ('step' in rawProgress || 'status' in rawProgress) {
+        const progress: SyncProgressData = {
+          status: rawProgress.step === 'complete' ? 'success' 
+                : rawProgress.step === 'error' ? 'error' 
+                : rawProgress.status as SyncProgressData['status'] || 'syncing',
+          message: rawProgress.message as string || '',
+          current: rawProgress.current as number,
+          total: rawProgress.total as number,
+          step: rawProgress.step as string,
+          progress: rawProgress.current as number, // current IS the percentage (0-100)
+          updated_at: rawProgress.updated_at as string
+        };
         setSyncProgress(progress);
       
         // Stop polling when complete or error
@@ -103,7 +115,10 @@ export default function ProjectAdmin() {
     }
 
     setSyncStartTime(new Date());
-    const pollInterval = setInterval(pollSyncProgress, 2000);
+    
+    // Poll immediately, then every 1 second for faster updates
+    pollSyncProgress();
+    const pollInterval = setInterval(pollSyncProgress, 1000);
     
     return () => clearInterval(pollInterval);
   }, [syncingType, pollSyncProgress]);
@@ -504,13 +519,13 @@ export default function ProjectAdmin() {
                       </div>
                     </div>
                     
-                    <Progress value={syncProgress?.progress || 5} className="h-2" />
+                    <Progress value={syncProgress?.current || syncProgress?.progress || 5} className="h-2" />
                     
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>
-                        {syncProgress?.step && `Etapa: ${syncProgress.step}`}
+                        {syncProgress?.step && syncProgress.step !== 'complete' && syncProgress.step !== 'error' && `Etapa: ${syncProgress.step}`}
                       </span>
-                      <span>{syncProgress?.progress || 0}%</span>
+                      <span>{syncProgress?.current || syncProgress?.progress || 0}%</span>
                     </div>
                     
                     {syncProgress?.current !== undefined && syncProgress?.total !== undefined && (
