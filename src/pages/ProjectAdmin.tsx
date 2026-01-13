@@ -108,10 +108,13 @@ export default function ProjectAdmin() {
   // Start polling when sync starts
   useEffect(() => {
     if (!syncingType) {
-      setSyncProgress(null);
-      setElapsedTime(0);
-      setSyncStartTime(null);
-      return;
+      // Delay clearing progress to show final status
+      const timeout = setTimeout(() => {
+        setSyncProgress(null);
+        setElapsedTime(0);
+        setSyncStartTime(null);
+      }, 500);
+      return () => clearTimeout(timeout);
     }
 
     setSyncStartTime(new Date());
@@ -120,7 +123,17 @@ export default function ProjectAdmin() {
     pollSyncProgress();
     const pollInterval = setInterval(pollSyncProgress, 1000);
     
-    return () => clearInterval(pollInterval);
+    // Safety timeout - if sync runs for more than 5 minutes, stop polling
+    const safetyTimeout = setTimeout(() => {
+      console.log('Sync safety timeout reached (5 min)');
+      setSyncingType(null);
+      toast.warning('Sincronização pode estar demorando. Verifique os logs.');
+    }, 5 * 60 * 1000);
+    
+    return () => {
+      clearInterval(pollInterval);
+      clearTimeout(safetyTimeout);
+    };
   }, [syncingType, pollSyncProgress]);
 
   // Timer for elapsed time
@@ -197,6 +210,8 @@ export default function ProjectAdmin() {
     if (!id || !project) return;
     
     setSyncingType(type);
+    setSyncProgress({ status: 'syncing', message: 'Iniciando sincronização...', progress: 0 });
+    
     try {
       const body: Record<string, unknown> = { 
         project_id: id,
@@ -212,12 +227,6 @@ export default function ProjectAdmin() {
         body.date_preset = 'last_7d';
       }
       
-      const { error } = await supabase.functions.invoke('meta-ads-sync', {
-        body
-      });
-      
-      if (error) throw error;
-      
       const typeLabels: Record<SyncType, string> = {
         all: 'Completa',
         campaigns: 'Campanhas',
@@ -228,36 +237,34 @@ export default function ProjectAdmin() {
       
       toast.success(`Sincronização de ${typeLabels[type]} iniciada`);
       
-      // Refresh data after a delay
-      setTimeout(async () => {
-        const { data } = await supabase
-          .from('projects')
-          .select('last_sync_at')
-          .eq('id', id)
-          .single();
-        
-        if (data?.last_sync_at) {
-          setLastSync(new Date(data.last_sync_at));
-        }
-        
-        // Refresh logs
-        const { data: logsData } = await supabase
-          .from('sync_logs')
-          .select('*')
-          .eq('project_id', id)
-          .order('created_at', { ascending: false })
-          .limit(15);
-        
-        if (logsData) {
-          setRecentLogs(logsData);
-        }
-        
-        setSyncingType(null);
-      }, 5000);
+      // Don't await here - let it run in background while we poll progress
+      supabase.functions.invoke('meta-ads-sync', { body })
+        .then(({ error, data }) => {
+          if (error) {
+            console.error('Erro na sincronização:', error);
+            // Don't immediately hide progress - let polling handle it
+            // The edge function updates sync_progress on error too
+            toast.error(`Erro na sincronização: ${error.message || 'Erro desconhecido'}`);
+          } else {
+            console.log('Sync completed:', data);
+          }
+        })
+        .catch((err) => {
+          // Network/timeout errors - the sync might still be running on the server
+          console.warn('Sync request failed (may still be running):', err);
+          // Don't show error immediately - check progress first
+        });
+      
+      // Don't set syncingType to null here - let the polling handle completion
     } catch (error) {
       console.error('Erro na sincronização:', error);
       toast.error('Erro ao iniciar sincronização');
-      setSyncingType(null);
+      // Update progress to show error
+      setSyncProgress({ status: 'error', message: 'Erro ao iniciar sincronização' });
+      // Keep showing the error for a moment before hiding
+      setTimeout(() => {
+        setSyncingType(null);
+      }, 3000);
     }
   };
 
