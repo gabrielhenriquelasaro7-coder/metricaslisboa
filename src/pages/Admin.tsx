@@ -21,6 +21,7 @@ import { ExportDataButton } from '@/components/admin/ExportDataButton';
 import { SquadsManagement } from '@/components/admin/SquadsManagement';
 import { UserManagement } from '@/components/admin/UserManagement';
 import { TabVisibilityManager } from '@/components/admin/TabVisibilityManager';
+import { GuestsManagement } from '@/components/admin/GuestsManagement';
 import { 
   Database, 
   CheckCircle2, 
@@ -42,7 +43,8 @@ import {
   Timer,
   Users,
   Building2,
-  Eye
+  Eye,
+  UserPlus
 } from 'lucide-react';
 import { downloadDocumentationAsTxt, downloadDocumentationAsPdf } from '@/utils/generateSystemDocumentation';
 
@@ -319,7 +321,7 @@ function AdminContent() {
         </div>
 
         <Tabs defaultValue="sync" className="space-y-6">
-          <TabsList className="flex flex-wrap gap-1 h-auto p-1 lg:inline-grid lg:grid-cols-7">
+          <TabsList className="flex flex-wrap gap-1 h-auto p-1 lg:inline-grid lg:grid-cols-8">
             <TabsTrigger value="sync" className="gap-2">
               <RefreshCw className="w-4 h-4" />
               Sincronização
@@ -331,6 +333,10 @@ function AdminContent() {
             <TabsTrigger value="users" className="gap-2">
               <Users className="w-4 h-4" />
               Usuários
+            </TabsTrigger>
+            <TabsTrigger value="guests" className="gap-2">
+              <UserPlus className="w-4 h-4" />
+              Convidados
             </TabsTrigger>
             <TabsTrigger value="squads" className="gap-2">
               <Building2 className="w-4 h-4" />
@@ -636,6 +642,11 @@ function AdminContent() {
           {/* SQUADS TAB */}
           <TabsContent value="squads" className="space-y-6">
             <SquadsManagement />
+          </TabsContent>
+
+          {/* GUESTS TAB */}
+          <TabsContent value="guests" className="space-y-6">
+            <GuestsManagement />
           </TabsContent>
 
           {/* VISIBILITY TAB - Tech only */}

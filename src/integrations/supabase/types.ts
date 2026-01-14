@@ -2328,33 +2328,42 @@ export type Database = {
         Row: {
           cargo: string
           created_at: string
+          created_by: string | null
           email: string
           full_name: string | null
           id: string
+          needs_password_change: boolean | null
           phone: string | null
           squad_id: string | null
+          temp_password: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           cargo?: string
           created_at?: string
+          created_by?: string | null
           email: string
           full_name?: string | null
           id?: string
+          needs_password_change?: boolean | null
           phone?: string | null
           squad_id?: string | null
+          temp_password?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           cargo?: string
           created_at?: string
+          created_by?: string | null
           email?: string
           full_name?: string | null
           id?: string
+          needs_password_change?: boolean | null
           phone?: string | null
           squad_id?: string | null
+          temp_password?: string | null
           updated_at?: string
           user_id?: string
         }
