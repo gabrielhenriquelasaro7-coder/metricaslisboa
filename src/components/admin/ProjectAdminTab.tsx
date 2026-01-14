@@ -236,6 +236,37 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
         body.date_preset = 'last_7d';
       }
       
+      // Para CRIATIVOS: aguardar resposta completa e mostrar resultado
+      if (type === 'creatives') {
+        setSyncProgress({ step: 'creatives', message: 'Buscando criativos HD... (pode levar 30-60s)' });
+        toast.info('Sincronizando criativos HD... Aguarde.', { duration: 10000 });
+        
+        const { data: creativeData, error: creativeError } = await supabase.functions.invoke('meta-ads-sync', {
+          body
+        });
+        
+        if (creativeError) {
+          throw creativeError;
+        }
+        
+        const updated = creativeData?.creatives?.updated || 0;
+        const cached = creativeData?.creatives?.cached || 0;
+        const total = creativeData?.creatives?.total || 0;
+        
+        if (updated > 0 || cached > 0) {
+          toast.success(`Criativos HD: ${updated} atualizados, ${cached} imagens cacheadas`, { duration: 5000 });
+        } else if (total === 0) {
+          toast.info('Nenhum criativo novo para sincronizar', { duration: 3000 });
+        } else {
+          toast.success('Sincronização de criativos concluída', { duration: 3000 });
+        }
+        
+        setSyncingType(null);
+        setSyncProgress(null);
+        setSyncStartTime(null);
+        return;
+      }
+      
       const { error } = await supabase.functions.invoke('meta-ads-sync', {
         body
       });
