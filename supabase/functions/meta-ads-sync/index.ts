@@ -360,10 +360,10 @@ async function syncCreatives(
     const batch = adIds.slice(i, i + batchSize);
     const batchIds = batch.join(',');
     
-    // QUERY HD - Usando picture (HD), image_url e thumbnail_url como fallback
-    // O campo picture retorna a imagem original full resolution
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,body,title,call_to_action_type,picture,image_url,thumbnail_url,object_story_spec,asset_feed_spec}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
-    console.log(`[CREATIVE-SYNC] Batch ${batchNumber}: fields=picture,image_url,thumbnail_url (HD)`);
+    // QUERY HD - thumbnail_url com parâmetros de resolução + object_story_spec para fallbacks
+    // NOTA: "picture" e "image_url" NÃO existem no nível AdCreative - usar object_story_spec
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,body,title,call_to_action_type,thumbnail_url,object_story_spec,asset_feed_spec,effective_object_story_id}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    console.log(`[CREATIVE-SYNC] Batch ${batchNumber}: thumbnail_url + object_story_spec (HD 1080x1080)`);
     const adsData = await simpleFetch(adsUrl, undefined, 20000);
     
     if (adsData?.error) {
@@ -410,23 +410,18 @@ async function syncCreatives(
       if (!headline && creative.title) headline = creative.title;
       if (!cta && creative.call_to_action_type) cta = creative.call_to_action_type;
       
-      // Imagem HD - prioridade: picture (full HD) > image_url > thumbnail_url
-      // O campo "picture" retorna a imagem original em alta resolução
-      if (creative.picture) {
-        thumbnailUrl = creative.picture;
-      } else if (creative.image_url) {
-        thumbnailUrl = creative.image_url;
-      } else if (creative.thumbnail_url) {
+      // Imagem HD - ORDEM DE PRIORIDADE:
+      // 1. thumbnail_url (já vem com 1080x1080 pelos parâmetros da query)
+      if (creative.thumbnail_url) {
         thumbnailUrl = creative.thumbnail_url;
       }
       
-      // Também extrair imagem do object_story_spec se não encontrou
-      if (!thumbnailUrl) {
-        const oss = creative.object_story_spec;
-        if (oss?.link_data?.picture) thumbnailUrl = oss.link_data.picture;
-        else if (oss?.link_data?.image_url) thumbnailUrl = oss.link_data.image_url;
-        else if (oss?.video_data?.picture) thumbnailUrl = oss.video_data.picture;
-        else if (oss?.video_data?.image_url) thumbnailUrl = oss.video_data.image_url;
+      // 2. Fallback: imagens do object_story_spec (imagens originais)
+      if (!thumbnailUrl && oss) {
+        if (oss.link_data?.picture) thumbnailUrl = oss.link_data.picture;
+        else if (oss.link_data?.image_url) thumbnailUrl = oss.link_data.image_url;
+        else if (oss.video_data?.image_url) thumbnailUrl = oss.video_data.image_url;
+        else if (oss.photo_data?.images?.[0]?.url) thumbnailUrl = oss.photo_data.images[0].url;
       }
       
       // LIMPAR URL - remover parâmetros de resize forçado (p64x64, etc)
@@ -585,10 +580,10 @@ async function syncHDImages(
     
     await updateSyncProgress(supabase, projectId, 'hd_images', `Buscando URLs HD: ${batchNumber}/${totalBatches}`, 10 + Math.round((batchNumber / totalBatches) * 40), 100);
     
-    // QUERY HD - Buscar diretamente os creative_ids para obter imagens em alta resolução
-    // Usamos thumbnail_url + picture + image_url e limpamos parâmetros de resize
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,thumbnail_url,picture,image_url,object_story_spec,effective_object_story_id}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
-    console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: Fetching HD (picture,thumbnail_url,image_url)`);
+    // QUERY HD - thumbnail_url com resolução HD + object_story_spec para fallbacks
+    // NOTA: "picture" e "image_url" NÃO existem no nível AdCreative
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,thumbnail_url,object_story_spec,effective_object_story_id}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: thumbnail_url + object_story_spec (HD 1080x1080)`);
     const adsData = await simpleFetch(adsUrl, undefined, 30000);
     
     if (adsData?.error) {
@@ -604,19 +599,18 @@ async function syncHDImages(
       const creative = adData.creative;
       let bestUrl: string | null = null;
       
-      // 1. PRIORIDADE: picture (retorna imagem full size)
-      if (creative.picture) {
-        bestUrl = creative.picture;
-      }
-      
-      // 2. image_url (também full size)
-      if (!bestUrl && creative.image_url) {
-        bestUrl = creative.image_url;
-      }
-      
-      // 3. thumbnail_url (com parâmetros HD)
-      if (!bestUrl && creative.thumbnail_url) {
+      // 1. PRINCIPAL: thumbnail_url com resolução HD (já vem com 1080x1080 pelos parâmetros)
+      if (creative.thumbnail_url) {
         bestUrl = creative.thumbnail_url;
+      }
+      
+      // 2. Fallback: imagens do object_story_spec (imagens originais)
+      if (!bestUrl && creative.object_story_spec) {
+        const oss = creative.object_story_spec;
+        if (oss.link_data?.picture) bestUrl = oss.link_data.picture;
+        else if (oss.link_data?.image_url) bestUrl = oss.link_data.image_url;
+        else if (oss.video_data?.image_url) bestUrl = oss.video_data.image_url;
+        else if (oss.photo_data?.images?.[0]?.url) bestUrl = oss.photo_data.images[0].url;
       }
       
       // 4. Fallback: Tentar buscar imagem do post original
