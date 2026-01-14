@@ -25,6 +25,9 @@ interface MonthImportRequest {
   ad_account_id?: string;
   max_month?: number;
   phase?: 'base' | 'creatives' | 'hd_images';
+  // Novo: suporte a importação em chunks (quinzenas/semanas)
+  chunk?: 1 | 2 | 3 | 4; // 1=dias 1-7, 2=dias 8-15, 3=dias 16-23, 4=dias 24-fim
+  use_chunks?: boolean; // Forçar uso de chunks para contas grandes
 }
 
 function getNextMonth(year: number, month: number): { year: number; month: number } | null {
@@ -64,6 +67,46 @@ function calculateChainDelay(adsCount: number): number {
   return 3000;
 }
 
+// Calcular range de datas para um chunk específico
+function getChunkDateRange(year: number, month: number, chunk: 1 | 2 | 3 | 4): { since: string; until: string } {
+  const formatDate = (d: Date) => d.toISOString().split('T')[0];
+  const lastDayOfMonth = new Date(year, month, 0).getDate();
+  
+  let startDay: number, endDay: number;
+  
+  switch (chunk) {
+    case 1: startDay = 1; endDay = 7; break;
+    case 2: startDay = 8; endDay = 15; break;
+    case 3: startDay = 16; endDay = 23; break;
+    case 4: startDay = 24; endDay = lastDayOfMonth; break;
+  }
+  
+  const since = formatDate(new Date(year, month - 1, startDay));
+  const until = formatDate(new Date(year, month - 1, Math.min(endDay, lastDayOfMonth)));
+  
+  return { since, until };
+}
+
+// Verificar se a conta é grande (precisa de chunks)
+async function isLargeAccount(supabase: any, projectId: string): Promise<boolean> {
+  // Verificar quantidade de dados em qualquer mês anterior
+  const { count } = await supabase
+    .from('ads_daily_metrics')
+    .select('*', { count: 'exact', head: true })
+    .eq('project_id', projectId);
+  
+  // Se já tem muitos registros, provavelmente é conta grande
+  if ((count || 0) > 10000) return true;
+  
+  // Verificar número de ads
+  const { count: adsCount } = await supabase
+    .from('ads')
+    .select('*', { count: 'exact', head: true })
+    .eq('project_id', projectId);
+  
+  return (adsCount || 0) > 200;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -82,6 +125,8 @@ Deno.serve(async (req) => {
       ad_account_id, 
       max_month,
       phase = 'base',
+      chunk,
+      use_chunks = false,
     } = body;
     
     if (!project_id || !year || !month) {
@@ -229,9 +274,15 @@ Deno.serve(async (req) => {
     
     // ========================================================================
     // FASE 1: MONTH BASE SYNC (métricas + estrutura)
-    // Mês inteiro, SEM divisão quinzenal/semanal
+    // Suporta chunks (semanas) para contas grandes
     // ========================================================================
-    console.log(`[MONTH-IMPORT] 📊 BASE SYNC - ${monthName} ${year} for ${project.name}`);
+    
+    // Verificar se deve usar chunks (contas grandes)
+    const shouldUseChunks = use_chunks || await isLargeAccount(supabase, project_id);
+    const currentChunk = chunk || 1;
+    
+    const chunkLabel = shouldUseChunks ? ` [chunk ${currentChunk}/4]` : '';
+    console.log(`[MONTH-IMPORT] 📊 BASE SYNC - ${monthName} ${year}${chunkLabel} for ${project.name}`);
     
     // Contar ads para delay de encadeamento
     const { count: adsCount } = await supabase
@@ -241,18 +292,19 @@ Deno.serve(async (req) => {
     
     const chainDelay = calculateChainDelay(adsCount || 0);
     
-    console.log(`[MONTH-IMPORT] Project: ${project.name} (${adsCount || 0} ads)`);
+    console.log(`[MONTH-IMPORT] Project: ${project.name} (${adsCount || 0} ads, chunks: ${shouldUseChunks})`);
     
-    // Verificar se já está importando
+    // Verificar se já está importando (apenas no chunk 1)
     const { data: existingMonth } = await supabase
       .from('project_import_months')
-      .select('id, status')
+      .select('id, status, records_count')
       .eq('project_id', project_id)
       .eq('year', year)
       .eq('month', month)
       .maybeSingle();
     
-    if (existingMonth?.status === 'importing') {
+    // Se é chunk 1 e já está importando, skip
+    if (currentChunk === 1 && existingMonth?.status === 'importing') {
       console.log(`[MONTH-IMPORT] ${monthName} ${year} already importing, skipping`);
       return new Response(
         JSON.stringify({ success: true, message: 'Already importing', skipped: true }),
@@ -260,39 +312,51 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Atualizar status para importing
-    if (existingMonth) {
-      await supabase
-        .from('project_import_months')
-        .update({
-          status: 'importing',
-          started_at: new Date().toISOString(),
-          error_message: null,
-        })
-        .eq('id', existingMonth.id);
-    } else {
-      await supabase
-        .from('project_import_months')
-        .insert({
-          project_id,
-          year,
-          month,
-          status: 'importing',
-          started_at: new Date().toISOString(),
-          records_count: 0,
-          retry_count: 0,
-        });
+    // Atualizar status para importing (apenas no chunk 1)
+    if (currentChunk === 1) {
+      if (existingMonth) {
+        await supabase
+          .from('project_import_months')
+          .update({
+            status: 'importing',
+            started_at: new Date().toISOString(),
+            error_message: null,
+            records_count: 0,
+          })
+          .eq('id', existingMonth.id);
+      } else {
+        await supabase
+          .from('project_import_months')
+          .insert({
+            project_id,
+            year,
+            month,
+            status: 'importing',
+            started_at: new Date().toISOString(),
+            records_count: 0,
+            retry_count: 0,
+          });
+      }
     }
     
-    // Calcular range do MÊS INTEIRO (SEM divisão)
-    const firstDay = new Date(year, month - 1, 1);
-    const lastDay = new Date(year, month, 0);
+    // Calcular range de datas
     const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    let since: string, until: string;
     
-    const since = formatDate(firstDay);
-    const until = formatDate(lastDay);
-    
-    console.log(`[MONTH-IMPORT] Range: ${since} to ${until} (full month)`);
+    if (shouldUseChunks) {
+      // Usar chunk específico (semana)
+      const chunkRange = getChunkDateRange(year, month, currentChunk as 1 | 2 | 3 | 4);
+      since = chunkRange.since;
+      until = chunkRange.until;
+      console.log(`[MONTH-IMPORT] Range: ${since} to ${until} (chunk ${currentChunk})`);
+    } else {
+      // Mês inteiro
+      const firstDay = new Date(year, month - 1, 1);
+      const lastDay = new Date(year, month, 0);
+      since = formatDate(firstDay);
+      until = formatDate(lastDay);
+      console.log(`[MONTH-IMPORT] Range: ${since} to ${until} (full month)`);
+    }
     
     // Chamar meta-ads-sync com syncMode: 'base'
     const controller = new AbortController();
@@ -344,8 +408,8 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Determinar registros salvos
-    let totalRecords = syncResult?.summary?.records || 0;
+    // Determinar registros salvos neste chunk
+    let chunkRecords = syncResult?.summary?.records || 0;
     
     // Se timeout, verificar banco
     if (errorMessage === 'Timeout') {
@@ -359,14 +423,216 @@ Deno.serve(async (req) => {
       
       if ((recordsCount || 0) > 0) {
         console.log(`[MONTH-IMPORT] Found ${recordsCount} records in DB after timeout - SUCCESS`);
-        totalRecords = recordsCount || 0;
+        chunkRecords = recordsCount || 0;
         hasError = false;
         errorMessage = null;
       }
     }
     
+    // Se usando chunks e deu erro, tentar com chunks menores
+    if (hasError && !shouldUseChunks) {
+      console.log(`[MONTH-IMPORT] Full month failed, retrying with chunks...`);
+      
+      // Resetar status e tentar com chunks
+      await supabase
+        .from('project_import_months')
+        .update({
+          status: 'pending',
+          error_message: 'Retrying with chunks',
+        })
+        .eq('project_id', project_id)
+        .eq('year', year)
+        .eq('month', month);
+      
+      // Chamar novamente com chunks habilitados
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            project_id,
+            year,
+            month,
+            continue_chain,
+            ad_account_id: accountId,
+            max_month,
+            phase: 'base',
+            use_chunks: true,
+            chunk: 1,
+          }),
+        });
+      } catch (e) {
+        console.log(`[MONTH-IMPORT] Chunk retry call sent`);
+      }
+      
+      return new Response(
+        JSON.stringify({ success: true, retrying_with_chunks: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Se usando chunks, acumular records e decidir próximo passo
+    if (shouldUseChunks) {
+      // Buscar total atual de records do mês
+      const { data: monthData } = await supabase
+        .from('project_import_months')
+        .select('records_count')
+        .eq('project_id', project_id)
+        .eq('year', year)
+        .eq('month', month)
+        .single();
+      
+      const previousRecords = monthData?.records_count || 0;
+      const totalRecords = previousRecords + chunkRecords;
+      
+      // Atualizar contagem parcial
+      await supabase
+        .from('project_import_months')
+        .update({
+          records_count: totalRecords,
+          error_message: hasError ? errorMessage : null,
+        })
+        .eq('project_id', project_id)
+        .eq('year', year)
+        .eq('month', month);
+      
+      console.log(`[MONTH-IMPORT] ${monthName} ${year} chunk ${currentChunk} - records: ${chunkRecords} (total: ${totalRecords})`);
+      
+      // Se não é o último chunk e não deu erro, encadear próximo chunk
+      if (!hasError && currentChunk < 4) {
+        const nextChunk = (currentChunk + 1) as 1 | 2 | 3 | 4;
+        console.log(`[MONTH-IMPORT] Chaining to chunk ${nextChunk}...`);
+        
+        await delay(2000);
+        
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              project_id,
+              year,
+              month,
+              continue_chain,
+              ad_account_id: accountId,
+              max_month,
+              phase: 'base',
+              use_chunks: true,
+              chunk: nextChunk,
+            }),
+          });
+        } catch (e) {
+          console.log(`[MONTH-IMPORT] Chunk ${nextChunk} call sent`);
+        }
+        
+        return new Response(
+          JSON.stringify({ success: true, phase: 'base', chunk: currentChunk, records: chunkRecords, next_chunk: nextChunk }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Último chunk ou erro - finalizar mês
+      const status = hasError ? 'error' : 'success';
+      await supabase
+        .from('project_import_months')
+        .update({
+          status,
+          completed_at: status === 'success' ? new Date().toISOString() : null,
+          error_message: hasError ? errorMessage : null,
+        })
+        .eq('project_id', project_id)
+        .eq('year', year)
+        .eq('month', month);
+      
+      console.log(`[MONTH-IMPORT] ${monthName} ${year} - COMPLETED (chunks) - status: ${status}, total records: ${totalRecords}`);
+      
+      // Log de sync
+      await supabase.from('sync_logs').insert({
+        project_id,
+        status,
+        message: JSON.stringify({
+          type: 'month_base_sync_chunked',
+          month: `${year}-${month}`,
+          month_name: `${monthName} ${year}`,
+          records: totalRecords,
+          chunks: 4,
+        }),
+      });
+      
+      // Continuar encadeamento para próximo mês se sucesso
+      if (status === 'success' && continue_chain) {
+        const nextMonthData = getNextMonth(year, month);
+        const effectiveMaxMonth = max_month || 12;
+        
+        if (nextMonthData && (nextMonthData.month <= effectiveMaxMonth || nextMonthData.year > year)) {
+          console.log(`[MONTH-IMPORT] Chaining to ${getMonthName(nextMonthData.month)} ${nextMonthData.year}...`);
+          
+          await delay(chainDelay);
+          
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                project_id,
+                year: nextMonthData.year,
+                month: nextMonthData.month,
+                continue_chain: true,
+                ad_account_id: accountId,
+                max_month: effectiveMaxMonth,
+                phase: 'base',
+                use_chunks: true, // Continuar usando chunks
+                chunk: 1,
+              }),
+            });
+          } catch (e) {
+            console.log(`[MONTH-IMPORT] Next month chain sent`);
+          }
+        } else {
+          // Todos os meses completos - iniciar creative sync
+          console.log(`[MONTH-IMPORT] 🎉 All months imported! Starting Creative Sync...`);
+          await delay(5000);
+          
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                project_id,
+                year,
+                month,
+                ad_account_id: accountId,
+                phase: 'creatives',
+              }),
+            });
+          } catch (e) {
+            console.log(`[MONTH-IMPORT] Creative sync chain sent`);
+          }
+        }
+      }
+      
+      return new Response(
+        JSON.stringify({ success: status === 'success', phase: 'base', month: `${monthName} ${year}`, records: totalRecords, chunked: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // ========== MODO SEM CHUNKS (mês inteiro) ==========
     // Determinar status final
     let status = hasError ? 'error' : 'success';
+    let totalRecords = chunkRecords;
     
     // Atualizar registro do mês
     await supabase
