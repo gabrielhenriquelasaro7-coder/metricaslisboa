@@ -364,8 +364,9 @@ async function syncCreatives(
     const progressPercent = Math.round((batchNumber / totalBatches) * 50);
     await updateSyncProgress(supabase, projectId, 'creatives', `Textos: batch ${batchNumber}/${totalBatches}`, progressPercent, 100);
     
-    // IMPORTANTE: usar thumbnail_width=1080 e thumbnail_height=1080 para HD
+    // QUERY HD OTIMIZADA: fields=thumbnail_url, thumbnail_width=1080, thumbnail_height=1080
     const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,body,title,call_to_action_type,thumbnail_url,object_story_spec,asset_feed_spec}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    console.log(`[CREATIVE-SYNC] Batch ${batchNumber}: fields=thumbnail_url, thumbnail_width=1080, thumbnail_height=1080`);
     const adsData = await simpleFetch(adsUrl, undefined, 20000);
     
     if (adsData?.error) {
@@ -373,8 +374,8 @@ async function syncCreatives(
       continue;
     }
     
-    // Process batch in parallel
-    const updatePromises: Promise<void>[] = [];
+    // Process batch - primeiro extrair dados, depois cachear imagens
+    const adsToUpdate: { adId: string; updateData: any; thumbnailUrl: string | null }[] = [];
     
     for (const adId of batch) {
       const adData = adsData[adId];
@@ -415,7 +416,7 @@ async function syncCreatives(
       // Thumbnail em HD (1080x1080) - já vem com resolução alta pelos parâmetros
       if (creative.thumbnail_url) thumbnailUrl = creative.thumbnail_url;
       
-      // Atualizar o ad no banco
+      // Preparar dados de atualização
       const updateData: any = {
         creative_id: creative.id || null,
         synced_at: new Date().toISOString()
@@ -426,17 +427,32 @@ async function syncCreatives(
       if (cta) updateData.cta = cta;
       if (thumbnailUrl) updateData.creative_thumbnail = thumbnailUrl;
       
-      updatePromises.push(
-        supabase.from('ads').update(updateData).eq('id', adId)
-          .then(() => { updatedCount++; })
-          .catch((e: any) => console.log(`[CREATIVE-SYNC] Update error for ${adId}: ${e.message}`))
-      );
+      adsToUpdate.push({ adId, updateData, thumbnailUrl });
     }
     
-    // Wait for all updates in this batch
-    await Promise.all(updatePromises);
+    // FASE 2: Cachear imagens HD em paralelo (5 por vez) e salvar cached_image_url
+    console.log(`[CREATIVE-SYNC] Caching ${adsToUpdate.filter(a => a.thumbnailUrl).length} HD images...`);
     
-    console.log(`[CREATIVE-SYNC] Batch ${batchNumber}/${totalBatches} processed`);
+    for (let c = 0; c < adsToUpdate.length; c += 5) {
+      const cacheBatch = adsToUpdate.slice(c, c + 5);
+      
+      await Promise.all(cacheBatch.map(async ({ adId, updateData, thumbnailUrl }) => {
+        // Se tem thumbnail HD, fazer cache no Storage
+        if (thumbnailUrl) {
+          const cachedUrl = await cacheCreativeImage(supabase, projectId, adId, thumbnailUrl);
+          if (cachedUrl) {
+            updateData.cached_image_url = cachedUrl;
+          }
+        }
+        
+        // Atualizar o ad no banco
+        await supabase.from('ads').update(updateData).eq('id', adId)
+          .then(() => { updatedCount++; })
+          .catch((e: any) => console.log(`[CREATIVE-SYNC] Update error for ${adId}: ${e.message}`));
+      }));
+    }
+    
+    console.log(`[CREATIVE-SYNC] Batch ${batchNumber}/${totalBatches} processed with HD cache`);
     if (i + batchSize < adIds.length) await delay(200);
   }
   
