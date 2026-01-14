@@ -22,7 +22,8 @@ function subDays(date: Date, days: number): Date {
 }
 
 // Period groups for scheduled syncs
-type PeriodGroup = 'priority' | 'recent' | 'extended' | 'historical' | 'all';
+// CRON DIÁRIO: Apenas últimos 7 dias, só métricas (sem criativos)
+type PeriodGroup = 'priority' | 'recent' | 'extended' | 'historical' | 'all' | 'daily_cron';
 
 // Cache TTL in hours for each period type
 const CACHE_TTL_HOURS: Record<string, number> = {
@@ -44,6 +45,8 @@ const CACHE_TTL_HOURS: Record<string, number> = {
 
 // Period definitions grouped
 const PERIOD_GROUPS: Record<PeriodGroup, string[]> = {
+  // CRON DIÁRIO: Só últimos 7 dias (rápido, só métricas)
+  daily_cron: ['last_7d'],
   priority: ['yesterday', 'this_month', 'this_year'],
   recent: ['last_7d', 'last_14d'],
   extended: ['last_30d', 'last_60d', 'last_90d'],
@@ -140,7 +143,14 @@ Deno.serve(async (req) => {
       // No body provided, use defaults
     }
 
-    const { periods, group = 'all', skip_cache = false, project_ids, light_sync = false } = requestBody;
+    // Default: daily_cron (últimos 7 dias, só métricas) com light_sync ativado
+    const { 
+      periods, 
+      group = 'daily_cron', 
+      skip_cache = false, 
+      project_ids, 
+      light_sync = true  // Por padrão, não busca criativos (já estão armazenados)
+    } = requestBody;
 
     // Determine which periods to sync
     const periodsToSync = periods || PERIOD_GROUPS[group] || PERIOD_GROUPS.all;
@@ -222,7 +232,7 @@ Deno.serve(async (req) => {
               ad_account_id: project.ad_account_id,
               time_range: { since: periodDates.since, until: periodDates.until },
               period_key: periodKey,
-              light_sync: light_sync, // Sync mais rápido sem buscar criativos
+              syncMode: light_sync ? 'base' : undefined, // 'base' = só métricas, sem criativos
             }),
           });
           
