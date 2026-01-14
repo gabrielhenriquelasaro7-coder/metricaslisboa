@@ -41,6 +41,7 @@ interface SyncRequest {
   date_preset?: string;
   syncMode?: 'base' | 'creatives' | 'hd_images';
   retry_count?: number;
+  lite_mode?: boolean; // Skip entity fetch for large accounts
 }
 
 const BASE_DELAY_MS = 200;
@@ -1005,7 +1006,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     const body: SyncRequest = await req.json();
-    let { project_id, ad_account_id, access_token, time_range, date_preset, syncMode = 'base', retry_count = 0 } = body;
+    let { project_id, ad_account_id, access_token, time_range, date_preset, syncMode = 'base', retry_count = 0, lite_mode = false } = body;
     
     // Buscar ad_account_id do projeto se não fornecido
     if (!ad_account_id && project_id) {
@@ -1102,24 +1103,37 @@ Deno.serve(async (req) => {
       since = sinceDate.toISOString().split('T')[0]; 
     }
     
-    console.log(`[BASE-SYNC] Project: ${project_id}, Range: ${since} to ${until}`);
+    console.log(`[BASE-SYNC] Project: ${project_id}, Range: ${since} to ${until}, Lite: ${lite_mode}`);
     
-    // Step 1: Fetch entities (estrutura básica)
-    await updateSyncProgress(supabase, project_id, 'campaigns', 'Buscando campanhas, conjuntos e anúncios...', 1, 5);
+    let campaigns: any[] = [], adsets: any[] = [], ads: any[] = [];
+    let campaignMap = new Map<string, any>();
+    let adsetMap = new Map<string, any>();
+    let adMap = new Map<string, any>();
     
-    const { campaigns, adsets, ads, tokenExpired } = await fetchEntitiesBase(ad_account_id, token);
-    
-    if (tokenExpired) {
-      await updateSyncProgress(supabase, project_id, 'error', 'Token do Meta expirou');
-      return new Response(JSON.stringify({ success: false, error: 'Token do Meta expirou.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Step 1: Fetch entities (apenas se NÃO for lite_mode)
+    if (!lite_mode) {
+      await updateSyncProgress(supabase, project_id, 'campaigns', 'Buscando campanhas, conjuntos e anúncios...', 1, 5);
+      
+      const entities = await fetchEntitiesBase(ad_account_id, token);
+      campaigns = entities.campaigns;
+      adsets = entities.adsets;
+      ads = entities.ads;
+      
+      if (entities.tokenExpired) {
+        await updateSyncProgress(supabase, project_id, 'error', 'Token do Meta expirou');
+        return new Response(JSON.stringify({ success: false, error: 'Token do Meta expirou.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      
+      // Step 2: Build maps
+      await updateSyncProgress(supabase, project_id, 'processing', `Processando ${campaigns.length} campanhas, ${adsets.length} conjuntos, ${ads.length} anúncios...`, 2, 5);
+      
+      campaignMap = new Map(campaigns.filter(c => extractId(c.id)).map(c => [extractId(c.id)!, c]));
+      adsetMap = new Map(adsets.filter(a => extractId(a.id)).map(a => [extractId(a.id)!, a]));
+      adMap = new Map(ads.filter(a => extractId(a.id)).map(a => [extractId(a.id)!, a]));
+    } else {
+      console.log(`[BASE-SYNC] LITE MODE: Skipping entity fetch, using insights data only`);
+      await updateSyncProgress(supabase, project_id, 'insights', 'Modo lite: buscando apenas métricas...', 1, 3);
     }
-    
-    // Step 2: Build maps
-    await updateSyncProgress(supabase, project_id, 'processing', `Processando ${campaigns.length} campanhas, ${adsets.length} conjuntos, ${ads.length} anúncios...`, 2, 5);
-    
-    const campaignMap = new Map(campaigns.map(c => [extractId(c.id), c]));
-    const adsetMap = new Map(adsets.map(a => [extractId(a.id), a]));
-    const adMap = new Map(ads.map(a => [extractId(a.id), a]));
     
     // Step 3: Fetch insights (métricas diárias)
     await updateSyncProgress(supabase, project_id, 'insights', 'Buscando métricas diárias...', 3, 5);
@@ -1131,8 +1145,10 @@ Deno.serve(async (req) => {
     for (const [adId, dateMap] of dailyInsights) {
       for (const [date, insights] of dateMap) {
         const ad = adMap.get(adId);
-        const adset = adsetMap.get(extractId(insights.adset_id));
-        const campaign = campaignMap.get(extractId(insights.campaign_id));
+        const adsetId = extractId(insights.adset_id);
+        const campaignId = extractId(insights.campaign_id);
+        const adset = adsetId ? adsetMap.get(adsetId) : null;
+        const campaign = campaignId ? campaignMap.get(campaignId) : null;
         
         const campaignObjective = campaign?.objective || insights.campaign_objective;
         const { conversions, costPerResult, conversionValue, leadsCount, purchasesCount, initiateCheckoutCount } = extractConversions(insights, campaignObjective);
