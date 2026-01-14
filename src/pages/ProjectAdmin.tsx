@@ -338,21 +338,22 @@ export default function ProjectAdmin() {
     setSyncingType('hd_images_batch');
     setBatchSyncProgress({ current: 0, total: pendingImages });
     
+    toast.info(`Sincronizando ${pendingImages} imagens... (pode levar alguns minutos)`);
+    
     let totalCached = 0;
     let iterations = 0;
-    const maxIterations = Math.ceil(pendingImages / 300) + 2; // +2 for safety margin
-    
-    toast.success(`Iniciando sync de ${pendingImages} imagens pendentes...`);
+    const maxIterations = Math.ceil(pendingImages / 200) + 2; // +2 for safety margin
     
     while (iterations < maxIterations) {
       iterations++;
       
       try {
+        // Usar syncMode: 'creatives' que tem a lógica de retry e cache funcionando
         const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
           body: {
             project_id: id,
             ad_account_id: project.ad_account_id,
-            syncMode: 'hd_images'
+            syncMode: 'creatives' // Usar creatives que funciona melhor
           }
         });
         
@@ -362,21 +363,40 @@ export default function ProjectAdmin() {
           break;
         }
         
-        const cached = data?.cached || 0;
-        const pending = data?.pending || 0;
+        const cached = data?.creatives?.cached || 0;
+        const updated = data?.creatives?.updated || 0;
+        const total = data?.creatives?.total || 0;
         totalCached += cached;
         
-        setBatchSyncProgress({ current: totalCached, total: pendingImages });
+        // Re-fetch actual pending count from database
+        const { count: newCachedCount } = await supabase
+          .from('ads')
+          .select('id', { count: 'exact', head: true })
+          .eq('project_id', id)
+          .not('cached_image_url', 'is', null);
         
-        console.log(`Batch ${iterations}: cached ${cached}, pending ${pending}, total cached: ${totalCached}`);
+        const actualCached = newCachedCount || 0;
+        const stillPending = (totalAds || 0) - actualCached;
+        
+        setBatchSyncProgress({ 
+          current: actualCached, 
+          total: totalAds || pendingImages 
+        });
+        
+        console.log(`Batch ${iterations}: cached ${cached}, updated ${updated}, still pending: ${stillPending}`);
         
         // If no more pending or no progress this round, stop
-        if (pending === 0 || cached === 0) {
+        if (stillPending === 0 || (cached === 0 && updated === 0 && total > 0)) {
+          break;
+        }
+        
+        // If no ads to process at all, stop
+        if (total === 0) {
           break;
         }
         
         // Small delay between batches
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
       } catch (err) {
         console.error('Batch sync exception:', err);
