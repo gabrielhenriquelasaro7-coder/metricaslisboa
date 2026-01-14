@@ -92,6 +92,7 @@ export default function SyncHealthMonitor({ projects }: SyncHealthMonitorProps) 
     try {
       toast.info(`Sincronizando ${project.name}...`);
       
+      // FASE 1: Sync de métricas (base)
       const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
         body: {
           project_id: project.id,
@@ -103,7 +104,26 @@ export default function SyncHealthMonitor({ projects }: SyncHealthMonitorProps) 
       if (error) throw error;
 
       if (data.success) {
-        toast.success(`${project.name}: Sync concluído! ${data.data?.daily_records_count || 0} registros`);
+        toast.success(`${project.name}: Métricas OK! ${data.data?.daily_records_count || 0} registros`);
+        
+        // FASE 2: Sync de criativos HD (queries: thumbnail_width=1080, thumbnail_height=1080)
+        toast.info(`${project.name}: Buscando criativos HD...`);
+        
+        const { data: creativeData, error: creativeError } = await supabase.functions.invoke('meta-ads-sync', {
+          body: {
+            project_id: project.id,
+            ad_account_id: project.ad_account_id,
+            syncMode: 'creatives', // Usa queries HD
+          }
+        });
+        
+        if (creativeError) {
+          console.error('Erro ao buscar criativos:', creativeError);
+          toast.warning(`${project.name}: Métricas OK, erro nos criativos`);
+        } else if (creativeData?.success) {
+          toast.success(`${project.name}: Sync completo! Criativos HD: ${creativeData.creatives?.updated || 0}`);
+        }
+        
         // Refresh health after successful sync
         setTimeout(calculateHealth, 2000);
       } else {
