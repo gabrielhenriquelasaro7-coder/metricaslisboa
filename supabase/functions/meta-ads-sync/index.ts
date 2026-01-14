@@ -546,7 +546,9 @@ async function syncHDImages(
     await updateSyncProgress(supabase, projectId, 'hd_images', `Buscando URLs HD: ${batchNumber}/${totalBatches}`, 10 + Math.round((batchNumber / totalBatches) * 40), 100);
     
     // QUERY PRINCIPAL: Usar thumbnail_url com thumbnail_width=1080 e thumbnail_height=1080
+    // INCLUI effective_object_story_id e object_story_spec como fallbacks
     const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,thumbnail_url,effective_object_story_id,object_story_spec}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: Fetching with thumbnail_width=1080, thumbnail_height=1080`);
     const adsData = await simpleFetch(adsUrl, undefined, 30000);
     
     if (adsData?.error) {
