@@ -74,6 +74,7 @@ export function UserManagement() {
   const [userProjectAccess, setUserProjectAccess] = useState<Record<string, string[]>>({});
   const [isSavingVisibility, setIsSavingVisibility] = useState(false);
   const [localHiddenTabs, setLocalHiddenTabs] = useState<TabKey[]>([]);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -86,9 +87,32 @@ export function UserManagement() {
 
   const canManage = isTech || isGerente;
   
-  // Check if a user is the master user (cannot be modified)
+  // Check if a user is the master user (cannot be modified by others)
   const isMasterUser = (email: string) => email === MASTER_EMAIL;
+  
+  // Check if current user is the master (can edit themselves)
+  const isCurrentUserMaster = currentUserEmail === MASTER_EMAIL;
+  
+  // Can edit this user? Master can only be edited by themselves
+  const canEditUser = (userEmail: string) => {
+    if (isMasterUser(userEmail)) {
+      return isCurrentUserMaster; // Only master can edit master
+    }
+    return canManage; // Others can be edited by managers
+  };
+  
   const configUser = users.find(u => u.user_id === configUserId);
+
+  // Get current user email
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        setCurrentUserEmail(user.email);
+      }
+    };
+    getCurrentUser();
+  }, []);
 
   // Atualizar localHiddenTabs quando abre o dialog
   useEffect(() => {
@@ -455,7 +479,7 @@ export function UserManagement() {
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      {canManage && !isMaster ? (
+                      {canEditUser(user.email) ? (
                         <Select 
                           value={user.cargo} 
                           onValueChange={(v) => updateUserCargo(user.user_id, v as UserCargo)}
@@ -478,7 +502,7 @@ export function UserManagement() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {(isGerente || isTech) && !isMaster ? (
+                      {canEditUser(user.email) ? (
                         <Select 
                           value={user.squad_id || ''} 
                           onValueChange={(v) => updateUserSquad(user.user_id, v || null)}
@@ -503,7 +527,7 @@ export function UserManagement() {
                     </TableCell>
                     {canManage && (
                       <TableCell className="text-right space-x-1">
-                        {isTech && !isMaster && (
+                        {isTech && canEditUser(user.email) && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -527,7 +551,7 @@ export function UserManagement() {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         )}
-                        {isMaster && (
+                        {isMaster && !isCurrentUserMaster && (
                           <span className="text-xs text-muted-foreground italic">
                             Protegido
                           </span>
