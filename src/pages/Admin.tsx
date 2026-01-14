@@ -4,6 +4,7 @@ import AdminPasswordGate from '@/components/admin/AdminPasswordGate';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useProjects, Project } from '@/hooks/useProjects';
 import { useImportProgress } from '@/hooks/useImportProgress';
+import { useCargo } from '@/hooks/useCargo';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +18,9 @@ import MonthImportGrid from '@/components/admin/MonthImportGrid';
 import SyncHealthMonitor from '@/components/admin/SyncHealthMonitor';
 import SyncHistoryChart from '@/components/admin/SyncHistoryChart';
 import { ExportDataButton } from '@/components/admin/ExportDataButton';
+import { SquadsManagement } from '@/components/admin/SquadsManagement';
+import { UserManagement } from '@/components/admin/UserManagement';
+import { TabVisibilityManager } from '@/components/admin/TabVisibilityManager';
 import { 
   Database, 
   CheckCircle2, 
@@ -35,7 +39,10 @@ import {
   PlayCircle,
   Search,
   Zap,
-  Timer
+  Timer,
+  Users,
+  Building2,
+  Eye
 } from 'lucide-react';
 import { downloadDocumentationAsTxt, downloadDocumentationAsPdf } from '@/utils/generateSystemDocumentation';
 
@@ -64,6 +71,7 @@ function AdminContent() {
   const navigate = useNavigate();
   const { logout } = useAdminAuth();
   const { projects, loading: projectsLoading } = useProjects();
+  const { isTech, isGerente, canManageSquads } = useCargo();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
@@ -311,22 +319,36 @@ function AdminContent() {
         </div>
 
         <Tabs defaultValue="sync" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="flex flex-wrap gap-1 h-auto p-1 lg:inline-grid lg:grid-cols-7">
             <TabsTrigger value="sync" className="gap-2">
               <RefreshCw className="w-4 h-4" />
               Sincronização
             </TabsTrigger>
             <TabsTrigger value="import" className="gap-2">
               <Activity className="w-4 h-4" />
-              Importação Mensal
+              Importação
             </TabsTrigger>
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="w-4 h-4" />
+              Usuários
+            </TabsTrigger>
+            <TabsTrigger value="squads" className="gap-2">
+              <Building2 className="w-4 h-4" />
+              Squads
+            </TabsTrigger>
+            {isTech && (
+              <TabsTrigger value="visibility" className="gap-2">
+                <Eye className="w-4 h-4" />
+                Visibilidade
+              </TabsTrigger>
+            )}
             <TabsTrigger value="logs" className="gap-2">
               <Clock className="w-4 h-4" />
               Histórico
             </TabsTrigger>
             <TabsTrigger value="docs" className="gap-2">
               <FileText className="w-4 h-4" />
-              Documentação
+              Docs
             </TabsTrigger>
           </TabsList>
 
@@ -605,6 +627,23 @@ function AdminContent() {
             {/* Month Import Grid */}
             <MonthImportGrid projects={activeProjects} />
           </TabsContent>
+
+          {/* USERS TAB */}
+          <TabsContent value="users" className="space-y-6">
+            <UserManagement />
+          </TabsContent>
+
+          {/* SQUADS TAB */}
+          <TabsContent value="squads" className="space-y-6">
+            <SquadsManagement />
+          </TabsContent>
+
+          {/* VISIBILITY TAB - Tech only */}
+          {isTech && (
+            <TabsContent value="visibility" className="space-y-6">
+              <TabVisibilityManager />
+            </TabsContent>
+          )}
 
           {/* LOGS TAB */}
           <TabsContent value="logs" className="space-y-6">
