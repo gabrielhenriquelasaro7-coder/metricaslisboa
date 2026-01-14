@@ -677,9 +677,8 @@ export default function ProjectSelector() {
     if (!selectedProject) return;
     try {
       await deleteProject(selectedProject.id);
-      toast.success('Projeto excluído!');
     } catch (error) {
-      toast.error('Erro ao excluir projeto');
+      // Error toast is already shown in useProjects hook
     } finally {
       setDeleteDialogOpen(false);
       setSelectedProject(null);
