@@ -223,12 +223,15 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
       };
       
       // Map sync type to syncMode for edge function
-      // 'creatives' -> syncMode: 'creatives' (only creative content)
-      // 'hd_images' -> syncMode: 'hd_images' (only HD images)
+      // 'creatives' -> syncMode: 'creatives' (only creative content com HD)
+      // 'all' -> primeiro métricas, depois criativos HD
       // Others use base sync
       if (type === 'creatives') {
-        body.syncMode = 'creatives';
-      } else if (type !== 'all') {
+        body.syncMode = 'creatives'; // Queries HD: thumbnail_width=1080, thumbnail_height=1080
+      } else if (type === 'all') {
+        // Full Sync: primeiro métricas, depois criativos HD
+        body.date_preset = 'last_90d';
+      } else {
         // For campaigns, adsets, ads - use base sync with date_preset
         body.date_preset = 'last_7d';
       }
@@ -239,15 +242,31 @@ export default function ProjectAdminTab({ projectId, projectName }: ProjectAdmin
       
       if (error) throw error;
       
+      // Se for Full Sync (all), também buscar criativos HD
+      if (type === 'all') {
+        setSyncProgress({ step: 'creatives', message: 'Buscando criativos HD...' });
+        
+        const { error: creativeError } = await supabase.functions.invoke('meta-ads-sync', {
+          body: {
+            project_id: projectId,
+            syncMode: 'creatives', // Queries HD: thumbnail_width=1080, thumbnail_height=1080
+          }
+        });
+        
+        if (creativeError) {
+          console.error('Erro ao buscar criativos HD:', creativeError);
+        }
+      }
+      
       const typeLabels: Record<SyncType, string> = {
-        all: 'Completa',
+        all: 'Completa + HD',
         campaigns: 'Campanhas',
         adsets: 'Conjuntos',
         ads: 'Anúncios',
-        creatives: 'Criativos'
+        creatives: 'Criativos HD'
       };
       
-      toast.success(`Sincronização de ${typeLabels[type]} iniciada`);
+      toast.success(`Sincronização de ${typeLabels[type]} concluída`);
       
       // Polling will handle the rest
     } catch (error) {

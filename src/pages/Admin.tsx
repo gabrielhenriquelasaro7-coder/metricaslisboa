@@ -235,7 +235,7 @@ function AdminContent() {
     }
   };
 
-  // Run full sync (all entities) - roda em segundo plano
+  // Run full sync (all entities + creatives HD) - roda em segundo plano
   const runFullSync = async () => {
     if (!selectedProjectId || !selectedProject) {
       toast.error('Selecione um projeto primeiro');
@@ -246,6 +246,7 @@ function AdminContent() {
     toast.info(`Sincronização completa de ${selectedProject.name}... (continuará em segundo plano)`);
 
     try {
+      // FASE 1: Sync de métricas (base)
       const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
         body: {
           project_id: selectedProject.id,
@@ -257,7 +258,25 @@ function AdminContent() {
       if (error) throw error;
 
       if (data.success) {
-        toast.success(`Sync completo! ${data.data?.daily_records_count || 0} registros importados`);
+        toast.success(`Métricas importadas! ${data.data?.daily_records_count || 0} registros`);
+        
+        // FASE 2: Sync de criativos HD (com cache automático)
+        toast.info('Buscando criativos em HD...');
+        
+        const { data: creativeData, error: creativeError } = await supabase.functions.invoke('meta-ads-sync', {
+          body: {
+            project_id: selectedProject.id,
+            ad_account_id: selectedProject.ad_account_id,
+            syncMode: 'creatives', // Usa queries HD: thumbnail_width=1080, thumbnail_height=1080
+          }
+        });
+        
+        if (creativeError) {
+          console.error('Erro ao buscar criativos:', creativeError);
+          toast.warning('Métricas OK, mas erro ao buscar criativos HD');
+        } else if (creativeData?.success) {
+          toast.success(`Sync completo! Criativos HD: ${creativeData.creatives?.updated || 0} atualizados`);
+        }
       } else {
         throw new Error(data.error || 'Erro desconhecido');
       }
