@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useUserManagement, ManagedUser, CSVUserData } from '@/hooks/useUserManagement';
 import { useSquads } from '@/hooks/useSquads';
 import { useCargo, UserCargo } from '@/hooks/useCargo';
@@ -14,8 +14,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2 } from 'lucide-react';
+import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const CARGO_COLORS: Record<UserCargo, string> = {
   tech: 'bg-blue-500',
@@ -56,7 +62,7 @@ export function UserManagement() {
   const { squads } = useSquads();
   const { projects } = useProjects();
   const { isTech, isGerente } = useCargo();
-  const { getHiddenTabs, toggleTab, loading: visibilityLoading } = useTabVisibilityManagement();
+  const { getHiddenTabs, setHiddenTabs, toggleTab, loading: visibilityLoading, fetchAllVisibilities } = useTabVisibilityManagement();
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -64,6 +70,7 @@ export function UserManagement() {
   const [configUserId, setConfigUserId] = useState<string | null>(null);
   const [userProjectAccess, setUserProjectAccess] = useState<Record<string, string[]>>({});
   const [isSavingVisibility, setIsSavingVisibility] = useState(false);
+  const [localHiddenTabs, setLocalHiddenTabs] = useState<TabKey[]>([]);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -76,6 +83,14 @@ export function UserManagement() {
 
   const canManage = isTech || isGerente;
   const configUser = users.find(u => u.user_id === configUserId);
+
+  // Atualizar localHiddenTabs quando abre o dialog
+  useEffect(() => {
+    if (configUserId) {
+      const tabs = getHiddenTabs(configUserId);
+      setLocalHiddenTabs(tabs);
+    }
+  }, [configUserId, getHiddenTabs]);
 
   // Fetch user project access
   const fetchUserProjects = useCallback(async (userId: string) => {
@@ -96,16 +111,15 @@ export function UserManagement() {
     }
   }, []);
 
-  // Handle user project access toggle
-  const handleToggleProjectAccess = async (userId: string, projectId: string) => {
+  // Handle user project access toggle (agora em batch)
+  const handleToggleProjectAccess = async (userId: string, projectId: string, checked: boolean) => {
     const currentAccess = userProjectAccess[userId] || [];
-    const hasAccess = currentAccess.includes(projectId);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Não autenticado');
 
-      if (hasAccess) {
+      if (!checked && currentAccess.includes(projectId)) {
         // Remove access
         const { error } = await supabase
           .from('guest_project_access')
@@ -119,8 +133,7 @@ export function UserManagement() {
           ...prev,
           [userId]: currentAccess.filter(id => id !== projectId),
         }));
-        toast.success('Acesso removido');
-      } else {
+      } else if (checked && !currentAccess.includes(projectId)) {
         // Add access
         const { error } = await supabase
           .from('guest_project_access')
@@ -136,24 +149,33 @@ export function UserManagement() {
           ...prev,
           [userId]: [...currentAccess, projectId],
         }));
-        toast.success('Acesso concedido');
       }
+      toast.success(checked ? 'Acesso concedido' : 'Acesso removido');
     } catch (error) {
       console.error('Error toggling project access:', error);
       toast.error('Erro ao atualizar acesso');
     }
   };
 
-  // Handle tab visibility toggle
+  // Handle tab visibility toggle - atualiza localmente primeiro, depois salva
   const handleToggleTab = async (tab: TabKey) => {
     if (!configUserId) return;
     
+    const isCurrentlyHidden = localHiddenTabs.includes(tab);
+    const newHiddenTabs = isCurrentlyHidden 
+      ? localHiddenTabs.filter(t => t !== tab)
+      : [...localHiddenTabs, tab];
+    
+    // Atualiza UI imediatamente
+    setLocalHiddenTabs(newHiddenTabs);
+    
     setIsSavingVisibility(true);
     try {
-      const hiddenTabs = getHiddenTabs(configUserId);
-      await toggleTab(configUserId, tab);
-      toast.success(`Aba "${TAB_LABELS[tab]}" ${hiddenTabs.includes(tab) ? 'liberada' : 'oculta'}`);
+      await setHiddenTabs(configUserId, newHiddenTabs);
+      toast.success(`Aba "${TAB_LABELS[tab]}" ${isCurrentlyHidden ? 'liberada' : 'oculta'}`);
     } catch (error) {
+      // Reverte se der erro
+      setLocalHiddenTabs(localHiddenTabs);
       toast.error('Erro ao atualizar visibilidade');
     } finally {
       setIsSavingVisibility(false);
@@ -232,6 +254,13 @@ export function UserManagement() {
   const openConfigDialog = async (userId: string) => {
     setConfigUserId(userId);
     await fetchUserProjects(userId);
+    // Refetch visibilities to ensure we have the latest
+    await fetchAllVisibilities();
+  };
+
+  const closeConfigDialog = () => {
+    setConfigUserId(null);
+    setLocalHiddenTabs([]);
   };
 
   if (loading) {
@@ -244,7 +273,6 @@ export function UserManagement() {
     );
   }
 
-  const hiddenTabs = configUserId ? getHiddenTabs(configUserId) : [];
   const configUserProjects = configUserId ? (userProjectAccess[configUserId] || []) : [];
   const activeProjects = projects.filter(p => !p.archived);
 
@@ -509,7 +537,7 @@ export function UserManagement() {
       </CardContent>
 
       {/* Config Dialog for visibility and projects */}
-      <Dialog open={!!configUserId} onOpenChange={(open) => !open && setConfigUserId(null)}>
+      <Dialog open={!!configUserId} onOpenChange={(open) => !open && closeConfigDialog()}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -530,32 +558,36 @@ export function UserManagement() {
                   Visibilidade de Abas
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  Desmarque as abas que deseja ocultar para este usuário
+                  Marque as abas que devem ficar <strong>visíveis</strong> para este usuário
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {ALL_TABS.map(tab => {
-                    const isHidden = hiddenTabs.includes(tab);
+                    const isHidden = localHiddenTabs.includes(tab);
+                    const isVisible = !isHidden;
                     return (
                       <div 
                         key={tab}
-                        className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
-                          isHidden ? 'bg-destructive/10 border-destructive/30' : 'bg-card border-border'
+                        className={`flex items-center gap-2 p-2 rounded-lg border transition-colors cursor-pointer ${
+                          isVisible 
+                            ? 'bg-metric-positive/10 border-metric-positive/30' 
+                            : 'bg-destructive/10 border-destructive/30'
                         }`}
+                        onClick={() => !isSavingVisibility && !visibilityLoading && handleToggleTab(tab)}
                       >
                         <Checkbox
                           id={`tab-${tab}`}
-                          checked={!isHidden}
+                          checked={isVisible}
                           disabled={isSavingVisibility || visibilityLoading}
                           onCheckedChange={() => handleToggleTab(tab)}
                         />
                         <Label 
                           htmlFor={`tab-${tab}`}
-                          className={`flex items-center gap-1.5 cursor-pointer text-sm ${isHidden ? 'line-through text-muted-foreground' : ''}`}
+                          className={`flex items-center gap-1.5 cursor-pointer text-sm flex-1 ${!isVisible ? 'line-through text-muted-foreground' : ''}`}
                         >
-                          {isHidden ? (
-                            <EyeOff className="w-3 h-3 text-destructive" />
-                          ) : (
+                          {isVisible ? (
                             <Eye className="w-3 h-3 text-metric-positive" />
+                          ) : (
+                            <EyeOff className="w-3 h-3 text-destructive" />
                           )}
                           {TAB_LABELS[tab]}
                         </Label>
@@ -563,9 +595,15 @@ export function UserManagement() {
                     );
                   })}
                 </div>
+                {isSavingVisibility && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Salvando...
+                  </div>
+                )}
               </div>
 
-              {/* Project Access Section */}
+              {/* Project Access Section - Dropdown */}
               <div className="space-y-3">
                 <h4 className="font-medium flex items-center gap-2">
                   <FolderOpen className="w-4 h-4 text-primary" />
@@ -574,36 +612,71 @@ export function UserManagement() {
                 <p className="text-sm text-muted-foreground">
                   Selecione os projetos que este usuário pode acessar
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                  {activeProjects.map(project => {
-                    const hasAccess = configUserProjects.includes(project.id);
-                    return (
-                      <div 
-                        key={project.id}
-                        className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
-                          hasAccess ? 'bg-metric-positive/10 border-metric-positive/30' : 'bg-card border-border'
-                        }`}
-                      >
-                        <Checkbox
-                          id={`project-${project.id}`}
-                          checked={hasAccess}
-                          onCheckedChange={() => handleToggleProjectAccess(configUserId!, project.id)}
-                        />
-                        <Label 
-                          htmlFor={`project-${project.id}`}
-                          className="flex items-center gap-1.5 cursor-pointer text-sm flex-1"
-                        >
-                          <FolderOpen className={`w-3 h-3 ${hasAccess ? 'text-metric-positive' : 'text-muted-foreground'}`} />
-                          {project.name}
-                        </Label>
+                
+                {/* Dropdown Multi-Select para Projetos */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                      <span className="flex items-center gap-2">
+                        <FolderOpen className="w-4 h-4" />
+                        {configUserProjects.length === 0 
+                          ? 'Selecionar projetos...' 
+                          : `${configUserProjects.length} projeto${configUserProjects.length > 1 ? 's' : ''} selecionado${configUserProjects.length > 1 ? 's' : ''}`
+                        }
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-80 max-h-64 overflow-y-auto">
+                    {activeProjects.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground text-center">
+                        Nenhum projeto disponível
                       </div>
-                    );
-                  })}
-                </div>
-                {activeProjects.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhum projeto disponível
-                  </p>
+                    ) : (
+                      activeProjects.map(project => {
+                        const hasAccess = configUserProjects.includes(project.id);
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={project.id}
+                            checked={hasAccess}
+                            onCheckedChange={(checked) => 
+                              handleToggleProjectAccess(configUserId!, project.id, checked)
+                            }
+                          >
+                            <div className="flex items-center gap-2">
+                              <FolderOpen className={`w-4 h-4 ${hasAccess ? 'text-metric-positive' : 'text-muted-foreground'}`} />
+                              <span>{project.name}</span>
+                            </div>
+                          </DropdownMenuCheckboxItem>
+                        );
+                      })
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Mostrar projetos selecionados como badges */}
+                {configUserProjects.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {configUserProjects.map(projectId => {
+                      const project = activeProjects.find(p => p.id === projectId);
+                      if (!project) return null;
+                      return (
+                        <Badge 
+                          key={projectId} 
+                          variant="secondary"
+                          className="flex items-center gap-1 pl-2"
+                        >
+                          <Check className="w-3 h-3 text-metric-positive" />
+                          {project.name}
+                          <button
+                            onClick={() => handleToggleProjectAccess(configUserId!, projectId, false)}
+                            className="ml-1 hover:bg-destructive/20 rounded p-0.5"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
 
@@ -613,14 +686,14 @@ export function UserManagement() {
                   <li>Tech e Gerente veem todos os projetos automaticamente</li>
                   <li>Coordenadores veem projetos da sua squad</li>
                   <li>Investidores precisam de acesso explícito aos projetos</li>
-                  <li>As abas ocultas não aparecem no menu lateral</li>
+                  <li>As abas <strong>desmarcadas</strong> não aparecem no menu lateral</li>
                 </ul>
               </div>
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfigUserId(null)}>
+            <Button variant="outline" onClick={closeConfigDialog}>
               Fechar
             </Button>
           </DialogFooter>
