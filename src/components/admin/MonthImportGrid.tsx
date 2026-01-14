@@ -548,35 +548,88 @@ function ProjectMonthGrid({ projectId, projectName }: { projectId: string; proje
 
       {/* Action buttons */}
       {(stats.error > 0 || stats.pending > 0) && (
-        <div className="flex flex-wrap items-center gap-3 pt-2">
+        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-border/50">
           {stats.error > 0 && (
-            <Button 
-              variant="destructive" 
-              size="sm"
-              onClick={retryAllFailed}
-              className="gap-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Reimportar {stats.error} {stats.error === 1 ? 'mês com erro' : 'meses com erro'}
-            </Button>
+            <>
+              <span className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500" />
+                {stats.error} {stats.error === 1 ? 'mês com erro' : 'meses com erro'} - Continuar de onde parou:
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  const firstError = Object.values(monthsByYear)
+                    .flat()
+                    .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
+                    .find(m => m.status === 'error');
+                  if (firstError) {
+                    startChainedImport(firstError.year, firstError.month, true);
+                  }
+                }}
+                className="gap-1.5"
+              >
+                <Zap className="w-3 h-3 text-yellow-500" />
+                Continuar Light
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={() => {
+                  const firstError = Object.values(monthsByYear)
+                    .flat()
+                    .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
+                    .find(m => m.status === 'error');
+                  if (firstError) {
+                    startChainedImport(firstError.year, firstError.month, false);
+                  }
+                }}
+                className="gap-1.5"
+              >
+                <Image className="w-3 h-3" />
+                Continuar HD
+              </Button>
+            </>
           )}
-          {stats.pending > 0 && (
-            <Button 
-              variant="default" 
-              size="sm"
-              onClick={() => {
-                const firstPending = Object.values(monthsByYear)
-                  .flat()
-                  .find(m => m.status === 'pending');
-                if (firstPending) {
-                  startChainedImport(firstPending.year, firstPending.month);
-                }
-              }}
-              className="gap-2"
-            >
-              <Zap className="w-4 h-4" />
-              Continuar importação
-            </Button>
+          {stats.error === 0 && stats.pending > 0 && (
+            <>
+              <span className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                <Clock className="w-4 h-4 text-primary" />
+                {stats.pending} {stats.pending === 1 ? 'mês pendente' : 'meses pendentes'}:
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  const firstPending = Object.values(monthsByYear)
+                    .flat()
+                    .find(m => m.status === 'pending');
+                  if (firstPending) {
+                    startChainedImport(firstPending.year, firstPending.month, true);
+                  }
+                }}
+                className="gap-1.5"
+              >
+                <Zap className="w-3 h-3 text-yellow-500" />
+                Continuar Light
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={() => {
+                  const firstPending = Object.values(monthsByYear)
+                    .flat()
+                    .find(m => m.status === 'pending');
+                  if (firstPending) {
+                    startChainedImport(firstPending.year, firstPending.month, false);
+                  }
+                }}
+                className="gap-1.5"
+              >
+                <Image className="w-3 h-3" />
+                Continuar HD
+              </Button>
+            </>
           )}
         </div>
       )}
