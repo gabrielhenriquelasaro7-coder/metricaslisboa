@@ -5,13 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -20,12 +14,22 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { 
   UserPlus, 
   Loader2, 
   Copy, 
   CheckCircle2,
+  FolderOpen,
+  X,
+  Check,
+  ChevronDown,
 } from 'lucide-react';
 
 interface InviteGuestDialogProps {
@@ -55,14 +59,14 @@ export function InviteGuestDialog({
   // Form state
   const [guestEmail, setGuestEmail] = useState('');
   const [guestName, setGuestName] = useState('');
-  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
 
   const activeProjects = projects.filter(p => !p.archived);
 
   // Set preselected project when dialog opens
   useEffect(() => {
     if (open && preselectedProjectId) {
-      setSelectedProjectId(preselectedProjectId);
+      setSelectedProjectIds([preselectedProjectId]);
     }
   }, [open, preselectedProjectId]);
 
@@ -71,13 +75,22 @@ export function InviteGuestDialog({
     if (!open && !showPasswordDialog) {
       setGuestEmail('');
       setGuestName('');
-      setSelectedProjectId(preselectedProjectId || '');
+      setSelectedProjectIds(preselectedProjectId ? [preselectedProjectId] : []);
     }
   }, [open, showPasswordDialog, preselectedProjectId]);
 
+  // Toggle project selection
+  const toggleProjectSelection = (projectId: string) => {
+    setSelectedProjectIds(prev => 
+      prev.includes(projectId)
+        ? prev.filter(id => id !== projectId)
+        : [...prev, projectId]
+    );
+  };
+
   const handleInvite = async () => {
-    if (!guestEmail || !guestName || !selectedProjectId) {
-      toast.error('Preencha todos os campos');
+    if (!guestEmail || !guestName || selectedProjectIds.length === 0) {
+      toast.error('Preencha todos os campos e selecione pelo menos um projeto');
       return;
     }
 
@@ -90,11 +103,13 @@ export function InviteGuestDialog({
 
     setInviting(true);
     try {
+      // Invite to first project and get credentials
+      const firstProjectId = selectedProjectIds[0];
       const response = await supabase.functions.invoke('invite-guest', {
         body: {
           guest_email: guestEmail,
           guest_name: guestName,
-          project_id: selectedProjectId,
+          project_id: firstProjectId,
         },
       });
 
@@ -102,12 +117,31 @@ export function InviteGuestDialog({
         throw new Error(response.error.message);
       }
 
-      const { temp_password, project_name, is_new_user } = response.data;
+      const { temp_password, project_name, is_new_user, guest_user_id } = response.data;
+      
+      // If multiple projects selected, add access to additional projects
+      if (selectedProjectIds.length > 1 && guest_user_id) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          for (let i = 1; i < selectedProjectIds.length; i++) {
+            await supabase.from('guest_project_access').insert({
+              user_id: guest_user_id,
+              project_id: selectedProjectIds[i],
+              granted_by: user.id,
+            });
+          }
+        }
+      }
+      
+      const selectedProjectNames = selectedProjectIds
+        .map(id => activeProjects.find(p => p.id === id)?.name || '')
+        .filter(Boolean)
+        .join(', ');
       
       setGeneratedPassword(temp_password);
       setIsNewUser(is_new_user);
       setInvitedEmail(guestEmail);
-      setInvitedProjectName(project_name);
+      setInvitedProjectName(selectedProjectNames);
       
       // Close invite dialog and show password dialog
       onOpenChange(false);
@@ -116,7 +150,7 @@ export function InviteGuestDialog({
       // Reset form
       setGuestEmail('');
       setGuestName('');
-      setSelectedProjectId(preselectedProjectId || '');
+      setSelectedProjectIds(preselectedProjectId ? [preselectedProjectId] : []);
       
       onSuccess?.();
       
@@ -201,19 +235,70 @@ export function InviteGuestDialog({
             
             {!preselectedProjectId && (
               <div className="space-y-2">
-                <Label>Projeto</Label>
-                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                  <SelectTrigger className="bg-muted/30">
-                    <SelectValue placeholder="Selecione um projeto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeProjects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Projetos</Label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between bg-muted/30">
+                      <span className="flex items-center gap-2">
+                        <FolderOpen className="w-4 h-4" />
+                        {selectedProjectIds.length === 0 
+                          ? 'Selecionar projetos...' 
+                          : `${selectedProjectIds.length} projeto${selectedProjectIds.length > 1 ? 's' : ''} selecionado${selectedProjectIds.length > 1 ? 's' : ''}`
+                        }
+                      </span>
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-80 max-h-64 overflow-y-auto">
+                    {activeProjects.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground text-center">
+                        Nenhum projeto disponível
+                      </div>
+                    ) : (
+                      activeProjects.map((project) => {
+                        const isSelected = selectedProjectIds.includes(project.id);
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={project.id}
+                            checked={isSelected}
+                            onCheckedChange={() => toggleProjectSelection(project.id)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <FolderOpen className={`w-4 h-4 ${isSelected ? 'text-metric-positive' : 'text-muted-foreground'}`} />
+                              <span>{project.name}</span>
+                            </div>
+                          </DropdownMenuCheckboxItem>
+                        );
+                      })
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
+                {/* Mostrar projetos selecionados como badges */}
+                {selectedProjectIds.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedProjectIds.map(projectId => {
+                      const project = activeProjects.find(p => p.id === projectId);
+                      if (!project) return null;
+                      return (
+                        <Badge 
+                          key={projectId} 
+                          variant="secondary"
+                          className="flex items-center gap-1 pl-2"
+                        >
+                          <Check className="w-3 h-3 text-metric-positive" />
+                          {project.name}
+                          <button
+                            onClick={() => toggleProjectSelection(projectId)}
+                            className="ml-1 hover:bg-destructive/20 rounded p-0.5"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
