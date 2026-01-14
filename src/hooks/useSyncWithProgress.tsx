@@ -179,8 +179,26 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
         const cacheKey = timeRange ? `${timeRange.since}_${timeRange.until}` : 'default';
         console.log('Data cached for period:', timeRange || cacheKey);
         
-        // Only show toast if not syncing all periods (to avoid spam)
+        // After metrics sync, fetch HD creatives (even for lightSync - burning fast)
         if (!syncingAllPeriods) {
+          try {
+            console.log('[Sync] Fetching HD creatives after metrics sync...');
+            setProgress({ step: 'saving', message: 'Buscando criativos HD...' });
+            
+            await supabase.functions.invoke('meta-ads-sync', {
+              body: {
+                project_id: projectId,
+                ad_account_id: adAccountId,
+                syncMode: 'creatives', // Fetch HD creatives and cache
+              },
+            });
+            
+            console.log('[Sync] HD creatives fetched and cached');
+          } catch (creativesError) {
+            console.warn('[Sync] Error fetching HD creatives:', creativesError);
+            // Don't fail the sync if creatives fetch fails
+          }
+          
           toast.success(`Sincronizado: ${campaignsCount} campanhas, ${adsetsCount} conjuntos, ${adsCount} anúncios`);
         }
       } else {
