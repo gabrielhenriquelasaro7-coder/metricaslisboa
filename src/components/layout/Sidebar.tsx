@@ -6,8 +6,9 @@ import { useProfile } from '@/hooks/useProfile';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useSidebarCampaigns } from '@/hooks/useSidebarCampaigns';
 import { useTour } from '@/hooks/useTour';
+import { useTabVisibility } from '@/hooks/useTabVisibility';
 import v4LogoFull from '@/assets/v4-logo-full.png';
-import { 
+import {
   LayoutDashboard, 
   FolderKanban, 
   Settings, 
@@ -96,6 +97,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const { isGuest, loading: roleLoading } = useUserRole();
   const { triggerTour } = useTour();
   const { theme, toggleTheme } = useTheme();
+  const { isTabHidden, loading: tabVisibilityLoading } = useTabVisibility();
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   // Only return a project if explicitly selected - never auto-select
   const selectedProject = useMemo(() => {
@@ -457,8 +459,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </TooltipProvider>
             )}
 
-            {/* Histórico de Otimizações */}
-            {selectedProject && (
+            {/* Histórico de Otimizações - respects tab visibility */}
+            {selectedProject && !isTabHidden('suggestions') && (
               <Link
                 to="/optimization-history"
                 className={cn(
@@ -471,8 +473,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </Link>
             )}
 
-            {/* Financeiro - Bloqueado para todos exceto email específico */}
-            {!roleLoading && !isGuest && (
+            {/* Financeiro - respects tab visibility */}
+            {!roleLoading && !isGuest && !isTabHidden('financial') && (
               user?.email === 'gabrielhenriquelasaro7@gmail.com' ? (
                 <Link
                   to="/financeiro"
@@ -531,48 +533,54 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           {/* Divider antes da seção de admin */}
           {!roleLoading && !isGuest && !collapsed && <div className="sidebar-divider mx-3" />}
 
-          {/* Admin & Settings at bottom - Hidden for guests, hidden while loading role */}
+        {/* Admin & Settings at bottom - Hidden for guests, hidden while loading role */}
           {!roleLoading && !isGuest && (
             <div className="space-y-1 mt-2 mb-2">
 
-              {/* Admin - vai para página dedicada do projeto se houver projeto selecionado */}
-              <Link
-                to={selectedProject ? `/project/${selectedProject.id}/admin` : '/admin'}
-                onClick={onNavigate}
-                className={cn(
-                  'sidebar-item',
-                  (location.pathname === '/admin' || 
-                   location.pathname.includes('/admin')) && 'active'
-                )}
-              >
-                <Database className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>Administração</span>}
-              </Link>
+              {/* Admin - vai para página dedicada do projeto se houver projeto selecionado - respects tab visibility */}
+              {!isTabHidden('admin') && (
+                <Link
+                  to={selectedProject ? `/project/${selectedProject.id}/admin` : '/admin'}
+                  onClick={onNavigate}
+                  className={cn(
+                    'sidebar-item',
+                    (location.pathname === '/admin' || 
+                     location.pathname.includes('/admin')) && 'active'
+                  )}
+                >
+                  <Database className="w-5 h-5 flex-shrink-0" />
+                  {!collapsed && <span>Administração</span>}
+                </Link>
+              )}
 
-              {/* Suggestions */}
-              <Link
-                to="/suggestions"
-                onClick={onNavigate}
-                className={cn(
-                  'sidebar-item',
-                  location.pathname === '/suggestions' && 'active'
-                )}
-              >
-                <Lightbulb className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>Sugestões</span>}
-              </Link>
+              {/* Suggestions - respects tab visibility */}
+              {!isTabHidden('suggestions') && (
+                <Link
+                  to="/suggestions"
+                  onClick={onNavigate}
+                  className={cn(
+                    'sidebar-item',
+                    location.pathname === '/suggestions' && 'active'
+                  )}
+                >
+                  <Lightbulb className="w-5 h-5 flex-shrink-0" />
+                  {!collapsed && <span>Sugestões</span>}
+                </Link>
+              )}
 
-              {/* Settings */}
-              <Link
-                to="/settings"
-                className={cn(
-                  'sidebar-item',
-                  location.pathname === '/settings' && 'active'
-                )}
-              >
-                <Settings className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>Configurações</span>}
-              </Link>
+              {/* Settings - respects tab visibility */}
+              {!isTabHidden('settings') && (
+                <Link
+                  to="/settings"
+                  className={cn(
+                    'sidebar-item',
+                    location.pathname === '/settings' && 'active'
+                  )}
+                >
+                  <Settings className="w-5 h-5 flex-shrink-0" />
+                  {!collapsed && <span>Configurações</span>}
+                </Link>
+              )}
             </div>
           )}
 

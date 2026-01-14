@@ -57,6 +57,9 @@ interface UserProjectAccess {
   project_name: string;
 }
 
+// Master email that cannot be modified
+const MASTER_EMAIL = 'gabrielhenriquelasaro7@gmail.com';
+
 export function UserManagement() {
   const { users, loading, createUser, updateUserCargo, updateUserSquad, deleteUser, importUsersFromCSV } = useUserManagement();
   const { squads } = useSquads();
@@ -82,6 +85,9 @@ export function UserManagement() {
   });
 
   const canManage = isTech || isGerente;
+  
+  // Check if a user is the master user (cannot be modified)
+  const isMasterUser = (email: string) => email === MASTER_EMAIL;
   const configUser = users.find(u => u.user_id === configUserId);
 
   // Atualizar localHiddenTabs quando abre o dialog
@@ -433,12 +439,23 @@ export function UserManagement() {
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map(user => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.full_name || '-'}</TableCell>
+                users.map(user => {
+                  const isMaster = isMasterUser(user.email);
+                  return (
+                  <TableRow key={user.id} className={isMaster ? 'bg-primary/5' : ''}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {user.full_name || '-'}
+                        {isMaster && (
+                          <Badge variant="outline" className="border-primary text-primary text-xs">
+                            Master
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      {canManage ? (
+                      {canManage && !isMaster ? (
                         <Select 
                           value={user.cargo} 
                           onValueChange={(v) => updateUserCargo(user.user_id, v as UserCargo)}
@@ -461,7 +478,7 @@ export function UserManagement() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {isGerente || isTech ? (
+                      {(isGerente || isTech) && !isMaster ? (
                         <Select 
                           value={user.squad_id || ''} 
                           onValueChange={(v) => updateUserSquad(user.user_id, v || null)}
@@ -486,7 +503,7 @@ export function UserManagement() {
                     </TableCell>
                     {canManage && (
                       <TableCell className="text-right space-x-1">
-                        {isTech && (
+                        {isTech && !isMaster && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -496,7 +513,7 @@ export function UserManagement() {
                             <Settings2 className="w-4 h-4" />
                           </Button>
                         )}
-                        {(isGerente || isTech) && (
+                        {(isGerente || isTech) && !isMaster && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -510,10 +527,16 @@ export function UserManagement() {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         )}
+                        {isMaster && (
+                          <span className="text-xs text-muted-foreground italic">
+                            Protegido
+                          </span>
+                        )}
                       </TableCell>
                     )}
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>
