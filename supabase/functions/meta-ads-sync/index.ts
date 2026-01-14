@@ -360,13 +360,10 @@ async function syncCreatives(
     const batch = adIds.slice(i, i + batchSize);
     const batchIds = batch.join(',');
     
-    // Update progress for this batch (0-50% range for text phase)
-    const progressPercent = Math.round((batchNumber / totalBatches) * 50);
-    await updateSyncProgress(supabase, projectId, 'creatives', `Textos: batch ${batchNumber}/${totalBatches}`, progressPercent, 100);
-    
-    // QUERY HD OTIMIZADA: fields=thumbnail_url, thumbnail_width=1080, thumbnail_height=1080
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,body,title,call_to_action_type,thumbnail_url,object_story_spec,asset_feed_spec}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
-    console.log(`[CREATIVE-SYNC] Batch ${batchNumber}: fields=thumbnail_url, thumbnail_width=1080, thumbnail_height=1080`);
+    // QUERY HD - Usando picture (HD), image_url e thumbnail_url como fallback
+    // O campo picture retorna a imagem original full resolution
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,body,title,call_to_action_type,picture,image_url,thumbnail_url,object_story_spec,asset_feed_spec}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    console.log(`[CREATIVE-SYNC] Batch ${batchNumber}: fields=picture,image_url,thumbnail_url (HD)`);
     const adsData = await simpleFetch(adsUrl, undefined, 20000);
     
     if (adsData?.error) {
@@ -413,8 +410,24 @@ async function syncCreatives(
       if (!headline && creative.title) headline = creative.title;
       if (!cta && creative.call_to_action_type) cta = creative.call_to_action_type;
       
-      // Thumbnail em HD (1080x1080) - já vem com resolução alta pelos parâmetros
-      if (creative.thumbnail_url) thumbnailUrl = creative.thumbnail_url;
+      // Imagem HD - prioridade: picture (full HD) > image_url > thumbnail_url
+      // O campo "picture" retorna a imagem original em alta resolução
+      if (creative.picture) {
+        thumbnailUrl = creative.picture;
+      } else if (creative.image_url) {
+        thumbnailUrl = creative.image_url;
+      } else if (creative.thumbnail_url) {
+        thumbnailUrl = creative.thumbnail_url;
+      }
+      
+      // Também extrair imagem do object_story_spec se não encontrou
+      if (!thumbnailUrl) {
+        const oss = creative.object_story_spec;
+        if (oss?.link_data?.picture) thumbnailUrl = oss.link_data.picture;
+        else if (oss?.link_data?.image_url) thumbnailUrl = oss.link_data.image_url;
+        else if (oss?.video_data?.picture) thumbnailUrl = oss.video_data.picture;
+        else if (oss?.video_data?.image_url) thumbnailUrl = oss.video_data.image_url;
+      }
       
       // Preparar dados de atualização
       const updateData: any = {
