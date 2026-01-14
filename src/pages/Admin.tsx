@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminPasswordGate from '@/components/admin/AdminPasswordGate';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -79,9 +79,27 @@ function AdminContent() {
   const [logsLoading, setLogsLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ isRunning: false, type: null });
   const [isRunningGapDetection, setIsRunningGapDetection] = useState(false);
+  
+  // Refs para manter sync/import rodando em segundo plano
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const activeProjects = projects.filter(p => !p.archived);
   const selectedProject = activeProjects.find(p => p.id === selectedProjectId);
+
+  // Definir tabs visíveis baseado no cargo
+  // TECH: sync, import, logs, docs (operacional)
+  // GERENTE: users, guests, squads (gestão de pessoas)
+  const techTabs = ['sync', 'import', 'logs', 'docs'];
+  const gerenteTabs = ['users', 'guests', 'squads'];
+  
+  const visibleTabs = isTech 
+    ? [...techTabs, ...gerenteTabs] // Tech vê tudo
+    : isGerente 
+      ? gerenteTabs // Gerente só gestão de pessoas
+      : []; // Outros não veem nada (não deveriam chegar aqui)
+
+  // Determinar tab padrão
+  const defaultTab = isTech ? 'sync' : isGerente ? 'users' : 'users';
 
   // Cron jobs configuration
   const cronJobs: CronJob[] = [
@@ -171,7 +189,7 @@ function AdminContent() {
     }
   }, [projects]);
 
-  // Generic sync function
+  // Generic sync function - roda em segundo plano mesmo mudando de aba
   const runSync = async (syncType: 'campaigns' | 'adsets' | 'ads' | 'creatives') => {
     if (!selectedProjectId || !selectedProject) {
       toast.error('Selecione um projeto primeiro');
@@ -186,7 +204,7 @@ function AdminContent() {
     };
 
     setSyncStatus({ isRunning: true, type: syncType });
-    toast.info(`Sincronizando ${typeLabels[syncType]} de ${selectedProject.name}...`);
+    toast.info(`Sincronizando ${typeLabels[syncType]} de ${selectedProject.name}... (continuará em segundo plano)`);
 
     try {
       const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
@@ -217,7 +235,7 @@ function AdminContent() {
     }
   };
 
-  // Run full sync (all entities)
+  // Run full sync (all entities) - roda em segundo plano
   const runFullSync = async () => {
     if (!selectedProjectId || !selectedProject) {
       toast.error('Selecione um projeto primeiro');
@@ -225,7 +243,7 @@ function AdminContent() {
     }
 
     setSyncStatus({ isRunning: true, type: 'campaigns' });
-    toast.info(`Sincronização completa de ${selectedProject.name}...`);
+    toast.info(`Sincronização completa de ${selectedProject.name}... (continuará em segundo plano)`);
 
     try {
       const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
@@ -295,7 +313,9 @@ function AdminContent() {
               Administração Global
             </h1>
             <p className="text-muted-foreground">
-              Gerenciamento de sincronizações e importações
+              {isTech ? 'Gerenciamento de sincronizações, importações e usuários' : 
+               isGerente ? 'Gerenciamento de usuários, convidados e squads' : 
+               'Painel administrativo'}
             </p>
           </div>
           <div className="flex gap-2">
@@ -320,510 +340,545 @@ function AdminContent() {
           </div>
         </div>
 
-        <Tabs defaultValue="sync" className="space-y-6">
-          <TabsList className="flex flex-wrap gap-1 h-auto p-1 lg:inline-grid lg:grid-cols-7">
-            <TabsTrigger value="sync" className="gap-2">
-              <RefreshCw className="w-4 h-4" />
-              Sincronização
-            </TabsTrigger>
-            <TabsTrigger value="import" className="gap-2">
-              <Activity className="w-4 h-4" />
-              Importação
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-2">
-              <Users className="w-4 h-4" />
-              Usuários
-            </TabsTrigger>
-            <TabsTrigger value="guests" className="gap-2">
-              <UserPlus className="w-4 h-4" />
-              Convidados
-            </TabsTrigger>
-            <TabsTrigger value="squads" className="gap-2">
-              <Building2 className="w-4 h-4" />
-              Squads
-            </TabsTrigger>
-            <TabsTrigger value="logs" className="gap-2">
-              <Clock className="w-4 h-4" />
-              Histórico
-            </TabsTrigger>
-            <TabsTrigger value="docs" className="gap-2">
-              <FileText className="w-4 h-4" />
-              Docs
-            </TabsTrigger>
+        <Tabs defaultValue={defaultTab} className="space-y-6">
+          <TabsList className="flex flex-wrap gap-1 h-auto p-1">
+            {/* TECH tabs - Operacional */}
+            {visibleTabs.includes('sync') && (
+              <TabsTrigger value="sync" className="gap-2">
+                <RefreshCw className="w-4 h-4" />
+                Sincronização
+              </TabsTrigger>
+            )}
+            {visibleTabs.includes('import') && (
+              <TabsTrigger value="import" className="gap-2">
+                <Activity className="w-4 h-4" />
+                Importação
+              </TabsTrigger>
+            )}
+            {visibleTabs.includes('logs') && (
+              <TabsTrigger value="logs" className="gap-2">
+                <Clock className="w-4 h-4" />
+                Histórico
+              </TabsTrigger>
+            )}
+            {visibleTabs.includes('docs') && (
+              <TabsTrigger value="docs" className="gap-2">
+                <FileText className="w-4 h-4" />
+                Docs
+              </TabsTrigger>
+            )}
+            
+            {/* GERENTE tabs - Gestão de Pessoas */}
+            {visibleTabs.includes('users') && (
+              <TabsTrigger value="users" className="gap-2">
+                <Users className="w-4 h-4" />
+                Usuários
+              </TabsTrigger>
+            )}
+            {visibleTabs.includes('guests') && (
+              <TabsTrigger value="guests" className="gap-2">
+                <UserPlus className="w-4 h-4" />
+                Convidados
+              </TabsTrigger>
+            )}
+            {visibleTabs.includes('squads') && (
+              <TabsTrigger value="squads" className="gap-2">
+                <Building2 className="w-4 h-4" />
+                Squads
+              </TabsTrigger>
+            )}
           </TabsList>
 
-          {/* SYNC TAB */}
-          <TabsContent value="sync" className="space-y-6">
-            {/* Sync Health Monitor */}
-            <SyncHealthMonitor projects={activeProjects} />
+          {/* SYNC TAB - TECH only */}
+          {visibleTabs.includes('sync') && (
+            <TabsContent value="sync" className="space-y-6">
+              {/* Sync Health Monitor */}
+              <SyncHealthMonitor projects={activeProjects} />
 
-            {/* Main Sync Card */}
-            <Card className="glass-card border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <RefreshCw className="w-5 h-5 text-primary" />
-                  Sincronização Meta Ads
-                </CardTitle>
-                <CardDescription>
-                  Sincronize campanhas, conjuntos, anúncios e criativos com a Meta Ads API (últimos 90 dias)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Project Selection */}
-                <div className="space-y-2">
-                  <Label>Selecione o Projeto</Label>
-                  <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Escolha um projeto para sincronizar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeProjects.map(project => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name} ({project.ad_account_id})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              {/* Main Sync Card */}
+              <Card className="glass-card border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <RefreshCw className="w-5 h-5 text-primary" />
+                    Sincronização Meta Ads
+                  </CardTitle>
+                  <CardDescription>
+                    Sincronize campanhas, conjuntos, anúncios e criativos com a Meta Ads API (últimos 90 dias).
+                    <span className="block mt-1 text-metric-positive">✓ Sync continua rodando mesmo ao mudar de aba</span>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Project Selection */}
+                  <div className="space-y-2">
+                    <Label>Selecione o Projeto</Label>
+                    <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Escolha um projeto para sincronizar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeProjects.map(project => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.name} ({project.ad_account_id})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                {/* Full Sync Button */}
-                <Button
-                  onClick={runFullSync}
-                  disabled={!selectedProjectId || syncStatus.isRunning}
-                  className="w-full gap-2"
-                  size="lg"
-                >
-                  {syncStatus.isRunning ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Sincronizando...
-                    </>
+                  {/* Full Sync Button */}
+                  <Button
+                    onClick={runFullSync}
+                    disabled={!selectedProjectId || syncStatus.isRunning}
+                    className="w-full gap-2"
+                    size="lg"
+                  >
+                    {syncStatus.isRunning ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Sincronizando...
+                      </>
+                    ) : (
+                      <>
+                        <PlayCircle className="w-5 h-5" />
+                        Sync Completo (Tudo)
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Divider */}
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">ou sincronize individualmente</span>
+                    </div>
+                  </div>
+
+                  {/* Individual Sync Buttons */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Campaigns */}
+                    <Button
+                      variant="outline"
+                      onClick={() => runSync('campaigns')}
+                      disabled={!selectedProjectId || syncStatus.isRunning}
+                      className="h-auto py-4 flex flex-col items-center gap-2"
+                    >
+                      {syncStatus.isRunning && syncStatus.type === 'campaigns' ? (
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      ) : (
+                        <Megaphone className="w-6 h-6 text-primary" />
+                      )}
+                      <span className="text-sm font-medium">Campanhas</span>
+                      <span className="text-xs text-muted-foreground">Status e métricas</span>
+                    </Button>
+
+                    {/* Ad Sets */}
+                    <Button
+                      variant="outline"
+                      onClick={() => runSync('adsets')}
+                      disabled={!selectedProjectId || syncStatus.isRunning}
+                      className="h-auto py-4 flex flex-col items-center gap-2"
+                    >
+                      {syncStatus.isRunning && syncStatus.type === 'adsets' ? (
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      ) : (
+                        <Layers className="w-6 h-6 text-primary" />
+                      )}
+                      <span className="text-sm font-medium">Conjuntos</span>
+                      <span className="text-xs text-muted-foreground">Ad Sets</span>
+                    </Button>
+
+                    {/* Ads */}
+                    <Button
+                      variant="outline"
+                      onClick={() => runSync('ads')}
+                      disabled={!selectedProjectId || syncStatus.isRunning}
+                      className="h-auto py-4 flex flex-col items-center gap-2"
+                    >
+                      {syncStatus.isRunning && syncStatus.type === 'ads' ? (
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      ) : (
+                        <Activity className="w-6 h-6 text-primary" />
+                      )}
+                      <span className="text-sm font-medium">Anúncios</span>
+                      <span className="text-xs text-muted-foreground">Ads</span>
+                    </Button>
+
+                    {/* Creatives */}
+                    <Button
+                      variant="outline"
+                      onClick={() => runSync('creatives')}
+                      disabled={!selectedProjectId || syncStatus.isRunning}
+                      className="h-auto py-4 flex flex-col items-center gap-2"
+                    >
+                      {syncStatus.isRunning && syncStatus.type === 'creatives' ? (
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      ) : (
+                        <Image className="w-6 h-6 text-primary" />
+                      )}
+                      <span className="text-sm font-medium">Criativos</span>
+                      <span className="text-xs text-muted-foreground">Imagens/Vídeos</span>
+                    </Button>
+                  </div>
+
+                  {/* Info */}
+                  <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
+                    <p className="font-medium mb-2">💡 Dica:</p>
+                    <ul className="space-y-1 list-disc list-inside">
+                      <li><strong>Sync Completo:</strong> Sincroniza tudo de uma vez (recomendado)</li>
+                      <li><strong>Campanhas:</strong> Atualiza status e métricas das campanhas</li>
+                      <li><strong>Conjuntos:</strong> Atualiza ad sets (segmentação, orçamento)</li>
+                      <li><strong>Anúncios:</strong> Atualiza anúncios individuais</li>
+                      <li><strong>Criativos:</strong> Sincroniza imagens e vídeos dos anúncios</li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Sync History Chart */}
+              <SyncHistoryChart showProjectSelector={true} />
+
+              {/* Stats Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="glass-card">
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-primary">
+                        {activeProjects.length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Projetos Ativos</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="glass-card">
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-metric-positive">
+                        {syncLogs.filter(l => l.status === 'success').length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Syncs Bem-Sucedidos</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="glass-card">
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-destructive">
+                        {syncLogs.filter(l => l.status === 'error').length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Syncs com Erro</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Gap Detection */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Search className="w-5 h-5" />
+                        Detecção de Gaps
+                      </CardTitle>
+                      <CardDescription>
+                        Verifica todos os projetos buscando períodos sem dados (gaps ≥3 dias) e reimporta automaticamente.
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={runGapDetection}
+                      disabled={isRunningGapDetection}
+                      className="gap-2"
+                    >
+                      {isRunningGapDetection ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Detectando...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4" />
+                          Executar Agora
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                    <h4 className="font-medium text-sm">Como funciona:</h4>
+                    <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                      <li>Escaneia todos os projetos ativos buscando dias sem dados</li>
+                      <li>Identifica gaps de 3+ dias consecutivos</li>
+                      <li>Para cada gap encontrado, chama a Meta Ads API e importa os dados</li>
+                      <li>Se a API retorna 0 registros, significa que não havia campanhas ativas</li>
+                    </ol>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Cron Jobs Status */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Timer className="w-5 h-5" />
+                    Tarefas Agendadas (Cron Jobs)
+                  </CardTitle>
+                  <CardDescription>
+                    Processos automáticos que rodam em intervalos definidos para manter os dados sincronizados.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {cronJobs.map((job) => (
+                    <Card key={job.jobname} className="bg-card/50">
+                      <CardContent className="py-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-1">
+                              <CheckCircle2 className="w-5 h-5 text-metric-positive" />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold">{job.jobname}</h4>
+                                <Badge variant="outline" className="text-xs">
+                                  {parseCronSchedule(job.schedule)}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {job.description}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant="default" className="shrink-0">
+                            Ativo
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* IMPORT TAB - TECH only */}
+          {visibleTabs.includes('import') && (
+            <TabsContent value="import" className="space-y-6">
+              <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground mb-4">
+                <span className="text-metric-positive font-medium">✓ Importações continuam rodando mesmo ao mudar de aba</span>
+              </div>
+              {/* Month Import Grid */}
+              <MonthImportGrid projects={activeProjects} />
+            </TabsContent>
+          )}
+
+          {/* USERS TAB - GERENTE + TECH */}
+          {visibleTabs.includes('users') && (
+            <TabsContent value="users" className="space-y-6">
+              <UserManagement />
+            </TabsContent>
+          )}
+
+          {/* SQUADS TAB - GERENTE + TECH */}
+          {visibleTabs.includes('squads') && (
+            <TabsContent value="squads" className="space-y-6">
+              <SquadsManagement />
+            </TabsContent>
+          )}
+
+          {/* GUESTS TAB - GERENTE + TECH */}
+          {visibleTabs.includes('guests') && (
+            <TabsContent value="guests" className="space-y-6">
+              <GuestsManagement />
+            </TabsContent>
+          )}
+
+
+          {/* LOGS TAB - TECH only */}
+          {visibleTabs.includes('logs') && (
+            <TabsContent value="logs" className="space-y-6">
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    Histórico de Sincronizações
+                  </CardTitle>
+                  <CardDescription>
+                    Últimas 50 execuções de sincronização.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {logsLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                  ) : syncLogs.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>Nenhum log encontrado</p>
+                    </div>
                   ) : (
-                    <>
-                      <PlayCircle className="w-5 h-5" />
-                      Sync Completo (Tudo)
-                    </>
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                      {syncLogs.map((log) => {
+                        let parsedMessage: any = {};
+                        try {
+                          parsedMessage = JSON.parse(log.message || '{}');
+                        } catch {
+                          parsedMessage = { raw: log.message };
+                        }
+
+                        return (
+                          <div 
+                            key={log.id} 
+                            className="flex items-start gap-3 p-3 rounded-lg bg-card/50 border border-border/50"
+                          >
+                            <div className="mt-0.5">
+                              {log.status === 'success' ? (
+                                <CheckCircle2 className="w-4 h-4 text-metric-positive" />
+                              ) : log.status === 'error' ? (
+                                <XCircle className="w-4 h-4 text-destructive" />
+                              ) : log.status === 'partial' ? (
+                                <AlertTriangle className="w-4 h-4 text-metric-warning" />
+                              ) : (
+                                <Clock className="w-4 h-4 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-sm">{log.project_name}</span>
+                                {getLogTypeBadge(log.type || 'sync', log.status)}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {parsedMessage.daily_records !== undefined && (
+                                  <span className="mr-3">
+                                    📊 {parsedMessage.daily_records} registros
+                                  </span>
+                                )}
+                                {parsedMessage.elapsed && (
+                                  <span className="mr-3">
+                                    ⏱️ {parsedMessage.elapsed}
+                                  </span>
+                                )}
+                                {parsedMessage.error && (
+                                  <span className="text-destructive">
+                                    ❌ {parsedMessage.error}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground shrink-0">
+                              {formatDateTime(log.created_at)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
-                </Button>
-
-                {/* Divider */}
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">ou sincronize individualmente</span>
-                  </div>
-                </div>
-
-                {/* Individual Sync Buttons */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {/* Campaigns */}
-                  <Button
-                    variant="outline"
-                    onClick={() => runSync('campaigns')}
-                    disabled={!selectedProjectId || syncStatus.isRunning}
-                    className="h-auto py-4 flex flex-col items-center gap-2"
-                  >
-                    {syncStatus.isRunning && syncStatus.type === 'campaigns' ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                    ) : (
-                      <Megaphone className="w-6 h-6 text-primary" />
-                    )}
-                    <span className="text-sm font-medium">Campanhas</span>
-                    <span className="text-xs text-muted-foreground">Status e métricas</span>
-                  </Button>
-
-                  {/* Ad Sets */}
-                  <Button
-                    variant="outline"
-                    onClick={() => runSync('adsets')}
-                    disabled={!selectedProjectId || syncStatus.isRunning}
-                    className="h-auto py-4 flex flex-col items-center gap-2"
-                  >
-                    {syncStatus.isRunning && syncStatus.type === 'adsets' ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                    ) : (
-                      <Layers className="w-6 h-6 text-primary" />
-                    )}
-                    <span className="text-sm font-medium">Conjuntos</span>
-                    <span className="text-xs text-muted-foreground">Ad Sets</span>
-                  </Button>
-
-                  {/* Ads */}
-                  <Button
-                    variant="outline"
-                    onClick={() => runSync('ads')}
-                    disabled={!selectedProjectId || syncStatus.isRunning}
-                    className="h-auto py-4 flex flex-col items-center gap-2"
-                  >
-                    {syncStatus.isRunning && syncStatus.type === 'ads' ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                    ) : (
-                      <Activity className="w-6 h-6 text-primary" />
-                    )}
-                    <span className="text-sm font-medium">Anúncios</span>
-                    <span className="text-xs text-muted-foreground">Ads</span>
-                  </Button>
-
-                  {/* Creatives */}
-                  <Button
-                    variant="outline"
-                    onClick={() => runSync('creatives')}
-                    disabled={!selectedProjectId || syncStatus.isRunning}
-                    className="h-auto py-4 flex flex-col items-center gap-2"
-                  >
-                    {syncStatus.isRunning && syncStatus.type === 'creatives' ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                    ) : (
-                      <Image className="w-6 h-6 text-primary" />
-                    )}
-                    <span className="text-sm font-medium">Criativos</span>
-                    <span className="text-xs text-muted-foreground">Imagens/Vídeos</span>
-                  </Button>
-                </div>
-
-                {/* Info */}
-                <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
-                  <p className="font-medium mb-2">💡 Dica:</p>
-                  <ul className="space-y-1 list-disc list-inside">
-                    <li><strong>Sync Completo:</strong> Sincroniza tudo de uma vez (recomendado)</li>
-                    <li><strong>Campanhas:</strong> Atualiza status e métricas das campanhas</li>
-                    <li><strong>Conjuntos:</strong> Atualiza ad sets (segmentação, orçamento)</li>
-                    <li><strong>Anúncios:</strong> Atualiza anúncios individuais</li>
-                    <li><strong>Criativos:</strong> Sincroniza imagens e vídeos dos anúncios</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Sync History Chart */}
-            <SyncHistoryChart showProjectSelector={true} />
-
-            {/* Stats Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="glass-card">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-primary">
-                      {activeProjects.length}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Projetos Ativos</p>
-                  </div>
                 </CardContent>
               </Card>
-              <Card className="glass-card">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-metric-positive">
-                      {syncLogs.filter(l => l.status === 'success').length}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Syncs Bem-Sucedidos</p>
+            </TabsContent>
+          )}
+
+          {/* DOCUMENTATION TAB - TECH only */}
+          {visibleTabs.includes('docs') && (
+            <TabsContent value="docs" className="space-y-6">
+              <Card className="glass-card border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    Documentação do Sistema
+                  </CardTitle>
+                  <CardDescription>
+                    Gere um documento completo com toda a estrutura, fluxos, endpoints, queries e regras de funcionamento do sistema.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                    <h4 className="font-medium text-sm">O documento inclui:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>✓ Visão geral e arquitetura do sistema</li>
+                      <li>✓ Estrutura completa de pastas e componentes</li>
+                      <li>✓ Todas as tabelas do banco de dados</li>
+                      <li>✓ Todos os endpoints (Edge Functions)</li>
+                      <li>✓ Todos os hooks customizados</li>
+                      <li>✓ Todas as páginas da aplicação</li>
+                      <li>✓ Fluxo completo de sincronização</li>
+                      <li>✓ Regras de negócio e cálculos</li>
+                      <li>✓ Configurações de segurança</li>
+                      <li>✓ Integrações externas</li>
+                      <li>✓ Guia de troubleshooting</li>
+                    </ul>
                   </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Button
+                      onClick={() => {
+                        downloadDocumentationAsPdf();
+                        toast.success('Documentação PDF gerada com sucesso!');
+                      }}
+                      className="gap-2 flex-1"
+                      size="lg"
+                    >
+                      <Download className="w-5 h-5" />
+                      Baixar como PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        downloadDocumentationAsTxt();
+                        toast.success('Documentação TXT gerada com sucesso!');
+                      }}
+                      className="gap-2 flex-1"
+                      size="lg"
+                    >
+                      <FileText className="w-5 h-5" />
+                      Baixar como TXT
+                    </Button>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground text-center">
+                    A documentação é gerada com base na estrutura atual do sistema.
+                  </p>
                 </CardContent>
               </Card>
-              <Card className="glass-card">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-destructive">
-                      {syncLogs.filter(l => l.status === 'error').length}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Syncs com Erro</p>
+
+              {/* Export Data Card */}
+              <Card className="glass-card border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Database className="w-5 h-5 text-primary" />
+                    Exportar Dados do Sistema
+                  </CardTitle>
+                  <CardDescription>
+                    Exporte todos os dados do banco de dados em formato JSON para backup ou migração.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                    <h4 className="font-medium text-sm">A exportação inclui:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>✓ Todos os projetos e configurações</li>
+                      <li>✓ Campanhas, Conjuntos e Anúncios</li>
+                      <li>✓ Métricas diárias (Meta e Google)</li>
+                      <li>✓ Leads e formulários</li>
+                      <li>✓ Conexões CRM e deals</li>
+                      <li>✓ Histórico de otimizações</li>
+                      <li>✓ Configurações de metas</li>
+                      <li>✓ Insights demográficos</li>
+                      <li>✓ Histórico DRE</li>
+                    </ul>
                   </div>
+
+                  <ExportDataButton />
+
+                  <p className="text-xs text-muted-foreground text-center">
+                    ⚠️ A exportação pode demorar alguns minutos dependendo do volume de dados.
+                  </p>
                 </CardContent>
               </Card>
-            </div>
-
-            {/* Gap Detection */}
-            <Card className="glass-card">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Search className="w-5 h-5" />
-                      Detecção de Gaps
-                    </CardTitle>
-                    <CardDescription>
-                      Verifica todos os projetos buscando períodos sem dados (gaps ≥3 dias) e reimporta automaticamente.
-                    </CardDescription>
-                  </div>
-                  <Button
-                    onClick={runGapDetection}
-                    disabled={isRunningGapDetection}
-                    className="gap-2"
-                  >
-                    {isRunningGapDetection ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Detectando...
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="w-4 h-4" />
-                        Executar Agora
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <h4 className="font-medium text-sm">Como funciona:</h4>
-                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                    <li>Escaneia todos os projetos ativos buscando dias sem dados</li>
-                    <li>Identifica gaps de 3+ dias consecutivos</li>
-                    <li>Para cada gap encontrado, chama a Meta Ads API e importa os dados</li>
-                    <li>Se a API retorna 0 registros, significa que não havia campanhas ativas</li>
-                  </ol>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Cron Jobs Status */}
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Timer className="w-5 h-5" />
-                  Tarefas Agendadas (Cron Jobs)
-                </CardTitle>
-                <CardDescription>
-                  Processos automáticos que rodam em intervalos definidos para manter os dados sincronizados.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {cronJobs.map((job) => (
-                  <Card key={job.jobname} className="bg-card/50">
-                    <CardContent className="py-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                          <div className="mt-1">
-                            <CheckCircle2 className="w-5 h-5 text-metric-positive" />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold">{job.jobname}</h4>
-                              <Badge variant="outline" className="text-xs">
-                                {parseCronSchedule(job.schedule)}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {job.description}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge variant="default" className="shrink-0">
-                          Ativo
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* IMPORT TAB */}
-          <TabsContent value="import" className="space-y-6">
-            {/* Month Import Grid */}
-            <MonthImportGrid projects={activeProjects} />
-          </TabsContent>
-
-          {/* USERS TAB */}
-          <TabsContent value="users" className="space-y-6">
-            <UserManagement />
-          </TabsContent>
-
-          {/* SQUADS TAB */}
-          <TabsContent value="squads" className="space-y-6">
-            <SquadsManagement />
-          </TabsContent>
-
-          {/* GUESTS TAB */}
-          <TabsContent value="guests" className="space-y-6">
-            <GuestsManagement />
-          </TabsContent>
-
-
-          {/* LOGS TAB */}
-          <TabsContent value="logs" className="space-y-6">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Histórico de Sincronizações
-                </CardTitle>
-                <CardDescription>
-                  Últimas 50 execuções de sincronização.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {logsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  </div>
-                ) : syncLogs.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhum log encontrado</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                    {syncLogs.map((log) => {
-                      let parsedMessage: any = {};
-                      try {
-                        parsedMessage = JSON.parse(log.message || '{}');
-                      } catch {
-                        parsedMessage = { raw: log.message };
-                      }
-
-                      return (
-                        <div 
-                          key={log.id} 
-                          className="flex items-start gap-3 p-3 rounded-lg bg-card/50 border border-border/50"
-                        >
-                          <div className="mt-0.5">
-                            {log.status === 'success' ? (
-                              <CheckCircle2 className="w-4 h-4 text-metric-positive" />
-                            ) : log.status === 'error' ? (
-                              <XCircle className="w-4 h-4 text-destructive" />
-                            ) : log.status === 'partial' ? (
-                              <AlertTriangle className="w-4 h-4 text-metric-warning" />
-                            ) : (
-                              <Clock className="w-4 h-4 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm">{log.project_name}</span>
-                              {getLogTypeBadge(log.type || 'sync', log.status)}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {parsedMessage.daily_records !== undefined && (
-                                <span className="mr-3">
-                                  📊 {parsedMessage.daily_records} registros
-                                </span>
-                              )}
-                              {parsedMessage.elapsed && (
-                                <span className="mr-3">
-                                  ⏱️ {parsedMessage.elapsed}
-                                </span>
-                              )}
-                              {parsedMessage.error && (
-                                <span className="text-destructive">
-                                  ❌ {parsedMessage.error}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-xs text-muted-foreground shrink-0">
-                            {formatDateTime(log.created_at)}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* DOCUMENTATION TAB */}
-          <TabsContent value="docs" className="space-y-6">
-            <Card className="glass-card border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
-                  Documentação do Sistema
-                </CardTitle>
-                <CardDescription>
-                  Gere um documento completo com toda a estrutura, fluxos, endpoints, queries e regras de funcionamento do sistema.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                  <h4 className="font-medium text-sm">O documento inclui:</h4>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>✓ Visão geral e arquitetura do sistema</li>
-                    <li>✓ Estrutura completa de pastas e componentes</li>
-                    <li>✓ Todas as tabelas do banco de dados</li>
-                    <li>✓ Todos os endpoints (Edge Functions)</li>
-                    <li>✓ Todos os hooks customizados</li>
-                    <li>✓ Todas as páginas da aplicação</li>
-                    <li>✓ Fluxo completo de sincronização</li>
-                    <li>✓ Regras de negócio e cálculos</li>
-                    <li>✓ Configurações de segurança</li>
-                    <li>✓ Integrações externas</li>
-                    <li>✓ Guia de troubleshooting</li>
-                  </ul>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Button
-                    onClick={() => {
-                      downloadDocumentationAsPdf();
-                      toast.success('Documentação PDF gerada com sucesso!');
-                    }}
-                    className="gap-2 flex-1"
-                    size="lg"
-                  >
-                    <Download className="w-5 h-5" />
-                    Baixar como PDF
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      downloadDocumentationAsTxt();
-                      toast.success('Documentação TXT gerada com sucesso!');
-                    }}
-                    className="gap-2 flex-1"
-                    size="lg"
-                  >
-                    <FileText className="w-5 h-5" />
-                    Baixar como TXT
-                  </Button>
-                </div>
-
-                <p className="text-xs text-muted-foreground text-center">
-                  A documentação é gerada com base na estrutura atual do sistema.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Export Data Card */}
-            <Card className="glass-card border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="w-5 h-5 text-primary" />
-                  Exportar Dados do Sistema
-                </CardTitle>
-                <CardDescription>
-                  Exporte todos os dados do banco de dados em formato JSON para backup ou migração.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                  <h4 className="font-medium text-sm">A exportação inclui:</h4>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>✓ Todos os projetos e configurações</li>
-                    <li>✓ Campanhas, Conjuntos e Anúncios</li>
-                    <li>✓ Métricas diárias (Meta e Google)</li>
-                    <li>✓ Leads e formulários</li>
-                    <li>✓ Conexões CRM e deals</li>
-                    <li>✓ Histórico de otimizações</li>
-                    <li>✓ Configurações de metas</li>
-                    <li>✓ Insights demográficos</li>
-                    <li>✓ Histórico DRE</li>
-                  </ul>
-                </div>
-
-                <ExportDataButton />
-
-                <p className="text-xs text-muted-foreground text-center">
-                  ⚠️ A exportação pode demorar alguns minutos dependendo do volume de dados.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>
