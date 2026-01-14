@@ -153,6 +153,42 @@ export type Database = {
           },
         ]
       }
+      admin_access_requests: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ads: {
         Row: {
           ad_set_id: string
@@ -2003,8 +2039,10 @@ export type Database = {
           google_customer_id: string | null
           health_score: string | null
           id: string
+          investidor_id: string | null
           last_sync_at: string | null
           name: string
+          squad_id: string | null
           sync_progress: Json | null
           timezone: string
           updated_at: string
@@ -2026,8 +2064,10 @@ export type Database = {
           google_customer_id?: string | null
           health_score?: string | null
           id?: string
+          investidor_id?: string | null
           last_sync_at?: string | null
           name: string
+          squad_id?: string | null
           sync_progress?: Json | null
           timezone?: string
           updated_at?: string
@@ -2049,13 +2089,79 @@ export type Database = {
           google_customer_id?: string | null
           health_score?: string | null
           id?: string
+          investidor_id?: string | null
           last_sync_at?: string | null
           name?: string
+          squad_id?: string | null
           sync_progress?: Json | null
           timezone?: string
           updated_at?: string
           user_id?: string
           webhook_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_squad_id_fkey"
+            columns: ["squad_id"]
+            isOneToOne: false
+            referencedRelation: "squads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      squad_members: {
+        Row: {
+          created_at: string
+          id: string
+          squad_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          squad_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          squad_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "squad_members_squad_id_fkey"
+            columns: ["squad_id"]
+            isOneToOne: false
+            referencedRelation: "squads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      squads: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2220,18 +2326,21 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          cargo: Database["public"]["Enums"]["user_cargo_v2"] | null
           created_at: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          cargo?: Database["public"]["Enums"]["user_cargo_v2"] | null
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          cargo?: Database["public"]["Enums"]["user_cargo_v2"] | null
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
@@ -2617,6 +2726,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_see_all_projects: { Args: { _user_id: string }; Returns: boolean }
+      can_view_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      get_user_cargo: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["user_cargo_v2"]
+      }
+      get_user_squad_ids: { Args: { _user_id: string }; Returns: string[] }
+      has_cargo: {
+        Args: {
+          _cargo: Database["public"]["Enums"]["user_cargo_v2"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2658,6 +2784,12 @@ export type Database = {
         | "account_manager"
         | "coordenador"
         | "gerente"
+      user_cargo_v2:
+        | "tech"
+        | "gerente"
+        | "coordenador"
+        | "investidor"
+        | "membro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2816,6 +2948,7 @@ export const Constants = {
         "coordenador",
         "gerente",
       ],
+      user_cargo_v2: ["tech", "gerente", "coordenador", "investidor", "membro"],
     },
   },
 } as const
