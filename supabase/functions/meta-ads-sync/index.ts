@@ -429,6 +429,17 @@ async function syncCreatives(
         else if (oss?.video_data?.image_url) thumbnailUrl = oss.video_data.image_url;
       }
       
+      // LIMPAR URL - remover parâmetros de resize forçado (p64x64, etc)
+      if (thumbnailUrl) {
+        thumbnailUrl = thumbnailUrl.replace(/[&?]stp=[^&]*/gi, '');
+        thumbnailUrl = thumbnailUrl.replace(/\/p\d+x\d+\//g, '/');
+        thumbnailUrl = thumbnailUrl.replace(/\/s\d+x\d+\//g, '/');
+        if (thumbnailUrl.includes('&') && !thumbnailUrl.includes('?')) {
+          thumbnailUrl = thumbnailUrl.replace('&', '?');
+        }
+        thumbnailUrl = thumbnailUrl.replace(/[&?]$/g, '');
+      }
+      
       // Preparar dados de atualização
       const updateData: any = {
         creative_id: creative.id || null,
@@ -574,10 +585,10 @@ async function syncHDImages(
     
     await updateSyncProgress(supabase, projectId, 'hd_images', `Buscando URLs HD: ${batchNumber}/${totalBatches}`, 10 + Math.round((batchNumber / totalBatches) * 40), 100);
     
-    // QUERY PRINCIPAL: Usar thumbnail_url com thumbnail_width=1080 e thumbnail_height=1080
-    // INCLUI effective_object_story_id e object_story_spec como fallbacks
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,thumbnail_url,effective_object_story_id,object_story_spec}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
-    console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: Fetching with thumbnail_width=1080, thumbnail_height=1080`);
+    // QUERY HD - Buscar diretamente os creative_ids para obter imagens em alta resolução
+    // Usamos thumbnail_url + picture + image_url e limpamos parâmetros de resize
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,thumbnail_url,picture,image_url,object_story_spec,effective_object_story_id}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: Fetching HD (picture,thumbnail_url,image_url)`);
     const adsData = await simpleFetch(adsUrl, undefined, 30000);
     
     if (adsData?.error) {
@@ -593,12 +604,22 @@ async function syncHDImages(
       const creative = adData.creative;
       let bestUrl: string | null = null;
       
-      // 1. PRINCIPAL: thumbnail_url com resolução HD (já vem com 1080x1080 pelos parâmetros)
-      if (creative.thumbnail_url) {
+      // 1. PRIORIDADE: picture (retorna imagem full size)
+      if (creative.picture) {
+        bestUrl = creative.picture;
+      }
+      
+      // 2. image_url (também full size)
+      if (!bestUrl && creative.image_url) {
+        bestUrl = creative.image_url;
+      }
+      
+      // 3. thumbnail_url (com parâmetros HD)
+      if (!bestUrl && creative.thumbnail_url) {
         bestUrl = creative.thumbnail_url;
       }
       
-      // 2. Fallback: Tentar buscar imagem do post original (mais estável para videos)
+      // 4. Fallback: Tentar buscar imagem do post original
       if (!bestUrl && creative.effective_object_story_id) {
         try {
           const storyUrl = `https://graph.facebook.com/v22.0/${creative.effective_object_story_id}?fields=full_picture,picture&access_token=${token}`;
@@ -611,19 +632,35 @@ async function syncHDImages(
         }
       }
       
-      // 3. Fallback: object_story_spec pode ter URLs de imagem
+      // 5. Fallback: object_story_spec pode ter URLs de imagem
       if (!bestUrl && creative.object_story_spec) {
         const oss = creative.object_story_spec;
         if (oss.link_data?.picture) {
           bestUrl = oss.link_data.picture;
+        } else if (oss.link_data?.image_url) {
+          bestUrl = oss.link_data.image_url;
         } else if (oss.video_data?.image_url) {
           bestUrl = oss.video_data.image_url;
+        } else if (oss.video_data?.picture) {
+          bestUrl = oss.video_data.picture;
         } else if (oss.photo_data?.images?.[0]?.url) {
           bestUrl = oss.photo_data.images[0].url;
         }
       }
       
+      // LIMPAR URL - remover parâmetros de resize forçado (p64x64, etc)
       if (bestUrl) {
+        // Remove stp= parameter que força resize pequeno
+        bestUrl = bestUrl.replace(/[&?]stp=[^&]*/gi, '');
+        // Remove size parameters no path
+        bestUrl = bestUrl.replace(/\/p\d+x\d+\//g, '/');
+        bestUrl = bestUrl.replace(/\/s\d+x\d+\//g, '/');
+        // Corrigir URL malformada
+        if (bestUrl.includes('&') && !bestUrl.includes('?')) {
+          bestUrl = bestUrl.replace('&', '?');
+        }
+        bestUrl = bestUrl.replace(/[&?]$/g, '');
+        
         adToUrlMap.set(adId, bestUrl);
       }
     }
