@@ -31,6 +31,8 @@ export interface Project {
   avatar_url: string | null;
   google_customer_id: string | null;
   facebook_page_id: string | null;
+  investidor_id: string | null;
+  squad_id: string | null;
 }
 
 export interface CreateProjectData {
@@ -42,6 +44,8 @@ export interface CreateProjectData {
   health_score?: HealthScore;
   avatar_url?: string | null;
   google_customer_id?: string | null;
+  investidor_id?: string | null;
+  squad_id?: string | null;
 }
 
 export function useProjects() {

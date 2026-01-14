@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects, Project, CreateProjectData, HealthScore, BusinessModel } from '@/hooks/useProjects';
 import { useProfile, UserCargo } from '@/hooks/useProfile';
+import { useCargo } from '@/hooks/useCargo';
+import { useSquads } from '@/hooks/useSquads';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Users, Store, Loader2, LogOut, Archive, Trash2, User, RefreshCw, ChevronRight, ChevronDown, MoreVertical, Pencil, ArchiveRestore, Camera, Lock, Search, Target, GraduationCap, TrendingUp, MessageSquare, ExternalLink, UserPlus, Settings, Sun, Moon, Shield, Zap, Image, Clock, Sparkles } from 'lucide-react';
+import { Plus, Users, Store, Loader2, LogOut, Archive, Trash2, User, RefreshCw, ChevronRight, ChevronDown, MoreVertical, Pencil, ArchiveRestore, Camera, Lock, Search, Target, GraduationCap, TrendingUp, MessageSquare, ExternalLink, UserPlus, Settings, Sun, Moon, Shield, Zap, Image, Clock, Sparkles, Building } from 'lucide-react';
 import { DialogDescription } from '@/components/ui/dialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -324,7 +326,29 @@ export default function ProjectSelector() {
   const {
     isGuest
   } = useUserRole();
+  const { cargo, isTech, isGerente, isCoordenador, isInvestidor, userSquads } = useCargo();
+  const { squads } = useSquads();
   const navigate = useNavigate();
+
+  // Investidores e coordenadores para atribuição
+  const [investidores, setInvestidores] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+  const [coordenadores, setCoordenadores] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+
+  useEffect(() => {
+    const fetchPeople = async () => {
+      const { data } = await supabase
+        .from('user_management')
+        .select('id, full_name, email, cargo')
+        .in('cargo', ['investidor', 'coordenador'])
+        .order('full_name');
+      
+      if (data) {
+        setInvestidores(data.filter(u => u.cargo === 'investidor'));
+        setCoordenadores(data.filter(u => u.cargo === 'coordenador'));
+      }
+    };
+    fetchPeople();
+  }, []);
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -371,7 +395,12 @@ export default function ProjectSelector() {
       setProfileAvatarPreview(profile.avatar_url);
     }
   }, [profile]);
-  const [formData, setFormData] = useState<CreateProjectData>({
+
+  // Form data with new fields
+  const [formData, setFormData] = useState<CreateProjectData & { 
+    investidor_id?: string | null; 
+    squad_id?: string | null;
+  }>({
     name: '',
     ad_account_id: '',
     business_model: 'ecommerce',
@@ -379,7 +408,9 @@ export default function ProjectSelector() {
     currency: 'BRL',
     health_score: null,
     avatar_url: null,
-    google_customer_id: ''
+    google_customer_id: '',
+    investidor_id: null,
+    squad_id: null,
   });
   const [editFormData, setEditFormData] = useState<{
     name: string;
@@ -389,6 +420,8 @@ export default function ProjectSelector() {
     currency: string;
     health_score: HealthScore | null;
     avatar_url: string | null;
+    investidor_id?: string | null;
+    squad_id?: string | null;
   }>({
     name: '',
     ad_account_id: '',
@@ -396,7 +429,9 @@ export default function ProjectSelector() {
     timezone: 'America/Sao_Paulo',
     currency: 'BRL',
     health_score: null,
-    avatar_url: null
+    avatar_url: null,
+    investidor_id: null,
+    squad_id: null,
   });
   useEffect(() => {
     if (!authLoading && !user) {
@@ -458,7 +493,9 @@ export default function ProjectSelector() {
           timezone: 'America/Sao_Paulo',
           currency: 'BRL',
           health_score: null,
-          avatar_url: null
+          avatar_url: null,
+          investidor_id: null,
+          squad_id: null,
         });
         setAvatarPreview(null);
       }
@@ -546,7 +583,9 @@ export default function ProjectSelector() {
       timezone: project.timezone,
       currency: project.currency,
       health_score: project.health_score,
-      avatar_url: project.avatar_url
+      avatar_url: project.avatar_url,
+      investidor_id: project.investidor_id || null,
+      squad_id: project.squad_id || null,
     });
     setEditAvatarPreview(project.avatar_url);
     setEditDialogOpen(true);
@@ -915,6 +954,76 @@ export default function ProjectSelector() {
                           </Select>
                         </div>
 
+                        {/* Health Score - somente tech e gerente podem definir */}
+                        {(isTech || isGerente) && (
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground text-xs">Health Score</Label>
+                            <Select value={formData.health_score || 'none'} onValueChange={val => setFormData(prev => ({
+                              ...prev,
+                              health_score: val === 'none' ? null : val as HealthScore
+                            }))}>
+                              <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 touch-target">
+                                <SelectValue placeholder="Selecione..." />
+                              </SelectTrigger>
+                              <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50">
+                                <SelectItem value="none" className="text-muted-foreground rounded-lg">Sem status</SelectItem>
+                                <SelectItem value="safe" className="text-emerald-500 rounded-lg">Safe</SelectItem>
+                                <SelectItem value="care" className="text-amber-500 rounded-lg">Care</SelectItem>
+                                <SelectItem value="danger" className="text-red-500 rounded-lg">Danger</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {/* Investidor - somente tech/gerente/coordenador podem atribuir */}
+                        {(isTech || isGerente || isCoordenador) && (
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground text-xs">Investidor</Label>
+                            <Select value={formData.investidor_id || 'none'} onValueChange={val => setFormData(prev => ({
+                              ...prev,
+                              investidor_id: val === 'none' ? null : val
+                            }))}>
+                              <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 touch-target">
+                                <SelectValue placeholder="Selecione o investidor..." />
+                              </SelectTrigger>
+                              <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50 max-h-60">
+                                <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhum</SelectItem>
+                                {investidores.map(inv => (
+                                  <SelectItem key={inv.id} value={inv.id} className="text-foreground rounded-lg">
+                                    {inv.full_name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {/* Squad - tech/gerente podem atribuir qualquer, coordenador só a dele */}
+                        {(isTech || isGerente || isCoordenador) && (
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground text-xs">Squad</Label>
+                            <Select value={formData.squad_id || 'none'} onValueChange={val => setFormData(prev => ({
+                              ...prev,
+                              squad_id: val === 'none' ? null : val
+                            }))}>
+                              <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 touch-target">
+                                <SelectValue placeholder="Selecione a squad..." />
+                              </SelectTrigger>
+                              <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50 max-h-60">
+                                <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhuma</SelectItem>
+                                {(isCoordenador ? userSquads : squads).map(squad => (
+                                  <SelectItem key={squad.id} value={squad.id} className="text-foreground rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: squad.color }} />
+                                      {squad.name}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-2">
                             <Label className="text-muted-foreground text-xs">Fuso Horário</Label>
@@ -1051,6 +1160,55 @@ export default function ProjectSelector() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Investidor */}
+            {(isTech || isGerente || isCoordenador) && (
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs">Investidor</Label>
+                <Select value={editFormData.investidor_id || 'none'} onValueChange={val => setEditFormData(prev => ({
+                  ...prev,
+                  investidor_id: val === 'none' ? null : val
+                }))}>
+                  <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
+                    <SelectValue placeholder="Selecione o investidor..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border rounded-xl max-h-60">
+                    <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhum</SelectItem>
+                    {investidores.map(inv => (
+                      <SelectItem key={inv.id} value={inv.id} className="text-foreground rounded-lg">
+                        {inv.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Squad */}
+            {(isTech || isGerente || isCoordenador) && (
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs">Squad</Label>
+                <Select value={editFormData.squad_id || 'none'} onValueChange={val => setEditFormData(prev => ({
+                  ...prev,
+                  squad_id: val === 'none' ? null : val
+                }))}>
+                  <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
+                    <SelectValue placeholder="Selecione a squad..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border rounded-xl max-h-60">
+                    <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhuma</SelectItem>
+                    {(isCoordenador ? userSquads : squads).map(squad => (
+                      <SelectItem key={squad.id} value={squad.id} className="text-foreground rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: squad.color }} />
+                          {squad.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="flex gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} className="flex-1 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl">
