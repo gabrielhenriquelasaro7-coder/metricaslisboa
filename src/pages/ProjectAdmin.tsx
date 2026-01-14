@@ -311,9 +311,25 @@ export default function ProjectAdmin() {
 
   // Batch sync for all pending HD images
   const handleBatchImageSync = async () => {
-    if (!id || !project || !imageStats) return;
+    if (!id || !project) {
+      toast.error('Projeto não encontrado');
+      return;
+    }
     
-    const pendingImages = imageStats.pendingAds;
+    // Re-fetch stats before starting to get fresh data
+    const { count: totalAds } = await supabase
+      .from('ads')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', id);
+    
+    const { count: cachedAds } = await supabase
+      .from('ads')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', id)
+      .not('cached_image_url', 'is', null);
+    
+    const pendingImages = (totalAds || 0) - (cachedAds || 0);
+    
     if (pendingImages === 0) {
       toast.info('Todas as imagens já estão cacheadas!');
       return;
