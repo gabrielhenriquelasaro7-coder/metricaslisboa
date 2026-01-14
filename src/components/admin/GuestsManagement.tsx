@@ -37,7 +37,15 @@ interface GuestAccess {
   created_at: string;
 }
 
-const DEFAULT_PASSWORD = 'V4Lisboa2024!';
+// Generate random password for each guest
+const generateRandomPassword = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
+  let password = '';
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
 
 export function GuestsManagement() {
   const { projects } = useProjects();
@@ -127,6 +135,9 @@ export function GuestsManagement() {
         return;
       }
 
+      // Generate unique password for this guest
+      const tempPassword = generateRandomPassword();
+
       // Create invitations for each project
       for (const projectId of formData.project_ids) {
         const { error } = await supabase
@@ -134,7 +145,7 @@ export function GuestsManagement() {
           .insert({
             guest_name: formData.guest_name,
             guest_email: formData.guest_email,
-            temp_password: DEFAULT_PASSWORD,
+            temp_password: tempPassword,
             project_id: projectId,
             invited_by: user.id,
             status: 'pending',
@@ -144,7 +155,7 @@ export function GuestsManagement() {
         if (error) throw error;
       }
 
-      toast.success('Convite criado! Senha padrão: ' + DEFAULT_PASSWORD);
+      toast.success(`Convite criado! Senha: ${tempPassword}`);
       setFormData({ guest_name: '', guest_email: '', project_ids: [] });
       setIsDialogOpen(false);
       fetchData();
@@ -312,7 +323,7 @@ export function GuestsManagement() {
                     <div className="p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center gap-2 text-sm">
                         <Shield className="w-4 h-4 text-primary" />
-                        <span>Senha padrão: <code className="font-mono bg-background px-2 py-0.5 rounded">{DEFAULT_PASSWORD}</code></span>
+                        <span>Uma senha única e aleatória será gerada automaticamente para o convidado</span>
                       </div>
                     </div>
                   </div>

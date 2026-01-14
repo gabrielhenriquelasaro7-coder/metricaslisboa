@@ -18,9 +18,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Plus, MoreVertical, Pencil, Trash2, UserPlus, Loader2 } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Users, Plus, MoreVertical, Pencil, Trash2, Loader2, ChevronDown, User, Mail, Shield } from 'lucide-react';
 import { useSquads, Squad, SquadMemberWithProfile } from '@/hooks/useSquads';
-import { useCargo } from '@/hooks/useCargo';
+import { useCargo, UserCargo } from '@/hooks/useCargo';
 import { cn } from '@/lib/utils';
 
 const colorOptions = [
@@ -34,8 +39,24 @@ const colorOptions = [
   { value: '#6B7280', label: 'Cinza' },
 ];
 
+const CARGO_COLORS: Record<UserCargo, string> = {
+  tech: 'bg-blue-500',
+  gerente: 'bg-red-500',
+  coordenador: 'bg-yellow-500',
+  investidor: 'bg-green-500',
+  membro: 'bg-gray-500',
+};
+
+const CARGO_LABELS: Record<UserCargo, string> = {
+  tech: 'Tech',
+  gerente: 'Gerente',
+  coordenador: 'Coordenador',
+  investidor: 'Investidor',
+  membro: 'Membro',
+};
+
 export function SquadsManagement() {
-  const { squads, loading, createSquad, updateSquad, deleteSquad, getSquadMembers } = useSquads();
+  const { squads, loading, createSquad, updateSquad, deleteSquad, getSquadMembers, refetch } = useSquads();
   const { canManageSquads } = useCargo();
   
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -43,6 +64,7 @@ export function SquadsManagement() {
   const [selectedSquad, setSelectedSquad] = useState<Squad | null>(null);
   const [squadMembers, setSquadMembers] = useState<Record<string, SquadMemberWithProfile[]>>({});
   const [loadingMembers, setLoadingMembers] = useState<string | null>(null);
+  const [expandedSquads, setExpandedSquads] = useState<Record<string, boolean>>({});
   
   const [formData, setFormData] = useState({
     name: '',
@@ -52,14 +74,24 @@ export function SquadsManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadSquadMembers = async (squadId: string) => {
-    if (squadMembers[squadId]) return;
+    if (squadMembers[squadId]) return squadMembers[squadId];
     
     setLoadingMembers(squadId);
     try {
       const members = await getSquadMembers(squadId);
       setSquadMembers(prev => ({ ...prev, [squadId]: members }));
+      return members;
     } finally {
       setLoadingMembers(null);
+    }
+  };
+
+  const toggleSquadExpanded = async (squadId: string) => {
+    const isExpanding = !expandedSquads[squadId];
+    setExpandedSquads(prev => ({ ...prev, [squadId]: isExpanding }));
+    
+    if (isExpanding) {
+      await loadSquadMembers(squadId);
     }
   };
 
@@ -110,6 +142,9 @@ export function SquadsManagement() {
     setEditDialogOpen(true);
   };
 
+  // Filter out S/SQUAD from display list (it's a placeholder for "no squad")
+  const displaySquads = squads.filter(s => s.name !== 'S/SQUAD');
+
   if (!canManageSquads) {
     return null;
   }
@@ -138,7 +173,7 @@ export function SquadsManagement() {
               <DialogHeader>
                 <DialogTitle>Criar Squad</DialogTitle>
                 <DialogDescription>
-                  Crie uma nova squad para agrupar projetos
+                  Crie uma nova squad para agrupar membros
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-4">
@@ -206,66 +241,119 @@ export function SquadsManagement() {
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ) : squads.length === 0 ? (
+        ) : displaySquads.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
             <p>Nenhuma squad criada</p>
           </div>
         ) : (
           <div className="grid gap-3">
-            {squads.map((squad) => (
-              <div
+            {displaySquads.map((squad) => (
+              <Collapsible
                 key={squad.id}
-                className="p-4 border rounded-lg bg-card hover:bg-secondary/30 transition-colors"
-                onMouseEnter={() => loadSquadMembers(squad.id)}
+                open={expandedSquads[squad.id]}
+                onOpenChange={() => toggleSquadExpanded(squad.id)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: squad.color }}
-                    />
-                    <div>
-                      <h4 className="font-medium">{squad.name}</h4>
-                      {squad.description && (
-                        <p className="text-sm text-muted-foreground">
-                          {squad.description}
+                <div className="border rounded-lg bg-card overflow-hidden">
+                  <CollapsibleTrigger asChild>
+                    <div className="p-4 hover:bg-secondary/30 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: squad.color }}
+                          />
+                          <div>
+                            <h4 className="font-medium">{squad.name}</h4>
+                            {squad.description && (
+                              <p className="text-sm text-muted-foreground">
+                                {squad.description}
+                              </p>
+                            )}
+                          </div>
+                          <Badge variant="secondary" className="ml-2">
+                            {squad.member_count || 0} membros
+                          </Badge>
+                          <ChevronDown className={cn(
+                            "w-4 h-4 text-muted-foreground transition-transform",
+                            expandedSquads[squad.id] && "rotate-180"
+                          )} />
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditDialog(squad);
+                              }}
+                              className="gap-2"
+                            >
+                              <Pencil className="w-4 h-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(squad);
+                              }}
+                              className="gap-2 text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="px-4 pb-4 border-t">
+                      {loadingMembers === squad.id ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        </div>
+                      ) : squadMembers[squad.id]?.length ? (
+                        <div className="space-y-2 mt-3">
+                          {squadMembers[squad.id].map(member => (
+                            <div 
+                              key={member.id} 
+                              className="flex items-center justify-between p-2 rounded-md bg-muted/50"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <User className="w-4 h-4 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">{member.user_name}</p>
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <Mail className="w-3 h-3" />
+                                    {member.user_email}
+                                  </p>
+                                </div>
+                              </div>
+                              {member.cargo && (
+                                <Badge className={cn("text-white", CARGO_COLORS[member.cargo as UserCargo] || 'bg-gray-500')}>
+                                  <Shield className="w-3 h-3 mr-1" />
+                                  {CARGO_LABELS[member.cargo as UserCargo] || member.cargo}
+                                </Badge>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                          Nenhum membro nesta squad
                         </p>
                       )}
                     </div>
-                    <Badge variant="secondary" className="ml-2">
-                      {loadingMembers === squad.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        `${squadMembers[squad.id]?.length || 0} membros`
-                      )}
-                    </Badge>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => openEditDialog(squad)}
-                        className="gap-2"
-                      >
-                        <Pencil className="w-4 h-4" />
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleDelete(squad)}
-                        className="gap-2 text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Excluir
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  </CollapsibleContent>
                 </div>
-              </div>
+              </Collapsible>
             ))}
           </div>
         )}
