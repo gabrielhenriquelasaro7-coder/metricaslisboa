@@ -10,6 +10,7 @@ export interface Squad {
   color: string;
   created_at: string;
   updated_at: string;
+  member_count?: number;
 }
 
 export interface SquadMemberWithProfile {
@@ -19,6 +20,7 @@ export interface SquadMemberWithProfile {
   created_at: string;
   user_email?: string;
   user_name?: string;
+  cargo?: string;
 }
 
 export function useSquads() {
@@ -34,13 +36,36 @@ export function useSquads() {
     }
 
     try {
-      const { data, error } = await supabase
+      // Fetch squads
+      const { data: squadsData, error: squadsError } = await supabase
         .from('squads')
         .select('*')
         .order('name');
 
-      if (error) throw error;
-      setSquads(data || []);
+      if (squadsError) throw squadsError;
+
+      // Fetch member counts from user_management
+      const { data: memberCounts, error: countError } = await supabase
+        .from('user_management')
+        .select('squad_id');
+
+      if (countError) throw countError;
+
+      // Count members per squad
+      const countMap = (memberCounts || []).reduce((acc, row) => {
+        if (row.squad_id) {
+          acc[row.squad_id] = (acc[row.squad_id] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Enrich squads with member counts
+      const enrichedSquads = (squadsData || []).map(squad => ({
+        ...squad,
+        member_count: countMap[squad.id] || 0,
+      }));
+
+      setSquads(enrichedSquads);
     } catch (error) {
       console.error('Error fetching squads:', error);
       toast.error('Erro ao carregar squads');
@@ -67,7 +92,7 @@ export function useSquads() {
 
       if (error) throw error;
 
-      setSquads(prev => [...prev, data]);
+      setSquads(prev => [...prev, { ...data, member_count: 0 }]);
       toast.success('Squad criada!');
       return data;
     } catch (error: any) {
@@ -156,35 +181,25 @@ export function useSquads() {
     }
   };
 
+  // Get squad members from user_management table
   const getSquadMembers = async (squadId: string): Promise<SquadMemberWithProfile[]> => {
     try {
       const { data, error } = await supabase
-        .from('squad_members')
-        .select(`
-          id,
-          user_id,
-          squad_id,
-          created_at
-        `)
+        .from('user_management')
+        .select('id, user_id, full_name, email, cargo, squad_id, created_at')
         .eq('squad_id', squadId);
 
       if (error) throw error;
 
-      // Fetch profiles for members
-      if (data && data.length > 0) {
-        const userIds = data.map(m => m.user_id);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', userIds);
-
-        return data.map(member => ({
-          ...member,
-          user_name: profiles?.find(p => p.user_id === member.user_id)?.full_name || 'Sem nome',
-        }));
-      }
-
-      return data || [];
+      return (data || []).map(member => ({
+        id: member.id,
+        user_id: member.user_id,
+        squad_id: member.squad_id,
+        created_at: member.created_at,
+        user_name: member.full_name || 'Sem nome',
+        user_email: member.email,
+        cargo: member.cargo,
+      }));
     } catch (error) {
       console.error('Error fetching squad members:', error);
       return [];

@@ -1,16 +1,20 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useUserManagement, ManagedUser, CSVUserData } from '@/hooks/useUserManagement';
 import { useSquads } from '@/hooks/useSquads';
 import { useCargo, UserCargo } from '@/hooks/useCargo';
+import { useProjects } from '@/hooks/useProjects';
+import { useTabVisibilityManagement, TabKey, TAB_LABELS } from '@/hooks/useTabVisibility';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Users, Plus, Upload, Pencil, Trash2, Shield, Building2 } from 'lucide-react';
+import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const CARGO_COLORS: Record<UserCargo, string> = {
@@ -29,15 +33,37 @@ const CARGO_LABELS: Record<UserCargo, string> = {
   membro: 'Membro',
 };
 
+const ALL_TABS: TabKey[] = [
+  'dashboard',
+  'campaigns',
+  'creatives',
+  'ai-assistant',
+  'predictive',
+  'suggestions',
+  'whatsapp',
+  'financial',
+  'settings',
+  'admin',
+];
+
+interface UserProjectAccess {
+  project_id: string;
+  project_name: string;
+}
+
 export function UserManagement() {
   const { users, loading, createUser, updateUserCargo, updateUserSquad, deleteUser, importUsersFromCSV } = useUserManagement();
   const { squads } = useSquads();
+  const { projects } = useProjects();
   const { isTech, isGerente } = useCargo();
+  const { getHiddenTabs, toggleTab, loading: visibilityLoading } = useTabVisibilityManagement();
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [configUserId, setConfigUserId] = useState<string | null>(null);
+  const [userProjectAccess, setUserProjectAccess] = useState<Record<string, string[]>>({});
+  const [isSavingVisibility, setIsSavingVisibility] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -49,6 +75,90 @@ export function UserManagement() {
   });
 
   const canManage = isTech || isGerente;
+  const configUser = users.find(u => u.user_id === configUserId);
+
+  // Fetch user project access
+  const fetchUserProjects = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('guest_project_access')
+        .select('project_id')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      
+      setUserProjectAccess(prev => ({
+        ...prev,
+        [userId]: (data || []).map(d => d.project_id),
+      }));
+    } catch (error) {
+      console.error('Error fetching user projects:', error);
+    }
+  }, []);
+
+  // Handle user project access toggle
+  const handleToggleProjectAccess = async (userId: string, projectId: string) => {
+    const currentAccess = userProjectAccess[userId] || [];
+    const hasAccess = currentAccess.includes(projectId);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Não autenticado');
+
+      if (hasAccess) {
+        // Remove access
+        const { error } = await supabase
+          .from('guest_project_access')
+          .delete()
+          .eq('user_id', userId)
+          .eq('project_id', projectId);
+
+        if (error) throw error;
+
+        setUserProjectAccess(prev => ({
+          ...prev,
+          [userId]: currentAccess.filter(id => id !== projectId),
+        }));
+        toast.success('Acesso removido');
+      } else {
+        // Add access
+        const { error } = await supabase
+          .from('guest_project_access')
+          .insert({
+            user_id: userId,
+            project_id: projectId,
+            granted_by: user.id,
+          });
+
+        if (error) throw error;
+
+        setUserProjectAccess(prev => ({
+          ...prev,
+          [userId]: [...currentAccess, projectId],
+        }));
+        toast.success('Acesso concedido');
+      }
+    } catch (error) {
+      console.error('Error toggling project access:', error);
+      toast.error('Erro ao atualizar acesso');
+    }
+  };
+
+  // Handle tab visibility toggle
+  const handleToggleTab = async (tab: TabKey) => {
+    if (!configUserId) return;
+    
+    setIsSavingVisibility(true);
+    try {
+      const hiddenTabs = getHiddenTabs(configUserId);
+      await toggleTab(configUserId, tab);
+      toast.success(`Aba "${TAB_LABELS[tab]}" ${hiddenTabs.includes(tab) ? 'liberada' : 'oculta'}`);
+    } catch (error) {
+      toast.error('Erro ao atualizar visibilidade');
+    } finally {
+      setIsSavingVisibility(false);
+    }
+  };
 
   const handleCreateUser = async () => {
     if (!formData.email) {
@@ -119,6 +229,11 @@ export function UserManagement() {
     }
   };
 
+  const openConfigDialog = async (userId: string) => {
+    setConfigUserId(userId);
+    await fetchUserProjects(userId);
+  };
+
   if (loading) {
     return (
       <Card className="glass-card">
@@ -128,6 +243,10 @@ export function UserManagement() {
       </Card>
     );
   }
+
+  const hiddenTabs = configUserId ? getHiddenTabs(configUserId) : [];
+  const configUserProjects = configUserId ? (userProjectAccess[configUserId] || []) : [];
+  const activeProjects = projects.filter(p => !p.archived);
 
   return (
     <Card className="glass-card">
@@ -139,7 +258,7 @@ export function UserManagement() {
               Gestão de Usuários
             </CardTitle>
             <CardDescription>
-              Gerencie usuários, cargos e squads
+              Gerencie usuários, cargos, squads, projetos e visibilidade de abas
             </CardDescription>
           </div>
           
@@ -243,7 +362,7 @@ export function UserManagement() {
                           <SelectValue placeholder="Selecione uma squad" />
                         </SelectTrigger>
                         <SelectContent>
-                          {squads.map(squad => (
+                          {squads.filter(s => s.name !== 'S/SQUAD').map(squad => (
                             <SelectItem key={squad.id} value={squad.id}>
                               {squad.name}
                             </SelectItem>
@@ -314,7 +433,7 @@ export function UserManagement() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {isGerente ? (
+                      {isGerente || isTech ? (
                         <Select 
                           value={user.squad_id || ''} 
                           onValueChange={(v) => updateUserSquad(user.user_id, v || null)}
@@ -323,7 +442,7 @@ export function UserManagement() {
                             <SelectValue placeholder="Sem squad" />
                           </SelectTrigger>
                           <SelectContent>
-                            {squads.map(squad => (
+                            {squads.filter(s => s.name !== 'S/SQUAD').map(squad => (
                               <SelectItem key={squad.id} value={squad.id}>
                                 {squad.name}
                               </SelectItem>
@@ -338,8 +457,18 @@ export function UserManagement() {
                       )}
                     </TableCell>
                     {canManage && (
-                      <TableCell className="text-right">
-                        {isGerente && (
+                      <TableCell className="text-right space-x-1">
+                        {isTech && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openConfigDialog(user.user_id)}
+                            title="Configurar visibilidade e projetos"
+                          >
+                            <Settings2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {(isGerente || isTech) && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -378,6 +507,125 @@ export function UserManagement() {
           })}
         </div>
       </CardContent>
+
+      {/* Config Dialog for visibility and projects */}
+      <Dialog open={!!configUserId} onOpenChange={(open) => !open && setConfigUserId(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 className="w-5 h-5 text-primary" />
+              Configurar Usuário
+            </DialogTitle>
+            <DialogDescription>
+              {configUser ? `${configUser.full_name || configUser.email} - ${CARGO_LABELS[configUser.cargo]}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          {configUser && (
+            <div className="space-y-6 py-4">
+              {/* Tab Visibility Section */}
+              <div className="space-y-3">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-primary" />
+                  Visibilidade de Abas
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Desmarque as abas que deseja ocultar para este usuário
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {ALL_TABS.map(tab => {
+                    const isHidden = hiddenTabs.includes(tab);
+                    return (
+                      <div 
+                        key={tab}
+                        className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
+                          isHidden ? 'bg-destructive/10 border-destructive/30' : 'bg-card border-border'
+                        }`}
+                      >
+                        <Checkbox
+                          id={`tab-${tab}`}
+                          checked={!isHidden}
+                          disabled={isSavingVisibility || visibilityLoading}
+                          onCheckedChange={() => handleToggleTab(tab)}
+                        />
+                        <Label 
+                          htmlFor={`tab-${tab}`}
+                          className={`flex items-center gap-1.5 cursor-pointer text-sm ${isHidden ? 'line-through text-muted-foreground' : ''}`}
+                        >
+                          {isHidden ? (
+                            <EyeOff className="w-3 h-3 text-destructive" />
+                          ) : (
+                            <Eye className="w-3 h-3 text-metric-positive" />
+                          )}
+                          {TAB_LABELS[tab]}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Project Access Section */}
+              <div className="space-y-3">
+                <h4 className="font-medium flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4 text-primary" />
+                  Acesso a Projetos
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Selecione os projetos que este usuário pode acessar
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                  {activeProjects.map(project => {
+                    const hasAccess = configUserProjects.includes(project.id);
+                    return (
+                      <div 
+                        key={project.id}
+                        className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
+                          hasAccess ? 'bg-metric-positive/10 border-metric-positive/30' : 'bg-card border-border'
+                        }`}
+                      >
+                        <Checkbox
+                          id={`project-${project.id}`}
+                          checked={hasAccess}
+                          onCheckedChange={() => handleToggleProjectAccess(configUserId!, project.id)}
+                        />
+                        <Label 
+                          htmlFor={`project-${project.id}`}
+                          className="flex items-center gap-1.5 cursor-pointer text-sm flex-1"
+                        >
+                          <FolderOpen className={`w-3 h-3 ${hasAccess ? 'text-metric-positive' : 'text-muted-foreground'}`} />
+                          {project.name}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </div>
+                {activeProjects.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhum projeto disponível
+                  </p>
+                )}
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
+                <p className="font-medium mb-1">💡 Informações:</p>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li>Tech e Gerente veem todos os projetos automaticamente</li>
+                  <li>Coordenadores veem projetos da sua squad</li>
+                  <li>Investidores precisam de acesso explícito aos projetos</li>
+                  <li>As abas ocultas não aparecem no menu lateral</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfigUserId(null)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
