@@ -52,25 +52,6 @@ const CRM_OPTIONS: CRMOption[] = [
     requiresUrl: true,
     urlPlaceholder: 'suaempresa'
   },
-  {
-    id: 'hubspot',
-    name: 'HubSpot',
-    description: 'Plataforma completa de marketing e vendas',
-    color: 'bg-orange-500',
-    badge: 'recommended',
-    features: ['CRM gratuito', 'Marketing', 'Sales'],
-    authType: 'oauth'
-  },
-  {
-    id: 'bitrix24',
-    name: 'Bitrix24',
-    description: 'Suite de colaboração com CRM integrado',
-    color: 'bg-cyan-500',
-    features: ['Colaboração', 'Projetos', 'Telefonia'],
-    authType: 'api_key',
-    requiresUrl: true,
-    urlPlaceholder: 'suaempresa.bitrix24.com.br'
-  },
 ];
 
 interface CRMConnectionCardProps {
