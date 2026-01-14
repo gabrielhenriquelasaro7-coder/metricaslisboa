@@ -1964,6 +1964,35 @@ export type Database = {
           },
         ]
       }
+      project_investidores: {
+        Row: {
+          created_at: string | null
+          id: string
+          investidor_id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          investidor_id: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          investidor_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_investidores_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_metric_config: {
         Row: {
           chart_primary_metric: string | null
