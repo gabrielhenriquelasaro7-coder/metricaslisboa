@@ -44,7 +44,7 @@ export interface CreateProjectData {
   health_score?: HealthScore;
   avatar_url?: string | null;
   google_customer_id?: string | null;
-  investidor_id?: string | null;
+  investidor_ids?: string[];
   squad_id?: string | null;
 }
 
@@ -204,17 +204,32 @@ export function useProjects() {
     if (!user) throw new Error('Usuário não autenticado');
 
     try {
+      // Extract investidor_ids before creating project
+      const { investidor_ids, ...projectData } = data;
+      
       const { data: project, error } = await supabase
         .from('projects')
         .insert({
           user_id: user.id,
-          ...data,
+          ...projectData,
           sync_progress: { status: 'idle', progress: 0, message: 'Aguardando seleção do tipo de importação...', started_at: null },
         })
         .select()
         .single();
 
       if (error) throw error;
+
+      // Insert investidores if provided
+      if (investidor_ids && investidor_ids.length > 0) {
+        const investidorRecords = investidor_ids.map(investidor_id => ({
+          project_id: project.id,
+          investidor_id,
+        }));
+        
+        await supabase
+          .from('project_investidores')
+          .insert(investidorRecords);
+      }
 
       // Trigger webhook for synchronization
       try {
@@ -288,18 +303,42 @@ export function useProjects() {
     }
   };
 
-  const updateProject = async (id: string, data: Partial<CreateProjectData>) => {
+  const updateProject = async (id: string, data: Partial<CreateProjectData> & { investidor_ids?: string[] }) => {
     try {
+      // Extract investidor_ids before updating
+      const { investidor_ids, ...projectData } = data;
+      
       const { error } = await supabase
         .from('projects')
-        .update(data)
+        .update(projectData)
         .eq('id', id);
 
       if (error) throw error;
 
+      // Update investidores if provided
+      if (investidor_ids !== undefined) {
+        // Delete existing
+        await supabase
+          .from('project_investidores')
+          .delete()
+          .eq('project_id', id);
+        
+        // Insert new
+        if (investidor_ids.length > 0) {
+          const investidorRecords = investidor_ids.map(investidor_id => ({
+            project_id: id,
+            investidor_id,
+          }));
+          
+          await supabase
+            .from('project_investidores')
+            .insert(investidorRecords);
+        }
+      }
+
       // Atualização otimista - atualiza estado local sem refetch
       setProjects(prev => prev.map(p => 
-        p.id === id ? { ...p, ...data } as Project : p
+        p.id === id ? { ...p, ...projectData } as Project : p
       ));
       toast.success('Projeto atualizado!');
     } catch (error) {

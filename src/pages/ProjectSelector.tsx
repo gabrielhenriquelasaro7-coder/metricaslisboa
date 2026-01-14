@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Users, Store, Loader2, LogOut, Archive, Trash2, User, RefreshCw, ChevronRight, ChevronDown, MoreVertical, Pencil, ArchiveRestore, Camera, Lock, Search, Target, GraduationCap, TrendingUp, MessageSquare, ExternalLink, UserPlus, Settings, Sun, Moon, Shield, Zap, Image, Clock, Sparkles, Building } from 'lucide-react';
+import { Plus, Users, Store, Loader2, LogOut, Archive, Trash2, User, RefreshCw, ChevronRight, ChevronDown, MoreVertical, Pencil, ArchiveRestore, Camera, Lock, Search, Target, GraduationCap, TrendingUp, MessageSquare, ExternalLink, UserPlus, Settings, Sun, Moon, Shield, Zap, Image, Clock, Sparkles, Building, Check } from 'lucide-react';
 import { DialogDescription } from '@/components/ui/dialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -398,7 +398,7 @@ export default function ProjectSelector() {
 
   // Form data with new fields
   const [formData, setFormData] = useState<CreateProjectData & { 
-    investidor_id?: string | null; 
+    investidor_ids?: string[]; 
     squad_id?: string | null;
   }>({
     name: '',
@@ -409,7 +409,7 @@ export default function ProjectSelector() {
     health_score: null,
     avatar_url: null,
     google_customer_id: '',
-    investidor_id: null,
+    investidor_ids: [],
     squad_id: null,
   });
   const [editFormData, setEditFormData] = useState<{
@@ -420,7 +420,7 @@ export default function ProjectSelector() {
     currency: string;
     health_score: HealthScore | null;
     avatar_url: string | null;
-    investidor_id?: string | null;
+    investidor_ids: string[];
     squad_id?: string | null;
   }>({
     name: '',
@@ -430,7 +430,7 @@ export default function ProjectSelector() {
     currency: 'BRL',
     health_score: null,
     avatar_url: null,
-    investidor_id: null,
+    investidor_ids: [],
     squad_id: null,
   });
   useEffect(() => {
@@ -494,7 +494,7 @@ export default function ProjectSelector() {
           currency: 'BRL',
           health_score: null,
           avatar_url: null,
-          investidor_id: null,
+          investidor_ids: [],
           squad_id: null,
         });
         setAvatarPreview(null);
@@ -574,8 +574,17 @@ export default function ProjectSelector() {
     setPendingProjectName('');
     setPendingProjectBusinessModel('ecommerce');
   };
-  const handleEditClick = (project: Project) => {
+  const handleEditClick = async (project: Project) => {
     setSelectedProject(project);
+    
+    // Fetch investidores do projeto
+    const { data: projectInvestidores } = await supabase
+      .from('project_investidores')
+      .select('investidor_id')
+      .eq('project_id', project.id);
+    
+    const investidorIds = projectInvestidores?.map(pi => pi.investidor_id) || [];
+    
     setEditFormData({
       name: project.name,
       ad_account_id: project.ad_account_id,
@@ -584,7 +593,7 @@ export default function ProjectSelector() {
       currency: project.currency,
       health_score: project.health_score,
       avatar_url: project.avatar_url,
-      investidor_id: project.investidor_id || null,
+      investidor_ids: investidorIds,
       squad_id: project.squad_id || null,
     });
     setEditAvatarPreview(project.avatar_url);
@@ -654,10 +663,8 @@ export default function ProjectSelector() {
       await updateProject(selectedProject.id, editFormData);
       setEditDialogOpen(false);
       setSelectedProject(null);
-      toast.success('Projeto atualizado!');
     } catch (error) {
       console.error('Error updating project:', error);
-      toast.error('Erro ao atualizar projeto');
     } finally {
       setIsUpdating(false);
     }
@@ -975,26 +982,44 @@ export default function ProjectSelector() {
                           </div>
                         )}
 
-                        {/* Investidor - somente tech/gerente/coordenador podem atribuir */}
+                        {/* Investidores - somente tech/gerente/coordenador podem atribuir */}
                         {(isTech || isGerente || isCoordenador) && (
                           <div className="space-y-2">
-                            <Label className="text-muted-foreground text-xs">Investidor</Label>
-                            <Select value={formData.investidor_id || 'none'} onValueChange={val => setFormData(prev => ({
-                              ...prev,
-                              investidor_id: val === 'none' ? null : val
-                            }))}>
-                              <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 touch-target">
-                                <SelectValue placeholder="Selecione o investidor..." />
-                              </SelectTrigger>
-                              <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50 max-h-60">
-                                <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhum</SelectItem>
-                                {investidores.map(inv => (
-                                  <SelectItem key={inv.id} value={inv.id} className="text-foreground rounded-lg">
-                                    {inv.full_name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <Label className="text-muted-foreground text-xs">Investidores</Label>
+                            <div className="bg-secondary border border-border rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
+                              {investidores.length === 0 ? (
+                                <p className="text-muted-foreground text-xs">Nenhum investidor cadastrado</p>
+                              ) : (
+                                investidores.map(inv => (
+                                  <label key={inv.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-1.5 transition-colors">
+                                    <div 
+                                      onClick={() => {
+                                        const isSelected = formData.investidor_ids?.includes(inv.id);
+                                        setFormData(prev => ({
+                                          ...prev,
+                                          investidor_ids: isSelected 
+                                            ? (prev.investidor_ids || []).filter(id => id !== inv.id)
+                                            : [...(prev.investidor_ids || []), inv.id]
+                                        }));
+                                      }}
+                                      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${
+                                        formData.investidor_ids?.includes(inv.id)
+                                          ? 'bg-primary border-primary'
+                                          : 'border-border bg-background'
+                                      }`}
+                                    >
+                                      {formData.investidor_ids?.includes(inv.id) && (
+                                        <Check className="w-3 h-3 text-primary-foreground" />
+                                      )}
+                                    </div>
+                                    <span className="text-sm text-foreground">{inv.full_name}</span>
+                                  </label>
+                                ))
+                              )}
+                            </div>
+                            {(formData.investidor_ids?.length || 0) > 0 && (
+                              <p className="text-xs text-muted-foreground">{formData.investidor_ids?.length} investidor(es) selecionado(s)</p>
+                            )}
                           </div>
                         )}
 
@@ -1161,26 +1186,44 @@ export default function ProjectSelector() {
               </Select>
             </div>
 
-            {/* Investidor */}
+            {/* Investidores */}
             {(isTech || isGerente || isCoordenador) && (
               <div className="space-y-2">
-                <Label className="text-muted-foreground text-xs">Investidor</Label>
-                <Select value={editFormData.investidor_id || 'none'} onValueChange={val => setEditFormData(prev => ({
-                  ...prev,
-                  investidor_id: val === 'none' ? null : val
-                }))}>
-                  <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
-                    <SelectValue placeholder="Selecione o investidor..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border rounded-xl max-h-60">
-                    <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhum</SelectItem>
-                    {investidores.map(inv => (
-                      <SelectItem key={inv.id} value={inv.id} className="text-foreground rounded-lg">
-                        {inv.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-muted-foreground text-xs">Investidores</Label>
+                <div className="bg-secondary border border-border rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
+                  {investidores.length === 0 ? (
+                    <p className="text-muted-foreground text-xs">Nenhum investidor cadastrado</p>
+                  ) : (
+                    investidores.map(inv => (
+                      <label key={inv.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-1.5 transition-colors">
+                        <div 
+                          onClick={() => {
+                            const isSelected = editFormData.investidor_ids.includes(inv.id);
+                            setEditFormData(prev => ({
+                              ...prev,
+                              investidor_ids: isSelected 
+                                ? prev.investidor_ids.filter(id => id !== inv.id)
+                                : [...prev.investidor_ids, inv.id]
+                            }));
+                          }}
+                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${
+                            editFormData.investidor_ids.includes(inv.id)
+                              ? 'bg-primary border-primary'
+                              : 'border-border bg-background'
+                          }`}
+                        >
+                          {editFormData.investidor_ids.includes(inv.id) && (
+                            <Check className="w-3 h-3 text-primary-foreground" />
+                          )}
+                        </div>
+                        <span className="text-sm text-foreground">{inv.full_name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                {editFormData.investidor_ids.length > 0 && (
+                  <p className="text-xs text-muted-foreground">{editFormData.investidor_ids.length} investidor(es) selecionado(s)</p>
+                )}
               </div>
             )}
 
