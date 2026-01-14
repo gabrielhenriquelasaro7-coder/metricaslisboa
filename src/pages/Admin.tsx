@@ -20,7 +20,7 @@ import SyncHistoryChart from '@/components/admin/SyncHistoryChart';
 import { ExportDataButton } from '@/components/admin/ExportDataButton';
 import { SquadsManagement } from '@/components/admin/SquadsManagement';
 import { UserManagement } from '@/components/admin/UserManagement';
-import { TabVisibilityManager } from '@/components/admin/TabVisibilityManager';
+
 import { GuestsManagement } from '@/components/admin/GuestsManagement';
 import { 
   Database, 
@@ -43,7 +43,7 @@ import {
   Timer,
   Users,
   Building2,
-  Eye,
+  
   UserPlus
 } from 'lucide-react';
 import { downloadDocumentationAsTxt, downloadDocumentationAsPdf } from '@/utils/generateSystemDocumentation';
@@ -321,7 +321,7 @@ function AdminContent() {
         </div>
 
         <Tabs defaultValue="sync" className="space-y-6">
-          <TabsList className="flex flex-wrap gap-1 h-auto p-1 lg:inline-grid lg:grid-cols-8">
+          <TabsList className="flex flex-wrap gap-1 h-auto p-1 lg:inline-grid lg:grid-cols-7">
             <TabsTrigger value="sync" className="gap-2">
               <RefreshCw className="w-4 h-4" />
               Sincronização
@@ -342,12 +342,6 @@ function AdminContent() {
               <Building2 className="w-4 h-4" />
               Squads
             </TabsTrigger>
-            {isTech && (
-              <TabsTrigger value="visibility" className="gap-2">
-                <Eye className="w-4 h-4" />
-                Visibilidade
-              </TabsTrigger>
-            )}
             <TabsTrigger value="logs" className="gap-2">
               <Clock className="w-4 h-4" />
               Histórico
@@ -649,12 +643,6 @@ function AdminContent() {
             <GuestsManagement />
           </TabsContent>
 
-          {/* VISIBILITY TAB - Tech only */}
-          {isTech && (
-            <TabsContent value="visibility" className="space-y-6">
-              <TabVisibilityManager />
-            </TabsContent>
-          )}
 
           {/* LOGS TAB */}
           <TabsContent value="logs" className="space-y-6">
