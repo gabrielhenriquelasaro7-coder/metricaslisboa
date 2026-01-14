@@ -378,6 +378,7 @@ Deno.serve(async (req) => {
           ad_account_id: accountId,
           time_range: { since, until },
           syncMode: 'base',
+          lite_mode: shouldUseChunks, // Contas grandes usam lite_mode
         }),
         signal: controller.signal,
       });
