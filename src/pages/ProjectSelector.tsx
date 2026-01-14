@@ -81,6 +81,8 @@ type ExtendedHealthScore = HealthScore | 'undefined';
 interface ClientCardProps {
   project: Project;
   showWhatsApp: boolean;
+  investidorNames: string[];
+  squadName: string | null;
   onSelect: (project: Project) => void;
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
@@ -92,6 +94,8 @@ interface ClientCardProps {
 function ClientCard({
   project,
   showWhatsApp,
+  investidorNames,
+  squadName,
   onSelect,
   onEdit,
   onDelete,
@@ -185,8 +189,14 @@ function ClientCard({
         {/* Info */}
         <div className="space-y-2 mb-4">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Account ID</span>
-            <span className="font-mono text-foreground/70">{project.ad_account_id.replace('act_', '')}</span>
+            <span className="text-muted-foreground">Investidor</span>
+            <span className="text-foreground/70 truncate max-w-[140px]" title={investidorNames.length > 0 ? investidorNames.join(', ') : undefined}>
+              {investidorNames.length > 0 ? investidorNames.join(', ') : 'Sem investidor'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Squad</span>
+            <span className="text-foreground/70">{squadName || 'Sem squad'}</span>
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Última sync</span>
@@ -227,6 +237,8 @@ interface StatusGroupProps {
   status: ExtendedHealthScore;
   projects: Project[];
   defaultOpen?: boolean;
+  projectInvestidores: Record<string, string[]>;
+  squads: Array<{ id: string; name: string }>;
   onSelect: (project: Project) => void;
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
@@ -239,6 +251,8 @@ function StatusGroup({
   status,
   projects,
   defaultOpen = false,
+  projectInvestidores,
+  squads,
   onSelect,
   onEdit,
   onDelete,
@@ -295,7 +309,26 @@ function StatusGroup({
       
       <CollapsibleContent className="pt-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-4">
-          {projects.map(project => <ClientCard key={project.id} project={project} showWhatsApp={showWhatsApp} onSelect={onSelect} onEdit={onEdit} onDelete={onDelete} onArchive={onArchive} onUnarchive={onUnarchive} onResync={onResync} onWhatsApp={onWhatsApp} />)}
+          {projects.map(project => {
+            const investidorNames = projectInvestidores[project.id] || [];
+            const squadName = squads.find(s => s.id === project.squad_id)?.name || null;
+            return (
+              <ClientCard 
+                key={project.id} 
+                project={project} 
+                showWhatsApp={showWhatsApp} 
+                investidorNames={investidorNames}
+                squadName={squadName}
+                onSelect={onSelect} 
+                onEdit={onEdit} 
+                onDelete={onDelete} 
+                onArchive={onArchive} 
+                onUnarchive={onUnarchive} 
+                onResync={onResync} 
+                onWhatsApp={onWhatsApp} 
+              />
+            );
+          })}
         </div>
       </CollapsibleContent>
     </Collapsible>;
@@ -333,6 +366,8 @@ export default function ProjectSelector() {
   // Investidores e coordenadores para atribuição
   const [investidores, setInvestidores] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
   const [coordenadores, setCoordenadores] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+  // Mapa de investidores por projeto para exibição no card
+  const [projectInvestidores, setProjectInvestidores] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const fetchPeople = async () => {
@@ -349,6 +384,35 @@ export default function ProjectSelector() {
     };
     fetchPeople();
   }, []);
+
+  // Buscar investidores por projeto
+  useEffect(() => {
+    const fetchProjectInvestidores = async () => {
+      if (projects.length === 0) return;
+      
+      const { data } = await supabase
+        .from('project_investidores')
+        .select('project_id, investidor_id')
+        .in('project_id', projects.map(p => p.id));
+      
+      if (data && investidores.length > 0) {
+        const map: Record<string, string[]> = {};
+        data.forEach(pi => {
+          const investidor = investidores.find(i => i.id === pi.investidor_id);
+          if (investidor) {
+            if (!map[pi.project_id]) {
+              map[pi.project_id] = [];
+            }
+            // Use only first name
+            const firstName = investidor.full_name?.split(' ')[0] || 'Sem nome';
+            map[pi.project_id].push(firstName);
+          }
+        });
+        setProjectInvestidores(map);
+      }
+    };
+    fetchProjectInvestidores();
+  }, [projects, investidores]);
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -1132,10 +1196,10 @@ export default function ProjectSelector() {
               {searchQuery ? 'Tente buscar por outro termo' : 'Clique em "Novo Cliente" para começar'}
             </p>
           </div> : <div>
-            <StatusGroup status="safe" projects={safeProjects} defaultOpen={true} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
-            <StatusGroup status="care" projects={careProjects} defaultOpen={true} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
-            <StatusGroup status="danger" projects={dangerProjects} defaultOpen={true} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
-            <StatusGroup status="undefined" projects={undefinedProjects} defaultOpen={false} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
+            <StatusGroup status="safe" projects={safeProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
+            <StatusGroup status="care" projects={careProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
+            <StatusGroup status="danger" projects={dangerProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
+            <StatusGroup status="undefined" projects={undefinedProjects} defaultOpen={false} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
           </div>}
       </main>
 
