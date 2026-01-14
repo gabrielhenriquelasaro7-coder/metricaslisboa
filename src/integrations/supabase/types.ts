@@ -2324,6 +2324,50 @@ export type Database = {
         }
         Relationships: []
       }
+      user_management: {
+        Row: {
+          cargo: string
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          squad_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cargo?: string
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          squad_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cargo?: string
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          squad_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_management_squad_id_fkey"
+            columns: ["squad_id"]
+            isOneToOne: false
+            referencedRelation: "squads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           cargo: Database["public"]["Enums"]["user_cargo_v2"] | null
@@ -2344,6 +2388,33 @@ export type Database = {
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_tab_visibility: {
+        Row: {
+          created_at: string
+          hidden_by: string
+          hidden_tabs: string[]
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hidden_by: string
+          hidden_tabs?: string[]
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hidden_by?: string
+          hidden_tabs?: string[]
+          id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
