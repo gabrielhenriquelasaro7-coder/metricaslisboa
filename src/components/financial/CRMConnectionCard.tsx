@@ -52,6 +52,16 @@ const CRM_OPTIONS: CRMOption[] = [
     requiresUrl: true,
     urlPlaceholder: 'suaempresa'
   },
+  {
+    id: 'bitrix24',
+    name: 'Bitrix24',
+    description: 'Suite de colaboração com CRM integrado',
+    color: 'bg-cyan-500',
+    features: ['Colaboração', 'Projetos', 'Telefonia'],
+    authType: 'api_key',
+    requiresUrl: true,
+    urlPlaceholder: 'suaempresa.bitrix24.com.br'
+  },
 ];
 
 interface CRMConnectionCardProps {
