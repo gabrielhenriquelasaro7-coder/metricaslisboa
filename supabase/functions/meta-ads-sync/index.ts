@@ -42,6 +42,7 @@ interface SyncRequest {
   syncMode?: 'base' | 'creatives' | 'hd_images';
   retry_count?: number;
   lite_mode?: boolean; // Skip entity fetch for large accounts
+  specific_ad_ids?: string[]; // OTIMIZAÇÃO: buscar criativos/HD apenas desses ads
 }
 
 const BASE_DELAY_MS = 200;
@@ -290,33 +291,65 @@ function splitDateRangeIntoChunks(since: string, until: string, maxDays: number)
 
 // ===========================================================================================
 // 2️⃣ CREATIVE SYNC - Busca conteúdo dos anúncios (SEM time_range, SEM métricas)
+// Agora suporta 2 modos:
+// - MODO PADRÃO: busca ads que precisam de criativo do banco
+// - MODO OTIMIZADO: recebe lista de ad_ids específicos (dos insights) para buscar criativos
 // ===========================================================================================
-async function syncCreatives(supabase: any, projectId: string, adAccountId: string, token: string): Promise<{ updated: number; total: number }> {
-  console.log(`[CREATIVE-SYNC] Starting for project ${projectId}`);
+async function syncCreatives(
+  supabase: any, 
+  projectId: string, 
+  adAccountId: string, 
+  token: string,
+  specificAdIds?: string[] // NOVO: lista específica de ad_ids (otimização)
+): Promise<{ updated: number; total: number }> {
+  console.log(`[CREATIVE-SYNC] Starting for project ${projectId}, specific ads: ${specificAdIds?.length || 'all'}`);
   
-  // Buscar ads existentes que precisam de criativo
-  const { data: existingAds, error: adsError } = await supabase
-    .from('ads')
-    .select('id, creative_id, headline, primary_text, cta, creative_thumbnail')
-    .eq('project_id', projectId)
-    .limit(500); // Limit to avoid timeout
+  let adsToProcess: { id: string; creative_id: string | null; headline: string | null; primary_text: string | null; cta: string | null; creative_thumbnail: string | null }[];
   
-  if (adsError) throw adsError;
+  if (specificAdIds && specificAdIds.length > 0) {
+    // MODO OTIMIZADO: buscar criativos apenas dos ads específicos
+    // Isso é MUITO mais rápido para contas grandes
+    console.log(`[CREATIVE-SYNC] Optimized mode: fetching creatives for ${specificAdIds.length} specific ads`);
+    
+    // Dividir em batches de 200 para a query do banco
+    const allAds: any[] = [];
+    for (let i = 0; i < specificAdIds.length; i += 200) {
+      const batchIds = specificAdIds.slice(i, i + 200);
+      const { data: batchAds } = await supabase
+        .from('ads')
+        .select('id, creative_id, headline, primary_text, cta, creative_thumbnail')
+        .eq('project_id', projectId)
+        .in('id', batchIds);
+      
+      if (batchAds) allAds.push(...batchAds);
+    }
+    
+    adsToProcess = allAds;
+  } else {
+    // MODO PADRÃO: buscar ads existentes que precisam de criativo
+    const { data: existingAds, error: adsError } = await supabase
+      .from('ads')
+      .select('id, creative_id, headline, primary_text, cta, creative_thumbnail')
+      .eq('project_id', projectId)
+      .limit(500);
+    
+    if (adsError) throw adsError;
+    
+    // Filtrar ads sem texto
+    adsToProcess = (existingAds || []).filter((ad: any) => 
+      !ad.headline || !ad.primary_text
+    );
+  }
   
-  // Filtrar ads sem texto
-  const adsNeedingCreative = (existingAds || []).filter((ad: any) => 
-    !ad.headline || !ad.primary_text
-  );
+  console.log(`[CREATIVE-SYNC] Will process ${adsToProcess.length} ads`);
   
-  console.log(`[CREATIVE-SYNC] Found ${existingAds?.length || 0} ads, ${adsNeedingCreative.length} need creative update`);
-  
-  if (adsNeedingCreative.length === 0) {
+  if (adsToProcess.length === 0) {
     return { updated: 0, total: 0 };
   }
   
-  // Limit to 200 ads per sync to avoid timeout
-  const adsToProcess = adsNeedingCreative.slice(0, 200);
-  const adIds = adsToProcess.map((ad: any) => ad.id);
+  // Limit to 300 ads per sync para não estourar timeout
+  const adsToFetch = adsToProcess.slice(0, 300);
+  const adIds = adsToFetch.map((ad: any) => ad.id);
   let updatedCount = 0;
   const batchSize = 50;
   const totalBatches = Math.ceil(adIds.length / batchSize);
@@ -331,9 +364,9 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
     const progressPercent = Math.round((batchNumber / totalBatches) * 50);
     await updateSyncProgress(supabase, projectId, 'creatives', `Textos: batch ${batchNumber}/${totalBatches}`, progressPercent, 100);
     
-    // Campos do creative - IMPORTANTE: usar thumbnail_width=1080 e thumbnail_height=1080 para HD
+    // IMPORTANTE: usar thumbnail_width=1080 e thumbnail_height=1080 para HD
     const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,body,title,call_to_action_type,thumbnail_url,object_story_spec,asset_feed_spec}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
-    const adsData = await simpleFetch(adsUrl, undefined, 20000); // Reduced timeout
+    const adsData = await simpleFetch(adsUrl, undefined, 20000);
     
     if (adsData?.error) {
       console.log(`[CREATIVE-SYNC] Batch ${batchNumber} error: ${adsData.error.message?.substring(0, 100)}`);
@@ -379,7 +412,7 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
       if (!headline && creative.title) headline = creative.title;
       if (!cta && creative.call_to_action_type) cta = creative.call_to_action_type;
       
-      // Thumbnail de baixa resolução
+      // Thumbnail em HD (1080x1080) - já vem com resolução alta pelos parâmetros
       if (creative.thumbnail_url) thumbnailUrl = creative.thumbnail_url;
       
       // Atualizar o ad no banco
@@ -404,11 +437,11 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
     await Promise.all(updatePromises);
     
     console.log(`[CREATIVE-SYNC] Batch ${batchNumber}/${totalBatches} processed`);
-    if (i + batchSize < adIds.length) await delay(200); // Reduced delay
+    if (i + batchSize < adIds.length) await delay(200);
   }
   
   console.log(`[CREATIVE-SYNC] Completed - updated ${updatedCount} ads`);
-  return { updated: updatedCount, total: adsToProcess.length };
+  return { updated: updatedCount, total: adsToFetch.length };
 }
 
 // ===========================================================================================
@@ -423,8 +456,21 @@ async function syncCreatives(supabase: any, projectId: string, adAccountId: stri
 // 
 // IMPORTANTE: Aceita imagens a partir de 500 bytes para não perder thumbnails válidas
 // ===========================================================================================
-async function syncHDImages(supabase: any, projectId: string, adAccountId: string, token: string): Promise<{ cached: number; total: number; errors: number; pending: number; totalAds: number }> {
-  console.log(`[HD-IMAGE-SYNC] Starting for project ${projectId}`);
+// ===========================================================================================
+// 3️⃣ HD IMAGE SYNC - Busca imagens em HD usando thumbnail_url com width/height 1080
+// 
+// ESTRATÉGIA OTIMIZADA:
+// - Se specificAdIds fornecido: buscar HD apenas desses ads (otimização)
+// - Se não: buscar HD de todos os ads sem cached_image_url (modo padrão)
+// ===========================================================================================
+async function syncHDImages(
+  supabase: any, 
+  projectId: string, 
+  adAccountId: string, 
+  token: string,
+  specificAdIds?: string[] // NOVO: lista específica de ad_ids (otimização)
+): Promise<{ cached: number; total: number; errors: number; pending: number; totalAds: number }> {
+  console.log(`[HD-IMAGE-SYNC] Starting for project ${projectId}, specific ads: ${specificAdIds?.length || 'all'}`);
   
   // Primeiro, contar estatísticas gerais
   const { count: totalAds } = await supabase
@@ -441,17 +487,41 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
   const pendingCount = (totalAds || 0) - (cachedAds || 0);
   console.log(`[HD-IMAGE-SYNC] Stats: ${cachedAds || 0}/${totalAds || 0} already cached, ${pendingCount} pending`);
   
-  // Buscar ads que não têm cached_image_url
-  const { data: adsNeedingCache, error: adsError } = await supabase
-    .from('ads')
-    .select('id, creative_id, creative_thumbnail')
-    .eq('project_id', projectId)
-    .is('cached_image_url', null)
-    .limit(200);
+  let adsNeedingCache: { id: string; creative_id: string | null; creative_thumbnail: string | null }[];
   
-  if (adsError) throw adsError;
+  if (specificAdIds && specificAdIds.length > 0) {
+    // MODO OTIMIZADO: buscar HD apenas dos ads específicos que ainda não têm cache
+    console.log(`[HD-IMAGE-SYNC] Optimized mode: checking ${specificAdIds.length} specific ads`);
+    
+    const allAds: any[] = [];
+    for (let i = 0; i < specificAdIds.length; i += 200) {
+      const batchIds = specificAdIds.slice(i, i + 200);
+      const { data: batchAds } = await supabase
+        .from('ads')
+        .select('id, creative_id, creative_thumbnail')
+        .eq('project_id', projectId)
+        .in('id', batchIds)
+        .is('cached_image_url', null);
+      
+      if (batchAds) allAds.push(...batchAds);
+    }
+    
+    adsNeedingCache = allAds;
+    console.log(`[HD-IMAGE-SYNC] Found ${adsNeedingCache.length} specific ads needing cache`);
+  } else {
+    // MODO PADRÃO: buscar ads que não têm cached_image_url
+    const { data, error: adsError } = await supabase
+      .from('ads')
+      .select('id, creative_id, creative_thumbnail')
+      .eq('project_id', projectId)
+      .is('cached_image_url', null)
+      .limit(200);
+    
+    if (adsError) throw adsError;
+    adsNeedingCache = data || [];
+  }
   
-  if (!adsNeedingCache || adsNeedingCache.length === 0) {
+  if (adsNeedingCache.length === 0) {
     console.log(`[HD-IMAGE-SYNC] No ads to process`);
     return { cached: 0, total: 0, errors: 0, pending: pendingCount, totalAds: totalAds || 0 };
   }
@@ -476,7 +546,6 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
     await updateSyncProgress(supabase, projectId, 'hd_images', `Buscando URLs HD: ${batchNumber}/${totalBatches}`, 10 + Math.round((batchNumber / totalBatches) * 40), 100);
     
     // QUERY PRINCIPAL: Usar thumbnail_url com thumbnail_width=1080 e thumbnail_height=1080
-    // Isso retorna o thumbnail em alta resolução diretamente
     const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,thumbnail_url,effective_object_story_id,object_story_spec}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
     const adsData = await simpleFetch(adsUrl, undefined, 30000);
     
@@ -496,7 +565,6 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
       // 1. PRINCIPAL: thumbnail_url com resolução HD (já vem com 1080x1080 pelos parâmetros)
       if (creative.thumbnail_url) {
         bestUrl = creative.thumbnail_url;
-        console.log(`[HD-IMAGE-SYNC] Got HD thumbnail (1080px) for ad ${adId}`);
       }
       
       // 2. Fallback: Tentar buscar imagem do post original (mais estável para videos)
@@ -506,9 +574,6 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
           const storyData = await simpleFetch(storyUrl, undefined, 10000);
           if (!storyData?.error) {
             bestUrl = storyData.full_picture || storyData.picture;
-            if (bestUrl) {
-              console.log(`[HD-IMAGE-SYNC] Got story picture for ad ${adId}`);
-            }
           }
         } catch (e) {
           // Ignore - will try fallbacks
@@ -524,9 +589,6 @@ async function syncHDImages(supabase: any, projectId: string, adAccountId: strin
           bestUrl = oss.video_data.image_url;
         } else if (oss.photo_data?.images?.[0]?.url) {
           bestUrl = oss.photo_data.images[0].url;
-        }
-        if (bestUrl) {
-          console.log(`[HD-IMAGE-SYNC] Got object_story_spec image for ad ${adId}`);
         }
       }
       
@@ -1006,7 +1068,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     const body: SyncRequest = await req.json();
-    let { project_id, ad_account_id, access_token, time_range, date_preset, syncMode = 'base', retry_count = 0, lite_mode = false } = body;
+    let { project_id, ad_account_id, access_token, time_range, date_preset, syncMode = 'base', retry_count = 0, lite_mode = false, specific_ad_ids } = body;
     
     // Buscar ad_account_id do projeto se não fornecido
     if (!ad_account_id && project_id) {
@@ -1023,22 +1085,23 @@ Deno.serve(async (req) => {
     const token = access_token || metaAccessToken;
     if (!token) throw new Error('No Meta access token available');
     
-    console.log(`[SYNC] Mode: ${syncMode}, Project: ${project_id}`);
+    console.log(`[SYNC] Mode: ${syncMode}, Project: ${project_id}, Specific ads: ${specific_ad_ids?.length || 'all'}`);
     
     // ===========================================================================================
     // 2️⃣ CREATIVE SYNC MODE (busca texto + depois HD automaticamente)
+    // Agora suporta specific_ad_ids para otimização (buscar criativos apenas de ads ativos)
     // ===========================================================================================
     if (syncMode === 'creatives') {
-      console.log(`[SYNC] Starting CREATIVE SYNC for project ${project_id}`);
+      console.log(`[SYNC] Starting CREATIVE SYNC for project ${project_id}, specific ads: ${specific_ad_ids?.length || 'all'}`);
       
-      // Etapa 1: Buscar texto (headline, primary_text, cta, thumbnail baixa res)
-      await updateSyncProgress(supabase, project_id, 'creatives', 'Etapa 1/2: Buscando textos dos anúncios...', 0, 100);
-      const creativeResult = await syncCreatives(supabase, project_id, ad_account_id, token);
+      // Etapa 1: Buscar texto (headline, primary_text, cta, thumbnail HD 1080x1080)
+      await updateSyncProgress(supabase, project_id, 'creatives', 'Etapa 1/2: Buscando textos e thumbnails HD...', 0, 100);
+      const creativeResult = await syncCreatives(supabase, project_id, ad_account_id, token, specific_ad_ids);
       console.log(`[SYNC] Creative text sync completed: ${creativeResult.updated} ads updated`);
       
-      // Etapa 2: Buscar imagens HD
-      await updateSyncProgress(supabase, project_id, 'hd_images', 'Etapa 2/2: Buscando imagens em alta resolução...', 50, 100);
-      const hdResult = await syncHDImages(supabase, project_id, ad_account_id, token);
+      // Etapa 2: Buscar imagens HD (cache em storage)
+      await updateSyncProgress(supabase, project_id, 'hd_images', 'Etapa 2/2: Cacheando imagens em alta resolução...', 50, 100);
+      const hdResult = await syncHDImages(supabase, project_id, ad_account_id, token, specific_ad_ids);
       console.log(`[SYNC] HD image sync completed: ${hdResult.cached}/${hdResult.total} images cached`);
       
       const cachedNow = hdResult.totalAds - hdResult.pending;
@@ -1047,6 +1110,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: true, 
         syncMode: 'creatives',
+        optimized: !!specific_ad_ids,
+        specificAdsCount: specific_ad_ids?.length || 0,
         creatives: {
           updated: creativeResult.updated,
           total: creativeResult.total

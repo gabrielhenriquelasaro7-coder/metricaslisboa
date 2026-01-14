@@ -28,6 +28,10 @@ interface MonthImportRequest {
   // Novo: suporte a importação em chunks (quinzenas/semanas)
   chunk?: 1 | 2 | 3 | 4; // 1=dias 1-7, 2=dias 8-15, 3=dias 16-23, 4=dias 24-fim
   use_chunks?: boolean; // Forçar uso de chunks para contas grandes
+  force_light_sync?: boolean; // Se true, não faz creative sync após base sync
+  safe_mode?: boolean; // Modo seguro (legado)
+  parallel_next_month?: number; // Para sync paralelo de anos
+  parallel_batch_size?: number;
 }
 
 function getNextMonth(year: number, month: number): { year: number; month: number } | null {
@@ -127,6 +131,7 @@ Deno.serve(async (req) => {
       phase = 'base',
       chunk,
       use_chunks = false,
+      force_light_sync = false,
     } = body;
     
     if (!project_id || !year || !month) {
@@ -153,10 +158,29 @@ Deno.serve(async (req) => {
     const accountId = ad_account_id || project.ad_account_id;
     
     // ========================================================================
-    // FASE 2: CREATIVE SYNC (após base sync de todos os meses)
+    // FASE 2: CREATIVE SYNC OTIMIZADO
+    // - Busca ad_ids únicos do período recente (últimos 90 dias) no banco
+    // - Passa essa lista para o meta-ads-sync para buscar criativos HD apenas desses
+    // - MUITO mais rápido: em vez de 6700 ads, busca apenas ~50-200 ativos
     // ========================================================================
     if (phase === 'creatives') {
-      console.log(`[MONTH-IMPORT] 📝 CREATIVE SYNC for ${project.name}`);
+      console.log(`[MONTH-IMPORT] 📝 CREATIVE SYNC (OPTIMIZED) for ${project.name}`);
+      
+      // Buscar ad_ids únicos dos últimos 90 dias de métricas
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const since90 = ninetyDaysAgo.toISOString().split('T')[0];
+      
+      const { data: recentAds } = await supabase
+        .from('ads_daily_metrics')
+        .select('ad_id')
+        .eq('project_id', project_id)
+        .gte('date', since90)
+        .gt('spend', 0); // Apenas ads com gasto
+      
+      // Extrair ad_ids únicos
+      const uniqueAdIds = [...new Set((recentAds || []).map((r: any) => r.ad_id))];
+      console.log(`[MONTH-IMPORT] Found ${uniqueAdIds.length} unique ads with activity in last 90 days`);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min
@@ -172,6 +196,7 @@ Deno.serve(async (req) => {
             project_id,
             ad_account_id: accountId,
             syncMode: 'creatives',
+            specific_ad_ids: uniqueAdIds.length > 0 ? uniqueAdIds : undefined, // OTIMIZAÇÃO!
           }),
           signal: controller.signal,
         });
@@ -179,31 +204,18 @@ Deno.serve(async (req) => {
         
         const result = await syncResponse.json().catch(() => ({ success: true }));
         
-        console.log(`[MONTH-IMPORT] ✓ Creative sync completed: ${result.updated || 0} ads`);
+        console.log(`[MONTH-IMPORT] ✓ Creative sync completed: ${result.creatives?.updated || 0} ads, optimized: ${result.optimized || false}`);
         
-        // Encadear HD Image Sync (não bloqueante)
-        console.log(`[MONTH-IMPORT] 🖼️ Starting HD Image Sync (async)...`);
-        
-        fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            project_id,
-            year,
-            month,
-            ad_account_id: accountId,
-            phase: 'hd_images',
-          }),
-        }).catch(e => console.log(`[MONTH-IMPORT] HD chain error: ${e}`));
+        // HD Images já são feitas dentro do syncMode: 'creatives'
+        // Então não precisamos encadear mais nada
         
         return new Response(
           JSON.stringify({ 
             success: true, 
             phase: 'creatives',
-            updated: result.updated || 0,
+            updated: result.creatives?.updated || 0,
+            optimized: result.optimized || false,
+            specificAdsCount: uniqueAdIds.length,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -599,27 +611,38 @@ Deno.serve(async (req) => {
             console.log(`[MONTH-IMPORT] Next month chain sent`);
           }
         } else {
-          // Todos os meses completos - iniciar creative sync
-          console.log(`[MONTH-IMPORT] 🎉 All months imported! Starting Creative Sync...`);
-          await delay(5000);
-          
-          try {
-            await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-              },
-              body: JSON.stringify({
-                project_id,
-                year,
-                month,
-                ad_account_id: accountId,
-                phase: 'creatives',
-              }),
-            });
-          } catch (e) {
-            console.log(`[MONTH-IMPORT] Creative sync chain sent`);
+          // Todos os meses completos
+          // Se force_light_sync, NÃO inicia creative sync (apenas métricas)
+          if (force_light_sync) {
+            console.log(`[MONTH-IMPORT] 🎉 All months imported! (Light Sync - skipping creatives)`);
+            
+            // Atualizar last_sync_at
+            await supabase.from('projects').update({
+              last_sync_at: new Date().toISOString(),
+            }).eq('id', project_id);
+          } else {
+            // HD Total - iniciar creative sync
+            console.log(`[MONTH-IMPORT] 🎉 All months imported! Starting Creative Sync (HD)...`);
+            await delay(5000);
+            
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({
+                  project_id,
+                  year,
+                  month,
+                  ad_account_id: accountId,
+                  phase: 'creatives',
+                }),
+              });
+            } catch (e) {
+              console.log(`[MONTH-IMPORT] Creative sync chain sent`);
+            }
           }
         }
       }
@@ -711,40 +734,49 @@ Deno.serve(async (req) => {
         
       } else {
         // ========================================================================
-        // TODOS OS MESES IMPORTADOS - Iniciar Creative Sync
+        // TODOS OS MESES IMPORTADOS
         // ========================================================================
-        console.log(`[MONTH-IMPORT] 🎉 All months imported! Starting Creative Sync...`);
-        
-        await delay(5000);
-        
-        // Chamar fase de criativos - AWAIT para garantir envio
-        try {
-          const creativeController = new AbortController();
-          const creativeTimeout = setTimeout(() => creativeController.abort(), 5000);
+        if (force_light_sync) {
+          console.log(`[MONTH-IMPORT] 🎉 All months imported! (Light Sync - skipping creatives)`);
           
-          await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseServiceKey}`,
-            },
-            body: JSON.stringify({
-              project_id,
-              year,
-              month,
-              ad_account_id: accountId,
-              phase: 'creatives',
-            }),
-            signal: creativeController.signal,
-          });
-          clearTimeout(creativeTimeout);
+          // Atualizar last_sync_at
+          await supabase.from('projects').update({
+            last_sync_at: new Date().toISOString(),
+          }).eq('id', project_id);
+        } else {
+          // HD Total - Iniciar Creative Sync
+          console.log(`[MONTH-IMPORT] 🎉 All months imported! Starting Creative Sync (HD)...`);
           
-          console.log(`[MONTH-IMPORT] ✓ Creative sync chain initiated`);
-        } catch (creativeErr: any) {
-          if (creativeErr.name === 'AbortError') {
-            console.log(`[MONTH-IMPORT] ✓ Creative sync request sent (async)`);
-          } else {
-            console.log(`[MONTH-IMPORT] Creatives chain error: ${creativeErr.message}`);
+          await delay(5000);
+          
+          try {
+            const creativeController = new AbortController();
+            const creativeTimeout = setTimeout(() => creativeController.abort(), 5000);
+            
+            await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                project_id,
+                year,
+                month,
+                ad_account_id: accountId,
+                phase: 'creatives',
+              }),
+              signal: creativeController.signal,
+            });
+            clearTimeout(creativeTimeout);
+            
+            console.log(`[MONTH-IMPORT] ✓ Creative sync chain initiated`);
+          } catch (creativeErr: any) {
+            if (creativeErr.name === 'AbortError') {
+              console.log(`[MONTH-IMPORT] ✓ Creative sync request sent (async)`);
+            } else {
+              console.log(`[MONTH-IMPORT] Creatives chain error: ${creativeErr.message}`);
+            }
           }
         }
       }
