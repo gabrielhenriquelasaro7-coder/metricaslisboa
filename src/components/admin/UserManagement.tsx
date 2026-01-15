@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check, KeyRound, UserPlus } from 'lucide-react';
+import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check, KeyRound, UserPlus, Search, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -76,6 +76,12 @@ export function UserManagement() {
   const [userProjectAccess, setUserProjectAccess] = useState<Record<string, string[]>>({});
   const [isSavingVisibility, setIsSavingVisibility] = useState(false);
   const [localHiddenTabs, setLocalHiddenTabs] = useState<TabKey[]>([]);
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCargo, setFilterCargo] = useState<UserCargo | 'all'>('all');
+  const [filterSquad, setFilterSquad] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'pending'>('all');
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   
   // Form state
@@ -438,6 +444,39 @@ export function UserManagement() {
   const configUserProjects = configUserId ? (userProjectAccess[configUserId] || []) : [];
   const activeProjects = projects.filter(p => !p.archived);
 
+  // Filter users based on search and filters
+  const filteredUsers = users.filter(user => {
+    // Search filter
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery || 
+      user.email.toLowerCase().includes(searchLower) ||
+      (user.full_name?.toLowerCase().includes(searchLower)) ||
+      (user.phone?.toLowerCase().includes(searchLower));
+    
+    // Cargo filter
+    const matchesCargo = filterCargo === 'all' || user.cargo === filterCargo;
+    
+    // Squad filter
+    const matchesSquad = filterSquad === 'all' || user.squad_id === filterSquad;
+    
+    // Status filter
+    const isActive = !!user.user_id;
+    const matchesStatus = filterStatus === 'all' || 
+      (filterStatus === 'active' && isActive) ||
+      (filterStatus === 'pending' && !isActive);
+    
+    return matchesSearch && matchesCargo && matchesSquad && matchesStatus;
+  });
+
+  const hasActiveFilters = searchQuery || filterCargo !== 'all' || filterSquad !== 'all' || filterStatus !== 'all';
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilterCargo('all');
+    setFilterSquad('all');
+    setFilterStatus('all');
+  };
+
   return (
     <Card className="glass-card">
       <CardHeader>
@@ -592,7 +631,82 @@ export function UserManagement() {
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Search and Filter Bar */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, email ou telefone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          
+          {/* Filters */}
+          <div className="flex gap-2 flex-wrap">
+            {/* Cargo Filter */}
+            <Select value={filterCargo} onValueChange={(v) => setFilterCargo(v as UserCargo | 'all')}>
+              <SelectTrigger className="w-[140px]">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Cargo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos Cargos</SelectItem>
+                <SelectItem value="tech">Tech</SelectItem>
+                <SelectItem value="gerente">Gerente</SelectItem>
+                <SelectItem value="coordenador">Coordenador</SelectItem>
+                <SelectItem value="investidor">Investidor</SelectItem>
+                <SelectItem value="membro">Membro</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Squad Filter */}
+            <Select value={filterSquad} onValueChange={setFilterSquad}>
+              <SelectTrigger className="w-[140px]">
+                <Building2 className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Squad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas Squads</SelectItem>
+                {squads.filter(s => s.name !== 'S/SQUAD').map(squad => (
+                  <SelectItem key={squad.id} value={squad.id}>
+                    {squad.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            {/* Status Filter */}
+            <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as 'all' | 'active' | 'pending')}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos Status</SelectItem>
+                <SelectItem value="active">Ativos</SelectItem>
+                <SelectItem value="pending">Pendentes</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+                <X className="w-4 h-4" />
+                Limpar
+              </Button>
+            )}
+          </div>
+        </div>
+        
+        {/* Results count */}
+        {hasActiveFilters && (
+          <div className="text-sm text-muted-foreground">
+            {filteredUsers.length} de {users.length} usuários
+          </div>
+        )}
         <div className="rounded-lg border overflow-hidden">
           <Table>
             <TableHeader>
@@ -606,14 +720,14 @@ export function UserManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.length === 0 ? (
+              {filteredUsers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={canManage ? 6 : 5} className="text-center py-8 text-muted-foreground">
-                    Nenhum usuário encontrado
+                    {hasActiveFilters ? 'Nenhum usuário encontrado com os filtros aplicados' : 'Nenhum usuário encontrado'}
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map(user => {
+                filteredUsers.map(user => {
                   const isMaster = isMasterUser(user.email);
                   const userNeedsActivation = needsActivation(user);
                   const isActivating = activatingUserId === user.email;
