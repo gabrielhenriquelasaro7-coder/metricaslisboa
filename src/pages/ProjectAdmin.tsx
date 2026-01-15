@@ -317,18 +317,20 @@ export default function ProjectAdmin() {
     }
     
     // Re-fetch stats before starting to get fresh data
-    const { count: totalAds } = await supabase
+    const { count: totalAdsCount } = await supabase
       .from('ads')
       .select('id', { count: 'exact', head: true })
       .eq('project_id', id);
     
-    const { count: cachedAds } = await supabase
+    const { count: cachedAdsCount } = await supabase
       .from('ads')
       .select('id', { count: 'exact', head: true })
       .eq('project_id', id)
       .not('cached_image_url', 'is', null);
     
-    const pendingImages = (totalAds || 0) - (cachedAds || 0);
+    const totalAds = totalAdsCount || 0;
+    const initialCached = cachedAdsCount || 0;
+    const pendingImages = totalAds - initialCached;
     
     if (pendingImages === 0) {
       toast.info('Todas as imagens já estão cacheadas!');
@@ -336,39 +338,54 @@ export default function ProjectAdmin() {
     }
     
     setSyncingType('hd_images_batch');
-    setBatchSyncProgress({ current: 0, total: pendingImages });
+    setBatchSyncProgress({ current: initialCached, total: totalAds });
     
-    toast.info(`Sincronizando ${pendingImages} imagens... (pode levar alguns minutos)`);
+    const toastId = toast.loading(
+      `Sincronizando ${pendingImages} imagens... (pode levar alguns minutos)`,
+      { duration: Infinity }
+    );
     
-    let totalCached = 0;
+    let totalNewCached = 0;
+    let totalErrors = 0;
     let iterations = 0;
-    const maxIterations = Math.ceil(pendingImages / 200) + 2; // +2 for safety margin
+    let lastCachedCount = initialCached;
+    let noProgressCount = 0;
+    const maxIterations = 10; // Max 10 iterations to avoid infinite loop
+    const maxNoProgress = 3; // Stop after 3 rounds with no progress
     
-    while (iterations < maxIterations) {
+    while (iterations < maxIterations && noProgressCount < maxNoProgress) {
       iterations++;
       
       try {
-        // Usar syncMode: 'creatives' que tem a lógica de retry e cache funcionando
+        // Update toast with current progress
+        toast.loading(
+          `Lote ${iterations}: processando imagens... (${lastCachedCount}/${totalAds} cacheadas)`,
+          { id: toastId }
+        );
+        
         const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
           body: {
             project_id: id,
             ad_account_id: project.ad_account_id,
-            syncMode: 'creatives' // Usar creatives que funciona melhor
+            syncMode: 'hd_images' // Use hd_images directly for batch
           }
         });
         
         if (error) {
           console.error('Batch sync error:', error);
-          toast.error(`Erro no lote ${iterations}: ${error.message}`);
+          toast.error(`Erro no lote ${iterations}: ${error.message}`, { id: toastId });
           break;
         }
         
-        const cached = data?.creatives?.cached || 0;
-        const updated = data?.creatives?.updated || 0;
-        const total = data?.creatives?.total || 0;
-        totalCached += cached;
+        // Extract results - handle both syncMode responses
+        const cached = data?.cached || data?.hdImages?.cached || 0;
+        const errors = data?.errors || data?.hdImages?.errors || 0;
+        const pending = data?.pending || data?.hdImages?.pending || 0;
         
-        // Re-fetch actual pending count from database
+        totalNewCached += cached;
+        totalErrors += errors;
+        
+        // Re-fetch actual count from database for accurate progress
         const { count: newCachedCount } = await supabase
           .from('ads')
           .select('id', { count: 'exact', head: true })
@@ -376,40 +393,77 @@ export default function ProjectAdmin() {
           .not('cached_image_url', 'is', null);
         
         const actualCached = newCachedCount || 0;
-        const stillPending = (totalAds || 0) - actualCached;
+        const stillPending = totalAds - actualCached;
         
+        // Check if we made progress
+        if (actualCached === lastCachedCount) {
+          noProgressCount++;
+          console.log(`Batch ${iterations}: No progress (${noProgressCount}/${maxNoProgress}), cached=${actualCached}, pending=${stillPending}, errors=${errors}`);
+        } else {
+          noProgressCount = 0; // Reset if we made progress
+        }
+        lastCachedCount = actualCached;
+        
+        // Update progress UI
         setBatchSyncProgress({ 
           current: actualCached, 
-          total: totalAds || pendingImages 
+          total: totalAds 
         });
         
-        console.log(`Batch ${iterations}: cached ${cached}, updated ${updated}, still pending: ${stillPending}`);
+        toast.loading(
+          `Lote ${iterations}: ${cached} novas imagens, ${errors} erros, ${stillPending} pendentes`,
+          { id: toastId }
+        );
         
-        // If no more pending or no progress this round, stop
-        if (stillPending === 0 || (cached === 0 && updated === 0 && total > 0)) {
+        console.log(`Batch ${iterations}: new cached=${cached}, errors=${errors}, total cached=${actualCached}, pending=${stillPending}`);
+        
+        // Stop if no more pending
+        if (stillPending === 0 || pending === 0) {
+          console.log('All images processed or no more pending');
           break;
         }
         
-        // If no ads to process at all, stop
-        if (total === 0) {
-          break;
-        }
-        
-        // Small delay between batches
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Delay between batches
+        await new Promise(resolve => setTimeout(resolve, 3000));
         
       } catch (err) {
         console.error('Batch sync exception:', err);
+        toast.error(`Erro inesperado no lote ${iterations}`, { id: toastId });
         break;
       }
     }
     
     // Refresh stats and cleanup
     await fetchImageStats();
+    
+    // Final count
+    const { count: finalCached } = await supabase
+      .from('ads')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', id)
+      .not('cached_image_url', 'is', null);
+    
+    const finalCachedCount = finalCached || 0;
+    const finalPending = totalAds - finalCachedCount;
+    const newlyCached = finalCachedCount - initialCached;
+    
     setSyncingType(null);
     setBatchSyncProgress(null);
     
-    toast.success(`Sync completo! ${totalCached} novas imagens cacheadas.`);
+    // Show appropriate final message
+    if (finalPending === 0) {
+      toast.success(`✅ Todas ${totalAds} imagens sincronizadas!`, { id: toastId, duration: 5000 });
+    } else if (newlyCached > 0) {
+      toast.success(
+        `Sync parcial: ${newlyCached} novas imagens. ${finalPending} ainda pendentes (URLs podem estar expiradas).`,
+        { id: toastId, duration: 8000 }
+      );
+    } else {
+      toast.warning(
+        `Nenhuma nova imagem cacheada. ${finalPending} pendentes podem ter URLs expiradas no Meta.`,
+        { id: toastId, duration: 8000 }
+      );
+    }
   };
 
   const getSyncStatus = () => {
