@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Key, Loader2, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
-import { LoadingScreen } from '@/components/ui/loading-screen';
 import v4LogoFull from '@/assets/v4-logo-full.png';
 
 export default function ChangePassword() {
@@ -20,7 +19,6 @@ export default function ChangePassword() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [redirecting, setRedirecting] = useState(false);
 
   const handleChangePassword = async () => {
     if (newPassword.length < 6) {
@@ -85,22 +83,15 @@ export default function ChangePassword() {
       }
 
       toast.success('Senha alterada com sucesso!');
-      
-      // Show redirecting state immediately
-      setRedirecting(true);
       setLoading(false);
       
-      // Redirect based on user type
-      // Guests go to onboarding, regular users go to projects
-      setTimeout(() => {
-        if (isGuest) {
-          console.log('[ChangePassword] Guest user - navigating to guest-onboarding');
-          navigate('/guest-onboarding');
-        } else {
-          console.log('[ChangePassword] Regular user - navigating to projects');
-          navigate('/projects');
-        }
-      }, 500);
+      // Clear cached role data to force refetch
+      localStorage.removeItem('user-role-cache');
+      
+      // Force page reload to ensure fresh state - this avoids the stale needsPasswordChange issue
+      const targetUrl = isGuest ? '/guest-onboarding' : '/projects';
+      console.log('[ChangePassword] Redirecting to:', targetUrl);
+      window.location.href = targetUrl;
       
     } catch (error: unknown) {
       console.error('[ChangePassword] Error:', error);
@@ -109,11 +100,6 @@ export default function ChangePassword() {
       setLoading(false);
     }
   };
-
-  // Show full-screen loading when redirecting
-  if (redirecting) {
-    return <LoadingScreen message="Preparando sua experiência..." />;
-  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
