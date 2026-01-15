@@ -566,151 +566,187 @@ async function syncHDImages(
   let cachedCount = 0;
   let errorsCount = 0;
   
-  // Buscar diretamente da API de Ads com thumbnail_url em HD (1080x1080)
+  // ESTRATÉGIA: Buscar image_hash dos criativos e usar endpoint /adimages para URLs permanentes
   const adIds = adsNeedingCache.map((ad: any) => ad.id);
-  const adToUrlMap = new Map<string, string>();
   
+  // Mapa de image_hash -> permalink_url (URLs permanentes do Meta)
+  const hashToUrlMap = new Map<string, string>();
+  
+  // FASE 1: Buscar todos os image_hashes dos ads
+  console.log(`[HD-IMAGE-SYNC] FASE 1: Buscando image_hashes...`);
   const batchSize = 50;
-  const totalBatches = Math.ceil(adIds.length / batchSize);
+  const allImageHashes = new Set<string>();
+  const adToHashMap = new Map<string, string>();
   
   for (let i = 0; i < adIds.length; i += batchSize) {
     const batch = adIds.slice(i, i + batchSize);
     const batchIds = batch.join(',');
     const batchNumber = Math.floor(i / batchSize) + 1;
+    const totalBatches = Math.ceil(adIds.length / batchSize);
     
-    await updateSyncProgress(supabase, projectId, 'hd_images', `Buscando URLs HD: ${batchNumber}/${totalBatches}`, 10 + Math.round((batchNumber / totalBatches) * 40), 100);
+    await updateSyncProgress(supabase, projectId, 'hd_images', `Coletando hashes: ${batchNumber}/${totalBatches}`, Math.round((batchNumber / totalBatches) * 30), 100);
     
-    // QUERY HD - thumbnail_url com resolução HD + object_story_spec para fallbacks
-    // NOTA: "picture" e "image_url" NÃO existem no nível AdCreative
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,thumbnail_url,object_story_spec,effective_object_story_id}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
-    console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber}: thumbnail_url + object_story_spec (HD 1080x1080)`);
+    // Buscar creative com image_hash
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,image_hash,object_story_spec}&access_token=${token}`;
     const adsData = await simpleFetch(adsUrl, undefined, 30000);
     
     if (adsData?.error) {
-      console.log(`[HD-IMAGE-SYNC] Batch ${batchNumber} API error: ${adsData.error.message?.substring(0, 100)}`);
+      console.log(`[HD-IMAGE-SYNC] Hash batch ${batchNumber} error: ${adsData.error.message?.substring(0, 100)}`);
       continue;
     }
     
-    // Processar cada ad para extrair melhor URL HD
     for (const adId of batch) {
       const adData = (adsData as Record<string, any>)[adId];
       if (!adData?.creative) continue;
       
       const creative = adData.creative;
-      let bestUrl: string | null = null;
+      let imageHash: string | null = null;
       
-      // PRIORIDADE 1: Imagem do post original (URLs mais estáveis)
-      if (creative.effective_object_story_id) {
-        try {
-          const storyUrl = `https://graph.facebook.com/v22.0/${creative.effective_object_story_id}?fields=full_picture,picture,attachments{media,subattachments}&access_token=${token}`;
-          const storyData = await simpleFetch(storyUrl, undefined, 10000);
-          if (!storyData?.error) {
-            // full_picture é a melhor opção - alta resolução
-            if (storyData.full_picture) {
-              bestUrl = storyData.full_picture;
-            } else if (storyData.picture) {
-              bestUrl = storyData.picture;
-            }
-            // Tentar attachments para imagens de carrossel
-            if (!bestUrl && storyData.attachments?.data?.[0]?.media?.image?.src) {
-              bestUrl = storyData.attachments.data[0].media.image.src;
-            }
-          }
-        } catch (e) {
-          // Continue to fallbacks
-        }
+      // Prioridade 1: image_hash direto
+      if (creative.image_hash) {
+        imageHash = creative.image_hash;
       }
       
-      // PRIORIDADE 2: thumbnail_url com resolução HD (pode expirar)
-      if (!bestUrl && creative.thumbnail_url) {
-        bestUrl = creative.thumbnail_url;
-      }
-      
-      // PRIORIDADE 3: object_story_spec (imagens originais configuradas)
-      if (!bestUrl && creative.object_story_spec) {
+      // Prioridade 2: image_hash do object_story_spec
+      if (!imageHash && creative.object_story_spec) {
         const oss = creative.object_story_spec;
-        if (oss.link_data?.picture) bestUrl = oss.link_data.picture;
-        else if (oss.link_data?.image_url) bestUrl = oss.link_data.image_url;
-        else if (oss.video_data?.image_url) bestUrl = oss.video_data.image_url;
-        else if (oss.video_data?.picture) bestUrl = oss.video_data.picture;
-        else if (oss.photo_data?.images?.[0]?.url) bestUrl = oss.photo_data.images[0].url;
+        if (oss.link_data?.image_hash) imageHash = oss.link_data.image_hash;
+        else if (oss.photo_data?.images?.[0]?.hash) imageHash = oss.photo_data.images[0].hash;
       }
       
-      // LIMPAR URL - remover parâmetros de resize forçado
-      if (bestUrl) {
-        // Remove stp= parameter que força resize pequeno
-        bestUrl = bestUrl.replace(/[&?]stp=[^&]*/gi, '');
-        // Remove size parameters no path
-        bestUrl = bestUrl.replace(/\/p\d+x\d+\//g, '/');
-        bestUrl = bestUrl.replace(/\/s\d+x\d+\//g, '/');
-        // Corrigir URL malformada
-        if (bestUrl.includes('&') && !bestUrl.includes('?')) {
-          bestUrl = bestUrl.replace('&', '?');
-        }
-        bestUrl = bestUrl.replace(/[&?]$/g, '');
-        
-        adToUrlMap.set(adId, bestUrl);
+      if (imageHash) {
+        allImageHashes.add(imageHash);
+        adToHashMap.set(adId, imageHash);
       }
     }
     
-    if (i + batchSize < adIds.length) {
-      await delay(300);
-    }
+    if (i + batchSize < adIds.length) await delay(100);
   }
   
-  console.log(`[HD-IMAGE-SYNC] Got ${adToUrlMap.size} HD URLs from API`);
+  console.log(`[HD-IMAGE-SYNC] Encontrados ${allImageHashes.size} hashes únicos para ${adToHashMap.size} ads`);
   
-  // Para ads sem URL da API, usar o creative_thumbnail salvo (fallback)
-  for (const ad of adsNeedingCache) {
-    if (!adToUrlMap.has(ad.id) && ad.creative_thumbnail) {
-      adToUrlMap.set(ad.id, ad.creative_thumbnail);
+  // FASE 2: Buscar URLs permanentes via /adimages endpoint
+  if (allImageHashes.size > 0) {
+    console.log(`[HD-IMAGE-SYNC] FASE 2: Buscando URLs permanentes via /adimages...`);
+    
+    const hashArray = Array.from(allImageHashes);
+    const hashBatchSize = 50;
+    
+    for (let i = 0; i < hashArray.length; i += hashBatchSize) {
+      const hashBatch = hashArray.slice(i, i + hashBatchSize);
+      const batchNumber = Math.floor(i / hashBatchSize) + 1;
+      const totalHashBatches = Math.ceil(hashArray.length / hashBatchSize);
+      
+      await updateSyncProgress(supabase, projectId, 'hd_images', `Buscando URLs permanentes: ${batchNumber}/${totalHashBatches}`, 30 + Math.round((batchNumber / totalHashBatches) * 20), 100);
+      
+      // Buscar adimages por hashes - URL PERMANENTE!
+      const hashesParam = hashBatch.map(h => `"${h}"`).join(',');
+      const adimagesUrl = `https://graph.facebook.com/v22.0/act_${adAccountId}/adimages?hashes=[${hashesParam}]&fields=hash,permalink_url,url_128&access_token=${token}`;
+      const adimagesData = await simpleFetch(adimagesUrl, undefined, 30000);
+      
+      if (!adimagesData?.error && adimagesData?.data) {
+        for (const img of adimagesData.data) {
+          if (img.hash && img.permalink_url) {
+            hashToUrlMap.set(img.hash, img.permalink_url);
+          }
+        }
+      } else {
+        console.log(`[HD-IMAGE-SYNC] Adimages batch ${batchNumber} error: ${adimagesData?.error?.message?.substring(0, 100)}`);
+      }
+      
+      if (i + hashBatchSize < hashArray.length) await delay(100);
     }
+    
+    console.log(`[HD-IMAGE-SYNC] Obtidas ${hashToUrlMap.size} URLs permanentes`);
   }
   
-  console.log(`[HD-IMAGE-SYNC] Total ${adToUrlMap.size} ads to cache`);
+  // FASE 3: Cachear imagens usando URLs permanentes
+  console.log(`[HD-IMAGE-SYNC] FASE 3: Cacheando imagens...`);
   
-  // Fazer cache das imagens em batches de 5
-  const adsToCache = adsNeedingCache.filter((ad: any) => adToUrlMap.has(ad.id));
+  const adsWithUrls = adsNeedingCache.filter((ad: any) => {
+    const hash = adToHashMap.get(ad.id);
+    return hash && hashToUrlMap.has(hash);
+  });
   
-  for (let k = 0; k < adsToCache.length; k += 5) {
-    const adBatch = adsToCache.slice(k, k + 5);
-    const progressPercent = 50 + Math.round((k / adsToCache.length) * 50);
-    await updateSyncProgress(supabase, projectId, 'hd_images', `Cacheando HD: ${k}/${adsToCache.length}`, progressPercent, 100);
+  console.log(`[HD-IMAGE-SYNC] ${adsWithUrls.length} ads com URLs permanentes para cachear`);
+  
+  const cacheBatchSize = 5;
+  for (let k = 0; k < adsWithUrls.length; k += cacheBatchSize) {
+    const adBatch = adsWithUrls.slice(k, k + cacheBatchSize);
+    const progressPercent = 50 + Math.round((k / adsWithUrls.length) * 50);
+    await updateSyncProgress(supabase, projectId, 'hd_images', `Cacheando: ${k}/${adsWithUrls.length}`, progressPercent, 100);
     
     const promises = adBatch.map(async (ad: any) => {
-      const imageUrl = adToUrlMap.get(ad.id);
-      if (!imageUrl) return;
+      const hash = adToHashMap.get(ad.id);
+      if (!hash) return;
+      
+      const permalinkUrl = hashToUrlMap.get(hash);
+      if (!permalinkUrl) return;
       
       try {
-        const cachedUrl = await cacheCreativeImageRobust(supabase, projectId, ad.id, imageUrl, ad.creative_id, token);
+        const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, permalinkUrl);
         if (cachedUrl) {
-          await supabase
-            .from('ads')
-            .update({ 
-              cached_image_url: cachedUrl,
-              creative_image_url: imageUrl,
-              synced_at: new Date().toISOString()
-            })
-            .eq('id', ad.id);
+          await supabase.from('ads').update({ 
+            cached_image_url: cachedUrl,
+            creative_thumbnail: permalinkUrl,
+            synced_at: new Date().toISOString()
+          }).eq('id', ad.id);
           cachedCount++;
+          console.log(`[HD-IMAGE-SYNC] ✓ Cached ${ad.id} (hash: ${hash.substring(0, 8)}...)`);
         } else {
           errorsCount++;
         }
       } catch (e) {
-        console.log(`[HD-IMAGE-SYNC] Cache error for ad ${ad.id}: ${e}`);
+        console.log(`[HD-IMAGE-SYNC] Cache error for ${ad.id}: ${e}`);
         errorsCount++;
       }
     });
+    
     await Promise.all(promises);
+  }
+  
+  // FASE 4: Fallback para ads sem image_hash - tentar thumbnail_url direto
+  const adsWithoutHash = adsNeedingCache.filter((ad: any) => !adToHashMap.has(ad.id));
+  if (adsWithoutHash.length > 0) {
+    console.log(`[HD-IMAGE-SYNC] FASE 4: Fallback para ${adsWithoutHash.length} ads sem hash...`);
+    
+    for (let i = 0; i < adsWithoutHash.length; i += batchSize) {
+      const batch = adsWithoutHash.slice(i, i + batchSize);
+      const batchIds = batch.map((a: any) => a.id).join(',');
+      
+      // Tentar thumbnail_url HD como último recurso
+      const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,thumbnail_url}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+      const adsData = await simpleFetch(adsUrl, undefined, 30000);
+      
+      if (adsData?.error) continue;
+      
+      const cachePromises = batch.map(async (ad: any) => {
+        const adData = (adsData as Record<string, any>)[ad.id];
+        if (!adData?.creative?.thumbnail_url) return;
+        
+        const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, adData.creative.thumbnail_url);
+        if (cachedUrl) {
+          await supabase.from('ads').update({ 
+            cached_image_url: cachedUrl,
+            creative_thumbnail: adData.creative.thumbnail_url,
+            synced_at: new Date().toISOString()
+          }).eq('id', ad.id);
+          cachedCount++;
+        } else {
+          errorsCount++;
+        }
+      });
+      
+      await Promise.all(cachePromises);
+    }
   }
   
   const newPending = pendingCount - cachedCount;
   console.log(`[HD-IMAGE-SYNC] Completed - cached: ${cachedCount}, errors: ${errorsCount}, remaining: ${newPending}`);
   
-  // Update progress to complete
   await updateSyncProgress(supabase, projectId, 'hd_images', `Concluído: ${cachedCount} imagens HD cacheadas`, 100, 100);
   
-  return { cached: cachedCount, total: adsToCache.length, errors: errorsCount, pending: newPending, totalAds: totalAds || 0 };
+  return { cached: cachedCount, total: adsNeedingCache.length, errors: errorsCount, pending: newPending, totalAds: totalAds || 0 };
 }
 
 // Cache de imagem com retry robusto
