@@ -17,6 +17,7 @@ interface AdminPasswordGateProps {
 export default function AdminPasswordGate({ children }: AdminPasswordGateProps) {
   const { isAdminAuthenticated, hasApprovedAccess, isLoading, verifyPassword } = useAdminAuth();
   const { isTech, needsAdminApproval, cargo } = useCargo();
+  const { myPendingRequest, loading: requestsLoading } = useAdminAccessRequests();
   const [password, setPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState('');
@@ -60,9 +61,6 @@ export default function AdminPasswordGate({ children }: AdminPasswordGateProps) 
   if (isAdminAuthenticated) {
     return <>{children}</>;
   }
-
-  // Get pending request info
-  const { myPendingRequest, loading: requestsLoading } = useAdminAccessRequests();
 
   // Show access request option for investidor/coordenador who don't have approved access yet
   if (needsAdminApproval && !hasApprovedAccess) {
