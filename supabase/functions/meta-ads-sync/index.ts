@@ -39,7 +39,7 @@ interface SyncRequest {
   access_token?: string;
   time_range?: { since: string; until: string };
   date_preset?: string;
-  syncMode?: 'base' | 'creatives' | 'hd_images' | 'recache_hd';
+  syncMode?: 'base' | 'creatives' | 'hd_images' | 'recache_hd' | 'story_hd';
   retry_count?: number;
   lite_mode?: boolean; // Skip entity fetch for large accounts
   specific_ad_ids?: string[]; // OTIMIZAÇÃO: buscar criativos/HD apenas desses ads
@@ -1031,6 +1031,137 @@ async function recacheAllHD(
   return { cached, total: ads.length, skipped, errors };
 }
 
+// ===========================================================================================
+// 6️⃣ CACHE VIA STORY ID - Busca imagens HD via effective_object_story_id (fallback)
+// Para ads sem image_hash (vídeos, dinâmicos, posts promovidos)
+// ===========================================================================================
+async function cacheViaStoryId(
+  supabase: any, 
+  projectId: string, 
+  adAccountId: string, 
+  token: string
+): Promise<{ cached: number; total: number; skipped: number; errors: number }> {
+  console.log(`[STORY-HD] Starting story-based HD cache for project ${projectId}`);
+  
+  // Buscar ads SEM cached_image_url (ou com imagem pequena)
+  const { data: adsWithoutHD, error: adsError } = await supabase
+    .from('ads')
+    .select('id, cached_image_url')
+    .eq('project_id', projectId);
+  
+  if (adsError) throw adsError;
+  
+  // Filtrar apenas ads sem cache HD
+  const ads = (adsWithoutHD || []).filter((ad: any) => !ad.cached_image_url);
+  console.log(`[STORY-HD] ${ads.length} ads without HD cache`);
+  
+  if (ads.length === 0) {
+    return { cached: 0, total: 0, skipped: 0, errors: 0 };
+  }
+  
+  let cached = 0, skipped = 0, errors = 0;
+  const adIds = ads.map((a: any) => a.id);
+  const batchSize = 50;
+  
+  // Mapa de adId -> story image URL
+  const storyImageMap = new Map<string, string>();
+  
+  // FASE 1: Buscar effective_object_story_id de todos os ads
+  console.log(`[STORY-HD] FASE 1: Coletando story IDs...`);
+  
+  for (let i = 0; i < adIds.length; i += batchSize) {
+    const batch = adIds.slice(i, i + batchSize);
+    const batchIds = batch.join(',');
+    
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,effective_object_story_id,object_story_spec,thumbnail_url}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    const adsData = await simpleFetch(adsUrl, undefined, 30000);
+    
+    if (adsData?.error) {
+      console.log(`[STORY-HD] Batch error: ${adsData.error.message?.substring(0, 100)}`);
+      continue;
+    }
+    
+    for (const adId of batch) {
+      const adData = (adsData as Record<string, any>)[adId];
+      if (!adData?.creative) continue;
+      
+      const creative = adData.creative;
+      let imageUrl: string | null = null;
+      
+      // PRIORIDADE 1: thumbnail_url com 1080x1080 (já pedimos na query)
+      if (creative.thumbnail_url) {
+        // Limpar URL de parâmetros de resize
+        let cleanUrl = creative.thumbnail_url;
+        cleanUrl = cleanUrl.replace(/[&?]stp=[^&]*/gi, '');
+        cleanUrl = cleanUrl.replace(/\/p\d+x\d+\//g, '/');
+        cleanUrl = cleanUrl.replace(/\/s\d+x\d+\//g, '/');
+        imageUrl = cleanUrl;
+      }
+      
+      // PRIORIDADE 2: object_story_spec image URLs (imagens originais)
+      if (!imageUrl && creative.object_story_spec) {
+        const oss = creative.object_story_spec;
+        if (oss.link_data?.picture) imageUrl = oss.link_data.picture;
+        else if (oss.link_data?.image_url) imageUrl = oss.link_data.image_url;
+        else if (oss.video_data?.image_url) imageUrl = oss.video_data.image_url;
+        else if (oss.photo_data?.images?.[0]?.url) imageUrl = oss.photo_data.images[0].url;
+      }
+      
+      if (imageUrl) {
+        storyImageMap.set(adId, imageUrl);
+      }
+    }
+    
+    if (i + batchSize < adIds.length) await delay(100);
+  }
+  
+  console.log(`[STORY-HD] Encontradas ${storyImageMap.size} URLs de imagem`);
+  
+  // FASE 2: Cachear as imagens encontradas
+  console.log(`[STORY-HD] FASE 2: Cacheando imagens...`);
+  
+  const adsWithUrls = ads.filter((ad: any) => storyImageMap.has(ad.id));
+  console.log(`[STORY-HD] ${adsWithUrls.length} ads com URLs disponíveis`);
+  
+  const cacheBatchSize = 5;
+  for (let k = 0; k < adsWithUrls.length; k += cacheBatchSize) {
+    const adBatch = adsWithUrls.slice(k, k + cacheBatchSize);
+    
+    const promises = adBatch.map(async (ad: any) => {
+      const imageUrl = storyImageMap.get(ad.id);
+      if (!imageUrl) return;
+      
+      try {
+        const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, imageUrl, true);
+        if (cachedUrl) {
+          await supabase.from('ads').update({ 
+            cached_image_url: cachedUrl,
+            creative_thumbnail: imageUrl,
+            synced_at: new Date().toISOString()
+          }).eq('id', ad.id);
+          cached++;
+        } else {
+          errors++;
+        }
+      } catch (e) {
+        console.log(`[STORY-HD] Error for ${ad.id}: ${e}`);
+        errors++;
+      }
+    });
+    
+    await Promise.all(promises);
+    
+    if (k % 50 === 0) {
+      console.log(`[STORY-HD] Progress: ${k}/${adsWithUrls.length} (cached: ${cached}, errors: ${errors})`);
+    }
+  }
+  
+  skipped = ads.length - adsWithUrls.length;
+  
+  console.log(`[STORY-HD] Complete - Cached: ${cached}, Skipped: ${skipped}, Errors: ${errors}`);
+  return { cached, total: ads.length, skipped, errors };
+}
+
 // Tipos de conversão
 const FORM_LEAD_ACTION_TYPES = ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead', 'fb_pixel_lead'];
 const CONTACT_LEAD_ACTION_TYPES = ['contact_total', 'contact_website', 'contact', 'omni_complete_registration', 'complete_registration', 'submit_application', 'submit_application_total'];
@@ -1421,6 +1552,28 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: true, 
         syncMode: 'recache_hd',
+        cached: result.cached,
+        total: result.total,
+        skipped: result.skipped,
+        errors: result.errors,
+        duration: Date.now() - startTime
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    
+    // ===========================================================================================
+    // 5️⃣ STORY HD MODE - Busca imagens HD via story ID (para ads sem image_hash)
+    // ===========================================================================================
+    if (syncMode === 'story_hd') {
+      console.log(`[SYNC] Starting STORY HD for project ${project_id} - caching via effective_object_story_id`);
+      await updateSyncProgress(supabase, project_id, 'story_hd', 'Buscando imagens HD via posts originais...', 1, 100);
+      
+      const result = await cacheViaStoryId(supabase, project_id, ad_account_id, token);
+      
+      await updateSyncProgress(supabase, project_id, 'complete', `Story HD: ${result.cached}/${result.total} cacheadas`, 100, 100);
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        syncMode: 'story_hd',
         cached: result.cached,
         total: result.total,
         skipped: result.skipped,
