@@ -274,23 +274,25 @@ export default function EnhancedProjectCard({
           </div>
         )}
 
-        {/* Investidor & Squad Info */}
-        {(investidorName || squadName) && (
-          <div className="flex flex-wrap items-center gap-2 mb-3 pt-2 border-t border-border/50">
-            {investidorName && (
-              <Badge variant="outline" className="text-xs gap-1 px-2 py-0.5">
-                <User className="w-3 h-3" />
-                {investidorName.split(' ').slice(0, 2).join(' ')}
-              </Badge>
-            )}
-            {squadName && (
-              <Badge variant="secondary" className="text-xs gap-1 px-2 py-0.5">
-                <Layers className="w-3 h-3" />
-                {squadName}
-              </Badge>
-            )}
+        {/* Investidor & Squad Info - Always show */}
+        <div className="flex flex-col gap-1.5 mb-3 pt-2 border-t border-border/50 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Investidor</span>
+            <span className={cn(
+              investidorName ? 'text-foreground' : 'text-muted-foreground/70'
+            )}>
+              {investidorName ? investidorName.split(' ').slice(0, 2).join(' ') : 'Sem investidor'}
+            </span>
           </div>
-        )}
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Squad</span>
+            <span className={cn(
+              squadName ? 'text-foreground' : 'text-muted-foreground/70'
+            )}>
+              {squadName || 'Sem squad'}
+            </span>
+          </div>
+        </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between text-xs">
