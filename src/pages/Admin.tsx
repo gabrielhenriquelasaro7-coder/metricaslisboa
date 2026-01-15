@@ -22,6 +22,7 @@ import { SquadsManagement } from '@/components/admin/SquadsManagement';
 import { UserManagement } from '@/components/admin/UserManagement';
 
 import { GuestsManagement } from '@/components/admin/GuestsManagement';
+import { InvestorSuggestionsManagement } from '@/components/admin/InvestorSuggestionsManagement';
 import { 
   Database, 
   CheckCircle2, 
@@ -43,7 +44,7 @@ import {
   Timer,
   Users,
   Building2,
-  
+  MessageSquare,
   UserPlus
 } from 'lucide-react';
 import { downloadDocumentationAsTxt, downloadDocumentationAsPdf, downloadDatabaseSchemaJSON } from '@/utils/generateSystemDocumentation';
@@ -87,10 +88,10 @@ function AdminContent() {
   const selectedProject = activeProjects.find(p => p.id === selectedProjectId);
 
   // Definir tabs visíveis baseado no cargo
-  // TECH: sync, import, logs, docs (operacional)
-  // GERENTE: users, guests, squads (gestão de pessoas)
-  const techTabs = ['sync', 'import', 'logs', 'docs'];
-  const gerenteTabs = ['users', 'guests', 'squads'];
+  // TECH: sync, import, logs, docs, suggestions (operacional + sugestões)
+  // GERENTE: users, guests, squads, suggestions (gestão de pessoas + sugestões)
+  const techTabs = ['sync', 'import', 'logs', 'docs', 'suggestions'];
+  const gerenteTabs = ['users', 'guests', 'squads', 'suggestions'];
   
   const visibleTabs = isTech 
     ? [...techTabs, ...gerenteTabs] // Tech vê tudo
@@ -404,6 +405,12 @@ function AdminContent() {
               <TabsTrigger value="squads" className="gap-2">
                 <Building2 className="w-4 h-4" />
                 Squads
+              </TabsTrigger>
+            )}
+            {visibleTabs.includes('suggestions') && (
+              <TabsTrigger value="suggestions" className="gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Sugestões
               </TabsTrigger>
             )}
           </TabsList>
@@ -901,13 +908,20 @@ function AdminContent() {
                     </ul>
                   </div>
 
-                  <ExportDataButton />
+              <ExportDataButton />
 
                   <p className="text-xs text-muted-foreground text-center">
                     ⚠️ A exportação pode demorar alguns minutos dependendo do volume de dados.
                   </p>
                 </CardContent>
               </Card>
+            </TabsContent>
+          )}
+
+          {/* SUGGESTIONS TAB - TECH and GERENTE */}
+          {visibleTabs.includes('suggestions') && (
+            <TabsContent value="suggestions" className="space-y-6">
+              <InvestorSuggestionsManagement />
             </TabsContent>
           )}
         </Tabs>
