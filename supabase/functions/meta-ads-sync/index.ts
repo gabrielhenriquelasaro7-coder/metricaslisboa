@@ -599,50 +599,44 @@ async function syncHDImages(
       const creative = adData.creative;
       let bestUrl: string | null = null;
       
-      // 1. PRINCIPAL: thumbnail_url com resolução HD (já vem com 1080x1080 pelos parâmetros)
-      if (creative.thumbnail_url) {
+      // PRIORIDADE 1: Imagem do post original (URLs mais estáveis)
+      if (creative.effective_object_story_id) {
+        try {
+          const storyUrl = `https://graph.facebook.com/v22.0/${creative.effective_object_story_id}?fields=full_picture,picture,attachments{media,subattachments}&access_token=${token}`;
+          const storyData = await simpleFetch(storyUrl, undefined, 10000);
+          if (!storyData?.error) {
+            // full_picture é a melhor opção - alta resolução
+            if (storyData.full_picture) {
+              bestUrl = storyData.full_picture;
+            } else if (storyData.picture) {
+              bestUrl = storyData.picture;
+            }
+            // Tentar attachments para imagens de carrossel
+            if (!bestUrl && storyData.attachments?.data?.[0]?.media?.image?.src) {
+              bestUrl = storyData.attachments.data[0].media.image.src;
+            }
+          }
+        } catch (e) {
+          // Continue to fallbacks
+        }
+      }
+      
+      // PRIORIDADE 2: thumbnail_url com resolução HD (pode expirar)
+      if (!bestUrl && creative.thumbnail_url) {
         bestUrl = creative.thumbnail_url;
       }
       
-      // 2. Fallback: imagens do object_story_spec (imagens originais)
+      // PRIORIDADE 3: object_story_spec (imagens originais configuradas)
       if (!bestUrl && creative.object_story_spec) {
         const oss = creative.object_story_spec;
         if (oss.link_data?.picture) bestUrl = oss.link_data.picture;
         else if (oss.link_data?.image_url) bestUrl = oss.link_data.image_url;
         else if (oss.video_data?.image_url) bestUrl = oss.video_data.image_url;
+        else if (oss.video_data?.picture) bestUrl = oss.video_data.picture;
         else if (oss.photo_data?.images?.[0]?.url) bestUrl = oss.photo_data.images[0].url;
       }
       
-      // 4. Fallback: Tentar buscar imagem do post original
-      if (!bestUrl && creative.effective_object_story_id) {
-        try {
-          const storyUrl = `https://graph.facebook.com/v22.0/${creative.effective_object_story_id}?fields=full_picture,picture&access_token=${token}`;
-          const storyData = await simpleFetch(storyUrl, undefined, 10000);
-          if (!storyData?.error) {
-            bestUrl = storyData.full_picture || storyData.picture;
-          }
-        } catch (e) {
-          // Ignore - will try fallbacks
-        }
-      }
-      
-      // 5. Fallback: object_story_spec pode ter URLs de imagem
-      if (!bestUrl && creative.object_story_spec) {
-        const oss = creative.object_story_spec;
-        if (oss.link_data?.picture) {
-          bestUrl = oss.link_data.picture;
-        } else if (oss.link_data?.image_url) {
-          bestUrl = oss.link_data.image_url;
-        } else if (oss.video_data?.image_url) {
-          bestUrl = oss.video_data.image_url;
-        } else if (oss.video_data?.picture) {
-          bestUrl = oss.video_data.picture;
-        } else if (oss.photo_data?.images?.[0]?.url) {
-          bestUrl = oss.photo_data.images[0].url;
-        }
-      }
-      
-      // LIMPAR URL - remover parâmetros de resize forçado (p64x64, etc)
+      // LIMPAR URL - remover parâmetros de resize forçado
       if (bestUrl) {
         // Remove stp= parameter que força resize pequeno
         bestUrl = bestUrl.replace(/[&?]stp=[^&]*/gi, '');

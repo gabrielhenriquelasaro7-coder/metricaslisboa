@@ -693,61 +693,29 @@ export default function ProjectAdmin() {
                 </div>
                 
                 {/* HD Images Batch Sync */}
-                {/* HD Images Batch Sync - Always show when syncing or has pending */}
-                {(syncingType === 'hd_images_batch' || (imageStats && imageStats.pendingAds > 0)) && (
-                  <div className="mt-4 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div>
-                        <h4 className="font-medium flex items-center gap-2">
-                          <Images className="w-4 h-4 text-amber-500" />
-                          Sync de Imagens HD em Lote
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          {syncingType === 'hd_images_batch' 
-                            ? 'Sincronizando imagens... aguarde.'
-                            : `${imageStats?.pendingAds || 0} imagens aguardando cache. Clique para sincronizar todas.`
-                          }
-                        </p>
-                      </div>
-                      <Button 
-                        onClick={handleBatchImageSync}
-                        disabled={syncingType !== null}
-                        variant="outline"
-                        className="border-amber-500/50 hover:bg-amber-500/20"
-                      >
-                        {syncingType === 'hd_images_batch' ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Sincronizando...
-                          </>
-                        ) : (
-                          <>
-                            <Images className="w-4 h-4 mr-2" />
-                            Sincronizar Todas
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    {/* Always show progress when syncing */}
-                    {syncingType === 'hd_images_batch' && batchSyncProgress && (
-                      <div className="mt-4 space-y-2">
-                        <Progress 
-                          value={(batchSyncProgress.current / batchSyncProgress.total) * 100} 
-                          className="h-3" 
-                        />
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            {batchSyncProgress.current} de {batchSyncProgress.total} imagens em cache
-                          </span>
-                          <span className="font-medium text-amber-600">
-                            {Math.round((batchSyncProgress.current / batchSyncProgress.total) * 100)}%
-                          </span>
+                {/* Image sync status - simplified */}
+                {imageStats && (
+                  <div className={`mt-4 p-4 rounded-lg border ${imageStats.pendingAds > 0 ? 'bg-amber-500/10 border-amber-500/30' : 'bg-green-500/10 border-green-500/30'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Images className={`w-5 h-5 ${imageStats.pendingAds > 0 ? 'text-amber-500' : 'text-green-500'}`} />
+                        <div>
+                          <p className="font-medium">
+                            Imagens HD: {imageStats.cachedAds}/{imageStats.totalAds} ({imageStats.percentage}%)
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {imageStats.pendingAds > 0 
+                              ? `${imageStats.pendingAds} pendentes - use "Criativos" acima para sincronizar`
+                              : 'Todas as imagens sincronizadas!'
+                            }
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          ⏳ A sincronização pode levar alguns minutos. Não saia desta página.
-                        </p>
                       </div>
-                    )}
+                    </div>
+                    <Progress 
+                      value={imageStats.percentage} 
+                      className="h-2 mt-3" 
+                    />
                   </div>
                 )}
 
