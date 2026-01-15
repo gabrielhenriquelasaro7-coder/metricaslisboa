@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useCargo } from '@/hooks/useCargo';
+import { useAdminAccessRequests } from '@/hooks/useAdminAccessRequests';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Lock, Loader2, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Shield, Lock, Loader2, AlertCircle, Clock, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { AdminAccessRequestModal } from './AdminAccessRequestModal';
 
@@ -60,8 +61,13 @@ export default function AdminPasswordGate({ children }: AdminPasswordGateProps) 
     return <>{children}</>;
   }
 
+  // Get pending request info
+  const { myPendingRequest, loading: requestsLoading } = useAdminAccessRequests();
+
   // Show access request option for investidor/coordenador who don't have approved access yet
   if (needsAdminApproval && !hasApprovedAccess) {
+    const hasPendingRequest = !!myPendingRequest;
+
     return (
       <div className="flex items-center justify-center min-h-[60vh] p-8">
         <Card className="w-full max-w-md glass-card border-primary/20">
@@ -77,20 +83,45 @@ export default function AdminPasswordGate({ children }: AdminPasswordGateProps) 
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                <span>Solicite acesso ao Tech para entrar</span>
-              </div>
-            </div>
-            
-            <Button 
-              className="w-full" 
-              onClick={() => setShowRequestModal(true)}
-            >
-              <Shield className="w-4 h-4 mr-2" />
-              Solicitar Acesso
-            </Button>
+            {hasPendingRequest ? (
+              <>
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="font-medium">Solicitação pendente</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Aguardando aprovação do Tech. Você receberá uma notificação quando for aprovado.
+                  </p>
+                </div>
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Motivo:</strong> {myPendingRequest.reason}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <strong>Enviado em:</strong> {new Date(myPendingRequest.created_at).toLocaleString('pt-BR')}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="w-4 h-4" />
+                    <span>Solicite acesso ao Tech para entrar</span>
+                  </div>
+                </div>
+                
+                <Button 
+                  className="w-full" 
+                  onClick={() => setShowRequestModal(true)}
+                  disabled={requestsLoading}
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Solicitar Acesso
+                </Button>
+              </>
+            )}
             
             <AdminAccessRequestModal
               open={showRequestModal}
