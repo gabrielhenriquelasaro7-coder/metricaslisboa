@@ -166,13 +166,13 @@ export function UserManagement() {
 
         if (error) throw error;
 
-        // If user is investidor, also remove from project's investidor_id
+        // If user is investidor, also remove from project_investidores table
         if (isInvestidor) {
           await supabase
-            .from('projects')
-            .update({ investidor_id: null, squad_id: null })
-            .eq('id', projectId)
-            .eq('investidor_id', userId); // Only remove if this user was the investidor
+            .from('project_investidores')
+            .delete()
+            .eq('project_id', projectId)
+            .eq('investidor_id', userId);
         }
 
         setUserProjectAccess(prev => ({
@@ -191,7 +191,7 @@ export function UserManagement() {
 
         if (error) throw error;
 
-        // If user is investidor, also update the project's investidor_id and squad_id
+        // If user is investidor, also add to project_investidores table
         if (isInvestidor && userId) {
           // Get the user's squad
           const { data: squadMembership } = await supabase
@@ -200,13 +200,22 @@ export function UserManagement() {
             .eq('user_id', userId)
             .maybeSingle();
 
+          // Add to project_investidores (upsert to avoid duplicates)
+          await supabase
+            .from('project_investidores')
+            .upsert({ 
+              project_id: projectId,
+              investidor_id: userId
+            }, { onConflict: 'project_id,investidor_id' });
+
+          // Update project's squad_id if not set
           await supabase
             .from('projects')
             .update({ 
-              investidor_id: userId,
               squad_id: squadMembership?.squad_id || null
             })
-            .eq('id', projectId);
+            .eq('id', projectId)
+            .is('squad_id', null);
         }
 
         setUserProjectAccess(prev => ({
