@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { toast } from 'sonner';
 
 interface AdminAuthContextType {
   isAdminAuthenticated: boolean;
@@ -35,7 +36,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         .select('id, expires_at, project_id')
         .eq('user_id', user.id)
         .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
+        .limit(1);
 
       if (error) {
         console.error('Error checking admin access grant:', error);
@@ -44,7 +45,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Check if grant exists and not expired
-      if (data) {
+      if (data && data.length > 0) {
         setHasApprovedAccess(true);
         // Auto-authenticate users with approved access
         setIsAdminAuthenticated(true);
@@ -59,6 +60,40 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       setHasApprovedAccess(false);
       return false;
     }
+  }, [user]);
+
+  // Subscribe to realtime changes for admin_access_grants
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('admin-access-grants')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'admin_access_grants',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Admin access granted!', payload);
+          // Show notification
+          toast.success('🎉 Seu acesso foi aprovado!', {
+            description: 'Você agora tem acesso ao Admin do projeto.',
+            duration: 5000,
+          });
+          // Update state
+          setHasApprovedAccess(true);
+          setIsAdminAuthenticated(true);
+          localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify({ timestamp: Date.now(), grantAccess: true }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -78,9 +113,20 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       const sessionData = localStorage.getItem(ADMIN_AUTH_KEY);
       if (sessionData) {
         try {
-          const { timestamp } = JSON.parse(sessionData);
+          const { timestamp, grantAccess } = JSON.parse(sessionData);
           const now = Date.now();
-          if (now - timestamp < SESSION_DURATION) {
+          
+          // If it was a grant-based access, re-verify from database
+          if (grantAccess && user) {
+            const hasGrant = await checkApprovedAccess();
+            if (hasGrant) {
+              setIsLoading(false);
+              return;
+            }
+            // Grant expired, remove session
+            localStorage.removeItem(ADMIN_AUTH_KEY);
+          } else if (now - timestamp < SESSION_DURATION) {
+            // Password-based session still valid
             setIsAdminAuthenticated(true);
           } else {
             localStorage.removeItem(ADMIN_AUTH_KEY);
@@ -120,6 +166,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setIsAdminAuthenticated(false);
+    setHasApprovedAccess(false);
     localStorage.removeItem(ADMIN_AUTH_KEY);
   };
 
