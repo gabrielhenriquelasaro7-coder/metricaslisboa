@@ -13,9 +13,11 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check, KeyRound, UserPlus, Search, Filter } from 'lucide-react';
+import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check, KeyRound, UserPlus, Search, Filter, Mail, Phone, Calendar, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,6 +85,7 @@ export function UserManagement() {
   const [filterSquad, setFilterSquad] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'pending'>('all');
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -110,6 +113,14 @@ export function UserManagement() {
   };
   
   const configUser = users.find(u => u.user_id === configUserId);
+  const profileUser = users.find(u => u.user_id === profileUserId);
+
+  const getInitials = (name: string | null, email: string) => {
+    if (name) {
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+    return email.slice(0, 2).toUpperCase();
+  };
 
   // Get current user email
   useEffect(() => {
@@ -733,14 +744,24 @@ export function UserManagement() {
                   const isActivating = activatingUserId === user.email;
                   return (
                   <TableRow key={user.id} className={isMaster ? 'bg-primary/5' : userNeedsActivation ? 'bg-yellow-500/5' : ''}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {user.full_name || '-'}
-                        {isMaster && (
-                          <Badge variant="outline" className="border-primary text-primary text-xs">
-                            Master
-                          </Badge>
-                        )}
+                    <TableCell 
+                      className="font-medium cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => user.user_id && setProfileUserId(user.user_id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-8 h-8">
+                          <AvatarFallback className={`text-xs ${CARGO_COLORS[user.cargo]} text-white`}>
+                            {getInitials(user.full_name, user.email)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex items-center gap-2">
+                          <span className="hover:underline">{user.full_name || '-'}</span>
+                          {isMaster && (
+                            <Badge variant="outline" className="border-primary text-primary text-xs">
+                              Master
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
@@ -804,54 +825,56 @@ export function UserManagement() {
                       )}
                     </TableCell>
                     {canManage && (
-                      <TableCell className="text-right space-x-1">
-                        {/* Activate button - only for users without account */}
-                        {userNeedsActivation && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1 text-xs"
-                            onClick={() => handleActivateSingleUser(user.email)}
-                            disabled={isActivating}
-                            title="Ativar conta deste usuário"
-                          >
-                            {isActivating ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <UserPlus className="w-3 h-3" />
-                            )}
-                            Ativar
-                          </Button>
-                        )}
-                        {isTech && canEditUser(user.email) && !userNeedsActivation && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openConfigDialog(user.user_id)}
-                            title="Configurar visibilidade e projetos"
-                          >
-                            <Settings2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {(isGerente || isTech) && !isMaster && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => {
-                              if (confirm('Tem certeza que deseja excluir este usuário?')) {
-                                deleteUser(user.user_id);
-                              }
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {isMaster && !isCurrentUserMaster && (
-                          <span className="text-xs text-muted-foreground italic">
-                            Protegido
-                          </span>
-                        )}
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Activate button - only for users without account */}
+                          {userNeedsActivation && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 text-xs"
+                              onClick={() => handleActivateSingleUser(user.email)}
+                              disabled={isActivating}
+                              title="Ativar conta deste usuário"
+                            >
+                              {isActivating ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <UserPlus className="w-3 h-3" />
+                              )}
+                              Ativar
+                            </Button>
+                          )}
+                          {isTech && canEditUser(user.email) && !userNeedsActivation && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openConfigDialog(user.user_id)}
+                              title="Configurar visibilidade e projetos"
+                            >
+                              <Settings2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {(isGerente || isTech) && !isMaster && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => {
+                                if (confirm('Tem certeza que deseja excluir este usuário?')) {
+                                  deleteUser(user.user_id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {isMaster && !isCurrentUserMaster && (
+                            <span className="text-xs text-muted-foreground italic">
+                              Protegido
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
@@ -1042,6 +1065,145 @@ export function UserManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* User Profile Sheet */}
+      <Sheet open={!!profileUserId} onOpenChange={(open) => !open && setProfileUserId(null)}>
+        <SheetContent className="sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <User className="w-5 h-5 text-primary" />
+              Perfil do Usuário
+            </SheetTitle>
+            <SheetDescription>
+              Informações detalhadas do usuário
+            </SheetDescription>
+          </SheetHeader>
+
+          {profileUser && (
+            <div className="mt-6 space-y-6">
+              {/* Avatar and Name */}
+              <div className="flex flex-col items-center text-center">
+                <Avatar className="w-20 h-20 mb-4">
+                  <AvatarFallback className={`text-2xl ${CARGO_COLORS[profileUser.cargo]} text-white`}>
+                    {getInitials(profileUser.full_name, profileUser.email)}
+                  </AvatarFallback>
+                </Avatar>
+                <h3 className="text-xl font-semibold">{profileUser.full_name || 'Sem nome'}</h3>
+                <Badge className={`mt-2 ${CARGO_COLORS[profileUser.cargo]}`}>
+                  {CARGO_LABELS[profileUser.cargo]}
+                </Badge>
+                {isMasterUser(profileUser.email) && (
+                  <Badge variant="outline" className="mt-2 border-primary text-primary">
+                    Master
+                  </Badge>
+                )}
+              </div>
+
+              {/* Status */}
+              <div className="flex justify-center">
+                {needsActivation(profileUser) ? (
+                  <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30">
+                    Pendente de Ativação
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                    <Check className="w-3 h-3 mr-1" />
+                    Conta Ativa
+                  </Badge>
+                )}
+              </div>
+
+              {/* Contact Info */}
+              <div className="space-y-4 border-t pt-6">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Contato</h4>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <Mail className="w-5 h-5 text-primary" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="font-medium truncate">{profileUser.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <Phone className="w-5 h-5 text-primary" />
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground">Telefone</p>
+                      <p className="font-medium">{profileUser.phone || 'Não informado'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Squad Info */}
+              <div className="space-y-4 border-t pt-6">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Organização</h4>
+                
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                  <Building2 className="w-5 h-5 text-primary" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">Squad</p>
+                    <p className="font-medium">{profileUser.squad_name || 'Sem squad'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timestamps */}
+              <div className="space-y-4 border-t pt-6">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Datas</h4>
+                
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">Criado em</p>
+                    <p className="font-medium">
+                      {profileUser.created_at 
+                        ? new Date(profileUser.created_at).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric'
+                          })
+                        : 'Data não disponível'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              {canManage && canEditUser(profileUser.email) && (
+                <div className="border-t pt-6 space-y-2">
+                  {needsActivation(profileUser) && (
+                    <Button 
+                      className="w-full gap-2"
+                      onClick={() => {
+                        handleActivateSingleUser(profileUser.email);
+                        setProfileUserId(null);
+                      }}
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Ativar Conta
+                    </Button>
+                  )}
+                  {isTech && !needsActivation(profileUser) && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full gap-2"
+                      onClick={() => {
+                        openConfigDialog(profileUser.user_id);
+                        setProfileUserId(null);
+                      }}
+                    >
+                      <Settings2 className="w-4 h-4" />
+                      Configurar Acessos
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }
