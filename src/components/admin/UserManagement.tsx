@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check } from 'lucide-react';
+import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -70,6 +70,7 @@ export function UserManagement() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isCreatingAuthUsers, setIsCreatingAuthUsers] = useState(false);
   const [configUserId, setConfigUserId] = useState<string | null>(null);
   const [userProjectAccess, setUserProjectAccess] = useState<Record<string, string[]>>({});
   const [isSavingVisibility, setIsSavingVisibility] = useState(false);
@@ -293,6 +294,53 @@ export function UserManagement() {
     setLocalHiddenTabs([]);
   };
 
+  // Create auth accounts for users in user_management
+  const handleCreateAuthUsers = async () => {
+    setIsCreatingAuthUsers(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Você precisa estar autenticado');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('create-auth-users', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const results = response.data?.results;
+      if (results) {
+        const messages = [];
+        if (results.created?.length > 0) {
+          messages.push(`${results.created.length} contas criadas`);
+        }
+        if (results.password_reset?.length > 0) {
+          messages.push(`${results.password_reset.length} senhas resetadas`);
+        }
+        if (results.failed?.length > 0) {
+          messages.push(`${results.failed.length} falhas`);
+        }
+        
+        if (messages.length > 0) {
+          toast.success(`Concluído: ${messages.join(', ')}. Senha padrão: 12345678`);
+        } else {
+          toast.info('Nenhum usuário para processar');
+        }
+      }
+    } catch (error) {
+      console.error('Error creating auth users:', error);
+      toast.error('Erro ao criar contas de autenticação');
+    } finally {
+      setIsCreatingAuthUsers(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="glass-card">
@@ -322,6 +370,20 @@ export function UserManagement() {
           
           {canManage && (
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={handleCreateAuthUsers}
+                disabled={isCreatingAuthUsers}
+              >
+                {isCreatingAuthUsers ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <KeyRound className="w-4 h-4" />
+                )}
+                Ativar Contas
+              </Button>
+
               <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="gap-2">
