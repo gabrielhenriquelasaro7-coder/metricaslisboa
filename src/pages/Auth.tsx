@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -117,6 +118,22 @@ export default function Auth() {
             toast.error('Erro ao fazer login');
           }
         } else {
+          // Check if user needs to change password (first access)
+          const { data: session } = await supabase.auth.getSession();
+          if (session?.session?.user) {
+            const { data: roleData } = await supabase
+              .from('user_roles')
+              .select('password_changed')
+              .eq('user_id', session.session.user.id)
+              .single();
+            
+            if (roleData && roleData.password_changed === false) {
+              toast.info('Por segurança, altere sua senha no primeiro acesso');
+              window.location.href = '/change-password';
+              return;
+            }
+          }
+          
           toast.success('Login realizado com sucesso!');
           // Force navigation with replace to avoid back button issues
           window.location.href = '/projects';
