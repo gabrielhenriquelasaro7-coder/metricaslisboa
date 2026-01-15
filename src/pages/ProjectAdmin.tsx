@@ -309,7 +309,7 @@ export default function ProjectAdmin() {
     }
   };
 
-  // Batch sync for all pending HD images
+  // Batch sync for all pending HD images with real-time progress
   const handleBatchImageSync = async () => {
     if (!id || !project) {
       toast.error('Projeto não encontrado');
@@ -340,100 +340,61 @@ export default function ProjectAdmin() {
     setSyncingType('hd_images_batch');
     setBatchSyncProgress({ current: initialCached, total: totalAds });
     
-    const toastId = toast.loading(
-      `Sincronizando ${pendingImages} imagens... (pode levar alguns minutos)`,
-      { duration: Infinity }
-    );
-    
-    let totalNewCached = 0;
-    let totalErrors = 0;
-    let iterations = 0;
-    let lastCachedCount = initialCached;
-    let noProgressCount = 0;
-    const maxIterations = 10; // Max 10 iterations to avoid infinite loop
-    const maxNoProgress = 3; // Stop after 3 rounds with no progress
-    
-    while (iterations < maxIterations && noProgressCount < maxNoProgress) {
-      iterations++;
-      
-      try {
-        // Update toast with current progress
-        toast.loading(
-          `Lote ${iterations}: processando imagens... (${lastCachedCount}/${totalAds} cacheadas)`,
-          { id: toastId }
-        );
+    // Start real-time polling of image progress
+    let isPolling = true;
+    const pollImageProgress = async () => {
+      while (isPolling) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
         
-        const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
-          body: {
-            project_id: id,
-            ad_account_id: project.ad_account_id,
-            syncMode: 'hd_images' // Use hd_images directly for batch
-          }
-        });
+        if (!isPolling) break;
         
-        if (error) {
-          console.error('Batch sync error:', error);
-          toast.error(`Erro no lote ${iterations}: ${error.message}`, { id: toastId });
-          break;
-        }
-        
-        // Extract results - handle both syncMode responses
-        const cached = data?.cached || data?.hdImages?.cached || 0;
-        const errors = data?.errors || data?.hdImages?.errors || 0;
-        const pending = data?.pending || data?.hdImages?.pending || 0;
-        
-        totalNewCached += cached;
-        totalErrors += errors;
-        
-        // Re-fetch actual count from database for accurate progress
-        const { count: newCachedCount } = await supabase
+        const { count: currentCached } = await supabase
           .from('ads')
           .select('id', { count: 'exact', head: true })
           .eq('project_id', id)
           .not('cached_image_url', 'is', null);
         
-        const actualCached = newCachedCount || 0;
-        const stillPending = totalAds - actualCached;
-        
-        // Check if we made progress
-        if (actualCached === lastCachedCount) {
-          noProgressCount++;
-          console.log(`Batch ${iterations}: No progress (${noProgressCount}/${maxNoProgress}), cached=${actualCached}, pending=${stillPending}, errors=${errors}`);
-        } else {
-          noProgressCount = 0; // Reset if we made progress
+        if (currentCached !== null) {
+          setBatchSyncProgress(prev => prev ? { ...prev, current: currentCached } : { current: currentCached, total: totalAds });
         }
-        lastCachedCount = actualCached;
-        
-        // Update progress UI
-        setBatchSyncProgress({ 
-          current: actualCached, 
-          total: totalAds 
-        });
-        
-        toast.loading(
-          `Lote ${iterations}: ${cached} novas imagens, ${errors} erros, ${stillPending} pendentes`,
-          { id: toastId }
-        );
-        
-        console.log(`Batch ${iterations}: new cached=${cached}, errors=${errors}, total cached=${actualCached}, pending=${stillPending}`);
-        
-        // Stop if no more pending
-        if (stillPending === 0 || pending === 0) {
-          console.log('All images processed or no more pending');
-          break;
-        }
-        
-        // Delay between batches
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        
-      } catch (err) {
-        console.error('Batch sync exception:', err);
-        toast.error(`Erro inesperado no lote ${iterations}`, { id: toastId });
-        break;
       }
+    };
+    
+    // Start polling in background
+    pollImageProgress();
+    
+    try {
+      // Single call to edge function - it will process all images
+      const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
+        body: {
+          project_id: id,
+          ad_account_id: project.ad_account_id,
+          syncMode: 'hd_images' // This processes ALL pending images
+        }
+      });
+      
+      if (error) {
+        console.error('Batch sync error:', error);
+        toast.error(`Erro na sincronização: ${error.message}`);
+        isPolling = false;
+        setSyncingType(null);
+        setBatchSyncProgress(null);
+        return;
+      }
+      
+      // Wait a bit then keep polling for a few more seconds
+      // as edge function may still be processing
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+    } catch (err) {
+      console.error('Batch sync exception:', err);
+      toast.error('Erro inesperado na sincronização');
     }
     
-    // Refresh stats and cleanup
+    // Stop polling and get final count
+    isPolling = false;
+    
+    // Refresh stats
     await fetchImageStats();
     
     // Final count
@@ -452,16 +413,16 @@ export default function ProjectAdmin() {
     
     // Show appropriate final message
     if (finalPending === 0) {
-      toast.success(`✅ Todas ${totalAds} imagens sincronizadas!`, { id: toastId, duration: 5000 });
+      toast.success(`✅ Todas ${totalAds} imagens sincronizadas!`, { duration: 5000 });
     } else if (newlyCached > 0) {
       toast.success(
         `Sync parcial: ${newlyCached} novas imagens. ${finalPending} ainda pendentes (URLs podem estar expiradas).`,
-        { id: toastId, duration: 8000 }
+        { duration: 8000 }
       );
     } else {
       toast.warning(
         `Nenhuma nova imagem cacheada. ${finalPending} pendentes podem ter URLs expiradas no Meta.`,
-        { id: toastId, duration: 8000 }
+        { duration: 8000 }
       );
     }
   };
@@ -732,7 +693,8 @@ export default function ProjectAdmin() {
                 </div>
                 
                 {/* HD Images Batch Sync */}
-                {imageStats && imageStats.pendingAds > 0 && (
+                {/* HD Images Batch Sync - Always show when syncing or has pending */}
+                {(syncingType === 'hd_images_batch' || (imageStats && imageStats.pendingAds > 0)) && (
                   <div className="mt-4 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div>
@@ -741,7 +703,10 @@ export default function ProjectAdmin() {
                           Sync de Imagens HD em Lote
                         </h4>
                         <p className="text-sm text-muted-foreground">
-                          {imageStats.pendingAds} imagens aguardando cache. Clique para sincronizar todas.
+                          {syncingType === 'hd_images_batch' 
+                            ? 'Sincronizando imagens... aguarde.'
+                            : `${imageStats?.pendingAds || 0} imagens aguardando cache. Clique para sincronizar todas.`
+                          }
                         </p>
                       </div>
                       <Button 
@@ -753,9 +718,7 @@ export default function ProjectAdmin() {
                         {syncingType === 'hd_images_batch' ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            {batchSyncProgress 
-                              ? `${batchSyncProgress.current}/${batchSyncProgress.total}`
-                              : 'Iniciando...'}
+                            Sincronizando...
                           </>
                         ) : (
                           <>
@@ -765,14 +728,23 @@ export default function ProjectAdmin() {
                         )}
                       </Button>
                     </div>
-                    {batchSyncProgress && (
-                      <div className="mt-3">
+                    {/* Always show progress when syncing */}
+                    {syncingType === 'hd_images_batch' && batchSyncProgress && (
+                      <div className="mt-4 space-y-2">
                         <Progress 
                           value={(batchSyncProgress.current / batchSyncProgress.total) * 100} 
-                          className="h-2" 
+                          className="h-3" 
                         />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {batchSyncProgress.current} de {batchSyncProgress.total} imagens processadas
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            {batchSyncProgress.current} de {batchSyncProgress.total} imagens em cache
+                          </span>
+                          <span className="font-medium text-amber-600">
+                            {Math.round((batchSyncProgress.current / batchSyncProgress.total) * 100)}%
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          ⏳ A sincronização pode levar alguns minutos. Não saia desta página.
                         </p>
                       </div>
                     )}
