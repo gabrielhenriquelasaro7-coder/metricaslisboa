@@ -879,10 +879,6 @@ export default function ProjectSelector() {
                   <User className="w-4 h-4" />
                   <span className="hidden lg:inline">Configurações</span>
                 </button>
-                <button onClick={handleLogout} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-red-500 hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-red-500/30 whitespace-nowrap touch-target">
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden lg:inline">Sair</span>
-                </button>
               </div>
             </nav>
           </div>
