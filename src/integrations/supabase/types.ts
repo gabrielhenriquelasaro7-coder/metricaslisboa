@@ -157,40 +157,45 @@ export type Database = {
         Row: {
           created_at: string
           expires_at: string | null
+          grant_date: string
           granted_at: string
           granted_by: string
           id: string
           notes: string | null
-          revoked_at: string | null
-          revoked_by: string | null
-          updated_at: string
+          project_id: string | null
           user_id: string
         }
         Insert: {
           created_at?: string
           expires_at?: string | null
+          grant_date?: string
           granted_at?: string
           granted_by: string
           id?: string
           notes?: string | null
-          revoked_at?: string | null
-          revoked_by?: string | null
-          updated_at?: string
+          project_id?: string | null
           user_id: string
         }
         Update: {
           created_at?: string
           expires_at?: string | null
+          grant_date?: string
           granted_at?: string
           granted_by?: string
           id?: string
           notes?: string | null
-          revoked_at?: string | null
-          revoked_by?: string | null
-          updated_at?: string
+          project_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admin_access_grants_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       admin_access_requests: {
         Row: {
@@ -2960,6 +2965,10 @@ export type Database = {
           _cargo: Database["public"]["Enums"]["user_cargo_v2"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      has_project_admin_access: {
+        Args: { check_project_id: string; check_user_id: string }
         Returns: boolean
       }
       has_role: {
