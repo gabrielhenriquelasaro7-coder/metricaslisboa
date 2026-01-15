@@ -17,7 +17,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check, KeyRound, UserPlus, Search, Filter, Mail, Phone, Calendar, User } from 'lucide-react';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -750,6 +750,7 @@ export function UserManagement() {
                     >
                       <div className="flex items-center gap-3">
                         <Avatar className="w-8 h-8">
+                          {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.full_name || user.email} />}
                           <AvatarFallback className={`text-xs ${CARGO_COLORS[user.cargo]} text-white`}>
                             {getInitials(user.full_name, user.email)}
                           </AvatarFallback>
@@ -1084,6 +1085,7 @@ export function UserManagement() {
               {/* Avatar and Name */}
               <div className="flex flex-col items-center text-center">
                 <Avatar className="w-20 h-20 mb-4">
+                  {profileUser.avatar_url && <AvatarImage src={profileUser.avatar_url} alt={profileUser.full_name || profileUser.email} />}
                   <AvatarFallback className={`text-2xl ${CARGO_COLORS[profileUser.cargo]} text-white`}>
                     {getInitials(profileUser.full_name, profileUser.email)}
                   </AvatarFallback>

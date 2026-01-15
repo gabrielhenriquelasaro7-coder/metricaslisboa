@@ -13,6 +13,7 @@ export interface ManagedUser {
   cargo: UserCargo;
   squad_id: string | null;
   squad_name?: string;
+  avatar_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -96,9 +97,28 @@ export function useUserManagement(): UseUserManagementReturn {
         console.error('Error fetching users:', error);
         setUsers([]);
       } else {
+        // Fetch avatar URLs from profiles table
+        const userIds = (data || []).map((u: any) => u.user_id).filter(Boolean);
+        let avatarMap: Record<string, string> = {};
+        
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, avatar_url')
+            .in('user_id', userIds);
+          
+          if (profiles) {
+            avatarMap = profiles.reduce((acc: Record<string, string>, p) => {
+              if (p.avatar_url) acc[p.user_id] = p.avatar_url;
+              return acc;
+            }, {});
+          }
+        }
+
         const mappedUsers = (data || []).map((u: any) => ({
           ...u,
           squad_name: u.squads?.name || null,
+          avatar_url: avatarMap[u.user_id] || null,
         }));
         setUsers(mappedUsers);
       }
