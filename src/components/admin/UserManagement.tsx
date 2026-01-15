@@ -144,8 +144,13 @@ export function UserManagement() {
   }, []);
 
   // Handle user project access toggle (agora em batch)
+  // Also updates investidor_id and squad_id on project when user is an investidor
   const handleToggleProjectAccess = async (userId: string, projectId: string, checked: boolean) => {
     const currentAccess = userProjectAccess[userId] || [];
+    
+    // Find the user to check their cargo
+    const targetUser = users.find(u => u.user_id === userId);
+    const isInvestidor = targetUser?.cargo === 'investidor';
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -160,6 +165,15 @@ export function UserManagement() {
           .eq('project_id', projectId);
 
         if (error) throw error;
+
+        // If user is investidor, also remove from project's investidor_id
+        if (isInvestidor) {
+          await supabase
+            .from('projects')
+            .update({ investidor_id: null, squad_id: null })
+            .eq('id', projectId)
+            .eq('investidor_id', userId); // Only remove if this user was the investidor
+        }
 
         setUserProjectAccess(prev => ({
           ...prev,
@@ -176,6 +190,24 @@ export function UserManagement() {
           });
 
         if (error) throw error;
+
+        // If user is investidor, also update the project's investidor_id and squad_id
+        if (isInvestidor && userId) {
+          // Get the user's squad
+          const { data: squadMembership } = await supabase
+            .from('squad_members')
+            .select('squad_id')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          await supabase
+            .from('projects')
+            .update({ 
+              investidor_id: userId,
+              squad_id: squadMembership?.squad_id || null
+            })
+            .eq('id', projectId);
+        }
 
         setUserProjectAccess(prev => ({
           ...prev,
