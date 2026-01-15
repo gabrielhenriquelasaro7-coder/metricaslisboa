@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check, KeyRound, UserPlus, Search, Filter, Mail, Phone, Calendar, User } from 'lucide-react';
+import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check, KeyRound, UserPlus, Search, Filter, Mail, Phone, Calendar, User, UserMinus, MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -74,6 +74,7 @@ export function UserManagement() {
   const [isImporting, setIsImporting] = useState(false);
   const [isCreatingAuthUsers, setIsCreatingAuthUsers] = useState(false);
   const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
+  const [deactivatingUserId, setDeactivatingUserId] = useState<string | null>(null);
   const [configUserId, setConfigUserId] = useState<string | null>(null);
   const [userProjectAccess, setUserProjectAccess] = useState<Record<string, string[]>>({});
   const [isSavingVisibility, setIsSavingVisibility] = useState(false);
@@ -439,6 +440,40 @@ export function UserManagement() {
     }
   };
 
+  // Deactivate a single user account
+  const handleDeactivateUser = async (userId: string, email: string) => {
+    if (!confirm(`Tem certeza que deseja inativar a conta de ${email}? O usuário não poderá acessar o sistema.`)) {
+      return;
+    }
+    
+    setDeactivatingUserId(userId);
+    try {
+      // Clear the user_id in user_management to mark as inactive
+      const { error } = await supabase
+        .from('user_management')
+        .update({ user_id: null })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      // Also update user_roles to mark password as not changed
+      await supabase
+        .from('user_roles')
+        .update({ password_changed: false })
+        .eq('user_id', userId);
+
+      toast.success(`Conta de ${email} inativada com sucesso`);
+      
+      // Refresh users list
+      window.location.reload();
+    } catch (error) {
+      console.error('Error deactivating user:', error);
+      toast.error('Erro ao inativar conta');
+    } finally {
+      setDeactivatingUserId(null);
+    }
+  };
+
   // Check if user needs activation (no user_id means never activated)
   const needsActivation = (user: ManagedUser) => !user.user_id;
 
@@ -718,172 +753,207 @@ export function UserManagement() {
             {filteredUsers.length} de {users.length} usuários
           </div>
         )}
-        <div className="rounded-lg border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Cargo</TableHead>
-                <TableHead>Squad</TableHead>
-                {canManage && <TableHead className="text-right">Ações</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredUsers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={canManage ? 6 : 5} className="text-center py-8 text-muted-foreground">
-                    {hasActiveFilters ? 'Nenhum usuário encontrado com os filtros aplicados' : 'Nenhum usuário encontrado'}
-                  </TableCell>
+        <div className="rounded-xl border overflow-hidden bg-card">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="w-[280px] font-semibold">Usuário</TableHead>
+                  <TableHead className="w-[200px] font-semibold">Contato</TableHead>
+                  <TableHead className="w-[100px] font-semibold">Status</TableHead>
+                  <TableHead className="w-[140px] font-semibold">Cargo</TableHead>
+                  <TableHead className="w-[140px] font-semibold">Squad</TableHead>
+                  {canManage && <TableHead className="w-[180px] text-right font-semibold">Ações</TableHead>}
                 </TableRow>
-              ) : (
-                filteredUsers.map(user => {
-                  const isMaster = isMasterUser(user.email);
-                  const userNeedsActivation = needsActivation(user);
-                  const isActivating = activatingUserId === user.email;
-                  return (
-                  <TableRow key={user.id} className={isMaster ? 'bg-primary/5' : userNeedsActivation ? 'bg-yellow-500/5' : ''}>
-                    <TableCell 
-                      className="font-medium cursor-pointer hover:text-primary transition-colors"
-                      onClick={() => user.user_id && setProfileUserId(user.user_id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8">
-                          {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.full_name || user.email} />}
-                          <AvatarFallback className={`text-xs ${CARGO_COLORS[user.cargo]} text-white`}>
-                            {getInitials(user.full_name, user.email)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex items-center gap-2">
-                          <span className="hover:underline">{user.full_name || '-'}</span>
-                          {isMaster && (
-                            <Badge variant="outline" className="border-primary text-primary text-xs">
-                              Master
-                            </Badge>
-                          )}
-                        </div>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={canManage ? 6 : 5} className="text-center py-12 text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2">
+                        <Users className="w-8 h-8 opacity-50" />
+                        <span>{hasActiveFilters ? 'Nenhum usuário encontrado com os filtros aplicados' : 'Nenhum usuário encontrado'}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      {userNeedsActivation ? (
-                        <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30">
-                          Pendente
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
-                          <Check className="w-3 h-3 mr-1" />
-                          Ativo
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {canEditUser(user.email) ? (
-                        <Select 
-                          value={user.cargo} 
-                          onValueChange={(v) => updateUserCargo(user.user_id, v as UserCargo)}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="tech">Tech</SelectItem>
-                            <SelectItem value="gerente">Gerente</SelectItem>
-                            <SelectItem value="coordenador">Coordenador</SelectItem>
-                            <SelectItem value="investidor">Investidor</SelectItem>
-                            <SelectItem value="membro">Membro</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge className={CARGO_COLORS[user.cargo]}>
-                          {CARGO_LABELS[user.cargo]}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {canEditUser(user.email) ? (
-                        <Select 
-                          value={user.squad_id || ''} 
-                          onValueChange={(v) => updateUserSquad(user.user_id, v || null)}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue placeholder="Sem squad" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {squads.filter(s => s.name !== 'S/SQUAD').map(squad => (
-                              <SelectItem key={squad.id} value={squad.id}>
-                                {squad.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                          <Building2 className="w-3 h-3" />
-                          {user.squad_name || 'Sem squad'}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    {canManage && (
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Activate button - only for users without account */}
-                          {userNeedsActivation && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-1 text-xs"
-                              onClick={() => handleActivateSingleUser(user.email)}
-                              disabled={isActivating}
-                              title="Ativar conta deste usuário"
-                            >
-                              {isActivating ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <UserPlus className="w-3 h-3" />
+                  </TableRow>
+                ) : (
+                  filteredUsers.map(user => {
+                    const isMaster = isMasterUser(user.email);
+                    const userNeedsActivation = needsActivation(user);
+                    const isActivating = activatingUserId === user.email;
+                    const isDeactivating = deactivatingUserId === user.user_id;
+                    return (
+                    <TableRow key={user.id} className={`${isMaster ? 'bg-primary/5' : userNeedsActivation ? 'bg-yellow-500/5' : ''} hover:bg-muted/30 transition-colors`}>
+                      <TableCell 
+                        className="font-medium cursor-pointer hover:text-primary transition-colors py-4"
+                        onClick={() => user.user_id && setProfileUserId(user.user_id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10 border-2 border-background shadow-sm">
+                            {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.full_name || user.email} />}
+                            <AvatarFallback className={`text-sm font-medium ${CARGO_COLORS[user.cargo]} text-white`}>
+                              {getInitials(user.full_name, user.email)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold hover:underline">{user.full_name || 'Sem nome'}</span>
+                              {isMaster && (
+                                <Badge variant="outline" className="border-primary text-primary text-xs">
+                                  Master
+                                </Badge>
                               )}
-                              Ativar
-                            </Button>
-                          )}
-                          {isTech && canEditUser(user.email) && !userNeedsActivation && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openConfigDialog(user.user_id)}
-                              title="Configurar visibilidade e projetos"
-                            >
-                              <Settings2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {(isGerente || isTech) && !isMaster && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => {
-                                if (confirm('Tem certeza que deseja excluir este usuário?')) {
-                                  deleteUser(user.user_id);
-                                }
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {isMaster && !isCurrentUserMaster && (
-                            <span className="text-xs text-muted-foreground italic">
-                              Protegido
-                            </span>
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm">{user.email}</span>
+                          {user.phone && (
+                            <span className="text-xs text-muted-foreground">{user.phone}</span>
                           )}
                         </div>
                       </TableCell>
-                    )}
-                  </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+                      <TableCell className="py-4">
+                        {userNeedsActivation ? (
+                          <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30">
+                            Pendente
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                            <Check className="w-3 h-3 mr-1" />
+                            Ativo
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        {canEditUser(user.email) ? (
+                          <Select 
+                            value={user.cargo} 
+                            onValueChange={(v) => updateUserCargo(user.user_id, v as UserCargo)}
+                          >
+                            <SelectTrigger className="w-[130px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="tech">Tech</SelectItem>
+                              <SelectItem value="gerente">Gerente</SelectItem>
+                              <SelectItem value="coordenador">Coordenador</SelectItem>
+                              <SelectItem value="investidor">Investidor</SelectItem>
+                              <SelectItem value="membro">Membro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge className={CARGO_COLORS[user.cargo]}>
+                            {CARGO_LABELS[user.cargo]}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        {canEditUser(user.email) ? (
+                          <Select 
+                            value={user.squad_id || ''} 
+                            onValueChange={(v) => updateUserSquad(user.user_id, v || null)}
+                          >
+                            <SelectTrigger className="w-[130px]">
+                              <SelectValue placeholder="Sem squad" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {squads.filter(s => s.name !== 'S/SQUAD').map(squad => (
+                                <SelectItem key={squad.id} value={squad.id}>
+                                  {squad.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                            <Building2 className="w-3 h-3" />
+                            {user.squad_name || 'Sem squad'}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      {canManage && (
+                        <TableCell className="text-right py-4">
+                          <div className="flex items-center justify-end gap-1">
+                            {/* Activate button - only for users without account */}
+                            {userNeedsActivation && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5 text-xs h-8 bg-green-500/10 border-green-500/30 text-green-600 hover:bg-green-500/20"
+                                onClick={() => handleActivateSingleUser(user.email)}
+                                disabled={isActivating}
+                                title="Ativar conta deste usuário"
+                              >
+                                {isActivating ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <UserPlus className="w-3.5 h-3.5" />
+                                )}
+                                Ativar
+                              </Button>
+                            )}
+                            {/* Deactivate button - only for active users */}
+                            {!userNeedsActivation && canEditUser(user.email) && !isMaster && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5 text-xs h-8 bg-orange-500/10 border-orange-500/30 text-orange-600 hover:bg-orange-500/20"
+                                onClick={() => handleDeactivateUser(user.user_id, user.email)}
+                                disabled={isDeactivating}
+                                title="Inativar conta deste usuário"
+                              >
+                                {isDeactivating ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <UserMinus className="w-3.5 h-3.5" />
+                                )}
+                                Inativar
+                              </Button>
+                            )}
+                            {isTech && canEditUser(user.email) && !userNeedsActivation && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openConfigDialog(user.user_id)}
+                                title="Configurar visibilidade e projetos"
+                              >
+                                <Settings2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {(isGerente || isTech) && !isMaster && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                  if (confirm('Tem certeza que deseja excluir este usuário permanentemente?')) {
+                                    deleteUser(user.user_id);
+                                  }
+                                }}
+                                title="Excluir usuário"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {isMaster && !isCurrentUserMaster && (
+                              <span className="text-xs text-muted-foreground italic px-2">
+                                Protegido
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
         {/* Summary */}
