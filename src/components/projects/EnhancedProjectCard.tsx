@@ -161,12 +161,20 @@ export default function EnhancedProjectCard({
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className={cn(
-              'w-11 h-11 rounded-xl flex items-center justify-center',
-              healthCfg.bgColor
-            )}>
-              <Icon className={cn('w-5 h-5', healthCfg.color)} />
-            </div>
+            {project.avatar_url ? (
+              <img 
+                src={project.avatar_url} 
+                alt={project.name} 
+                className="w-11 h-11 rounded-xl object-cover border border-border"
+              />
+            ) : (
+              <div className={cn(
+                'w-11 h-11 rounded-xl flex items-center justify-center',
+                healthCfg.bgColor
+              )}>
+                <Icon className={cn('w-5 h-5', healthCfg.color)} />
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-base group-hover:text-primary transition-colors line-clamp-1">

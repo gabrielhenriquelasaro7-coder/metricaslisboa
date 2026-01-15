@@ -14,6 +14,7 @@ import { useProjectMetricConfig, METRIC_TEMPLATES } from '@/hooks/useProjectMetr
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
+import { ProjectLogoUpload } from './ProjectLogoUpload';
 
 interface Investidor {
   user_id: string;
@@ -79,6 +80,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
     google_customer_id: '',
     investidor_id: '' as string | null,
     squad_id: '' as string | null,
+    avatar_url: null as string | null,
   });
 
   const [metricConfig, setMetricConfig] = useState<MetricConfigData>({
@@ -171,9 +173,10 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
         business_model: project.business_model,
         timezone: project.timezone,
         currency: project.currency,
-        google_customer_id: (project as any).google_customer_id || '',
-        investidor_id: (project as any).investidor_id || null,
-        squad_id: (project as any).squad_id || null,
+        google_customer_id: project.google_customer_id || '',
+        investidor_id: project.investidor_id || null,
+        squad_id: project.squad_id || null,
+        avatar_url: project.avatar_url || null,
       });
       setCustomConfigOpen(project.business_model === 'custom');
     }
@@ -258,6 +261,18 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
         </DialogHeader>
         <ScrollArea className="max-h-[70vh] pr-4">
           <form onSubmit={handleSubmit} className="space-y-5 mt-4">
+            {/* Logo Upload */}
+            <div className="space-y-2">
+              <Label>Logo do projeto</Label>
+              <ProjectLogoUpload
+                projectId={project?.id}
+                currentUrl={formData.avatar_url}
+                projectName={formData.name || 'Projeto'}
+                onUpload={(url) => setFormData({ ...formData, avatar_url: url })}
+                size="md"
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="edit-name">Nome do projeto</Label>
               <Input
