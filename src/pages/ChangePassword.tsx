@@ -47,10 +47,23 @@ export default function ChangePassword() {
       
       console.log('[ChangePassword] Password updated successfully');
 
-      // Mark password as changed in user_management table
+      // Mark password as changed in ALL relevant tables
       if (user) {
-        console.log('[ChangePassword] Updating user_management for user:', user.id);
+        console.log('[ChangePassword] Updating password_changed flags for user:', user.id);
         
+        // 1. Update user_roles (new system)
+        const { error: rolesError } = await supabase
+          .from('user_roles')
+          .update({ password_changed: true })
+          .eq('user_id', user.id);
+        
+        if (rolesError) {
+          console.error('[ChangePassword] Error updating user_roles:', rolesError);
+        } else {
+          console.log('[ChangePassword] user_roles.password_changed updated successfully');
+        }
+        
+        // 2. Update user_management (legacy)
         const { error: userMgmtError } = await supabase
           .from('user_management')
           .update({ needs_password_change: false })
@@ -62,7 +75,7 @@ export default function ChangePassword() {
           console.log('[ChangePassword] user_management updated successfully');
         }
 
-        // Also update guest_invitations for backwards compatibility
+        // 3. Update guest_invitations for backwards compatibility
         const { data, error: updateError } = await supabase
           .from('guest_invitations')
           .update({ 
@@ -76,7 +89,6 @@ export default function ChangePassword() {
         
         if (updateError) {
           console.error('[ChangePassword] Error updating invitation:', updateError);
-          // Don't throw - we'll still redirect, but log the error
         } else {
           console.log('[ChangePassword] Guest invitation updated:', data);
         }

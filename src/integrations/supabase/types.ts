@@ -2465,6 +2465,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_master: boolean | null
+          password_changed: boolean | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -2473,6 +2474,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_master?: boolean | null
+          password_changed?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -2481,6 +2483,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_master?: boolean | null
+          password_changed?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -2916,6 +2919,7 @@ export type Database = {
         Returns: boolean
       }
       is_master_user: { Args: { _user_id: string }; Returns: boolean }
+      needs_password_change: { Args: { _user_id: string }; Returns: boolean }
       trigger_whatsapp_weekly_reports: { Args: never; Returns: undefined }
       user_has_project_access: {
         Args: { _project_id: string; _user_id: string }
