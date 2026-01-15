@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check, KeyRound } from 'lucide-react';
+import { Loader2, Users, Plus, Upload, Trash2, Shield, Building2, Eye, EyeOff, FolderOpen, Settings2, X, Check, KeyRound, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -71,6 +71,7 @@ export function UserManagement() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isCreatingAuthUsers, setIsCreatingAuthUsers] = useState(false);
+  const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
   const [configUserId, setConfigUserId] = useState<string | null>(null);
   const [userProjectAccess, setUserProjectAccess] = useState<Record<string, string[]>>({});
   const [isSavingVisibility, setIsSavingVisibility] = useState(false);
@@ -294,7 +295,7 @@ export function UserManagement() {
     setLocalHiddenTabs([]);
   };
 
-  // Create auth accounts for users in user_management
+  // Create auth accounts for users in user_management (only those without user_id)
   const handleCreateAuthUsers = async () => {
     setIsCreatingAuthUsers(true);
     try {
@@ -320,8 +321,8 @@ export function UserManagement() {
         if (results.created?.length > 0) {
           messages.push(`${results.created.length} contas criadas`);
         }
-        if (results.password_reset?.length > 0) {
-          messages.push(`${results.password_reset.length} senhas resetadas`);
+        if (results.already_exists?.length > 0) {
+          messages.push(`${results.already_exists.length} já existiam`);
         }
         if (results.failed?.length > 0) {
           messages.push(`${results.failed.length} falhas`);
@@ -330,7 +331,7 @@ export function UserManagement() {
         if (messages.length > 0) {
           toast.success(`Concluído: ${messages.join(', ')}. Senha padrão: 12345678`);
         } else {
-          toast.info('Nenhum usuário para processar');
+          toast.info('Nenhum usuário novo para ativar (todos já têm conta)');
         }
       }
     } catch (error) {
@@ -340,6 +341,48 @@ export function UserManagement() {
       setIsCreatingAuthUsers(false);
     }
   };
+
+  // Activate a single user account
+  const handleActivateSingleUser = async (email: string) => {
+    setActivatingUserId(email);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Você precisa estar autenticado');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('create-auth-users', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: { email },
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const results = response.data?.results;
+      if (results?.created?.length > 0) {
+        toast.success(`Conta ativada para ${email}. Senha: 12345678`);
+      } else if (results?.already_exists?.length > 0) {
+        toast.info(`${email} já possui conta ativa`);
+      } else if (results?.failed?.length > 0) {
+        toast.error(`Erro ao ativar ${email}: ${results.failed[0]?.error}`);
+      } else {
+        toast.info('Nenhuma ação necessária');
+      }
+    } catch (error) {
+      console.error('Error activating user:', error);
+      toast.error('Erro ao ativar conta');
+    } finally {
+      setActivatingUserId(null);
+    }
+  };
+
+  // Check if user needs activation (no user_id means never activated)
+  const needsActivation = (user: ManagedUser) => !user.user_id;
 
   if (loading) {
     return (
@@ -370,19 +413,22 @@ export function UserManagement() {
           
           {canManage && (
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                className="gap-2"
-                onClick={handleCreateAuthUsers}
-                disabled={isCreatingAuthUsers}
-              >
-                {isCreatingAuthUsers ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <KeyRound className="w-4 h-4" />
-                )}
-                Ativar Contas
-              </Button>
+              {/* Only show bulk activate if there are pending users */}
+              {users.filter(u => !u.user_id).length > 0 && (
+                <Button 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={handleCreateAuthUsers}
+                  disabled={isCreatingAuthUsers}
+                >
+                  {isCreatingAuthUsers ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="w-4 h-4" />
+                  )}
+                  Ativar Todos ({users.filter(u => !u.user_id).length})
+                </Button>
+              )}
 
               <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
                 <DialogTrigger asChild>
@@ -512,6 +558,7 @@ export function UserManagement() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Cargo</TableHead>
                 <TableHead>Squad</TableHead>
                 {canManage && <TableHead className="text-right">Ações</TableHead>}
@@ -520,15 +567,17 @@ export function UserManagement() {
             <TableBody>
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canManage ? 5 : 4} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={canManage ? 6 : 5} className="text-center py-8 text-muted-foreground">
                     Nenhum usuário encontrado
                   </TableCell>
                 </TableRow>
               ) : (
                 users.map(user => {
                   const isMaster = isMasterUser(user.email);
+                  const userNeedsActivation = needsActivation(user);
+                  const isActivating = activatingUserId === user.email;
                   return (
-                  <TableRow key={user.id} className={isMaster ? 'bg-primary/5' : ''}>
+                  <TableRow key={user.id} className={isMaster ? 'bg-primary/5' : userNeedsActivation ? 'bg-yellow-500/5' : ''}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {user.full_name || '-'}
@@ -540,6 +589,18 @@ export function UserManagement() {
                       </div>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      {userNeedsActivation ? (
+                        <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30">
+                          Pendente
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                          <Check className="w-3 h-3 mr-1" />
+                          Ativo
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {canEditUser(user.email) ? (
                         <Select 
@@ -589,7 +650,25 @@ export function UserManagement() {
                     </TableCell>
                     {canManage && (
                       <TableCell className="text-right space-x-1">
-                        {isTech && canEditUser(user.email) && (
+                        {/* Activate button - only for users without account */}
+                        {userNeedsActivation && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 text-xs"
+                            onClick={() => handleActivateSingleUser(user.email)}
+                            disabled={isActivating}
+                            title="Ativar conta deste usuário"
+                          >
+                            {isActivating ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <UserPlus className="w-3 h-3" />
+                            )}
+                            Ativar
+                          </Button>
+                        )}
+                        {isTech && canEditUser(user.email) && !userNeedsActivation && (
                           <Button
                             variant="ghost"
                             size="icon"
