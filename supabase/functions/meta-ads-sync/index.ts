@@ -641,7 +641,9 @@ async function syncHDImages(
       
       // Buscar adimages por hashes - URL PERMANENTE!
       const hashesParam = hashBatch.map(h => `"${h}"`).join(',');
-      const adimagesUrl = `https://graph.facebook.com/v22.0/act_${adAccountId}/adimages?hashes=[${hashesParam}]&fields=hash,permalink_url,url_128&access_token=${token}`;
+      // Remove act_ prefix if already present to avoid act_act_
+      const cleanAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+      const adimagesUrl = `https://graph.facebook.com/v22.0/${cleanAccountId}/adimages?hashes=[${hashesParam}]&fields=hash,permalink_url,url_128&access_token=${token}`;
       const adimagesData = await simpleFetch(adimagesUrl, undefined, 30000);
       
       if (!adimagesData?.error && adimagesData?.data) {
