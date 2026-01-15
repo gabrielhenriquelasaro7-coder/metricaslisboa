@@ -112,6 +112,35 @@ export function useAdminAccessRequests() {
     fetchRequests();
   }, [fetchRequests]);
 
+  // Subscribe to realtime updates for admin_access_requests
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('admin-access-requests')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'admin_access_requests',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newStatus = (payload.new as any)?.status;
+          if (newStatus === 'approved' || newStatus === 'rejected') {
+            // Clear the pending request since it was processed
+            setMyPendingRequest(null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const createRequest = async (reason: string, projectId?: string) => {
     if (!user) throw new Error('Usuário não autenticado');
 
@@ -152,35 +181,42 @@ export function useAdminAccessRequests() {
       // Create daily admin access grant (expires in 12 hours)
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 12);
+      const today = new Date().toISOString().split('T')[0];
+      const projectId = request.project_id || null;
 
+      // First, try to delete any existing grant for this user/project/day to avoid conflicts
+      await supabase
+        .from('admin_access_grants')
+        .delete()
+        .eq('user_id', request.user_id)
+        .eq('grant_date', today)
+        .is('project_id', projectId === null ? null : undefined);
+
+      // If project_id exists, also delete by project_id
+      if (projectId) {
+        await supabase
+          .from('admin_access_grants')
+          .delete()
+          .eq('user_id', request.user_id)
+          .eq('grant_date', today)
+          .eq('project_id', projectId);
+      }
+
+      // Now insert the new grant
       const { error: grantError } = await supabase
         .from('admin_access_grants')
         .insert({
           user_id: request.user_id,
-          project_id: request.project_id || null,
+          project_id: projectId,
           granted_by: user.id,
           expires_at: expiresAt.toISOString(),
-          grant_date: new Date().toISOString().split('T')[0],
+          grant_date: today,
           notes: `Aprovado via solicitação: ${request.reason}`,
         });
 
       if (grantError) {
-        // If duplicate, just update the existing grant
-        if (grantError.code === '23505') {
-          const { error: updateError } = await supabase
-            .from('admin_access_grants')
-            .update({
-              expires_at: expiresAt.toISOString(),
-              granted_by: user.id,
-              notes: `Renovado via solicitação: ${request.reason}`,
-            })
-            .eq('user_id', request.user_id)
-            .eq('grant_date', new Date().toISOString().split('T')[0]);
-
-          if (updateError) throw updateError;
-        } else {
-          throw grantError;
-        }
+        console.error('Error creating admin grant:', grantError);
+        throw grantError;
       }
 
       // Then update the request status
