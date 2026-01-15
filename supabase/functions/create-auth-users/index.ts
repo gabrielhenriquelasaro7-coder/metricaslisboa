@@ -42,15 +42,16 @@ serve(async (req) => {
       });
     }
 
-    // Get request body (optional - can specify specific email)
+    // Get request body
     const body = await req.json().catch(() => ({}));
     const specificEmail = body.email;
 
-    // Get users from user_management who need auth accounts
+    // IMPORTANT: Only get users who DON'T have a user_id yet (never activated)
+    // This prevents resetting passwords for already active accounts
     let query = supabase
       .from('user_management')
       .select('*')
-      .eq('needs_password_change', true);
+      .is('user_id', null); // Only users without user_id = never activated
 
     if (specificEmail) {
       query = query.eq('email', specificEmail);
@@ -70,40 +71,34 @@ serve(async (req) => {
       created: [] as string[],
       already_exists: [] as string[],
       failed: [] as { email: string; error: string }[],
-      password_reset: [] as string[],
+      skipped: [] as string[],
     };
 
     for (const user of users || []) {
       try {
-        // Check if user already exists in auth
+        // Check if user already exists in auth.users
         const { data: existingUsers } = await supabase.auth.admin.listUsers();
         const existingUser = existingUsers?.users?.find(u => u.email === user.email);
 
         if (existingUser) {
-          // User exists - update their password to the default
-          const { error: updateError } = await supabase.auth.admin.updateUserById(
-            existingUser.id,
-            { password: DEFAULT_PASSWORD }
-          );
+          // User already exists in auth - link it to user_management but DON'T reset password
+          console.log(`User ${user.email} already exists in auth, linking without password reset`);
+          
+          await supabase
+            .from('user_management')
+            .update({ 
+              user_id: existingUser.id,
+              needs_password_change: false // They already have an account, don't force password change
+            })
+            .eq('email', user.email);
 
-          if (updateError) {
-            console.error(`Error resetting password for ${user.email}:`, updateError);
-            results.failed.push({ email: user.email, error: updateError.message });
-          } else {
-            // Update user_management with correct user_id
-            await supabase
-              .from('user_management')
-              .update({ user_id: existingUser.id })
-              .eq('email', user.email);
-
-            results.password_reset.push(user.email);
-          }
+          results.already_exists.push(user.email);
         } else {
-          // Create new auth user
+          // Create new auth user - this is a fresh account
           const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
             email: user.email,
             password: DEFAULT_PASSWORD,
-            email_confirm: true, // Auto-confirm email
+            email_confirm: true,
             user_metadata: {
               full_name: user.full_name,
             },
@@ -116,7 +111,10 @@ serve(async (req) => {
             // Update user_management with the new auth user_id
             await supabase
               .from('user_management')
-              .update({ user_id: newUser.user.id })
+              .update({ 
+                user_id: newUser.user.id,
+                needs_password_change: true // New account needs password change
+              })
               .eq('email', user.email);
 
             // Create profile if it doesn't exist
@@ -139,7 +137,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Processed ${users?.length || 0} users`,
+      message: `Processed ${users?.length || 0} users (only accounts without auth)`,
       results,
     }), {
       status: 200,
