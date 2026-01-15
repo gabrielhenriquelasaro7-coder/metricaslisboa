@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, BusinessModel, Project } from '@/hooks/useProjects';
-import { Loader2, Settings2, Lock, Users, ShoppingCart, Store, GraduationCap } from 'lucide-react';
+import { Loader2, Settings2, Lock, Users, ShoppingCart, Store, GraduationCap, User, Layers } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { z } from 'zod';
 import { MetricConfigPanel, type MetricConfigData } from './MetricConfigPanel';
@@ -13,6 +13,17 @@ import { DashboardPreview } from './DashboardPreview';
 import { useProjectMetricConfig, METRIC_TEMPLATES } from '@/hooks/useProjectMetricConfig';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Investidor {
+  user_id: string;
+  full_name: string;
+}
+
+interface Squad {
+  id: string;
+  name: string;
+}
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(100),
@@ -65,6 +76,8 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
     timezone: 'America/Sao_Paulo',
     currency: 'BRL',
     google_customer_id: '',
+    investidor_id: '' as string | null,
+    squad_id: '' as string | null,
   });
 
   const [metricConfig, setMetricConfig] = useState<MetricConfigData>({
@@ -76,6 +89,46 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
     efficiency_metrics: ['ctr', 'roas'],
   });
 
+  const [investidores, setInvestidores] = useState<Investidor[]>([]);
+  const [squads, setSquads] = useState<Squad[]>([]);
+
+  // Fetch investidores and squads
+  useEffect(() => {
+    const fetchOptions = async () => {
+      // Fetch investidores (users with cargo = 'investidor')
+      const { data: investidoresData } = await supabase
+        .from('user_roles')
+        .select('user_id, cargo')
+        .eq('cargo', 'investidor');
+      
+      if (investidoresData && investidoresData.length > 0) {
+        const userIds = investidoresData.map(i => i.user_id);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds);
+        
+        if (profiles) {
+          setInvestidores(profiles.filter(p => p.full_name) as Investidor[]);
+        }
+      }
+
+      // Fetch squads
+      const { data: squadsData } = await supabase
+        .from('squads')
+        .select('id, name')
+        .order('name');
+      
+      if (squadsData) {
+        setSquads(squadsData);
+      }
+    };
+
+    if (open) {
+      fetchOptions();
+    }
+  }, [open]);
+
   useEffect(() => {
     if (project) {
       setFormData({
@@ -85,6 +138,8 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
         timezone: project.timezone,
         currency: project.currency,
         google_customer_id: (project as any).google_customer_id || '',
+        investidor_id: (project as any).investidor_id || null,
+        squad_id: (project as any).squad_id || null,
       });
       setCustomConfigOpen(project.business_model === 'custom');
     }
@@ -217,6 +272,56 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
               />
               <p className="text-xs text-muted-foreground">Integração com Google Ads em breve</p>
             </div>
+
+            {/* Investidor e Squad */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Investidor responsável
+                </Label>
+                <Select
+                  value={formData.investidor_id || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, investidor_id: value === 'none' ? null : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o investidor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem investidor</SelectItem>
+                    {investidores.map((inv) => (
+                      <SelectItem key={inv.user_id} value={inv.user_id}>
+                        {inv.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Layers className="w-4 h-4" />
+                  Squad
+                </Label>
+                <Select
+                  value={formData.squad_id || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, squad_id: value === 'none' ? null : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a squad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem squad</SelectItem>
+                    {squads.map((squad) => (
+                      <SelectItem key={squad.id} value={squad.id}>
+                        {squad.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
 
             <div className="space-y-2">
               <Label>Modelo de negócio</Label>

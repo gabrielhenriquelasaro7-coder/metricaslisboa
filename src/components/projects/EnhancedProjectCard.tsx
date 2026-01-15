@@ -94,12 +94,12 @@ export default function EnhancedProjectCard({
   // Fetch investidor and squad names
   useEffect(() => {
     const fetchProjectDetails = async () => {
-      // Fetch investidor name
+      // Fetch investidor name from profiles (investidor_id is a user_id)
       if (project.investidor_id) {
         const { data: investidorData } = await supabase
-          .from('user_management')
+          .from('profiles')
           .select('full_name')
-          .eq('id', project.investidor_id)
+          .eq('user_id', project.investidor_id)
           .maybeSingle();
         
         if (investidorData?.full_name) {
