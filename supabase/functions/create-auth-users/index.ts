@@ -126,6 +126,17 @@ serve(async (req) => {
                 cargo: user.cargo,
               }, { onConflict: 'user_id' });
 
+            // IMPORTANT: Create user_roles entry with correct cargo
+            // This is what the permission system actually uses
+            await supabase
+              .from('user_roles')
+              .upsert({
+                user_id: newUser.user.id,
+                cargo: user.cargo,
+              }, { onConflict: 'user_id' });
+
+            console.log(`Created user ${user.email} with cargo: ${user.cargo}`);
+
             results.created.push(user.email);
           }
         }
