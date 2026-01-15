@@ -153,6 +153,45 @@ export type Database = {
           },
         ]
       }
+      admin_access_grants: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          granted_at: string
+          granted_by: string
+          id: string
+          notes: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by: string
+          id?: string
+          notes?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string
+          id?: string
+          notes?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       admin_access_requests: {
         Row: {
           created_at: string
@@ -2915,6 +2954,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_cargo_v2"]
       }
       get_user_squad_ids: { Args: { _user_id: string }; Returns: string[] }
+      has_admin_access: { Args: { check_user_id: string }; Returns: boolean }
       has_cargo: {
         Args: {
           _cargo: Database["public"]["Enums"]["user_cargo_v2"]
