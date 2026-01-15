@@ -422,6 +422,31 @@ export default function AdSetDetail() {
         .lte('date', endDate);
       
       if (metricsData && metricsData.length > 0) {
+        // Get unique ad IDs to fetch cached_image_url from ads table
+        const adIds = [...new Set(metricsData.map(m => m.ad_id))];
+        
+        // Fetch cached_image_url and other creative fields from ads table
+        const { data: adsCreativeData } = await supabase
+          .from('ads')
+          .select('id, cached_image_url, creative_image_url, creative_video_url, headline')
+          .in('id', adIds);
+        
+        // Create map of ad creative data
+        const creativeMap = new Map<string, {
+          cached_image_url: string | null;
+          creative_image_url: string | null;
+          creative_video_url: string | null;
+          headline: string | null;
+        }>();
+        adsCreativeData?.forEach(ad => {
+          creativeMap.set(ad.id, {
+            cached_image_url: ad.cached_image_url,
+            creative_image_url: ad.creative_image_url,
+            creative_video_url: ad.creative_video_url,
+            headline: ad.headline,
+          });
+        });
+        
         // Group and aggregate by ad_id
         const adMap = new Map<string, Ad>();
         metricsData.forEach(m => {
@@ -432,6 +457,7 @@ export default function AdSetDetail() {
             existing.clicks += m.clicks || 0;
             existing.conversions += m.conversions || 0;
           } else {
+            const creativeInfo = creativeMap.get(m.ad_id);
             adMap.set(m.ad_id, {
               id: m.ad_id,
               name: m.ad_name,
@@ -446,9 +472,10 @@ export default function AdSetDetail() {
               roas: 0,
               cpa: 0,
               creative_thumbnail: m.cached_creative_thumbnail || m.creative_thumbnail || null,
-              creative_image_url: m.cached_creative_thumbnail || m.creative_thumbnail || null,
-              creative_video_url: null,
-              headline: null,
+              creative_image_url: creativeInfo?.creative_image_url || m.cached_creative_thumbnail || m.creative_thumbnail || null,
+              creative_video_url: creativeInfo?.creative_video_url || null,
+              cached_image_url: creativeInfo?.cached_image_url || null,
+              headline: creativeInfo?.headline || null,
             });
           }
         });
@@ -464,7 +491,7 @@ export default function AdSetDetail() {
         }));
         
         setAds(aggregatedAds.sort((a, b) => b.spend - a.spend));
-        console.log('[AdSetDetail] Loaded', aggregatedAds.length, 'ads for period');
+        console.log('[AdSetDetail] Loaded', aggregatedAds.length, 'ads with creative data for period');
       } else {
         // No data for this period - show empty or try fallback to ads table
         const { data: adsData } = await supabase
