@@ -98,7 +98,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear all cached data
+    localStorage.removeItem('user-role-cache');
+    localStorage.removeItem('sb-chxetrmrupvxqbuyjvph-auth-token');
+    
     await supabase.auth.signOut();
+    
+    // Force redirect to auth page
+    window.location.href = '/auth';
   };
 
   const resetPassword = async (email: string) => {

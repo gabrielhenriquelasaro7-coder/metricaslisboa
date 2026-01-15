@@ -22,8 +22,9 @@ const GUEST_ALLOWED_ROUTES = [
   '/optimization-history',
 ];
 
-// Pages that require password change for guests
+// Pages that require password change before access
 const REQUIRES_PASSWORD_CHANGE = [
+  '/projects',
   '/dashboard',
   '/campaigns',
   '/campaign/',
@@ -59,23 +60,24 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
     // Not logged in - let normal auth flow handle it
     if (!user) return;
 
-    // Not a guest - no restrictions
-    if (!isGuest) return;
-
     const currentPath = location.pathname;
 
-    // If guest needs to change password, redirect to change-password page
+    // ANY user who needs password change should be redirected (not just guests)
     if (needsPasswordChange) {
       const requiresChange = REQUIRES_PASSWORD_CHANGE.some(route => 
         currentPath === route || currentPath.startsWith(route)
       );
       
       if (requiresChange && currentPath !== '/change-password') {
+        console.log('[GuestAccessGuard] User needs password change, redirecting...');
         hasNavigatedRef.current = true;
         navigate('/change-password', { replace: true });
         return;
       }
     }
+
+    // Guest-specific restrictions below
+    if (!isGuest) return;
 
     // If guest tries to access /projects, redirect to dashboard
     if (currentPath === '/projects') {

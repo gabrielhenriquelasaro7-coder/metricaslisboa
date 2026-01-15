@@ -95,7 +95,18 @@ export function useUserRole(): UserRoleData {
           }));
         }
 
-        // If guest, check if password needs to be changed
+        // Check if user needs to change password (from user_management table)
+        const { data: userMgmtData } = await supabase
+          .from('user_management')
+          .select('needs_password_change')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (userMgmtData?.needs_password_change) {
+          setNeedsPasswordChange(true);
+        }
+
+        // If guest, also check guest_invitations and get project access
         if (roleData?.role === 'convidado') {
           const { data: invitationData } = await supabase
             .from('guest_invitations')
@@ -103,8 +114,8 @@ export function useUserRole(): UserRoleData {
             .eq('guest_user_id', user.id)
             .single();
 
-          if (invitationData) {
-            setNeedsPasswordChange(!invitationData.password_changed);
+          if (invitationData && !invitationData.password_changed) {
+            setNeedsPasswordChange(true);
           }
 
           const { data: accessData } = await supabase
