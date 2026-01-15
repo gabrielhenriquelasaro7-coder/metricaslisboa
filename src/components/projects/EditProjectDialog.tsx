@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface Investidor {
   user_id: string;
   full_name: string;
+  squad_id?: string | null;
 }
 
 interface Squad {
@@ -95,7 +96,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
   // Fetch investidores and squads
   useEffect(() => {
     const fetchOptions = async () => {
-      // Fetch investidores (users with cargo = 'investidor')
+      // Fetch investidores (users with cargo = 'investidor') along with their squad
       const { data: investidoresData } = await supabase
         .from('user_roles')
         .select('user_id, cargo')
@@ -103,13 +104,28 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
       
       if (investidoresData && investidoresData.length > 0) {
         const userIds = investidoresData.map(i => i.user_id);
+        
+        // Fetch profiles
         const { data: profiles } = await supabase
           .from('profiles')
           .select('user_id, full_name')
           .in('user_id', userIds);
         
+        // Fetch squad memberships for these users
+        const { data: squadMemberships } = await supabase
+          .from('squad_members')
+          .select('user_id, squad_id')
+          .in('user_id', userIds);
+        
         if (profiles) {
-          setInvestidores(profiles.filter(p => p.full_name) as Investidor[]);
+          const investidoresWithSquad = profiles
+            .filter(p => p.full_name)
+            .map(p => ({
+              user_id: p.user_id,
+              full_name: p.full_name,
+              squad_id: squadMemberships?.find(sm => sm.user_id === p.user_id)?.squad_id || null
+            }));
+          setInvestidores(investidoresWithSquad as Investidor[]);
         }
       }
 
@@ -128,6 +144,24 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
       fetchOptions();
     }
   }, [open]);
+
+  // Auto-select squad when investidor changes
+  const handleInvestidorChange = (userId: string) => {
+    const selectedInvestidor = investidores.find(i => i.user_id === userId);
+    
+    if (userId === 'none') {
+      setFormData({ ...formData, investidor_id: null });
+    } else if (selectedInvestidor?.squad_id) {
+      // Auto-fill squad from investidor
+      setFormData({ 
+        ...formData, 
+        investidor_id: userId,
+        squad_id: selectedInvestidor.squad_id 
+      });
+    } else {
+      setFormData({ ...formData, investidor_id: userId });
+    }
+  };
 
   useEffect(() => {
     if (project) {
@@ -282,7 +316,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
                 </Label>
                 <Select
                   value={formData.investidor_id || 'none'}
-                  onValueChange={(value) => setFormData({ ...formData, investidor_id: value === 'none' ? null : value })}
+                  onValueChange={handleInvestidorChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o investidor" />
