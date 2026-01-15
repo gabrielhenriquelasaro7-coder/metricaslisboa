@@ -145,6 +145,26 @@ export function useAdminAccessRequests() {
     if (!user || !isTech) throw new Error('Sem permissão');
 
     try {
+      // Find the request to get user_id
+      const request = requests.find(r => r.id === requestId);
+      if (!request) throw new Error('Solicitação não encontrada');
+
+      // First, create permanent admin access grant
+      const { error: grantError } = await supabase
+        .from('admin_access_grants')
+        .upsert({
+          user_id: request.user_id,
+          granted_by: user.id,
+          granted_at: new Date().toISOString(),
+          notes: `Aprovado via solicitação: ${request.reason}`,
+        }, { onConflict: 'user_id' });
+
+      if (grantError) {
+        console.error('Error creating admin grant:', grantError);
+        throw grantError;
+      }
+
+      // Then update the request status
       const { error } = await supabase
         .from('admin_access_requests')
         .update({
@@ -157,7 +177,7 @@ export function useAdminAccessRequests() {
       if (error) throw error;
 
       setRequests(prev => prev.filter(r => r.id !== requestId));
-      toast.success('Solicitação aprovada!');
+      toast.success('Solicitação aprovada! Usuário agora tem acesso permanente ao admin.');
     } catch (error) {
       console.error('Error approving request:', error);
       toast.error('Erro ao aprovar solicitação');
