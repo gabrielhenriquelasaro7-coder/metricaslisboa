@@ -35,10 +35,12 @@ import {
   Clock,
   Sun,
   Moon,
-  UserPlus
+  UserPlus,
+  Briefcase
 } from 'lucide-react';
 import { GuestsTab } from '@/components/settings/GuestsTab';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useCargo } from '@/hooks/useCargo';
 import { SettingsSkeleton } from '@/components/skeletons';
 import {
   AlertDialog,
@@ -78,10 +80,19 @@ interface SyncLog {
 
 type Theme = 'dark' | 'light';
 
+const CARGO_LABELS: Record<string, string> = {
+  tech: 'Tech',
+  gerente: 'Gerente',
+  coordenador: 'Coordenador',
+  investidor: 'Investidor',
+  membro: 'Membro',
+};
+
 export default function Settings() {
   const { user, signOut } = useAuth();
   const { projects } = useProjects();
   const { isGuest } = useUserRole();
+  const { cargo, isTech, isGerente, loading: cargoLoading } = useCargo();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -101,6 +112,9 @@ export default function Settings() {
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId);
+  
+  // Permission to edit cargo - only tech or gerente
+  const canEditCargo = isTech || isGerente;
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -410,6 +424,25 @@ export default function Settings() {
                     </div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
                       O e-mail não pode ser alterado
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label htmlFor="cargo" className="text-xs sm:text-sm">Cargo</Label>
+                    <div className="relative">
+                      <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
+                      <Input
+                        id="cargo"
+                        value={cargoLoading ? 'Carregando...' : (CARGO_LABELS[cargo] || cargo || 'Sem cargo')}
+                        disabled
+                        className="pl-9 sm:pl-10 bg-muted/50 text-muted-foreground h-10 text-sm capitalize"
+                      />
+                    </div>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      {canEditCargo 
+                        ? 'Para alterar cargos, use a área de Administração'
+                        : 'O cargo só pode ser alterado por Tech ou Gerente'
+                      }
                     </p>
                   </div>
 
