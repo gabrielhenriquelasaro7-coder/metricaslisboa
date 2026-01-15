@@ -2547,6 +2547,7 @@ export type Database = {
       user_tab_visibility: {
         Row: {
           created_at: string
+          enabled_tabs: string[] | null
           hidden_by: string
           hidden_tabs: string[]
           id: string
@@ -2555,6 +2556,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          enabled_tabs?: string[] | null
           hidden_by: string
           hidden_tabs?: string[]
           id?: string
@@ -2563,6 +2565,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          enabled_tabs?: string[] | null
           hidden_by?: string
           hidden_tabs?: string[]
           id?: string

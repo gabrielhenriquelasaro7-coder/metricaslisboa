@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import { useTabVisibilityManagement, TabKey, TAB_LABELS } from '@/hooks/useTabVisibility';
-import { useUserManagement, ManagedUser } from '@/hooks/useUserManagement';
+import { useState } from 'react';
+import { useTabVisibilityManagement, TabKey, TAB_LABELS, HIDDEN_BY_DEFAULT_TABS } from '@/hooks/useTabVisibility';
+import { useUserManagement } from '@/hooks/useUserManagement';
 import { useCargo } from '@/hooks/useCargo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Eye, EyeOff, Lock } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ALL_TABS: TabKey[] = [
@@ -25,13 +25,14 @@ const ALL_TABS: TabKey[] = [
 export function TabVisibilityManager() {
   const { isTech } = useCargo();
   const { users, loading: usersLoading } = useUserManagement();
-  const { getHiddenTabs, toggleTab, loading: visibilityLoading } = useTabVisibilityManagement();
+  const { getHiddenTabs, getEnabledTabs, toggleTab, loading: visibilityLoading } = useTabVisibilityManagement();
   
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
 
   const selectedUser = users.find(u => u.user_id === selectedUserId);
   const hiddenTabs = selectedUserId ? getHiddenTabs(selectedUserId) : [];
+  const enabledTabs = selectedUserId ? getEnabledTabs(selectedUserId) : [];
 
   if (!isTech) {
     return (
@@ -50,12 +51,31 @@ export function TabVisibilityManager() {
     setIsSaving(true);
     try {
       await toggleTab(selectedUserId, tab);
-      toast.success(`Aba "${TAB_LABELS[tab]}" ${hiddenTabs.includes(tab) ? 'liberada' : 'oculta'}`);
+      
+      // Determine the correct message based on tab type
+      const isHiddenByDefault = HIDDEN_BY_DEFAULT_TABS.includes(tab);
+      if (isHiddenByDefault) {
+        const isNowEnabled = !enabledTabs.includes(tab);
+        toast.success(`Aba "${TAB_LABELS[tab]}" ${isNowEnabled ? 'liberada' : 'oculta'}`);
+      } else {
+        const isNowHidden = !hiddenTabs.includes(tab);
+        toast.success(`Aba "${TAB_LABELS[tab]}" ${isNowHidden ? 'oculta' : 'liberada'}`);
+      }
     } catch (error) {
       toast.error('Erro ao atualizar visibilidade');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Determine if a tab is currently visible
+  const isTabVisible = (tab: TabKey): boolean => {
+    if (HIDDEN_BY_DEFAULT_TABS.includes(tab)) {
+      // Hidden by default - visible only if explicitly enabled
+      return enabledTabs.includes(tab);
+    }
+    // Visible by default - hidden only if explicitly hidden
+    return !hiddenTabs.includes(tab);
   };
 
   const loading = usersLoading || visibilityLoading;
@@ -68,7 +88,7 @@ export function TabVisibilityManager() {
           Visibilidade de Abas
         </CardTitle>
         <CardDescription>
-          Oculte abas específicas para usuários individuais
+          Gerencie quais abas cada usuário pode ver
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -110,30 +130,35 @@ export function TabVisibilityManager() {
                   <p className="text-sm font-medium">Abas visíveis:</p>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {ALL_TABS.map(tab => {
-                      const isHidden = hiddenTabs.includes(tab);
+                      const visible = isTabVisible(tab);
+                      const isHiddenByDefault = HIDDEN_BY_DEFAULT_TABS.includes(tab);
+                      
                       return (
                         <div 
                           key={tab}
                           className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                            isHidden ? 'bg-destructive/10 border-destructive/30' : 'bg-card border-border'
-                          }`}
+                            !visible ? 'bg-destructive/10 border-destructive/30' : 'bg-card border-border'
+                          } ${isHiddenByDefault ? 'ring-1 ring-amber-500/30' : ''}`}
                         >
                           <Checkbox
                             id={`tab-${tab}`}
-                            checked={!isHidden}
+                            checked={visible}
                             disabled={isSaving}
                             onCheckedChange={() => handleToggleTab(tab)}
                           />
                           <Label 
                             htmlFor={`tab-${tab}`}
-                            className={`flex items-center gap-2 cursor-pointer ${isHidden ? 'line-through text-muted-foreground' : ''}`}
+                            className={`flex items-center gap-2 cursor-pointer ${!visible ? 'line-through text-muted-foreground' : ''}`}
                           >
-                            {isHidden ? (
+                            {!visible ? (
                               <EyeOff className="w-4 h-4 text-destructive" />
                             ) : (
                               <Eye className="w-4 h-4 text-metric-positive" />
                             )}
                             {TAB_LABELS[tab]}
+                            {isHiddenByDefault && (
+                              <ShieldCheck className="w-3 h-3 text-amber-500" />
+                            )}
                           </Label>
                         </div>
                       );
@@ -144,8 +169,9 @@ export function TabVisibilityManager() {
                 <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
                   <p className="font-medium mb-1">💡 Como funciona:</p>
                   <ul className="space-y-1 list-disc list-inside">
-                    <li>Desmarque as abas que deseja ocultar para este usuário</li>
-                    <li>As abas ocultas não aparecerão no menu lateral</li>
+                    <li>Marque as abas que deseja liberar para este usuário</li>
+                    <li>Abas com <ShieldCheck className="w-3 h-3 inline text-amber-500" /> são <strong>ocultas por padrão</strong> e precisam ser liberadas manualmente</li>
+                    <li>A aba <strong>Administração</strong> está oculta para todos até ser liberada</li>
                     <li>Esta configuração é por usuário individual</li>
                   </ul>
                 </div>
