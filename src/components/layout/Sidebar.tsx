@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useProfile } from '@/hooks/useProfile';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useCargo } from '@/hooks/useCargo';
 import { useSidebarCampaigns } from '@/hooks/useSidebarCampaigns';
 import { useTour } from '@/hooks/useTour';
 import { useTabVisibility } from '@/hooks/useTabVisibility';
@@ -33,7 +34,8 @@ import {
   User,
   KeyRound,
   Lightbulb,
-  DollarSign
+  DollarSign,
+  AlertTriangle
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
@@ -60,6 +62,7 @@ import {
 import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 import { LoadingScreen } from '@/components/ui/loading-screen';
+import { AdminAccessRequestModal } from '@/components/admin/AdminAccessRequestModal';
 
 
 // Skeleton component for campaign list items
@@ -86,6 +89,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
   const [guestSettingsOpen, setGuestSettingsOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [adminAccessModalOpen, setAdminAccessModalOpen] = useState(false);
   
   const [isChangingProject, setIsChangingProject] = useState(false);
   
@@ -95,6 +99,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const { projects } = useProjects();
   const { profile } = useProfile();
   const { isGuest, loading: roleLoading } = useUserRole();
+  const { isInvestidor, needsAdminApproval, loading: cargoLoading } = useCargo();
   const { triggerTour } = useTour();
   const { theme, toggleTheme } = useTheme();
   const { isTabHidden, loading: tabVisibilityLoading } = useTabVisibility();
@@ -473,9 +478,9 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </Link>
             )}
 
-            {/* Financeiro - respects tab visibility */}
-            {!roleLoading && !isGuest && !isTabHidden('financial') && (
-              user?.email === 'gabrielhenriquelasaro7@gmail.com' ? (
+            {/* Financeiro - liberado para investidor também */}
+            {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('financial') && (
+              (user?.email === 'gabrielhenriquelasaro7@gmail.com' || isInvestidor) ? (
                 <Link
                   to="/financeiro"
                   className={cn(
@@ -534,23 +539,44 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           {!roleLoading && !isGuest && !collapsed && <div className="sidebar-divider mx-3" />}
 
         {/* Admin & Settings at bottom - Hidden for guests, hidden while loading role */}
-          {!roleLoading && !isGuest && (
+          {!roleLoading && !cargoLoading && !isGuest && (
             <div className="space-y-1 mt-2 mb-2">
 
-              {/* Admin - vai para página dedicada do projeto se houver projeto selecionado - respects tab visibility */}
+              {/* Admin - Investidor precisa solicitar acesso */}
               {!isTabHidden('admin') && (
-                <Link
-                  to={selectedProject ? `/project/${selectedProject.id}/admin` : '/admin'}
-                  onClick={onNavigate}
-                  className={cn(
-                    'sidebar-item',
-                    (location.pathname === '/admin' || 
-                     location.pathname.includes('/admin')) && 'active'
-                  )}
-                >
-                  <Database className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && <span>Administração</span>}
-                </Link>
+                needsAdminApproval ? (
+                  // Investidor/Coordenador - mostrar botão que abre modal de solicitação
+                  <button
+                    onClick={() => setAdminAccessModalOpen(true)}
+                    className={cn(
+                      'sidebar-item w-full',
+                      (location.pathname === '/admin' || 
+                       location.pathname.includes('/admin')) && 'active'
+                    )}
+                  >
+                    <Database className="w-5 h-5 flex-shrink-0" />
+                    {!collapsed && (
+                      <div className="flex items-center gap-2">
+                        <span>Administração</span>
+                        <AlertTriangle className="w-3 h-3 text-amber-500" />
+                      </div>
+                    )}
+                  </button>
+                ) : (
+                  // Tech/Gerente - acesso direto
+                  <Link
+                    to={selectedProject ? `/project/${selectedProject.id}/admin` : '/admin'}
+                    onClick={onNavigate}
+                    className={cn(
+                      'sidebar-item',
+                      (location.pathname === '/admin' || 
+                       location.pathname.includes('/admin')) && 'active'
+                    )}
+                  >
+                    <Database className="w-5 h-5 flex-shrink-0" />
+                    {!collapsed && <span>Administração</span>}
+                  </Link>
+                )
               )}
 
               {/* Suggestions - respects tab visibility */}
@@ -719,6 +745,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           preselectedProjectName={selectedProject.name}
         />
       )}
+
+      {/* Admin Access Request Modal - para Investidor/Coordenador */}
+      <AdminAccessRequestModal
+        open={adminAccessModalOpen}
+        onOpenChange={setAdminAccessModalOpen}
+      />
 
     </aside>
   );

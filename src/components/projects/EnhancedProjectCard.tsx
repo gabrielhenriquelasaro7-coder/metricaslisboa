@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Project, BusinessModel } from '@/hooks/useProjects';
 import { ProjectHealth, HealthStatus } from '@/hooks/useProjectHealth';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   MoreHorizontal, 
   TrendingUp, 
@@ -19,7 +21,9 @@ import {
   ShieldAlert,
   Shield,
   DollarSign,
-  Target
+  Target,
+  User,
+  Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -84,6 +88,42 @@ export default function EnhancedProjectCard({
   onArchive, 
   onUnarchive 
 }: EnhancedProjectCardProps) {
+  const [investidorName, setInvestidorName] = useState<string | null>(null);
+  const [squadName, setSquadName] = useState<string | null>(null);
+
+  // Fetch investidor and squad names
+  useEffect(() => {
+    const fetchProjectDetails = async () => {
+      // Fetch investidor name
+      if (project.investidor_id) {
+        const { data: investidorData } = await supabase
+          .from('user_management')
+          .select('full_name')
+          .eq('id', project.investidor_id)
+          .maybeSingle();
+        
+        if (investidorData?.full_name) {
+          setInvestidorName(investidorData.full_name);
+        }
+      }
+
+      // Fetch squad name
+      if (project.squad_id) {
+        const { data: squadData } = await supabase
+          .from('squads')
+          .select('name')
+          .eq('id', project.squad_id)
+          .maybeSingle();
+        
+        if (squadData?.name) {
+          setSquadName(squadData.name);
+        }
+      }
+    };
+
+    fetchProjectDetails();
+  }, [project.investidor_id, project.squad_id]);
+
   const config = businessModelConfig[project.business_model];
   const Icon = config.icon;
   const healthStatus = health?.status || 'care';
@@ -231,6 +271,24 @@ export default function EnhancedProjectCard({
                 />
               </AreaChart>
             </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Investidor & Squad Info */}
+        {(investidorName || squadName) && (
+          <div className="flex flex-wrap items-center gap-2 mb-3 pt-2 border-t border-border/50">
+            {investidorName && (
+              <Badge variant="outline" className="text-xs gap-1 px-2 py-0.5">
+                <User className="w-3 h-3" />
+                {investidorName.split(' ').slice(0, 2).join(' ')}
+              </Badge>
+            )}
+            {squadName && (
+              <Badge variant="secondary" className="text-xs gap-1 px-2 py-0.5">
+                <Layers className="w-3 h-3" />
+                {squadName}
+              </Badge>
+            )}
           </div>
         )}
 

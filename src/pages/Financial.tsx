@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useDailyMetrics } from '@/hooks/useDailyMetrics';
 import { useCRMConnection, CRMProvider } from '@/hooks/useCRMConnection';
+import { useCargo } from '@/hooks/useCargo';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -89,6 +90,7 @@ export default function Financial() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { projects, loading: projectsLoading } = useProjects();
+  const { isInvestidor, loading: cargoLoading } = useCargo();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
@@ -138,15 +140,16 @@ export default function Financial() {
                      crmStatus?.sync?.status === 'failed' ? 'error' : 'pending';
 
   const ALLOWED_EMAIL = 'gabrielhenriquelasaro7@gmail.com';
-  const isAuthorized = user?.email === ALLOWED_EMAIL;
+  // Authorized: admin email OR investidor
+  const isAuthorized = user?.email === ALLOWED_EMAIL || isInvestidor;
   const isBusinessModelAllowed = businessModel && ALLOWED_BUSINESS_MODELS.includes(businessModel);
   const businessModelInfo = businessModel ? BUSINESS_MODEL_LABELS[businessModel] : null;
 
   useEffect(() => {
-    if (!authLoading && !isAuthorized) {
+    if (!authLoading && !cargoLoading && !isAuthorized) {
       navigate('/dashboard');
     }
-  }, [authLoading, isAuthorized, navigate]);
+  }, [authLoading, cargoLoading, isAuthorized, navigate]);
 
   const crmMetrics = useMemo(() => ({
     revenue: crmStatus?.funnel?.revenue || crmStatus?.stats?.total_revenue || 0,
@@ -169,7 +172,7 @@ export default function Financial() {
     ebitda: crmMetrics.revenue * 0.67 - totalAdSpend,
   }), [crmMetrics, totalAdSpend]);
 
-  if (authLoading || projectsLoading || crmLoading) {
+  if (authLoading || projectsLoading || crmLoading || cargoLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
