@@ -729,6 +729,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       <AdminAccessRequestModal
         open={adminAccessModalOpen}
         onOpenChange={setAdminAccessModalOpen}
+        projectId={selectedProject?.id}
+        projectName={selectedProject?.name}
       />
 
     </aside>

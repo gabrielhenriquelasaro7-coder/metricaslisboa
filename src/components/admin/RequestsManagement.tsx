@@ -113,15 +113,25 @@ export function RequestsManagement() {
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <User className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-medium truncate">
+                            <span className="font-medium">
                               {request.user_name || 'Usuário'}
                             </span>
-                            <Badge variant="outline" className="text-xs">
+                            {request.user_cargo && (
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {request.user_cargo.replace(/_/g, ' ')}
+                              </Badge>
+                            )}
+                            <Badge variant="secondary" className="text-xs">
                               Pendente
                             </Badge>
                           </div>
+                          {request.project_name && (
+                            <p className="text-sm text-primary font-medium mb-1">
+                              📁 Projeto: {request.project_name}
+                            </p>
+                          )}
                           <p className="text-sm text-muted-foreground mb-2 bg-muted/50 p-2 rounded">
                             "{request.reason}"
                           </p>
