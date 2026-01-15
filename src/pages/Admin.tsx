@@ -89,14 +89,16 @@ function AdminContent() {
 
   // Definir tabs visíveis baseado no cargo
   // TECH: sync, import, logs, docs, suggestions (operacional + sugestões)
-  // GERENTE: users, guests, squads, suggestions (gestão de pessoas + sugestões)
+  // GERENTE: users, guests, squads (SOMENTE gestão de pessoas - NÃO vê operacional)
+  // MASTER (admin via useAdminAuth): vê TUDO
   const techTabs = ['sync', 'import', 'logs', 'docs', 'suggestions'];
-  const gerenteTabs = ['users', 'guests', 'squads', 'suggestions'];
+  const gerenteTabs = ['users', 'guests', 'squads'];
+  const allTabs = [...techTabs, ...gerenteTabs];
   
   const visibleTabs = isTech 
-    ? [...techTabs, ...gerenteTabs] // Tech vê tudo
+    ? allTabs // Tech vê tudo (é master)
     : isGerente 
-      ? gerenteTabs // Gerente só gestão de pessoas
+      ? gerenteTabs // Gerente SOMENTE gestão de pessoas
       : []; // Outros não veem nada (não deveriam chegar aqui)
 
   // Determinar tab padrão

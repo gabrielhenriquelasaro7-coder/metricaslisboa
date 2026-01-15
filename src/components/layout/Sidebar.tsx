@@ -478,39 +478,18 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </Link>
             )}
 
-            {/* Financeiro - liberado para investidor também */}
+            {/* Financeiro - liberado para TODOS os usuários */}
             {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('financial') && (
-              (user?.email === 'gabrielhenriquelasaro7@gmail.com' || isInvestidor) ? (
-                <Link
-                  to="/financeiro"
-                  className={cn(
-                    'sidebar-item',
-                    location.pathname === '/financeiro' && 'active'
-                  )}
-                >
-                  <DollarSign className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && <span>Financeiro</span>}
-                </Link>
-              ) : (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="sidebar-item opacity-50 cursor-not-allowed">
-                        <DollarSign className="w-5 h-5 flex-shrink-0" />
-                        {!collapsed && (
-                          <div className="flex items-center gap-2">
-                            <span>Financeiro</span>
-                            <Lock className="w-3 h-3 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="bg-popover border-border">
-                      <p>Em desenvolvimento</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )
+              <Link
+                to="/financeiro"
+                className={cn(
+                  'sidebar-item',
+                  location.pathname === '/financeiro' && 'active'
+                )}
+              >
+                <DollarSign className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>Financeiro</span>}
+              </Link>
             )}
 
 
