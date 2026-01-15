@@ -175,7 +175,46 @@ GET /{ad_account_id}/insights
 
 ---
 
-### 5. Buscar Imagens HD
+### 6. Buscar Saldo da Conta (Account Balance)
+
+```
+GET /{ad_account_id}
+  ?fields=balance,amount_spent,currency,funding_source_details,account_status,spend_cap
+  &access_token={token}
+```
+
+**Tipos de Funding (funding_source_details.type):**
+- 1: Cartão de Crédito (pós-pago) - `balance` em centavos
+- 2: Cupom Facebook
+- 3: Débito Direto / PIX (pré-pago) - saldo no `display_string`
+- 4: PayPal
+- 5: Transferência Bancária (pré-pago)
+- 20: Linha de Crédito / Ad Credits (pré-pago)
+
+**Account Status:**
+- 1: ACTIVE
+- 2: DISABLED
+- 3: UNSETTLED (sem saldo)
+- 7: PENDING_REVIEW
+- 9: IN_GRACE_PERIOD
+
+**Extração do saldo:**
+```javascript
+// Cartão de crédito (type=1)
+if (fundingType === 1 && !isBlocked) {
+  balance = metaData.balance / 100; // centavos para reais
+}
+
+// Pré-pago (type=3,5,20)
+if (isPrepaidLike && display_string) {
+  const match = display_string.match(/R\$\s*([\d.,]+)/);
+  // Parse formato brasileiro (1.234,56)
+}
+```
+
+---
+
+### 7. Buscar Imagens HD
 
 ```
 GET /{ad_account_id}/adimages
@@ -186,7 +225,7 @@ GET /{ad_account_id}/adimages
 
 ---
 
-### 6. Buscar Thumbnail HD do Criativo
+### 8. Buscar Thumbnail HD do Criativo
 
 ```
 GET /{creative_id}

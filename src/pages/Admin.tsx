@@ -46,7 +46,7 @@ import {
   
   UserPlus
 } from 'lucide-react';
-import { downloadDocumentationAsTxt, downloadDocumentationAsPdf } from '@/utils/generateSystemDocumentation';
+import { downloadDocumentationAsTxt, downloadDocumentationAsPdf, downloadDatabaseSchemaJSON } from '@/utils/generateSystemDocumentation';
 
 interface SyncLog {
   id: string;
@@ -853,6 +853,18 @@ function AdminContent() {
                     >
                       <FileText className="w-5 h-5" />
                       Baixar como TXT
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        downloadDatabaseSchemaJSON();
+                        toast.success('Schema JSON do banco gerado!');
+                      }}
+                      className="gap-2 flex-1"
+                      size="lg"
+                    >
+                      <Database className="w-5 h-5" />
+                      Baixar Schema JSON
                     </Button>
                   </div>
 
