@@ -23,6 +23,7 @@ import { UserManagement } from '@/components/admin/UserManagement';
 
 import { GuestsManagement } from '@/components/admin/GuestsManagement';
 import { InvestorSuggestionsManagement } from '@/components/admin/InvestorSuggestionsManagement';
+import { RequestsManagement } from '@/components/admin/RequestsManagement';
 import { 
   Database, 
   CheckCircle2, 
@@ -45,8 +46,9 @@ import {
   Users,
   Building2,
   MessageSquare,
-  UserPlus
-} from 'lucide-react';
+    UserPlus,
+    Bell
+  } from 'lucide-react';
 import { downloadDocumentationAsTxt, downloadDocumentationAsPdf, downloadDatabaseSchemaJSON } from '@/utils/generateSystemDocumentation';
 
 interface SyncLog {
@@ -88,10 +90,10 @@ function AdminContent() {
   const selectedProject = activeProjects.find(p => p.id === selectedProjectId);
 
   // Definir tabs visíveis baseado no cargo
-  // TECH: sync, import, logs, docs, suggestions (operacional + sugestões)
+  // TECH: sync, import, logs, docs, requests (operacional + solicitações)
   // GERENTE: users, guests, squads (SOMENTE gestão de pessoas - NÃO vê operacional)
   // MASTER (admin via useAdminAuth): vê TUDO
-  const techTabs = ['sync', 'import', 'logs', 'docs', 'suggestions'];
+  const techTabs = ['sync', 'import', 'logs', 'docs', 'requests'];
   const gerenteTabs = ['users', 'guests', 'squads'];
   const allTabs = [...techTabs, ...gerenteTabs];
   
@@ -409,10 +411,10 @@ function AdminContent() {
                 Squads
               </TabsTrigger>
             )}
-            {visibleTabs.includes('suggestions') && (
-              <TabsTrigger value="suggestions" className="gap-2">
-                <MessageSquare className="w-4 h-4" />
-                Sugestões
+            {visibleTabs.includes('requests') && (
+              <TabsTrigger value="requests" className="gap-2">
+                <Bell className="w-4 h-4" />
+                Solicitações
               </TabsTrigger>
             )}
           </TabsList>
@@ -920,10 +922,10 @@ function AdminContent() {
             </TabsContent>
           )}
 
-          {/* SUGGESTIONS TAB - TECH and GERENTE */}
-          {visibleTabs.includes('suggestions') && (
-            <TabsContent value="suggestions" className="space-y-6">
-              <InvestorSuggestionsManagement />
+          {/* REQUESTS TAB - TECH only (Admin Access + Suggestions) */}
+          {visibleTabs.includes('requests') && (
+            <TabsContent value="requests" className="space-y-6">
+              <RequestsManagement />
             </TabsContent>
           )}
         </Tabs>
