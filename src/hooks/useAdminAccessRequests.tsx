@@ -145,23 +145,42 @@ export function useAdminAccessRequests() {
     if (!user || !isTech) throw new Error('Sem permissão');
 
     try {
-      // Find the request to get user_id
+      // Find the request to get user_id and project_id
       const request = requests.find(r => r.id === requestId);
       if (!request) throw new Error('Solicitação não encontrada');
 
-      // First, create permanent admin access grant
+      // Create daily admin access grant (expires in 12 hours)
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 12);
+
       const { error: grantError } = await supabase
         .from('admin_access_grants')
-        .upsert({
+        .insert({
           user_id: request.user_id,
+          project_id: request.project_id || null,
           granted_by: user.id,
-          granted_at: new Date().toISOString(),
+          expires_at: expiresAt.toISOString(),
+          grant_date: new Date().toISOString().split('T')[0],
           notes: `Aprovado via solicitação: ${request.reason}`,
-        }, { onConflict: 'user_id' });
+        });
 
       if (grantError) {
-        console.error('Error creating admin grant:', grantError);
-        throw grantError;
+        // If duplicate, just update the existing grant
+        if (grantError.code === '23505') {
+          const { error: updateError } = await supabase
+            .from('admin_access_grants')
+            .update({
+              expires_at: expiresAt.toISOString(),
+              granted_by: user.id,
+              notes: `Renovado via solicitação: ${request.reason}`,
+            })
+            .eq('user_id', request.user_id)
+            .eq('grant_date', new Date().toISOString().split('T')[0]);
+
+          if (updateError) throw updateError;
+        } else {
+          throw grantError;
+        }
       }
 
       // Then update the request status
@@ -177,7 +196,7 @@ export function useAdminAccessRequests() {
       if (error) throw error;
 
       setRequests(prev => prev.filter(r => r.id !== requestId));
-      toast.success('Solicitação aprovada! Usuário agora tem acesso permanente ao admin.');
+      toast.success('Solicitação aprovada! Acesso válido por 12 horas.');
     } catch (error) {
       console.error('Error approving request:', error);
       toast.error('Erro ao aprovar solicitação');

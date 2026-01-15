@@ -22,7 +22,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [hasApprovedAccess, setHasApprovedAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check if user has an approved admin access grant
+  // Check if user has an approved admin access grant (valid for today)
   const checkApprovedAccess = useCallback(async (): Promise<boolean> => {
     if (!user) {
       setHasApprovedAccess(false);
@@ -32,8 +32,9 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('admin_access_grants')
-        .select('id, expires_at, revoked_at')
+        .select('id, expires_at, project_id')
         .eq('user_id', user.id)
+        .gt('expires_at', new Date().toISOString())
         .maybeSingle();
 
       if (error) {
@@ -42,16 +43,13 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      // Check if grant exists, is not revoked, and not expired
-      if (data && !data.revoked_at) {
-        const isExpired = data.expires_at ? new Date(data.expires_at) < new Date() : false;
-        if (!isExpired) {
-          setHasApprovedAccess(true);
-          // Auto-authenticate users with approved access
-          setIsAdminAuthenticated(true);
-          localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify({ timestamp: Date.now(), grantAccess: true }));
-          return true;
-        }
+      // Check if grant exists and not expired
+      if (data) {
+        setHasApprovedAccess(true);
+        // Auto-authenticate users with approved access
+        setIsAdminAuthenticated(true);
+        localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify({ timestamp: Date.now(), grantAccess: true }));
+        return true;
       }
 
       setHasApprovedAccess(false);
