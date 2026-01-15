@@ -37,15 +37,11 @@ interface GuestAccess {
   created_at: string;
 }
 
-// Generate random password for each guest
-const generateRandomPassword = () => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
-  let password = '';
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-};
+// Default password for all new guests
+const DEFAULT_PASSWORD = '12345678';
+
+// Get default password for guests
+const getDefaultPassword = () => DEFAULT_PASSWORD;
 
 export function GuestsManagement() {
   const { projects } = useProjects();
@@ -135,8 +131,8 @@ export function GuestsManagement() {
         return;
       }
 
-      // Generate unique password for this guest
-      const tempPassword = generateRandomPassword();
+      // Use default password for all guests
+      const tempPassword = getDefaultPassword();
 
       // Create invitations for each project
       for (const projectId of formData.project_ids) {
