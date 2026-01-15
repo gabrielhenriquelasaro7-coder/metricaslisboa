@@ -385,26 +385,41 @@ export default function ProjectSelector() {
     fetchPeople();
   }, []);
 
-  // Buscar investidores por projeto
+  // Buscar investidores por projeto - diretamente com profiles
   useEffect(() => {
     const fetchProjectInvestidores = async () => {
       if (projects.length === 0) return;
       
+      // Fetch from project_investidores with profile names
       const { data } = await supabase
         .from('project_investidores')
         .select('project_id, investidor_id')
         .in('project_id', projects.map(p => p.id));
       
-      if (data && investidores.length > 0) {
+      if (data && data.length > 0) {
+        // Get unique investidor_ids
+        const investidorIds = [...new Set(data.map(pi => pi.investidor_id))];
+        
+        // Fetch profiles for these investidores
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', investidorIds);
+        
+        const profilesMap: Record<string, string> = {};
+        profilesData?.forEach(p => {
+          profilesMap[p.user_id] = p.full_name || 'Sem nome';
+        });
+        
         const map: Record<string, string[]> = {};
         data.forEach(pi => {
-          const investidor = investidores.find(i => i.id === pi.investidor_id);
-          if (investidor) {
+          const fullName = profilesMap[pi.investidor_id];
+          if (fullName) {
             if (!map[pi.project_id]) {
               map[pi.project_id] = [];
             }
             // Use only first name
-            const firstName = investidor.full_name?.split(' ')[0] || 'Sem nome';
+            const firstName = fullName.split(' ')[0];
             map[pi.project_id].push(firstName);
           }
         });
@@ -412,7 +427,7 @@ export default function ProjectSelector() {
       }
     };
     fetchProjectInvestidores();
-  }, [projects, investidores]);
+  }, [projects]);
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -871,10 +886,13 @@ export default function ProjectSelector() {
                   <img src={whatsappIcon} alt="" className="w-4 h-4 md:w-4.5 md:h-4.5 lg:w-5 lg:h-5 opacity-70" />
                   <span className="hidden lg:inline">WhatsApp Admin</span>
                 </button>
-                <button onClick={() => navigate('/admin')} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
-                  <Shield className="w-4 h-4" />
-                  <span className="hidden lg:inline">Admin</span>
-                </button>
+                {/* Admin button - hidden for investidor and convidado */}
+                {!isInvestidor && !isGuest && (
+                  <button onClick={() => navigate('/admin')} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
+                    <Shield className="w-4 h-4" />
+                    <span className="hidden lg:inline">Admin</span>
+                  </button>
+                )}
                 <button onClick={() => setSettingsDialogOpen(true)} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
                   <User className="w-4 h-4" />
                   <span className="hidden lg:inline">Configurações</span>
