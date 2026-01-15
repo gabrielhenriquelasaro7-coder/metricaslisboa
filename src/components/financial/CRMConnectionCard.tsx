@@ -325,6 +325,13 @@ export function CRMConnectionCard({
               </Card>
             ))}
           </div>
+          
+          {/* Coming soon message */}
+          <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-dashed border-muted-foreground/30 text-center">
+            <p className="text-sm text-muted-foreground">
+              ✨ <strong>Novas conexões em breve...</strong> (HubSpot, Pipedrive, RD Station e mais)
+            </p>
+          </div>
         </CardContent>
       </Card>
 
