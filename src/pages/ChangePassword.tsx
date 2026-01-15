@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ import v4LogoFull from '@/assets/v4-logo-full.png';
 export default function ChangePassword() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isGuest } = useUserRole();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -47,10 +49,22 @@ export default function ChangePassword() {
       
       console.log('[ChangePassword] Password updated successfully');
 
-      // Mark password as changed in guest_invitations and clear temp_password for security
+      // Mark password as changed in user_management table
       if (user) {
-        console.log('[ChangePassword] Updating guest_invitations for user:', user.id);
+        console.log('[ChangePassword] Updating user_management for user:', user.id);
         
+        const { error: userMgmtError } = await supabase
+          .from('user_management')
+          .update({ needs_password_change: false })
+          .eq('user_id', user.id);
+        
+        if (userMgmtError) {
+          console.error('[ChangePassword] Error updating user_management:', userMgmtError);
+        } else {
+          console.log('[ChangePassword] user_management updated successfully');
+        }
+
+        // Also update guest_invitations for backwards compatibility
         const { data, error: updateError } = await supabase
           .from('guest_invitations')
           .update({ 
@@ -76,11 +90,16 @@ export default function ChangePassword() {
       setRedirecting(true);
       setLoading(false);
       
-      // ALWAYS redirect to guest-onboarding after first password change
-      // Using React Router for smooth transition without page reload
+      // Redirect based on user type
+      // Guests go to onboarding, regular users go to projects
       setTimeout(() => {
-        console.log('[ChangePassword] Navigating to guest-onboarding (first login flow)');
-        navigate('/guest-onboarding');
+        if (isGuest) {
+          console.log('[ChangePassword] Guest user - navigating to guest-onboarding');
+          navigate('/guest-onboarding');
+        } else {
+          console.log('[ChangePassword] Regular user - navigating to projects');
+          navigate('/projects');
+        }
       }, 500);
       
     } catch (error: unknown) {
