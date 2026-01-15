@@ -39,7 +39,7 @@ interface SyncRequest {
   access_token?: string;
   time_range?: { since: string; until: string };
   date_preset?: string;
-  syncMode?: 'base' | 'creatives' | 'hd_images';
+  syncMode?: 'base' | 'creatives' | 'hd_images' | 'recache_hd';
   retry_count?: number;
   lite_mode?: boolean; // Skip entity fetch for large accounts
   specific_ad_ids?: string[]; // OTIMIZAÇÃO: buscar criativos/HD apenas desses ads
@@ -806,20 +806,28 @@ async function cacheCreativeImageRobust(
 }
 
 // Cache de imagem HD
-async function cacheCreativeImage(supabase: any, projectId: string, adId: string, imageUrl: string): Promise<string | null> {
+async function cacheCreativeImage(supabase: any, projectId: string, adId: string, imageUrl: string, forceRecache: boolean = false): Promise<string | null> {
   if (!imageUrl) return null;
+  
+  // THRESHOLD MÍNIMO PARA HD: 20KB (imagens menores são baixa qualidade)
+  const MIN_HD_SIZE = 20000;
+  
   try {
     const fileName = `${projectId}/${adId}.jpg`;
     
-    // Verificar se já existe com tamanho adequado
-    const { data: existingFile } = await supabase.storage.from('creative-images').list(projectId, { limit: 1, search: `${adId}.jpg` });
-    if (existingFile?.length > 0) {
-      const fileSize = existingFile[0]?.metadata?.size || 0;
-      if (fileSize > 5000) {
-        const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
-        if (publicUrlData?.publicUrl) {
-          console.log(`[CACHE] Already exists (${Math.round(fileSize/1024)}KB): ${adId}`);
-          return publicUrlData.publicUrl;
+    // Verificar se já existe com tamanho adequado (HD = mínimo 20KB)
+    if (!forceRecache) {
+      const { data: existingFile } = await supabase.storage.from('creative-images').list(projectId, { limit: 1, search: `${adId}.jpg` });
+      if (existingFile?.length > 0) {
+        const fileSize = existingFile[0]?.metadata?.size || 0;
+        if (fileSize >= MIN_HD_SIZE) {
+          const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
+          if (publicUrlData?.publicUrl) {
+            console.log(`[CACHE] Already HD (${Math.round(fileSize/1024)}KB): ${adId}`);
+            return publicUrlData.publicUrl;
+          }
+        } else {
+          console.log(`[CACHE] Existing too small (${Math.round(fileSize/1024)}KB), re-caching: ${adId}`);
         }
       }
     }
@@ -843,10 +851,9 @@ async function cacheCreativeImage(supabase: any, projectId: string, adId: string
     
     const imageBuffer = await response.arrayBuffer();
     
-    // Aceitar imagens a partir de 500 bytes (thumbnails válidas)
-    // Imagens menores que isso provavelmente são placeholders ou erros
-    if (imageBuffer.byteLength < 500) {
-      console.log(`[CACHE] Image too small (${imageBuffer.byteLength} bytes): ${adId}`);
+    // HD mínimo: 20KB. Imagens menores são baixa qualidade.
+    if (imageBuffer.byteLength < MIN_HD_SIZE) {
+      console.log(`[CACHE] LOW QUALITY (${Math.round(imageBuffer.byteLength/1024)}KB < 20KB): ${adId} - Rejecting`);
       return null;
     }
     
@@ -861,12 +868,167 @@ async function cacheCreativeImage(supabase: any, projectId: string, adId: string
     }
     
     const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
-    console.log(`[CACHE] Cached HD image (${Math.round(imageBuffer.byteLength/1024)}KB): ${adId}`);
+    console.log(`[CACHE] Cached HD (${Math.round(imageBuffer.byteLength/1024)}KB): ${adId}`);
     return publicUrlData?.publicUrl || null;
   } catch (e) { 
     console.log(`[CACHE] Error caching ${adId}: ${e}`);
     return null; 
   }
+}
+
+// ===========================================================================================
+// 5️⃣ RECACHE ALL HD - Força re-download de TODAS as imagens usando permalink_url
+// ===========================================================================================
+async function recacheAllHD(
+  supabase: any, 
+  projectId: string, 
+  adAccountId: string, 
+  token: string
+): Promise<{ cached: number; total: number; skipped: number; errors: number }> {
+  console.log(`[RECACHE-HD] Starting force recache for project ${projectId}`);
+  
+  // Buscar TODOS os ads (não apenas os sem cache)
+  const { data: allAds, error: adsError } = await supabase
+    .from('ads')
+    .select('id')
+    .eq('project_id', projectId);
+  
+  if (adsError) throw adsError;
+  
+  const ads = allAds || [];
+  console.log(`[RECACHE-HD] Total ads to process: ${ads.length}`);
+  
+  let cached = 0, skipped = 0, errors = 0;
+  const adIds = ads.map((a: any) => a.id);
+  
+  // Mapa de image_hash -> permalink_url
+  const hashToUrlMap = new Map<string, string>();
+  const adToHashMap = new Map<string, string>();
+  
+  // FASE 1: Buscar image_hashes de todos os ads
+  const batchSize = 50;
+  console.log(`[RECACHE-HD] FASE 1: Coletando image_hashes...`);
+  
+  for (let i = 0; i < adIds.length; i += batchSize) {
+    const batch = adIds.slice(i, i + batchSize);
+    const batchIds = batch.join(',');
+    
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,image_hash,object_story_spec}&access_token=${token}`;
+    const adsData = await simpleFetch(adsUrl, undefined, 30000);
+    
+    if (adsData?.error) {
+      console.log(`[RECACHE-HD] Hash batch error: ${adsData.error.message?.substring(0, 100)}`);
+      continue;
+    }
+    
+    for (const adId of batch) {
+      const adData = (adsData as Record<string, any>)[adId];
+      if (!adData?.creative) continue;
+      
+      const creative = adData.creative;
+      let imageHash: string | null = null;
+      
+      if (creative.image_hash) {
+        imageHash = creative.image_hash;
+      } else if (creative.object_story_spec) {
+        const oss = creative.object_story_spec;
+        if (oss.link_data?.image_hash) imageHash = oss.link_data.image_hash;
+        else if (oss.photo_data?.images?.[0]?.hash) imageHash = oss.photo_data.images[0].hash;
+      }
+      
+      if (imageHash) {
+        adToHashMap.set(adId, imageHash);
+      }
+    }
+    
+    if (i + batchSize < adIds.length) await delay(100);
+  }
+  
+  const allHashes = new Set(adToHashMap.values());
+  console.log(`[RECACHE-HD] Encontrados ${allHashes.size} hashes únicos para ${adToHashMap.size} ads`);
+  
+  // FASE 2: Buscar permalink_url via /adimages
+  if (allHashes.size > 0) {
+    console.log(`[RECACHE-HD] FASE 2: Buscando URLs permanentes HD...`);
+    
+    const hashArray = Array.from(allHashes);
+    const cleanAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+    
+    for (let i = 0; i < hashArray.length; i += batchSize) {
+      const hashBatch = hashArray.slice(i, i + batchSize);
+      const hashesParam = hashBatch.map(h => `"${h}"`).join(',');
+      
+      const adimagesUrl = `https://graph.facebook.com/v22.0/${cleanAccountId}/adimages?hashes=[${hashesParam}]&fields=hash,permalink_url&access_token=${token}`;
+      const adimagesData = await simpleFetch(adimagesUrl, undefined, 30000);
+      
+      if (!adimagesData?.error && adimagesData?.data) {
+        for (const img of adimagesData.data) {
+          if (img.hash && img.permalink_url) {
+            hashToUrlMap.set(img.hash, img.permalink_url);
+          }
+        }
+      } else {
+        console.log(`[RECACHE-HD] Adimages batch error: ${adimagesData?.error?.message?.substring(0, 100)}`);
+      }
+      
+      if (i + batchSize < hashArray.length) await delay(100);
+    }
+    
+    console.log(`[RECACHE-HD] Obtidas ${hashToUrlMap.size} URLs permanentes HD`);
+  }
+  
+  // FASE 3: Re-cachear todas as imagens com forceRecache=true
+  console.log(`[RECACHE-HD] FASE 3: Re-cacheando imagens em HD...`);
+  
+  const adsWithUrls = ads.filter((ad: any) => {
+    const hash = adToHashMap.get(ad.id);
+    return hash && hashToUrlMap.has(hash);
+  });
+  
+  console.log(`[RECACHE-HD] ${adsWithUrls.length} ads com URLs HD disponíveis`);
+  
+  const cacheBatchSize = 5;
+  for (let k = 0; k < adsWithUrls.length; k += cacheBatchSize) {
+    const adBatch = adsWithUrls.slice(k, k + cacheBatchSize);
+    
+    const promises = adBatch.map(async (ad: any) => {
+      const hash = adToHashMap.get(ad.id);
+      if (!hash) return;
+      
+      const permalinkUrl = hashToUrlMap.get(hash);
+      if (!permalinkUrl) return;
+      
+      try {
+        // FORÇA re-cache (ignora existentes pequenos)
+        const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, permalinkUrl, true);
+        if (cachedUrl) {
+          await supabase.from('ads').update({ 
+            cached_image_url: cachedUrl,
+            creative_thumbnail: permalinkUrl,
+            synced_at: new Date().toISOString()
+          }).eq('id', ad.id);
+          cached++;
+        } else {
+          errors++;
+        }
+      } catch (e) {
+        console.log(`[RECACHE-HD] Error for ${ad.id}: ${e}`);
+        errors++;
+      }
+    });
+    
+    await Promise.all(promises);
+    
+    if (k % 50 === 0) {
+      console.log(`[RECACHE-HD] Progress: ${k}/${adsWithUrls.length} (cached: ${cached}, errors: ${errors})`);
+    }
+  }
+  
+  // Ads sem hash ficam como skipped
+  skipped = ads.length - adsWithUrls.length;
+  
+  console.log(`[RECACHE-HD] Complete - Cached: ${cached}, Skipped: ${skipped}, Errors: ${errors}`);
+  return { cached, total: ads.length, skipped, errors };
 }
 
 // Tipos de conversão
@@ -1241,6 +1403,28 @@ Deno.serve(async (req) => {
         errors: result.errors,
         pending: result.pending,
         totalAds: result.totalAds,
+        duration: Date.now() - startTime
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    
+    // ===========================================================================================
+    // 4️⃣ RECACHE HD MODE - FORÇA RECACHE DE TODAS AS IMAGENS (substituir pequenas)
+    // ===========================================================================================
+    if (syncMode === 'recache_hd') {
+      console.log(`[SYNC] Starting RECACHE HD for project ${project_id} - forcing HD quality`);
+      await updateSyncProgress(supabase, project_id, 'recache_hd', 'Re-cacheando imagens em HD (forçando qualidade)...', 1, 100);
+      
+      const result = await recacheAllHD(supabase, project_id, ad_account_id, token);
+      
+      await updateSyncProgress(supabase, project_id, 'complete', `Recache HD: ${result.cached}/${result.total} atualizadas`, 100, 100);
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        syncMode: 'recache_hd',
+        cached: result.cached,
+        total: result.total,
+        skipped: result.skipped,
+        errors: result.errors,
         duration: Date.now() - startTime
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
