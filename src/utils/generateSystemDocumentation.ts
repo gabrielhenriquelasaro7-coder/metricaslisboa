@@ -1079,6 +1079,68 @@ WHERE project_id = :projectId
   AND date <= :until
 GROUP BY breakdown_type, breakdown_value
 
+15.7 SALDO DA CONTA (ACCOUNT BALANCE)
+--------------------------------------
+HOOK: useBalanceAlert.tsx
+COMPONENTE: AccountBalanceCard.tsx
+EDGE FUNCTION: predictive-analysis
+
+Endpoint Meta Graph API:
+GET https://graph.facebook.com/v22.0/act_{ad_account_id}
+  ?fields=balance,amount_spent,currency,funding_source_details,account_status,spend_cap
+  &access_token={META_ACCESS_TOKEN}
+
+Tipos de Funding (funding_source_details.type):
+- 1: Cartão de Crédito (pós-pago) - balance em centavos
+- 2: Cupom Facebook
+- 3: Débito Direto / PIX (pré-pago) - saldo no display_string
+- 4: PayPal
+- 5: Transferência Bancária (pré-pago)
+- 20: Linha de Crédito / Ad Credits (pré-pago)
+
+Status da Conta (account_status):
+- 1: ACTIVE - Conta ativa
+- 2: DISABLED - Conta desativada
+- 3: UNSETTLED - Problemas de pagamento / sem saldo
+- 7: PENDING_REVIEW - Em revisão
+- 9: IN_GRACE_PERIOD - Período de graça
+
+Extração do Saldo:
+- Cartão (type=1): balance / 100 (converter centavos para reais)
+- Pré-pago (type=3,5,20): Regex no display_string "R$ X.XXX,XX"
+- Conta bloqueada (status=2,3): Saldo efetivo = 0
+
+Query para buscar saldo salvo:
+SELECT account_balance, account_balance_updated_at 
+FROM projects 
+WHERE id = '{projectId}'
+
+Query para atualizar saldo:
+UPDATE projects 
+SET account_balance = {valor}, account_balance_updated_at = now() 
+WHERE id = '{projectId}'
+
+Query para calcular gasto médio (últimos 7 dias):
+SELECT spend, date 
+FROM ads_daily_metrics 
+WHERE project_id = '{projectId}' 
+  AND date >= '{hoje - 7 dias}' 
+  AND date <= '{hoje}'
+
+Cálculo de dias restantes:
+avgDailySpend = SUM(spend) / COUNT(DISTINCT date)
+daysRemaining = FLOOR(account_balance / avgDailySpend)
+
+Status do saldo:
+- healthy: daysRemaining > 7
+- warning: daysRemaining <= 7
+- critical: daysRemaining <= 3
+
+Query de config de alertas:
+SELECT balance_alert_enabled, balance_alert_threshold 
+FROM whatsapp_subscriptions 
+WHERE project_id = '{projectId}' AND user_id = '{userId}'
+
 ================================================================================
 16. CONFIGURAÇÃO DE MÉTRICAS
 ================================================================================
@@ -1204,8 +1266,8 @@ UTM: Urchin Tracking Module (parâmetros de rastreamento)
 ================================================================================
 FIM DA DOCUMENTAÇÃO
 ================================================================================
-Versão: 2.0
-Atualização: Adicionada documentação CRM/Kommo e Queries SQL
+Versão: 2.1
+Atualização: Adicionada documentação de Saldo da Conta (Balance)
 Data de Geração: ${new Date().toLocaleString('pt-BR')}
 ================================================================================
 `;
@@ -1283,4 +1345,641 @@ export const downloadDocumentationAsPdf = () => {
 
   // Salvar
   pdf.save(`documentacao-sistema-v4-${new Date().toISOString().split('T')[0]}.pdf`);
+};
+
+// Database schema as JSON for export
+export const generateDatabaseSchemaJSON = () => {
+  const schema = {
+    version: "2.1",
+    generatedAt: new Date().toISOString(),
+    tables: {
+      projects: {
+        description: "Projetos/Clientes",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          user_id: { type: "UUID", nullable: false },
+          name: { type: "TEXT", nullable: false },
+          ad_account_id: { type: "TEXT", nullable: false },
+          google_customer_id: { type: "TEXT", nullable: true },
+          facebook_page_id: { type: "TEXT", nullable: true },
+          business_model: { type: "ENUM", values: ["inside_sales", "ecommerce", "pdv", "infoproduto", "custom"] },
+          currency: { type: "TEXT", default: "BRL" },
+          timezone: { type: "TEXT", default: "America/Sao_Paulo" },
+          account_balance: { type: "NUMERIC", nullable: true },
+          account_balance_updated_at: { type: "TIMESTAMPTZ", nullable: true },
+          health_score: { type: "TEXT", nullable: true },
+          last_sync_at: { type: "TIMESTAMPTZ", nullable: true },
+          sync_progress: { type: "JSONB", nullable: true },
+          archived: { type: "BOOLEAN", default: false },
+          avatar_url: { type: "TEXT", nullable: true },
+          ai_briefing: { type: "TEXT", nullable: true },
+          squad_id: { type: "UUID", nullable: true },
+          investidor_id: { type: "UUID", nullable: true },
+          created_at: { type: "TIMESTAMPTZ", default: "now()" },
+          updated_at: { type: "TIMESTAMPTZ", default: "now()" }
+        }
+      },
+      ads_daily_metrics: {
+        description: "Métricas diárias de anúncios (principal)",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          date: { type: "DATE", nullable: false },
+          ad_account_id: { type: "TEXT", nullable: false },
+          ad_id: { type: "TEXT", nullable: false },
+          ad_name: { type: "TEXT", nullable: false },
+          ad_status: { type: "TEXT", nullable: true },
+          adset_id: { type: "TEXT", nullable: false },
+          adset_name: { type: "TEXT", nullable: false },
+          adset_status: { type: "TEXT", nullable: true },
+          campaign_id: { type: "TEXT", nullable: false },
+          campaign_name: { type: "TEXT", nullable: false },
+          campaign_status: { type: "TEXT", nullable: true },
+          campaign_objective: { type: "TEXT", nullable: true },
+          spend: { type: "NUMERIC", default: 0 },
+          impressions: { type: "INTEGER", default: 0 },
+          clicks: { type: "INTEGER", default: 0 },
+          reach: { type: "INTEGER", default: 0 },
+          frequency: { type: "NUMERIC", nullable: true },
+          ctr: { type: "NUMERIC", nullable: true },
+          cpm: { type: "NUMERIC", nullable: true },
+          cpc: { type: "NUMERIC", nullable: true },
+          cpa: { type: "NUMERIC", nullable: true },
+          conversions: { type: "INTEGER", nullable: true },
+          conversion_value: { type: "NUMERIC", nullable: true },
+          roas: { type: "NUMERIC", nullable: true },
+          leads_count: { type: "INTEGER", nullable: true },
+          purchases_count: { type: "INTEGER", nullable: true },
+          messaging_replies: { type: "INTEGER", nullable: true },
+          profile_visits: { type: "INTEGER", nullable: true },
+          initiate_checkout_count: { type: "INTEGER", nullable: true },
+          creative_id: { type: "TEXT", nullable: true },
+          creative_thumbnail: { type: "TEXT", nullable: true },
+          cached_creative_thumbnail: { type: "TEXT", nullable: true },
+          synced_at: { type: "TIMESTAMPTZ", default: "now()" },
+          created_at: { type: "TIMESTAMPTZ", default: "now()" }
+        },
+        indexes: ["project_id", "date", "ad_id", "campaign_id"]
+      },
+      campaigns: {
+        description: "Campanhas Meta Ads (agregado)",
+        columns: {
+          id: { type: "TEXT", primaryKey: true, description: "Meta Campaign ID" },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          name: { type: "TEXT", nullable: false },
+          status: { type: "TEXT", values: ["ACTIVE", "PAUSED", "ARCHIVED", "DELETED"] },
+          objective: { type: "TEXT", nullable: true },
+          daily_budget: { type: "NUMERIC", nullable: true },
+          lifetime_budget: { type: "NUMERIC", nullable: true },
+          spend: { type: "NUMERIC", nullable: true },
+          impressions: { type: "INTEGER", nullable: true },
+          clicks: { type: "INTEGER", nullable: true },
+          reach: { type: "INTEGER", nullable: true },
+          conversions: { type: "INTEGER", nullable: true },
+          conversion_value: { type: "NUMERIC", nullable: true },
+          ctr: { type: "NUMERIC", nullable: true },
+          cpc: { type: "NUMERIC", nullable: true },
+          cpm: { type: "NUMERIC", nullable: true },
+          cpa: { type: "NUMERIC", nullable: true },
+          roas: { type: "NUMERIC", nullable: true },
+          messaging_replies: { type: "INTEGER", nullable: true },
+          profile_visits: { type: "INTEGER", nullable: true },
+          synced_at: { type: "TIMESTAMPTZ", nullable: true },
+          created_at: { type: "TIMESTAMPTZ", default: "now()" }
+        }
+      },
+      ad_sets: {
+        description: "Conjuntos de anúncios Meta Ads (agregado)",
+        columns: {
+          id: { type: "TEXT", primaryKey: true, description: "Meta AdSet ID" },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          campaign_id: { type: "TEXT", nullable: false },
+          name: { type: "TEXT", nullable: false },
+          status: { type: "TEXT", nullable: true },
+          targeting: { type: "JSONB", nullable: true },
+          daily_budget: { type: "NUMERIC", nullable: true },
+          lifetime_budget: { type: "NUMERIC", nullable: true },
+          spend: { type: "NUMERIC", nullable: true },
+          impressions: { type: "INTEGER", nullable: true },
+          clicks: { type: "INTEGER", nullable: true },
+          reach: { type: "INTEGER", nullable: true },
+          conversions: { type: "INTEGER", nullable: true },
+          conversion_value: { type: "NUMERIC", nullable: true },
+          synced_at: { type: "TIMESTAMPTZ", nullable: true }
+        }
+      },
+      ads: {
+        description: "Anúncios Meta Ads (agregado)",
+        columns: {
+          id: { type: "TEXT", primaryKey: true, description: "Meta Ad ID" },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          campaign_id: { type: "TEXT", nullable: false },
+          ad_set_id: { type: "TEXT", nullable: false },
+          name: { type: "TEXT", nullable: false },
+          status: { type: "TEXT", nullable: true },
+          creative_id: { type: "TEXT", nullable: true },
+          creative_image_url: { type: "TEXT", nullable: true },
+          creative_video_url: { type: "TEXT", nullable: true },
+          creative_thumbnail: { type: "TEXT", nullable: true },
+          cached_image_url: { type: "TEXT", nullable: true, description: "URL do Supabase Storage" },
+          headline: { type: "TEXT", nullable: true },
+          primary_text: { type: "TEXT", nullable: true },
+          cta: { type: "TEXT", nullable: true },
+          spend: { type: "NUMERIC", nullable: true },
+          impressions: { type: "INTEGER", nullable: true },
+          clicks: { type: "INTEGER", nullable: true },
+          conversions: { type: "INTEGER", nullable: true },
+          synced_at: { type: "TIMESTAMPTZ", nullable: true }
+        }
+      },
+      crm_connections: {
+        description: "Conexões com CRMs",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          user_id: { type: "UUID", nullable: false },
+          provider: { type: "ENUM", values: ["kommo", "hubspot", "rdstation", "gohighlevel", "bitrix24", "outros"] },
+          status: { type: "ENUM", values: ["pending", "connected", "disconnected", "error"] },
+          access_token: { type: "TEXT", nullable: true },
+          refresh_token: { type: "TEXT", nullable: true },
+          api_key: { type: "TEXT", nullable: true },
+          api_url: { type: "TEXT", nullable: true },
+          mql_stage_ids: { type: "TEXT[]", nullable: true },
+          sql_stage_ids: { type: "TEXT[]", nullable: true },
+          config: { type: "JSONB", nullable: true, description: "selected_pipeline_id, etc" },
+          funnel_cards_config: { type: "JSONB", nullable: true },
+          display_name: { type: "TEXT", nullable: true },
+          connected_at: { type: "TIMESTAMPTZ", nullable: true }
+        }
+      },
+      crm_deals: {
+        description: "Leads/Oportunidades do CRM",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          external_id: { type: "TEXT", nullable: false, description: "ID no CRM externo" },
+          connection_id: { type: "UUID", foreignKey: "crm_connections.id" },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          title: { type: "TEXT", nullable: false },
+          contact_name: { type: "TEXT", nullable: true },
+          contact_email: { type: "TEXT", nullable: true },
+          contact_phone: { type: "TEXT", nullable: true },
+          value: { type: "NUMERIC", nullable: true, description: "Valor em reais (não centavos)" },
+          status: { type: "ENUM", values: ["open", "won", "lost"] },
+          stage_name: { type: "TEXT", nullable: true },
+          external_stage_id: { type: "TEXT", nullable: true },
+          external_pipeline_id: { type: "TEXT", nullable: true },
+          pipeline_id: { type: "UUID", foreignKey: "crm_pipelines.id", nullable: true },
+          utm_source: { type: "TEXT", nullable: true },
+          utm_medium: { type: "TEXT", nullable: true },
+          utm_campaign: { type: "TEXT", nullable: true },
+          utm_content: { type: "TEXT", nullable: true },
+          utm_term: { type: "TEXT", nullable: true },
+          lead_source: { type: "TEXT", nullable: true },
+          owner_name: { type: "TEXT", nullable: true },
+          created_date: { type: "TIMESTAMPTZ", nullable: true },
+          closed_date: { type: "TIMESTAMPTZ", nullable: true },
+          custom_fields: { type: "JSONB", nullable: true },
+          synced_at: { type: "TIMESTAMPTZ", nullable: true }
+        }
+      },
+      crm_pipelines: {
+        description: "Funis/Pipelines do CRM",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          external_id: { type: "TEXT", nullable: false },
+          external_name: { type: "TEXT", nullable: false },
+          connection_id: { type: "UUID", foreignKey: "crm_connections.id" },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          stages: { type: "JSONB", nullable: true, description: "Array de etapas com id, name, type" },
+          is_default: { type: "BOOLEAN", default: false },
+          synced_at: { type: "TIMESTAMPTZ", nullable: true }
+        }
+      },
+      account_goals: {
+        description: "Metas globais por projeto",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id", unique: true },
+          target_spend_daily: { type: "NUMERIC", nullable: true },
+          target_spend_monthly: { type: "NUMERIC", nullable: true },
+          target_cpc: { type: "NUMERIC", nullable: true },
+          target_cpl: { type: "NUMERIC", nullable: true },
+          target_ctr: { type: "NUMERIC", nullable: true },
+          target_roas: { type: "NUMERIC", nullable: true },
+          target_leads_monthly: { type: "INTEGER", nullable: true }
+        }
+      },
+      campaign_goals: {
+        description: "Metas por campanha",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          campaign_id: { type: "TEXT", nullable: false },
+          campaign_name: { type: "TEXT", nullable: false },
+          target_cpl: { type: "NUMERIC", nullable: true },
+          target_ctr: { type: "NUMERIC", nullable: true },
+          target_leads: { type: "INTEGER", nullable: true },
+          target_roas: { type: "NUMERIC", nullable: true },
+          max_cpc: { type: "NUMERIC", nullable: true }
+        }
+      },
+      whatsapp_instances: {
+        description: "Instâncias WhatsApp por projeto",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          user_id: { type: "UUID", nullable: false },
+          instance_name: { type: "TEXT", nullable: false },
+          status: { type: "TEXT", values: ["connected", "disconnected", "connecting"] },
+          phone_number: { type: "TEXT", nullable: true },
+          qr_code: { type: "TEXT", nullable: true }
+        }
+      },
+      whatsapp_subscriptions: {
+        description: "Assinaturas de relatórios WhatsApp",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          user_id: { type: "UUID", nullable: false },
+          instance_id: { type: "UUID", foreignKey: "whatsapp_instances.id", nullable: true },
+          phone_number: { type: "TEXT", nullable: true },
+          group_id: { type: "TEXT", nullable: true },
+          group_name: { type: "TEXT", nullable: true },
+          enabled: { type: "BOOLEAN", default: true },
+          report_schedule: { type: "TEXT", nullable: true },
+          include_spend: { type: "BOOLEAN", default: true },
+          include_leads: { type: "BOOLEAN", default: true },
+          balance_alert_enabled: { type: "BOOLEAN", default: false },
+          balance_alert_threshold: { type: "INTEGER", default: 3, description: "Dias de saldo para alertar" },
+          last_balance_alert_at: { type: "TIMESTAMPTZ", nullable: true },
+          last_report_sent_at: { type: "TIMESTAMPTZ", nullable: true }
+        }
+      },
+      whatsapp_report_configs: {
+        description: "Configurações de relatórios WhatsApp",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          instance_id: { type: "UUID", foreignKey: "whatsapp_instances.id", nullable: true },
+          group_id: { type: "TEXT", nullable: true },
+          group_name: { type: "TEXT", nullable: true },
+          enabled: { type: "BOOLEAN", default: true },
+          balance_alert_enabled: { type: "BOOLEAN", default: false },
+          balance_alert_threshold: { type: "INTEGER", default: 3 },
+          last_balance_alert_at: { type: "TIMESTAMPTZ", nullable: true }
+        }
+      },
+      optimization_history: {
+        description: "Histórico de mudanças em campanhas/adsets/ads",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          entity_type: { type: "TEXT", values: ["campaign", "adset", "ad"] },
+          entity_id: { type: "TEXT", nullable: false },
+          entity_name: { type: "TEXT", nullable: false },
+          change_type: { type: "TEXT", values: ["created", "paused", "activated", "status_change", "targeting_change", "budget_change"] },
+          field_changed: { type: "TEXT", nullable: false },
+          old_value: { type: "TEXT", nullable: true },
+          new_value: { type: "TEXT", nullable: true },
+          change_percentage: { type: "NUMERIC", nullable: true },
+          changed_by: { type: "TEXT", nullable: true },
+          detected_at: { type: "TIMESTAMPTZ", default: "now()" }
+        }
+      },
+      anomaly_alerts: {
+        description: "Alertas de anomalias detectadas",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          entity_type: { type: "TEXT", values: ["campaign", "adset", "ad"] },
+          entity_id: { type: "TEXT", nullable: false },
+          entity_name: { type: "TEXT", nullable: false },
+          anomaly_type: { type: "TEXT", values: ["ctr_drop", "cpl_increase", "campaign_paused", "budget_change", "balance_low"] },
+          severity: { type: "TEXT", values: ["warning", "critical"], default: "warning" },
+          details: { type: "JSONB", nullable: true },
+          notified: { type: "BOOLEAN", default: false },
+          notified_at: { type: "TIMESTAMPTZ", nullable: true }
+        }
+      },
+      anomaly_alert_config: {
+        description: "Configuração de alertas de anomalias",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          user_id: { type: "UUID", nullable: false },
+          enabled: { type: "BOOLEAN", default: true },
+          ctr_drop_threshold: { type: "NUMERIC", nullable: true, description: "% de queda para alertar" },
+          cpl_increase_threshold: { type: "NUMERIC", nullable: true, description: "% de aumento para alertar" },
+          campaign_paused_alert: { type: "BOOLEAN", default: true },
+          ad_set_paused_alert: { type: "BOOLEAN", default: true },
+          ad_paused_alert: { type: "BOOLEAN", default: false },
+          budget_change_alert: { type: "BOOLEAN", default: true },
+          instance_id: { type: "UUID", foreignKey: "whatsapp_instances.id", nullable: true },
+          target_type: { type: "TEXT", values: ["phone", "group"], default: "phone" },
+          phone_number: { type: "TEXT", nullable: true },
+          group_id: { type: "TEXT", nullable: true }
+        }
+      },
+      google_campaigns: {
+        description: "Campanhas Google Ads",
+        columns: {
+          id: { type: "TEXT", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          name: { type: "TEXT", nullable: false },
+          status: { type: "TEXT", nullable: true },
+          campaign_type: { type: "TEXT", nullable: true },
+          bidding_strategy: { type: "TEXT", nullable: true },
+          budget_amount: { type: "NUMERIC", nullable: true },
+          spend: { type: "NUMERIC", nullable: true },
+          impressions: { type: "INTEGER", nullable: true },
+          clicks: { type: "INTEGER", nullable: true },
+          conversions: { type: "INTEGER", nullable: true },
+          conversion_value: { type: "NUMERIC", nullable: true }
+        }
+      },
+      google_ads_daily_metrics: {
+        description: "Métricas diárias Google Ads",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          date: { type: "DATE", nullable: false },
+          customer_id: { type: "TEXT", nullable: false },
+          campaign_id: { type: "TEXT", nullable: false },
+          campaign_name: { type: "TEXT", nullable: false },
+          ad_group_id: { type: "TEXT", nullable: false },
+          ad_group_name: { type: "TEXT", nullable: false },
+          ad_id: { type: "TEXT", nullable: false },
+          ad_name: { type: "TEXT", nullable: false },
+          spend: { type: "NUMERIC", default: 0 },
+          impressions: { type: "INTEGER", default: 0 },
+          clicks: { type: "INTEGER", default: 0 },
+          conversions: { type: "INTEGER", nullable: true },
+          conversion_value: { type: "NUMERIC", nullable: true },
+          search_impression_share: { type: "NUMERIC", nullable: true }
+        }
+      },
+      profiles: {
+        description: "Perfis de usuários",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          user_id: { type: "UUID", unique: true },
+          full_name: { type: "TEXT", nullable: true },
+          avatar_url: { type: "TEXT", nullable: true },
+          cargo: { type: "TEXT", nullable: true }
+        }
+      },
+      user_roles: {
+        description: "Roles e cargos de usuários",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          user_id: { type: "UUID", unique: true },
+          role: { type: "ENUM", values: ["admin", "gestor", "convidado"], default: "gestor" },
+          cargo: { type: "ENUM", values: ["tech", "gerente", "coordenador", "investidor", "membro"], default: "membro" },
+          is_master: { type: "BOOLEAN", default: false }
+        }
+      },
+      squads: {
+        description: "Squads/Times",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          name: { type: "TEXT", nullable: false },
+          description: { type: "TEXT", nullable: true }
+        }
+      },
+      squad_members: {
+        description: "Membros de squads",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          squad_id: { type: "UUID", foreignKey: "squads.id" },
+          user_id: { type: "UUID", nullable: false }
+        }
+      },
+      leads: {
+        description: "Leads capturados via Meta Lead Forms",
+        columns: {
+          id: { type: "TEXT", primaryKey: true, description: "Meta Lead ID" },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          form_id: { type: "TEXT", nullable: false },
+          form_name: { type: "TEXT", nullable: true },
+          lead_name: { type: "TEXT", nullable: true },
+          lead_email: { type: "TEXT", nullable: true },
+          lead_phone: { type: "TEXT", nullable: true },
+          field_data: { type: "JSONB", nullable: true },
+          campaign_id: { type: "TEXT", nullable: true },
+          adset_id: { type: "TEXT", nullable: true },
+          ad_id: { type: "TEXT", nullable: true },
+          created_time: { type: "TIMESTAMPTZ", nullable: false }
+        }
+      },
+      demographic_insights: {
+        description: "Insights demográficos (idade, gênero, região)",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          date: { type: "DATE", nullable: false },
+          breakdown_type: { type: "TEXT", values: ["age", "gender", "region"] },
+          breakdown_value: { type: "TEXT", nullable: false },
+          spend: { type: "NUMERIC", nullable: true },
+          impressions: { type: "INTEGER", nullable: true },
+          clicks: { type: "INTEGER", nullable: true },
+          conversions: { type: "INTEGER", nullable: true },
+          reach: { type: "INTEGER", nullable: true }
+        }
+      },
+      dre_history: {
+        description: "Histórico de DRE (Demonstração de Resultados)",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          user_id: { type: "UUID", nullable: false },
+          year: { type: "INTEGER", nullable: false },
+          month: { type: "INTEGER", nullable: false },
+          period_start: { type: "DATE", nullable: false },
+          period_end: { type: "DATE", nullable: false },
+          gross_revenue: { type: "NUMERIC", nullable: true },
+          net_revenue: { type: "NUMERIC", nullable: true },
+          deductions: { type: "NUMERIC", nullable: true },
+          total_ad_spend: { type: "NUMERIC", nullable: true },
+          ad_spend_meta: { type: "NUMERIC", nullable: true },
+          ad_spend_google: { type: "NUMERIC", nullable: true },
+          operational_expenses: { type: "NUMERIC", nullable: true },
+          ebitda: { type: "NUMERIC", nullable: true },
+          roas: { type: "NUMERIC", nullable: true },
+          cac: { type: "NUMERIC", nullable: true },
+          cpl: { type: "NUMERIC", nullable: true },
+          total_leads: { type: "INTEGER", nullable: true },
+          total_sales: { type: "INTEGER", nullable: true },
+          status: { type: "TEXT", values: ["draft", "closed"], default: "draft" }
+        }
+      },
+      sync_logs: {
+        description: "Logs de sincronização",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          sync_type: { type: "TEXT", values: ["meta", "google", "leads", "crm"] },
+          status: { type: "TEXT", values: ["success", "error", "partial"] },
+          message: { type: "JSONB", nullable: true },
+          records_processed: { type: "INTEGER", nullable: true },
+          started_at: { type: "TIMESTAMPTZ", nullable: true },
+          completed_at: { type: "TIMESTAMPTZ", nullable: true }
+        }
+      },
+      project_import_months: {
+        description: "Status de importação por mês",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          year: { type: "INTEGER", nullable: false },
+          month: { type: "INTEGER", nullable: false },
+          status: { type: "TEXT", values: ["pending", "importing", "completed", "error"] },
+          records_imported: { type: "INTEGER", nullable: true },
+          error_message: { type: "TEXT", nullable: true }
+        }
+      },
+      project_metric_config: {
+        description: "Configuração de métricas por projeto",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id", unique: true },
+          primary_metrics: { type: "TEXT[]", nullable: true },
+          result_metrics: { type: "TEXT[]", nullable: true },
+          cost_metrics: { type: "TEXT[]", nullable: true },
+          efficiency_metrics: { type: "TEXT[]", nullable: true },
+          result_metric: { type: "TEXT", nullable: true, description: "Métrica principal de resultado" }
+        }
+      },
+      ai_analysis_cache: {
+        description: "Cache de análises da IA",
+        columns: {
+          id: { type: "UUID", primaryKey: true },
+          project_id: { type: "UUID", foreignKey: "projects.id" },
+          query_hash: { type: "TEXT", nullable: false },
+          user_message: { type: "TEXT", nullable: false },
+          ai_response: { type: "TEXT", nullable: false },
+          context_summary: { type: "JSONB", nullable: true },
+          expires_at: { type: "TIMESTAMPTZ", nullable: false }
+        }
+      }
+    },
+    edgeFunctions: {
+      "meta-ads-sync": {
+        description: "Sincronização principal com Meta Ads API",
+        method: "POST",
+        params: ["project_id", "ad_account_id", "time_range", "date_preset", "light_sync", "skip_image_cache", "syncOnly", "syncMode"]
+      },
+      "import-month-by-month": {
+        description: "Importação histórica mês a mês",
+        method: "POST",
+        params: ["project_id", "year", "month", "continue_chain", "max_month", "fetch_creatives_only", "lite_mode"]
+      },
+      "import-historical-data": {
+        description: "Importação histórica por período",
+        method: "POST",
+        params: ["project_id", "since", "until", "safe_mode"]
+      },
+      "google-ads-sync": {
+        description: "Sincronização com Google Ads API",
+        method: "POST",
+        params: ["project_id", "date_preset", "time_range"]
+      },
+      "meta-leads-sync": {
+        description: "Sincronização de leads Meta",
+        method: "POST",
+        params: ["project_id", "facebook_page_id"]
+      },
+      "predictive-analysis": {
+        description: "Análise preditiva com IA + saldo da conta",
+        method: "POST",
+        params: ["projectId", "accountGoal"],
+        returns: ["accountBalance", "predictions", "suggestions", "totals", "dailyTrend"]
+      },
+      "ai-traffic-assistant": {
+        description: "Assistente IA de tráfego",
+        method: "POST",
+        params: ["project_id", "message", "context"]
+      },
+      "crm-connect": {
+        description: "Conectar com CRM",
+        method: "POST",
+        params: ["project_id", "provider", "api_key", "api_url"]
+      },
+      "crm-sync": {
+        description: "Sincronizar dados do CRM",
+        method: "POST",
+        params: ["connection_id", "project_id", "sync_type"]
+      },
+      "crm-status": {
+        description: "Status da conexão CRM",
+        method: "POST",
+        params: ["connection_id", "project_id", "pipeline_id"]
+      },
+      "whatsapp-send": {
+        description: "Enviar mensagem WhatsApp",
+        method: "POST",
+        params: ["instance_id", "phone_number", "group_id", "message"]
+      },
+      "whatsapp-weekly-report": {
+        description: "Relatórios semanais automáticos",
+        method: "POST",
+        params: []
+      },
+      "whatsapp-balance-alert": {
+        description: "Alertas de saldo baixo",
+        method: "POST",
+        params: ["projectId", "forceResend"]
+      },
+      "detect-and-fix-gaps": {
+        description: "Detectar e corrigir gaps de dados",
+        method: "POST",
+        params: ["auto_fix", "project_id"]
+      },
+      "scheduled-sync": {
+        description: "Sincronização agendada (cron)",
+        method: "POST",
+        params: []
+      },
+      "sync-demographics": {
+        description: "Sincronizar insights demográficos",
+        method: "POST",
+        params: ["project_id"]
+      }
+    },
+    metaApiEndpoints: {
+      campaigns: "GET /{ad_account_id}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget",
+      adsets: "GET /{ad_account_id}/adsets?fields=id,name,status,campaign_id,daily_budget,lifetime_budget,targeting",
+      ads: "GET /{ad_account_id}/ads?fields=id,name,status,adset_id,campaign_id,creative{...}",
+      insights: "GET /{ad_account_id}/insights?level=ad&fields=ad_id,spend,impressions,clicks,reach,actions...",
+      accountBalance: "GET /{ad_account_id}?fields=balance,amount_spent,currency,funding_source_details,account_status,spend_cap",
+      adimages: "GET /{ad_account_id}/adimages?hashes=[...]&fields=hash,url,url_1024",
+      creativeThumbnail: "GET /{creative_id}?fields=thumbnail_url&thumbnail_width=1080&thumbnail_height=1080"
+    },
+    calculations: {
+      ctr: "(clicks / impressions) * 100",
+      cpm: "(spend / impressions) * 1000",
+      cpc: "spend / clicks",
+      cpa: "spend / conversions",
+      cpl: "spend / leads",
+      roas: "conversion_value / spend",
+      frequency: "impressions / reach",
+      daysRemaining: "FLOOR(account_balance / avgDailySpend)",
+      avgDailySpend: "SUM(spend_last_7_days) / 7"
+    }
+  };
+
+  return schema;
+};
+
+export const downloadDatabaseSchemaJSON = () => {
+  const schema = generateDatabaseSchemaJSON();
+  const content = JSON.stringify(schema, null, 2);
+  const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `database-schema-v4-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
