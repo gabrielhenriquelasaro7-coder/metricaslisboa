@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useCargo } from '@/hooks/useCargo';
 import { useAdminAccessRequests } from '@/hooks/useAdminAccessRequests';
@@ -15,9 +15,11 @@ interface AdminPasswordGateProps {
 }
 
 export default function AdminPasswordGate({ children }: AdminPasswordGateProps) {
+  // ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP
   const { isAdminAuthenticated, hasApprovedAccess, isLoading, verifyPassword } = useAdminAuth();
-  const { isTech, needsAdminApproval, cargo } = useCargo();
+  const { needsAdminApproval, cargo, loading: cargoLoading } = useCargo();
   const { myPendingRequest, loading: requestsLoading } = useAdminAccessRequests();
+  
   const [password, setPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState('');
@@ -49,7 +51,8 @@ export default function AdminPasswordGate({ children }: AdminPasswordGateProps) 
     }
   };
 
-  if (isLoading) {
+  // Loading state
+  if (isLoading || cargoLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
