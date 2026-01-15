@@ -85,19 +85,33 @@ export default function Suggestions() {
       return;
     }
 
+    if (!user) {
+      toast.error('Você precisa estar logado');
+      return;
+    }
+
+    // Get current project from localStorage
+    const currentProjectId = localStorage.getItem('selectedProjectId');
+    if (!currentProjectId) {
+      toast.error('Selecione um projeto primeiro');
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
-      // In a real app, this would save to a suggestions table
-      // For now, we'll just show success
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      console.log('[Suggestions] Submitted:', {
-        ...form,
-        user_id: user?.id,
-        user_email: user?.email,
-        submitted_at: new Date().toISOString(),
-      });
+      const { error } = await supabase
+        .from('investor_suggestions')
+        .insert({
+          project_id: currentProjectId,
+          user_id: user.id,
+          title: `[${typeConfig[form.type].label}] ${form.title}`,
+          description: form.description,
+          priority: form.priority,
+          status: 'pending'
+        });
+
+      if (error) throw error;
       
       setSubmitted(true);
       toast.success('Sugestão enviada com sucesso!');
@@ -113,6 +127,7 @@ export default function Suggestions() {
         });
       }, 3000);
     } catch (error) {
+      console.error('[Suggestions] Error:', error);
       toast.error('Erro ao enviar sugestão');
     } finally {
       setIsSubmitting(false);
