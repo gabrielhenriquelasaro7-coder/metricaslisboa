@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 export interface AdminAccessRequest {
   id: string;
   user_id: string;
+  project_id: string | null;
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
   reviewed_by: string | null;
@@ -16,6 +17,8 @@ export interface AdminAccessRequest {
   updated_at: string;
   user_name?: string;
   user_email?: string;
+  user_cargo?: string;
+  project_name?: string;
 }
 
 export function useAdminAccessRequests() {
@@ -44,18 +47,34 @@ export function useAdminAccessRequests() {
 
         if (error) throw error;
 
-        // Fetch user names
+        // Fetch user names, cargos and project names
         if (data && data.length > 0) {
           const userIds = data.map(r => r.user_id);
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('user_id, full_name')
-            .in('user_id', userIds);
+          const projectIds = data.filter(r => r.project_id).map(r => r.project_id);
 
-          const enrichedRequests = data.map(req => ({
+          const [profilesRes, projectsRes] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('user_id, full_name, cargo')
+              .in('user_id', userIds),
+            projectIds.length > 0 
+              ? supabase.from('projects').select('id, name').in('id', projectIds)
+              : Promise.resolve({ data: [] as { id: string; name: string }[] })
+          ]);
+
+          const profileMap = new Map<string, { full_name: string | null; cargo: string | null }>(
+            profilesRes.data?.map(p => [p.user_id, { full_name: p.full_name, cargo: p.cargo }]) || []
+          );
+          const projectMap = new Map<string, string>(
+            projectsRes.data?.map(p => [p.id, p.name]) || []
+          );
+
+          const enrichedRequests: AdminAccessRequest[] = data.map(req => ({
             ...req,
             status: req.status as 'pending' | 'approved' | 'rejected',
-            user_name: profiles?.find(p => p.user_id === req.user_id)?.full_name || 'Sem nome',
+            user_name: profileMap.get(req.user_id)?.full_name || 'Sem nome',
+            user_cargo: profileMap.get(req.user_id)?.cargo || undefined,
+            project_name: req.project_id ? (projectMap.get(req.project_id) || 'Projeto não encontrado') : undefined,
           }));
 
           setRequests(enrichedRequests);
@@ -93,7 +112,7 @@ export function useAdminAccessRequests() {
     fetchRequests();
   }, [fetchRequests]);
 
-  const createRequest = async (reason: string) => {
+  const createRequest = async (reason: string, projectId?: string) => {
     if (!user) throw new Error('Usuário não autenticado');
 
     try {
@@ -102,6 +121,7 @@ export function useAdminAccessRequests() {
         .insert({
           user_id: user.id,
           reason,
+          project_id: projectId || null,
         })
         .select()
         .single();

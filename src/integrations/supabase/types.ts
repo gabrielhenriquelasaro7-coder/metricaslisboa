@@ -157,6 +157,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          project_id: string | null
           reason: string
           rejection_reason: string | null
           reviewed_at: string | null
@@ -168,6 +169,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          project_id?: string | null
           reason: string
           rejection_reason?: string | null
           reviewed_at?: string | null
@@ -179,6 +181,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          project_id?: string | null
           reason?: string
           rejection_reason?: string | null
           reviewed_at?: string | null
@@ -187,7 +190,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admin_access_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ads: {
         Row: {

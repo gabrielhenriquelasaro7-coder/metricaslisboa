@@ -16,12 +16,16 @@ interface AdminAccessRequestModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRequestSent?: () => void;
+  projectId?: string;
+  projectName?: string;
 }
 
 export function AdminAccessRequestModal({
   open,
   onOpenChange,
   onRequestSent,
+  projectId,
+  projectName,
 }: AdminAccessRequestModalProps) {
   const { myPendingRequest, createRequest } = useAdminAccessRequests();
   const [reason, setReason] = useState('');
@@ -33,7 +37,7 @@ export function AdminAccessRequestModal({
 
     setIsSubmitting(true);
     try {
-      await createRequest(reason.trim());
+      await createRequest(reason.trim(), projectId);
       onOpenChange(false);
       onRequestSent?.();
     } catch (error) {
@@ -99,11 +103,20 @@ export function AdminAccessRequestModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          {projectName && (
+            <div className="bg-muted/50 border rounded-lg p-3">
+              <p className="text-sm">
+                <span className="text-muted-foreground">Projeto:</span>{' '}
+                <strong>{projectName}</strong>
+              </p>
+            </div>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="reason">Motivo da solicitação *</Label>
             <Textarea
               id="reason"
-              placeholder="Ex: Preciso importar dados históricos do projeto X..."
+              placeholder="Ex: Preciso importar dados históricos..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={4}
