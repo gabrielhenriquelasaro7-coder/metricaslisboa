@@ -89,8 +89,9 @@ export function RequestsManagement() {
                   size="icon"
                   onClick={() => refetch()}
                   disabled={loading}
+                  className="transition-transform hover:scale-105"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 transition-transform duration-300 ${loading ? 'animate-spin' : 'hover:rotate-180'}`} />
                 </Button>
               </div>
             </CardHeader>

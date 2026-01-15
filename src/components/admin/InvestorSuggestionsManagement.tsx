@@ -54,18 +54,20 @@ export function InvestorSuggestionsManagement() {
       const projectIds = [...new Set(data?.map(s => s.project_id) || [])];
       const userIds = [...new Set(data?.map(s => s.user_id) || [])];
 
-      const [projectsRes, profilesRes] = await Promise.all([
+      const [projectsRes, profilesRes, userManagementRes] = await Promise.all([
         supabase.from('projects').select('id, name').in('id', projectIds),
-        supabase.from('profiles').select('user_id, full_name').in('user_id', userIds)
+        supabase.from('profiles').select('user_id, full_name').in('user_id', userIds),
+        supabase.from('user_management').select('user_id, full_name').in('user_id', userIds)
       ]);
 
       const projectMap = new Map(projectsRes.data?.map(p => [p.id, p.name]));
       const profileMap = new Map(profilesRes.data?.map(p => [p.user_id, p.full_name]));
+      const userManagementMap = new Map(userManagementRes.data?.map(u => [u.user_id, u.full_name]));
 
       const enriched = data?.map(s => ({
         ...s,
         project_name: projectMap.get(s.project_id) || 'Projeto desconhecido',
-        user_name: profileMap.get(s.user_id) || 'Usuário desconhecido'
+        user_name: profileMap.get(s.user_id) || userManagementMap.get(s.user_id) || 'Usuário desconhecido'
       })) || [];
 
       setSuggestions(enriched);
@@ -172,8 +174,8 @@ export function InvestorSuggestionsManagement() {
                 Gerencie sugestões, melhorias e correções enviadas pelos investidores
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={fetchSuggestions} className="gap-2">
-              <RefreshCw className="w-4 h-4" />
+            <Button variant="outline" size="sm" onClick={fetchSuggestions} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 transition-transform ${loading ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
           </div>
