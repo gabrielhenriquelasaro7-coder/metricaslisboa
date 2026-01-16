@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Wallet, AlertTriangle, CheckCircle2, RefreshCw, TrendingDown, CreditCard, Banknote, CircleDollarSign, PauseCircle, XCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 interface AccountBalanceData {
   balance: number;
   currency: string;
@@ -79,6 +80,15 @@ export function AccountBalanceCard({
           accountStatus: result.accountBalance.accountStatus || null
         };
         setData(newData);
+        
+        // Show critical notification when balance is zero
+        if (newData.balance <= 0) {
+          toast.error('🚨 SALDO ZERADO!', {
+            description: 'Recarregue imediatamente para não pausar suas campanhas!',
+            duration: 10000,
+          });
+        }
+        
         // Save to cache
         balanceCache.set(projectId, {
           data: newData,
@@ -226,16 +236,36 @@ export function AccountBalanceCard({
   const FundingIcon = fundingInfo?.icon ?? Wallet;
   const accountStatusInfo = getAccountStatusInfo(data?.accountStatus ?? null);
   const StatusIcon = accountStatusInfo?.icon;
-  return <Card className="relative overflow-hidden">
+  const isZeroBalance = data && data.balance <= 0;
+  
+  return <Card className={cn(
+    "relative overflow-hidden transition-all",
+    isZeroBalance && "border-2 border-destructive bg-destructive/5 shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+  )}>
       <CardContent className="pt-4 pb-4 px-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className={cn("p-2.5 rounded-full", data?.status === 'critical' && "bg-destructive/20", data?.status === 'warning' && "bg-metric-warning/20", data?.status === 'healthy' && "bg-metric-positive/20", (!data || data.status === 'unknown') && "bg-muted")}>
-              <Wallet className={cn("w-5 h-5", data ? getStatusColor(data.status) : "text-muted-foreground")} />
+            <div className={cn(
+              "p-2.5 rounded-full",
+              isZeroBalance && "bg-destructive/30 animate-pulse",
+              !isZeroBalance && data?.status === 'critical' && "bg-destructive/20",
+              !isZeroBalance && data?.status === 'warning' && "bg-metric-warning/20",
+              !isZeroBalance && data?.status === 'healthy' && "bg-metric-positive/20",
+              (!data || (!isZeroBalance && data.status === 'unknown')) && "bg-muted"
+            )}>
+              <Wallet className={cn(
+                "w-5 h-5",
+                isZeroBalance ? "text-destructive" : data ? getStatusColor(data.status) : "text-muted-foreground"
+              )} />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground font-medium">Saldo Meta Ads</p>
-              {loading ? <div className="h-7 w-24 bg-muted/50 animate-pulse rounded" /> : <p className={cn("text-xl font-bold", data ? getStatusColor(data.status) : "text-foreground")}>
+              <p className={cn("text-xs font-medium", isZeroBalance ? "text-destructive" : "text-muted-foreground")}>
+                {isZeroBalance ? "⚠️ Saldo Meta Ads" : "Saldo Meta Ads"}
+              </p>
+              {loading ? <div className="h-7 w-24 bg-muted/50 animate-pulse rounded" /> : <p className={cn(
+                "text-xl font-bold",
+                isZeroBalance ? "text-destructive animate-pulse" : data ? getStatusColor(data.status) : "text-foreground"
+              )}>
                   {data ? formatCurrency(data.balance) : '—'}
                 </p>}
             </div>
