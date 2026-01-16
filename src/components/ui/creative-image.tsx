@@ -37,11 +37,14 @@ const cleanImageUrl = (url: string | null): string | null => {
   return clean;
 };
 
-// Build Storage URL for cached creative images
+// Build Storage URL for cached creative images with cache-busting
 const getStorageImageUrl = (projectId: string | undefined, adId: string): string | null => {
   if (!projectId) return null;
   const { data } = supabase.storage.from('creative-images').getPublicUrl(`${projectId}/${adId}.jpg`);
-  return data?.publicUrl || null;
+  if (!data?.publicUrl) return null;
+  // Add cache-busting timestamp to force reload after HD sync
+  const cacheBuster = `t=${Math.floor(Date.now() / 60000)}`; // Changes every minute
+  return `${data.publicUrl}?${cacheBuster}`;
 };
 
 export function CreativeImage({
