@@ -36,12 +36,22 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-// Retorna URL direto - sem modificar (Meta precisa dos params)
 import {
   Dialog,
   DialogContent,
   DialogTrigger,
+  DialogTitle,
 } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+
+// Build Storage URL with cache-busting for fresh HD images
+const getStorageImageUrl = (projectId: string | undefined, adId: string): string | null => {
+  if (!projectId || !adId) return null;
+  const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/creative-images/${projectId}/${adId}.jpg`;
+  // Cache-busting timestamp that changes every minute
+  const cacheBuster = `t=${Math.floor(Date.now() / 60000)}`;
+  return `${baseUrl}?${cacheBuster}`;
+};
 
 interface Ad {
   id: string;
@@ -282,8 +292,9 @@ export default function AdDetail() {
                       campaign?.name?.toLowerCase().includes('catálogo') ||
                       campaign?.name?.toLowerCase().includes('catalogo');
   
-  // Priorizar imagem cacheada no storage (nunca expira)
-  const creativeUrl = ad?.cached_image_url || ad?.creative_image_url || ad?.creative_thumbnail || '';
+  // Priorizar imagem do storage com cache-busting (nunca expira, sempre fresca)
+  const storageUrl = getStorageImageUrl(projectId, ad?.id || '');
+  const creativeUrl = storageUrl || ad?.cached_image_url || ad?.creative_image_url || ad?.creative_thumbnail || '';
   
   const handleImageError = () => {
     console.log('[AdDetail] Image failed to load, catalog ad:', isCatalogAd);
@@ -431,7 +442,10 @@ export default function AdDetail() {
                       )}
                     </div>
                   </DialogTrigger>
-                  <DialogContent className="max-w-4xl p-2">
+                  <DialogContent className="max-w-4xl p-2" aria-describedby={undefined}>
+                    <VisuallyHidden>
+                      <DialogTitle>Visualização do Criativo</DialogTitle>
+                    </VisuallyHidden>
                     <img 
                       src={creativeUrl} 
                       alt={ad.name}
