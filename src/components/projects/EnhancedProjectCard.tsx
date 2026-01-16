@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Project, BusinessModel } from '@/hooks/useProjects';
 import { ProjectHealth, HealthStatus } from '@/hooks/useProjectHealth';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,17 +35,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { ptBR, enUS, es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
 
-const businessModelConfig: Record<BusinessModel, { icon: typeof TrendingUp; label: string; color: string }> = {
-  inside_sales: { icon: Users, label: 'Inside Sales', color: 'text-chart-1' },
-  ecommerce: { icon: TrendingUp, label: 'E-commerce', color: 'text-chart-3' },
-  infoproduto: { icon: TrendingUp, label: 'Infoproduto', color: 'text-chart-2' },
-  pdv: { icon: Store, label: 'PDV', color: 'text-chart-4' },
-  custom: { icon: Target, label: 'Personalizado', color: 'text-primary' },
+const businessModelConfig: Record<BusinessModel, { icon: typeof TrendingUp; labelKey: string; color: string }> = {
+  inside_sales: { icon: Users, labelKey: 'Inside Sales', color: 'text-chart-1' },
+  ecommerce: { icon: TrendingUp, labelKey: 'E-commerce', color: 'text-chart-3' },
+  infoproduto: { icon: TrendingUp, labelKey: 'Infoproduto', color: 'text-chart-2' },
+  pdv: { icon: Store, labelKey: 'PDV', color: 'text-chart-4' },
+  custom: { icon: Target, labelKey: 'Custom', color: 'text-primary' },
 };
 
 const healthConfig: Record<HealthStatus, { icon: typeof ShieldCheck; label: string; color: string; bgColor: string; borderColor: string }> = {
@@ -88,9 +89,17 @@ export default function EnhancedProjectCard({
   onArchive, 
   onUnarchive 
 }: EnhancedProjectCardProps) {
+  const { t, i18n } = useTranslation();
   const [investidorNames, setInvestidorNames] = useState<string[]>([]);
   const [squadName, setSquadName] = useState<string | null>(null);
-
+  
+  const getDateLocale = () => {
+    switch (i18n.language) {
+      case 'en-US': return enUS;
+      case 'es': return es;
+      default: return ptBR;
+    }
+  };
   // Fetch investidor and squad names
   useEffect(() => {
     const fetchProjectDetails = async () => {
@@ -208,7 +217,7 @@ export default function EnhancedProjectCard({
                   <HealthIcon className="w-3 h-3 mr-1" />
                   {healthCfg.label}
                 </Badge>
-                <span className="text-xs text-muted-foreground">{config.label}</span>
+                <span className="text-xs text-muted-foreground">{config.labelKey}</span>
               </div>
             </div>
           </div>
@@ -221,18 +230,18 @@ export default function EnhancedProjectCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEdit(project); }}>
-                Editar
+                {t('common.edit')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {project.archived ? (
                 <DropdownMenuItem onClick={(e) => { e.preventDefault(); onUnarchive(project); }}>
                   <ArchiveRestore className="w-4 h-4 mr-2" />
-                  Restaurar
+                  {t('projects.restore')}
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem onClick={(e) => { e.preventDefault(); onArchive(project); }}>
                   <Archive className="w-4 h-4 mr-2" />
-                  Arquivar
+                  {t('projects.archive')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem 
@@ -240,7 +249,7 @@ export default function EnhancedProjectCard({
                 className="text-destructive"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                Excluir
+                {t('common.delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -251,11 +260,11 @@ export default function EnhancedProjectCard({
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="text-center p-2 bg-secondary/30 rounded-lg">
               <p className="text-lg font-bold">{formatCurrency(health.spend)}</p>
-              <p className="text-xs text-muted-foreground">Gasto 30d</p>
+              <p className="text-xs text-muted-foreground">{t('projects.spent30d')}</p>
             </div>
             <div className="text-center p-2 bg-secondary/30 rounded-lg">
               <p className="text-lg font-bold">{health.conversions}</p>
-              <p className="text-xs text-muted-foreground">{isEcommerce ? 'Compras' : 'Leads'}</p>
+              <p className="text-xs text-muted-foreground">{isEcommerce ? t('dashboard.purchases') : t('dashboard.leads')}</p>
             </div>
             <div className={cn('text-center p-2 rounded-lg', healthCfg.bgColor)}>
               <p className={cn('text-lg font-bold', healthCfg.color)}>
@@ -304,21 +313,21 @@ export default function EnhancedProjectCard({
         {/* Investidor & Squad Info - Always show */}
         <div className="flex flex-col gap-1.5 mb-3 pt-2 border-t border-border/50 text-xs">
         <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Investidor</span>
+            <span className="text-muted-foreground">{t('common.investor')}</span>
             <span className={cn(
               investidorNames.length > 0 ? 'text-foreground' : 'text-muted-foreground/70'
             )}>
               {investidorNames.length > 0 
                 ? investidorNames.map(name => name.split(' ').slice(0, 2).join(' ')).join(', ')
-                : 'Sem investidor'}
+                : t('common.noInvestor')}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Squad</span>
+            <span className="text-muted-foreground">{t('common.squad')}</span>
             <span className={cn(
               squadName ? 'text-foreground' : 'text-muted-foreground/70'
             )}>
-              {squadName || 'Sem squad'}
+              {squadName || t('common.noSquad')}
             </span>
           </div>
         </div>
@@ -329,8 +338,8 @@ export default function EnhancedProjectCard({
             <Clock className="w-3.5 h-3.5" />
             <span>
               {project.last_sync_at 
-                ? formatDistanceToNow(new Date(project.last_sync_at), { addSuffix: true, locale: ptBR })
-                : 'Nunca sync'
+                ? formatDistanceToNow(new Date(project.last_sync_at), { addSuffix: true, locale: getDateLocale() })
+                : t('common.neverSynced')
               }
             </span>
           </div>
