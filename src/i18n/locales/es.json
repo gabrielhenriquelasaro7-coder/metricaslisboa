@@ -197,6 +197,17 @@
     "name": "Nombre del Proyecto",
     "selectProject": "Seleccionar Proyecto"
   },
+  "projectSelector": {
+    "settings": "Configuración",
+    "appearance": "Apariencia",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "language": "Idioma",
+    "account": "Cuenta",
+    "editProfile": "Editar Perfil",
+    "logout": "Cerrar sesión",
+    "languageChanged": "Idioma cambiado"
+  },
   "sync": {
     "title": "Sincronización",
     "lastSync": "Última sincronización",
