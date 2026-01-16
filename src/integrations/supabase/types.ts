@@ -2474,7 +2474,7 @@ export type Database = {
           squad_id: string | null
           temp_password: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           cargo?: string
@@ -2488,7 +2488,7 @@ export type Database = {
           squad_id?: string | null
           temp_password?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           cargo?: string
@@ -2502,7 +2502,7 @@ export type Database = {
           squad_id?: string | null
           temp_password?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {

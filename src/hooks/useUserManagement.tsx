@@ -209,6 +209,32 @@ export function useUserManagement(): UseUserManagementReturn {
 
       if (error) throw error;
 
+      // Sync cargo to user_roles if provided
+      if (data.cargo) {
+        await supabase
+          .from('user_roles')
+          .upsert({ 
+            user_id: userId, 
+            cargo: data.cargo,
+          }, { onConflict: 'user_id' });
+      }
+
+      // Sync squad_id to squad_members if provided
+      if (data.squad_id !== undefined) {
+        // Remove from all squads first
+        await supabase
+          .from('squad_members')
+          .delete()
+          .eq('user_id', userId);
+
+        // Add to new squad if provided
+        if (data.squad_id) {
+          await supabase
+            .from('squad_members')
+            .insert({ user_id: userId, squad_id: data.squad_id });
+        }
+      }
+
       toast.success('Usuário atualizado com sucesso');
       await fetchUsers();
     } catch (error) {
@@ -343,7 +369,7 @@ export function useUserManagement(): UseUserManagementReturn {
         // Check if user already exists
         const { data: existing } = await supabase
           .from('user_management')
-          .select('id')
+          .select('id, user_id')
           .eq('email', csvUser.email)
           .maybeSingle();
 
@@ -358,12 +384,33 @@ export function useUserManagement(): UseUserManagementReturn {
               squad_id: squadId,
             })
             .eq('email', csvUser.email);
+
+          // Also sync user_roles and squad_members if user has auth
+          if (existing.user_id) {
+            await supabase
+              .from('user_roles')
+              .upsert({ 
+                user_id: existing.user_id, 
+                cargo,
+              }, { onConflict: 'user_id' });
+
+            // Sync squad_members
+            await supabase
+              .from('squad_members')
+              .delete()
+              .eq('user_id', existing.user_id);
+
+            if (squadId) {
+              await supabase
+                .from('squad_members')
+                .insert({ user_id: existing.user_id, squad_id: squadId });
+            }
+          }
         } else {
-          // Create new user
+          // Create new user (without auth yet)
           await supabase
             .from('user_management')
             .insert({
-              user_id: crypto.randomUUID(),
               email: csvUser.email,
               full_name: csvUser.name,
               phone: csvUser.phone,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useCargo } from './useCargo';
 import { toast } from 'sonner';
 
 export type BusinessModel = 'inside_sales' | 'ecommerce' | 'pdv' | 'custom' | 'infoproduto';
@@ -52,11 +53,12 @@ export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading } = useAuth();
+  const { cargo, userSquads, loading: cargoLoading, isTech, isGerente, isCoordenador, isInvestidor, isMembro } = useCargo();
   const fetchedRef = useRef(false);
 
   const fetchProjects = useCallback(async (force = false) => {
-    // Wait for auth to finish before deciding
-    if (authLoading) {
+    // Wait for auth and cargo to finish before deciding
+    if (authLoading || cargoLoading) {
       return;
     }
     
@@ -82,11 +84,41 @@ export function useProjects() {
     try {
       setLoading(true);
       
-      // RLS policies handle filtering - guests see only their accessible projects
-      const { data, error } = await supabase
+      let query = supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
+
+      // Filter based on cargo
+      // Tech and Gerente: see all projects
+      // Coordenador: see only projects from their squad(s)
+      // Investidor: will be filtered client-side by guest_project_access
+      // Membro: will be filtered client-side by guest_project_access
+      if (isCoordenador && userSquads.length > 0) {
+        // Coordenador sees only projects from their squad
+        const squadIds = userSquads.map(s => s.id);
+        query = query.in('squad_id', squadIds);
+      } else if (isInvestidor || isMembro) {
+        // For investidor and membro, we need to check guest_project_access
+        const { data: accessData } = await supabase
+          .from('guest_project_access')
+          .select('project_id')
+          .eq('user_id', user.id);
+        
+        if (accessData && accessData.length > 0) {
+          const projectIds = accessData.map(a => a.project_id);
+          query = query.in('id', projectIds);
+        } else {
+          // No access to any projects
+          setProjects([]);
+          setLoading(false);
+          clearTimeout(timeoutId);
+          return;
+        }
+      }
+      // Tech and Gerente: no filter, see all
+      
+      const { data, error } = await query;
 
       clearTimeout(timeoutId);
 
@@ -112,16 +144,16 @@ export function useProjects() {
     } finally {
       setLoading(false);
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, cargoLoading, cargo, userSquads, isTech, isGerente, isCoordenador, isInvestidor, isMembro]);
 
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
 
-  // Reset fetch ref when user changes
+  // Reset fetch ref when user or cargo changes
   useEffect(() => {
     fetchedRef.current = false;
-  }, [user?.id]);
+  }, [user?.id, cargo, userSquads.length]);
 
   // Subscribe to realtime updates for sync progress AND new projects
   useEffect(() => {
