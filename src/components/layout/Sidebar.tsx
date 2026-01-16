@@ -8,6 +8,7 @@ import { useCargo } from '@/hooks/useCargo';
 import { useSidebarCampaigns } from '@/hooks/useSidebarCampaigns';
 import { useTour } from '@/hooks/useTour';
 import { useTabVisibility } from '@/hooks/useTabVisibility';
+import { useTranslation } from 'react-i18next';
 import v4LogoFull from '@/assets/v4-logo-full.png';
 import {
   LayoutDashboard, 
@@ -81,6 +82,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ onNavigate }: SidebarProps) {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [campaignsOpen, setCampaignsOpen] = useState(false); // Starts closed
   const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
@@ -597,7 +599,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                     <button className="sidebar-item w-full justify-between">
                       <div className="flex items-center gap-3">
                         <Settings className="w-5 h-5 flex-shrink-0" />
-                        <span>Configurações</span>
+                        <span>{t('common.settings')}</span>
                       </div>
                       {guestSettingsOpen ? (
                         <ChevronUp className="w-4 h-4" />
@@ -615,12 +617,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       {theme === 'dark' ? (
                         <>
                           <Sun className="w-4 h-4 mr-2" />
-                          Modo Claro
+                          {t('settings.lightTheme')}
                         </>
                       ) : (
                         <>
                           <Moon className="w-4 h-4 mr-2" />
-                          Modo Escuro
+                          {t('settings.darkTheme')}
                         </>
                       )}
                     </button>
@@ -632,7 +634,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       className="sidebar-item pl-10 text-sm"
                     >
                       <User className="w-4 h-4 mr-2" />
-                      Editar Perfil
+                      {t('projectSelector.editProfile')}
                     </Link>
                     
                     {/* Change Password */}
@@ -642,7 +644,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       className="sidebar-item pl-10 text-sm"
                     >
                       <KeyRound className="w-4 h-4 mr-2" />
-                      Alterar Senha
+                      {t('projectSelector.changePassword')}
                     </Link>
                     
                     {/* Logout */}
@@ -651,7 +653,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       className="sidebar-item pl-10 text-sm w-full text-destructive hover:bg-destructive/10"
                     >
                       <LogOut className="w-4 h-4 mr-2" />
-                      Sair
+                      {t('navigation.logout')}
                     </button>
                   </CollapsibleContent>
                 </Collapsible>
