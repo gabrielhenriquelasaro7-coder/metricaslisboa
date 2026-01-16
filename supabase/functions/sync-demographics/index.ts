@@ -66,21 +66,71 @@ async function fetchWithRetry(url: string, entityName: string, maxRetries = 3): 
 
 function extractConversions(insights: any): { conversions: number; conversionValue: number } {
   let conversions = 0, conversionValue = 0;
-  const types = ['purchase', 'omni_purchase', 'lead', 'contact', 'offsite_conversion.fb_pixel_lead'];
   
-  if (insights?.actions) {
-    for (const t of types) {
-      const a = insights.actions.find((x: any) => x.action_type === t);
-      if (a && parseInt(a.value) > 0) { 
-        conversions = parseInt(a.value); 
+  // Tipos de conversão a procurar (em ordem de prioridade)
+  const conversionTypes = [
+    'purchase', 
+    'omni_purchase', 
+    'lead', 
+    'onsite_conversion.lead_grouped',
+    'onsite_conversion.messaging_first_reply',
+    'onsite_conversion.messaging_conversation_started_7d',
+    'contact', 
+    'offsite_conversion.fb_pixel_lead',
+    'offsite_conversion.fb_pixel_purchase',
+    'complete_registration',
+    'submit_application',
+    'initiate_checkout',
+    'add_to_cart'
+  ];
+  
+  // Procurar em actions
+  if (insights?.actions && Array.isArray(insights.actions)) {
+    console.log(`[extractConversions] Actions found: ${JSON.stringify(insights.actions.map((a: any) => a.action_type))}`);
+    
+    for (const t of conversionTypes) {
+      const action = insights.actions.find((x: any) => x.action_type === t);
+      if (action && parseInt(action.value) > 0) { 
+        conversions = parseInt(action.value); 
+        console.log(`[extractConversions] Found ${t}: ${conversions}`);
         break; 
       }
     }
+    
+    // Se não encontrou nas prioritárias, somar todas as conversões relevantes
+    if (conversions === 0) {
+      for (const action of insights.actions) {
+        if (action.action_type?.includes('conversion') || 
+            action.action_type?.includes('lead') || 
+            action.action_type?.includes('purchase') ||
+            action.action_type?.includes('messaging_first_reply')) {
+          conversions += parseInt(action.value || '0');
+        }
+      }
+      if (conversions > 0) {
+        console.log(`[extractConversions] Summed conversions: ${conversions}`);
+      }
+    }
   }
-  if (insights?.action_values) {
-    const pv = insights.action_values.find((x: any) => x.action_type === 'purchase' || x.action_type === 'omni_purchase');
-    conversionValue = parseFloat(pv?.value || '0');
+  
+  // Procurar valores em action_values
+  if (insights?.action_values && Array.isArray(insights.action_values)) {
+    const purchaseValue = insights.action_values.find((x: any) => 
+      x.action_type === 'purchase' || 
+      x.action_type === 'omni_purchase' ||
+      x.action_type === 'offsite_conversion.fb_pixel_purchase'
+    );
+    conversionValue = parseFloat(purchaseValue?.value || '0');
   }
+  
+  // Fallback: usar website_purchase_roas se disponível
+  if (insights?.website_purchase_roas && conversionValue === 0) {
+    const roas = insights.website_purchase_roas.find((r: any) => r.action_type === 'omni_purchase');
+    if (roas) {
+      conversionValue = parseFloat(roas.value || '0') * parseFloat(insights.spend || '0');
+    }
+  }
+  
   return { conversions, conversionValue };
 }
 
@@ -93,7 +143,7 @@ async function fetchDemographicInsights(
 ): Promise<any[]> {
   const results: any[] = [];
   
-  const fields = 'date_start,spend,impressions,clicks,reach,actions,action_values';
+  const fields = 'date_start,spend,impressions,clicks,reach,actions,action_values,website_purchase_roas,cost_per_action_type';
   const timeRange = JSON.stringify({ since, until });
   
   // time_increment=1 para dados diários
