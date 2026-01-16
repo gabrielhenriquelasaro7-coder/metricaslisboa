@@ -1,9 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet.heat';
 
 interface GeoData {
   breakdown_value: string;
@@ -23,36 +26,36 @@ interface GeographicHeatMapProps {
   currency?: string;
 }
 
-// Coordenadas SVG para estados brasileiros (posição relativa no mapa)
-const BRAZIL_STATES_COORDS: Record<string, { x: number; y: number }> = {
-  'Acre': { x: 85, y: 195 },
-  'Alagoas': { x: 380, y: 220 },
-  'Amapá': { x: 275, y: 80 },
-  'Amazonas': { x: 150, y: 150 },
-  'Bahia': { x: 345, y: 250 },
-  'Ceará': { x: 360, y: 175 },
-  'Distrito Federal': { x: 290, y: 285 },
-  'Espírito Santo': { x: 355, y: 310 },
-  'Goiás': { x: 270, y: 280 },
-  'Maranhão': { x: 305, y: 165 },
-  'Mato Grosso': { x: 210, y: 250 },
-  'Mato Grosso do Sul': { x: 215, y: 330 },
-  'Minas Gerais': { x: 315, y: 300 },
-  'Pará': { x: 240, y: 140 },
-  'Paraíba': { x: 385, y: 190 },
-  'Paraná': { x: 245, y: 365 },
-  'Pernambuco': { x: 375, y: 200 },
-  'Piauí': { x: 325, y: 195 },
-  'Rio de Janeiro': { x: 340, y: 335 },
-  'Rio Grande do Norte': { x: 385, y: 175 },
-  'Rio Grande do Sul': { x: 230, y: 410 },
-  'Rondônia': { x: 135, y: 225 },
-  'Roraima': { x: 165, y: 75 },
-  'Santa Catarina': { x: 255, y: 385 },
-  'São Paulo': { x: 280, y: 340 },
-  'Sao Paulo': { x: 280, y: 340 },
-  'Sergipe': { x: 380, y: 235 },
-  'Tocantins': { x: 285, y: 215 },
+// Coordenadas para estados brasileiros
+const BRAZIL_STATES_COORDS: Record<string, [number, number]> = {
+  'Acre': [-9.0238, -70.8120],
+  'Alagoas': [-9.5713, -36.7820],
+  'Amapá': [1.4102, -51.7772],
+  'Amazonas': [-3.4168, -65.8561],
+  'Bahia': [-12.5797, -41.7007],
+  'Ceará': [-5.4984, -39.3206],
+  'Distrito Federal': [-15.7998, -47.8645],
+  'Espírito Santo': [-19.1834, -40.3089],
+  'Goiás': [-15.8270, -49.8362],
+  'Maranhão': [-4.9609, -45.2744],
+  'Mato Grosso': [-12.6819, -56.9211],
+  'Mato Grosso do Sul': [-20.7722, -54.7852],
+  'Minas Gerais': [-18.5122, -44.5550],
+  'Pará': [-3.4168, -52.2166],
+  'Paraíba': [-7.2400, -36.7820],
+  'Paraná': [-24.8934, -51.5500],
+  'Pernambuco': [-8.3137, -37.8597],
+  'Piauí': [-7.7183, -42.7289],
+  'Rio de Janeiro': [-22.2587, -42.6505],
+  'Rio Grande do Norte': [-5.8126, -36.5900],
+  'Rio Grande do Sul': [-30.0346, -51.2177],
+  'Rondônia': [-10.8307, -63.3461],
+  'Roraima': [2.7376, -62.0751],
+  'Santa Catarina': [-27.2423, -50.2189],
+  'São Paulo': [-22.1922, -48.7945],
+  'Sao Paulo': [-22.1922, -48.7945],
+  'Sergipe': [-10.5741, -37.3857],
+  'Tocantins': [-10.1753, -48.2982],
 };
 
 function formatNumber(value: number): string {
@@ -76,6 +79,64 @@ function formatPercent(value: number): string {
 
 type MetricType = 'clicks' | 'impressions' | 'conversions' | 'spend';
 
+// Componente para o Heat Layer
+function HeatLayer({ 
+  data, 
+  metric, 
+  maxValue 
+}: { 
+  data: Array<{ coords: [number, number] | null; value: number }>; 
+  metric: MetricType;
+  maxValue: number;
+}) {
+  const map = useMap();
+  const heatLayerRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!map) return;
+
+    // Remover layer anterior se existir
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+    }
+
+    // Preparar dados para o heat map
+    const heatData = data
+      .filter(d => d.coords)
+      .map(d => {
+        const intensity = d.value / maxValue;
+        return [d.coords![0], d.coords![1], intensity] as [number, number, number];
+      });
+
+    if (heatData.length === 0) return;
+
+    // Criar heat layer
+    // @ts-ignore - leaflet.heat types
+    heatLayerRef.current = L.heatLayer(heatData, {
+      radius: 50,
+      blur: 30,
+      maxZoom: 10,
+      max: 1.0,
+      minOpacity: 0.4,
+      gradient: {
+        0.0: '#00ff00',
+        0.25: '#7fff00',
+        0.5: '#ffff00',
+        0.75: '#ff7f00',
+        1.0: '#ff0000'
+      }
+    }).addTo(map);
+
+    return () => {
+      if (heatLayerRef.current && map) {
+        map.removeLayer(heatLayerRef.current);
+      }
+    };
+  }, [map, data, metric, maxValue]);
+
+  return null;
+}
+
 export function GeographicHeatMap({ 
   countryData, 
   regionData, 
@@ -93,39 +154,30 @@ export function GeographicHeatMap({
       .map(item => {
         const ctr = item.impressions > 0 ? (item.clicks / item.impressions) * 100 : 0;
         const cpc = item.clicks > 0 ? item.spend / item.clicks : 0;
+        const coords = BRAZIL_STATES_COORDS[item.breakdown_value] || null;
         return {
           ...item,
           ctr,
           cpc,
-          coords: BRAZIL_STATES_COORDS[item.breakdown_value] || null
+          coords
         };
       })
       .sort((a, b) => b[metric] - a[metric]);
   }, [regionData, metric]);
 
-  // Valor máximo para escala de cores
+  // Dados para o heat map
+  const heatMapData = useMemo(() => {
+    return processedData.map(item => ({
+      coords: item.coords,
+      value: item[metric]
+    }));
+  }, [processedData, metric]);
+
+  // Valor máximo para escala
   const maxValue = useMemo(() => {
     if (!processedData.length) return 1;
     return Math.max(...processedData.map(d => d[metric]));
   }, [processedData, metric]);
-
-  // Função para calcular cor baseada no valor (verde -> amarelo -> laranja -> vermelho)
-  const getHeatColor = (value: number): string => {
-    const ratio = value / maxValue;
-    if (ratio > 0.75) return '#ef4444'; // Vermelho
-    if (ratio > 0.5) return '#f97316'; // Laranja
-    if (ratio > 0.25) return '#eab308'; // Amarelo
-    return '#22c55e'; // Verde
-  };
-
-  // Função para calcular opacidade e tamanho baseado no valor
-  const getHeatIntensity = (value: number): { opacity: number; radius: number } => {
-    const ratio = value / maxValue;
-    return {
-      opacity: 0.4 + ratio * 0.5,
-      radius: 15 + ratio * 35
-    };
-  };
 
   const getMetricLabel = (m: MetricType): string => {
     switch (m) {
@@ -193,7 +245,7 @@ export function GeographicHeatMap({
       <CardContent>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Tabela de dados */}
-          <ScrollArea className="h-[400px] rounded-lg border border-border">
+          <ScrollArea className="h-[450px] rounded-lg border border-border">
             <Table>
               <TableHeader className="sticky top-0 bg-card z-10">
                 <TableRow>
@@ -203,7 +255,7 @@ export function GeographicHeatMap({
                   <TableHead className="text-right">Impressões</TableHead>
                   <TableHead className="text-right">CTR</TableHead>
                   <TableHead className="text-right">Conversões</TableHead>
-                  <TableHead className="text-right">CPC médio</TableHead>
+                  <TableHead className="text-right">CPC</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -238,76 +290,38 @@ export function GeographicHeatMap({
             </Table>
           </ScrollArea>
 
-          {/* Mapa de calor SVG */}
-          <div className="relative h-[400px] bg-muted/30 rounded-lg border border-border overflow-hidden">
-            {/* Mapa do Brasil simplificado em SVG */}
-            <svg 
-              viewBox="0 0 450 480" 
-              className="w-full h-full"
-              style={{ background: 'linear-gradient(180deg, hsl(var(--muted)/0.3) 0%, hsl(var(--muted)/0.1) 100%)' }}
+          {/* Mapa de calor interativo */}
+          <div className="relative h-[450px] rounded-lg border border-border overflow-hidden">
+            <MapContainer
+              center={[-14.235, -51.925]}
+              zoom={4}
+              style={{ height: '100%', width: '100%' }}
+              scrollWheelZoom={true}
+              zoomControl={true}
             >
-              {/* Contorno simplificado do Brasil */}
-              <path
-                d="M165,60 L195,45 L245,55 L290,50 L320,70 L360,85 L395,120 L405,160 L395,200 L400,240 L390,280 L375,320 L355,355 L330,380 L290,410 L250,430 L220,440 L190,430 L170,400 L150,370 L140,330 L125,290 L115,250 L105,210 L95,170 L100,130 L120,90 L165,60 Z"
-                fill="hsl(var(--muted)/0.2)"
-                stroke="hsl(var(--border))"
-                strokeWidth="1"
+              <TileLayer
+                attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
               />
-              
-              {/* Pontos de calor para cada estado */}
-              {processedData.map((item) => {
-                if (!item.coords) return null;
-                const { opacity, radius } = getHeatIntensity(item[metric]);
-                const color = getHeatColor(item[metric]);
-                
-                return (
-                  <g key={item.breakdown_value}>
-                    {/* Glow exterior */}
-                    <circle
-                      cx={item.coords.x}
-                      cy={item.coords.y}
-                      r={radius * 1.5}
-                      fill={color}
-                      opacity={opacity * 0.3}
-                      style={{ filter: 'blur(10px)' }}
-                    />
-                    {/* Círculo principal */}
-                    <circle
-                      cx={item.coords.x}
-                      cy={item.coords.y}
-                      r={radius}
-                      fill={color}
-                      opacity={opacity * 0.6}
-                      style={{ filter: 'blur(5px)' }}
-                    />
-                    {/* Centro mais intenso */}
-                    <circle
-                      cx={item.coords.x}
-                      cy={item.coords.y}
-                      r={radius * 0.4}
-                      fill={color}
-                      opacity={opacity * 0.9}
-                    />
-                  </g>
-                );
-              })}
-            </svg>
+              <HeatLayer 
+                data={heatMapData} 
+                metric={metric} 
+                maxValue={maxValue} 
+              />
+            </MapContainer>
 
             {/* Legenda */}
-            <div className="absolute bottom-3 left-3 flex items-center gap-2 text-xs text-muted-foreground bg-card/80 backdrop-blur-sm px-2 py-1 rounded">
+            <div className="absolute bottom-3 left-3 flex items-center gap-2 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
               <span>{getMetricLabel(metric)}</span>
-              <div className="flex items-center gap-0.5">
-                <div className="w-4 h-2 bg-green-500 rounded-sm opacity-70"></div>
-                <div className="w-4 h-2 bg-yellow-500 rounded-sm opacity-70"></div>
-                <div className="w-4 h-2 bg-orange-500 rounded-sm opacity-70"></div>
-                <div className="w-4 h-2 bg-red-500 rounded-sm opacity-70"></div>
+              <div className="flex items-center h-3 w-24 rounded-sm overflow-hidden">
+                <div className="h-full flex-1" style={{ background: 'linear-gradient(to right, #00ff00, #7fff00, #ffff00, #ff7f00, #ff0000)' }}></div>
               </div>
               <span>{formatNumber(maxValue)}</span>
             </div>
 
-            {/* Paginação simulada */}
-            <div className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-card/80 backdrop-blur-sm px-2 py-1 rounded">
-              1 - {processedData.length} / {processedData.length}
+            {/* Contador */}
+            <div className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
+              {processedData.length} regiões
             </div>
           </div>
         </div>
