@@ -730,7 +730,7 @@ export default function ProjectSelector() {
       return publicUrl;
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      toast.error('Erro ao fazer upload da imagem');
+      toast.error(t('projectSelector.uploadError'));
       return null;
     } finally {
       setIsUploadingAvatar(false);
@@ -766,7 +766,7 @@ export default function ProjectSelector() {
   const handleUpdateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProject || !editFormData.name) {
-      toast.error('Nome é obrigatório');
+      toast.error(t('projectSelector.nameRequired'));
       return;
     }
     setIsUpdating(true);
@@ -823,7 +823,7 @@ export default function ProjectSelector() {
         full_name: profileName,
         cargo: profileCargo
       });
-      toast.success('Perfil atualizado!');
+      toast.success(t('projectSelector.profileUpdated'));
     } catch (error) {
       console.error('Error updating profile:', error);
     } finally {
@@ -832,11 +832,11 @@ export default function ProjectSelector() {
   };
   const handleChangePassword = async () => {
     if (newPassword.length < 6) {
-      toast.error('A senha deve ter pelo menos 6 caracteres');
+      toast.error(t('projectSelector.passwordMinLength'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error('As senhas não coincidem');
+      toast.error(t('projectSelector.passwordsDoNotMatch'));
       return;
     }
     setIsChangingPassword(true);
@@ -844,7 +844,7 @@ export default function ProjectSelector() {
       await updatePassword(newPassword);
       setNewPassword('');
       setConfirmPassword('');
-      toast.success('Senha alterada com sucesso!');
+      toast.success(t('projectSelector.passwordChanged'));
     } catch (error) {
       console.error('Error changing password:', error);
     } finally {
@@ -857,7 +857,7 @@ export default function ProjectSelector() {
       navigate('/auth');
     } catch (error) {
       console.error('Error signing out:', error);
-      toast.error('Erro ao sair');
+      toast.error(t('projectSelector.logoutError'));
     }
   };
   if (authLoading || projectsLoading) {
@@ -888,7 +888,7 @@ export default function ProjectSelector() {
                   <span className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] text-muted-foreground hidden md:block" style={{
                   fontFamily: 'Inter, sans-serif'
                 }}>
-                    Painel de Controle
+                    {t('projectSelector.controlPanel')}
                   </span>
                 </div>
               </div>
@@ -910,7 +910,7 @@ export default function ProjectSelector() {
                       </button>
                     </TooltipTrigger>
                     <TooltipContent className="bg-popover border-border z-50">
-                      <p className="text-sm">Em breve</p>
+                      <p className="text-sm">{t('projectSelector.comingSoon')}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -927,7 +927,7 @@ export default function ProjectSelector() {
                 )}
                 <button onClick={() => setSettingsDialogOpen(true)} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
                   <User className="w-4 h-4" />
-                  <span className="hidden lg:inline">Configurações</span>
+                  <span className="hidden lg:inline">{t('projectSelector.settings')}</span>
                 </button>
               </div>
             </nav>
@@ -942,7 +942,7 @@ export default function ProjectSelector() {
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/30 border border-border">
                 <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider" style={{
                 fontFamily: 'Inter, sans-serif'
-              }}>Clientes</span>
+              }}>{t('projectSelector.clients')}</span>
                 <span className="text-lg sm:text-xl font-bold text-foreground" style={{
                 fontFamily: 'Space Grotesk, sans-serif'
               }}>
@@ -993,7 +993,7 @@ export default function ProjectSelector() {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3 w-full md:w-auto">
               <div className="relative flex-1 md:flex-none">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Buscar cliente..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 h-10 w-full sm:w-full md:w-48 lg:w-64 xl:w-72 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:ring-primary/20 rounded-xl touch-target" style={{
+                <Input placeholder={t('projectSelector.searchClient')} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 h-10 w-full sm:w-full md:w-48 lg:w-64 xl:w-72 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:ring-primary/20 rounded-xl touch-target" style={{
                 fontFamily: 'Inter, sans-serif'
               }} />
               </div>
@@ -1003,10 +1003,10 @@ export default function ProjectSelector() {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50">
-                  <SelectItem value="all" className="text-foreground rounded-lg">Todos</SelectItem>
-                  <SelectItem value="safe" className="text-emerald-600 dark:text-emerald-400 rounded-lg">Safe</SelectItem>
-                  <SelectItem value="care" className="text-amber-600 dark:text-amber-400 rounded-lg">Care</SelectItem>
-                  <SelectItem value="danger" className="text-red-600 dark:text-red-400 rounded-lg">Danger</SelectItem>
+                  <SelectItem value="all" className="text-foreground rounded-lg">{t('projectSelector.all')}</SelectItem>
+                  <SelectItem value="safe" className="text-emerald-600 dark:text-emerald-400 rounded-lg">{t('projectSelector.safe')}</SelectItem>
+                  <SelectItem value="care" className="text-amber-600 dark:text-amber-400 rounded-lg">{t('projectSelector.care')}</SelectItem>
+                  <SelectItem value="danger" className="text-red-600 dark:text-red-400 rounded-lg">{t('projectSelector.danger')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1020,8 +1020,8 @@ export default function ProjectSelector() {
                     fontFamily: 'Space Grotesk, sans-serif'
                   }}>
                         <Plus className="w-4 h-4" />
-                        <span className="hidden md:inline">Novo Cliente</span>
-                        <span className="md:hidden">Novo</span>
+                        <span className="hidden md:inline">{t('projectSelector.newProject')}</span>
+                        <span className="md:hidden">{t('common.create')}</span>
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="w-[95vw] max-w-md mx-auto bg-popover backdrop-blur-xl border-border rounded-2xl max-h-[90vh] overflow-y-auto">
@@ -1029,7 +1029,7 @@ export default function ProjectSelector() {
                         <DialogTitle className="text-foreground font-semibold" style={{
                       fontFamily: 'Space Grotesk, sans-serif'
                     }}>
-                          Novo Cliente
+                          {t('projectSelector.newProject')}
                         </DialogTitle>
                       </DialogHeader>
                       <form onSubmit={handleCreateProject} className="space-y-4 mt-4">
@@ -1274,10 +1274,10 @@ export default function ProjectSelector() {
 
                         <div className="flex gap-3 pt-4">
                           <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)} className="flex-1 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl h-10 touch-target">
-                            Cancelar
+                            {t('common.cancel')}
                           </Button>
                           <Button type="submit" disabled={isCreating} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-medium h-10 touch-target">
-                            {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar'}
+                            {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : t('common.create')}
                           </Button>
                         </div>
                       </form>
@@ -1290,14 +1290,14 @@ export default function ProjectSelector() {
                 fontFamily: 'Space Grotesk, sans-serif'
               }}>
                     <UserPlus className="w-4 h-4" />
-                    <span className="hidden lg:inline">Convidar Cliente</span>
-                    <span className="hidden md:inline lg:hidden">Convidar</span>
+                    <span className="hidden lg:inline">{t('projectSelector.inviteGuest')}</span>
+                    <span className="hidden md:inline lg:hidden">{t('projectSelector.inviteGuest')}</span>
                   </Button>
                 </>}
               
               <Button variant="outline" onClick={() => setShowArchived(!showArchived)} className={cn("h-10 px-3 md:px-4 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all whitespace-nowrap touch-target gap-1.5 md:gap-2 text-sm", showArchived && 'bg-secondary text-foreground border-primary/30')}>
                 <Archive className="w-4 h-4" />
-                <span className="hidden md:inline">Arquivados</span>
+                <span className="hidden md:inline">{t('projectSelector.archived')}</span>
               </Button>
             </div>
           </div>
@@ -1313,10 +1313,10 @@ export default function ProjectSelector() {
             <h3 className="text-lg font-medium text-white/60 mb-2" style={{
           fontFamily: 'Space Grotesk, sans-serif'
         }}>
-              {searchQuery ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
+              {t('projectSelector.noProjectsFound')}
             </h3>
             <p className="text-sm text-white/30">
-              {searchQuery ? 'Tente buscar por outro termo' : 'Clique em "Novo Cliente" para começar'}
+              {searchQuery ? t('projectSelector.tryAdjustingFilters') : t('projectSelector.createFirstProject')}
             </p>
           </div> : <div>
             <StatusGroup status="safe" projects={safeProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
@@ -1335,7 +1335,7 @@ export default function ProjectSelector() {
             <DialogTitle className="text-foreground font-semibold" style={{
             fontFamily: 'Space Grotesk, sans-serif'
           }}>
-              Editar Cliente
+              {t('projects.edit')}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdateProject} className="space-y-4 mt-4">
@@ -1458,18 +1458,18 @@ export default function ProjectSelector() {
             <AlertDialogTitle className="text-foreground font-semibold" style={{
             fontFamily: 'Space Grotesk, sans-serif'
           }}>
-              Excluir Cliente
+              {t('projects.delete')}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
-              Tem certeza que deseja excluir "{selectedProject?.name}"? Esta ação não pode ser desfeita.
+              {t('settings.deleteAccountDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl">
-              Cancelar
+              {t('common.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-medium">
-              Excluir
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1482,7 +1482,7 @@ export default function ProjectSelector() {
             <DialogTitle className="text-foreground font-semibold" style={{
             fontFamily: 'Space Grotesk, sans-serif'
           }}>
-              Meu Perfil
+              {t('projectSelector.myProfile')}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6 mt-4">
@@ -1495,18 +1495,18 @@ export default function ProjectSelector() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs">Nome</Label>
+              <Label className="text-muted-foreground text-xs">{t('projectSelector.fullName')}</Label>
               <Input value={profileName} onChange={e => setProfileName(e.target.value)} className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50" />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs">Cargo</Label>
+              <Label className="text-muted-foreground text-xs">{t('projectSelector.role')}</Label>
               <Select value={profileCargo || 'none'} onValueChange={val => setProfileCargo(val === 'none' ? null : val as UserCargo)}>
                 <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
-                  <SelectValue placeholder="Selecione" />
+                  <SelectValue placeholder={t('common.select')} />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border rounded-xl">
-                  <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhum</SelectItem>
+                  <SelectItem value="none" className="text-muted-foreground rounded-lg">{t('settings.noRole')}</SelectItem>
                   {cargoOptions.map(opt => <SelectItem key={opt.value} value={opt.value} className="text-foreground rounded-lg">
                       {opt.label}
                     </SelectItem>)}
@@ -1515,23 +1515,23 @@ export default function ProjectSelector() {
             </div>
 
             <Button onClick={handleUpdateProfile} disabled={isUpdatingProfile} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-medium">
-              {isUpdatingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Perfil'}
+              {isUpdatingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : t('projectSelector.save')}
             </Button>
 
             <div className="border-t border-border pt-4">
-              <Label className="text-muted-foreground text-xs">Alterar Senha</Label>
+              <Label className="text-muted-foreground text-xs">{t('projectSelector.changePassword')}</Label>
               <div className="space-y-2 mt-2">
-                <Input type="password" placeholder="Nova senha" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="bg-secondary border-border text-foreground placeholder:text-muted-foreground rounded-xl focus:border-primary/50" />
-                <Input type="password" placeholder="Confirmar senha" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="bg-secondary border-border text-foreground placeholder:text-muted-foreground rounded-xl focus:border-primary/50" />
+                <Input type="password" placeholder={t('projectSelector.newPassword')} value={newPassword} onChange={e => setNewPassword(e.target.value)} className="bg-secondary border-border text-foreground placeholder:text-muted-foreground rounded-xl focus:border-primary/50" />
+                <Input type="password" placeholder={t('projectSelector.confirmPassword')} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="bg-secondary border-border text-foreground placeholder:text-muted-foreground rounded-xl focus:border-primary/50" />
                 <Button onClick={handleChangePassword} disabled={isChangingPassword || !newPassword} variant="outline" className="w-full border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl">
-                  {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Alterar Senha'}
+                  {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : t('projectSelector.change')}
                 </Button>
               </div>
             </div>
 
             <Button variant="outline" onClick={handleLogout} className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl">
               <LogOut className="w-4 h-4 mr-2" />
-              Sair
+              {t('projectSelector.logout')}
             </Button>
           </div>
         </DialogContent>
