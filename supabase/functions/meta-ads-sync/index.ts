@@ -1074,56 +1074,80 @@ async function cacheViaStoryId(
   // Mapa de adId -> image URL HD
   const storyImageMap = new Map<string, string>();
   
-  // FASE 1: Buscar creative{thumbnail_url} com 1080x1080 (EXATAMENTE como solicitado!)
-  // IMPORTANTE: thumbnail_url é campo do CREATIVE, não do AD!
-  console.log(`[STORY-HD] FASE 1: Buscando creative{thumbnail_url} 1080x1080...`);
+  // FASE 1: Buscar creative_id de cada ad e depois buscar thumbnail_url DIRETO do creative
+  // IMPORTANTE: URLs de thumbnail_url retornadas junto com o Ad podem estar expiradas (403)
+  // A solução é buscar o creative_id e depois fazer request DIRETO ao creative endpoint
+  console.log(`[STORY-HD] FASE 1: Buscando creative IDs...`);
+  
+  // Mapa adId -> creativeId
+  const adToCreativeMap = new Map<string, string>();
   
   for (let i = 0; i < adIds.length; i += batchSize) {
     const batch = adIds.slice(i, i + batchSize);
     const batchIds = batch.join(',');
     
-    // Query CORRETA: fields=creative{thumbnail_url}, thumbnail_width=1080, thumbnail_height=1080
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=creative{thumbnail_url}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
-    console.log(`[STORY-HD] Fetching creative{thumbnail_url} with thumbnail_width=1080, thumbnail_height=1080`);
-    
+    // Primeiro: buscar creative IDs
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=creative{id}&access_token=${token}`;
     const adsData = await simpleFetch(adsUrl, undefined, 30000);
     
     if (adsData?.error) {
-      console.log(`[STORY-HD] Batch error: ${adsData.error.message?.substring(0, 100)}`);
+      console.log(`[STORY-HD] Batch error getting creative IDs: ${adsData.error.message?.substring(0, 100)}`);
       continue;
     }
     
     for (const adId of batch) {
       const adData = (adsData as Record<string, any>)[adId];
-      let thumbnailUrl = adData?.creative?.thumbnail_url;
-      if (!thumbnailUrl) {
-        console.log(`[STORY-HD] No thumbnail_url for ${adId}`);
-        continue;
+      const creativeId = adData?.creative?.id;
+      if (creativeId) {
+        adToCreativeMap.set(adId, creativeId);
       }
-      
-      // CRÍTICO: Limpar parâmetros de resize que o Meta pode ter embutido na URL!
-      // O Meta às vezes ignora thumbnail_width=1080 e retorna URL com stp=...p64x64...
-      const originalUrl = thumbnailUrl;
-      thumbnailUrl = thumbnailUrl.replace(/[&?]stp=[^&]*/gi, ''); // Remove stp= parameter
-      thumbnailUrl = thumbnailUrl.replace(/\/p\d+x\d+\//g, '/'); // Remove /p64x64/ paths
-      thumbnailUrl = thumbnailUrl.replace(/\/s\d+x\d+\//g, '/'); // Remove /s64x64/ paths
-      thumbnailUrl = thumbnailUrl.replace(/_p\d+x\d+/g, ''); // Remove _p64x64 in filename
-      thumbnailUrl = thumbnailUrl.replace(/_s\d+x\d+/g, ''); // Remove _s64x64 in filename
-      
-      // Fix malformed URL (& before ?)
-      if (thumbnailUrl.includes('&') && !thumbnailUrl.includes('?')) {
-        thumbnailUrl = thumbnailUrl.replace('&', '?');
-      }
-      thumbnailUrl = thumbnailUrl.replace(/[&?]$/g, ''); // Clean trailing
-      
-      if (thumbnailUrl !== originalUrl) {
-        console.log(`[STORY-HD] ✓ CLEANED URL for ${adId} (removed resize params)`);
-      }
-      console.log(`[STORY-HD] ✓ HD URL for ${adId}: ${thumbnailUrl.substring(0, 100)}...`);
-      storyImageMap.set(adId, thumbnailUrl);
     }
     
     if (i + batchSize < adIds.length) await delay(100);
+  }
+  
+  console.log(`[STORY-HD] Encontrados ${adToCreativeMap.size} creative IDs`);
+  
+  // FASE 1.5: Buscar thumbnail_url DIRETO do creative endpoint (URL fresca, não expira)
+  console.log(`[STORY-HD] FASE 1.5: Buscando thumbnail_url DIRETAMENTE do creative endpoint (1080x1080)...`);
+  
+  const creativeIds = Array.from(adToCreativeMap.values());
+  const creativeToUrlMap = new Map<string, string>();
+  
+  for (let i = 0; i < creativeIds.length; i += batchSize) {
+    const creativeBatch = creativeIds.slice(i, i + batchSize);
+    const creativeIdsStr = creativeBatch.join(',');
+    
+    // Query DIRETA ao creative endpoint com 1080x1080!
+    const creativesUrl = `https://graph.facebook.com/v22.0/?ids=${creativeIdsStr}&fields=id,thumbnail_url&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    console.log(`[STORY-HD] Fetching ${creativeBatch.length} creatives with thumbnail_width=1080, thumbnail_height=1080`);
+    
+    const creativesData = await simpleFetch(creativesUrl, undefined, 30000);
+    
+    if (creativesData?.error) {
+      console.log(`[STORY-HD] Creatives batch error: ${creativesData.error.message?.substring(0, 100)}`);
+      continue;
+    }
+    
+    for (const creativeId of creativeBatch) {
+      const creativeData = (creativesData as Record<string, any>)[creativeId];
+      if (creativeData?.thumbnail_url) {
+        // URL fresca diretamente do creative endpoint!
+        creativeToUrlMap.set(creativeId, creativeData.thumbnail_url);
+        console.log(`[STORY-HD] ✓ Fresh HD URL for creative ${creativeId}`);
+      }
+    }
+    
+    if (i + batchSize < creativeIds.length) await delay(100);
+  }
+  
+  // Mapear de volta para adIds
+  for (const [adId, creativeId] of adToCreativeMap.entries()) {
+    const hdUrl = creativeToUrlMap.get(creativeId);
+    if (hdUrl) {
+      storyImageMap.set(adId, hdUrl);
+      console.log(`[STORY-HD] ✓ HD URL for ad ${adId}: ${hdUrl.substring(0, 80)}...`);
+    }
   }
   
   console.log(`[STORY-HD] Encontradas ${storyImageMap.size} URLs de imagem`);
