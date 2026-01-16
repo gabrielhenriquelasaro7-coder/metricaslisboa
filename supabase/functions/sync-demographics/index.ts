@@ -226,6 +226,19 @@ Deno.serve(async (req) => {
     // Ensure proper ad account format
     const normalizedAccountId = normalizeAdAccountId(ad_account_id as string);
     
+    // Log the project and account being synced for debugging
+    const { data: projectInfo } = await supabase
+      .from('projects')
+      .select('name')
+      .eq('id', project_id)
+      .maybeSingle();
+    
+    console.log(`[SYNC_DEMOGRAPHICS] ========================================`);
+    console.log(`[SYNC_DEMOGRAPHICS] Project Name: ${projectInfo?.name || 'Unknown'}`);
+    console.log(`[SYNC_DEMOGRAPHICS] Project ID: ${project_id}`);
+    console.log(`[SYNC_DEMOGRAPHICS] Ad Account ID: ${normalizedAccountId}`);
+    console.log(`[SYNC_DEMOGRAPHICS] ========================================`);
+    
     // Determine date range - default: last 90 days
     let since: string;
     let until: string;
