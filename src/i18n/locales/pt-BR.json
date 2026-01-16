@@ -59,7 +59,23 @@
     "darkMode": "Modo Escuro",
     "editProfile": "Editar Perfil",
     "changePassword": "Alterar Senha",
-    "logout": "Sair"
+    "logout": "Sair",
+    "changingProject": "Trocando de projeto...",
+    "activeProject": "Projeto Ativo",
+    "manageProjects": "Gerenciar Projetos",
+    "campaigns": "Campanhas",
+    "viewAll": "Ver Todas",
+    "noCampaignsFound": "Nenhuma campanha encontrada",
+    "moreCampaigns": "mais campanhas",
+    "creatives": "Criativos",
+    "aiAgent": "Agente Lisboa",
+    "maintenanceMessage": "Em manutenção - aguardando API Gemini",
+    "predictiveAnalysis": "Análise Preditiva",
+    "history": "Histórico",
+    "financial": "Financeiro",
+    "viewTour": "Ver Tour",
+    "administration": "Administração",
+    "suggestions": "Sugestões"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -133,7 +149,13 @@
     "profileVisits": "Visitas ao Perfil",
     "initiateCheckout": "Início Checkout",
     "costPerVisit": "Custo/Visita",
-    "visits": "Visitas"
+    "visits": "Visitas",
+    "generalMetrics": "Métricas Gerais",
+    "topOfFunnel": "Topo de Funil",
+    "results": "Resultados",
+    "purchasesTooltip": "Total de compras via pixel",
+    "totalResults": "Total de resultados",
+    "conversionRate": "Conv."
   },
   "periods": {
     "today": "Hoje",
