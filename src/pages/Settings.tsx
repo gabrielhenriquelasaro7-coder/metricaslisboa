@@ -96,7 +96,7 @@ export default function Settings() {
   const { projects } = useProjects();
   const { isGuest } = useUserRole();
   const { cargo, isTech, isGerente, loading: cargoLoading } = useCargo();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -116,7 +116,8 @@ export default function Settings() {
 
   const handleLanguageChange = (languageCode: string) => {
     i18n.changeLanguage(languageCode);
-    toast.success(`Idioma alterado para ${supportedLanguages.find(l => l.code === languageCode)?.name}`);
+    const langName = supportedLanguages.find(l => l.code === languageCode)?.name;
+    toast.success(`${t('settings.languageChanged')} ${langName}`);
   };
 
   // Sync logs state
@@ -346,26 +347,26 @@ export default function Settings() {
           <TabsList className="bg-card border border-border p-1 flex flex-wrap h-auto gap-1 w-full overflow-x-auto scrollbar-hide">
             <TabsTrigger value="profile" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
               <User className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Perfil</span>
+              <span className="hidden sm:inline">{t('settings.profile')}</span>
             </TabsTrigger>
             <TabsTrigger value="security" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
               <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Segurança</span>
+              <span className="hidden sm:inline">{t('settings.security')}</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
               <Palette className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Aparência</span>
+              <span className="hidden sm:inline">{t('settings.appearance')}</span>
             </TabsTrigger>
             {!isGuest && (
               <TabsTrigger value="sync-history" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
                 <History className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Histórico</span>
+                <span className="hidden sm:inline">{t('settings.syncHistory')}</span>
               </TabsTrigger>
             )}
             {!isGuest && (
               <TabsTrigger value="guests" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
                 <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Convidados</span>
+                <span className="hidden sm:inline">{t('settings.guests')}</span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -376,10 +377,10 @@ export default function Settings() {
               <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                   <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                  Informações do Perfil
+                  {t('settings.profileInfo')}
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Atualize suas informações pessoais
+                  {t('settings.updatePersonalInfo')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-6">
@@ -408,27 +409,27 @@ export default function Settings() {
                     </label>
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-base sm:text-lg truncate">{fullName || 'Sem nome'}</p>
+                    <p className="font-semibold text-base sm:text-lg truncate">{fullName || t('settings.noName')}</p>
                     <p className="text-xs sm:text-sm text-muted-foreground truncate">{user?.email}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Clique no ícone para alterar</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">{t('settings.clickToChange')}</p>
                   </div>
                 </div>
 
                 {/* Form */}
                 <div className="grid gap-3 sm:gap-4 w-full max-w-md">
                   <div className="space-y-1.5 sm:space-y-2">
-                    <Label htmlFor="fullName" className="text-xs sm:text-sm">Nome completo</Label>
+                    <Label htmlFor="fullName" className="text-xs sm:text-sm">{t('settings.fullName')}</Label>
                     <Input
                       id="fullName"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Seu nome"
+                      placeholder={t('settings.yourName')}
                       className="bg-muted/30 h-10 text-sm"
                     />
                   </div>
 
                   <div className="space-y-1.5 sm:space-y-2">
-                    <Label htmlFor="email" className="text-xs sm:text-sm">E-mail</Label>
+                    <Label htmlFor="email" className="text-xs sm:text-sm">{t('settings.email')}</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                       <Input
@@ -439,26 +440,26 @@ export default function Settings() {
                       />
                     </div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
-                      O e-mail não pode ser alterado
+                      {t('settings.emailCantChange')}
                     </p>
                   </div>
 
                   {!isGuest && (
                     <div className="space-y-1.5 sm:space-y-2">
-                      <Label htmlFor="cargo" className="text-xs sm:text-sm">Cargo</Label>
+                      <Label htmlFor="cargo" className="text-xs sm:text-sm">{t('settings.role')}</Label>
                       <div className="relative">
                         <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                         <Input
                           id="cargo"
-                          value={cargoLoading ? 'Carregando...' : (CARGO_LABELS[cargo] || cargo || 'Sem cargo')}
+                          value={cargoLoading ? t('settings.loading') : (CARGO_LABELS[cargo] || cargo || t('settings.noRole'))}
                           disabled
                           className="pl-9 sm:pl-10 bg-muted/50 text-muted-foreground h-10 text-sm capitalize"
                         />
                       </div>
                       <p className="text-[10px] sm:text-xs text-muted-foreground">
                         {canEditCargo 
-                          ? 'Para alterar cargos, use a área de Administração'
-                          : 'O cargo só pode ser alterado por Tech ou Gerente'
+                          ? t('settings.roleChangeAdmin')
+                          : t('settings.roleChangeRestricted')
                         }
                       </p>
                     </div>
@@ -468,12 +469,12 @@ export default function Settings() {
                     {saving ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Salvando...
+                        {t('settings.saving')}
                       </>
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        Salvar
+                        {t('settings.save')}
                       </>
                     )}
                   </Button>
@@ -489,29 +490,29 @@ export default function Settings() {
               <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                   <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                  Segurança
+                  {t('settings.security')}
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Gerencie sua senha e segurança
+                  {t('settings.securityDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4 max-w-md">
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label className="text-xs sm:text-sm">Nova senha</Label>
+                  <Label className="text-xs sm:text-sm">{t('settings.newPassword')}</Label>
                   <div className="relative">
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
-                    <Input type="password" placeholder="Nova senha" className="pl-9 sm:pl-10 bg-muted/30 h-10 text-sm" />
+                    <Input type="password" placeholder={t('settings.newPassword')} className="pl-9 sm:pl-10 bg-muted/30 h-10 text-sm" />
                   </div>
                 </div>
 
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label className="text-xs sm:text-sm">Confirmar senha</Label>
-                  <Input type="password" placeholder="Confirmar nova senha" className="bg-muted/30 h-10 text-sm" />
+                  <Label className="text-xs sm:text-sm">{t('settings.confirmPassword')}</Label>
+                  <Input type="password" placeholder={t('settings.confirmPassword')} className="bg-muted/30 h-10 text-sm" />
                 </div>
 
                 <Button variant="outline" className="gap-2 h-10 text-sm w-full sm:w-auto">
                   <Key className="w-4 h-4" />
-                  Atualizar senha
+                  {t('settings.updatePassword')}
                 </Button>
               </CardContent>
             </Card>
@@ -523,9 +524,9 @@ export default function Settings() {
                     <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-destructive" />
                   </div>
                   <div>
-                    <CardTitle className="text-destructive text-base sm:text-lg">Zona de perigo</CardTitle>
+                    <CardTitle className="text-destructive text-base sm:text-lg">{t('settings.dangerZone')}</CardTitle>
                     <CardDescription className="mt-1 text-xs sm:text-sm">
-                      Ações irreversíveis
+                      {t('settings.irreversibleActions')}
                     </CardDescription>
                   </div>
                 </div>
@@ -535,23 +536,23 @@ export default function Settings() {
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" className="gap-2 h-10 text-sm w-full sm:w-auto">
                       <Trash2 className="w-4 h-4" />
-                      Excluir conta
+                      {t('settings.deleteAccount')}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent className="max-w-[90vw] sm:max-w-lg">
                     <AlertDialogHeader>
-                      <AlertDialogTitle className="text-base sm:text-lg">Excluir conta permanentemente?</AlertDialogTitle>
+                      <AlertDialogTitle className="text-base sm:text-lg">{t('settings.deleteAccountConfirm')}</AlertDialogTitle>
                       <AlertDialogDescription className="text-xs sm:text-sm">
-                        Esta ação não pode ser desfeita. Todos os seus dados serão excluídos.
+                        {t('settings.deleteAccountDesc')}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                      <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
+                      <AlertDialogCancel className="w-full sm:w-auto">{t('common.cancel')}</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleDeleteAccount}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
                       >
-                        Excluir
+                        {t('common.delete')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -566,10 +567,10 @@ export default function Settings() {
               <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                   <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                  Aparência
+                  {t('settings.appearance')}
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Escolha o tema do sistema
+                  {t('settings.appearanceDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 space-y-6">
@@ -577,7 +578,7 @@ export default function Settings() {
                 <div>
                   <Label className="mb-3 sm:mb-4 block text-sm flex items-center gap-2">
                     <Globe className="w-4 h-4" />
-                    Idioma / Language
+                    {t('settings.languageLabel')}
                   </Label>
                   <div className="grid grid-cols-3 gap-3 sm:gap-4 max-w-md">
                     {supportedLanguages.map((language) => (
@@ -600,7 +601,7 @@ export default function Settings() {
 
                 {/* Theme Selection */}
                 <div>
-                  <Label className="mb-3 sm:mb-4 block text-sm">Tema</Label>
+                  <Label className="mb-3 sm:mb-4 block text-sm">{t('settings.theme')}</Label>
                   <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-sm">
                     <button 
                       onClick={() => handleThemeChange('dark')}
@@ -614,7 +615,7 @@ export default function Settings() {
                       <div className="w-full h-10 sm:h-12 rounded-lg bg-zinc-900 border border-zinc-700 mb-2 sm:mb-3 flex items-center justify-center">
                         <Moon className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400" />
                       </div>
-                      <span className="text-sm font-medium">Escuro</span>
+                      <span className="text-sm font-medium">{t('settings.darkTheme')}</span>
                     </button>
                     <button 
                       onClick={() => handleThemeChange('light')}
@@ -628,7 +629,7 @@ export default function Settings() {
                       <div className="w-full h-10 sm:h-12 rounded-lg bg-white border border-gray-200 mb-2 sm:mb-3 flex items-center justify-center">
                         <Sun className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />
                       </div>
-                      <span className="text-sm font-medium">Claro</span>
+                      <span className="text-sm font-medium">{t('settings.lightTheme')}</span>
                     </button>
                   </div>
                 </div>
@@ -644,23 +645,23 @@ export default function Settings() {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <History className="w-5 h-5 text-primary" />
-                      Histórico de Sincronização
+                      {t('settings.syncHistoryTitle')}
                     </CardTitle>
                     <CardDescription className="mt-1">
-                      {selectedProject ? `Projeto: ${selectedProject.name}` : 'Selecione um projeto'}
+                      {selectedProject ? `${t('settings.project')}: ${selectedProject.name}` : t('settings.selectProject')}
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-3">
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
                       <SelectTrigger className="w-[160px]">
                         <Filter className="w-4 h-4 mr-2" />
-                        <SelectValue placeholder="Filtrar" />
+                        <SelectValue placeholder={t('settings.filter')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="success">Sucesso</SelectItem>
-                        <SelectItem value="partial">Parcial</SelectItem>
-                        <SelectItem value="error">Erro</SelectItem>
+                        <SelectItem value="all">{t('settings.all')}</SelectItem>
+                        <SelectItem value="success">{t('settings.success')}</SelectItem>
+                        <SelectItem value="partial">{t('settings.partial')}</SelectItem>
+                        <SelectItem value="error">{t('settings.error')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button variant="outline" size="icon" onClick={fetchLogs} disabled={logsLoading}>
@@ -677,9 +678,9 @@ export default function Settings() {
                 ) : logs.length === 0 ? (
                   <div className="py-12 text-center">
                     <History className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Nenhum registro encontrado</h3>
+                    <h3 className="text-lg font-semibold mb-2">{t('settings.noRecords')}</h3>
                     <p className="text-muted-foreground text-sm">
-                      Os logs de sincronização aparecerão aqui após as sincronizações.
+                      {t('settings.logsWillAppear')}
                     </p>
                   </div>
                 ) : (
@@ -693,7 +694,7 @@ export default function Settings() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium">{formatDate(log.created_at)}</p>
                           <p className="text-xs text-muted-foreground truncate">
-                            {log.message || 'Sem detalhes'}
+                            {log.message || t('settings.noDetails')}
                           </p>
                         </div>
                         {getStatusBadge(log.status)}
@@ -707,25 +708,25 @@ export default function Settings() {
                   <div className="grid grid-cols-4 gap-3 mt-6 pt-6 border-t border-border/50">
                     <div className="text-center">
                       <p className="text-xl font-bold">{logs.length}</p>
-                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="text-xs text-muted-foreground">{t('settings.total')}</p>
                     </div>
                     <div className="text-center">
                       <p className="text-xl font-bold text-metric-positive">
                         {logs.filter(l => l.status === 'success').length}
                       </p>
-                      <p className="text-xs text-muted-foreground">Sucesso</p>
+                      <p className="text-xs text-muted-foreground">{t('settings.success')}</p>
                     </div>
                     <div className="text-center">
                       <p className="text-xl font-bold text-metric-warning">
                         {logs.filter(l => l.status === 'partial').length}
                       </p>
-                      <p className="text-xs text-muted-foreground">Parcial</p>
+                      <p className="text-xs text-muted-foreground">{t('settings.partial')}</p>
                     </div>
                     <div className="text-center">
                       <p className="text-xl font-bold text-metric-negative">
                         {logs.filter(l => l.status === 'error').length}
                       </p>
-                      <p className="text-xs text-muted-foreground">Erros</p>
+                      <p className="text-xs text-muted-foreground">{t('settings.errors')}</p>
                     </div>
                   </div>
                 )}
