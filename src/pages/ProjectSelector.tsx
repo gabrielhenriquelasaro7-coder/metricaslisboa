@@ -13,13 +13,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Users, Store, Loader2, LogOut, Archive, Trash2, User, RefreshCw, ChevronRight, ChevronDown, MoreVertical, Pencil, ArchiveRestore, Camera, Lock, Search, Target, GraduationCap, TrendingUp, MessageSquare, ExternalLink, UserPlus, Settings, Sun, Moon, Shield, Zap, Image, Clock, Sparkles, Building, Check } from 'lucide-react';
+import { Plus, Users, Store, Loader2, LogOut, Archive, Trash2, User, RefreshCw, ChevronRight, ChevronDown, MoreVertical, Pencil, ArchiveRestore, Camera, Lock, Search, Target, GraduationCap, TrendingUp, ExternalLink, UserPlus, Sun, Moon, Shield, Zap, Image, Clock, Sparkles, Check } from 'lucide-react';
 import { DialogDescription } from '@/components/ui/dialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { ptBR, enUS, es } from 'date-fns/locale';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import whatsappIcon from '@/assets/whatsapp-icon.png';
@@ -27,6 +27,8 @@ import v4Logo from '@/assets/v4-logo-full.png';
 import metaIcon from '@/assets/meta-icon.png';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
+import { useTranslation } from 'react-i18next';
+import { supportedLanguages } from '@/i18n';
 
 const cargoOptions: {
   value: UserCargo;
@@ -334,6 +336,7 @@ function StatusGroup({
     </Collapsible>;
 }
 export default function ProjectSelector() {
+  const { t, i18n } = useTranslation();
   const {
     user,
     loading: authLoading,
@@ -362,6 +365,20 @@ export default function ProjectSelector() {
   const { cargo, isTech, isGerente, isCoordenador, isInvestidor, userSquads } = useCargo();
   const { squads } = useSquads();
   const navigate = useNavigate();
+
+  // Get date-fns locale based on current language
+  const getDateLocale = () => {
+    const lang = i18n.language;
+    if (lang.startsWith('pt')) return ptBR;
+    if (lang.startsWith('es')) return es;
+    return enUS;
+  };
+
+  const handleLanguageChange = (langCode: string) => {
+    i18n.changeLanguage(langCode);
+    const langName = supportedLanguages.find(l => l.code === langCode)?.name || langCode;
+    toast.success(`${t('projectSelector.languageChanged')}: ${langName}`);
+  };
 
   // Investidores e coordenadores para atribuição
   const [investidores, setInvestidores] = useState<Array<{ id: string; user_id: string; full_name: string; email: string; squad_id: string | null }>>([]);
@@ -1527,13 +1544,13 @@ export default function ProjectSelector() {
             <DialogTitle className="text-foreground font-semibold" style={{
             fontFamily: 'Space Grotesk, sans-serif'
           }}>
-              Configurações
+              {t('projectSelector.settings')}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6 mt-4">
             {/* Theme Toggle */}
             <div className="space-y-3">
-              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Aparência</Label>
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">{t('projectSelector.appearance')}</Label>
               <div className="flex gap-3">
                 <button onClick={() => {
                 document.documentElement.classList.remove('dark');
@@ -1543,7 +1560,7 @@ export default function ProjectSelector() {
                 setTimeout(() => setSettingsDialogOpen(true), 10);
               }} className={cn("flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border transition-all", document.documentElement.classList.contains('light') ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-secondary")}>
                   <Sun className="w-5 h-5" />
-                  <span className="font-medium">Claro</span>
+                  <span className="font-medium">{t('projectSelector.light')}</span>
                 </button>
                 <button onClick={() => {
                 document.documentElement.classList.remove('light');
@@ -1553,21 +1570,43 @@ export default function ProjectSelector() {
                 setTimeout(() => setSettingsDialogOpen(true), 10);
               }} className={cn("flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border transition-all", !document.documentElement.classList.contains('light') ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-secondary")}>
                   <Moon className="w-5 h-5" />
-                  <span className="font-medium">Escuro</span>
+                  <span className="font-medium">{t('projectSelector.dark')}</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Language Selector */}
+            <div className="space-y-3">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">{t('projectSelector.language')}</Label>
+              <div className="flex gap-2">
+                {supportedLanguages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => handleLanguageChange(lang.code)}
+                    className={cn(
+                      "flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border transition-all",
+                      i18n.language === lang.code
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border text-muted-foreground hover:bg-secondary"
+                    )}
+                  >
+                    <span className="text-lg">{lang.flag}</span>
+                    <span className="font-medium text-sm">{lang.name.split(' ')[0]}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* Profile shortcut */}
             <div className="space-y-3">
-              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Conta</Label>
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">{t('projectSelector.account')}</Label>
               <button onClick={() => {
               setSettingsDialogOpen(false);
               setProfileDialogOpen(true);
             }} className="w-full flex items-center justify-between p-4 rounded-xl border border-border hover:bg-secondary transition-all">
                 <div className="flex items-center gap-3">
                   <User className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-foreground font-medium">Editar Perfil</span>
+                  <span className="text-foreground font-medium">{t('projectSelector.editProfile')}</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
               </button>
@@ -1576,7 +1615,7 @@ export default function ProjectSelector() {
             {/* Logout */}
             <Button variant="outline" onClick={handleLogout} className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl">
               <LogOut className="w-4 h-4 mr-2" />
-              Sair da conta
+              {t('projectSelector.logout')}
             </Button>
           </div>
         </DialogContent>
