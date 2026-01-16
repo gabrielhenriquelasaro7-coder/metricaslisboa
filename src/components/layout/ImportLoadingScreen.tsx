@@ -297,8 +297,8 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
           ))}
         </div>
 
-        {/* Continue Import Buttons - Show when there are errors or pending AND not currently importing */}
-        {(hasErrors || hasPending) && isIdle && (
+        {/* Continue Import Buttons - Show ONLY when there are errors AND not currently importing */}
+        {hasErrors && isIdle && (
           <div className="glass-card p-4 border-primary/30 bg-primary/5 space-y-3">
             <div className="flex items-center justify-center gap-2 text-sm">
               {hasErrors ? (
