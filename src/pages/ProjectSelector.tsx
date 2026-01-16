@@ -364,22 +364,36 @@ export default function ProjectSelector() {
   const navigate = useNavigate();
 
   // Investidores e coordenadores para atribuição
-  const [investidores, setInvestidores] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
-  const [coordenadores, setCoordenadores] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+  const [investidores, setInvestidores] = useState<Array<{ id: string; user_id: string; full_name: string; email: string; squad_id: string | null }>>([]);
+  const [coordenadores, setCoordenadores] = useState<Array<{ id: string; user_id: string; full_name: string; email: string; squad_id: string | null }>>([]);
   // Mapa de investidores por projeto para exibição no card
   const [projectInvestidores, setProjectInvestidores] = useState<Record<string, string[]>>({});
+  // Coordenador selecionado para cascata
+  const [selectedCoordinatorId, setSelectedCoordinatorId] = useState<string>('');
 
   useEffect(() => {
     const fetchPeople = async () => {
       const { data } = await supabase
         .from('user_management')
-        .select('id, full_name, email, cargo')
+        .select('id, user_id, full_name, email, cargo, squad_id')
         .in('cargo', ['investidor', 'coordenador'])
         .order('full_name');
       
       if (data) {
-        setInvestidores(data.filter(u => u.cargo === 'investidor'));
-        setCoordenadores(data.filter(u => u.cargo === 'coordenador'));
+        setInvestidores(data.filter(u => u.cargo === 'investidor').map(u => ({
+          id: u.id,
+          user_id: u.user_id,
+          full_name: u.full_name || '',
+          email: u.email,
+          squad_id: u.squad_id
+        })));
+        setCoordenadores(data.filter(u => u.cargo === 'coordenador').map(u => ({
+          id: u.id,
+          user_id: u.user_id,
+          full_name: u.full_name || '',
+          email: u.email,
+          squad_id: u.squad_id
+        })));
       }
     };
     fetchPeople();
@@ -576,6 +590,7 @@ export default function ProjectSelector() {
           investidor_ids: [],
           squad_id: null,
         });
+        setSelectedCoordinatorId('');
         setAvatarPreview(null);
       }
     } catch (error) {
@@ -1063,70 +1078,143 @@ export default function ProjectSelector() {
                           </div>
                         )}
 
-                        {/* Investidores - somente tech/gerente/coordenador podem atribuir */}
-                        {(isTech || isGerente || isCoordenador) && (
+                        {/* Coordenador - primeiro da cascata */}
+                        {(isTech || isGerente) && (
                           <div className="space-y-2">
-                            <Label className="text-muted-foreground text-xs">Investidores</Label>
-                            <div className="bg-secondary border border-border rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
-                              {investidores.length === 0 ? (
-                                <p className="text-muted-foreground text-xs">Nenhum investidor cadastrado</p>
-                              ) : (
-                                investidores.map(inv => (
-                                  <label key={inv.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-1.5 transition-colors">
-                                    <div 
-                                      onClick={() => {
-                                        const isSelected = formData.investidor_ids?.includes(inv.id);
-                                        setFormData(prev => ({
-                                          ...prev,
-                                          investidor_ids: isSelected 
-                                            ? (prev.investidor_ids || []).filter(id => id !== inv.id)
-                                            : [...(prev.investidor_ids || []), inv.id]
-                                        }));
-                                      }}
-                                      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${
-                                        formData.investidor_ids?.includes(inv.id)
-                                          ? 'bg-primary border-primary'
-                                          : 'border-border bg-background'
-                                      }`}
-                                    >
-                                      {formData.investidor_ids?.includes(inv.id) && (
-                                        <Check className="w-3 h-3 text-primary-foreground" />
-                                      )}
-                                    </div>
-                                    <span className="text-sm text-foreground">{inv.full_name}</span>
-                                  </label>
-                                ))
-                              )}
-                            </div>
-                            {(formData.investidor_ids?.length || 0) > 0 && (
-                              <p className="text-xs text-muted-foreground">{formData.investidor_ids?.length} investidor(es) selecionado(s)</p>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Squad - tech/gerente podem atribuir qualquer, coordenador só a dele */}
-                        {(isTech || isGerente || isCoordenador) && (
-                          <div className="space-y-2">
-                            <Label className="text-muted-foreground text-xs">Squad</Label>
-                            <Select value={formData.squad_id || 'none'} onValueChange={val => setFormData(prev => ({
-                              ...prev,
-                              squad_id: val === 'none' ? null : val
-                            }))}>
+                            <Label className="text-muted-foreground text-xs">Coordenador</Label>
+                            <Select 
+                              value={selectedCoordinatorId || 'none'} 
+                              onValueChange={val => {
+                                const coordId = val === 'none' ? '' : val;
+                                setSelectedCoordinatorId(coordId);
+                                
+                                // Auto-atribuir squad do coordenador
+                                if (coordId) {
+                                  const coord = coordenadores.find(c => c.user_id === coordId);
+                                  if (coord?.squad_id) {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      squad_id: coord.squad_id,
+                                      investidor_ids: [] // Reset investidores ao mudar coordenador
+                                    }));
+                                  }
+                                } else {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    squad_id: null,
+                                    investidor_ids: []
+                                  }));
+                                }
+                              }}
+                            >
                               <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 touch-target">
-                                <SelectValue placeholder="Selecione a squad..." />
+                                <SelectValue placeholder="Selecione o coordenador..." />
                               </SelectTrigger>
                               <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50 max-h-60">
-                                <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhuma</SelectItem>
-                                {(isCoordenador ? userSquads : squads).map(squad => (
-                                  <SelectItem key={squad.id} value={squad.id} className="text-foreground rounded-lg">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: squad.color }} />
-                                      {squad.name}
-                                    </div>
+                                <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhum</SelectItem>
+                                {coordenadores.map(coord => (
+                                  <SelectItem key={coord.user_id} value={coord.user_id} className="text-foreground rounded-lg">
+                                    {coord.full_name}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                          </div>
+                        )}
+
+                        {/* Squad - auto-atribuída pelo coordenador (tech/gerente) ou fixa (coordenador) */}
+                        {(isTech || isGerente || isCoordenador) && (
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground text-xs">Squad</Label>
+                            {(isTech || isGerente) && formData.squad_id ? (
+                              <div className="px-3 py-2.5 rounded-xl bg-secondary border border-border text-sm font-medium text-foreground flex items-center gap-2">
+                                <div 
+                                  className="w-2 h-2 rounded-full" 
+                                  style={{ backgroundColor: squads.find(s => s.id === formData.squad_id)?.color || '#666' }} 
+                                />
+                                {squads.find(s => s.id === formData.squad_id)?.name || 'Squad'}
+                              </div>
+                            ) : (isTech || isGerente) && !formData.squad_id ? (
+                              <div className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-muted-foreground italic">
+                                Selecione um coordenador primeiro
+                              </div>
+                            ) : (
+                              // Coordenador só vê suas squads
+                              <Select value={formData.squad_id || 'none'} onValueChange={val => setFormData(prev => ({
+                                ...prev,
+                                squad_id: val === 'none' ? null : val,
+                                investidor_ids: []
+                              }))}>
+                                <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 touch-target">
+                                  <SelectValue placeholder="Selecione a squad..." />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50 max-h-60">
+                                  <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhuma</SelectItem>
+                                  {userSquads.map(squad => (
+                                    <SelectItem key={squad.id} value={squad.id} className="text-foreground rounded-lg">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: squad.color }} />
+                                        {squad.name}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                            {(isTech || isGerente) && formData.squad_id && (
+                              <p className="text-xs text-muted-foreground">Atribuída automaticamente pelo coordenador</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Investidores - filtrados pela squad selecionada */}
+                        {(isTech || isGerente || isCoordenador) && formData.squad_id && (
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground text-xs">Investidores</Label>
+                            {(() => {
+                              const filteredInvestidores = investidores.filter(inv => inv.squad_id === formData.squad_id);
+                              return filteredInvestidores.length === 0 ? (
+                                <div className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-muted-foreground italic">
+                                  Nenhum investidor nesta squad
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="bg-secondary border border-border rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
+                                    {filteredInvestidores.map(inv => (
+                                      <label key={inv.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-1.5 transition-colors">
+                                        <div 
+                                          onClick={() => {
+                                            const isSelected = formData.investidor_ids?.includes(inv.user_id);
+                                            setFormData(prev => ({
+                                              ...prev,
+                                              investidor_ids: isSelected 
+                                                ? (prev.investidor_ids || []).filter(id => id !== inv.user_id)
+                                                : [...(prev.investidor_ids || []), inv.user_id]
+                                            }));
+                                          }}
+                                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${
+                                            formData.investidor_ids?.includes(inv.user_id)
+                                              ? 'bg-primary border-primary'
+                                              : 'border-border bg-background'
+                                          }`}
+                                        >
+                                          {formData.investidor_ids?.includes(inv.user_id) && (
+                                            <Check className="w-3 h-3 text-primary-foreground" />
+                                          )}
+                                        </div>
+                                        <span className="text-sm text-foreground">{inv.full_name}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                  {(formData.investidor_ids?.length || 0) > 0 && (
+                                    <p className="text-xs text-muted-foreground">{formData.investidor_ids?.length} investidor(es) selecionado(s)</p>
+                                  )}
+                                  <p className="text-xs text-muted-foreground">
+                                    Mostrando apenas investidores da squad {squads.find(s => s.id === formData.squad_id)?.name}
+                                  </p>
+                                </>
+                              );
+                            })()}
                           </div>
                         )}
 
