@@ -271,11 +271,17 @@ export function AccountBalanceCard({
           </div>
         </div>
         
-        {/* Critical Status Message */}
-        {data?.status === 'critical' && <div className="mt-3 p-2 rounded-md bg-destructive/10 border border-destructive/20 flex items-center gap-2">
+        {/* Critical Status Message - Show when balance is 0 or status is critical */}
+        {(data?.status === 'critical' || (data && data.balance <= 0)) && <div className="mt-3 p-2 rounded-md bg-destructive/10 border border-destructive/20 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
             <p className="text-sm text-destructive font-medium">
-              {data.accountStatus === 3 ? 'Campanhas pausadas por falta de saldo. Recarregue para retomar a veiculação.' : data.accountStatus === 2 ? 'Conta desabilitada. Verifique as políticas de anúncios no Meta Business.' : 'Conta com problemas. Verifique no Meta Ads Manager.'}
+              {data.balance <= 0 
+                ? '⚠️ Saldo zerado! Recarregue agora para evitar pausar suas campanhas.' 
+                : data.accountStatus === 3 
+                  ? 'Campanhas pausadas por falta de saldo. Recarregue para retomar a veiculação.' 
+                  : data.accountStatus === 2 
+                    ? 'Conta desabilitada. Verifique as políticas de anúncios no Meta Business.' 
+                    : 'Conta com problemas. Verifique no Meta Ads Manager.'}
             </p>
           </div>}
         
