@@ -636,36 +636,45 @@ export function UserManagement() {
                   
                   {createdPassword ? (
                     <div className="space-y-4 py-4">
-                      <div className="p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg space-y-3">
-                        <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                      <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg space-y-4">
+                        <div className="flex items-center gap-2 text-primary">
                           <Check className="w-5 h-5" />
-                          <span className="font-medium">Usuário criado!</span>
+                          <span className="font-semibold">Usuário criado com sucesso!</span>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Email:</Label>
-                          <p className="font-medium">{formData.email}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Senha temporária:</Label>
-                          <div className="flex items-center gap-2">
-                            <code className="flex-1 p-2 bg-background rounded border font-mono text-lg">
-                              {createdPassword}
-                            </code>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                navigator.clipboard.writeText(createdPassword);
-                                toast.success('Senha copiada!');
-                              }}
-                            >
-                              Copiar
-                            </Button>
+                        
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Mail className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">Email:</span>
+                            <span className="font-medium">{formData.email}</span>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <KeyRound className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">Senha temporária:</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 p-3 bg-card border rounded-md font-mono text-lg tracking-wider text-center">
+                                {createdPassword}
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(createdPassword);
+                                  toast.success('Senha copiada!');
+                                }}
+                              >
+                                <Check className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        O usuário deverá trocar a senha no primeiro acesso.
+                      
+                      <p className="text-sm text-muted-foreground text-center">
+                        ⚠️ O usuário deverá trocar a senha no primeiro acesso.
                       </p>
                     </div>
                   ) : (
