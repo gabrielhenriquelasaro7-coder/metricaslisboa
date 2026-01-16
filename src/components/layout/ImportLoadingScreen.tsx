@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2, Clock, AlertCircle, X } from 'lucide-react';
+import { Loader2, CheckCircle2, Clock, AlertCircle, X, Zap, Image, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import v4LogoFull from '@/assets/v4-logo-full.png';
+import { toast } from 'sonner';
 
 interface MonthImportRecord {
   id: string;
@@ -114,6 +115,38 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
     : 0;
 
   const currentlyImporting = months.find(m => m.status === 'importing');
+  const hasErrors = stats.error > 0;
+  const hasPending = stats.pending > 0;
+  const isIdle = stats.importing === 0;
+
+  // Function to continue import from first error/pending
+  const continueImport = async (lightSync: boolean) => {
+    const firstToImport = months
+      .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
+      .find(m => m.status === 'error' || m.status === 'pending');
+    
+    if (!firstToImport) {
+      toast.info('Não há meses para importar');
+      return;
+    }
+    
+    try {
+      toast.info(`Iniciando importação de ${MONTH_NAMES[firstToImport.month - 1]} ${firstToImport.year}...`);
+      
+      await supabase.functions.invoke('import-month-by-month', {
+        body: {
+          project_id: projectId,
+          year: firstToImport.year,
+          month: firstToImport.month,
+          light_sync: lightSync,
+          chain_import: true,
+        },
+      });
+    } catch (error) {
+      console.error('Error continuing import:', error);
+      toast.error('Erro ao continuar importação');
+    }
+  };
 
   // Organize months by year
   const monthsByYear = months.reduce((acc, month) => {
@@ -263,6 +296,46 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
             </div>
           ))}
         </div>
+
+        {/* Continue Import Buttons - Show when there are errors or pending AND not currently importing */}
+        {(hasErrors || hasPending) && isIdle && (
+          <div className="glass-card p-4 border-primary/30 bg-primary/5 space-y-3">
+            <div className="flex items-center justify-center gap-2 text-sm">
+              {hasErrors ? (
+                <>
+                  <AlertCircle className="w-4 h-4 text-metric-negative" />
+                  <span className="font-medium">{stats.error} {stats.error === 1 ? 'mês com erro' : 'meses com erro'}</span>
+                </>
+              ) : (
+                <>
+                  <Clock className="w-4 h-4 text-primary" />
+                  <span className="font-medium">{stats.pending} {stats.pending === 1 ? 'mês pendente' : 'meses pendentes'}</span>
+                </>
+              )}
+              <span className="text-muted-foreground">• Continuar importação</span>
+            </div>
+            <div className="flex justify-center gap-3">
+              <Button 
+                variant="outline" 
+                size="lg"
+                onClick={() => continueImport(true)}
+                className="gap-2 h-11 px-5 font-semibold"
+              >
+                <Zap className="w-4 h-4 text-yellow-500" />
+                Continuar Light
+              </Button>
+              <Button 
+                variant="default" 
+                size="lg"
+                onClick={() => continueImport(false)}
+                className="gap-2 h-11 px-5 font-semibold shadow-lg shadow-primary/25"
+              >
+                <Image className="w-4 h-4" />
+                Continuar HD
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Info & Exit Button */}
         <div className="text-center space-y-4">
