@@ -111,9 +111,9 @@ function HeatLayer({
     if (heatData.length === 0) return;
 
     // Raio AUMENTA com o zoom - mas com limite máximo
-    const baseRadius = 35;
+    const baseRadius = 125;
     const zoomFactor = Math.pow(1.3, currentZoom - 4);
-    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 35), 100);
+    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 125), 200);
     const dynamicBlur = dynamicRadius * 0.4;
 
     // Criar heat layer com raio dinâmico limitado
