@@ -132,7 +132,7 @@ export default function Dashboard() {
   const isInfoproduto = hasSelectedProject && businessModel === 'infoproduto';
 
   // Hidden metrics for guests - must be after businessModel is defined
-  const { isMetricHidden, hiddenMetrics } = useHiddenMetrics('dashboard', businessModel as any);
+  const { isMetricHidden, hiddenMetrics, toggleMetric, loading: hiddenMetricsLoading } = useHiddenMetrics('dashboard', businessModel as any);
 
   // Get custom metric config for custom business model
   const {
@@ -406,8 +406,9 @@ export default function Dashboard() {
             <div className="flex items-center justify-end gap-2 flex-wrap">
               {isGuest && (
                 <MetricVisibilityConfig 
-                  pageContext="dashboard" 
-                  businessModel={businessModel as any}
+                  hiddenMetrics={hiddenMetrics}
+                  toggleMetric={toggleMetric}
+                  loading={hiddenMetricsLoading}
                 />
               )}
               <Label htmlFor="comparison-toggle" className="text-[11px] sm:text-sm text-muted-foreground cursor-pointer">

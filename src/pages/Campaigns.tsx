@@ -42,7 +42,7 @@ export default function Campaigns() {
   // Hidden metrics for guests
   const { isGuest } = useUserRole();
   const businessModel = selectedProject?.business_model || null;
-  const { isMetricHidden } = useHiddenMetrics('campaigns', businessModel as any);
+  const { isMetricHidden, hiddenMetrics, toggleMetric, loading: hiddenMetricsLoading } = useHiddenMetrics('campaigns', businessModel as any);
 
   // Create lookup maps for ad sets and ads count per campaign
   const adSetsCountByCampaign = adSets.reduce((acc, adSet) => {
@@ -255,8 +255,9 @@ export default function Campaigns() {
             />
             {isGuest && (
               <MetricVisibilityConfig 
-                pageContext="campaigns" 
-                businessModel={businessModel as any}
+                hiddenMetrics={hiddenMetrics}
+                toggleMetric={toggleMetric}
+                loading={hiddenMetricsLoading}
               />
             )}
           </div>
