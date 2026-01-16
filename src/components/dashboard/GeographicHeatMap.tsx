@@ -77,7 +77,7 @@ function formatPercent(value: number): string {
   return `${value.toFixed(2)}%`;
 }
 
-type MetricType = 'clicks' | 'impressions' | 'conversions' | 'spend';
+type MetricType = 'conversions' | 'impressions' | 'spend';
 
 // Componente para o Heat Layer - aumenta com zoom
 function HeatLayer({ 
@@ -110,11 +110,11 @@ function HeatLayer({
 
     if (heatData.length === 0) return;
 
-    // Raio AUMENTA com o zoom - mas com limite máximo
-    const baseRadius = 125;
-    const zoomFactor = Math.pow(1.3, currentZoom - 4);
-    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 125), 200);
-    const dynamicBlur = dynamicRadius * 0.4;
+    // Raio do heat map - valor moderado
+    const baseRadius = 40;
+    const zoomFactor = Math.pow(1.2, currentZoom - 4);
+    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 30), 80);
+    const dynamicBlur = dynamicRadius * 0.5;
 
     // Criar heat layer com raio dinâmico limitado
     // @ts-ignore - leaflet.heat types
@@ -162,7 +162,7 @@ export function GeographicHeatMap({
   className,
   currency = 'BRL'
 }: GeographicHeatMapProps) {
-  const [metric, setMetric] = useState<MetricType>('clicks');
+  const [metric, setMetric] = useState<MetricType>('conversions');
 
   // Processar dados de região com métricas calculadas
   // FILTRAR regiões com dados insignificantes (menos de 10 impressões ou menos de 1% do total)
@@ -205,9 +205,8 @@ export function GeographicHeatMap({
 
   const getMetricLabel = (m: MetricType): string => {
     switch (m) {
-      case 'clicks': return 'Cliques';
+      case 'conversions': return 'Leads';
       case 'impressions': return 'Impressões';
-      case 'conversions': return 'Conversões';
       case 'spend': return 'Investimento';
     }
   };
@@ -258,7 +257,7 @@ export function GeographicHeatMap({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="clicks">Cliques</SelectItem>
+              <SelectItem value="conversions">Leads</SelectItem>
               <SelectItem value="impressions">Impressões</SelectItem>
               <SelectItem value="spend">Investimento</SelectItem>
             </SelectContent>
