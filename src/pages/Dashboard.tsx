@@ -26,6 +26,9 @@ import { GuidedTour } from '@/components/tour/GuidedTour';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { DollarSign, MousePointerClick, Eye, Target, TrendingUp, ShoppingCart, Users, Percent, Phone, Store, Loader2, GitCompare, RefreshCw, MoreVertical, Banknote, BarChart3, Activity, Crosshair, Receipt, Zap, Instagram } from 'lucide-react';
+import { MetricVisibilityConfig } from '@/components/metrics/MetricVisibilityConfig';
+import { useHiddenMetrics, MetricKey } from '@/hooks/useHiddenMetrics';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -55,6 +58,10 @@ export default function Dashboard() {
     completeTour,
     skipTour
   } = useTour();
+
+  // Hidden metrics for guests
+  const { isGuest } = useUserRole();
+  const { isMetricHidden } = useHiddenMetrics('dashboard');
 
   // Get campaigns and selected project from hook (uses localStorage)
   const {
@@ -393,8 +400,14 @@ export default function Dashboard() {
             {/* Account Balance Card - Top of Dashboard */}
             {hasSelectedProject && <AccountBalanceCard projectId={selectedProject?.id || null} currency={selectedProject?.currency} />}
             
-            {/* Comparison Toggle - Compact */}
-            <div className="flex items-center justify-end gap-2">
+            {/* Comparison Toggle + Metric Config - Compact */}
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              {isGuest && (
+                <MetricVisibilityConfig 
+                  pageContext="dashboard" 
+                  availableMetrics={['spend', 'impressions', 'reach', 'clicks', 'ctr', 'cpc', 'cpm', 'conversions', 'conversion_value', 'roas', 'messages', 'profile_visits', 'leads', 'purchases', 'initiate_checkout'] as MetricKey[]}
+                />
+              )}
               <Label htmlFor="comparison-toggle" className="text-[11px] sm:text-sm text-muted-foreground cursor-pointer">
                 <span className="hidden sm:inline">Comparar período</span>
                 <span className="sm:hidden">Comparar</span>
@@ -416,12 +429,12 @@ export default function Dashboard() {
                 </h2>
               </div>
               <div className="metric-grid-mobile">
-                <SparklineCard title="Gasto Total" value={formatCurrency(metrics.totalSpend)} change={changes?.spend} icon={Banknote} sparklineData={sparklineData.spend} />
-                <SparklineCard title="Impressões" value={formatNumberCompact(metrics.totalImpressions)} change={changes?.impressions} sparklineData={sparklineData.impressions} icon={Eye} />
-                <SparklineCard title="Cliques" value={formatNumberCompact(metrics.totalClicks)} change={changes?.clicks} sparklineData={sparklineData.clicks} icon={MousePointerClick} />
-                <SparklineCard title="CTR" value={`${metrics.ctr.toFixed(2)}%`} change={changes?.ctr} sparklineData={sparklineData.ctr} icon={Crosshair} />
-                <SparklineCard title="CPM" value={formatCurrency(metrics.cpm)} change={changes?.cpm} icon={BarChart3} invertTrend />
-                <SparklineCard title="CPC" value={formatCurrency(metrics.cpc)} change={changes?.cpc} icon={Zap} invertTrend />
+                {!isMetricHidden('spend') && <SparklineCard title="Gasto Total" value={formatCurrency(metrics.totalSpend)} change={changes?.spend} icon={Banknote} sparklineData={sparklineData.spend} />}
+                {!isMetricHidden('impressions') && <SparklineCard title="Impressões" value={formatNumberCompact(metrics.totalImpressions)} change={changes?.impressions} sparklineData={sparklineData.impressions} icon={Eye} />}
+                {!isMetricHidden('clicks') && <SparklineCard title="Cliques" value={formatNumberCompact(metrics.totalClicks)} change={changes?.clicks} sparklineData={sparklineData.clicks} icon={MousePointerClick} />}
+                {!isMetricHidden('ctr') && <SparklineCard title="CTR" value={`${metrics.ctr.toFixed(2)}%`} change={changes?.ctr} sparklineData={sparklineData.ctr} icon={Crosshair} />}
+                {!isMetricHidden('cpm') && <SparklineCard title="CPM" value={formatCurrency(metrics.cpm)} change={changes?.cpm} icon={BarChart3} invertTrend />}
+                {!isMetricHidden('cpc') && <SparklineCard title="CPC" value={formatCurrency(metrics.cpc)} change={changes?.cpc} icon={Zap} invertTrend />}
               </div>
             </div>
 
