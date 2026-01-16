@@ -110,19 +110,19 @@ function HeatLayer({
 
     if (heatData.length === 0) return;
 
-    // Criar heat layer - mais suave
+    // Criar heat layer - intensidade proporcional
     // @ts-ignore - leaflet.heat types
     heatLayerRef.current = L.heatLayer(heatData, {
-      radius: 30,
-      blur: 20,
+      radius: 25,
+      blur: 15,
       maxZoom: 12,
       max: 1.0,
-      minOpacity: 0.3,
+      minOpacity: 0.4,
       gradient: {
-        0.0: '#22c55e',
-        0.3: '#84cc16',
+        0.0: '#10b981',
+        0.25: '#84cc16',
         0.5: '#eab308',
-        0.7: '#f97316',
+        0.75: '#f97316',
         1.0: '#ef4444'
       }
     }).addTo(map);
@@ -147,10 +147,16 @@ export function GeographicHeatMap({
   const [metric, setMetric] = useState<MetricType>('clicks');
 
   // Processar dados de região com métricas calculadas
+  // FILTRAR regiões com dados insignificantes (menos de 10 impressões ou menos de 1% do total)
   const processedData = useMemo(() => {
     if (!regionData?.length) return [];
     
+    // Calcular total para threshold
+    const totalImpressions = regionData.reduce((sum, item) => sum + item.impressions, 0);
+    const minThreshold = Math.max(10, totalImpressions * 0.01); // Mínimo 10 impressões ou 1% do total
+    
     return regionData
+      .filter(item => item.impressions >= minThreshold || item.clicks > 0 || item.spend > 1)
       .map(item => {
         const ctr = item.impressions > 0 ? (item.clicks / item.impressions) * 100 : 0;
         const cpc = item.clicks > 0 ? item.spend / item.clicks : 0;
