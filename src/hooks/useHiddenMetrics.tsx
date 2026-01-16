@@ -184,8 +184,35 @@ export function useHiddenMetrics(pageContext: PageContext = 'all', businessModel
       ? hiddenMetrics.filter(m => m !== metric)
       : [...hiddenMetrics, metric];
     
-    await setHiddenMetrics(newMetrics);
-  }, [hiddenMetrics, setHiddenMetrics]);
+    // Update local state IMMEDIATELY for instant UI feedback
+    setHiddenMetricsState(newMetrics);
+    
+    // Then save to database
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('user_hidden_metrics')
+        .upsert({
+          user_id: user.id,
+          page_context: pageContext,
+          hidden_metrics: newMetrics,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id,page_context'
+        });
+
+      if (error) {
+        console.error('Error saving hidden metrics:', error);
+        // Revert state on error
+        setHiddenMetricsState(hiddenMetrics);
+      }
+    } catch (err) {
+      console.error('Error in toggleMetric:', err);
+      // Revert state on error
+      setHiddenMetricsState(hiddenMetrics);
+    }
+  }, [hiddenMetrics, user, pageContext]);
 
   return {
     hiddenMetrics,
