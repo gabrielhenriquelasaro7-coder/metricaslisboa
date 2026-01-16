@@ -441,7 +441,7 @@ export default function Dashboard() {
             </div>
 
             {/* Top of Funnel Metrics - Only show when there are Instagram traffic campaigns with profile visits */}
-            {hasSelectedProject && profileVisitsData.hasProfileVisitCampaigns && <div>
+            {hasSelectedProject && profileVisitsData.hasProfileVisitCampaigns && !isMetricHidden('profile_visits') && <div>
                 <div className="flex items-center gap-2 mb-2 sm:mb-4">
                   <div className="w-1 h-4 sm:h-6 bg-gradient-to-b from-pink-500 to-pink-500/50 rounded-full" />
                   <h2 className="text-sm sm:text-lg font-semibold text-foreground flex items-center gap-1 sm:gap-2 flex-wrap" style={{
@@ -473,10 +473,10 @@ export default function Dashboard() {
               
               {/* E-commerce Metrics */}
               {isEcommerce && <div className="metric-grid-results">
-                  <SparklineCard title="ROAS" value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />
-                  <SparklineCard title="Compras" value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases.length > 0 ? sparklineData.purchases : sparklineData.conversions} tooltip="Total de compras via pixel" />
-                  <SparklineCard title="Receita" value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />
-                  <SparklineCard title="CPA" value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={Target} sparklineData={sparklineData.cpl} invertTrend />
+                  {!isMetricHidden('roas') && <SparklineCard title="ROAS" value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />}
+                  {!isMetricHidden('conversions') && !isMetricHidden('purchases') && <SparklineCard title="Compras" value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases.length > 0 ? sparklineData.purchases : sparklineData.conversions} tooltip="Total de compras via pixel" />}
+                  {!isMetricHidden('conversion_value') && <SparklineCard title="Receita" value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />}
+                  {!isMetricHidden('cpa') && <SparklineCard title="CPA" value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={Target} sparklineData={sparklineData.cpl} invertTrend />}
                 </div>}
 
               {/* Inside Sales Metrics */}
@@ -485,27 +485,27 @@ export default function Dashboard() {
               const cpl = totalLeads > 0 ? metrics.totalSpend / totalLeads : 0;
               const convRate = metrics.totalClicks > 0 ? totalLeads / metrics.totalClicks * 100 : 0;
               return <div className="metric-grid-results">
-                    <SparklineCard title="Leads" value={formatNumber(totalLeads)} change={changes?.conversions} icon={Users} sparklineData={sparklineData.leads.length > 0 ? sparklineData.leads : sparklineData.conversions} className="border-l-4 border-l-chart-1" tooltip="Total de resultados" />
-                    <SparklineCard title="CPL" value={formatCurrency(cpl)} change={changes?.cpa} icon={Receipt} sparklineData={sparklineData.cpl} invertTrend />
+                    {!isMetricHidden('conversions') && !isMetricHidden('leads') && <SparklineCard title="Leads" value={formatNumber(totalLeads)} change={changes?.conversions} icon={Users} sparklineData={sparklineData.leads.length > 0 ? sparklineData.leads : sparklineData.conversions} className="border-l-4 border-l-chart-1" tooltip="Total de resultados" />}
+                    {!isMetricHidden('cpa') && <SparklineCard title="CPL" value={formatCurrency(cpl)} change={changes?.cpa} icon={Receipt} sparklineData={sparklineData.cpl} invertTrend />}
                     <SparklineCard title="Conv." value={`${convRate.toFixed(2)}%`} icon={Activity} />
-                    <SparklineCard title="Alcance" value={formatNumber(metrics.totalReach)} change={changes?.reach} icon={Eye} />
+                    {!isMetricHidden('reach') && <SparklineCard title="Alcance" value={formatNumber(metrics.totalReach)} change={changes?.reach} icon={Eye} />}
                   </div>;
             })()}
 
               {/* Infoproduto Metrics */}
               {isInfoproduto && <div className="metric-grid-results">
-                  <SparklineCard title="Vendas" value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases} className="border-l-4 border-l-metric-positive" tooltip="Compras via pixel" />
-                  <SparklineCard title="Receita" value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />
-                  <SparklineCard title="ROAS" value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />
-                  <SparklineCard title="CPA" value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={Target} sparklineData={sparklineData.cpl} invertTrend />
+                  {!isMetricHidden('conversions') && !isMetricHidden('purchases') && <SparklineCard title="Vendas" value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases} className="border-l-4 border-l-metric-positive" tooltip="Compras via pixel" />}
+                  {!isMetricHidden('conversion_value') && <SparklineCard title="Receita" value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />}
+                  {!isMetricHidden('roas') && <SparklineCard title="ROAS" value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />}
+                  {!isMetricHidden('cpa') && <SparklineCard title="CPA" value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={Target} sparklineData={sparklineData.cpl} invertTrend />}
                 </div>}
 
               {/* PDV Metrics */}
               {isPdv && <div className="metric-grid-results">
-                  <SparklineCard title="Visitas" value={formatNumber(metrics.totalConversions)} change={changes?.conversions} icon={Store} sparklineData={sparklineData.conversions} sparklineColor="hsl(var(--chart-2))" className="border-l-4 border-l-chart-2" />
-                  <SparklineCard title="Custo/Visita" value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={DollarSign} sparklineData={sparklineData.cpl} sparklineColor="hsl(var(--chart-3))" invertTrend />
-                  <MetricCard title="Alcance" value={formatNumber(metrics.totalReach)} icon={Users} trend="neutral" />
-                  <MetricCard title="Frequência" value={metrics.avgFrequency.toFixed(2)} icon={Target} trend="neutral" />
+                  {!isMetricHidden('conversions') && <SparklineCard title="Visitas" value={formatNumber(metrics.totalConversions)} change={changes?.conversions} icon={Store} sparklineData={sparklineData.conversions} sparklineColor="hsl(var(--chart-2))" className="border-l-4 border-l-chart-2" />}
+                  {!isMetricHidden('cpa') && <SparklineCard title="Custo/Visita" value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={DollarSign} sparklineData={sparklineData.cpl} sparklineColor="hsl(var(--chart-3))" invertTrend />}
+                  {!isMetricHidden('reach') && <MetricCard title="Alcance" value={formatNumber(metrics.totalReach)} icon={Users} trend="neutral" />}
+                  {!isMetricHidden('frequency') && <MetricCard title="Frequência" value={metrics.avgFrequency.toFixed(2)} icon={Target} trend="neutral" />}
                 </div>}
 
               {/* Custom Business Model Metrics */}

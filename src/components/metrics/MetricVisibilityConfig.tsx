@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { useHiddenMetrics, MetricKey, PageContext, BusinessModel, getMetricsByBusinessModel } from '@/hooks/useHiddenMetrics';
+import { useHiddenMetrics, MetricKey, PageContext, BusinessModel, AVAILABLE_METRICS } from '@/hooks/useHiddenMetrics';
 import { useUserRole } from '@/hooks/useUserRole';
 
 interface MetricVisibilityConfigProps {
@@ -29,15 +29,16 @@ export function MetricVisibilityConfig({
   const { hiddenMetrics, toggleMetric, loading, canCustomize } = useHiddenMetrics(pageContext, businessModel);
   const [open, setOpen] = useState(false);
 
+  // Get metrics based on business model - use AVAILABLE_METRICS for full list
+  const metricsForModel = useMemo(() => {
+    // Always show all available metrics so users can customize everything
+    return AVAILABLE_METRICS;
+  }, []);
+
   // Only show for guests
   if (!isGuest || !canCustomize) {
     return null;
   }
-
-  // Get metrics based on business model
-  const metricsForModel = useMemo(() => {
-    return getMetricsByBusinessModel(businessModel || null);
-  }, [businessModel]);
 
   const metricsToShow = Object.keys(metricsForModel) as MetricKey[];
 
