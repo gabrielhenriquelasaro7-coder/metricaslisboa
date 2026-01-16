@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Settings2, Eye, EyeOff, Check, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Settings2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,22 +12,21 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { useHiddenMetrics, AVAILABLE_METRICS, MetricKey, PageContext } from '@/hooks/useHiddenMetrics';
+import { useHiddenMetrics, MetricKey, PageContext, BusinessModel, getMetricsByBusinessModel } from '@/hooks/useHiddenMetrics';
 import { useUserRole } from '@/hooks/useUserRole';
 
 interface MetricVisibilityConfigProps {
   pageContext: PageContext;
-  availableMetrics?: MetricKey[]; // Subset of metrics available on this page
+  businessModel?: BusinessModel;
 }
 
 export function MetricVisibilityConfig({ 
   pageContext, 
-  availableMetrics 
+  businessModel 
 }: MetricVisibilityConfigProps) {
   const { isGuest } = useUserRole();
-  const { hiddenMetrics, toggleMetric, loading, canCustomize } = useHiddenMetrics(pageContext);
+  const { hiddenMetrics, toggleMetric, loading, canCustomize } = useHiddenMetrics(pageContext, businessModel);
   const [open, setOpen] = useState(false);
 
   // Only show for guests
@@ -35,20 +34,25 @@ export function MetricVisibilityConfig({
     return null;
   }
 
-  // Filter metrics to only show available ones for this page
-  const metricsToShow = availableMetrics 
-    ? (Object.keys(AVAILABLE_METRICS) as MetricKey[]).filter(k => availableMetrics.includes(k))
-    : (Object.keys(AVAILABLE_METRICS) as MetricKey[]);
+  // Get metrics based on business model
+  const metricsForModel = useMemo(() => {
+    return getMetricsByBusinessModel(businessModel || null);
+  }, [businessModel]);
+
+  const metricsToShow = Object.keys(metricsForModel) as MetricKey[];
 
   // Group metrics by category
-  const groupedMetrics = metricsToShow.reduce((acc, key) => {
-    const metric = AVAILABLE_METRICS[key];
-    if (!acc[metric.category]) {
-      acc[metric.category] = [];
-    }
-    acc[metric.category].push({ key, ...metric });
-    return acc;
-  }, {} as Record<string, { key: MetricKey; label: string; category: string }[]>);
+  const groupedMetrics = useMemo(() => {
+    return metricsToShow.reduce((acc, key) => {
+      const metric = metricsForModel[key];
+      if (!metric) return acc;
+      if (!acc[metric.category]) {
+        acc[metric.category] = [];
+      }
+      acc[metric.category].push({ key, label: metric.label, category: metric.category });
+      return acc;
+    }, {} as Record<string, { key: MetricKey; label: string; category: string }[]>);
+  }, [metricsToShow, metricsForModel]);
 
   const hiddenCount = hiddenMetrics.filter(m => metricsToShow.includes(m)).length;
   const visibleCount = metricsToShow.length - hiddenCount;
@@ -65,9 +69,9 @@ export function MetricVisibilityConfig({
           <span className="hidden sm:inline">Personalizar Métricas</span>
           <span className="sm:hidden">Métricas</span>
           {hiddenCount > 0 && (
-            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+            <span className="ml-1 h-5 px-1.5 text-[10px] bg-secondary text-secondary-foreground rounded-md flex items-center">
               {hiddenCount} ocultas
-            </Badge>
+            </span>
           )}
         </Button>
       </DialogTrigger>
