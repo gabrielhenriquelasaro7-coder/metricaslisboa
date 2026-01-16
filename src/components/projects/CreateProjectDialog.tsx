@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,23 @@ import { METRIC_TEMPLATES } from '@/hooks/useProjectMetricConfig';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { useSquads } from '@/hooks/useSquads';
+
+interface Coordinator {
+  id: string;
+  user_id: string;
+  full_name: string;
+  email: string;
+  squad_id: string;
+}
+
+interface Investor {
+  id: string;
+  user_id: string;
+  full_name: string;
+  email: string;
+  squad_id: string;
+}
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(100),
@@ -55,7 +72,63 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { createProject } = useProjects();
+  const { squads } = useSquads();
   const [customConfigOpen, setCustomConfigOpen] = useState(false);
+
+  // Coordenador, Squad e Investidor
+  const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
+  const [investors, setInvestors] = useState<Investor[]>([]);
+  const [selectedCoordinatorId, setSelectedCoordinatorId] = useState<string>('');
+  const [selectedSquadId, setSelectedSquadId] = useState<string>('');
+  const [selectedInvestorId, setSelectedInvestorId] = useState<string>('');
+
+  // Carregar coordenadores ao abrir
+  useEffect(() => {
+    if (open) {
+      loadCoordinators();
+    }
+  }, [open]);
+
+  // Quando coordenador é selecionado, atribuir squad automaticamente e carregar investidores
+  useEffect(() => {
+    if (selectedCoordinatorId) {
+      const coordinator = coordinators.find(c => c.user_id === selectedCoordinatorId);
+      if (coordinator?.squad_id) {
+        setSelectedSquadId(coordinator.squad_id);
+        loadInvestorsBySquad(coordinator.squad_id);
+      }
+    } else {
+      setSelectedSquadId('');
+      setInvestors([]);
+      setSelectedInvestorId('');
+    }
+  }, [selectedCoordinatorId, coordinators]);
+
+  const loadCoordinators = async () => {
+    const { data, error } = await supabase
+      .from('user_management')
+      .select('id, user_id, full_name, email, squad_id')
+      .eq('cargo', 'coordenador')
+      .order('full_name');
+    
+    if (!error && data) {
+      setCoordinators(data);
+    }
+  };
+
+  const loadInvestorsBySquad = async (squadId: string) => {
+    const { data, error } = await supabase
+      .from('user_management')
+      .select('id, user_id, full_name, email, squad_id')
+      .eq('cargo', 'investidor')
+      .eq('squad_id', squadId)
+      .order('full_name');
+    
+    if (!error && data) {
+      setInvestors(data);
+      setSelectedInvestorId(''); // Reset investor selection
+    }
+  };
 
   // Import mode selection step
   const [showImportModeDialog, setShowImportModeDialog] = useState(false);
@@ -85,6 +158,9 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     efficiency_metrics: ['ctr', 'roas'],
   });
 
+  // Get squad name for display
+  const selectedSquadName = squads.find(s => s.id === selectedSquadId)?.name || '';
+
   const handleBusinessModelChange = (value: BusinessModel) => {
     setFormData({ ...formData, business_model: value });
     setCustomConfigOpen(value === 'custom');
@@ -113,6 +189,22 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     try {
       const project = await createProject(formData);
       
+      // Atualizar projeto com squad_id e investidor_id
+      if (selectedSquadId || selectedInvestorId) {
+        await supabase.from('projects').update({
+          squad_id: selectedSquadId || null,
+          investidor_id: selectedInvestorId || null,
+        }).eq('id', project.id);
+      }
+      
+      // Adicionar investidor na tabela project_investidores (se selecionado)
+      if (selectedInvestorId) {
+        await supabase.from('project_investidores').insert({
+          project_id: project.id,
+          investidor_id: selectedInvestorId,
+        });
+      }
+      
       if (formData.business_model === 'custom') {
         const template = METRIC_TEMPLATES.custom;
         await supabase.from('project_metric_config').insert({
@@ -136,6 +228,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       setPendingProjectName(formData.name);
       setShowImportModeDialog(true);
       
+      // Reset form
       setFormData({
         name: '',
         ad_account_id: '',
@@ -144,6 +237,9 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
         currency: 'BRL',
         google_customer_id: '',
       });
+      setSelectedCoordinatorId('');
+      setSelectedSquadId('');
+      setSelectedInvestorId('');
       setCustomConfigOpen(false);
     } finally {
       setIsLoading(false);
@@ -236,6 +332,69 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
           </DialogHeader>
           <ScrollArea className="max-h-[70vh] pr-4">
             <form onSubmit={handleSubmit} className="space-y-5 mt-4">
+              {/* Coordenador -> Squad (auto) -> Investidor */}
+              <div className="space-y-2">
+                <Label>Coordenador</Label>
+                <Select
+                  value={selectedCoordinatorId}
+                  onValueChange={setSelectedCoordinatorId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o coordenador..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {coordinators.map((coord) => (
+                      <SelectItem key={coord.user_id} value={coord.user_id}>
+                        {coord.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedSquadName && (
+                <div className="space-y-2">
+                  <Label>Squad</Label>
+                  <div className="px-3 py-2 rounded-md border bg-muted/50 text-sm font-medium">
+                    {selectedSquadName}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Atribuída automaticamente pelo coordenador</p>
+                </div>
+              )}
+
+              {selectedSquadId && investors.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Investidor</Label>
+                  <Select
+                    value={selectedInvestorId}
+                    onValueChange={setSelectedInvestorId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o investidor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {investors.map((inv) => (
+                        <SelectItem key={inv.user_id} value={inv.user_id}>
+                          {inv.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Apenas investidores da squad {selectedSquadName}
+                  </p>
+                </div>
+              )}
+
+              {selectedSquadId && investors.length === 0 && (
+                <div className="space-y-2">
+                  <Label>Investidor</Label>
+                  <div className="px-3 py-2 rounded-md border bg-muted/30 text-sm text-muted-foreground italic">
+                    Nenhum investidor na squad {selectedSquadName}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="name">Nome do projeto</Label>
                 <Input
