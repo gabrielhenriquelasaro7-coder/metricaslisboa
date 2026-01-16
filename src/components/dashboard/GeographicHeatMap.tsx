@@ -110,20 +110,20 @@ function HeatLayer({
 
     if (heatData.length === 0) return;
 
-    // Criar heat layer
+    // Criar heat layer - mais suave
     // @ts-ignore - leaflet.heat types
     heatLayerRef.current = L.heatLayer(heatData, {
-      radius: 50,
-      blur: 30,
-      maxZoom: 10,
+      radius: 30,
+      blur: 20,
+      maxZoom: 12,
       max: 1.0,
-      minOpacity: 0.4,
+      minOpacity: 0.3,
       gradient: {
-        0.0: '#00ff00',
-        0.25: '#7fff00',
-        0.5: '#ffff00',
-        0.75: '#ff7f00',
-        1.0: '#ff0000'
+        0.0: '#22c55e',
+        0.3: '#84cc16',
+        0.5: '#eab308',
+        0.7: '#f97316',
+        1.0: '#ef4444'
       }
     }).addTo(map);
 
@@ -279,50 +279,51 @@ export function GeographicHeatMap({
         </div>
 
         {/* Tabela de dados - EMBAIXO */}
-        <ScrollArea className="h-[300px] rounded-lg border border-border">
-          <Table>
-            <TableHeader className="sticky top-0 bg-card z-10">
-              <TableRow>
-                <TableHead className="w-8 text-center">#</TableHead>
-                <TableHead>Região</TableHead>
-                <TableHead className="text-right">Cliques</TableHead>
-                <TableHead className="text-right">Impressões</TableHead>
-                <TableHead className="text-right">CTR</TableHead>
-                <TableHead className="text-right">Conversões</TableHead>
-                <TableHead className="text-right">CPC</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <div className="rounded-xl border border-border overflow-hidden bg-card/50">
+          <div className="grid grid-cols-7 gap-0 bg-muted/30 px-4 py-3 text-xs font-medium text-muted-foreground border-b border-border">
+            <div className="text-center">#</div>
+            <div>Região</div>
+            <div className="text-right">Cliques</div>
+            <div className="text-right">Impressões</div>
+            <div className="text-right">CTR</div>
+            <div className="text-right">Conversões</div>
+            <div className="text-right">CPC</div>
+          </div>
+          <ScrollArea className="h-[250px]">
+            <div className="divide-y divide-border/50">
               {processedData.map((item, index) => {
                 const isTop = index < 3;
+                const rankColors = ['text-yellow-500', 'text-gray-400', 'text-amber-600'];
                 return (
-                  <TableRow 
+                  <div 
                     key={item.breakdown_value}
-                    className={isTop ? 'bg-red-500/10' : ''}
+                    className={`grid grid-cols-7 gap-0 px-4 py-3 text-sm transition-colors hover:bg-muted/20 ${isTop ? 'bg-gradient-to-r from-red-500/5 to-transparent' : ''}`}
                   >
-                    <TableCell className="text-center text-muted-foreground">{index + 1}.</TableCell>
-                    <TableCell className="font-medium">{item.breakdown_value}</TableCell>
-                    <TableCell className={`text-right ${isTop ? 'text-emerald-400 font-semibold' : ''}`}>
+                    <div className={`text-center font-bold ${isTop ? rankColors[index] : 'text-muted-foreground'}`}>
+                      {index + 1}
+                    </div>
+                    <div className="font-medium truncate">{item.breakdown_value}</div>
+                    <div className={`text-right tabular-nums ${isTop ? 'text-emerald-400 font-semibold' : ''}`}>
                       {formatNumber(item.clicks)}
-                    </TableCell>
-                    <TableCell className={`text-right ${isTop ? 'text-emerald-400' : ''}`}>
+                    </div>
+                    <div className={`text-right tabular-nums ${isTop ? 'text-emerald-400' : 'text-muted-foreground'}`}>
                       {formatNumber(item.impressions)}
-                    </TableCell>
-                    <TableCell className={`text-right ${item.ctr > 5 ? 'text-emerald-400' : item.ctr < 2 ? 'text-red-400' : ''}`}>
+                    </div>
+                    <div className={`text-right tabular-nums ${item.ctr > 5 ? 'text-emerald-400' : item.ctr < 2 ? 'text-red-400' : 'text-muted-foreground'}`}>
                       {formatPercent(item.ctr)}
-                    </TableCell>
-                    <TableCell className="text-right">
+                    </div>
+                    <div className={`text-right tabular-nums ${item.conversions > 0 ? 'text-purple-400 font-medium' : 'text-muted-foreground'}`}>
                       {formatNumber(item.conversions)}
-                    </TableCell>
-                    <TableCell className="text-right">
+                    </div>
+                    <div className="text-right tabular-nums text-muted-foreground">
                       {formatCurrency(item.cpc, currency)}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 );
               })}
-            </TableBody>
-          </Table>
-        </ScrollArea>
+            </div>
+          </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   );
