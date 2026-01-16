@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { DatePresetKey } from '@/utils/dateUtils';
 import { translateCTA } from '@/utils/ctaTranslations';
 import { CatalogImagesCarousel } from '@/components/catalog/CatalogImagesCarousel';
+import { toast } from 'sonner';
 import { 
   ChevronLeft,
   Image as ImageIcon,
@@ -210,44 +211,31 @@ export default function AdDetail() {
     }
   }, [adId]);
 
-  // Sync ONLY this specific creative in HD - much faster and efficient
+  // Sync ONLY this specific creative in HD - FORCE recache for quality issues
   const syncThisCreativeHD = useCallback(async () => {
     if (!ad || !selectedProject) return;
     
     setSyncing(true);
     try {
-      console.log(`[AdDetail] Syncing ONLY creative HD for ad: ${ad.id}`);
+      console.log(`[AdDetail] FORCE syncing HD for ad: ${ad.id}`);
       
-      // Sync creatives for this specific ad only
-      const { data: creativesData, error: creativesError } = await supabase.functions.invoke('meta-ads-sync', {
+      // Use story_hd mode which forces recache using full_picture (always HD)
+      const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
         body: {
           project_id: selectedProject.id,
           ad_account_id: selectedProject.ad_account_id,
-          syncMode: 'creatives',
+          syncMode: 'story_hd', // Uses effective_object_story_id -> full_picture (HD)
           specific_ad_ids: [ad.id], // Only this ad!
+          force_recache: true, // Force re-download even if cached
         },
       });
       
-      if (creativesError) {
-        console.error('Creative sync error:', creativesError);
+      if (error) {
+        console.error('HD sync error:', error);
+        toast.error('Erro ao sincronizar imagem HD');
       } else {
-        console.log('[AdDetail] Creative sync response:', creativesData);
-      }
-      
-      // Sync HD images for this specific ad only
-      const { data: hdData, error: hdError } = await supabase.functions.invoke('meta-ads-sync', {
-        body: {
-          project_id: selectedProject.id,
-          ad_account_id: selectedProject.ad_account_id,
-          syncMode: 'hd_images',
-          specific_ad_ids: [ad.id], // Only this ad!
-        },
-      });
-      
-      if (hdError) {
-        console.error('HD sync error:', hdError);
-      } else {
-        console.log('[AdDetail] HD sync response:', hdData);
+        console.log('[AdDetail] HD sync response:', data);
+        toast.success('Imagem HD sincronizada com sucesso!');
       }
       
       // Reset image error and refetch ad data
@@ -256,6 +244,7 @@ export default function AdDetail() {
       
     } catch (error) {
       console.error('Sync error:', error);
+      toast.error('Erro ao sincronizar');
     } finally {
       setSyncing(false);
     }
