@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
@@ -36,12 +37,14 @@ import {
   Sun,
   Moon,
   UserPlus,
-  Briefcase
+  Briefcase,
+  Globe
 } from 'lucide-react';
 import { GuestsTab } from '@/components/settings/GuestsTab';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useCargo } from '@/hooks/useCargo';
 import { SettingsSkeleton } from '@/components/skeletons';
+import { supportedLanguages } from '@/i18n';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -93,6 +96,7 @@ export default function Settings() {
   const { projects } = useProjects();
   const { isGuest } = useUserRole();
   const { cargo, isTech, isGerente, loading: cargoLoading } = useCargo();
+  const { i18n } = useTranslation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -104,6 +108,16 @@ export default function Settings() {
     const stored = localStorage.getItem('theme') as Theme;
     return (stored === 'light' || stored === 'dark') ? stored : 'dark';
   });
+
+  // Get current language
+  const currentLanguage = supportedLanguages.find(
+    lang => lang.code === i18n.language
+  ) || supportedLanguages[0];
+
+  const handleLanguageChange = (languageCode: string) => {
+    i18n.changeLanguage(languageCode);
+    toast.success(`Idioma alterado para ${supportedLanguages.find(l => l.code === languageCode)?.name}`);
+  };
 
   // Sync logs state
   const [logs, setLogs] = useState<SyncLog[]>([]);
@@ -558,7 +572,32 @@ export default function Settings() {
                   Escolha o tema do sistema
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-6">
+                {/* Language Selection */}
+                <div>
+                  <Label className="mb-3 sm:mb-4 block text-sm flex items-center gap-2">
+                    <Globe className="w-4 h-4" />
+                    Idioma / Language
+                  </Label>
+                  <div className="grid grid-cols-3 gap-3 sm:gap-4 max-w-md">
+                    {supportedLanguages.map((language) => (
+                      <button
+                        key={language.code}
+                        onClick={() => handleLanguageChange(language.code)}
+                        className={cn(
+                          "group p-3 sm:p-4 rounded-xl border-2 bg-card text-center transition-all hover:shadow-lg touch-target",
+                          currentLanguage.code === language.code
+                            ? "border-primary hover:shadow-primary/20"
+                            : "border-border hover:border-primary/50"
+                        )}
+                      >
+                        <div className="text-2xl mb-2">{language.flag}</div>
+                        <span className="text-sm font-medium">{language.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Theme Selection */}
                 <div>
                   <Label className="mb-3 sm:mb-4 block text-sm">Tema</Label>
