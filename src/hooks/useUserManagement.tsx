@@ -219,8 +219,8 @@ export function useUserManagement(): UseUserManagementReturn {
   }, [user, canManage, fetchUsers]);
 
   const deleteUser = useCallback(async (userId: string) => {
-    if (!user || !isGerente) {
-      toast.error('Apenas Gerentes podem excluir usuários');
+    if (!user || !canManage) {
+      toast.error('Você não tem permissão para excluir usuários');
       return;
     }
 
@@ -239,7 +239,7 @@ export function useUserManagement(): UseUserManagementReturn {
       toast.error('Erro ao excluir usuário');
       throw error;
     }
-  }, [user, isGerente, fetchUsers]);
+  }, [user, canManage, fetchUsers]);
 
   const updateUserCargo = useCallback(async (userId: string, cargo: UserCargo) => {
     if (!user || !canManage) {
