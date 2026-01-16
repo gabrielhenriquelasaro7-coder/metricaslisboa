@@ -251,6 +251,24 @@ export function useProjects() {
 
       if (error) throw error;
 
+      // Atualização otimista imediata - adiciona projeto à lista sem esperar realtime
+      const newProject = {
+        ...project,
+        sync_progress: project.sync_progress 
+          ? (typeof project.sync_progress === 'string' 
+              ? JSON.parse(project.sync_progress) 
+              : project.sync_progress) 
+          : null
+      } as Project;
+      
+      setProjects(prev => {
+        // Verifica se já existe para evitar duplicatas
+        if (prev.some(p => p.id === newProject.id)) {
+          return prev;
+        }
+        return [newProject, ...prev];
+      });
+
       // Insert investidores if provided
       if (investidor_ids && investidor_ids.length > 0) {
         const investidorRecords = investidor_ids.map(investidor_id => ({
@@ -326,7 +344,7 @@ export function useProjects() {
         console.error('Month import setup error:', importError);
       }
 
-      await fetchProjects();
+      // Não chama fetchProjects pois já fizemos atualização otimista acima
       // Don't show toast here - let the dialog handle it after import mode selection
       return project as unknown as Project;
     } catch (error) {
