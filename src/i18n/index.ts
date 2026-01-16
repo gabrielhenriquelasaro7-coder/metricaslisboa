@@ -28,9 +28,18 @@ i18n
     supportedLngs: ['pt-BR', 'en-US', 'es'],
     
     detection: {
+      // Check localStorage first, then browser navigator language
       order: ['localStorage', 'navigator', 'htmlTag'],
       caches: ['localStorage'],
       lookupLocalStorage: 'i18nextLng',
+      // Convert browser language codes to our supported codes
+      convertDetectedLanguage: (lng: string) => {
+        // Handle common browser language codes
+        if (lng.startsWith('pt')) return 'pt-BR';
+        if (lng.startsWith('es')) return 'es';
+        if (lng.startsWith('en')) return 'en-US';
+        return lng;
+      }
     },
 
     interpolation: {
