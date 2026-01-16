@@ -15,7 +15,7 @@ interface SyncRequest {
   };
 }
 
-const BREAKDOWNS = ['gender', 'age', 'device_platform', 'publisher_platform'] as const;
+const BREAKDOWNS = ['gender', 'age', 'device_platform', 'publisher_platform', 'country', 'region'] as const;
 
 // Ensure ad account ID has act_ prefix
 function normalizeAdAccountId(id: string): string {
