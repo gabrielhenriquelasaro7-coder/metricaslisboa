@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Key, Loader2, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Key, Loader2, Lock, Eye, EyeOff, CheckCircle2, ArrowLeft } from 'lucide-react';
 import v4LogoFull from '@/assets/v4-logo-full.png';
 
 export default function ChangePassword() {
@@ -209,6 +209,15 @@ export default function ChangePassword() {
                   Alterar Senha e Continuar
                 </>
               )}
+            </Button>
+
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate(-1)}
+              className="w-full gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Voltar
             </Button>
           </CardContent>
         </Card>
