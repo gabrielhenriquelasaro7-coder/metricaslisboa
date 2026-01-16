@@ -305,7 +305,17 @@ export function UserManagement() {
     }
   };
 
-  const handleCloseCreateDialog = () => {
+  const handleCreateDialogChange = (open: boolean) => {
+    if (open) {
+      setIsCreateOpen(true);
+    } else {
+      setIsCreateOpen(false);
+      setCreatedPassword(null);
+      setFormData({ email: '', full_name: '', phone: '', cargo: 'membro', squad_id: '' });
+    }
+  };
+
+  const closeCreateDialog = () => {
     setIsCreateOpen(false);
     setCreatedPassword(null);
     setFormData({ email: '', full_name: '', phone: '', cargo: 'membro', squad_id: '' });
@@ -604,7 +614,7 @@ export function UserManagement() {
                 </DialogContent>
               </Dialog>
 
-              <Dialog open={isCreateOpen} onOpenChange={handleCloseCreateDialog}>
+              <Dialog open={isCreateOpen} onOpenChange={handleCreateDialogChange}>
                 <DialogTrigger asChild>
                   <Button className="gap-2">
                     <Plus className="w-4 h-4" />
@@ -730,12 +740,12 @@ export function UserManagement() {
                   
                   <DialogFooter>
                     {createdPassword ? (
-                      <Button onClick={handleCloseCreateDialog}>
+                      <Button onClick={closeCreateDialog}>
                         Fechar
                       </Button>
                     ) : (
                       <>
-                        <Button variant="outline" onClick={handleCloseCreateDialog} disabled={isCreating}>
+                        <Button variant="outline" onClick={closeCreateDialog} disabled={isCreating}>
                           Cancelar
                         </Button>
                         <Button onClick={handleCreateUser} disabled={isCreating}>
