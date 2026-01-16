@@ -26,6 +26,9 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { MetricVisibilityConfig } from '@/components/metrics/MetricVisibilityConfig';
+import { useHiddenMetrics, MetricKey } from '@/hooks/useHiddenMetrics';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface AdSet {
   id: string;
@@ -62,6 +65,10 @@ export default function AdSets() {
   const selectedProject = projects.find(p => p.id === campaign?.project_id);
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
+  
+  // Hidden metrics for guests
+  const { isGuest } = useUserRole();
+  const { isMetricHidden } = useHiddenMetrics('adsets');
 
   // Calculate date range based on preset or custom range
   const getDateRangeFromPeriod = useCallback((preset: DatePresetKey, customRange?: DateRange) => {
@@ -309,7 +316,7 @@ export default function AdSets() {
               </p>
             </div>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
             <DateRangePicker 
               dateRange={dateRange} 
               onDateRangeChange={handleDateRangeChange}
@@ -317,6 +324,12 @@ export default function AdSets() {
               onPresetChange={handlePresetChange}
               selectedPreset={selectedPreset}
             />
+            {isGuest && (
+              <MetricVisibilityConfig 
+                pageContext="adsets" 
+                availableMetrics={['spend', 'reach', 'impressions', 'clicks', 'conversions', 'roas', 'cpa'] as MetricKey[]}
+              />
+            )}
           </div>
         </div>
 
@@ -347,24 +360,24 @@ export default function AdSets() {
           <>
             {/* Summary Metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-              <MetricCard title="Gasto Total" value={formatCurrency(totals.spend)} icon={DollarSign} />
-              <MetricCard title="Alcance" value={formatNumber(totals.reach)} icon={Users} />
-              <MetricCard title="Impressões" value={formatNumber(totals.impressions)} icon={Eye} />
-              <MetricCard title="Cliques" value={formatNumber(totals.clicks)} icon={MousePointerClick} />
-              <MetricCard 
+              {!isMetricHidden('spend') && <MetricCard title="Gasto Total" value={formatCurrency(totals.spend)} icon={DollarSign} />}
+              {!isMetricHidden('reach') && <MetricCard title="Alcance" value={formatNumber(totals.reach)} icon={Users} />}
+              {!isMetricHidden('impressions') && <MetricCard title="Impressões" value={formatNumber(totals.impressions)} icon={Eye} />}
+              {!isMetricHidden('clicks') && <MetricCard title="Cliques" value={formatNumber(totals.clicks)} icon={MousePointerClick} />}
+              {!isMetricHidden('conversions') && <MetricCard 
                 title={isEcommerce ? "Compras" : "Leads"} 
                 value={formatNumber(totals.conversions)} 
                 icon={isEcommerce ? ShoppingCart : Target} 
-              />
+              />}
               {isEcommerce ? (
-                <MetricCard 
+                !isMetricHidden('roas') && <MetricCard 
                   title="ROAS Médio" 
                   value={`${avgRoas.toFixed(2)}x`} 
                   icon={TrendingUp} 
                   className="border-l-4 border-l-metric-positive" 
                 />
               ) : (
-                <MetricCard 
+                !isMetricHidden('cpa') && <MetricCard 
                   title="CPL Médio" 
                   value={formatCurrency(avgCpl)} 
                   icon={DollarSign} 

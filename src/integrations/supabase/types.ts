@@ -2461,6 +2461,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_hidden_metrics: {
+        Row: {
+          created_at: string
+          hidden_metrics: string[]
+          id: string
+          page_context: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hidden_metrics?: string[]
+          id?: string
+          page_context?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hidden_metrics?: string[]
+          id?: string
+          page_context?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_management: {
         Row: {
           cargo: string

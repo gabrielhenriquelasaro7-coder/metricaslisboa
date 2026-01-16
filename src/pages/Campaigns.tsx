@@ -28,6 +28,9 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import StatusBadge from '@/components/campaigns/StatusBadge';
+import { MetricVisibilityConfig } from '@/components/metrics/MetricVisibilityConfig';
+import { useHiddenMetrics, MetricKey } from '@/hooks/useHiddenMetrics';
+import { useUserRole } from '@/hooks/useUserRole';
 
 export default function Campaigns() {
   const navigate = useNavigate();
@@ -35,6 +38,10 @@ export default function Campaigns() {
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
   const { campaigns, adSets, ads, loading, selectedProject, projectsLoading, loadMetricsByPeriod, usingFallbackData } = useMetaAdsData();
+  
+  // Hidden metrics for guests
+  const { isGuest } = useUserRole();
+  const { isMetricHidden } = useHiddenMetrics('campaigns');
 
   // Create lookup maps for ad sets and ads count per campaign
   const adSetsCountByCampaign = adSets.reduce((acc, adSet) => {
@@ -245,6 +252,12 @@ export default function Campaigns() {
               onPresetChange={handlePresetChange}
               selectedPreset={selectedPreset}
             />
+            {isGuest && (
+              <MetricVisibilityConfig 
+                pageContext="campaigns" 
+                availableMetrics={['spend', 'impressions', 'clicks', 'ctr', 'conversions', 'conversion_value', 'roas', 'cpa'] as MetricKey[]}
+              />
+            )}
           </div>
         </div>
 
@@ -304,84 +317,84 @@ export default function Campaigns() {
             {isEcommerce ? (
               // E-commerce: 8 cards - responsive grid
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 stagger-fade-in">
-                <MetricCard
+                {!isMetricHidden('spend') && <MetricCard
                   title="Gasto Total"
                   value={formatCurrency(totals.spend)}
                   icon={DollarSign}
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('conversion_value') && <MetricCard
                   title="Receita Total"
                   value={formatCurrency(totals.revenue)}
                   icon={TrendingUp}
                   className="border-l-4 border-l-metric-positive"
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('impressions') && <MetricCard
                   title="Impressões"
                   value={formatNumber(totals.impressions)}
                   icon={Eye}
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('clicks') && <MetricCard
                   title="Cliques"
                   value={formatNumber(totals.clicks)}
                   icon={MousePointerClick}
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('ctr') && <MetricCard
                   title="CTR Médio"
                   value={`${avgCtr.toFixed(2)}%`}
                   icon={TrendingUp}
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('conversions') && <MetricCard
                   title="Compras"
                   value={formatNumber(totals.conversions)}
                   icon={ShoppingCart}
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('conversions') && <MetricCard
                   title="Ticket Médio"
                   value={formatCurrency(avgTicket)}
                   icon={ShoppingCart}
                   className="border-l-4 border-l-chart-1"
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('roas') && <MetricCard
                   title="ROAS Médio"
                   value={`${avgRoas.toFixed(2)}x`}
                   icon={TrendingUp}
                   className="border-l-4 border-l-metric-positive"
-                />
+                />}
               </div>
             ) : (
               // Inside Sales / PDV: 6 cards - responsive grid
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 stagger-fade-in">
-                <MetricCard
+                {!isMetricHidden('spend') && <MetricCard
                   title="Gasto Total"
                   value={formatCurrency(totals.spend)}
                   icon={DollarSign}
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('impressions') && <MetricCard
                   title="Impressões"
                   value={formatNumber(totals.impressions)}
                   icon={Eye}
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('clicks') && <MetricCard
                   title="Cliques"
                   value={formatNumber(totals.clicks)}
                   icon={MousePointerClick}
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('ctr') && <MetricCard
                   title="CTR Médio"
                   value={`${avgCtr.toFixed(2)}%`}
                   icon={TrendingUp}
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('conversions') && <MetricCard
                   title="Leads"
                   value={formatNumber(totals.conversions)}
                   icon={Users}
-                />
-                <MetricCard
+                />}
+                {!isMetricHidden('cpa') && <MetricCard
                   title="CPL Médio"
                   value={formatCurrency(avgCpa)}
                   icon={DollarSign}
                   className="border-l-4 border-l-chart-1"
-                />
+                />}
               </div>
             )}
 
