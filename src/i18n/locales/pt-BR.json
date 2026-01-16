@@ -24,7 +24,20 @@
     "error": "Erro",
     "success": "Sucesso",
     "warning": "Atenção",
-    "language": "Idioma"
+    "language": "Idioma",
+    "viewAll": "Ver todas",
+    "noCampaignsFound": "Nenhuma campanha encontrada",
+    "noObjective": "Sem objetivo",
+    "totalSpent": "Total Gasto",
+    "totalResult": "Total",
+    "totalRevenue": "Total Receita",
+    "sortedBy": "Ordenado por",
+    "accessProject": "Acessar",
+    "investor": "Investidor",
+    "noInvestor": "Sem investidor",
+    "squad": "Squad",
+    "noSquad": "Sem squad",
+    "neverSynced": "Nunca sincronizado"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -40,8 +53,22 @@
     "admin": "Admin",
     "logout": "Sair"
   },
+  "sidebar": {
+    "settings": "Configurações",
+    "lightMode": "Modo Claro",
+    "darkMode": "Modo Escuro",
+    "editProfile": "Editar Perfil",
+    "changePassword": "Alterar Senha",
+    "logout": "Sair"
+  },
   "dashboard": {
     "title": "Dashboard",
+    "overview": "Visão geral das campanhas",
+    "noProjectYet": "Nenhum projeto ainda",
+    "createFirstProjectDesc": "Crie seu primeiro projeto para começar a analisar suas campanhas de Meta Ads.",
+    "createFirstProject": "Criar primeiro projeto",
+    "selectProjectFirst": "Selecione um projeto",
+    "selectProjectDesc": "Escolha um projeto no menu lateral para visualizar as métricas.",
     "totalSpend": "Investimento Total",
     "totalImpressions": "Impressões Totais",
     "totalClicks": "Cliques Totais",
@@ -61,7 +88,52 @@
     "demographicInsights": "Insights Demográficos",
     "geographicHeatMap": "Mapa Geográfico",
     "funnelChart": "Gráfico de Funil",
-    "dailyEvolution": "Evolução Diária"
+    "dailyEvolution": "Evolução Diária",
+    "syncNow": "Sincronizar",
+    "syncing": "Sincronizando...",
+    "demographics": "Demográficos",
+    "spend": "Investimento",
+    "impressions": "Impressões",
+    "clicks": "Cliques",
+    "leads": "Leads",
+    "purchases": "Compras",
+    "sales": "Vendas",
+    "revenue": "Receita",
+    "cpa": "CPA",
+    "cpp": "CPP",
+    "visits": "Visitas",
+    "costPerVisit": "Custo/Visita",
+    "conversions": "Conversões",
+    "messages": "Mensagens",
+    "profileVisits": "Visitas ao Perfil",
+    "initiateCheckout": "Início Checkout",
+    "costInitCheckout": "Custo/Init. Checkout",
+    "previous": "Anterior"
+  },
+  "metrics": {
+    "spend": "Investimento",
+    "impressions": "Impressões",
+    "clicks": "Cliques",
+    "ctr": "CTR",
+    "cpm": "CPM",
+    "cpc": "CPC",
+    "cpl": "CPL",
+    "cpa": "CPA",
+    "cpp": "CPP",
+    "roas": "ROAS",
+    "reach": "Alcance",
+    "frequency": "Frequência",
+    "leads": "Leads",
+    "purchases": "Compras",
+    "sales": "Vendas",
+    "revenue": "Receita",
+    "conversions": "Conversões",
+    "conversionValue": "Valor de Conversão",
+    "messages": "Mensagens",
+    "profileVisits": "Visitas ao Perfil",
+    "initiateCheckout": "Início Checkout",
+    "costPerVisit": "Custo/Visita",
+    "visits": "Visitas"
   },
   "periods": {
     "today": "Hoje",
@@ -87,7 +159,25 @@
     "conversions": "Conversões",
     "active": "Ativa",
     "paused": "Pausada",
-    "archived": "Arquivada"
+    "archived": "Arquivada",
+    "campaign": "Campanha",
+    "all": "Todas",
+    "noCampaignsFilters": "Nenhuma campanha encontrada com os filtros aplicados"
+  },
+  "topCampaigns": {
+    "title": "Top Campanhas",
+    "of": "de",
+    "campaigns": "campanhas",
+    "searchCampaign": "Buscar campanha",
+    "allStatus": "Todas",
+    "activeOnly": "Ativas",
+    "pausedOnly": "Pausadas",
+    "highestSpend": "Maior Gasto",
+    "mostConversions": "Mais Conversões",
+    "bestRoas": "Melhor ROAS",
+    "lowestCpl": "Menor CPL",
+    "highestCtr": "Maior CTR",
+    "mostClicks": "Mais Cliques"
   },
   "status": {
     "active": "Ativo",
@@ -125,14 +215,19 @@
     "syncData": "Sincronize os dados demográficos para ver o mapa"
   },
   "demographic": {
-    "title": "Insights Demográficos",
+    "title": "Dados Demográficos",
     "gender": "Gênero",
-    "age": "Idade",
-    "device": "Dispositivo",
-    "platform": "Plataforma",
+    "age": "Faixa Etária",
+    "device": "Dispositivos",
+    "platform": "Plataformas",
     "male": "Masculino",
     "female": "Feminino",
-    "unknown": "Desconhecido"
+    "unknown": "Desconhecido",
+    "noData": "Sem dados demográficos",
+    "noDataForPeriod": "Sem dados demográficos para o período",
+    "syncToView": "Sincronize os dados para visualizar",
+    "spend": "Gasto",
+    "percentage": "Porcentagem"
   },
   "settings": {
     "title": "Configurações",
@@ -195,7 +290,10 @@
     "edit": "Editar Projeto",
     "delete": "Excluir Projeto",
     "name": "Nome do Projeto",
-    "selectProject": "Selecionar Projeto"
+    "selectProject": "Selecionar Projeto",
+    "spent30d": "Gasto 30d",
+    "archive": "Arquivar",
+    "restore": "Restaurar"
   },
   "projectSelector": {
     "settings": "Configurações",
@@ -252,10 +350,14 @@
     "syncError": "Erro na sincronização"
   },
   "comparison": {
+    "title": "Comparação de Período",
+    "currentPeriod": "Período Atual",
+    "previousPeriod": "Período Anterior",
     "vs": "vs",
-    "previousPeriod": "período anterior",
     "increase": "aumento",
     "decrease": "redução",
-    "noChange": "sem alteração"
+    "noChange": "sem alteração",
+    "previous": "Anterior",
+    "selectPeriod": "Selecione um período para ver a comparação com o período anterior."
   }
 }
