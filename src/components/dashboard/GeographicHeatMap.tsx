@@ -110,26 +110,26 @@ function HeatLayer({
 
     if (heatData.length === 0) return;
 
-    // Raio aumenta com o zoom (proporcional)
-    const baseRadius = 20;
-    const zoomFactor = Math.pow(1.5, currentZoom - 4);
-    const dynamicRadius = Math.min(baseRadius * zoomFactor, 150);
-    const dynamicBlur = Math.min(dynamicRadius * 0.6, 80);
+    // Raio AUMENTA com o zoom - base maior
+    const baseRadius = 60;
+    const zoomFactor = Math.pow(2, currentZoom - 4);
+    const dynamicRadius = Math.max(baseRadius * zoomFactor, 60);
+    const dynamicBlur = dynamicRadius * 0.5;
 
-    // Criar heat layer com raio dinâmico
+    // Criar heat layer com raio dinâmico que CRESCE com zoom
     // @ts-ignore - leaflet.heat types
     heatLayerRef.current = L.heatLayer(heatData, {
       radius: dynamicRadius,
       blur: dynamicBlur,
       maxZoom: 18,
       max: 1.0,
-      minOpacity: 0.5,
+      minOpacity: 0.6,
       gradient: {
-        0.0: '#10b981',
-        0.25: '#84cc16',
-        0.5: '#eab308',
-        0.75: '#f97316',
-        1.0: '#ef4444'
+        0.0: '#fbbf24',
+        0.3: '#f97316',
+        0.6: '#ef4444',
+        0.8: '#dc2626',
+        1.0: '#b91c1c'
       }
     }).addTo(map);
   };
@@ -244,26 +244,25 @@ export function GeographicHeatMap({
 
   return (
     <Card className={className}>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-4">
-            <CardTitle className="text-base text-emerald-400">Geolocalização</CardTitle>
-            <span className="text-xs text-muted-foreground">Cliques, Impressões, CTR e CPC</span>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-1 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
+            <div>
+              <CardTitle className="text-lg font-semibold">Mapa de Calor Geográfico</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Distribuição por região</p>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <CardTitle className="text-base text-emerald-400">Mapa de Calor</CardTitle>
-            <Select value={metric} onValueChange={(v) => setMetric(v as MetricType)}>
-              <SelectTrigger className="w-[120px] h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="clicks">Cliques</SelectItem>
-                <SelectItem value="impressions">Impressões</SelectItem>
-                <SelectItem value="conversions">Conversões</SelectItem>
-                <SelectItem value="spend">Investimento</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={metric} onValueChange={(v) => setMetric(v as MetricType)}>
+            <SelectTrigger className="w-[140px] h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="clicks">Cliques</SelectItem>
+              <SelectItem value="impressions">Impressões</SelectItem>
+              <SelectItem value="spend">Investimento</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </CardHeader>
       <CardContent>
@@ -291,7 +290,7 @@ export function GeographicHeatMap({
           <div className="absolute bottom-3 left-3 flex items-center gap-2 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
             <span>{getMetricLabel(metric)}</span>
             <div className="flex items-center h-3 w-24 rounded-sm overflow-hidden">
-              <div className="h-full flex-1" style={{ background: 'linear-gradient(to right, #10b981, #84cc16, #eab308, #f97316, #ef4444)' }}></div>
+              <div className="h-full flex-1" style={{ background: 'linear-gradient(to right, #fbbf24, #f97316, #ef4444, #dc2626, #b91c1c)' }}></div>
             </div>
             <span>{formatNumber(maxValue)}</span>
           </div>
