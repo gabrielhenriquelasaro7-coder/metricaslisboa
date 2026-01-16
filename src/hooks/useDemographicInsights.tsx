@@ -31,16 +31,17 @@ export function useDemographicInsights({ projectId, startDate, endDate }: UseDem
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Serialize dates to strings to avoid unnecessary re-renders
+  const sinceStr = startDate instanceof Date 
+    ? startDate.toISOString().split('T')[0] 
+    : startDate ? new Date(startDate).toISOString().split('T')[0] : null;
+  const untilStr = endDate instanceof Date 
+    ? endDate.toISOString().split('T')[0] 
+    : endDate ? new Date(endDate).toISOString().split('T')[0] : null;
+
   useEffect(() => {
     const fetchData = async () => {
-      if (!projectId) {
-        console.log('[DEMOGRAPHICS] No projectId');
-        setData(null);
-        return;
-      }
-
-      if (!startDate || !endDate) {
-        console.log('[DEMOGRAPHICS] No date range');
+      if (!projectId || !sinceStr || !untilStr) {
         setData(null);
         return;
       }
@@ -49,19 +50,12 @@ export function useDemographicInsights({ projectId, startDate, endDate }: UseDem
       setError(null);
 
       try {
-        const since = startDate.toISOString().split('T')[0];
-        const until = endDate.toISOString().split('T')[0];
-
-        console.log('[DEMOGRAPHICS] Fetching data for project:', projectId, 'range:', since, 'to', until);
-
         const { data: rawData, error: fetchError } = await supabase
           .from('demographic_insights')
           .select('*')
           .eq('project_id', projectId)
-          .gte('date', since)
-          .lte('date', until);
-
-        console.log('[DEMOGRAPHICS] Raw data:', rawData?.length || 0, 'rows, error:', fetchError);
+          .gte('date', sinceStr)
+          .lte('date', untilStr);
 
         if (fetchError) throw fetchError;
 
@@ -126,7 +120,7 @@ export function useDemographicInsights({ projectId, startDate, endDate }: UseDem
     };
 
     fetchData();
-  }, [projectId, startDate, endDate]);
+  }, [projectId, sinceStr, untilStr]);
 
   return { data, isLoading, error };
 }
