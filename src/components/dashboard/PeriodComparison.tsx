@@ -27,6 +27,7 @@ interface PeriodComparisonProps {
   currency?: string;
   resultMetrics?: string[]; // For custom business model
   resultMetricsLabels?: Record<string, string>; // Labels for custom metrics
+  isMetricHidden?: (metric: string) => boolean; // Function to check if metric is hidden
 }
 interface ComparisonItemProps {
   label: string;
@@ -101,7 +102,8 @@ export default function PeriodComparison({
   previousPeriodLabel = 'Período Anterior',
   currency = 'BRL',
   resultMetrics,
-  resultMetricsLabels
+  resultMetricsLabels,
+  isMetricHidden
 }: PeriodComparisonProps) {
   const formatCurrencyValue = (value: number) => {
     const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
@@ -121,6 +123,10 @@ export default function PeriodComparison({
   };
   const comparisons = useMemo(() => {
     if (!previousMetrics) return null;
+    
+    // Helper to check if a metric should be shown
+    const shouldShow = (metricKey: string) => !isMetricHidden || !isMetricHidden(metricKey);
+    
     const items: Array<{
       label: string;
       current: string;
@@ -128,43 +134,68 @@ export default function PeriodComparison({
       change: number;
       isInverse: boolean;
       tooltip?: string;
-    }> = [{
-      label: 'Gasto',
-      current: formatCurrencyValue(currentMetrics.totalSpend),
-      previous: formatCurrencyValue(previousMetrics.totalSpend),
-      change: calculateChange(currentMetrics.totalSpend, previousMetrics.totalSpend),
-      isInverse: false
-    }, {
-      label: 'Impressões',
-      current: formatNumber(currentMetrics.totalImpressions),
-      previous: formatNumber(previousMetrics.totalImpressions),
-      change: calculateChange(currentMetrics.totalImpressions, previousMetrics.totalImpressions),
-      isInverse: false
-    }, {
-      label: 'Cliques',
-      current: formatNumber(currentMetrics.totalClicks),
-      previous: formatNumber(previousMetrics.totalClicks),
-      change: calculateChange(currentMetrics.totalClicks, previousMetrics.totalClicks),
-      isInverse: false
-    }, {
-      label: 'CTR',
-      current: `${currentMetrics.ctr.toFixed(2)}%`,
-      previous: `${previousMetrics.ctr.toFixed(2)}%`,
-      change: calculateChange(currentMetrics.ctr, previousMetrics.ctr),
-      isInverse: false
-    }, {
-      label: 'CPM',
-      current: formatCurrencyValue(currentMetrics.cpm),
-      previous: formatCurrencyValue(previousMetrics.cpm),
-      change: calculateChange(currentMetrics.cpm, previousMetrics.cpm),
-      isInverse: true
-    }, {
-      label: 'CPC',
-      current: formatCurrencyValue(currentMetrics.cpc),
-      previous: formatCurrencyValue(previousMetrics.cpc),
-      change: calculateChange(currentMetrics.cpc, previousMetrics.cpc),
-      isInverse: true
-    }];
+    }> = [];
+    
+    // Base metrics - only add if not hidden
+    if (shouldShow('spend')) {
+      items.push({
+        label: 'Gasto',
+        current: formatCurrencyValue(currentMetrics.totalSpend),
+        previous: formatCurrencyValue(previousMetrics.totalSpend),
+        change: calculateChange(currentMetrics.totalSpend, previousMetrics.totalSpend),
+        isInverse: false
+      });
+    }
+    
+    if (shouldShow('impressions')) {
+      items.push({
+        label: 'Impressões',
+        current: formatNumber(currentMetrics.totalImpressions),
+        previous: formatNumber(previousMetrics.totalImpressions),
+        change: calculateChange(currentMetrics.totalImpressions, previousMetrics.totalImpressions),
+        isInverse: false
+      });
+    }
+    
+    if (shouldShow('clicks')) {
+      items.push({
+        label: 'Cliques',
+        current: formatNumber(currentMetrics.totalClicks),
+        previous: formatNumber(previousMetrics.totalClicks),
+        change: calculateChange(currentMetrics.totalClicks, previousMetrics.totalClicks),
+        isInverse: false
+      });
+    }
+    
+    if (shouldShow('ctr')) {
+      items.push({
+        label: 'CTR',
+        current: `${currentMetrics.ctr.toFixed(2)}%`,
+        previous: `${previousMetrics.ctr.toFixed(2)}%`,
+        change: calculateChange(currentMetrics.ctr, previousMetrics.ctr),
+        isInverse: false
+      });
+    }
+    
+    if (shouldShow('cpm')) {
+      items.push({
+        label: 'CPM',
+        current: formatCurrencyValue(currentMetrics.cpm),
+        previous: formatCurrencyValue(previousMetrics.cpm),
+        change: calculateChange(currentMetrics.cpm, previousMetrics.cpm),
+        isInverse: true
+      });
+    }
+    
+    if (shouldShow('cpc')) {
+      items.push({
+        label: 'CPC',
+        current: formatCurrencyValue(currentMetrics.cpc),
+        previous: formatCurrencyValue(previousMetrics.cpc),
+        change: calculateChange(currentMetrics.cpc, previousMetrics.cpc),
+        isInverse: true
+      });
+    }
 
     // Add business-model specific metrics
     if (businessModel === 'ecommerce') {
@@ -362,76 +393,52 @@ export default function PeriodComparison({
       </div>;
   }
   if (!hasPreviousData) {
+    // Helper to check if a metric should be shown
+    const shouldShow = (metricKey: string) => !isMetricHidden || !isMetricHidden(metricKey);
+    
     // Show current period data without comparison when no previous data
-    const currentOnlyItems = [{
-      label: 'Gasto',
-      value: formatCurrencyValue(currentMetrics.totalSpend)
-    }, {
-      label: 'Impressões',
-      value: formatNumber(currentMetrics.totalImpressions)
-    }, {
-      label: 'Cliques',
-      value: formatNumber(currentMetrics.totalClicks)
-    }, {
-      label: 'CTR',
-      value: `${currentMetrics.ctr.toFixed(2)}%`
-    }, {
-      label: 'CPM',
-      value: formatCurrencyValue(currentMetrics.cpm)
-    }, {
-      label: 'CPC',
-      value: formatCurrencyValue(currentMetrics.cpc)
-    }];
+    const currentOnlyItems: Array<{ label: string; value: string }> = [];
+    
+    if (shouldShow('spend')) {
+      currentOnlyItems.push({ label: 'Gasto', value: formatCurrencyValue(currentMetrics.totalSpend) });
+    }
+    if (shouldShow('impressions')) {
+      currentOnlyItems.push({ label: 'Impressões', value: formatNumber(currentMetrics.totalImpressions) });
+    }
+    if (shouldShow('clicks')) {
+      currentOnlyItems.push({ label: 'Cliques', value: formatNumber(currentMetrics.totalClicks) });
+    }
+    if (shouldShow('ctr')) {
+      currentOnlyItems.push({ label: 'CTR', value: `${currentMetrics.ctr.toFixed(2)}%` });
+    }
+    if (shouldShow('cpm')) {
+      currentOnlyItems.push({ label: 'CPM', value: formatCurrencyValue(currentMetrics.cpm) });
+    }
+    if (shouldShow('cpc')) {
+      currentOnlyItems.push({ label: 'CPC', value: formatCurrencyValue(currentMetrics.cpc) });
+    }
 
     // Add business-model specific
     if (businessModel === 'ecommerce') {
       const purchases = currentMetrics.totalSalesConversions ?? currentMetrics.totalConversions;
       const cpaPurchases = purchases > 0 ? currentMetrics.totalSpend / purchases : 0;
-      currentOnlyItems.push({
-        label: 'ROAS',
-        value: `${currentMetrics.roas.toFixed(2)}x`
-      }, {
-        label: 'Compras',
-        value: formatNumber(purchases)
-      }, {
-        label: 'Receita',
-        value: formatCurrencyValue(currentMetrics.totalConversionValue)
-      }, {
-        label: 'CPA',
-        value: formatCurrencyValue(cpaPurchases)
-      });
+      if (shouldShow('roas')) currentOnlyItems.push({ label: 'ROAS', value: `${currentMetrics.roas.toFixed(2)}x` });
+      if (shouldShow('purchases')) currentOnlyItems.push({ label: 'Compras', value: formatNumber(purchases) });
+      if (shouldShow('conversion_value')) currentOnlyItems.push({ label: 'Receita', value: formatCurrencyValue(currentMetrics.totalConversionValue) });
+      if (shouldShow('cpa')) currentOnlyItems.push({ label: 'CPA', value: formatCurrencyValue(cpaPurchases) });
     } else if (businessModel === 'inside_sales') {
-      currentOnlyItems.push({
-        label: 'Leads',
-        value: formatNumber(currentMetrics.totalConversions)
-      }, {
-        label: 'CPL',
-        value: formatCurrencyValue(currentMetrics.cpa)
-      });
+      if (shouldShow('conversions')) currentOnlyItems.push({ label: 'Leads', value: formatNumber(currentMetrics.totalConversions) });
+      if (shouldShow('cpa')) currentOnlyItems.push({ label: 'CPL', value: formatCurrencyValue(currentMetrics.cpa) });
     } else if (businessModel === 'pdv') {
-      currentOnlyItems.push({
-        label: 'Visitas',
-        value: formatNumber(currentMetrics.totalConversions)
-      }, {
-        label: 'Custo/Visita',
-        value: formatCurrencyValue(currentMetrics.cpa)
-      });
+      if (shouldShow('conversions')) currentOnlyItems.push({ label: 'Visitas', value: formatNumber(currentMetrics.totalConversions) });
+      if (shouldShow('cpa')) currentOnlyItems.push({ label: 'Custo/Visita', value: formatCurrencyValue(currentMetrics.cpa) });
     } else if (businessModel === 'infoproduto') {
       const sales = currentMetrics.totalSalesConversions ?? currentMetrics.totalConversions;
       const cpaSales = sales > 0 ? currentMetrics.totalSpend / sales : 0;
-      currentOnlyItems.push({
-        label: 'Vendas',
-        value: formatNumber(sales)
-      }, {
-        label: 'Receita',
-        value: formatCurrencyValue(currentMetrics.totalConversionValue)
-      }, {
-        label: 'ROAS',
-        value: `${currentMetrics.roas.toFixed(2)}x`
-      }, {
-        label: 'CPA',
-        value: formatCurrencyValue(cpaSales)
-      });
+      if (shouldShow('purchases')) currentOnlyItems.push({ label: 'Vendas', value: formatNumber(sales) });
+      if (shouldShow('conversion_value')) currentOnlyItems.push({ label: 'Receita', value: formatCurrencyValue(currentMetrics.totalConversionValue) });
+      if (shouldShow('roas')) currentOnlyItems.push({ label: 'ROAS', value: `${currentMetrics.roas.toFixed(2)}x` });
+      if (shouldShow('cpa')) currentOnlyItems.push({ label: 'CPA', value: formatCurrencyValue(cpaSales) });
     } else if (businessModel === 'custom') {
       // For custom, show separate metrics based on configuration
       const metricsToShow = resultMetrics || ['leads', 'initiate_checkout', 'purchases'];
@@ -452,43 +459,30 @@ export default function PeriodComparison({
 
       for (const metric of metricsToShow) {
         const value = getMetricValue(metric);
-        // Show leads and initiate_checkout always if configured, purchases only if > 0
-        if (metric !== 'purchases' || value > 0) {
-          currentOnlyItems.push({
-            label: labels[metric] || metric,
-            value: formatNumber(value)
-          });
+        if ((metric !== 'purchases' || value > 0) && shouldShow(metric)) {
+          currentOnlyItems.push({ label: labels[metric] || metric, value: formatNumber(value) });
         }
       }
 
       // CPL based on leads
       const leads = getMetricValue('leads');
-      if (leads > 0) {
+      if (leads > 0 && shouldShow('cpa')) {
         const cpl = currentMetrics.totalSpend / leads;
-        currentOnlyItems.push({
-          label: 'CPL',
-          value: formatCurrencyValue(cpl)
-        });
+        currentOnlyItems.push({ label: 'CPL', value: formatCurrencyValue(cpl) });
       }
 
       // Cost per Initiate Checkout
       const ic = getMetricValue('initiate_checkout');
-      if (ic > 0) {
+      if (ic > 0 && shouldShow('initiate_checkout')) {
         const cpic = currentMetrics.totalSpend / ic;
-        currentOnlyItems.push({
-          label: 'Custo/Init. Checkout',
-          value: formatCurrencyValue(cpic)
-        });
+        currentOnlyItems.push({ label: 'Custo/Init. Checkout', value: formatCurrencyValue(cpic) });
       }
 
       // CPP only if there are purchases
       const purchases = getMetricValue('purchases');
-      if (purchases > 0) {
+      if (purchases > 0 && shouldShow('purchases')) {
         const cpp = currentMetrics.totalSpend / purchases;
-        currentOnlyItems.push({
-          label: 'CPP',
-          value: formatCurrencyValue(cpp)
-        });
+        currentOnlyItems.push({ label: 'CPP', value: formatCurrencyValue(cpp) });
       }
     }
     return <div className="glass-card p-6">
