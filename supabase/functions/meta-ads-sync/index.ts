@@ -1095,14 +1095,31 @@ async function cacheViaStoryId(
     
     for (const adId of batch) {
       const adData = (adsData as Record<string, any>)[adId];
-      const thumbnailUrl = adData?.creative?.thumbnail_url;
+      let thumbnailUrl = adData?.creative?.thumbnail_url;
       if (!thumbnailUrl) {
         console.log(`[STORY-HD] No thumbnail_url for ${adId}`);
         continue;
       }
       
-      // URL já vem em 1080x1080 direto da API!
-      console.log(`[STORY-HD] ✓ Got 1080x1080 thumbnail for ${adId}: ${thumbnailUrl.substring(0, 80)}...`);
+      // CRÍTICO: Limpar parâmetros de resize que o Meta pode ter embutido na URL!
+      // O Meta às vezes ignora thumbnail_width=1080 e retorna URL com stp=...p64x64...
+      const originalUrl = thumbnailUrl;
+      thumbnailUrl = thumbnailUrl.replace(/[&?]stp=[^&]*/gi, ''); // Remove stp= parameter
+      thumbnailUrl = thumbnailUrl.replace(/\/p\d+x\d+\//g, '/'); // Remove /p64x64/ paths
+      thumbnailUrl = thumbnailUrl.replace(/\/s\d+x\d+\//g, '/'); // Remove /s64x64/ paths
+      thumbnailUrl = thumbnailUrl.replace(/_p\d+x\d+/g, ''); // Remove _p64x64 in filename
+      thumbnailUrl = thumbnailUrl.replace(/_s\d+x\d+/g, ''); // Remove _s64x64 in filename
+      
+      // Fix malformed URL (& before ?)
+      if (thumbnailUrl.includes('&') && !thumbnailUrl.includes('?')) {
+        thumbnailUrl = thumbnailUrl.replace('&', '?');
+      }
+      thumbnailUrl = thumbnailUrl.replace(/[&?]$/g, ''); // Clean trailing
+      
+      if (thumbnailUrl !== originalUrl) {
+        console.log(`[STORY-HD] ✓ CLEANED URL for ${adId} (removed resize params)`);
+      }
+      console.log(`[STORY-HD] ✓ HD URL for ${adId}: ${thumbnailUrl.substring(0, 100)}...`);
       storyImageMap.set(adId, thumbnailUrl);
     }
     
