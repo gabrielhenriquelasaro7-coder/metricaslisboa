@@ -132,7 +132,7 @@ export default function Dashboard() {
   const isInfoproduto = hasSelectedProject && businessModel === 'infoproduto';
 
   // Hidden metrics for guests - must be after businessModel is defined
-  const { isMetricHidden } = useHiddenMetrics('dashboard', businessModel as any);
+  const { isMetricHidden, hiddenMetrics } = useHiddenMetrics('dashboard', businessModel as any);
 
   // Get custom metric config for custom business model
   const {
@@ -418,7 +418,7 @@ export default function Dashboard() {
             </div>
 
             {/* Period Comparison */}
-            {showComparison && hasSelectedProject && <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? '7 dias' : selectedPreset === 'last_30d' ? '30 dias' : 'Atual'} previousPeriodLabel={selectedPreset === 'this_month' ? 'Anterior' : selectedPreset === 'last_7d' ? 'Anterior' : selectedPreset === 'last_30d' ? 'Anterior' : 'Anterior'} currency={selectedProject?.currency || 'BRL'} resultMetrics={metricConfig?.result_metrics} resultMetricsLabels={metricConfig?.result_metrics_labels} isMetricHidden={isMetricHidden} />}
+            {showComparison && hasSelectedProject && <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? '7 dias' : selectedPreset === 'last_30d' ? '30 dias' : 'Atual'} previousPeriodLabel={selectedPreset === 'this_month' ? 'Anterior' : selectedPreset === 'last_7d' ? 'Anterior' : selectedPreset === 'last_30d' ? 'Anterior' : 'Anterior'} currency={selectedProject?.currency || 'BRL'} resultMetrics={metricConfig?.result_metrics} resultMetricsLabels={metricConfig?.result_metrics_labels} hiddenMetrics={hiddenMetrics} />}
 
             {/* Metrics Grid - Responsive */}
             <div data-tour="metrics">
