@@ -547,90 +547,64 @@ function ProjectMonthGrid({ projectId, projectName }: { projectId: string; proje
       )}
 
       {/* Action buttons */}
-      {(stats.error > 0 || stats.pending > 0) && (
-        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-border/50">
-          {stats.error > 0 && (
-            <>
-              <span className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-500" />
-                {stats.error} {stats.error === 1 ? 'mês com erro' : 'meses com erro'} - Continuar de onde parou:
-              </span>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  const firstError = Object.values(monthsByYear)
-                    .flat()
-                    .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
-                    .find(m => m.status === 'error');
-                  if (firstError) {
-                    startChainedImport(firstError.year, firstError.month, true);
-                  }
-                }}
-                className="gap-1.5"
-              >
-                <Zap className="w-3 h-3 text-yellow-500" />
-                Continuar Light
-              </Button>
-              <Button 
-                variant="default" 
-                size="sm"
-                onClick={() => {
-                  const firstError = Object.values(monthsByYear)
-                    .flat()
-                    .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
-                    .find(m => m.status === 'error');
-                  if (firstError) {
-                    startChainedImport(firstError.year, firstError.month, false);
-                  }
-                }}
-                className="gap-1.5"
-              >
-                <Image className="w-3 h-3" />
-                Continuar HD
-              </Button>
-            </>
-          )}
-          {stats.error === 0 && stats.pending > 0 && (
-            <>
-              <span className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-                <Clock className="w-4 h-4 text-primary" />
-                {stats.pending} {stats.pending === 1 ? 'mês pendente' : 'meses pendentes'}:
-              </span>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  const firstPending = Object.values(monthsByYear)
-                    .flat()
-                    .find(m => m.status === 'pending');
-                  if (firstPending) {
-                    startChainedImport(firstPending.year, firstPending.month, true);
-                  }
-                }}
-                className="gap-1.5"
-              >
-                <Zap className="w-3 h-3 text-yellow-500" />
-                Continuar Light
-              </Button>
-              <Button 
-                variant="default" 
-                size="sm"
-                onClick={() => {
-                  const firstPending = Object.values(monthsByYear)
-                    .flat()
-                    .find(m => m.status === 'pending');
-                  if (firstPending) {
-                    startChainedImport(firstPending.year, firstPending.month, false);
-                  }
-                }}
-                className="gap-1.5"
-              >
-                <Image className="w-3 h-3" />
-                Continuar HD
-              </Button>
-            </>
-          )}
+      {/* Botão de Continuar Importação - SEMPRE visível quando há erro ou pendente */}
+      {(stats.error > 0 || stats.pending > 0) && stats.importing === 0 && (
+        <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/30 space-y-3">
+          <div className="flex items-center gap-2">
+            {stats.error > 0 ? (
+              <>
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <span className="font-semibold text-foreground">
+                  {stats.error} {stats.error === 1 ? 'mês com erro' : 'meses com erro'}
+                </span>
+                <span className="text-muted-foreground text-sm">• Clique para continuar de onde parou</span>
+              </>
+            ) : (
+              <>
+                <Clock className="w-5 h-5 text-primary" />
+                <span className="font-semibold text-foreground">
+                  {stats.pending} {stats.pending === 1 ? 'mês pendente' : 'meses pendentes'}
+                </span>
+                <span className="text-muted-foreground text-sm">• Clique para continuar importação</span>
+              </>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button 
+              variant="outline" 
+              size="lg"
+              onClick={() => {
+                const firstToImport = Object.values(monthsByYear)
+                  .flat()
+                  .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
+                  .find(m => m.status === 'error' || m.status === 'pending');
+                if (firstToImport) {
+                  startChainedImport(firstToImport.year, firstToImport.month, true);
+                }
+              }}
+              className="gap-2 h-12 px-6 text-base font-semibold border-2"
+            >
+              <Zap className="w-5 h-5 text-yellow-500" />
+              Continuar Light (Rápido)
+            </Button>
+            <Button 
+              variant="default" 
+              size="lg"
+              onClick={() => {
+                const firstToImport = Object.values(monthsByYear)
+                  .flat()
+                  .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
+                  .find(m => m.status === 'error' || m.status === 'pending');
+                if (firstToImport) {
+                  startChainedImport(firstToImport.year, firstToImport.month, false);
+                }
+              }}
+              className="gap-2 h-12 px-6 text-base font-semibold shadow-lg shadow-primary/25"
+            >
+              <Image className="w-5 h-5" />
+              Continuar HD (Completo)
+            </Button>
+          </div>
         </div>
       )}
     </div>
