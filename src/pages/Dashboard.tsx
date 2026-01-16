@@ -6,6 +6,7 @@ import MetricCard from '@/components/dashboard/MetricCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
+import { GeographicHeatMap } from '@/components/dashboard/GeographicHeatMap';
 import { DynamicResultMetrics } from '@/components/dashboard/DynamicResultMetrics';
 import { TopCampaignsCard } from '@/components/dashboard/TopCampaignsCard';
 import { FunnelChart } from '@/components/dashboard/FunnelChart';
@@ -543,6 +544,14 @@ export default function Dashboard() {
 
             {/* Funnel Chart */}
             {hasSelectedProject && <FunnelChart impressions={metrics.totalImpressions} reach={metrics.totalReach} clicks={metrics.totalClicks} conversions={metrics.totalConversions} spend={metrics.totalSpend} ctr={metrics.ctr} cpc={metrics.cpc} cpl={metrics.cpa} cpm={metrics.cpm} frequency={metrics.avgFrequency} currency={selectedProject?.currency || 'BRL'} />}
+
+            {/* Geographic Heat Map */}
+            <GeographicHeatMap 
+              countryData={demographicData?.country || []} 
+              regionData={demographicData?.region || []} 
+              isLoading={demographicLoading} 
+              currency={selectedProject?.currency || 'BRL'} 
+            />
 
             {/* Demographic Charts */}
             <DemographicCharts data={demographicData} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />

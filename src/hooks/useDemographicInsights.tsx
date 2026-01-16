@@ -16,6 +16,8 @@ export interface DemographicInsights {
   age: DemographicData[];
   device_platform: DemographicData[];
   publisher_platform: DemographicData[];
+  country: DemographicData[];
+  region: DemographicData[];
 }
 
 interface UseDemographicInsightsProps {
@@ -69,6 +71,8 @@ export function useDemographicInsights({ projectId, startDate, endDate }: UseDem
           age: [],
           device_platform: [],
           publisher_platform: [],
+          country: [],
+          region: [],
         };
 
         const tempMap: Record<string, Record<string, DemographicData>> = {
@@ -76,6 +80,8 @@ export function useDemographicInsights({ projectId, startDate, endDate }: UseDem
           age: {},
           device_platform: {},
           publisher_platform: {},
+          country: {},
+          region: {},
         };
 
         rawData?.forEach((row: any) => {
