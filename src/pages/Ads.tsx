@@ -76,7 +76,8 @@ export default function Ads() {
   
   // Hidden metrics for guests
   const { isGuest } = useUserRole();
-  const { isMetricHidden } = useHiddenMetrics('ads');
+  const businessModel = selectedProject?.business_model || null;
+  const { isMetricHidden } = useHiddenMetrics('ads', businessModel as any);
 
   // Calculate date range based on preset or custom range
   const getDateRangeFromPeriod = useCallback((preset: DatePresetKey, customRange?: DateRange) => {
@@ -324,7 +325,7 @@ export default function Ads() {
             {isGuest && (
               <MetricVisibilityConfig 
                 pageContext="ads" 
-                availableMetrics={['spend', 'impressions', 'clicks', 'ctr', 'conversions', 'roas', 'cpa'] as MetricKey[]}
+                businessModel={businessModel as any}
               />
             )}
           </div>

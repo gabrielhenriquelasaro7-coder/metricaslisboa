@@ -59,9 +59,8 @@ export default function Dashboard() {
     skipTour
   } = useTour();
 
-  // Hidden metrics for guests
+  // UserRole for guests
   const { isGuest } = useUserRole();
-  const { isMetricHidden } = useHiddenMetrics('dashboard');
 
   // Get campaigns and selected project from hook (uses localStorage)
   const {
@@ -131,6 +130,9 @@ export default function Dashboard() {
   const isPdv = hasSelectedProject && businessModel === 'pdv';
   const isCustom = hasSelectedProject && businessModel === 'custom';
   const isInfoproduto = hasSelectedProject && businessModel === 'infoproduto';
+
+  // Hidden metrics for guests - must be after businessModel is defined
+  const { isMetricHidden } = useHiddenMetrics('dashboard', businessModel as any);
 
   // Get custom metric config for custom business model
   const {
@@ -405,7 +407,7 @@ export default function Dashboard() {
               {isGuest && (
                 <MetricVisibilityConfig 
                   pageContext="dashboard" 
-                  availableMetrics={['spend', 'impressions', 'reach', 'clicks', 'ctr', 'cpc', 'cpm', 'conversions', 'conversion_value', 'roas', 'messages', 'profile_visits', 'leads', 'purchases', 'initiate_checkout'] as MetricKey[]}
+                  businessModel={businessModel as any}
                 />
               )}
               <Label htmlFor="comparison-toggle" className="text-[11px] sm:text-sm text-muted-foreground cursor-pointer">
