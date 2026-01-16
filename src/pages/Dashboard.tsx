@@ -92,6 +92,14 @@ export default function Dashboard() {
 
   // Calculate date range for demographics based on preset
   const demographicDateRange = useMemo(() => {
+    // If custom preset with dateRange, use it
+    if (selectedPreset === 'custom' && dateRange?.from && dateRange?.to) {
+      return {
+        startDate: dateRange.from,
+        endDate: dateRange.to
+      };
+    }
+    
     const period = getDateRangeFromPreset(selectedPreset, selectedProject?.timezone || 'America/Sao_Paulo');
     if (period) {
       return {
@@ -107,7 +115,7 @@ export default function Dashboard() {
       startDate: start,
       endDate: end
     };
-  }, [selectedPreset, selectedProject?.timezone]);
+  }, [selectedPreset, selectedProject?.timezone, dateRange]);
 
   // Get demographic insights
   const {
