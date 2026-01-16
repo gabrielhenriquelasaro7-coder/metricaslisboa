@@ -1071,21 +1071,20 @@ async function cacheViaStoryId(
   const adIds = ads.map((a: any) => a.id);
   const batchSize = 50;
   
-  // Mapa de adId -> story image URL
+  // Mapa de adId -> image URL HD
   const storyImageMap = new Map<string, string>();
   
-  // FASE 1: Buscar effective_object_story_id de todos os ads E depois full_picture
-  console.log(`[STORY-HD] FASE 1: Coletando story IDs e full_picture...`);
-  
-  // Mapa temporário de adId -> storyId para buscar full_picture depois
-  const adToStoryMap = new Map<string, string>();
+  // FASE 1: Buscar thumbnail_url com 1080x1080 (EXATAMENTE como solicitado!)
+  console.log(`[STORY-HD] FASE 1: Buscando thumbnail_url 1080x1080...`);
   
   for (let i = 0; i < adIds.length; i += batchSize) {
     const batch = adIds.slice(i, i + batchSize);
     const batchIds = batch.join(',');
     
-    // Buscar creative com effective_object_story_id
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,effective_object_story_id,object_story_spec}&access_token=${token}`;
+    // Query EXATA: fields=thumbnail_url, thumbnail_width=1080, thumbnail_height=1080
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=thumbnail_url&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    console.log(`[STORY-HD] Fetching batch with thumbnail_width=1080, thumbnail_height=1080`);
+    
     const adsData = await simpleFetch(adsUrl, undefined, 30000);
     
     if (adsData?.error) {
@@ -1093,52 +1092,14 @@ async function cacheViaStoryId(
       continue;
     }
     
-    // Coletar story IDs para buscar full_picture
-    const storyIds: string[] = [];
-    
     for (const adId of batch) {
       const adData = (adsData as Record<string, any>)[adId];
-      if (!adData?.creative) continue;
+      if (!adData?.thumbnail_url) continue;
       
-      const creative = adData.creative;
-      
-      // PRIORIDADE 1: effective_object_story_id -> full_picture (SEMPRE HD, SEMPRE PÚBLICO!)
-      if (creative.effective_object_story_id) {
-        storyIds.push(creative.effective_object_story_id);
-        adToStoryMap.set(adId, creative.effective_object_story_id);
-      }
-      // PRIORIDADE 2 (fallback): object_story_spec image URLs
-      else if (creative.object_story_spec) {
-        const oss = creative.object_story_spec;
-        let fallbackUrl: string | null = null;
-        if (oss.link_data?.picture) fallbackUrl = oss.link_data.picture;
-        else if (oss.link_data?.image_url) fallbackUrl = oss.link_data.image_url;
-        else if (oss.video_data?.image_url) fallbackUrl = oss.video_data.image_url;
-        else if (oss.photo_data?.images?.[0]?.url) fallbackUrl = oss.photo_data.images[0].url;
-        
-        if (fallbackUrl) {
-          storyImageMap.set(adId, fallbackUrl);
-        }
-      }
-    }
-    
-    // Buscar full_picture de todos os story IDs em batch (SEMPRE HD!)
-    if (storyIds.length > 0) {
-      const storyIdsStr = storyIds.join(',');
-      const storiesUrl = `https://graph.facebook.com/v22.0/?ids=${storyIdsStr}&fields=id,full_picture&access_token=${token}`;
-      console.log(`[STORY-HD] Fetching full_picture for ${storyIds.length} stories...`);
-      const storiesData = await simpleFetch(storiesUrl, undefined, 30000);
-      
-      if (!storiesData?.error) {
-        for (const [adId, storyId] of adToStoryMap.entries()) {
-          if (batch.includes(adId) && storiesData[storyId]?.full_picture) {
-            storyImageMap.set(adId, storiesData[storyId].full_picture);
-            console.log(`[STORY-HD] ✓ Got full_picture HD for ${adId}`);
-          }
-        }
-      } else {
-        console.log(`[STORY-HD] Stories fetch error: ${storiesData.error.message?.substring(0, 100)}`);
-      }
+      // URL já vem em 1080x1080 direto da API!
+      const hdUrl = adData.thumbnail_url;
+      console.log(`[STORY-HD] ✓ Got 1080x1080 thumbnail for ${adId}`);
+      storyImageMap.set(adId, hdUrl);
     }
     
     if (i + batchSize < adIds.length) await delay(100);
