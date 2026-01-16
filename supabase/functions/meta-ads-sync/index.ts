@@ -43,6 +43,7 @@ interface SyncRequest {
   retry_count?: number;
   lite_mode?: boolean; // Skip entity fetch for large accounts
   specific_ad_ids?: string[]; // OTIMIZAÇÃO: buscar criativos/HD apenas desses ads
+  force_recache?: boolean; // FORÇAR re-download mesmo se já tiver cache
 }
 
 const BASE_DELAY_MS = 200;
@@ -1015,26 +1016,52 @@ async function recacheAllHD(
 // ===========================================================================================
 // 6️⃣ CACHE VIA STORY ID - Busca imagens HD via effective_object_story_id (fallback)
 // Para ads sem image_hash (vídeos, dinâmicos, posts promovidos)
+// ATUALIZADO: Suporta specific_ad_ids e force_recache para sync individual
 // ===========================================================================================
 async function cacheViaStoryId(
   supabase: any, 
   projectId: string, 
   adAccountId: string, 
-  token: string
+  token: string,
+  specificAdIds?: string[], // NOVO: lista específica de ad_ids
+  forceRecache?: boolean // NOVO: forçar re-download mesmo se já tiver cache
 ): Promise<{ cached: number; total: number; skipped: number; errors: number }> {
-  console.log(`[STORY-HD] Starting story-based HD cache for project ${projectId}`);
+  console.log(`[STORY-HD] Starting story-based HD cache for project ${projectId}, specific: ${specificAdIds?.length || 'all'}, force: ${forceRecache}`);
   
-  // Buscar ads SEM cached_image_url (ou com imagem pequena)
-  const { data: adsWithoutHD, error: adsError } = await supabase
-    .from('ads')
-    .select('id, cached_image_url')
-    .eq('project_id', projectId);
+  let ads: { id: string; cached_image_url: string | null }[];
   
-  if (adsError) throw adsError;
-  
-  // Filtrar apenas ads sem cache HD
-  const ads = (adsWithoutHD || []).filter((ad: any) => !ad.cached_image_url);
-  console.log(`[STORY-HD] ${ads.length} ads without HD cache`);
+  if (specificAdIds && specificAdIds.length > 0) {
+    // MODO ESPECÍFICO: buscar apenas os ads solicitados
+    const allAds: any[] = [];
+    for (let i = 0; i < specificAdIds.length; i += 200) {
+      const batchIds = specificAdIds.slice(i, i + 200);
+      const { data: batchAds } = await supabase
+        .from('ads')
+        .select('id, cached_image_url')
+        .eq('project_id', projectId)
+        .in('id', batchIds);
+      
+      if (batchAds) allAds.push(...batchAds);
+    }
+    
+    // Se forceRecache, processar todos; senão, apenas os sem cache
+    ads = forceRecache ? allAds : allAds.filter((ad: any) => !ad.cached_image_url);
+    console.log(`[STORY-HD] Specific mode: ${allAds.length} found, ${ads.length} to process (force: ${forceRecache})`);
+  } else {
+    // MODO PADRÃO: buscar ads SEM cached_image_url
+    const { data: adsWithoutHD, error: adsError } = await supabase
+      .from('ads')
+      .select('id, cached_image_url')
+      .eq('project_id', projectId);
+    
+    if (adsError) throw adsError;
+    
+    // Filtrar apenas ads sem cache HD (ou todos se forceRecache)
+    ads = forceRecache 
+      ? (adsWithoutHD || []) 
+      : (adsWithoutHD || []).filter((ad: any) => !ad.cached_image_url);
+    console.log(`[STORY-HD] Standard mode: ${adsWithoutHD?.length || 0} total, ${ads.length} to process`);
+  }
   
   if (ads.length === 0) {
     return { cached: 0, total: 0, skipped: 0, errors: 0 };
@@ -1113,7 +1140,7 @@ async function cacheViaStoryId(
       if (!imageUrl) return;
       
       try {
-        const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, imageUrl, true);
+        const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, imageUrl, forceRecache || true);
         if (cachedUrl) {
           await supabase.from('ads').update({ 
             cached_image_url: cachedUrl,
@@ -1436,7 +1463,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     const body: SyncRequest = await req.json();
-    let { project_id, ad_account_id, access_token, time_range, date_preset, syncMode = 'base', retry_count = 0, lite_mode = false, specific_ad_ids } = body;
+    let { project_id, ad_account_id, access_token, time_range, date_preset, syncMode = 'base', retry_count = 0, lite_mode = false, specific_ad_ids, force_recache = false } = body;
     
     // Buscar ad_account_id do projeto se não fornecido
     if (!ad_account_id && project_id) {
@@ -1543,12 +1570,13 @@ Deno.serve(async (req) => {
     
     // ===========================================================================================
     // 5️⃣ STORY HD MODE - Busca imagens HD via story ID (para ads sem image_hash)
+    // ATUALIZADO: Suporta specific_ad_ids e force_recache para sync individual
     // ===========================================================================================
     if (syncMode === 'story_hd') {
-      console.log(`[SYNC] Starting STORY HD for project ${project_id} - caching via effective_object_story_id`);
+      console.log(`[SYNC] Starting STORY HD for project ${project_id} - specific: ${specific_ad_ids?.length || 'all'}, force: ${force_recache}`);
       await updateSyncProgress(supabase, project_id, 'story_hd', 'Buscando imagens HD via posts originais...', 1, 100);
       
-      const result = await cacheViaStoryId(supabase, project_id, ad_account_id, token);
+      const result = await cacheViaStoryId(supabase, project_id, ad_account_id, token, specific_ad_ids, force_recache);
       
       await updateSyncProgress(supabase, project_id, 'complete', `Story HD: ${result.cached}/${result.total} cacheadas`, 100, 100);
       
