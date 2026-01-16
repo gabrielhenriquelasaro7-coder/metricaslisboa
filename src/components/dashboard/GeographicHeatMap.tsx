@@ -110,20 +110,20 @@ function HeatLayer({
 
     if (heatData.length === 0) return;
 
-    // Raio AUMENTA com o zoom - base maior
-    const baseRadius = 60;
-    const zoomFactor = Math.pow(2, currentZoom - 4);
-    const dynamicRadius = Math.max(baseRadius * zoomFactor, 60);
-    const dynamicBlur = dynamicRadius * 0.5;
+    // Raio AUMENTA com o zoom - mas com limite máximo
+    const baseRadius = 40;
+    const zoomFactor = Math.pow(1.4, currentZoom - 4);
+    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 40), 120);
+    const dynamicBlur = dynamicRadius * 0.4;
 
-    // Criar heat layer com raio dinâmico que CRESCE com zoom
+    // Criar heat layer com raio dinâmico limitado
     // @ts-ignore - leaflet.heat types
     heatLayerRef.current = L.heatLayer(heatData, {
       radius: dynamicRadius,
       blur: dynamicBlur,
       maxZoom: 18,
       max: 1.0,
-      minOpacity: 0.6,
+      minOpacity: 0.7,
       gradient: {
         0.0: '#fbbf24',
         0.3: '#f97316',
