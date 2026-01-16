@@ -342,10 +342,12 @@ export default function Settings() {
               <Palette className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Aparência</span>
             </TabsTrigger>
-            <TabsTrigger value="sync-history" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
-              <History className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Histórico</span>
-            </TabsTrigger>
+            {!isGuest && (
+              <TabsTrigger value="sync-history" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
+                <History className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Histórico</span>
+              </TabsTrigger>
+            )}
             {!isGuest && (
               <TabsTrigger value="guests" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex-shrink-0 px-2 sm:px-3">
                 <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -427,24 +429,26 @@ export default function Settings() {
                     </p>
                   </div>
 
-                  <div className="space-y-1.5 sm:space-y-2">
-                    <Label htmlFor="cargo" className="text-xs sm:text-sm">Cargo</Label>
-                    <div className="relative">
-                      <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
-                      <Input
-                        id="cargo"
-                        value={cargoLoading ? 'Carregando...' : (CARGO_LABELS[cargo] || cargo || 'Sem cargo')}
-                        disabled
-                        className="pl-9 sm:pl-10 bg-muted/50 text-muted-foreground h-10 text-sm capitalize"
-                      />
+                  {!isGuest && (
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <Label htmlFor="cargo" className="text-xs sm:text-sm">Cargo</Label>
+                      <div className="relative">
+                        <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
+                        <Input
+                          id="cargo"
+                          value={cargoLoading ? 'Carregando...' : (CARGO_LABELS[cargo] || cargo || 'Sem cargo')}
+                          disabled
+                          className="pl-9 sm:pl-10 bg-muted/50 text-muted-foreground h-10 text-sm capitalize"
+                        />
+                      </div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        {canEditCargo 
+                          ? 'Para alterar cargos, use a área de Administração'
+                          : 'O cargo só pode ser alterado por Tech ou Gerente'
+                        }
+                      </p>
                     </div>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">
-                      {canEditCargo 
-                        ? 'Para alterar cargos, use a área de Administração'
-                        : 'O cargo só pode ser alterado por Tech ou Gerente'
-                      }
-                    </p>
-                  </div>
+                  )}
 
                   <Button onClick={handleSaveProfile} disabled={saving} className="w-full sm:w-fit gap-2 h-10 text-sm">
                     {saving ? (
