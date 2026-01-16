@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +10,7 @@ import { AdminAuthProvider } from "@/hooks/useAdminAuth";
 import { GuestAccessGuard } from "@/components/auth/GuestAccessGuard";
 import { PWAProvider } from "@/components/pwa/PWAProvider";
 import { AnimatePresence, motion } from "framer-motion";
+import { initI18n } from "@/i18n";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -90,26 +92,39 @@ function AnimatedRoutes() {
   );
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <AdminAuthProvider>
-        <PeriodProvider>
-          <TooltipProvider>
-            <PWAProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <GuestAccessGuard>
-                  <AnimatedRoutes />
-                </GuestAccessGuard>
-              </BrowserRouter>
-            </PWAProvider>
-          </TooltipProvider>
-        </PeriodProvider>
-      </AdminAuthProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const [i18nReady, setI18nReady] = useState(false);
+
+  useEffect(() => {
+    initI18n();
+    setI18nReady(true);
+  }, []);
+
+  if (!i18nReady) {
+    return null; // Wait for i18n to initialize
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AdminAuthProvider>
+          <PeriodProvider>
+            <TooltipProvider>
+              <PWAProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <GuestAccessGuard>
+                    <AnimatedRoutes />
+                  </GuestAccessGuard>
+                </BrowserRouter>
+              </PWAProvider>
+            </TooltipProvider>
+          </PeriodProvider>
+        </AdminAuthProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

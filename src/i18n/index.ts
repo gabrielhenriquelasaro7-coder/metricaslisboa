@@ -18,29 +18,33 @@ export const supportedLanguages = [
   { code: 'es', name: 'Español', flag: '🇪🇸' }
 ] as const;
 
-i18n
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    resources,
-    fallbackLng: 'pt-BR',
-    supportedLngs: ['pt-BR', 'en-US', 'es'],
-    
-    detection: {
-      // Order of language detection
-      order: ['localStorage', 'navigator', 'htmlTag'],
-      // Cache user language preference
-      caches: ['localStorage'],
-      lookupLocalStorage: 'i18nextLng',
-    },
+// Initialize i18n - this will be called after React is ready
+export function initI18n() {
+  if (!i18n.isInitialized) {
+    i18n
+      .use(LanguageDetector)
+      .use(initReactI18next)
+      .init({
+        resources,
+        fallbackLng: 'pt-BR',
+        supportedLngs: ['pt-BR', 'en-US', 'es'],
+        
+        detection: {
+          order: ['localStorage', 'navigator', 'htmlTag'],
+          caches: ['localStorage'],
+          lookupLocalStorage: 'i18nextLng',
+        },
 
-    interpolation: {
-      escapeValue: false // React already escapes
-    },
+        interpolation: {
+          escapeValue: false
+        },
 
-    react: {
-      useSuspense: false
-    }
-  });
+        react: {
+          useSuspense: false
+        }
+      });
+  }
+  return i18n;
+}
 
 export default i18n;
