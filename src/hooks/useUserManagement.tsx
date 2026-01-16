@@ -18,10 +18,16 @@ export interface ManagedUser {
   updated_at: string;
 }
 
+interface CreateUserResult {
+  success: boolean;
+  password?: string;
+  error?: string;
+}
+
 interface UseUserManagementReturn {
   users: ManagedUser[];
   loading: boolean;
-  createUser: (data: CreateUserData) => Promise<void>;
+  createUser: (data: CreateUserData) => Promise<CreateUserResult>;
   updateUser: (userId: string, data: Partial<CreateUserData>) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   updateUserCargo: (userId: string, cargo: UserCargo) => Promise<void>;
@@ -134,44 +140,51 @@ export function useUserManagement(): UseUserManagementReturn {
     fetchUsers();
   }, [fetchUsers]);
 
-  const createUser = useCallback(async (data: CreateUserData) => {
+  const createUser = useCallback(async (data: CreateUserData): Promise<CreateUserResult> => {
     if (!user || !canManage) {
       toast.error('Você não tem permissão para criar usuários');
-      return;
+      return { success: false, error: 'Sem permissão' };
     }
 
     try {
-      // Check if user already exists
-      const { data: existingUser } = await supabase
-        .from('user_management')
-        .select('id')
-        .eq('email', data.email)
-        .maybeSingle();
-
-      if (existingUser) {
-        toast.error('Usuário com este email já existe');
-        return;
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Sessão expirada');
+        return { success: false, error: 'Sessão expirada' };
       }
 
-      const { error } = await supabase
-        .from('user_management')
-        .insert({
-          user_id: crypto.randomUUID(), // Placeholder - will be updated when user registers
+      // Call edge function to create user with auth
+      const response = await supabase.functions.invoke('create-auth-users', {
+        body: {
+          createSingle: true,
           email: data.email,
           full_name: data.full_name || null,
           phone: data.phone || null,
           cargo: data.cargo,
           squad_id: data.squad_id || null,
-        });
+        },
+      });
 
-      if (error) throw error;
+      if (response.error) {
+        console.error('Error creating user:', response.error);
+        toast.error(response.error.message || 'Erro ao criar usuário');
+        return { success: false, error: response.error.message };
+      }
 
-      toast.success('Usuário criado com sucesso');
+      const result = response.data;
+      
+      if (!result.success) {
+        toast.error(result.error || 'Erro ao criar usuário');
+        return { success: false, error: result.error };
+      }
+
       await fetchUsers();
+      return { success: true, password: result.password };
     } catch (error) {
       console.error('Error creating user:', error);
       toast.error('Erro ao criar usuário');
-      throw error;
+      return { success: false, error: 'Erro inesperado' };
     }
   }, [user, canManage, fetchUsers]);
 
