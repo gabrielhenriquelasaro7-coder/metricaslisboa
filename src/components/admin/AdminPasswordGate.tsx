@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useCargo } from '@/hooks/useCargo';
 import { useAdminAccessRequests } from '@/hooks/useAdminAccessRequests';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Lock, Loader2, AlertCircle, Clock, Send } from 'lucide-react';
+import { Shield, Lock, Loader2, AlertCircle, Clock, Send, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { AdminAccessRequestModal } from './AdminAccessRequestModal';
 
@@ -16,6 +17,7 @@ interface AdminPasswordGateProps {
 
 export default function AdminPasswordGate({ children }: AdminPasswordGateProps) {
   // ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP
+  const navigate = useNavigate();
   const { isAdminAuthenticated, hasApprovedAccess, isLoading, verifyPassword } = useAdminAuth();
   const { needsAdminApproval, cargo, loading: cargoLoading } = useCargo();
   const { myPendingRequest, loading: requestsLoading } = useAdminAccessRequests();
@@ -24,6 +26,10 @@ export default function AdminPasswordGate({ children }: AdminPasswordGateProps) 
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState('');
   const [showRequestModal, setShowRequestModal] = useState(false);
+
+  const handleGoBack = () => {
+    navigate(-1);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +76,13 @@ export default function AdminPasswordGate({ children }: AdminPasswordGateProps) 
     const hasPendingRequest = !!myPendingRequest;
 
     return (
-      <div className="flex items-center justify-center min-h-[60vh] p-8">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8">
+        <div className="w-full max-w-md mb-4">
+          <Button variant="ghost" onClick={handleGoBack} className="gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            Voltar
+          </Button>
+        </div>
         <Card className="w-full max-w-md glass-card border-primary/20">
           <CardHeader className="text-center space-y-4">
             <div className="mx-auto w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
@@ -139,7 +151,13 @@ export default function AdminPasswordGate({ children }: AdminPasswordGateProps) 
 
   // Show password form for tech users
   return (
-    <div className="flex items-center justify-center min-h-[60vh] p-8">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] p-8">
+      <div className="w-full max-w-md mb-4">
+        <Button variant="ghost" onClick={handleGoBack} className="gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          Voltar
+        </Button>
+      </div>
       <Card className="w-full max-w-md glass-card border-primary/20">
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
