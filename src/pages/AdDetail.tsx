@@ -210,23 +210,50 @@ export default function AdDetail() {
     }
   }, [adId]);
 
-  // Sync data with date range - ONLY for manual use
-  const syncData = useCallback(async (timeRange?: { since: string; until: string }) => {
+  // Sync ONLY this specific creative in HD - much faster and efficient
+  const syncThisCreativeHD = useCallback(async () => {
     if (!ad || !selectedProject) return;
     
     setSyncing(true);
     try {
-      const { error } = await supabase.functions.invoke('meta-ads-sync', {
+      console.log(`[AdDetail] Syncing ONLY creative HD for ad: ${ad.id}`);
+      
+      // Sync creatives for this specific ad only
+      const { data: creativesData, error: creativesError } = await supabase.functions.invoke('meta-ads-sync', {
         body: {
           project_id: selectedProject.id,
           ad_account_id: selectedProject.ad_account_id,
-          time_range: timeRange,
+          syncMode: 'creatives',
+          specific_ad_ids: [ad.id], // Only this ad!
         },
       });
       
-      if (error) throw error;
+      if (creativesError) {
+        console.error('Creative sync error:', creativesError);
+      } else {
+        console.log('[AdDetail] Creative sync response:', creativesData);
+      }
       
+      // Sync HD images for this specific ad only
+      const { data: hdData, error: hdError } = await supabase.functions.invoke('meta-ads-sync', {
+        body: {
+          project_id: selectedProject.id,
+          ad_account_id: selectedProject.ad_account_id,
+          syncMode: 'hd_images',
+          specific_ad_ids: [ad.id], // Only this ad!
+        },
+      });
+      
+      if (hdError) {
+        console.error('HD sync error:', hdError);
+      } else {
+        console.log('[AdDetail] HD sync response:', hdData);
+      }
+      
+      // Reset image error and refetch ad data
+      setImageError(false);
       await fetchAd();
+      
     } catch (error) {
       console.error('Sync error:', error);
     } finally {
@@ -248,17 +275,6 @@ export default function AdDetail() {
   const handlePresetChange = useCallback((preset: DatePresetKey) => {
     setSelectedPreset(preset);
   }, [setSelectedPreset]);
-
-  const handleManualSync = useCallback(() => {
-    if (dateRange?.from && dateRange?.to) {
-      syncData({
-        since: format(dateRange.from, 'yyyy-MM-dd'),
-        until: format(dateRange.to, 'yyyy-MM-dd'),
-      });
-    } else {
-      syncData();
-    }
-  }, [dateRange, syncData]);
 
   const formatNumber = (n: number) => 
     n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString('pt-BR');
@@ -351,13 +367,13 @@ export default function AdDetail() {
           </div>
           <div className="flex items-center gap-3">
             <Button 
-              onClick={handleManualSync} 
+              onClick={syncThisCreativeHD} 
               disabled={syncing || !selectedProject}
               variant="outline"
               size="sm"
             >
               <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-              {syncing ? 'Sincronizando...' : 'Sincronizar'}
+              {syncing ? 'Sincronizando...' : 'Sincronizar HD'}
             </Button>
             <DateRangePicker 
               dateRange={dateRange} 
