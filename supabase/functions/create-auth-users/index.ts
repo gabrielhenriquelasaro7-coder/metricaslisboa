@@ -6,7 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const DEFAULT_PASSWORD = '12345678';
+// Generate a random password
+function generateRandomPassword(length = 10): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -44,16 +52,125 @@ serve(async (req) => {
 
     // Get request body
     const body = await req.json().catch(() => ({}));
+    const { email, full_name, phone, cargo, squad_id, createSingle } = body;
+
+    // Mode 1: Create a single user with all data (new flow)
+    if (createSingle && email) {
+      // Check if user already exists in user_management
+      const { data: existingMgmt } = await supabase
+        .from('user_management')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existingMgmt) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'Usuário com este email já existe' 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Check if user already exists in auth.users
+      const { data: existingUsers } = await supabase.auth.admin.listUsers();
+      const existingAuth = existingUsers?.users?.find(u => u.email === email);
+
+      if (existingAuth) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'Usuário já existe no sistema de autenticação' 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Generate random password
+      const password = generateRandomPassword(10);
+
+      // Create auth user
+      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name },
+      });
+
+      if (createError || !newUser.user) {
+        console.error('Error creating auth user:', createError);
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: createError?.message || 'Erro ao criar usuário' 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const userId = newUser.user.id;
+
+      // Create user_management entry
+      await supabase
+        .from('user_management')
+        .insert({
+          user_id: userId,
+          email,
+          full_name: full_name || null,
+          phone: phone || null,
+          cargo: cargo || 'membro',
+          squad_id: squad_id || null,
+          needs_password_change: true,
+        });
+
+      // Create profile
+      await supabase
+        .from('profiles')
+        .upsert({
+          user_id: userId,
+          full_name: full_name || null,
+          cargo: cargo || 'membro',
+        }, { onConflict: 'user_id' });
+
+      // Create user_roles entry
+      await supabase
+        .from('user_roles')
+        .upsert({
+          user_id: userId,
+          cargo: cargo || 'membro',
+        }, { onConflict: 'user_id' });
+
+      // Add to squad_members if squad_id provided
+      if (squad_id) {
+        await supabase
+          .from('squad_members')
+          .insert({ user_id: userId, squad_id });
+      }
+
+      console.log(`Created user ${email} with cargo: ${cargo}`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        user_id: userId,
+        email,
+        password, // Return password so admin can share it
+        message: 'Usuário criado com sucesso',
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Mode 2: Batch activate users without auth (old flow for compatibility)
     const specificEmail = body.email;
 
-    // IMPORTANT: Only get users who DON'T have a user_id yet (never activated)
-    // This prevents resetting passwords for already active accounts
     let query = supabase
       .from('user_management')
       .select('*')
-      .is('user_id', null); // Only users without user_id = never activated
+      .is('user_id', null);
 
-    if (specificEmail) {
+    if (specificEmail && !createSingle) {
       query = query.eq('email', specificEmail);
     }
 
@@ -68,7 +185,7 @@ serve(async (req) => {
     }
 
     const results = {
-      created: [] as string[],
+      created: [] as { email: string; password: string }[],
       already_exists: [] as string[],
       failed: [] as { email: string; error: string }[],
       skipped: [] as string[],
@@ -76,48 +193,41 @@ serve(async (req) => {
 
     for (const user of users || []) {
       try {
-        // Check if user already exists in auth.users
         const { data: existingUsers } = await supabase.auth.admin.listUsers();
         const existingUser = existingUsers?.users?.find(u => u.email === user.email);
 
         if (existingUser) {
-          // User already exists in auth - link it to user_management but DON'T reset password
-          console.log(`User ${user.email} already exists in auth, linking without password reset`);
-          
           await supabase
             .from('user_management')
             .update({ 
               user_id: existingUser.id,
-              needs_password_change: false // They already have an account, don't force password change
+              needs_password_change: false
             })
             .eq('email', user.email);
 
           results.already_exists.push(user.email);
         } else {
-          // Create new auth user - this is a fresh account
+          const password = generateRandomPassword(10);
+          
           const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
             email: user.email,
-            password: DEFAULT_PASSWORD,
+            password,
             email_confirm: true,
-            user_metadata: {
-              full_name: user.full_name,
-            },
+            user_metadata: { full_name: user.full_name },
           });
 
           if (createError) {
             console.error(`Error creating user ${user.email}:`, createError);
             results.failed.push({ email: user.email, error: createError.message });
           } else if (newUser.user) {
-            // Update user_management with the new auth user_id
             await supabase
               .from('user_management')
               .update({ 
                 user_id: newUser.user.id,
-                needs_password_change: true // New account needs password change
+                needs_password_change: true
               })
               .eq('email', user.email);
 
-            // Create profile if it doesn't exist
             await supabase
               .from('profiles')
               .upsert({
@@ -126,8 +236,6 @@ serve(async (req) => {
                 cargo: user.cargo,
               }, { onConflict: 'user_id' });
 
-            // IMPORTANT: Create user_roles entry with correct cargo
-            // This is what the permission system actually uses
             await supabase
               .from('user_roles')
               .upsert({
@@ -137,7 +245,7 @@ serve(async (req) => {
 
             console.log(`Created user ${user.email} with cargo: ${user.cargo}`);
 
-            results.created.push(user.email);
+            results.created.push({ email: user.email, password });
           }
         }
       } catch (err) {
@@ -148,7 +256,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Processed ${users?.length || 0} users (only accounts without auth)`,
+      message: `Processed ${users?.length || 0} users`,
       results,
     }), {
       status: 200,

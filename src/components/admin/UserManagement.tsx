@@ -79,6 +79,8 @@ export function UserManagement() {
   const [userProjectAccess, setUserProjectAccess] = useState<Record<string, string[]>>({});
   const [isSavingVisibility, setIsSavingVisibility] = useState(false);
   const [localHiddenTabs, setLocalHiddenTabs] = useState<TabKey[]>([]);
+  const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -279,19 +281,34 @@ export function UserManagement() {
       return;
     }
 
+    setIsCreating(true);
     try {
-      await createUser({
+      const result = await createUser({
         email: formData.email,
         full_name: formData.full_name || undefined,
         phone: formData.phone || undefined,
         cargo: formData.cargo,
         squad_id: formData.squad_id || undefined,
       });
-      setIsCreateOpen(false);
-      setFormData({ email: '', full_name: '', phone: '', cargo: 'membro', squad_id: '' });
+      
+      if (result.success && result.password) {
+        setCreatedPassword(result.password);
+        toast.success('Usuário criado com sucesso!');
+        // Keep dialog open to show password
+      } else {
+        // Error already handled in hook
+      }
     } catch (error) {
       // Error already handled in hook
+    } finally {
+      setIsCreating(false);
     }
+  };
+
+  const handleCloseCreateDialog = () => {
+    setIsCreateOpen(false);
+    setCreatedPassword(null);
+    setFormData({ email: '', full_name: '', phone: '', cargo: 'membro', squad_id: '' });
   };
 
   const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -587,7 +604,7 @@ export function UserManagement() {
                 </DialogContent>
               </Dialog>
 
-              <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <Dialog open={isCreateOpen} onOpenChange={handleCloseCreateDialog}>
                 <DialogTrigger asChild>
                   <Button className="gap-2">
                     <Plus className="w-4 h-4" />
@@ -596,80 +613,143 @@ export function UserManagement() {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Criar Novo Usuário</DialogTitle>
+                    <DialogTitle>
+                      {createdPassword ? 'Usuário Criado com Sucesso!' : 'Criar Novo Usuário'}
+                    </DialogTitle>
                     <DialogDescription>
-                      Adicione um novo usuário ao sistema
+                      {createdPassword 
+                        ? 'Copie a senha temporária abaixo e envie para o usuário'
+                        : 'Adicione um novo usuário ao sistema'
+                      }
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Email *</Label>
-                      <Input 
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="email@exemplo.com"
-                      />
+                  
+                  {createdPassword ? (
+                    <div className="space-y-4 py-4">
+                      <div className="p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg space-y-3">
+                        <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                          <Check className="w-5 h-5" />
+                          <span className="font-medium">Usuário criado!</span>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-sm text-muted-foreground">Email:</Label>
+                          <p className="font-medium">{formData.email}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-sm text-muted-foreground">Senha temporária:</Label>
+                          <div className="flex items-center gap-2">
+                            <code className="flex-1 p-2 bg-background rounded border font-mono text-lg">
+                              {createdPassword}
+                            </code>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                navigator.clipboard.writeText(createdPassword);
+                                toast.success('Senha copiada!');
+                              }}
+                            >
+                              Copiar
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        O usuário deverá trocar a senha no primeiro acesso.
+                      </p>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Nome Completo</Label>
-                      <Input 
-                        value={formData.full_name}
-                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                        placeholder="Nome completo"
-                      />
+                  ) : (
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Email *</Label>
+                        <Input 
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="email@exemplo.com"
+                          disabled={isCreating}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Nome Completo</Label>
+                        <Input 
+                          value={formData.full_name}
+                          onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                          placeholder="Nome completo"
+                          disabled={isCreating}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Telefone</Label>
+                        <Input 
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          placeholder="(00) 00000-0000"
+                          disabled={isCreating}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Cargo</Label>
+                        <Select 
+                          value={formData.cargo} 
+                          onValueChange={(v) => setFormData({ ...formData, cargo: v as UserCargo })}
+                          disabled={isCreating}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="tech">Tech</SelectItem>
+                            <SelectItem value="gerente">Gerente</SelectItem>
+                            <SelectItem value="coordenador">Coordenador</SelectItem>
+                            <SelectItem value="investidor">Investidor</SelectItem>
+                            <SelectItem value="membro">Membro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Squad</Label>
+                        <Select 
+                          value={formData.squad_id} 
+                          onValueChange={(v) => setFormData({ ...formData, squad_id: v })}
+                          disabled={isCreating}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione uma squad" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {squads.filter(s => s.name !== 'S/SQUAD').map(squad => (
+                              <SelectItem key={squad.id} value={squad.id}>
+                                {squad.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Telefone</Label>
-                      <Input 
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder="(00) 00000-0000"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Cargo</Label>
-                      <Select 
-                        value={formData.cargo} 
-                        onValueChange={(v) => setFormData({ ...formData, cargo: v as UserCargo })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="tech">Tech</SelectItem>
-                          <SelectItem value="gerente">Gerente</SelectItem>
-                          <SelectItem value="coordenador">Coordenador</SelectItem>
-                          <SelectItem value="investidor">Investidor</SelectItem>
-                          <SelectItem value="membro">Membro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Squad</Label>
-                      <Select 
-                        value={formData.squad_id} 
-                        onValueChange={(v) => setFormData({ ...formData, squad_id: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione uma squad" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {squads.filter(s => s.name !== 'S/SQUAD').map(squad => (
-                            <SelectItem key={squad.id} value={squad.id}>
-                              {squad.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  )}
+                  
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleCreateUser}>
-                      Criar Usuário
-                    </Button>
+                    {createdPassword ? (
+                      <Button onClick={handleCloseCreateDialog}>
+                        Fechar
+                      </Button>
+                    ) : (
+                      <>
+                        <Button variant="outline" onClick={handleCloseCreateDialog} disabled={isCreating}>
+                          Cancelar
+                        </Button>
+                        <Button onClick={handleCreateUser} disabled={isCreating}>
+                          {isCreating ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Criando...
+                            </>
+                          ) : (
+                            'Criar Usuário'
+                          )}
+                        </Button>
+                      </>
+                    )}
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
