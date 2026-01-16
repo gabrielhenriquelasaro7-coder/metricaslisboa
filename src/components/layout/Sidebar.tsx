@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useProfile } from '@/hooks/useProfile';
@@ -22,11 +21,7 @@ import {
   Layers,
   ChevronUp,
   Image as ImageIcon,
-  Database,
   Bot,
-  MessageSquare,
-  UserPlus,
-  Compass,
   Lock,
   TrendingUp,
   History,
@@ -37,7 +32,8 @@ import {
   Lightbulb,
   DollarSign,
   AlertTriangle,
-  Globe
+  Compass,
+  Database
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
@@ -65,44 +61,6 @@ import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { AdminAccessRequestModal } from '@/components/admin/AdminAccessRequestModal';
-import { supportedLanguages } from '@/i18n';
-
-// Inline Language Selector Component
-function LanguageSelectorInline() {
-  const { i18n } = useTranslation();
-  
-  const currentLanguage = supportedLanguages.find(
-    lang => lang.code === i18n.language
-  ) || supportedLanguages[0];
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
-          <Globe className="w-4 h-4 text-muted-foreground" />
-          <span className="text-base">{currentLanguage.flag}</span>
-          <span className="flex-1 text-left text-muted-foreground">{currentLanguage.name}</span>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[160px]">
-        {supportedLanguages.map((language) => (
-          <DropdownMenuItem
-            key={language.code}
-            onClick={() => i18n.changeLanguage(language.code)}
-            className={cn(
-              'flex items-center gap-2 cursor-pointer',
-              currentLanguage.code === language.code && 'bg-accent'
-            )}
-          >
-            <span className="text-base">{language.flag}</span>
-            <span className="text-sm">{language.name}</span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 // Skeleton component for campaign list items
 function CampaignSkeleton() {
@@ -718,12 +676,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
         {/* User section - Different for guests vs regular users */}
         <div className="p-4 border-t border-sidebar-border bg-sidebar-accent/50">
-          {/* Language Selector */}
-          {!collapsed && (
-            <LanguageSelectorInline />
-          )}
-          
-          <div className={cn('flex items-center gap-3 mt-3', collapsed && 'justify-center')}>
+          <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
             <Avatar className="w-10 h-10 ring-2 ring-primary/20">
               <AvatarImage src={profile?.avatar_url || undefined} />
               <AvatarFallback className="bg-primary text-primary-foreground font-bold">
