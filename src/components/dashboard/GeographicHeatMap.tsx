@@ -79,7 +79,7 @@ function formatPercent(value: number): string {
 
 type MetricType = 'clicks' | 'impressions' | 'conversions' | 'spend';
 
-// Componente para o Heat Layer
+// Componente para o Heat Layer - aumenta com zoom
 function HeatLayer({ 
   data, 
   metric, 
@@ -92,7 +92,7 @@ function HeatLayer({
   const map = useMap();
   const heatLayerRef = useRef<any>(null);
 
-  useEffect(() => {
+  const updateHeatLayer = (currentZoom: number) => {
     if (!map) return;
 
     // Remover layer anterior se existir
@@ -110,14 +110,20 @@ function HeatLayer({
 
     if (heatData.length === 0) return;
 
-    // Criar heat layer - intensidade proporcional
+    // Raio aumenta com o zoom (proporcional)
+    const baseRadius = 20;
+    const zoomFactor = Math.pow(1.5, currentZoom - 4);
+    const dynamicRadius = Math.min(baseRadius * zoomFactor, 150);
+    const dynamicBlur = Math.min(dynamicRadius * 0.6, 80);
+
+    // Criar heat layer com raio dinâmico
     // @ts-ignore - leaflet.heat types
     heatLayerRef.current = L.heatLayer(heatData, {
-      radius: 25,
-      blur: 15,
-      maxZoom: 12,
+      radius: dynamicRadius,
+      blur: dynamicBlur,
+      maxZoom: 18,
       max: 1.0,
-      minOpacity: 0.4,
+      minOpacity: 0.5,
       gradient: {
         0.0: '#10b981',
         0.25: '#84cc16',
@@ -126,8 +132,20 @@ function HeatLayer({
         1.0: '#ef4444'
       }
     }).addTo(map);
+  };
+
+  useEffect(() => {
+    if (!map) return;
+
+    // Criar layer inicial
+    updateHeatLayer(map.getZoom());
+
+    // Atualizar ao mudar zoom
+    const onZoom = () => updateHeatLayer(map.getZoom());
+    map.on('zoomend', onZoom);
 
     return () => {
+      map.off('zoomend', onZoom);
       if (heatLayerRef.current && map) {
         map.removeLayer(heatLayerRef.current);
       }
@@ -284,18 +302,17 @@ export function GeographicHeatMap({
           </div>
         </div>
 
-        {/* Tabela de dados - EMBAIXO */}
+        {/* Tabela de dados - EMBAIXO (sem conversões) */}
         <div className="rounded-xl border border-border overflow-hidden bg-card/50">
-          <div className="grid grid-cols-7 gap-0 bg-muted/30 px-4 py-3 text-xs font-medium text-muted-foreground border-b border-border">
+          <div className="grid grid-cols-6 gap-0 bg-muted/30 px-4 py-3 text-xs font-medium text-muted-foreground border-b border-border">
             <div className="text-center">#</div>
             <div>Região</div>
             <div className="text-right">Cliques</div>
             <div className="text-right">Impressões</div>
             <div className="text-right">CTR</div>
-            <div className="text-right">Conversões</div>
             <div className="text-right">CPC</div>
           </div>
-          <ScrollArea className="h-[250px]">
+          <ScrollArea className="h-[200px]">
             <div className="divide-y divide-border/50">
               {processedData.map((item, index) => {
                 const isTop = index < 3;
@@ -303,7 +320,7 @@ export function GeographicHeatMap({
                 return (
                   <div 
                     key={item.breakdown_value}
-                    className={`grid grid-cols-7 gap-0 px-4 py-3 text-sm transition-colors hover:bg-muted/20 ${isTop ? 'bg-gradient-to-r from-red-500/5 to-transparent' : ''}`}
+                    className={`grid grid-cols-6 gap-0 px-4 py-3 text-sm transition-colors hover:bg-muted/20 ${isTop ? 'bg-gradient-to-r from-red-500/5 to-transparent' : ''}`}
                   >
                     <div className={`text-center font-bold ${isTop ? rankColors[index] : 'text-muted-foreground'}`}>
                       {index + 1}
@@ -317,9 +334,6 @@ export function GeographicHeatMap({
                     </div>
                     <div className={`text-right tabular-nums ${item.ctr > 5 ? 'text-emerald-400' : item.ctr < 2 ? 'text-red-400' : 'text-muted-foreground'}`}>
                       {formatPercent(item.ctr)}
-                    </div>
-                    <div className={`text-right tabular-nums ${item.conversions > 0 ? 'text-purple-400 font-medium' : 'text-muted-foreground'}`}>
-                      {formatNumber(item.conversions)}
                     </div>
                     <div className="text-right tabular-nums text-muted-foreground">
                       {formatCurrency(item.cpc, currency)}
