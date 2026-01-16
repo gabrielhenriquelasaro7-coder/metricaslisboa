@@ -7,8 +7,9 @@ export type PageContext = 'all' | 'dashboard' | 'campaigns' | 'adsets' | 'ads';
 export type BusinessModel = 'ecommerce' | 'inside_sales' | 'pdv' | 'infoproduto' | 'custom' | null;
 
 // Base metrics available for all business models
+// Labels must match EXACTLY what appears on the dashboard cards
 const BASE_METRICS = {
-  spend: { label: 'Investimento', category: 'Investimento' },
+  spend: { label: 'Gasto Total', category: 'Investimento' },
   impressions: { label: 'Impressões', category: 'Alcance' },
   reach: { label: 'Alcance', category: 'Alcance' },
   clicks: { label: 'Cliques', category: 'Engajamento' },
@@ -55,9 +56,9 @@ const INFOPRODUTO_METRICS = {
   purchases: { label: 'Compras (Pixel)', category: 'Resultados' },
 } as const;
 
-// All metrics union for typing
+// All metrics union for typing - labels must match dashboard cards
 export const AVAILABLE_METRICS = {
-  spend: { label: 'Investimento', category: 'Investimento' },
+  spend: { label: 'Gasto Total', category: 'Investimento' },
   impressions: { label: 'Impressões', category: 'Alcance' },
   reach: { label: 'Alcance', category: 'Alcance' },
   clicks: { label: 'Cliques', category: 'Engajamento' },
@@ -66,7 +67,7 @@ export const AVAILABLE_METRICS = {
   cpm: { label: 'CPM', category: 'Custo' },
   cpa: { label: 'CPA / CPL', category: 'Custo' },
   conversions: { label: 'Conversões', category: 'Resultados' },
-  conversion_value: { label: 'Valor Conversão', category: 'Resultados' },
+  conversion_value: { label: 'Receita', category: 'Resultados' },
   roas: { label: 'ROAS', category: 'Eficiência' },
   frequency: { label: 'Frequência', category: 'Alcance' },
   messages: { label: 'Mensagens', category: 'Engajamento' },

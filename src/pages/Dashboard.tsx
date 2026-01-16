@@ -418,7 +418,7 @@ export default function Dashboard() {
             </div>
 
             {/* Period Comparison */}
-            {showComparison && hasSelectedProject && <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? '7 dias' : selectedPreset === 'last_30d' ? '30 dias' : 'Atual'} previousPeriodLabel={selectedPreset === 'this_month' ? 'Anterior' : selectedPreset === 'last_7d' ? 'Anterior' : selectedPreset === 'last_30d' ? 'Anterior' : 'Anterior'} currency={selectedProject?.currency || 'BRL'} resultMetrics={metricConfig?.result_metrics} resultMetricsLabels={metricConfig?.result_metrics_labels} />}
+            {showComparison && hasSelectedProject && <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? '7 dias' : selectedPreset === 'last_30d' ? '30 dias' : 'Atual'} previousPeriodLabel={selectedPreset === 'this_month' ? 'Anterior' : selectedPreset === 'last_7d' ? 'Anterior' : selectedPreset === 'last_30d' ? 'Anterior' : 'Anterior'} currency={selectedProject?.currency || 'BRL'} resultMetrics={metricConfig?.result_metrics} resultMetricsLabels={metricConfig?.result_metrics_labels} isMetricHidden={isMetricHidden} />}
 
             {/* Metrics Grid - Responsive */}
             <div data-tour="metrics">
