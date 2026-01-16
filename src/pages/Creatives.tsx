@@ -48,7 +48,7 @@ const cleanImageUrl = (url: string | null): string | null => {
 
 export default function Creatives() {
   const navigate = useNavigate();
-  const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncData, loadMetricsByPeriod, usingFallbackData, dataDateRange } = useMetaAdsData();
+  const { ads, campaigns, adSets, loading, syncing, selectedProject, projectsLoading, syncCreativesHD, loadMetricsByPeriod, usingFallbackData, dataDateRange } = useMetaAdsData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [campaignFilter, setCampaignFilter] = useState<string>('all');
@@ -263,13 +263,29 @@ export default function Creatives() {
               )}
             </p>
           </div>
-          <DateRangePicker
-            dateRange={dateRange}
-            onDateRangeChange={handleDateRangeChange}
-            timezone={projectTimezone}
-            onPresetChange={handlePresetChange}
-            selectedPreset={selectedPreset}
-          />
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => syncCreativesHD()} 
+              disabled={syncing}
+              variant="outline"
+              className="gap-2"
+            >
+              {syncing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              <span className="hidden sm:inline">Sincronizar Criativos HD</span>
+              <span className="sm:hidden">Sync HD</span>
+            </Button>
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={handleDateRangeChange}
+              timezone={projectTimezone}
+              onPresetChange={handlePresetChange}
+              selectedPreset={selectedPreset}
+            />
+          </div>
         </div>
 
         {/* Filters */}
@@ -443,13 +459,13 @@ export default function Creatives() {
                 : 'Sincronize seus dados para ver os criativos das suas campanhas.'}
             </p>
             {campaignFilter === 'all' && adSetFilter === 'all' && (
-              <Button onClick={() => syncData()} disabled={syncing} className="bg-primary hover:bg-primary/90">
+              <Button onClick={() => syncCreativesHD()} disabled={syncing} className="bg-primary hover:bg-primary/90">
                 {syncing ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <RefreshCw className="w-4 h-4 mr-2" />
                 )}
-                Sincronizar Dados
+                Sincronizar Criativos HD
               </Button>
             )}
           </div>
