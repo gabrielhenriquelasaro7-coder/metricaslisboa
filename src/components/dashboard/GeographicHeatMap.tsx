@@ -242,89 +242,87 @@ export function GeographicHeatMap({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Tabela de dados */}
-          <ScrollArea className="h-[450px] rounded-lg border border-border">
-            <Table>
-              <TableHeader className="sticky top-0 bg-card z-10">
-                <TableRow>
-                  <TableHead className="w-8 text-center">#</TableHead>
-                  <TableHead>Região</TableHead>
-                  <TableHead className="text-right">Cliques</TableHead>
-                  <TableHead className="text-right">Impressões</TableHead>
-                  <TableHead className="text-right">CTR</TableHead>
-                  <TableHead className="text-right">Conversões</TableHead>
-                  <TableHead className="text-right">CPC</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {processedData.map((item, index) => {
-                  const isTop = index < 3;
-                  return (
-                    <TableRow 
-                      key={item.breakdown_value}
-                      className={isTop ? 'bg-red-500/10' : ''}
-                    >
-                      <TableCell className="text-center text-muted-foreground">{index + 1}.</TableCell>
-                      <TableCell className="font-medium">{item.breakdown_value}</TableCell>
-                      <TableCell className={`text-right ${isTop ? 'text-emerald-400 font-semibold' : ''}`}>
-                        {formatNumber(item.clicks)}
-                      </TableCell>
-                      <TableCell className={`text-right ${isTop ? 'text-emerald-400' : ''}`}>
-                        {formatNumber(item.impressions)}
-                      </TableCell>
-                      <TableCell className={`text-right ${item.ctr > 5 ? 'text-emerald-400' : item.ctr < 2 ? 'text-red-400' : ''}`}>
-                        {formatPercent(item.ctr)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatNumber(item.conversions)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(item.cpc, currency)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+      <CardContent className="space-y-4">
+        {/* Mapa de calor interativo - GRANDE */}
+        <div className="relative h-[500px] rounded-lg border border-border overflow-hidden">
+          <MapContainer
+            center={[-14.235, -51.925]}
+            zoom={4}
+            style={{ height: '100%', width: '100%' }}
+            scrollWheelZoom={true}
+            zoomControl={true}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            />
+            <HeatLayer 
+              data={heatMapData} 
+              metric={metric} 
+              maxValue={maxValue} 
+            />
+          </MapContainer>
 
-          {/* Mapa de calor interativo */}
-          <div className="relative h-[450px] rounded-lg border border-border overflow-hidden">
-            <MapContainer
-              center={[-14.235, -51.925]}
-              zoom={4}
-              style={{ height: '100%', width: '100%' }}
-              scrollWheelZoom={true}
-              zoomControl={true}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              />
-              <HeatLayer 
-                data={heatMapData} 
-                metric={metric} 
-                maxValue={maxValue} 
-              />
-            </MapContainer>
-
-            {/* Legenda */}
-            <div className="absolute bottom-3 left-3 flex items-center gap-2 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
-              <span>{getMetricLabel(metric)}</span>
-              <div className="flex items-center h-3 w-24 rounded-sm overflow-hidden">
-                <div className="h-full flex-1" style={{ background: 'linear-gradient(to right, #00ff00, #7fff00, #ffff00, #ff7f00, #ff0000)' }}></div>
-              </div>
-              <span>{formatNumber(maxValue)}</span>
+          {/* Legenda */}
+          <div className="absolute bottom-3 left-3 flex items-center gap-2 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
+            <span>{getMetricLabel(metric)}</span>
+            <div className="flex items-center h-3 w-24 rounded-sm overflow-hidden">
+              <div className="h-full flex-1" style={{ background: 'linear-gradient(to right, #00ff00, #7fff00, #ffff00, #ff7f00, #ff0000)' }}></div>
             </div>
+            <span>{formatNumber(maxValue)}</span>
+          </div>
 
-            {/* Contador */}
-            <div className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
-              {processedData.length} regiões
-            </div>
+          {/* Contador */}
+          <div className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
+            {processedData.length} regiões
           </div>
         </div>
+
+        {/* Tabela de dados - EMBAIXO */}
+        <ScrollArea className="h-[300px] rounded-lg border border-border">
+          <Table>
+            <TableHeader className="sticky top-0 bg-card z-10">
+              <TableRow>
+                <TableHead className="w-8 text-center">#</TableHead>
+                <TableHead>Região</TableHead>
+                <TableHead className="text-right">Cliques</TableHead>
+                <TableHead className="text-right">Impressões</TableHead>
+                <TableHead className="text-right">CTR</TableHead>
+                <TableHead className="text-right">Conversões</TableHead>
+                <TableHead className="text-right">CPC</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {processedData.map((item, index) => {
+                const isTop = index < 3;
+                return (
+                  <TableRow 
+                    key={item.breakdown_value}
+                    className={isTop ? 'bg-red-500/10' : ''}
+                  >
+                    <TableCell className="text-center text-muted-foreground">{index + 1}.</TableCell>
+                    <TableCell className="font-medium">{item.breakdown_value}</TableCell>
+                    <TableCell className={`text-right ${isTop ? 'text-emerald-400 font-semibold' : ''}`}>
+                      {formatNumber(item.clicks)}
+                    </TableCell>
+                    <TableCell className={`text-right ${isTop ? 'text-emerald-400' : ''}`}>
+                      {formatNumber(item.impressions)}
+                    </TableCell>
+                    <TableCell className={`text-right ${item.ctr > 5 ? 'text-emerald-400' : item.ctr < 2 ? 'text-red-400' : ''}`}>
+                      {formatPercent(item.ctr)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatNumber(item.conversions)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(item.cpc, currency)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </ScrollArea>
       </CardContent>
     </Card>
   );
