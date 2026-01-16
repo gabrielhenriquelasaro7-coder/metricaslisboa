@@ -26,7 +26,7 @@ interface GeographicHeatMapProps {
   currency?: string;
 }
 
-// Coordenadas para estados brasileiros
+// Coordenadas para estados brasileiros (inclui variações de nome da API do Meta)
 const BRAZIL_STATES_COORDS: Record<string, [number, number]> = {
   'Acre': [-9.0238, -70.8120],
   'Alagoas': [-9.5713, -36.7820],
@@ -47,6 +47,7 @@ const BRAZIL_STATES_COORDS: Record<string, [number, number]> = {
   'Pernambuco': [-8.3137, -37.8597],
   'Piauí': [-7.7183, -42.7289],
   'Rio de Janeiro': [-22.2587, -42.6505],
+  'Rio de Janeiro (state)': [-22.2587, -42.6505],
   'Rio Grande do Norte': [-5.8126, -36.5900],
   'Rio Grande do Sul': [-30.0346, -51.2177],
   'Rondônia': [-10.8307, -63.3461],
@@ -54,6 +55,8 @@ const BRAZIL_STATES_COORDS: Record<string, [number, number]> = {
   'Santa Catarina': [-27.2423, -50.2189],
   'São Paulo': [-22.1922, -48.7945],
   'Sao Paulo': [-22.1922, -48.7945],
+  'São Paulo (state)': [-22.1922, -48.7945],
+  'Sao Paulo (state)': [-22.1922, -48.7945],
   'Sergipe': [-10.5741, -37.3857],
   'Tocantins': [-10.1753, -48.2982],
 };
