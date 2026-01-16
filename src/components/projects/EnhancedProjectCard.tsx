@@ -88,14 +88,33 @@ export default function EnhancedProjectCard({
   onArchive, 
   onUnarchive 
 }: EnhancedProjectCardProps) {
-  const [investidorName, setInvestidorName] = useState<string | null>(null);
+  const [investidorNames, setInvestidorNames] = useState<string[]>([]);
   const [squadName, setSquadName] = useState<string | null>(null);
 
   // Fetch investidor and squad names
   useEffect(() => {
     const fetchProjectDetails = async () => {
-      // Fetch investidor name from profiles (investidor_id is a user_id)
-      if (project.investidor_id) {
+      // Fetch investidores from project_investidores table
+      const { data: investidoresData } = await supabase
+        .from('project_investidores')
+        .select('investidor_id')
+        .eq('project_id', project.id);
+      
+      if (investidoresData && investidoresData.length > 0) {
+        const investidorIds = investidoresData.map(i => i.investidor_id);
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .in('user_id', investidorIds);
+        
+        if (profilesData) {
+          const names = profilesData
+            .map(p => p.full_name)
+            .filter((name): name is string => !!name);
+          setInvestidorNames(names);
+        }
+      } else if (project.investidor_id) {
+        // Fallback to legacy investidor_id field
         const { data: investidorData } = await supabase
           .from('profiles')
           .select('full_name')
@@ -103,7 +122,7 @@ export default function EnhancedProjectCard({
           .maybeSingle();
         
         if (investidorData?.full_name) {
-          setInvestidorName(investidorData.full_name);
+          setInvestidorNames([investidorData.full_name]);
         }
       }
 
@@ -122,7 +141,7 @@ export default function EnhancedProjectCard({
     };
 
     fetchProjectDetails();
-  }, [project.investidor_id, project.squad_id]);
+  }, [project.id, project.investidor_id, project.squad_id]);
 
   const config = businessModelConfig[project.business_model];
   const Icon = config.icon;
@@ -284,12 +303,14 @@ export default function EnhancedProjectCard({
 
         {/* Investidor & Squad Info - Always show */}
         <div className="flex flex-col gap-1.5 mb-3 pt-2 border-t border-border/50 text-xs">
-          <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Investidor</span>
             <span className={cn(
-              investidorName ? 'text-foreground' : 'text-muted-foreground/70'
+              investidorNames.length > 0 ? 'text-foreground' : 'text-muted-foreground/70'
             )}>
-              {investidorName ? investidorName.split(' ').slice(0, 2).join(' ') : 'Sem investidor'}
+              {investidorNames.length > 0 
+                ? investidorNames.map(name => name.split(' ').slice(0, 2).join(' ')).join(', ')
+                : 'Sem investidor'}
             </span>
           </div>
           <div className="flex items-center justify-between">
