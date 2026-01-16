@@ -1074,16 +1074,17 @@ async function cacheViaStoryId(
   // Mapa de adId -> image URL HD
   const storyImageMap = new Map<string, string>();
   
-  // FASE 1: Buscar thumbnail_url com 1080x1080 (EXATAMENTE como solicitado!)
-  console.log(`[STORY-HD] FASE 1: Buscando thumbnail_url 1080x1080...`);
+  // FASE 1: Buscar creative{thumbnail_url} com 1080x1080 (EXATAMENTE como solicitado!)
+  // IMPORTANTE: thumbnail_url é campo do CREATIVE, não do AD!
+  console.log(`[STORY-HD] FASE 1: Buscando creative{thumbnail_url} 1080x1080...`);
   
   for (let i = 0; i < adIds.length; i += batchSize) {
     const batch = adIds.slice(i, i + batchSize);
     const batchIds = batch.join(',');
     
-    // Query EXATA: fields=thumbnail_url, thumbnail_width=1080, thumbnail_height=1080
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=thumbnail_url&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
-    console.log(`[STORY-HD] Fetching batch with thumbnail_width=1080, thumbnail_height=1080`);
+    // Query CORRETA: fields=creative{thumbnail_url}, thumbnail_width=1080, thumbnail_height=1080
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=creative{thumbnail_url}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    console.log(`[STORY-HD] Fetching creative{thumbnail_url} with thumbnail_width=1080, thumbnail_height=1080`);
     
     const adsData = await simpleFetch(adsUrl, undefined, 30000);
     
@@ -1094,12 +1095,15 @@ async function cacheViaStoryId(
     
     for (const adId of batch) {
       const adData = (adsData as Record<string, any>)[adId];
-      if (!adData?.thumbnail_url) continue;
+      const thumbnailUrl = adData?.creative?.thumbnail_url;
+      if (!thumbnailUrl) {
+        console.log(`[STORY-HD] No thumbnail_url for ${adId}`);
+        continue;
+      }
       
       // URL já vem em 1080x1080 direto da API!
-      const hdUrl = adData.thumbnail_url;
-      console.log(`[STORY-HD] ✓ Got 1080x1080 thumbnail for ${adId}`);
-      storyImageMap.set(adId, hdUrl);
+      console.log(`[STORY-HD] ✓ Got 1080x1080 thumbnail for ${adId}: ${thumbnailUrl.substring(0, 80)}...`);
+      storyImageMap.set(adId, thumbnailUrl);
     }
     
     if (i + batchSize < adIds.length) await delay(100);
