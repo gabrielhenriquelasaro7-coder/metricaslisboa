@@ -53,6 +53,18 @@ export function useBalanceAlert(projectId: string | null, projectName?: string) 
       const uniqueDays = new Set(metricsData.map(row => row.date)).size;
       const avgDailySpend = uniqueDays > 0 ? totalSpend / uniqueDays : 0;
 
+      // If balance is extremely low (less than R$ 1.00), it's critical regardless of spend
+      const CRITICAL_BALANCE_THRESHOLD = 1.00; // R$ 1.00
+      
+      if (project.account_balance < CRITICAL_BALANCE_THRESHOLD) {
+        return {
+          balance: project.account_balance,
+          avgDailySpend: avgDailySpend || 0,
+          daysRemaining: 0,
+          status: 'critical' as const,
+        };
+      }
+
       if (avgDailySpend === 0) return null;
 
       const daysRemaining = Math.floor(project.account_balance / avgDailySpend);
@@ -99,18 +111,25 @@ export function useBalanceAlert(projectId: string | null, projectName?: string) 
       // Get threshold from subscription or use default (3 days)
       const threshold = subscription?.balance_alert_threshold || 3;
 
-      // Show in-app notification if balance is critical
-      if (balanceData.daysRemaining <= threshold) {
+      const formatCurrency = (value: number) => 
+        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+      // Critical alert: balance below R$ 1.00 OR days remaining below threshold
+      const isCriticalBalance = balanceData.balance < 1.00;
+      const isCriticalDays = balanceData.daysRemaining <= threshold;
+      
+      if (isCriticalBalance || isCriticalDays) {
         hasShownAlert.current = alertKey;
         
-        const formatCurrency = (value: number) => 
-          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        const description = isCriticalBalance 
+          ? `Saldo praticamente zerado: ${formatCurrency(balanceData.balance)}. Adicione créditos AGORA!`
+          : `Apenas ${balanceData.daysRemaining} ${balanceData.daysRemaining === 1 ? 'dia' : 'dias'} de saldo restante (${formatCurrency(balanceData.balance)}). Gasto médio: ${formatCurrency(balanceData.avgDailySpend)}/dia`;
 
         toast.error(
           `🚨 Saldo Crítico${projectName ? ` - ${projectName}` : ''}`,
           {
-            description: `Apenas ${balanceData.daysRemaining} ${balanceData.daysRemaining === 1 ? 'dia' : 'dias'} de saldo restante (${formatCurrency(balanceData.balance)}). Gasto médio: ${formatCurrency(balanceData.avgDailySpend)}/dia`,
-            duration: 10000,
+            description,
+            duration: 15000,
             action: {
               label: 'Ver detalhes',
               onClick: () => window.location.href = '/predictive-analysis',
@@ -119,9 +138,6 @@ export function useBalanceAlert(projectId: string | null, projectName?: string) 
         );
       } else if (balanceData.daysRemaining <= 7) {
         hasShownAlert.current = alertKey;
-        
-        const formatCurrency = (value: number) => 
-          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
         toast.warning(
           `⚠️ Saldo Baixo${projectName ? ` - ${projectName}` : ''}`,
@@ -162,8 +178,18 @@ export function generateBalanceAlertMessage(
   const formatCurrency = (value: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-  const emoji = daysRemaining <= 2 ? '🚨🚨🚨' : daysRemaining <= 3 ? '🚨' : '⚠️';
-  const urgency = daysRemaining <= 2 ? 'URGENTE' : daysRemaining <= 3 ? 'CRÍTICO' : 'ATENÇÃO';
+  // Balance below R$ 1.00 is emergency level
+  const isEmergency = balance < 1.00;
+  const emoji = isEmergency ? '🚨🚨🚨' : daysRemaining <= 2 ? '🚨🚨' : daysRemaining <= 3 ? '🚨' : '⚠️';
+  const urgency = isEmergency ? 'ZERADO' : daysRemaining <= 2 ? 'URGENTE' : daysRemaining <= 3 ? 'CRÍTICO' : 'ATENÇÃO';
+
+  const urgencyMessage = isEmergency 
+    ? '‼️ *SALDO ZERADO! Adicione créditos IMEDIATAMENTE ou as campanhas serão pausadas!*'
+    : daysRemaining <= 2 
+      ? '‼️ *Adicione créditos IMEDIATAMENTE para evitar pausar campanhas!*'
+      : daysRemaining <= 3 
+        ? '⚠️ *Recomendamos adicionar créditos hoje!*'
+        : '💡 *Programe uma recarga nos próximos dias.*';
 
   return `${emoji} *ALERTA DE SALDO ${urgency}*
 
@@ -173,12 +199,7 @@ export function generateBalanceAlertMessage(
 📉 *Gasto Médio Diário:* ${formatCurrency(avgDailySpend)}
 ⏰ *Dias Restantes:* ${daysRemaining} ${daysRemaining === 1 ? 'dia' : 'dias'}
 
-${daysRemaining <= 2 
-  ? '‼️ *Adicione créditos IMEDIATAMENTE para evitar pausar campanhas!*'
-  : daysRemaining <= 3 
-    ? '⚠️ *Recomendamos adicionar créditos hoje!*'
-    : '💡 *Programe uma recarga nos próximos dias.*'
-}
+${urgencyMessage}
 
 _Alerta automático do V4 Dashboard_`;
 }
