@@ -300,6 +300,50 @@ export function GeographicHeatMap({
             {processedData.length} regiões
           </div>
         </div>
+
+        {/* Top Estados */}
+        <div className="mt-4">
+          <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-orange-500" />
+            Top Estados por {getMetricLabel(metric)}
+          </h4>
+          <ScrollArea className="h-[200px]">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-[40px] text-xs">#</TableHead>
+                  <TableHead className="text-xs">Estado</TableHead>
+                  <TableHead className="text-right text-xs">{getMetricLabel(metric)}</TableHead>
+                  <TableHead className="text-right text-xs">CTR</TableHead>
+                  <TableHead className="text-right text-xs">CPC</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {processedData.slice(0, 10).map((item, index) => (
+                  <TableRow key={item.breakdown_value} className="hover:bg-muted/30">
+                    <TableCell className="font-medium text-xs text-muted-foreground">
+                      {index + 1}
+                    </TableCell>
+                    <TableCell className="font-medium text-sm">
+                      {item.breakdown_value}
+                    </TableCell>
+                    <TableCell className="text-right text-sm font-medium">
+                      {metric === 'spend' 
+                        ? formatCurrency(item[metric], currency)
+                        : formatNumber(item[metric])}
+                    </TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {formatPercent(item.ctr)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {formatCurrency(item.cpc, currency)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   );
