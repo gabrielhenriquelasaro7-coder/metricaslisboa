@@ -266,9 +266,9 @@ export function GeographicHeatMap({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Mapa de calor interativo - GRANDE */}
-        <div className="relative h-[500px] rounded-lg border border-border overflow-hidden">
+      <CardContent>
+        {/* Mapa de calor interativo - MAIOR */}
+        <div className="relative h-[600px] rounded-lg border border-border overflow-hidden">
           <MapContainer
             center={[-14.235, -51.925]}
             zoom={4}
@@ -291,7 +291,7 @@ export function GeographicHeatMap({
           <div className="absolute bottom-3 left-3 flex items-center gap-2 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
             <span>{getMetricLabel(metric)}</span>
             <div className="flex items-center h-3 w-24 rounded-sm overflow-hidden">
-              <div className="h-full flex-1" style={{ background: 'linear-gradient(to right, #00ff00, #7fff00, #ffff00, #ff7f00, #ff0000)' }}></div>
+              <div className="h-full flex-1" style={{ background: 'linear-gradient(to right, #10b981, #84cc16, #eab308, #f97316, #ef4444)' }}></div>
             </div>
             <span>{formatNumber(maxValue)}</span>
           </div>
@@ -300,49 +300,6 @@ export function GeographicHeatMap({
           <div className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
             {processedData.length} regiões
           </div>
-        </div>
-
-        {/* Tabela de dados - EMBAIXO (sem conversões) */}
-        <div className="rounded-xl border border-border overflow-hidden bg-card/50">
-          <div className="grid grid-cols-6 gap-0 bg-muted/30 px-4 py-3 text-xs font-medium text-muted-foreground border-b border-border">
-            <div className="text-center">#</div>
-            <div>Região</div>
-            <div className="text-right">Cliques</div>
-            <div className="text-right">Impressões</div>
-            <div className="text-right">CTR</div>
-            <div className="text-right">CPC</div>
-          </div>
-          <ScrollArea className="h-[200px]">
-            <div className="divide-y divide-border/50">
-              {processedData.map((item, index) => {
-                const isTop = index < 3;
-                const rankColors = ['text-yellow-500', 'text-gray-400', 'text-amber-600'];
-                return (
-                  <div 
-                    key={item.breakdown_value}
-                    className={`grid grid-cols-6 gap-0 px-4 py-3 text-sm transition-colors hover:bg-muted/20 ${isTop ? 'bg-gradient-to-r from-red-500/5 to-transparent' : ''}`}
-                  >
-                    <div className={`text-center font-bold ${isTop ? rankColors[index] : 'text-muted-foreground'}`}>
-                      {index + 1}
-                    </div>
-                    <div className="font-medium truncate">{item.breakdown_value}</div>
-                    <div className={`text-right tabular-nums ${isTop ? 'text-emerald-400 font-semibold' : ''}`}>
-                      {formatNumber(item.clicks)}
-                    </div>
-                    <div className={`text-right tabular-nums ${isTop ? 'text-emerald-400' : 'text-muted-foreground'}`}>
-                      {formatNumber(item.impressions)}
-                    </div>
-                    <div className={`text-right tabular-nums ${item.ctr > 5 ? 'text-emerald-400' : item.ctr < 2 ? 'text-red-400' : 'text-muted-foreground'}`}>
-                      {formatPercent(item.ctr)}
-                    </div>
-                    <div className="text-right tabular-nums text-muted-foreground">
-                      {formatCurrency(item.cpc, currency)}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </ScrollArea>
         </div>
       </CardContent>
     </Card>
