@@ -691,19 +691,72 @@ Deno.serve(async (req) => {
     const effectiveMaxMonth = max_month || 12;
     const nextMonthData = getNextMonth(year, month);
     
-    if (continue_chain && status === 'success' && nextMonthData) {
-      // Verificar se próximo mês está dentro do limite
-      if (nextMonthData.month <= effectiveMaxMonth || nextMonthData.year > year) {
-        console.log(`[MONTH-IMPORT] Chaining to ${getMonthName(nextMonthData.month)} ${nextMonthData.year} in ${chainDelay/1000}s...`);
+    // Verificar se devemos continuar para próximo mês OU finalizar com criativos
+    const shouldContinueToNextMonth = continue_chain && status === 'success' && nextMonthData && 
+      (nextMonthData.month <= effectiveMaxMonth || nextMonthData.year > year);
+    
+    if (shouldContinueToNextMonth && nextMonthData) {
+      console.log(`[MONTH-IMPORT] Chaining to ${getMonthName(nextMonthData.month)} ${nextMonthData.year} in ${chainDelay/1000}s...`);
+      
+      await delay(chainDelay);
+      
+      // Próximo mês (base sync) - AWAIT para garantir que a requisição seja enviada
+      try {
+        const chainController = new AbortController();
+        const chainTimeout = setTimeout(() => chainController.abort(), 5000); // 5s para iniciar
         
-        await delay(chainDelay);
+        const chainResponse = await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            project_id,
+            year: nextMonthData.year,
+            month: nextMonthData.month,
+            continue_chain: true,
+            ad_account_id: accountId,
+            max_month: effectiveMaxMonth,
+            phase: 'base',
+          }),
+          signal: chainController.signal,
+        });
+        clearTimeout(chainTimeout);
         
-        // Próximo mês (base sync) - AWAIT para garantir que a requisição seja enviada
+        console.log(`[MONTH-IMPORT] ✓ Chain initiated to ${getMonthName(nextMonthData.month)} ${nextMonthData.year} (status: ${chainResponse.status})`);
+      } catch (chainErr: any) {
+        // Se der timeout, tudo bem - a requisição foi enviada
+        if (chainErr.name === 'AbortError') {
+          console.log(`[MONTH-IMPORT] ✓ Chain request sent (async) to ${getMonthName(nextMonthData.month)} ${nextMonthData.year}`);
+        } else {
+          console.log(`[MONTH-IMPORT] Chain error: ${chainErr.message}`);
+        }
+      }
+      
+    } else if (continue_chain && status === 'success') {
+      // ========================================================================
+      // TODOS OS MESES IMPORTADOS - SEMPRE DISPARAR SYNC DE CRIATIVOS
+      // ========================================================================
+      if (force_light_sync) {
+        console.log(`[MONTH-IMPORT] 🎉 All months imported! (Light Sync - skipping creatives)`);
+        
+        // Atualizar last_sync_at
+        await supabase.from('projects').update({
+          last_sync_at: new Date().toISOString(),
+        }).eq('id', project_id);
+      } else {
+        // HD Total - Iniciar Creative Sync SEMPRE após completar importação
+        console.log(`[MONTH-IMPORT] 🎉 All months imported! Starting Creative Sync (HD)...`);
+        
+        await delay(3000);
+        
         try {
-          const chainController = new AbortController();
-          const chainTimeout = setTimeout(() => chainController.abort(), 5000); // 5s para iniciar
+          const creativeController = new AbortController();
+          const creativeTimeout = setTimeout(() => creativeController.abort(), 5000);
           
-          const chainResponse = await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+          // Chamar diretamente o meta-ads-sync com syncMode: creatives
+          await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -711,72 +764,19 @@ Deno.serve(async (req) => {
             },
             body: JSON.stringify({
               project_id,
-              year: nextMonthData.year,
-              month: nextMonthData.month,
-              continue_chain: true,
               ad_account_id: accountId,
-              max_month: effectiveMaxMonth,
-              phase: 'base',
+              syncMode: 'creatives',
             }),
-            signal: chainController.signal,
+            signal: creativeController.signal,
           });
-          clearTimeout(chainTimeout);
+          clearTimeout(creativeTimeout);
           
-          console.log(`[MONTH-IMPORT] ✓ Chain initiated to ${getMonthName(nextMonthData.month)} ${nextMonthData.year} (status: ${chainResponse.status})`);
-        } catch (chainErr: any) {
-          // Se der timeout, tudo bem - a requisição foi enviada
-          if (chainErr.name === 'AbortError') {
-            console.log(`[MONTH-IMPORT] ✓ Chain request sent (async) to ${getMonthName(nextMonthData.month)} ${nextMonthData.year}`);
+          console.log(`[MONTH-IMPORT] ✓ Creative sync initiated directly`);
+        } catch (creativeErr: any) {
+          if (creativeErr.name === 'AbortError') {
+            console.log(`[MONTH-IMPORT] ✓ Creative sync request sent (async)`);
           } else {
-            console.log(`[MONTH-IMPORT] Chain error: ${chainErr.message}`);
-          }
-        }
-        
-      } else {
-        // ========================================================================
-        // TODOS OS MESES IMPORTADOS
-        // ========================================================================
-        if (force_light_sync) {
-          console.log(`[MONTH-IMPORT] 🎉 All months imported! (Light Sync - skipping creatives)`);
-          
-          // Atualizar last_sync_at
-          await supabase.from('projects').update({
-            last_sync_at: new Date().toISOString(),
-          }).eq('id', project_id);
-        } else {
-          // HD Total - Iniciar Creative Sync
-          console.log(`[MONTH-IMPORT] 🎉 All months imported! Starting Creative Sync (HD)...`);
-          
-          await delay(5000);
-          
-          try {
-            const creativeController = new AbortController();
-            const creativeTimeout = setTimeout(() => creativeController.abort(), 5000);
-            
-            await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-              },
-              body: JSON.stringify({
-                project_id,
-                year,
-                month,
-                ad_account_id: accountId,
-                phase: 'creatives',
-              }),
-              signal: creativeController.signal,
-            });
-            clearTimeout(creativeTimeout);
-            
-            console.log(`[MONTH-IMPORT] ✓ Creative sync chain initiated`);
-          } catch (creativeErr: any) {
-            if (creativeErr.name === 'AbortError') {
-              console.log(`[MONTH-IMPORT] ✓ Creative sync request sent (async)`);
-            } else {
-              console.log(`[MONTH-IMPORT] Creatives chain error: ${creativeErr.message}`);
-            }
+            console.log(`[MONTH-IMPORT] Creatives chain error: ${creativeErr.message}`);
           }
         }
       }
