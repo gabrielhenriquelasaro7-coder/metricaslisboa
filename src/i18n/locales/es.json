@@ -59,7 +59,23 @@
     "darkMode": "Modo Oscuro",
     "editProfile": "Editar Perfil",
     "changePassword": "Cambiar Contraseña",
-    "logout": "Cerrar sesión"
+    "logout": "Cerrar sesión",
+    "changingProject": "Cambiando de proyecto...",
+    "activeProject": "Proyecto Activo",
+    "manageProjects": "Gestionar Proyectos",
+    "campaigns": "Campañas",
+    "viewAll": "Ver Todas",
+    "noCampaignsFound": "No se encontraron campañas",
+    "moreCampaigns": "más campañas",
+    "creatives": "Creativos",
+    "aiAgent": "Agente IA",
+    "maintenanceMessage": "En mantenimiento - esperando API Gemini",
+    "predictiveAnalysis": "Análisis Predictivo",
+    "history": "Historial",
+    "financial": "Financiero",
+    "viewTour": "Ver Tour",
+    "administration": "Administración",
+    "suggestions": "Sugerencias"
   },
   "dashboard": {
     "title": "Panel",
@@ -133,7 +149,13 @@
     "profileVisits": "Visitas al Perfil",
     "initiateCheckout": "Inicio Checkout",
     "costPerVisit": "Costo/Visita",
-    "visits": "Visitas"
+    "visits": "Visitas",
+    "generalMetrics": "Métricas Generales",
+    "topOfFunnel": "Parte Superior del Embudo",
+    "results": "Resultados",
+    "purchasesTooltip": "Total de compras vía pixel",
+    "totalResults": "Total de resultados",
+    "conversionRate": "Conv."
   },
   "periods": {
     "today": "Hoy",

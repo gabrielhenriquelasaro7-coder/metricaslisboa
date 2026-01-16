@@ -152,7 +152,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
   // Show loading screen when changing projects
   if (isChangingProject) {
-    return <LoadingScreen message="Trocando de projeto..." />;
+    return <LoadingScreen message={t('sidebar.changingProject')} />;
   }
 
   return (
@@ -209,7 +209,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                   <div className="text-left">
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-metric-positive" />
-                      Projeto Ativo
+                      {t('sidebar.activeProject')}
                     </p>
                     <p className="font-semibold truncate mt-0.5 text-foreground">{selectedProject.name}</p>
                   </div>
@@ -240,7 +240,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 {!isGuest && (
                   <DropdownMenuItem onClick={() => navigate('/projects')} className="border-t border-border mt-1 pt-2">
                     <FolderKanban className="w-4 h-4 mr-2" />
-                    Gerenciar Projetos
+                    {t('sidebar.manageProjects')}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -283,7 +283,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                   >
                     <div className="flex items-center gap-3">
                       <Megaphone className="w-5 h-5 flex-shrink-0" />
-                      <span>Campanhas</span>
+                      <span>{t('sidebar.campaigns')}</span>
                     </div>
                     {campaignsOpen ? (
                       <ChevronUp className="w-4 h-4" />
@@ -300,7 +300,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       location.pathname === '/campaigns' && 'active'
                     )}
                   >
-                    Ver Todas
+                    {t('sidebar.viewAll')}
                   </Link>
                   
                   {/* Campaign list with skeleton loader */}
@@ -309,7 +309,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       <CampaignSkeleton />
                     ) : sortedCampaigns.length === 0 ? (
                       <p className="text-xs text-muted-foreground px-3 py-2 pl-10">
-                        Nenhuma campanha encontrada
+                        {t('sidebar.noCampaignsFound')}
                       </p>
                     ) : (
                       sortedCampaigns.slice(0, 10).map((campaign) => {
@@ -373,12 +373,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                     )}
                   </div>
                   
-                  {sortedCampaigns.length > 10 && (
-                    <Link
-                      to="/campaigns"
-                      className="sidebar-item pl-10 text-sm text-muted-foreground hover:text-foreground"
-                    >
-                      + {sortedCampaigns.length - 10} mais campanhas
+                    {sortedCampaigns.length > 10 && (
+                      <Link
+                        to="/campaigns"
+                        className="sidebar-item pl-10 text-sm text-muted-foreground hover:text-foreground"
+                      >
+                        + {sortedCampaigns.length - 10} {t('sidebar.moreCampaigns')}
                     </Link>
                   )}
                 </CollapsibleContent>
@@ -406,7 +406,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               )}
             >
               <ImageIcon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>Criativos</span>}
+              {!collapsed && <span>{t('sidebar.creatives')}</span>}
             </Link>
 
             {/* Agente Lisboa - Hidden for guests, DISABLED - waiting for Gemini API */}
@@ -423,14 +423,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       <Bot className="w-5 h-5 flex-shrink-0" />
                       {!collapsed && (
                         <div className="flex items-center gap-2">
-                          <span>Agente Lisboa</span>
+                          <span>{t('sidebar.aiAgent')}</span>
                           <Lock className="w-3 h-3 text-muted-foreground" />
                         </div>
                       )}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="bg-popover border-border">
-                    <p>Em manutenção - aguardando API Gemini</p>
+                    <p>{t('sidebar.maintenanceMessage')}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -450,14 +450,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       <TrendingUp className="w-5 h-5 flex-shrink-0" />
                       {!collapsed && (
                         <div className="flex items-center gap-2">
-                          <span>Análise Preditiva</span>
+                          <span>{t('sidebar.predictiveAnalysis')}</span>
                           <Lock className="w-3 h-3 text-muted-foreground" />
                         </div>
                       )}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="bg-popover border-border">
-                    <p>Em manutenção - aguardando API Gemini</p>
+                    <p>{t('sidebar.maintenanceMessage')}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -473,7 +473,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 )}
               >
                 <History className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>Histórico</span>}
+                {!collapsed && <span>{t('sidebar.history')}</span>}
               </Link>
             )}
 
@@ -487,7 +487,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 )}
               >
                 <DollarSign className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>Financeiro</span>}
+                {!collapsed && <span>{t('sidebar.financial')}</span>}
               </Link>
             )}
 
@@ -505,7 +505,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 className="sidebar-item w-full group"
               >
                 <Compass className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>Ver Tour</span>}
+                {!collapsed && <span>{t('sidebar.viewTour')}</span>}
               </button>
             )}
           </div>
@@ -535,7 +535,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                     <Database className="w-5 h-5 flex-shrink-0" />
                     {!collapsed && (
                       <div className="flex items-center gap-2">
-                        <span>Administração</span>
+                        <span>{t('sidebar.administration')}</span>
                         <AlertTriangle className="w-3 h-3 text-amber-500" />
                       </div>
                     )}
@@ -552,7 +552,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                     )}
                   >
                     <Database className="w-5 h-5 flex-shrink-0" />
-                    {!collapsed && <span>Administração</span>}
+                    {!collapsed && <span>{t('sidebar.administration')}</span>}
                   </Link>
                 )
               )}
@@ -568,7 +568,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                   )}
                 >
                   <Lightbulb className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && <span>Sugestões</span>}
+                  {!collapsed && <span>{t('sidebar.suggestions')}</span>}
                 </Link>
               )}
 
@@ -582,7 +582,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                   )}
                 >
                   <Settings className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && <span>Configurações</span>}
+                  {!collapsed && <span>{t('sidebar.settings')}</span>}
                 </Link>
               )}
             </div>
