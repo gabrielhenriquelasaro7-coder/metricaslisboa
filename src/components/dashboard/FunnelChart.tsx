@@ -66,7 +66,8 @@ export function FunnelChart({
   };
 
   const steps: FunnelStep[] = useMemo(() => {
-    // On mobile, show fewer steps to reduce clutter
+    // Funnel now only shows main flow metrics (Gasto -> Impressões -> Alcance -> Cliques -> Leads)
+    // CTR, CPC, CPL moved to metrics below
     const allSteps = [
       {
         label: 'Gasto',
@@ -78,55 +79,37 @@ export function FunnelChart({
         label: 'Impressões',
         value: formatNumber(impressions),
         icon: <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 88,
+        widthPercent: 85,
       },
       {
         label: 'Alcance',
         value: formatNumber(reach),
         icon: <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 76,
+        widthPercent: 70,
       },
       {
         label: 'Cliques',
         value: formatNumber(clicks),
         icon: <MousePointerClick className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 64,
-      },
-      {
-        label: 'CTR',
-        value: `${ctr.toFixed(responsive.isMobile ? 1 : 2)}%`,
-        icon: <Percent className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 52,
-      },
-      {
-        label: 'CPC',
-        value: formatCurrency(cpc),
-        icon: <Coins className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 40,
-      },
-      {
-        label: 'CPL',
-        value: formatCurrency(cpl),
-        icon: <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 28,
+        widthPercent: 55,
       },
       {
         label: 'Leads',
         value: formatNumber(conversions),
         icon: <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 18,
+        widthPercent: 40,
       },
     ];
     
     // On mobile, show only key steps
     if (responsive.isMobile) {
       return allSteps.filter(step => 
-        ['Gasto', 'Impressões', 'Cliques', 'CTR', 'CPL', 'Leads'].includes(step.label)
+        ['Gasto', 'Impressões', 'Cliques', 'Leads'].includes(step.label)
       );
     }
     
     return allSteps;
-  }, [spend, impressions, reach, clicks, ctr, cpc, cpl, conversions, currency, responsive.isMobile]);
+  }, [spend, impressions, reach, clicks, conversions, currency, responsive.isMobile]);
 
   return (
     <Card className={cn("glass-card overflow-hidden", className)}>
@@ -154,10 +137,9 @@ export function FunnelChart({
                 transition={{ delay: index * 0.05 + 0.1, duration: 0.4, ease: "easeOut" }}
                 className={cn(
                   "relative h-9 sm:h-11 rounded-md",
-                  "bg-gradient-to-r from-primary via-primary to-primary/90",
+                  "bg-primary/90",
                   "flex items-center justify-between px-2.5 sm:px-4",
-                  "border border-white/10",
-                  "shadow-[0_4px_20px_-4px_hsl(var(--primary)/0.5)]"
+                  "border border-primary/30"
                 )}
                 style={{ minWidth: responsive.isMobile ? '160px' : '200px' }}
               >
@@ -171,22 +153,31 @@ export function FunnelChart({
                 <span className="text-xs sm:text-sm font-bold text-primary-foreground">
                   {step.value}
                 </span>
-
-                {/* Efeito de brilho */}
-                <div className="absolute inset-0 rounded-md bg-gradient-to-t from-transparent via-white/5 to-white/15 pointer-events-none" />
               </motion.div>
             </motion.div>
           ))}
         </div>
 
-        {/* Métricas adicionais */}
+        {/* Métricas adicionais - CTR, CPC, CPL movidas para cá */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.3 }}
+          transition={{ delay: 0.3, duration: 0.3 }}
           className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-border/50"
         >
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 sm:gap-3">
+            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">CTR</p>
+              <p className="text-xs sm:text-sm font-bold text-foreground">{ctr.toFixed(responsive.isMobile ? 1 : 2)}%</p>
+            </div>
+            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">CPC</p>
+              <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpc)}</p>
+            </div>
+            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">CPL</p>
+              <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpl)}</p>
+            </div>
             <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
               <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">CPM</p>
               <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpm)}</p>
