@@ -265,8 +265,8 @@ export function useUserManagement(): UseUserManagementReturn {
   }, [user, canManage, fetchUsers]);
 
   const updateUserSquad = useCallback(async (userId: string, squadId: string | null) => {
-    if (!user || !isGerente) {
-      toast.error('Apenas Gerentes podem trocar squads');
+    if (!user || !canManage) {
+      toast.error('Você não tem permissão para trocar squads');
       return;
     }
 
@@ -300,7 +300,7 @@ export function useUserManagement(): UseUserManagementReturn {
       toast.error('Erro ao atualizar squad');
       throw error;
     }
-  }, [user, isGerente, fetchUsers]);
+  }, [user, canManage, fetchUsers]);
 
   const importUsersFromCSV = useCallback(async (csvUsers: CSVUserData[]): Promise<{ success: number; failed: number }> => {
     if (!user || !canManage) {
