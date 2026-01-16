@@ -25,17 +25,8 @@ interface FunnelStep {
   label: string;
   value: string;
   icon: React.ReactNode;
-  color: string;
+  widthPercent: number;
 }
-
-// Color palette for funnel stages (from top to bottom)
-const FUNNEL_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(220, 70%, 55%)',
-  'hsl(200, 65%, 50%)',
-  'hsl(180, 60%, 45%)',
-  'hsl(160, 55%, 40%)',
-];
 
 export function FunnelChart({
   impressions,
@@ -79,31 +70,31 @@ export function FunnelChart({
         label: 'Gasto',
         value: formatCurrency(spend),
         icon: <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        color: FUNNEL_COLORS[0],
+        widthPercent: 100,
       },
       {
         label: 'Impressões',
         value: formatNumber(impressions),
         icon: <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        color: FUNNEL_COLORS[1],
+        widthPercent: 82,
       },
       {
         label: 'Alcance',
         value: formatNumber(reach),
         icon: <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        color: FUNNEL_COLORS[2],
+        widthPercent: 64,
       },
       {
         label: 'Cliques',
         value: formatNumber(clicks),
         icon: <MousePointerClick className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        color: FUNNEL_COLORS[3],
+        widthPercent: 46,
       },
       {
         label: 'Leads',
         value: formatNumber(conversions),
         icon: <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        color: FUNNEL_COLORS[4],
+        widthPercent: 28,
       },
     ];
     
@@ -116,15 +107,22 @@ export function FunnelChart({
     return allSteps;
   }, [spend, impressions, reach, clicks, conversions, currency, responsive.isMobile]);
 
-  // Calculate SVG dimensions and paths for true funnel shape
-  const funnelHeight = responsive.isMobile ? 200 : 280;
-  const funnelWidth = responsive.isMobile ? 280 : 400;
-  const stepHeight = funnelHeight / steps.length;
-  
-  // Calculate the taper - from full width to a point
-  const topWidth = funnelWidth;
-  const bottomWidth = responsive.isMobile ? 40 : 60; // Width at the bottom tip
-  const widthDecrement = (topWidth - bottomWidth) / steps.length;
+  // Generate clip-path for trapezoid shape
+  const getClipPath = (index: number, total: number) => {
+    const isFirst = index === 0;
+    const isLast = index === total - 1;
+    
+    // Taper amount (how much the sides angle in)
+    const taperTop = isFirst ? 0 : 8;
+    const taperBottom = isLast ? 50 : 8; // Last one comes to a point
+    
+    if (isLast) {
+      // Triangle/pointed bottom
+      return `polygon(${taperTop}% 0%, ${100 - taperTop}% 0%, 50% 100%)`;
+    }
+    
+    return `polygon(${taperTop}% 0%, ${100 - taperTop}% 0%, ${100 - taperBottom}% 100%, ${taperBottom}% 100%)`;
+  };
 
   return (
     <Card className={cn("glass-card overflow-hidden", className)}>
@@ -137,121 +135,71 @@ export function FunnelChart({
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-2 px-3 sm:px-6">
-        {/* SVG Funnel */}
-        <div className="flex justify-center">
-          <svg 
-            width={funnelWidth} 
-            height={funnelHeight} 
-            viewBox={`0 0 ${funnelWidth} ${funnelHeight}`}
-            className="overflow-visible"
-          >
-            <defs>
-              {steps.map((step, index) => (
-                <linearGradient 
-                  key={`gradient-${index}`} 
-                  id={`funnel-gradient-${index}`} 
-                  x1="0%" 
-                  y1="0%" 
-                  x2="0%" 
-                  y2="100%"
-                >
-                  <stop offset="0%" stopColor={step.color} stopOpacity="0.95" />
-                  <stop offset="100%" stopColor={step.color} stopOpacity="0.75" />
-                </linearGradient>
-              ))}
-            </defs>
+        {/* Funnel Container */}
+        <div className="flex flex-col items-center gap-0.5">
+          {steps.map((step, index) => {
+            const isLast = index === steps.length - 1;
             
-            {steps.map((step, index) => {
-              const isLast = index === steps.length - 1;
-              const y = index * stepHeight;
-              
-              // Calculate widths at top and bottom of this segment
-              const currentTopWidth = topWidth - (widthDecrement * index);
-              const currentBottomWidth = isLast ? bottomWidth * 0.4 : topWidth - (widthDecrement * (index + 1));
-              
-              // Calculate x positions (centered)
-              const topLeftX = (funnelWidth - currentTopWidth) / 2;
-              const topRightX = (funnelWidth + currentTopWidth) / 2;
-              const bottomLeftX = (funnelWidth - currentBottomWidth) / 2;
-              const bottomRightX = (funnelWidth + currentBottomWidth) / 2;
-              
-              // Create trapezoid path - if last, make it pointed
-              const path = isLast
-                ? `M ${topLeftX} ${y} 
-                   L ${topRightX} ${y} 
-                   L ${funnelWidth / 2} ${y + stepHeight} 
-                   Z`
-                : `M ${topLeftX} ${y} 
-                   L ${topRightX} ${y} 
-                   L ${bottomRightX} ${y + stepHeight} 
-                   L ${bottomLeftX} ${y + stepHeight} 
-                   Z`;
-              
-              // Center position for text
-              const centerY = y + stepHeight / 2;
-              
-              return (
-                <motion.g 
-                  key={step.label}
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1, duration: 0.4 }}
+            return (
+              <motion.div
+                key={step.label}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.08, duration: 0.3 }}
+                className="flex justify-center w-full"
+              >
+                <div
+                  className={cn(
+                    "relative flex items-center justify-between px-4 sm:px-6",
+                    "bg-primary/80 text-primary-foreground",
+                    isLast ? "h-10 sm:h-12" : "h-11 sm:h-14"
+                  )}
+                  style={{
+                    width: `${step.widthPercent}%`,
+                    minWidth: responsive.isMobile ? '140px' : '180px',
+                    clipPath: getClipPath(index, steps.length),
+                  }}
                 >
-                  {/* Trapezoid shape */}
-                  <motion.path
-                    d={path}
-                    fill={`url(#funnel-gradient-${index})`}
-                    stroke="hsl(var(--border))"
-                    strokeWidth="1"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ delay: index * 0.1, duration: 0.5 }}
-                  />
-                  
-                  {/* Label and value - only if not too narrow */}
-                  {(!isLast || !responsive.isMobile) && (
+                  {!isLast && (
                     <>
-                      <text
-                        x={funnelWidth / 2}
-                        y={isLast ? centerY - 5 : centerY - 6}
-                        textAnchor="middle"
-                        className="fill-white text-[10px] sm:text-xs font-medium"
-                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
-                      >
-                        {step.label}
-                      </text>
-                      <text
-                        x={funnelWidth / 2}
-                        y={isLast ? centerY + 8 : centerY + 10}
-                        textAnchor="middle"
-                        className="fill-white text-xs sm:text-sm font-bold"
-                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
-                      >
+                      {/* Left side content */}
+                      <div className="flex items-center gap-1.5 sm:gap-2 z-10">
+                        {step.icon}
+                        <span className="text-[10px] sm:text-xs font-medium opacity-90">
+                          {step.label}
+                        </span>
+                      </div>
+                      
+                      {/* Right side value */}
+                      <span className="text-xs sm:text-sm font-bold z-10">
                         {step.value}
-                      </text>
+                      </span>
                     </>
                   )}
-                </motion.g>
-              );
-            })}
-          </svg>
+                  
+                  {/* Last step - centered content */}
+                  {isLast && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
+                      <span className="text-[10px] sm:text-xs font-medium opacity-90">
+                        {step.label}
+                      </span>
+                      <span className="text-xs sm:text-sm font-bold">
+                        {step.value}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
-
-        {/* Mobile: Show last step value below if hidden */}
-        {responsive.isMobile && (
-          <div className="flex justify-center mt-1">
-            <span className="text-xs font-bold text-primary">
-              {steps[steps.length - 1]?.label}: {steps[steps.length - 1]?.value}
-            </span>
-          </div>
-        )}
 
         {/* Métricas adicionais */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.3 }}
-          className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-border/50"
+          transition={{ delay: 0.4, duration: 0.3 }}
+          className="mt-5 sm:mt-6 pt-3 sm:pt-4 border-t border-border/50"
         >
           <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 sm:gap-3">
             <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
