@@ -90,24 +90,27 @@ export default function Dashboard() {
     loading: profileVisitsLoading
   } = useProfileVisitsMetrics(selectedProject?.id, selectedPreset, selectedPreset === 'custom' ? dateRange : undefined);
 
-  // Calculate date range for demographics based on preset
+  // Calculate date range for demographics - use dateRange from context directly
+  // The PeriodContext already updates dateRange when selectedPreset changes
   const demographicDateRange = useMemo(() => {
-    // If custom preset with dateRange, use it
-    if (selectedPreset === 'custom' && dateRange?.from && dateRange?.to) {
+    // Use dateRange from context directly - it's always updated by PeriodContext
+    if (dateRange?.from && dateRange?.to) {
       return {
         startDate: dateRange.from,
         endDate: dateRange.to
       };
     }
     
+    // Fallback: recalculate from preset
     const period = getDateRangeFromPreset(selectedPreset, selectedProject?.timezone || 'America/Sao_Paulo');
     if (period) {
       return {
-        startDate: new Date(period.since),
-        endDate: new Date(period.until)
+        startDate: new Date(period.since + 'T00:00:00'),
+        endDate: new Date(period.until + 'T23:59:59')
       };
     }
-    // Fallback to last 30 days
+    
+    // Last resort fallback to last 30 days
     const end = new Date();
     const start = new Date();
     start.setDate(start.getDate() - 30);
