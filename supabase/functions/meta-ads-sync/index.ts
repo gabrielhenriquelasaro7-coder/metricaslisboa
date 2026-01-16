@@ -1074,14 +1074,18 @@ async function cacheViaStoryId(
   // Mapa de adId -> story image URL
   const storyImageMap = new Map<string, string>();
   
-  // FASE 1: Buscar effective_object_story_id de todos os ads
-  console.log(`[STORY-HD] FASE 1: Coletando story IDs...`);
+  // FASE 1: Buscar effective_object_story_id de todos os ads E depois full_picture
+  console.log(`[STORY-HD] FASE 1: Coletando story IDs e full_picture...`);
+  
+  // Mapa temporário de adId -> storyId para buscar full_picture depois
+  const adToStoryMap = new Map<string, string>();
   
   for (let i = 0; i < adIds.length; i += batchSize) {
     const batch = adIds.slice(i, i + batchSize);
     const batchIds = batch.join(',');
     
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,effective_object_story_id,object_story_spec,thumbnail_url}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    // Buscar creative com effective_object_story_id
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,effective_object_story_id,object_story_spec}&access_token=${token}`;
     const adsData = await simpleFetch(adsUrl, undefined, 30000);
     
     if (adsData?.error) {
@@ -1089,34 +1093,51 @@ async function cacheViaStoryId(
       continue;
     }
     
+    // Coletar story IDs para buscar full_picture
+    const storyIds: string[] = [];
+    
     for (const adId of batch) {
       const adData = (adsData as Record<string, any>)[adId];
       if (!adData?.creative) continue;
       
       const creative = adData.creative;
-      let imageUrl: string | null = null;
       
-      // PRIORIDADE 1: thumbnail_url com 1080x1080 (já pedimos na query)
-      if (creative.thumbnail_url) {
-        // Limpar URL de parâmetros de resize
-        let cleanUrl = creative.thumbnail_url;
-        cleanUrl = cleanUrl.replace(/[&?]stp=[^&]*/gi, '');
-        cleanUrl = cleanUrl.replace(/\/p\d+x\d+\//g, '/');
-        cleanUrl = cleanUrl.replace(/\/s\d+x\d+\//g, '/');
-        imageUrl = cleanUrl;
+      // PRIORIDADE 1: effective_object_story_id -> full_picture (SEMPRE HD, SEMPRE PÚBLICO!)
+      if (creative.effective_object_story_id) {
+        storyIds.push(creative.effective_object_story_id);
+        adToStoryMap.set(adId, creative.effective_object_story_id);
       }
-      
-      // PRIORIDADE 2: object_story_spec image URLs (imagens originais)
-      if (!imageUrl && creative.object_story_spec) {
+      // PRIORIDADE 2 (fallback): object_story_spec image URLs
+      else if (creative.object_story_spec) {
         const oss = creative.object_story_spec;
-        if (oss.link_data?.picture) imageUrl = oss.link_data.picture;
-        else if (oss.link_data?.image_url) imageUrl = oss.link_data.image_url;
-        else if (oss.video_data?.image_url) imageUrl = oss.video_data.image_url;
-        else if (oss.photo_data?.images?.[0]?.url) imageUrl = oss.photo_data.images[0].url;
+        let fallbackUrl: string | null = null;
+        if (oss.link_data?.picture) fallbackUrl = oss.link_data.picture;
+        else if (oss.link_data?.image_url) fallbackUrl = oss.link_data.image_url;
+        else if (oss.video_data?.image_url) fallbackUrl = oss.video_data.image_url;
+        else if (oss.photo_data?.images?.[0]?.url) fallbackUrl = oss.photo_data.images[0].url;
+        
+        if (fallbackUrl) {
+          storyImageMap.set(adId, fallbackUrl);
+        }
       }
+    }
+    
+    // Buscar full_picture de todos os story IDs em batch (SEMPRE HD!)
+    if (storyIds.length > 0) {
+      const storyIdsStr = storyIds.join(',');
+      const storiesUrl = `https://graph.facebook.com/v22.0/?ids=${storyIdsStr}&fields=id,full_picture&access_token=${token}`;
+      console.log(`[STORY-HD] Fetching full_picture for ${storyIds.length} stories...`);
+      const storiesData = await simpleFetch(storiesUrl, undefined, 30000);
       
-      if (imageUrl) {
-        storyImageMap.set(adId, imageUrl);
+      if (!storiesData?.error) {
+        for (const [adId, storyId] of adToStoryMap.entries()) {
+          if (batch.includes(adId) && storiesData[storyId]?.full_picture) {
+            storyImageMap.set(adId, storiesData[storyId].full_picture);
+            console.log(`[STORY-HD] ✓ Got full_picture HD for ${adId}`);
+          }
+        }
+      } else {
+        console.log(`[STORY-HD] Stories fetch error: ${storiesData.error.message?.substring(0, 100)}`);
       }
     }
     
