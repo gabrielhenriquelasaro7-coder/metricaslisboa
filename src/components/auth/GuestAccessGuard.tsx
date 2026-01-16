@@ -20,6 +20,7 @@ const GUEST_ALLOWED_ROUTES = [
   '/guest-onboarding',
   '/auth',
   '/optimization-history',
+  '/settings',
 ];
 
 // Pages that require password change before access
