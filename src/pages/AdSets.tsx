@@ -197,7 +197,7 @@ export default function AdSets() {
             project_id: campaignData.project_id,
             campaign_id: row.campaign_id,
             name: row.adset_name,
-            status: row.adset_status || 'UNKNOWN',
+            status: row.adset_status || null, // Start with current status or null
             spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0,
             daily_budget: null, lifetime_budget: null, targeting: null,
           });
@@ -209,6 +209,17 @@ export default function AdSets() {
         agg.reach += Number(row.reach) || 0;
         agg.conversions += Number(row.conversions) || 0;
         agg.conversion_value += Number(row.conversion_value) || 0;
+        // Prefer non-null status (take the latest non-null status found)
+        if (row.adset_status && !agg.status) {
+          agg.status = row.adset_status;
+        }
+      }
+      
+      // Set fallback status for any that are still null
+      for (const agg of adsetAgg.values()) {
+        if (!agg.status) {
+          agg.status = 'ACTIVE'; // Default to ACTIVE if no status found in period
+        }
       }
 
       // Calculate derived metrics
