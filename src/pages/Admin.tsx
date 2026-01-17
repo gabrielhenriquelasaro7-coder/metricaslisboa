@@ -18,6 +18,7 @@ import MonthImportGrid from '@/components/admin/MonthImportGrid';
 import SyncHealthMonitor from '@/components/admin/SyncHealthMonitor';
 import SyncHistoryChart from '@/components/admin/SyncHistoryChart';
 import { ExportDataButton } from '@/components/admin/ExportDataButton';
+import { FullProjectExport } from '@/components/admin/FullProjectExport';
 import { SquadsManagement } from '@/components/admin/SquadsManagement';
 import { UserManagement } from '@/components/admin/UserManagement';
 
@@ -912,13 +913,16 @@ function AdminContent() {
                     </ul>
                   </div>
 
-              <ExportDataButton />
+                  <ExportDataButton />
 
                   <p className="text-xs text-muted-foreground text-center">
                     ⚠️ A exportação pode demorar alguns minutos dependendo do volume de dados.
                   </p>
                 </CardContent>
               </Card>
+
+              {/* Full Project Export - New Complete Export */}
+              <FullProjectExport />
             </TabsContent>
           )}
 
