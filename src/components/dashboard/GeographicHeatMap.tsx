@@ -203,11 +203,13 @@ function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }
 function HeatLayer({ 
   data, 
   metric, 
-  maxValue 
+  maxValue,
+  minValue
 }: { 
   data: Array<{ coords: [number, number] | null; value: number }>; 
   metric: MetricType;
   maxValue: number;
+  minValue: number;
 }) {
   const map = useMap();
   const heatLayerRef = useRef<any>(null);
@@ -219,10 +221,20 @@ function HeatLayer({
       map.removeLayer(heatLayerRef.current);
     }
 
+    // Normalizar valores usando escala logarítmica para melhor distribuição
+    // Isso garante que valores baixos = amarelo, valores altos = vermelho
+    const range = maxValue - minValue;
+    
     const heatData = data
-      .filter(d => d.coords)
+      .filter(d => d.coords && d.value > 0)
       .map(d => {
-        const intensity = d.value / maxValue;
+        // Usar escala logarítmica para melhor distribuição de cores
+        // Isso evita que valores pequenos apareçam muito vermelhos
+        const normalizedValue = (d.value - minValue) / (range || 1);
+        // Aplicar escala logarítmica para suavizar a transição
+        const logIntensity = Math.log10(1 + normalizedValue * 9) / Math.log10(10); // 0 a 1
+        // Garantir mínimo de 0.1 para pontos visíveis
+        const intensity = Math.max(0.1, Math.min(1, logIntensity));
         return [d.coords![0], d.coords![1], intensity] as [number, number, number];
       });
 
@@ -239,13 +251,15 @@ function HeatLayer({
       blur: dynamicBlur,
       maxZoom: 18,
       max: 1.0,
-      minOpacity: 0.7,
+      minOpacity: 0.6,
       gradient: {
-        0.0: '#fbbf24',
-        0.3: '#f97316',
-        0.6: '#ef4444',
-        0.8: '#dc2626',
-        1.0: '#b91c1c'
+        // Amarelo (baixo) -> Laranja -> Vermelho (alto)
+        0.0: '#fef08a',  // Amarelo claro - valores muito baixos
+        0.2: '#fbbf24',  // Amarelo - valores baixos
+        0.4: '#f97316',  // Laranja - valores médios-baixos
+        0.6: '#ef4444',  // Vermelho claro - valores médios-altos
+        0.8: '#dc2626',  // Vermelho - valores altos
+        1.0: '#991b1b'   // Vermelho escuro - valores máximos
       }
     }).addTo(map);
   };
@@ -264,7 +278,7 @@ function HeatLayer({
         map.removeLayer(heatLayerRef.current);
       }
     };
-  }, [map, data, metric, maxValue]);
+  }, [map, data, metric, maxValue, minValue]);
 
   return null;
 }
@@ -335,6 +349,12 @@ export function GeographicHeatMap({
   const maxValue = useMemo(() => {
     if (!processedData.length) return 1;
     return Math.max(...processedData.map(d => d[metric]));
+  }, [processedData, metric]);
+
+  const minValue = useMemo(() => {
+    if (!processedData.length) return 0;
+    const values = processedData.map(d => d[metric]).filter(v => v > 0);
+    return values.length > 0 ? Math.min(...values) : 0;
   }, [processedData, metric]);
 
   const getMetricLabel = (m: MetricType): string => {
@@ -418,7 +438,8 @@ export function GeographicHeatMap({
             <HeatLayer 
               data={heatMapData} 
               metric={metric} 
-              maxValue={maxValue} 
+              maxValue={maxValue}
+              minValue={minValue}
             />
           </MapContainer>
 
@@ -426,9 +447,9 @@ export function GeographicHeatMap({
           <div className="absolute bottom-3 left-3 flex items-center gap-2 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
             <span>{getMetricLabel(metric)}</span>
             <div className="flex items-center h-3 w-24 rounded-sm overflow-hidden">
-              <div className="h-full flex-1" style={{ background: 'linear-gradient(to right, #fbbf24, #f97316, #ef4444, #dc2626, #b91c1c)' }}></div>
+              <div className="h-full flex-1" style={{ background: 'linear-gradient(to right, #fef08a, #fbbf24, #f97316, #ef4444, #991b1b)' }}></div>
             </div>
-            <span>{formatNumber(maxValue)}</span>
+            <span>{formatNumber(minValue)} - {formatNumber(maxValue)}</span>
           </div>
 
           {/* País detectado */}
