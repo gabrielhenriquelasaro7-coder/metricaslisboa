@@ -199,31 +199,8 @@ function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }
   return null;
 }
 
-// Função para obter cor baseada no valor normalizado (amarelo -> vermelho)
-function getHeatColor(normalizedValue: number): string {
-  // Garantir que o valor está entre 0 e 1
-  const v = Math.max(0, Math.min(1, normalizedValue));
-  
-  // Interpolação de cores: amarelo (#fef08a) -> laranja (#f97316) -> vermelho (#991b1b)
-  if (v < 0.5) {
-    // Amarelo para laranja (0 - 0.5)
-    const t = v * 2; // 0 to 1
-    const r = Math.round(254 + (249 - 254) * t);
-    const g = Math.round(240 + (115 - 240) * t);
-    const b = Math.round(138 + (22 - 138) * t);
-    return `rgb(${r}, ${g}, ${b})`;
-  } else {
-    // Laranja para vermelho escuro (0.5 - 1)
-    const t = (v - 0.5) * 2; // 0 to 1
-    const r = Math.round(249 + (153 - 249) * t);
-    const g = Math.round(115 + (27 - 115) * t);
-    const b = Math.round(22 + (27 - 22) * t);
-    return `rgb(${r}, ${g}, ${b})`;
-  }
-}
-
-// Componente para círculos coloridos individuais (não acumulativos)
-function ColoredCircles({ 
+// Componente para o Heat Layer
+function HeatLayer({ 
   data, 
   metric, 
   maxValue,
@@ -235,56 +212,70 @@ function ColoredCircles({
   minValue: number;
 }) {
   const map = useMap();
-  const circlesRef = useRef<L.CircleMarker[]>([]);
+  const heatLayerRef = useRef<any>(null);
+
+  const updateHeatLayer = (currentZoom: number) => {
+    if (!map) return;
+
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+    }
+
+    const range = maxValue - minValue;
+    
+    const heatData = data
+      .filter(d => d.coords && d.value > 0)
+      .map(d => {
+        // Normalização linear simples de 0 a 1
+        const normalizedValue = range > 0 ? (d.value - minValue) / range : 0;
+        // Usar potência para empurrar valores baixos para ainda mais baixo
+        // Isso garante que só valores realmente altos fiquem vermelhos
+        const intensity = Math.pow(normalizedValue, 2); // Quadrático: 0.5 vira 0.25
+        return [d.coords![0], d.coords![1], intensity] as [number, number, number];
+      });
+
+    if (heatData.length === 0) return;
+
+    // Raio menor para menos sobreposição
+    const baseRadius = 25;
+    const zoomFactor = Math.pow(1.15, currentZoom - 4);
+    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 20), 50);
+    const dynamicBlur = dynamicRadius * 0.4;
+
+    // @ts-ignore
+    heatLayerRef.current = L.heatLayer(heatData, {
+      radius: dynamicRadius,
+      blur: dynamicBlur,
+      maxZoom: 18,
+      max: 1.0,
+      minOpacity: 0.4,
+      gradient: {
+        // Amarelo (baixo) -> Vermelho (alto)
+        0.0: '#fef9c3',  // Amarelo bem claro
+        0.15: '#fde047', // Amarelo
+        0.3: '#facc15',  // Amarelo dourado
+        0.45: '#f59e0b', // Laranja claro
+        0.6: '#ea580c',  // Laranja escuro
+        0.75: '#dc2626', // Vermelho
+        0.9: '#b91c1c',  // Vermelho escuro
+        1.0: '#7f1d1d'   // Vermelho muito escuro
+      }
+    }).addTo(map);
+  };
 
   useEffect(() => {
     if (!map) return;
 
-    // Limpar círculos anteriores
-    circlesRef.current.forEach(circle => {
-      if (map.hasLayer(circle)) {
-        map.removeLayer(circle);
-      }
-    });
-    circlesRef.current = [];
+    updateHeatLayer(map.getZoom());
 
-    const range = maxValue - minValue;
-    const validData = data.filter(d => d.coords && d.value > 0);
-    
-    // Ordenar por valor para desenhar os menores por cima
-    const sortedData = [...validData].sort((a, b) => b.value - a.value);
-
-    sortedData.forEach(d => {
-      if (!d.coords) return;
-      
-      // Calcular valor normalizado (0 a 1)
-      const normalizedValue = range > 0 ? (d.value - minValue) / range : 0;
-      
-      // Obter cor baseada no valor
-      const color = getHeatColor(normalizedValue);
-      
-      // Raio proporcional ao valor (mín 8, máx 35)
-      const baseRadius = 8 + (normalizedValue * 27);
-      
-      const circle = L.circleMarker(d.coords, {
-        radius: baseRadius,
-        fillColor: color,
-        color: color,
-        weight: 1,
-        opacity: 0.9,
-        fillOpacity: 0.7,
-      }).addTo(map);
-      
-      circlesRef.current.push(circle);
-    });
+    const onZoom = () => updateHeatLayer(map.getZoom());
+    map.on('zoomend', onZoom);
 
     return () => {
-      circlesRef.current.forEach(circle => {
-        if (map.hasLayer(circle)) {
-          map.removeLayer(circle);
-        }
-      });
-      circlesRef.current = [];
+      map.off('zoomend', onZoom);
+      if (heatLayerRef.current && map) {
+        map.removeLayer(heatLayerRef.current);
+      }
     };
   }, [map, data, metric, maxValue, minValue]);
 
@@ -443,7 +434,7 @@ export function GeographicHeatMap({
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             />
             <MapUpdater center={mapCenter} zoom={mapZoom} />
-            <ColoredCircles 
+            <HeatLayer 
               data={heatMapData} 
               metric={metric} 
               maxValue={maxValue}
