@@ -482,6 +482,7 @@ export default function ProjectSelector() {
   const [showArchived, setShowArchived] = useState(false);
   const [healthFilter, setHealthFilter] = useState<ExtendedHealthScore | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [squadFilter, setSquadFilter] = useState<string>('all');
 
   // Avatar states
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -553,7 +554,15 @@ export default function ProjectSelector() {
   const activeProjects = projects.filter(p => !p.archived);
   const archivedProjects = projects.filter(p => p.archived);
   const displayProjects = showArchived ? archivedProjects : activeProjects;
-  const filteredProjects = displayProjects.filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter).filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.ad_account_id.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  // Apply squad filter for tech/gerente users
+  const squadFilteredProjects = (isTech || isGerente) && squadFilter !== 'all'
+    ? displayProjects.filter(p => p.squad_id === squadFilter)
+    : displayProjects;
+  
+  const filteredProjects = squadFilteredProjects
+    .filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter)
+    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.ad_account_id.toLowerCase().includes(searchQuery.toLowerCase()));
 
   // Group by status
   const safeProjects = filteredProjects.filter(p => p.health_score === 'safe');
@@ -1009,6 +1018,29 @@ export default function ProjectSelector() {
                   <SelectItem value="danger" className="text-red-600 dark:text-red-400 rounded-lg">{t('projectSelector.danger')}</SelectItem>
                 </SelectContent>
               </Select>
+              
+              {/* Squad filter for tech/gerente */}
+              {(isTech || isGerente) && squads.length > 0 && (
+                <Select value={squadFilter} onValueChange={setSquadFilter}>
+                  <SelectTrigger className="w-full sm:w-36 md:w-32 lg:w-40 h-10 bg-secondary border-border text-muted-foreground rounded-xl focus:border-primary/50 touch-target text-sm">
+                    <SelectValue placeholder="Squad" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50">
+                    <SelectItem value="all" className="text-foreground rounded-lg">Todas as Squads</SelectItem>
+                    {squads.map((squad) => (
+                      <SelectItem key={squad.id} value={squad.id} className="text-foreground rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-2 h-2 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: squad.color }}
+                          />
+                          <span className="truncate">{squad.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             
             {/* Actions - Scrollable on mobile, inline on tablet+ */}
