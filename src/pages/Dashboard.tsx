@@ -467,7 +467,7 @@ export default function Dashboard() {
                   </h2>
                 </div>
                 <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
-                  <SparklineCard title={t('metrics.profileVisits')} value={formatNumberCompact(profileVisitsData.totalProfileVisits)} icon={Instagram} className="border-l-4 border-l-pink-500" />
+                  <SparklineCard title={t('metrics.profileVisits')} value={formatNumber(profileVisitsData.totalProfileVisits)} icon={Instagram} className="border-l-4 border-l-pink-500" />
                   <SparklineCard title={t('metrics.costPerVisit')} value={formatCurrency(profileVisitsData.costPerVisit)} icon={DollarSign} invertTrend />
                 </div>
               </div>}
