@@ -2,11 +2,11 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Loader2 } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.heat';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface GeoData {
   breakdown_value: string;
@@ -404,21 +404,23 @@ export function GeographicHeatMap({
     );
   }
 
+  const isMobile = useIsMobile();
+
   return (
     <Card className={className}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-1 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
+      <CardHeader className="pb-2 px-3 sm:px-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="h-6 sm:h-8 w-1 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
             <div>
-              <CardTitle className="text-lg font-semibold">Mapa de Calor Geográfico</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <CardTitle className="text-sm sm:text-lg font-semibold">Mapa de Calor</CardTitle>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
                 {detectedCountry} • {processedData.length} regiões
               </p>
             </div>
           </div>
           <Select value={metric} onValueChange={(v) => setMetric(v as MetricType)}>
-            <SelectTrigger className="w-[140px] h-9 text-sm">
+            <SelectTrigger className="w-full sm:w-[140px] h-8 sm:h-9 text-xs sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -429,21 +431,24 @@ export function GeographicHeatMap({
           </Select>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 sm:px-6">
         {/* Mapa de calor interativo */}
-        <div className="relative h-[300px] sm:h-[350px] md:h-[400px] lg:h-[450px] rounded-lg border border-border overflow-hidden">
+        <div className="relative h-[220px] sm:h-[300px] md:h-[400px] lg:h-[450px] rounded-lg border border-border overflow-hidden">
           <MapContainer
             center={mapCenter}
-            zoom={mapZoom}
+            zoom={isMobile ? Math.max(mapZoom - 1, 3) : mapZoom}
             style={{ height: '100%', width: '100%' }}
-            scrollWheelZoom={true}
-            zoomControl={true}
+            scrollWheelZoom={!isMobile}
+            zoomControl={!isMobile}
+            dragging={!isMobile}
+            touchZoom={false}
+            doubleClickZoom={!isMobile}
           >
             <TileLayer
               attribution='&copy; <a href="https://carto.com/">CARTO</a>'
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             />
-            <MapUpdater center={mapCenter} zoom={mapZoom} />
+            <MapUpdater center={mapCenter} zoom={isMobile ? Math.max(mapZoom - 1, 3) : mapZoom} />
             <HeatLayer 
               data={heatMapData} 
               metric={metric} 
@@ -452,62 +457,50 @@ export function GeographicHeatMap({
             />
           </MapContainer>
 
-          {/* Legenda */}
-          <div className="absolute bottom-3 left-3 flex items-center gap-2 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
-            <span>{getMetricLabel(metric)}</span>
-            <div className="flex items-center h-3 w-24 rounded-sm overflow-hidden">
+          {/* Legenda - simplificada no mobile */}
+          <div className="absolute bottom-2 left-2 right-2 sm:left-3 sm:right-auto flex items-center justify-between sm:justify-start gap-1 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground bg-card/95 backdrop-blur-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg border border-border z-[1000]">
+            <span className="hidden sm:inline">{getMetricLabel(metric)}</span>
+            <div className="flex items-center h-2 sm:h-3 w-16 sm:w-24 rounded-sm overflow-hidden">
               <div className="h-full flex-1" style={{ background: 'linear-gradient(to right, #fef08a, #fbbf24, #f97316, #ef4444, #991b1b)' }}></div>
             </div>
-            <span>{formatNumber(minValue)} - {formatNumber(maxValue)}</span>
-          </div>
-
-          {/* País detectado */}
-          <div className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
-            {processedData.filter(p => p.coords).length} regiões no mapa
+            <span className="text-[10px] sm:text-xs">{formatNumber(minValue)} - {formatNumber(maxValue)}</span>
           </div>
         </div>
 
-        {/* Top Regiões */}
-        <div className="mt-4">
-          <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-orange-500" />
-            Top Regiões por {getMetricLabel(metric)}
+        {/* Top Regiões - Lista simples no mobile */}
+        <div className="mt-3 sm:mt-4">
+          <h4 className="text-xs sm:text-sm font-medium mb-2 sm:mb-3 flex items-center gap-2">
+            <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500" />
+            Top Regiões
           </h4>
-          <ScrollArea className="h-[200px]">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[40px] text-xs">#</TableHead>
-                  <TableHead className="text-xs">Região</TableHead>
-                  <TableHead className="text-right text-xs">{getMetricLabel(metric)}</TableHead>
-                  <TableHead className="text-right text-xs">CTR</TableHead>
-                  <TableHead className="text-right text-xs">CPC</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {processedData.slice(0, 10).map((item, index) => (
-                  <TableRow key={item.breakdown_value} className="hover:bg-muted/30">
-                    <TableCell className="font-medium text-xs text-muted-foreground">
+          <ScrollArea className="h-[160px] sm:h-[200px]">
+            <div className="space-y-1">
+              {processedData.slice(0, 10).map((item, index) => (
+                <div 
+                  key={item.breakdown_value} 
+                  className="flex items-center justify-between py-2 px-2 sm:px-3 rounded-md hover:bg-muted/30 border-b border-border/50 last:border-0"
+                >
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground w-4 sm:w-5 shrink-0">
                       {index + 1}
-                    </TableCell>
-                    <TableCell className="font-medium text-sm">
+                    </span>
+                    <span className="text-xs sm:text-sm font-medium truncate">
                       {item.breakdown_value}
-                    </TableCell>
-                    <TableCell className="text-right text-sm font-medium">
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                    <span className="text-xs sm:text-sm font-semibold">
                       {metric === 'spend' 
                         ? formatCurrency(item[metric], currency)
                         : formatNumber(item[metric])}
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      {formatPercent(item.ctr)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      {formatCurrency(item.cpc, currency)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">
+                      CTR {formatPercent(item.ctr)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </ScrollArea>
         </div>
       </CardContent>
