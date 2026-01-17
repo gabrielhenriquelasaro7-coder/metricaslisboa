@@ -228,19 +228,19 @@ function HeatLayer({
       .map(d => {
         // Normalização linear simples de 0 a 1
         const normalizedValue = range > 0 ? (d.value - minValue) / range : 0;
-        // Usar potência para empurrar valores baixos para ainda mais baixo
-        // Isso garante que só valores realmente altos fiquem vermelhos
-        const intensity = Math.pow(normalizedValue, 2); // Quadrático: 0.5 vira 0.25
+        // Usar potência cúbica para empurrar valores baixos ainda mais para baixo
+        // 0.5 vira 0.125, 0.3 vira 0.027 - valores baixos ficam bem claros
+        const intensity = Math.pow(normalizedValue, 3);
         return [d.coords![0], d.coords![1], intensity] as [number, number, number];
       });
 
     if (heatData.length === 0) return;
 
-    // Raio maior com blur alto
-    const baseRadius = 35;
-    const zoomFactor = Math.pow(1.18, currentZoom - 4);
-    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 30), 60);
-    const dynamicBlur = dynamicRadius * 0.7;
+    // Raio equilibrado com blur
+    const baseRadius = 28;
+    const zoomFactor = Math.pow(1.15, currentZoom - 4);
+    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 25), 50);
+    const dynamicBlur = dynamicRadius * 0.65;
 
     // @ts-ignore
     heatLayerRef.current = L.heatLayer(heatData, {
