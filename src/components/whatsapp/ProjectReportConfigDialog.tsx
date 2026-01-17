@@ -127,6 +127,8 @@ export function ProjectReportConfigDialog({
   const [messageTemplate, setMessageTemplate] = useState('');
   const [balanceAlertEnabled, setBalanceAlertEnabled] = useState(false);
   const [balanceAlertThreshold, setBalanceAlertThreshold] = useState(3);
+  const [balanceAlertPhoneNumber, setBalanceAlertPhoneNumber] = useState('');
+  const [balanceAlertInstanceId, setBalanceAlertInstanceId] = useState<string | null>(null);
 
   const [metricsEnabled, setMetricsEnabled] = useState<Record<string, boolean>>({
     spend: true,
@@ -158,6 +160,8 @@ export function ProjectReportConfigDialog({
     setMessageTemplate(existingConfig?.message_template || '');
     setBalanceAlertEnabled(existingConfig?.balance_alert_enabled ?? false);
     setBalanceAlertThreshold(existingConfig?.balance_alert_threshold ?? 3);
+    setBalanceAlertPhoneNumber(existingConfig?.balance_alert_phone_number || '');
+    setBalanceAlertInstanceId(existingConfig?.balance_alert_instance_id || null);
     setMetricsEnabled({
       spend: existingConfig?.include_spend ?? true,
       leads: existingConfig?.include_leads ?? true,
@@ -469,6 +473,9 @@ export function ProjectReportConfigDialog({
         message_template: messageTemplate || null,
         balance_alert_enabled: balanceAlertEnabled,
         balance_alert_threshold: balanceAlertThreshold,
+        balance_alert_phone_number: balanceAlertPhoneNumber.replace(/\D/g, '') || null,
+        balance_alert_instance_id: balanceAlertInstanceId || instanceId,
+        balance_alert_use_separate_config: true,
         include_spend: metricsEnabled.spend,
         include_leads: metricsEnabled.leads,
         include_cpl: metricsEnabled.cpl,
@@ -693,21 +700,45 @@ export function ProjectReportConfigDialog({
                   </div>
 
                   {balanceAlertEnabled && (
-                    <div className="space-y-2">
-                      <Label>Alertar quando restarem menos de (dias)</Label>
-                      <Select 
-                        value={balanceAlertThreshold.toString()} 
-                        onValueChange={(v) => setBalanceAlertThreshold(parseInt(v))}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 5, 7, 10, 14].map(d => (
-                            <SelectItem key={d} value={d.toString()}>{d} dias</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-4 p-3 bg-muted/50 rounded-lg">
+                      <div className="flex items-start gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-md">
+                        <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-muted-foreground">
+                          O alerta de saldo é enviado para o <strong>investidor/gestor</strong>, não para o grupo do cliente.
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <Smartphone className="w-4 h-4" />
+                          Número do Investidor/Gestor
+                        </Label>
+                        <Input
+                          placeholder="(11) 99999-9999"
+                          value={balanceAlertPhoneNumber}
+                          onChange={(e) => setBalanceAlertPhoneNumber(formatPhoneNumber(e.target.value))}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Número que receberá os alertas de saldo baixo
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Alertar quando restarem menos de (dias)</Label>
+                        <Select 
+                          value={balanceAlertThreshold.toString()} 
+                          onValueChange={(v) => setBalanceAlertThreshold(parseInt(v))}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[1, 2, 3, 5, 7, 10, 14].map(d => (
+                              <SelectItem key={d} value={d.toString()}>{d} dias</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   )}
                 </div>

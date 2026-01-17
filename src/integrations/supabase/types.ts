@@ -2737,7 +2737,10 @@ export type Database = {
       whatsapp_report_configs: {
         Row: {
           balance_alert_enabled: boolean | null
+          balance_alert_instance_id: string | null
+          balance_alert_phone_number: string | null
           balance_alert_threshold: number | null
+          balance_alert_use_separate_config: boolean | null
           created_at: string | null
           group_id: string | null
           group_name: string | null
@@ -2771,7 +2774,10 @@ export type Database = {
         }
         Insert: {
           balance_alert_enabled?: boolean | null
+          balance_alert_instance_id?: string | null
+          balance_alert_phone_number?: string | null
           balance_alert_threshold?: number | null
+          balance_alert_use_separate_config?: boolean | null
           created_at?: string | null
           group_id?: string | null
           group_name?: string | null
@@ -2805,7 +2811,10 @@ export type Database = {
         }
         Update: {
           balance_alert_enabled?: boolean | null
+          balance_alert_instance_id?: string | null
+          balance_alert_phone_number?: string | null
           balance_alert_threshold?: number | null
+          balance_alert_use_separate_config?: boolean | null
           created_at?: string | null
           group_id?: string | null
           group_name?: string | null
@@ -2838,6 +2847,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "whatsapp_report_configs_balance_alert_instance_id_fkey"
+            columns: ["balance_alert_instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_manager_instances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "whatsapp_report_configs_instance_id_fkey"
             columns: ["instance_id"]
