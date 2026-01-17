@@ -260,24 +260,36 @@ function HeatLayer({
     // Blur baixo para bordas definidas - estilo GA4 (regra 9)
     const dynamicBlur = dynamicRadius * 0.4;
 
+    // Quando há apenas 1 ponto ou pouca variação, usar gradiente que mostra vermelho diretamente
+    const useSinglePointGradient = validPoints.length <= 2 || logRange < 0.1;
+    
     // @ts-ignore
     heatLayerRef.current = L.heatLayer(heatData, {
-      radius: dynamicRadius,
-      blur: dynamicBlur,
-      maxZoom: 12, // Limitar expansão do calor (regra 7)
-      max: 1.0,
-      minOpacity: 0.4, // Visibilidade mínima (regra 7)
-      gradient: {
-        // Gradiente suave: amarelo claro (baixo) -> vermelho escuro (alto)
-        0.0: '#fefce8',  // Amarelo muito claro
-        0.15: '#fef08a', // Amarelo claro
-        0.3: '#fde047',  // Amarelo
-        0.45: '#facc15', // Amarelo dourado
-        0.55: '#f59e0b', // Laranja
-        0.7: '#ea580c',  // Laranja escuro
-        0.85: '#dc2626', // Vermelho
-        1.0: '#991b1b'   // Vermelho escuro
-      }
+      radius: useSinglePointGradient ? dynamicRadius * 1.3 : dynamicRadius, // Raio maior para ponto único
+      blur: useSinglePointGradient ? dynamicBlur * 0.5 : dynamicBlur, // Menos blur para mais intensidade
+      maxZoom: 12,
+      max: useSinglePointGradient ? 0.6 : 1.0, // Valor max menor força cores mais intensas
+      minOpacity: useSinglePointGradient ? 0.7 : 0.4,
+      gradient: useSinglePointGradient 
+        ? {
+            // Gradiente para ponto único: vai direto para vermelho
+            0.0: '#f59e0b',  // Laranja (mínimo já é quente)
+            0.3: '#ea580c',  // Laranja escuro
+            0.5: '#dc2626',  // Vermelho
+            0.7: '#b91c1c',  // Vermelho escuro
+            1.0: '#7f1d1d'   // Vermelho muito escuro
+          }
+        : {
+            // Gradiente normal: amarelo claro (baixo) -> vermelho escuro (alto)
+            0.0: '#fefce8',  // Amarelo muito claro
+            0.15: '#fef08a', // Amarelo claro
+            0.3: '#fde047',  // Amarelo
+            0.45: '#facc15', // Amarelo dourado
+            0.55: '#f59e0b', // Laranja
+            0.7: '#ea580c',  // Laranja escuro
+            0.85: '#dc2626', // Vermelho
+            1.0: '#991b1b'   // Vermelho escuro
+          }
     }).addTo(map);
   };
 
