@@ -46,6 +46,32 @@ interface ExportOptions {
   includeSourceCode: boolean;
 }
 
+// Tables that contain heavy operational data (ads, metrics, creatives)
+const HEAVY_DATA_TABLES = [
+  'campaigns', 'ad_sets', 'ads', 'ads_daily_metrics',
+  'google_campaigns', 'google_ad_groups', 'google_ads', 'google_ads_daily_metrics',
+  'leads', 'leadgen_forms',
+  'crm_deals', 'crm_sync_logs',
+  'demographic_insights', 'dre_history',
+  'optimization_history', 'period_metrics',
+  'anomaly_alerts', 'ai_analysis_cache',
+  'sync_logs', 'sync_progress',
+];
+
+// Tables that contain configuration/structure data (always exported)
+const STRUCTURE_TABLES = [
+  'projects', 'profiles', 'user_roles', 'user_management', 'squads', 'squad_members',
+  'project_metric_config', 'project_import_months', 'project_investidores',
+  'crm_connections', 'crm_pipelines',
+  'account_goals', 'campaign_goals',
+  'anomaly_alert_config', 'chart_preferences', 'user_hidden_metrics',
+  'guest_invitations', 'guest_project_access',
+  'suggestion_actions', 'investor_suggestions',
+  'admin_access_requests', 'admin_access_grants',
+  'whatsapp_instances', 'whatsapp_report_config',
+  'system_settings',
+];
+
 // All tables to export
 const TABLES_TO_EXPORT = [
   'projects', 'profiles', 'user_roles', 'user_management', 'squads', 'squad_members',
@@ -1083,6 +1109,294 @@ Each function folder contains an \`index.ts\` file with the function logic.
     }
   };
 
+  // Structure-only export handler (excludes heavy data tables)
+  const handleStructureOnlyExport = async () => {
+    setIsExporting(true);
+    const dataStats: Record<string, number> = {};
+    
+    try {
+      const zip = new JSZip();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+      // Phase 1: Schema (always include)
+      setProgress({ phase: 'Schema', current: 0, total: 1, currentItem: 'Generating database schema...' });
+      const schema = await generateSchemaSQL();
+      zip.file('database/01_schema.sql', schema);
+
+      // Phase 2: Functions (always include)
+      setProgress({ phase: 'Functions', current: 0, total: 1, currentItem: 'Generating database functions...' });
+      const functions = generateFunctionsSQL();
+      zip.file('database/02_functions.sql', functions);
+
+      // Phase 3: RLS Policies (always include)
+      setProgress({ phase: 'RLS Policies', current: 0, total: 1, currentItem: 'Generating security policies...' });
+      const rlsPolicies = await generateRLSPoliciesSQL();
+      zip.file('database/03_rls_policies.sql', rlsPolicies);
+
+      // Phase 4: Structure data only (config tables, no heavy data)
+      const structureDataSql = await exportStructureDataAsSQL((table, index) => {
+        setProgress({ 
+          phase: 'Data (Estrutura)', 
+          current: index + 1, 
+          total: STRUCTURE_TABLES.length, 
+          currentItem: table 
+        });
+      });
+      zip.file('database/04_structure_data.sql', structureDataSql);
+
+      const structureDataJson = await exportStructureDataAsJSON((table, index) => {
+        setProgress({ 
+          phase: 'Data (JSON)', 
+          current: index + 1, 
+          total: STRUCTURE_TABLES.length, 
+          currentItem: table 
+        });
+        dataStats[table] = 0;
+      });
+      
+      for (const [table, data] of Object.entries(structureDataJson)) {
+        dataStats[table] = data.length;
+      }
+      
+      zip.file('database/structure_data.json', JSON.stringify(structureDataJson, null, 2));
+
+      // Phase 5: Storage Config (no files)
+      setProgress({ phase: 'Storage Config', current: 0, total: 1, currentItem: 'Generating storage config...' });
+      zip.file('storage/buckets.sql', generateStorageSQL());
+
+      // Phase 6: Secrets
+      setProgress({ phase: 'Secrets', current: 0, total: 1, currentItem: 'Generating env template...' });
+      zip.file('secrets/.env.example', generateEnvExample());
+
+      // Phase 7: Source Code Info
+      setProgress({ phase: 'Source Code', current: 0, total: 1, currentItem: 'Generating source structure...' });
+      zip.file('frontend/README.md', generateSourceCodeManifest());
+      zip.file('frontend/package.json', generatePackageJson());
+
+      // Phase 8: Edge Functions
+      setProgress({ phase: 'Edge Functions', current: 0, total: 1, currentItem: 'Documenting functions...' });
+      const functionsReadme = `# Edge Functions\n\nThe following ${EDGE_FUNCTIONS.length} edge functions are used in this project:\n\n${EDGE_FUNCTIONS.map((f, i) => `${i + 1}. \`${f}\``).join('\n')}\n`;
+      zip.file('edge-functions/README.md', functionsReadme);
+
+      // Phase 9: Documentation
+      setProgress({ phase: 'Documentation', current: 0, total: 1, currentItem: 'Generating docs...' });
+      zip.file('docs/README.md', generateStructureOnlyDocumentation(dataStats));
+      zip.file('docs/restore-guide.md', generateRestoreGuide());
+      zip.file('docs/data-stats.json', JSON.stringify({ 
+        exportType: 'structure-only',
+        tables: dataStats, 
+        excludedTables: HEAVY_DATA_TABLES,
+        exportedAt: new Date().toISOString()
+      }, null, 2));
+
+      // Generate ZIP
+      setProgress({ phase: 'Compressing', current: 0, total: 1, currentItem: 'Creating ZIP file...' });
+      const blob = await zip.generateAsync({ 
+        type: 'blob', 
+        compression: 'DEFLATE',
+        compressionOptions: { level: 9 }
+      });
+
+      // Download
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `v4-company-STRUCTURE-export-${timestamp}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      const totalRecords = Object.values(dataStats).reduce((sum, count) => sum + count, 0);
+      toast.success(`Exportação de ESTRUTURA concluída! ${totalRecords.toLocaleString()} registros de configuração.`);
+
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error(`Erro na exportação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    } finally {
+      setIsExporting(false);
+      setProgress(null);
+    }
+  };
+
+  // Export structure data only (config tables)
+  const exportStructureDataAsSQL = async (onProgress: (table: string, index: number) => void): Promise<string> => {
+    let sql = '';
+    const timestamp = new Date().toISOString();
+    
+    sql += `-- ============================================\n`;
+    sql += `-- V4 Company - Structure Data Export\n`;
+    sql += `-- (Configuration tables only, no ads/metrics data)\n`;
+    sql += `-- Generated at: ${timestamp}\n`;
+    sql += `-- ============================================\n\n`;
+
+    sql += `-- IMPORTANT: Run schema.sql and functions.sql BEFORE running this file\n\n`;
+
+    for (let i = 0; i < STRUCTURE_TABLES.length; i++) {
+      const tableName = STRUCTURE_TABLES[i];
+      onProgress(tableName, i);
+
+      try {
+        let allData: any[] = [];
+        let offset = 0;
+        const limit = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from(tableName as any)
+            .select('*')
+            .range(offset, offset + limit - 1);
+
+          if (error) {
+            sql += `-- Error fetching ${tableName}: ${error.message}\n\n`;
+            hasMore = false;
+          } else if (data && data.length > 0) {
+            allData = [...allData, ...data];
+            offset += limit;
+            hasMore = data.length === limit;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        if (allData.length > 0) {
+          sql += `-- ============================================\n`;
+          sql += `-- Table: ${tableName} (${allData.length} rows)\n`;
+          sql += `-- ============================================\n\n`;
+          
+          const columns = Object.keys(allData[0]);
+          
+          for (const row of allData) {
+            const values = columns.map(col => {
+              const val = row[col];
+              if (val === null) return 'NULL';
+              if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+              if (typeof val === 'number') return val.toString();
+              if (typeof val === 'object') return `'${JSON.stringify(val).replace(/'/g, "''")}'::jsonb`;
+              return `'${String(val).replace(/'/g, "''")}'`;
+            });
+            
+            sql += `INSERT INTO public.${tableName} (${columns.join(', ')}) VALUES (${values.join(', ')}) ON CONFLICT DO NOTHING;\n`;
+          }
+          sql += '\n';
+        }
+      } catch (err) {
+        sql += `-- Error processing ${tableName}: ${err}\n\n`;
+      }
+    }
+
+    return sql;
+  };
+
+  // Export structure data as JSON
+  const exportStructureDataAsJSON = async (onProgress: (table: string, index: number) => void): Promise<Record<string, any[]>> => {
+    const exportData: Record<string, any[]> = {};
+
+    for (let i = 0; i < STRUCTURE_TABLES.length; i++) {
+      const tableName = STRUCTURE_TABLES[i];
+      onProgress(tableName, i);
+
+      try {
+        let allData: any[] = [];
+        let offset = 0;
+        const limit = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from(tableName as any)
+            .select('*')
+            .range(offset, offset + limit - 1);
+
+          if (error) {
+            hasMore = false;
+          } else if (data && data.length > 0) {
+            allData = [...allData, ...data];
+            offset += limit;
+            hasMore = data.length === limit;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        exportData[tableName] = allData;
+      } catch {
+        exportData[tableName] = [];
+      }
+    }
+
+    return exportData;
+  };
+
+  // Generate documentation for structure-only export
+  const generateStructureOnlyDocumentation = (dataStats: Record<string, number>): string => {
+    const timestamp = new Date().toISOString();
+    const totalRecords = Object.values(dataStats).reduce((sum, count) => sum + count, 0);
+    
+    return `# V4 Company - Structure Export (Sem Dados de Ads)
+
+## 📋 Overview
+Este é um export de **ESTRUTURA** do projeto V4 Company, contendo configurações e estrutura, SEM dados operacionais.
+
+**Generated at:** ${timestamp}
+**Total Records:** ${totalRecords.toLocaleString()}
+**Tables Included:** ${STRUCTURE_TABLES.length}
+**Tables Excluded:** ${HEAVY_DATA_TABLES.length} (dados de ads, métricas, leads)
+
+## ✅ Incluído neste export
+
+- Schema completo (todas as tabelas)
+- Funções e Triggers do banco
+- Políticas RLS (segurança)
+- Dados de configuração:
+${STRUCTURE_TABLES.map(t => `  - ${t}`).join('\n')}
+
+## ❌ NÃO Incluído (tabelas de dados pesados)
+
+- ads, ad_sets, campaigns
+- ads_daily_metrics, google_ads_daily_metrics
+- leads, leadgen_forms
+- demographic_insights
+- optimization_history
+- E outras tabelas de métricas...
+
+## 📁 Export Contents
+
+\`\`\`
+v4-company-structure-export/
+├── database/
+│   ├── 01_schema.sql           # ENUMs, Tables, Constraints
+│   ├── 02_functions.sql        # Database functions & triggers
+│   ├── 03_rls_policies.sql     # Row Level Security policies
+│   ├── 04_structure_data.sql   # Config data only
+│   └── structure_data.json     # Config data in JSON
+├── storage/
+│   └── buckets.sql             # Storage buckets config
+├── frontend/
+│   ├── package.json
+│   └── README.md
+├── edge-functions/
+│   └── README.md
+├── secrets/
+│   └── .env.example
+└── docs/
+    ├── README.md
+    └── restore-guide.md
+\`\`\`
+
+## 📊 Data Statistics
+
+| Table | Records |
+|-------|---------|
+${Object.entries(dataStats).map(([table, count]) => `| ${table} | ${count.toLocaleString()} |`).join('\n')}
+| **TOTAL** | **${totalRecords.toLocaleString()}** |
+
+---
+*Generated by V4 Company Export System*
+`;
+  };
+
   const progressPercent = progress 
     ? progress.total > 0 
       ? (progress.current / progress.total) * 100 
@@ -1288,25 +1602,65 @@ Each function folder contains an \`index.ts\` file with the function logic.
           </div>
         )}
 
-        {/* Export Button */}
-        <Button
-          onClick={handleExport}
-          disabled={isExporting || Object.values(options).every(v => !v)}
-          className="w-full gap-2"
-          size="lg"
-        >
-          {isExporting ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Exportando projeto completo...
-            </>
-          ) : (
-            <>
-              <Package className="w-5 h-5" />
-              Exportar TUDO (.zip)
-            </>
-          )}
-        </Button>
+        {/* Export Buttons */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Full Export Button */}
+          <Button
+            onClick={handleExport}
+            disabled={isExporting || Object.values(options).every(v => !v)}
+            className="w-full gap-2"
+            size="lg"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Exportando...
+              </>
+            ) : (
+              <>
+                <Package className="w-5 h-5" />
+                Exportar TUDO (.zip)
+              </>
+            )}
+          </Button>
+
+          {/* Structure Only Export Button */}
+          <Button
+            onClick={handleStructureOnlyExport}
+            disabled={isExporting}
+            variant="outline"
+            className="w-full gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+            size="lg"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Exportando...
+              </>
+            ) : (
+              <>
+                <Database className="w-5 h-5" />
+                Só Estrutura (Sem Dados de Ads)
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Info about structure-only export */}
+        <Alert className="bg-amber-500/10 border-amber-500/30">
+          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <AlertTitle className="text-amber-700 dark:text-amber-400">Exportar Só Estrutura</AlertTitle>
+          <AlertDescription className="text-xs text-amber-600 dark:text-amber-300">
+            <p>O botão "Só Estrutura" exporta:</p>
+            <ul className="list-disc ml-4 mt-1 space-y-0.5">
+              <li>Schema completo (todas as tabelas)</li>
+              <li>Funções e Triggers</li>
+              <li>Políticas RLS</li>
+              <li>Dados de configuração (projetos, usuários, squads, metas)</li>
+              <li><strong>NÃO inclui:</strong> dados de ads, métricas diárias, leads, criativos</li>
+            </ul>
+          </AlertDescription>
+        </Alert>
 
         {/* Info about source code */}
         <Alert variant="default" className="bg-blue-500/10 border-blue-500/30">
