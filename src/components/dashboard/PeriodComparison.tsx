@@ -12,6 +12,7 @@ interface Metrics {
   totalSalesConversions?: number; // Purchases (for infoproduto)
   totalLeadsConversions?: number; // Leads
   totalInitiateCheckout?: number; // Initiate Checkout
+  totalProfileVisits?: number; // Profile visits (for top of funnel)
   ctr: number;
   cpm: number;
   cpc: number;
@@ -295,12 +296,13 @@ export default function PeriodComparison({
       });
     } else if (businessModel === 'custom') {
       // For custom, show separate cards for each result metric based on configuration
-      // Default to showing leads, initiate_checkout, and sales separately (if they exist)
-      const metricsToShow = resultMetrics || ['leads', 'initiate_checkout', 'purchases'];
+      // Default to showing leads, initiate_checkout, purchases, profile_visits separately (if they exist)
+      const metricsToShow = resultMetrics || ['leads', 'initiate_checkout', 'purchases', 'profile_visits'];
       const labels: Record<string, string> = resultMetricsLabels || {
         leads: 'Leads',
         initiate_checkout: 'Initiate Checkout',
-        purchases: 'Vendas'
+        purchases: 'Vendas',
+        profile_visits: 'Visitas ao Perfil'
       };
       
       // Get current and previous values for each metric
@@ -309,6 +311,7 @@ export default function PeriodComparison({
           case 'leads': return m.totalLeadsConversions || 0;
           case 'initiate_checkout': return m.totalInitiateCheckout || 0;
           case 'purchases': return m.totalSalesConversions || 0;
+          case 'profile_visits': return m.totalProfileVisits || 0;
           default: return 0;
         }
       };
@@ -317,7 +320,7 @@ export default function PeriodComparison({
         const currentValue = getMetricValue(currentMetrics, metric);
         const previousValue = getMetricValue(previousMetrics, metric);
         
-        // Only show if there's data (current > 0) OR if it's explicitly configured
+        // Only show if there's actual data (value > 0) - hide metrics with 0 results
         if (currentValue > 0 || previousValue > 0) {
           items.push({
             label: labels[metric] || metric,
@@ -329,7 +332,7 @@ export default function PeriodComparison({
         }
       }
 
-      // Calculate CPL based on leads only
+      // Calculate CPL based on leads only - only if leads > 0
       const currentLeads = getMetricValue(currentMetrics, 'leads');
       const previousLeads = getMetricValue(previousMetrics, 'leads');
       
@@ -346,7 +349,25 @@ export default function PeriodComparison({
         });
       }
 
-      // Calculate Cost per Initiate Checkout
+      // Calculate CPV (Cost per Profile Visit) - only if profile visits > 0
+      const currentProfileVisits = getMetricValue(currentMetrics, 'profile_visits');
+      const previousProfileVisits = getMetricValue(previousMetrics, 'profile_visits');
+      
+      if (currentProfileVisits > 0 || previousProfileVisits > 0) {
+        const currentCpv = currentProfileVisits > 0 ? currentMetrics.totalSpend / currentProfileVisits : 0;
+        const previousCpv = previousProfileVisits > 0 ? previousMetrics.totalSpend / previousProfileVisits : 0;
+
+        items.push({
+          label: 'CPV',
+          current: formatCurrencyValue(currentCpv),
+          previous: formatCurrencyValue(previousCpv),
+          change: calculateChange(currentCpv, previousCpv),
+          isInverse: true,
+          tooltip: 'Custo por Visita ao Perfil'
+        });
+      }
+
+      // Calculate Cost per Initiate Checkout - only if IC > 0
       const currentIC = getMetricValue(currentMetrics, 'initiate_checkout');
       const previousIC = getMetricValue(previousMetrics, 'initiate_checkout');
       
@@ -437,11 +458,12 @@ export default function PeriodComparison({
       if (shouldShowMetric('cpa')) currentOnlyItems.push({ label: 'CPA', value: formatCurrencyValue(cpaSales) });
     } else if (businessModel === 'custom') {
       // For custom, show separate metrics based on configuration
-      const metricsToShow = resultMetrics || ['leads', 'initiate_checkout', 'purchases'];
+      const metricsToShow = resultMetrics || ['leads', 'initiate_checkout', 'purchases', 'profile_visits'];
       const labels: Record<string, string> = resultMetricsLabels || {
         leads: 'Leads',
         initiate_checkout: 'Initiate Checkout',
-        purchases: 'Vendas'
+        purchases: 'Vendas',
+        profile_visits: 'Visitas ao Perfil'
       };
       
       const getMetricValue = (key: string): number => {
@@ -449,25 +471,34 @@ export default function PeriodComparison({
           case 'leads': return currentMetrics.totalLeadsConversions || 0;
           case 'initiate_checkout': return currentMetrics.totalInitiateCheckout || 0;
           case 'purchases': return currentMetrics.totalSalesConversions || 0;
+          case 'profile_visits': return currentMetrics.totalProfileVisits || 0;
           default: return 0;
         }
       };
 
       for (const metric of metricsToShow) {
         const value = getMetricValue(metric);
-        if ((metric !== 'purchases' || value > 0) && shouldShowMetric(metric)) {
+        // Only show metrics with value > 0 - hide metrics with 0 results
+        if (value > 0 && shouldShowMetric(metric)) {
           currentOnlyItems.push({ label: labels[metric] || metric, value: formatNumber(value) });
         }
       }
 
-      // CPL based on leads
+      // CPL based on leads - only if leads > 0
       const leads = getMetricValue('leads');
       if (leads > 0 && shouldShowMetric('cpa')) {
         const cpl = currentMetrics.totalSpend / leads;
         currentOnlyItems.push({ label: 'CPL', value: formatCurrencyValue(cpl) });
       }
 
-      // Cost per Initiate Checkout
+      // CPV based on profile visits - only if profile_visits > 0
+      const profileVisits = getMetricValue('profile_visits');
+      if (profileVisits > 0 && shouldShowMetric('profile_visits')) {
+        const cpv = currentMetrics.totalSpend / profileVisits;
+        currentOnlyItems.push({ label: 'CPV', value: formatCurrencyValue(cpv) });
+      }
+
+      // Cost per Initiate Checkout - only if IC > 0
       const ic = getMetricValue('initiate_checkout');
       if (ic > 0 && shouldShowMetric('initiate_checkout')) {
         const cpic = currentMetrics.totalSpend / ic;
