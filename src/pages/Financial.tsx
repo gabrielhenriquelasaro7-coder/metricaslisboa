@@ -49,9 +49,10 @@ const BUSINESS_MODEL_LABELS: Record<string, { label: string; icon: React.Element
   ecommerce: { label: 'E-commerce', icon: ShoppingCart, description: 'Loja online com vendas diretas' },
   pdv: { label: 'PDV', icon: Store, description: 'Ponto de Venda físico' },
   infoproduto: { label: 'Infoproduto', icon: Sparkles, description: 'Cursos, mentorias e produtos digitais' },
+  custom: { label: 'Personalizado', icon: Target, description: 'Modelo de negócio personalizado' },
 };
 
-const ALLOWED_BUSINESS_MODELS = ['inside_sales', 'ecommerce', 'pdv', 'infoproduto'];
+const ALLOWED_BUSINESS_MODELS = ['inside_sales', 'ecommerce', 'pdv', 'infoproduto', 'custom'];
 
 // Helper function to calculate date range from period
 function getDateRangeFromPeriod(period: DREPeriod): { startDate: string; endDate: string } {
@@ -94,7 +95,7 @@ export default function Financial() {
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
-  const businessModel = selectedProject?.business_model as 'inside_sales' | 'ecommerce' | 'pdv' | 'infoproduto' | undefined;
+  const businessModel = selectedProject?.business_model as 'inside_sales' | 'ecommerce' | 'pdv' | 'infoproduto' | 'custom' | undefined;
 
   const [drePeriod, setDrePeriod] = useState<DREPeriod>('last_30d');
   const [showDREHistory, setShowDREHistory] = useState(false);
@@ -262,7 +263,7 @@ export default function Financial() {
 
         {/* Content based on business model */}
         {/* For infoproduto/ecommerce - show DRE without CRM requirement */}
-        {(businessModel === 'infoproduto' || businessModel === 'ecommerce') && !connectedCRM ? (
+        {(businessModel === 'infoproduto' || businessModel === 'ecommerce' || businessModel === 'custom') && !connectedCRM ? (
           <Tabs defaultValue="overview" className="space-y-6">
             <TabsList className="inline-flex w-full sm:w-auto gap-1 p-1">
               <TabsTrigger value="overview" className="flex-1 sm:flex-none gap-2 px-3 py-2 text-xs sm:text-sm">

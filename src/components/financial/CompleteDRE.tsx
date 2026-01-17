@@ -105,7 +105,7 @@ interface CompleteDREProps {
   // Revenue sources (default values from ads)
   grossRevenue: number;
   adSpend: number;
-  businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | 'infoproduto';
+  businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | 'infoproduto' | 'custom';
   
   // Period
   period?: DREPeriod;
