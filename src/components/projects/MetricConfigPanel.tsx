@@ -45,6 +45,7 @@ const RESULT_ICONS: Record<string, React.ElementType> = {
   store_visits: Store,
   appointments: Calendar,
   messages: MessageSquare,
+  profile_visits: Users,
 };
 
 export function MetricConfigPanel({ value, onChange }: MetricConfigPanelProps) {
@@ -137,6 +138,7 @@ export function MetricConfigPanel({ value, onChange }: MetricConfigPanelProps) {
     { key: 'inside_sales', label: 'Inside Sales', icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30' },
     { key: 'ecommerce', label: 'E-commerce', icon: ShoppingCart, color: 'text-purple-400', bg: 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30' },
     { key: 'pdv', label: 'PDV', icon: Store, color: 'text-amber-400', bg: 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30' },
+    { key: 'top_funnel', label: 'Topo de Funil', icon: TrendingUp, color: 'text-cyan-400', bg: 'bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/30' },
   ];
 
   return (

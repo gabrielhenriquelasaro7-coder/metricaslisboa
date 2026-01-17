@@ -39,6 +39,7 @@ export const RESULT_METRIC_OPTIONS: MetricOption[] = [
   { key: 'store_visits', label: 'Visitas à Loja', description: 'Tráfego para loja física', category: 'result' },
   { key: 'appointments', label: 'Agendamentos', description: 'Consultas e reuniões', category: 'result' },
   { key: 'messages', label: 'Mensagens', description: 'Conversas iniciadas', category: 'result' },
+  { key: 'profile_visits', label: 'Visitas ao Perfil', description: 'Visitas ao perfil do Instagram', category: 'result' },
 ];
 
 // Opções de métricas de custo
@@ -48,6 +49,7 @@ export const COST_METRIC_OPTIONS: MetricOption[] = [
   { key: 'cac', label: 'CAC', description: 'Custo de Aquisição de Cliente', category: 'cost' },
   { key: 'cpp', label: 'CPP', description: 'Custo por Compra', category: 'cost' },
   { key: 'cpic', label: 'Custo/Init. Checkout', description: 'Custo por Inicialização de Compra', category: 'cost' },
+  { key: 'cpv', label: 'CPV', description: 'Custo por Visita ao Perfil', category: 'cost' },
 ];
 
 // Opções de métricas de eficiência
@@ -103,6 +105,17 @@ export const METRIC_TEMPLATES = {
     primary_metrics: ['spend', 'impressions', 'reach', 'clicks', 'cpm', 'frequency'],
     chart_primary_metric: 'spend',
     chart_secondary_metric: 'reach',
+  },
+  top_funnel: {
+    result_metric: 'profile_visits',
+    result_metric_label: 'Visitas ao Perfil',
+    result_metrics: ['profile_visits'],
+    result_metrics_labels: { profile_visits: 'Visitas ao Perfil' },
+    cost_metrics: ['cpv', 'cpc'],
+    efficiency_metrics: ['ctr'],
+    primary_metrics: ['spend', 'impressions', 'reach', 'clicks', 'cpm', 'frequency'],
+    chart_primary_metric: 'spend',
+    chart_secondary_metric: 'profile_visits',
   },
   custom: {
     result_metric: 'leads',

@@ -201,8 +201,8 @@ async function fetchEntitiesBase(adAccountId: string, token: string): Promise<{
 async function fetchDailyInsights(adAccountId: string, token: string, since: string, until: string): Promise<Map<string, Map<string, any>>> {
   const dailyInsights = new Map<string, Map<string, any>>();
   
-  // Campos básicos conforme especificação
-  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values,conversions,cost_per_action_type,results,cost_per_result';
+  // Campos básicos conforme especificação - incluindo instagram_profile_visits para campanhas de tráfego
+  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,date_start,date_stop,spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values,conversions,cost_per_action_type,results,cost_per_result,instagram_profile_visits';
   
   // Dividir período em chunks de 7 dias para evitar timeout da API
   const chunks = splitDateRangeIntoChunks(since, until, 7);
