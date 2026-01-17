@@ -300,6 +300,7 @@ export function GeographicHeatMap({
   currency = 'BRL'
 }: GeographicHeatMapProps) {
   const [metric, setMetric] = useState<MetricType>('impressions');
+  const isMobile = useIsMobile();
 
   // Detectar país principal baseado nos dados
   const { mapCenter, mapZoom, detectedCountry } = useMemo(() => {
@@ -404,7 +405,6 @@ export function GeographicHeatMap({
     );
   }
 
-  const isMobile = useIsMobile();
 
   return (
     <Card className={className}>
