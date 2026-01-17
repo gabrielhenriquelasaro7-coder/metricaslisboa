@@ -226,17 +226,14 @@ function HeatLayer({
     const heatData = data
       .filter(d => d.coords && d.value > 0)
       .map(d => {
-        // Normalização linear simples de 0 a 1
-        const normalizedValue = range > 0 ? (d.value - minValue) / range : 0;
-        // Usar potência cúbica para empurrar valores baixos ainda mais para baixo
-        // 0.5 vira 0.125, 0.3 vira 0.027 - valores baixos ficam bem claros
-        const intensity = Math.pow(normalizedValue, 3);
+        // Normalização linear direta de 0 a 1
+        const intensity = range > 0 ? (d.value - minValue) / range : 0;
         return [d.coords![0], d.coords![1], intensity] as [number, number, number];
       });
 
     if (heatData.length === 0) return;
 
-    // Raio equilibrado com blur
+    // Manter o tamanho atual
     const baseRadius = 28;
     const zoomFactor = Math.pow(1.15, currentZoom - 4);
     const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 25), 50);
@@ -247,16 +244,17 @@ function HeatLayer({
       radius: dynamicRadius,
       blur: dynamicBlur,
       maxZoom: 18,
-      max: 0.8,
-      minOpacity: 0.6,
+      max: 1.0,
+      minOpacity: 0.3,
       gradient: {
-        // Amarelo (baixo) -> Vermelho (alto)
-        0.0: '#fef9c3',  // Amarelo bem claro
-        0.15: '#fde047', // Amarelo
-        0.3: '#facc15',  // Amarelo dourado
-        0.45: '#f59e0b', // Laranja claro
-        0.6: '#ea580c',  // Laranja escuro
-        0.75: '#dc2626', // Vermelho
+        // Claro (baixo) -> Escuro (alto) - escala simples
+        0.0: '#fffbeb',  // Quase branco/amarelo
+        0.1: '#fef3c7',  // Amarelo muito claro
+        0.2: '#fde68a',  // Amarelo claro
+        0.35: '#fbbf24', // Amarelo
+        0.5: '#f59e0b',  // Laranja
+        0.65: '#ea580c', // Laranja escuro
+        0.8: '#dc2626',  // Vermelho
         0.9: '#b91c1c',  // Vermelho escuro
         1.0: '#7f1d1d'   // Vermelho muito escuro
       }
