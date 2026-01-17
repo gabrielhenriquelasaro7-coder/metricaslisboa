@@ -26,7 +26,7 @@ interface GeographicHeatMapProps {
   currency?: string;
 }
 
-// Coordenadas para estados brasileiros (inclui variações de nome da API do Meta)
+// Coordenadas para estados brasileiros
 const BRAZIL_STATES_COORDS: Record<string, [number, number]> = {
   'Acre': [-9.0238, -70.8120],
   'Alagoas': [-9.5713, -36.7820],
@@ -61,6 +61,112 @@ const BRAZIL_STATES_COORDS: Record<string, [number, number]> = {
   'Tocantins': [-10.1753, -48.2982],
 };
 
+// Coordenadas para estados dos EUA
+const USA_STATES_COORDS: Record<string, [number, number]> = {
+  'Alabama': [32.806671, -86.791130],
+  'Alaska': [61.370716, -152.404419],
+  'Arizona': [33.729759, -111.431221],
+  'Arkansas': [34.969704, -92.373123],
+  'California': [36.116203, -119.681564],
+  'Colorado': [39.059811, -105.311104],
+  'Connecticut': [41.597782, -72.755371],
+  'Delaware': [39.318523, -75.507141],
+  'Florida': [27.766279, -81.686783],
+  'Georgia': [33.040619, -83.643074],
+  'Hawaii': [21.094318, -157.498337],
+  'Idaho': [44.240459, -114.478828],
+  'Illinois': [40.349457, -88.986137],
+  'Indiana': [39.849426, -86.258278],
+  'Iowa': [42.011539, -93.210526],
+  'Kansas': [38.526600, -96.726486],
+  'Kentucky': [37.668140, -84.670067],
+  'Louisiana': [31.169546, -91.867805],
+  'Maine': [44.693947, -69.381927],
+  'Maryland': [39.063946, -76.802101],
+  'Massachusetts': [42.230171, -71.530106],
+  'Michigan': [43.326618, -84.536095],
+  'Minnesota': [45.694454, -93.900192],
+  'Mississippi': [32.741646, -89.678696],
+  'Missouri': [38.456085, -92.288368],
+  'Montana': [46.921925, -110.454353],
+  'Nebraska': [41.125370, -98.268082],
+  'Nevada': [38.313515, -117.055374],
+  'New Hampshire': [43.452492, -71.563896],
+  'New Jersey': [40.298904, -74.521011],
+  'New Mexico': [34.840515, -106.248482],
+  'New York': [42.165726, -74.948051],
+  'North Carolina': [35.630066, -79.806419],
+  'North Dakota': [47.528912, -99.784012],
+  'Ohio': [40.388783, -82.764915],
+  'Oklahoma': [35.565342, -96.928917],
+  'Oregon': [44.572021, -122.070938],
+  'Pennsylvania': [40.590752, -77.209755],
+  'Rhode Island': [41.680893, -71.511780],
+  'South Carolina': [33.856892, -80.945007],
+  'South Dakota': [44.299782, -99.438828],
+  'Tennessee': [35.747845, -86.692345],
+  'Texas': [31.054487, -97.563461],
+  'Utah': [40.150032, -111.862434],
+  'Vermont': [44.045876, -72.710686],
+  'Virginia': [37.769337, -78.169968],
+  'Washington': [47.400902, -121.490494],
+  'West Virginia': [38.491226, -80.954456],
+  'Wisconsin': [44.268543, -89.616508],
+  'Wyoming': [42.755966, -107.302490],
+  'District of Columbia': [38.897438, -77.026817],
+  'Washington, D.C.': [38.897438, -77.026817],
+};
+
+// Coordenadas para países (centro geográfico)
+const COUNTRY_COORDS: Record<string, { center: [number, number]; zoom: number }> = {
+  'Brazil': { center: [-14.235, -51.925], zoom: 4 },
+  'Brasil': { center: [-14.235, -51.925], zoom: 4 },
+  'BR': { center: [-14.235, -51.925], zoom: 4 },
+  'United States': { center: [39.8283, -98.5795], zoom: 4 },
+  'US': { center: [39.8283, -98.5795], zoom: 4 },
+  'USA': { center: [39.8283, -98.5795], zoom: 4 },
+  'Mexico': { center: [23.6345, -102.5528], zoom: 5 },
+  'MX': { center: [23.6345, -102.5528], zoom: 5 },
+  'Argentina': { center: [-38.4161, -63.6167], zoom: 4 },
+  'AR': { center: [-38.4161, -63.6167], zoom: 4 },
+  'Colombia': { center: [4.5709, -74.2973], zoom: 5 },
+  'CO': { center: [4.5709, -74.2973], zoom: 5 },
+  'Chile': { center: [-35.6751, -71.5430], zoom: 4 },
+  'CL': { center: [-35.6751, -71.5430], zoom: 4 },
+  'Peru': { center: [-9.19, -75.0152], zoom: 5 },
+  'PE': { center: [-9.19, -75.0152], zoom: 5 },
+  'Portugal': { center: [39.3999, -8.2245], zoom: 6 },
+  'PT': { center: [39.3999, -8.2245], zoom: 6 },
+  'Spain': { center: [40.4637, -3.7492], zoom: 5 },
+  'ES': { center: [40.4637, -3.7492], zoom: 5 },
+  'United Kingdom': { center: [55.3781, -3.4360], zoom: 5 },
+  'UK': { center: [55.3781, -3.4360], zoom: 5 },
+  'GB': { center: [55.3781, -3.4360], zoom: 5 },
+  'Germany': { center: [51.1657, 10.4515], zoom: 5 },
+  'DE': { center: [51.1657, 10.4515], zoom: 5 },
+  'France': { center: [46.2276, 2.2137], zoom: 5 },
+  'FR': { center: [46.2276, 2.2137], zoom: 5 },
+  'Italy': { center: [41.8719, 12.5674], zoom: 5 },
+  'IT': { center: [41.8719, 12.5674], zoom: 5 },
+  'Canada': { center: [56.1304, -106.3468], zoom: 3 },
+  'CA': { center: [56.1304, -106.3468], zoom: 3 },
+  'Australia': { center: [-25.2744, 133.7751], zoom: 4 },
+  'AU': { center: [-25.2744, 133.7751], zoom: 4 },
+};
+
+// Combina todas as coordenadas de regiões
+function getRegionCoords(regionName: string): [number, number] | null {
+  // Tenta Brasil primeiro
+  if (BRAZIL_STATES_COORDS[regionName]) {
+    return BRAZIL_STATES_COORDS[regionName];
+  }
+  // Tenta EUA
+  if (USA_STATES_COORDS[regionName]) {
+    return USA_STATES_COORDS[regionName];
+  }
+  return null;
+}
+
 function formatNumber(value: number): string {
   if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
   if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
@@ -82,7 +188,18 @@ function formatPercent(value: number): string {
 
 type MetricType = 'impressions' | 'spend' | 'clicks';
 
-// Componente para o Heat Layer - aumenta com zoom
+// Componente para atualizar view do mapa
+function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    map.setView(center, zoom, { animate: true });
+  }, [map, center, zoom]);
+  
+  return null;
+}
+
+// Componente para o Heat Layer
 function HeatLayer({ 
   data, 
   metric, 
@@ -98,12 +215,10 @@ function HeatLayer({
   const updateHeatLayer = (currentZoom: number) => {
     if (!map) return;
 
-    // Remover layer anterior se existir
     if (heatLayerRef.current) {
       map.removeLayer(heatLayerRef.current);
     }
 
-    // Preparar dados para o heat map
     const heatData = data
       .filter(d => d.coords)
       .map(d => {
@@ -113,14 +228,12 @@ function HeatLayer({
 
     if (heatData.length === 0) return;
 
-    // Raio do heat map - valor moderado
     const baseRadius = 40;
     const zoomFactor = Math.pow(1.2, currentZoom - 4);
     const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 30), 80);
     const dynamicBlur = dynamicRadius * 0.5;
 
-    // Criar heat layer com raio dinâmico limitado
-    // @ts-ignore - leaflet.heat types
+    // @ts-ignore
     heatLayerRef.current = L.heatLayer(heatData, {
       radius: dynamicRadius,
       blur: dynamicBlur,
@@ -140,10 +253,8 @@ function HeatLayer({
   useEffect(() => {
     if (!map) return;
 
-    // Criar layer inicial
     updateHeatLayer(map.getZoom());
 
-    // Atualizar ao mudar zoom
     const onZoom = () => updateHeatLayer(map.getZoom());
     map.on('zoomend', onZoom);
 
@@ -167,21 +278,43 @@ export function GeographicHeatMap({
 }: GeographicHeatMapProps) {
   const [metric, setMetric] = useState<MetricType>('impressions');
 
-  // Processar dados de região com métricas calculadas
-  // FILTRAR regiões com dados insignificantes (menos de 10 impressões ou menos de 1% do total)
+  // Detectar país principal baseado nos dados
+  const { mapCenter, mapZoom, detectedCountry } = useMemo(() => {
+    if (!countryData?.length) {
+      return { mapCenter: [-14.235, -51.925] as [number, number], mapZoom: 4, detectedCountry: 'Brazil' };
+    }
+
+    // Ordenar por spend para encontrar o país principal
+    const sortedCountries = [...countryData].sort((a, b) => b.spend - a.spend);
+    const topCountry = sortedCountries[0]?.breakdown_value || 'Brazil';
+
+    // Buscar configuração do país
+    const countryConfig = COUNTRY_COORDS[topCountry];
+    if (countryConfig) {
+      return { 
+        mapCenter: countryConfig.center, 
+        mapZoom: countryConfig.zoom, 
+        detectedCountry: topCountry 
+      };
+    }
+
+    // Fallback para Brasil
+    return { mapCenter: [-14.235, -51.925] as [number, number], mapZoom: 4, detectedCountry: topCountry };
+  }, [countryData]);
+
+  // Processar dados de região
   const processedData = useMemo(() => {
     if (!regionData?.length) return [];
     
-    // Calcular total para threshold
     const totalImpressions = regionData.reduce((sum, item) => sum + item.impressions, 0);
-    const minThreshold = Math.max(10, totalImpressions * 0.01); // Mínimo 10 impressões ou 1% do total
+    const minThreshold = Math.max(10, totalImpressions * 0.01);
     
     return regionData
       .filter(item => item.impressions >= minThreshold || item.clicks > 0 || item.spend > 1)
       .map(item => {
         const ctr = item.impressions > 0 ? (item.clicks / item.impressions) * 100 : 0;
         const cpc = item.clicks > 0 ? item.spend / item.clicks : 0;
-        const coords = BRAZIL_STATES_COORDS[item.breakdown_value] || null;
+        const coords = getRegionCoords(item.breakdown_value);
         return {
           ...item,
           ctr,
@@ -192,7 +325,6 @@ export function GeographicHeatMap({
       .sort((a, b) => b[metric] - a[metric]);
   }, [regionData, metric]);
 
-  // Dados para o heat map
   const heatMapData = useMemo(() => {
     return processedData.map(item => ({
       coords: item.coords,
@@ -200,7 +332,6 @@ export function GeographicHeatMap({
     }));
   }, [processedData, metric]);
 
-  // Valor máximo para escala
   const maxValue = useMemo(() => {
     if (!processedData.length) return 1;
     return Math.max(...processedData.map(d => d[metric]));
@@ -252,7 +383,9 @@ export function GeographicHeatMap({
             <div className="h-8 w-1 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
             <div>
               <CardTitle className="text-lg font-semibold">Mapa de Calor Geográfico</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Distribuição por região</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {detectedCountry} • {processedData.length} regiões
+              </p>
             </div>
           </div>
           <Select value={metric} onValueChange={(v) => setMetric(v as MetricType)}>
@@ -268,11 +401,11 @@ export function GeographicHeatMap({
         </div>
       </CardHeader>
       <CardContent>
-        {/* Mapa de calor interativo - MAIOR */}
+        {/* Mapa de calor interativo */}
         <div className="relative h-[450px] rounded-lg border border-border overflow-hidden">
           <MapContainer
-            center={[-14.235, -51.925]}
-            zoom={4}
+            center={mapCenter}
+            zoom={mapZoom}
             style={{ height: '100%', width: '100%' }}
             scrollWheelZoom={true}
             zoomControl={true}
@@ -281,6 +414,7 @@ export function GeographicHeatMap({
               attribution='&copy; <a href="https://carto.com/">CARTO</a>'
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             />
+            <MapUpdater center={mapCenter} zoom={mapZoom} />
             <HeatLayer 
               data={heatMapData} 
               metric={metric} 
@@ -297,24 +431,24 @@ export function GeographicHeatMap({
             <span>{formatNumber(maxValue)}</span>
           </div>
 
-          {/* Contador */}
+          {/* País detectado */}
           <div className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-card/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-border z-[1000]">
-            {processedData.length} regiões
+            {processedData.filter(p => p.coords).length} regiões no mapa
           </div>
         </div>
 
-        {/* Top Estados */}
+        {/* Top Regiões */}
         <div className="mt-4">
           <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
             <MapPin className="h-4 w-4 text-orange-500" />
-            Top Estados por {getMetricLabel(metric)}
+            Top Regiões por {getMetricLabel(metric)}
           </h4>
           <ScrollArea className="h-[200px]">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="w-[40px] text-xs">#</TableHead>
-                  <TableHead className="text-xs">Estado</TableHead>
+                  <TableHead className="text-xs">Região</TableHead>
                   <TableHead className="text-right text-xs">{getMetricLabel(metric)}</TableHead>
                   <TableHead className="text-right text-xs">CTR</TableHead>
                   <TableHead className="text-right text-xs">CPC</TableHead>

@@ -68,15 +68,15 @@ export function useProfileVisitsMetrics(
 
         console.log(`[ProfileVisitsMetrics] Fetching for project ${projectId}, ${since} to ${until}`);
 
-        // Get only campaigns with OUTCOME_ENGAGEMENT objective (profile visit focused)
+        // Get ALL ads with profile_visits > 0, regardless of campaign objective
+        // Profile visits can come from OUTCOME_ENGAGEMENT, OUTCOME_TRAFFIC, and other objectives
         const { data: metricsData, error } = await supabase
           .from('ads_daily_metrics')
           .select('profile_visits, spend, campaign_status, campaign_objective')
           .eq('project_id', projectId)
           .gte('date', since)
           .lte('date', until)
-          .gt('profile_visits', 0)
-          .eq('campaign_objective', 'OUTCOME_ENGAGEMENT');
+          .gt('profile_visits', 0);
 
         if (error) {
           console.error('[ProfileVisitsMetrics] Error fetching:', error);
