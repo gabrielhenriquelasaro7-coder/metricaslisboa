@@ -236,19 +236,19 @@ function HeatLayer({
 
     if (heatData.length === 0) return;
 
-    // Raio menor e blur maior para melhor visualização
-    const baseRadius = 18;
-    const zoomFactor = Math.pow(1.12, currentZoom - 4);
-    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 15), 35);
-    const dynamicBlur = dynamicRadius * 0.8;
+    // Raio maior com blur alto
+    const baseRadius = 35;
+    const zoomFactor = Math.pow(1.18, currentZoom - 4);
+    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 30), 60);
+    const dynamicBlur = dynamicRadius * 0.7;
 
     // @ts-ignore
     heatLayerRef.current = L.heatLayer(heatData, {
       radius: dynamicRadius,
       blur: dynamicBlur,
       maxZoom: 18,
-      max: 1.0,
-      minOpacity: 0.4,
+      max: 0.8,
+      minOpacity: 0.6,
       gradient: {
         // Amarelo (baixo) -> Vermelho (alto)
         0.0: '#fef9c3',  // Amarelo bem claro
