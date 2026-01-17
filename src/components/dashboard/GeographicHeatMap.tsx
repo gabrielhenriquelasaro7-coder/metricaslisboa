@@ -199,7 +199,7 @@ function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }
   return null;
 }
 
-// Componente para o Heat Layer
+// Componente para o Heat Layer - Estilo GA4/Looker Studio
 function HeatLayer({ 
   data, 
   metric, 
@@ -217,46 +217,59 @@ function HeatLayer({
   const updateHeatLayer = (currentZoom: number) => {
     if (!map) return;
 
+    // Remove layer anterior
     if (heatLayerRef.current) {
       map.removeLayer(heatLayerRef.current);
     }
 
-    const range = maxValue - minValue;
+    // Filtrar apenas pontos COM coordenadas válidas (regra 10)
+    const validPoints = data.filter(d => d.coords !== null && d.value > 0);
     
-    const heatData = data
-      .filter(d => d.coords && d.value > 0)
-      .map(d => {
-        // Normalização linear direta de 0 a 1
-        const intensity = range > 0 ? (d.value - minValue) / range : 0;
-        return [d.coords![0], d.coords![1], intensity] as [number, number, number];
-      });
+    if (validPoints.length === 0) return;
 
-    if (heatData.length === 0) return;
+    // Normalização logarítmica para evitar que valores altos dominem (regra 6)
+    const logValues = validPoints.map(d => Math.log10(d.value + 1));
+    const logMin = Math.min(...logValues);
+    const logMax = Math.max(...logValues);
+    const logRange = logMax - logMin || 1;
 
-    // Manter o tamanho atual
-    const baseRadius = 28;
-    const zoomFactor = Math.pow(1.15, currentZoom - 4);
-    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 25), 50);
-    const dynamicBlur = dynamicRadius * 0.65;
+    // Criar pontos de calor com intensidade normalizada
+    const heatData = validPoints.map(d => {
+      const logValue = Math.log10(d.value + 1);
+      // Normalização 0-1 com escala logarítmica
+      const normalizedIntensity = (logValue - logMin) / logRange;
+      // Garantir mínimo de 0.15 para visibilidade e máximo de 1.0
+      const intensity = Math.max(0.15, Math.min(1.0, normalizedIntensity));
+      
+      return [d.coords![0], d.coords![1], intensity] as [number, number, number];
+    });
+
+    // Raio dinâmico baseado no zoom - menor para não fundir regiões (regra 7, 8)
+    // Zoom 4 (país) = raio pequeno, Zoom 6+ = raio maior
+    const baseRadius = 18; // Raio base menor para hotspots definidos
+    const zoomFactor = Math.max(0.6, Math.pow(1.12, currentZoom - 4));
+    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 12), 35);
+    
+    // Blur baixo para bordas definidas - estilo GA4 (regra 9)
+    const dynamicBlur = dynamicRadius * 0.4;
 
     // @ts-ignore
     heatLayerRef.current = L.heatLayer(heatData, {
       radius: dynamicRadius,
       blur: dynamicBlur,
-      maxZoom: 18,
+      maxZoom: 12, // Limitar expansão do calor (regra 7)
       max: 1.0,
-      minOpacity: 0.3,
+      minOpacity: 0.4, // Visibilidade mínima (regra 7)
       gradient: {
-        // Claro (baixo) -> Escuro (alto) - escala simples
-        0.0: '#fffbeb',  // Quase branco/amarelo
-        0.1: '#fef3c7',  // Amarelo muito claro
-        0.2: '#fde68a',  // Amarelo claro
-        0.35: '#fbbf24', // Amarelo
-        0.5: '#f59e0b',  // Laranja
-        0.65: '#ea580c', // Laranja escuro
-        0.8: '#dc2626',  // Vermelho
-        0.9: '#b91c1c',  // Vermelho escuro
-        1.0: '#7f1d1d'   // Vermelho muito escuro
+        // Gradiente suave: amarelo claro (baixo) -> vermelho escuro (alto)
+        0.0: '#fefce8',  // Amarelo muito claro
+        0.15: '#fef08a', // Amarelo claro
+        0.3: '#fde047',  // Amarelo
+        0.45: '#facc15', // Amarelo dourado
+        0.55: '#f59e0b', // Laranja
+        0.7: '#ea580c',  // Laranja escuro
+        0.85: '#dc2626', // Vermelho
+        1.0: '#991b1b'   // Vermelho escuro
       }
     }).addTo(map);
   };
