@@ -232,20 +232,23 @@ export default function PeriodComparison({
         isInverse: true
       });
     } else if (businessModel === 'inside_sales') {
-      items.push({
-        label: 'Leads',
-        current: formatNumber(currentMetrics.totalConversions),
-        previous: formatNumber(previousMetrics.totalConversions),
-        change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
-        isInverse: false,
-        tooltip: 'Pequenas diferenças de ±1-2 resultados em relação ao Gerenciador são normais devido ao timing de atribuição do Meta.'
-      }, {
-        label: 'CPL',
-        current: formatCurrencyValue(currentMetrics.cpa),
-        previous: formatCurrencyValue(previousMetrics.cpa),
-        change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
-        isInverse: true
-      });
+      // Only show leads and CPL if there are leads in the current period
+      if (currentMetrics.totalConversions > 0) {
+        items.push({
+          label: 'Leads',
+          current: formatNumber(currentMetrics.totalConversions),
+          previous: formatNumber(previousMetrics.totalConversions),
+          change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
+          isInverse: false,
+          tooltip: 'Pequenas diferenças de ±1-2 resultados em relação ao Gerenciador são normais devido ao timing de atribuição do Meta.'
+        }, {
+          label: 'CPL',
+          current: formatCurrencyValue(currentMetrics.cpa),
+          previous: formatCurrencyValue(previousMetrics.cpa),
+          change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
+          isInverse: true
+        });
+      }
     } else if (businessModel === 'pdv') {
       items.push({
         label: 'Visitas',
