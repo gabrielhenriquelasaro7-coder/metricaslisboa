@@ -246,9 +246,9 @@ function HeatLayer({
 
     // Raio dinâmico baseado no zoom - menor para não fundir regiões (regra 7, 8)
     // Zoom 4 (país) = raio pequeno, Zoom 6+ = raio maior
-    const baseRadius = 18; // Raio base menor para hotspots definidos
+    const baseRadius = 22; // Raio base levemente maior
     const zoomFactor = Math.max(0.6, Math.pow(1.12, currentZoom - 4));
-    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 12), 35);
+    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 15), 40);
     
     // Blur baixo para bordas definidas - estilo GA4 (regra 9)
     const dynamicBlur = dynamicRadius * 0.4;
