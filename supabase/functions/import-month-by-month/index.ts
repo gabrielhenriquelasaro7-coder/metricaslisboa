@@ -24,7 +24,7 @@ interface MonthImportRequest {
   continue_chain?: boolean;
   ad_account_id?: string;
   max_month?: number;
-  phase?: 'base' | 'creatives' | 'hd_images';
+  phase?: 'base' | 'creatives' | 'hd_images' | 'retry_failed';
   // Novo: suporte a importação em chunks (quinzenas/semanas)
   chunk?: 1 | 2 | 3 | 4; // 1=dias 1-7, 2=dias 8-15, 3=dias 16-23, 4=dias 24-fim
   use_chunks?: boolean; // Forçar uso de chunks para contas grandes
@@ -32,6 +32,8 @@ interface MonthImportRequest {
   safe_mode?: boolean; // Modo seguro (legado)
   parallel_next_month?: number; // Para sync paralelo de anos
   parallel_batch_size?: number;
+  skip_on_error?: boolean; // Se true, continua para próximo mês se falhar
+  failed_months?: Array<{ year: number; month: number }>; // Meses que falharam para retry
 }
 
 function getNextMonth(year: number, month: number): { year: number; month: number } | null {
@@ -132,6 +134,8 @@ Deno.serve(async (req) => {
       chunk,
       use_chunks = false,
       force_light_sync = false,
+      skip_on_error = true, // NOVO: por padrão, continua mesmo se falhar
+      failed_months = [], // NOVO: lista de meses que falharam
     } = body;
     
     if (!project_id || !year || !month) {
@@ -156,6 +160,94 @@ Deno.serve(async (req) => {
     }
     
     const accountId = ad_account_id || project.ad_account_id;
+    
+    // ========================================================================
+    // FASE RETRY: Retentar meses que falharam
+    // ========================================================================
+    if (phase === 'retry_failed') {
+      console.log(`[MONTH-IMPORT] 🔄 RETRY FAILED MONTHS for ${project.name}`);
+      
+      // Buscar meses com erro
+      const { data: failedMonthsDb } = await supabase
+        .from('project_import_months')
+        .select('year, month')
+        .eq('project_id', project_id)
+        .eq('status', 'error')
+        .order('year', { ascending: true })
+        .order('month', { ascending: true });
+      
+      const monthsToRetry = failed_months.length > 0 ? failed_months : (failedMonthsDb || []);
+      
+      if (monthsToRetry.length === 0) {
+        console.log(`[MONTH-IMPORT] No failed months to retry`);
+        return new Response(
+          JSON.stringify({ success: true, phase: 'retry_failed', message: 'No failed months' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      console.log(`[MONTH-IMPORT] Found ${monthsToRetry.length} failed months to retry`);
+      
+      // Retentar o primeiro mês da lista
+      const firstFailed = monthsToRetry[0];
+      const remainingFailed = monthsToRetry.slice(1);
+      
+      // Resetar status para pending (buscar retry_count atual primeiro)
+      const { data: currentMonth } = await supabase
+        .from('project_import_months')
+        .select('retry_count')
+        .eq('project_id', project_id)
+        .eq('year', firstFailed.year)
+        .eq('month', firstFailed.month)
+        .maybeSingle();
+      
+      await supabase
+        .from('project_import_months')
+        .update({
+          status: 'pending',
+          error_message: null,
+          retry_count: (currentMonth?.retry_count || 0) + 1,
+        })
+        .eq('project_id', project_id)
+        .eq('year', firstFailed.year)
+        .eq('month', firstFailed.month);
+      
+      // Chamar importação do mês com chunks menores
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            project_id,
+            year: firstFailed.year,
+            month: firstFailed.month,
+            ad_account_id: accountId,
+            phase: 'base',
+            use_chunks: true, // Forçar chunks no retry
+            chunk: 1,
+            continue_chain: remainingFailed.length > 0,
+            skip_on_error: true,
+            failed_months: remainingFailed, // Passar os restantes
+          }),
+        });
+        console.log(`[MONTH-IMPORT] ✓ Retry initiated for ${getMonthName(firstFailed.month)} ${firstFailed.year}`);
+      } catch (e) {
+        console.log(`[MONTH-IMPORT] Retry call sent`);
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          phase: 'retry_failed',
+          retrying: `${getMonthName(firstFailed.month)} ${firstFailed.year}`,
+          remaining: remainingFailed.length,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // ========================================================================
     // FASE 2: CREATIVE SYNC OTIMIZADO
@@ -578,45 +670,77 @@ Deno.serve(async (req) => {
         }),
       });
       
-      // Continuar encadeamento para próximo mês se sucesso
-      if (status === 'success' && continue_chain) {
+      // NOVA LÓGICA: Continuar encadeamento MESMO se falhar (skip_on_error)
+      // Acumular meses com erro para retry no final
+      const updatedFailedMonths = hasError 
+        ? [...failed_months, { year, month }] 
+        : failed_months;
+      
+      if (continue_chain) {
         const nextMonthData = getNextMonth(year, month);
         const effectiveMaxMonth = max_month || 12;
         
         if (nextMonthData && (nextMonthData.month <= effectiveMaxMonth || nextMonthData.year > year)) {
-          console.log(`[MONTH-IMPORT] Chaining to ${getMonthName(nextMonthData.month)} ${nextMonthData.year}...`);
-          
-          await delay(chainDelay);
-          
-          try {
-            await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-              },
-              body: JSON.stringify({
-                project_id,
-                year: nextMonthData.year,
-                month: nextMonthData.month,
-                continue_chain: true,
-                ad_account_id: accountId,
-                max_month: effectiveMaxMonth,
-                phase: 'base',
-                use_chunks: true, // Continuar usando chunks
-                chunk: 1,
-              }),
-            });
-          } catch (e) {
-            console.log(`[MONTH-IMPORT] Next month chain sent`);
+          // Continuar para próximo mês (independente de sucesso/erro se skip_on_error)
+          if (status === 'success' || skip_on_error) {
+            console.log(`[MONTH-IMPORT] Chaining to ${getMonthName(nextMonthData.month)} ${nextMonthData.year}... ${hasError ? '(previous failed, will retry later)' : ''}`);
+            
+            await delay(chainDelay);
+            
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({
+                  project_id,
+                  year: nextMonthData.year,
+                  month: nextMonthData.month,
+                  continue_chain: true,
+                  ad_account_id: accountId,
+                  max_month: effectiveMaxMonth,
+                  phase: 'base',
+                  use_chunks: true,
+                  chunk: 1,
+                  skip_on_error: true,
+                  failed_months: updatedFailedMonths, // Passar meses que falharam
+                }),
+              });
+            } catch (e) {
+              console.log(`[MONTH-IMPORT] Next month chain sent`);
+            }
           }
         } else {
-          // Todos os meses completos
-          // Se force_light_sync, NÃO inicia creative sync (apenas métricas)
-          if (force_light_sync) {
+          // Todos os meses tentados - verificar se há meses falhados para retry
+          if (updatedFailedMonths.length > 0) {
+            console.log(`[MONTH-IMPORT] 📋 Import complete! ${updatedFailedMonths.length} months failed, initiating retry...`);
+            
+            await delay(5000);
+            
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({
+                  project_id,
+                  year,
+                  month,
+                  ad_account_id: accountId,
+                  phase: 'retry_failed',
+                  failed_months: updatedFailedMonths,
+                }),
+              });
+            } catch (e) {
+              console.log(`[MONTH-IMPORT] Retry failed months call sent`);
+            }
+          } else if (force_light_sync) {
             console.log(`[MONTH-IMPORT] 🎉 All months imported! (Light Sync - skipping creatives)`);
             
-            // Atualizar last_sync_at
             await supabase.from('projects').update({
               last_sync_at: new Date().toISOString(),
             }).eq('id', project_id);
@@ -686,24 +810,28 @@ Deno.serve(async (req) => {
     });
     
     // ========================================================================
-    // ENCADEAMENTO - USANDO AWAIT PARA GARANTIR QUE A REQUISIÇÃO SEJA ENVIADA
+    // ENCADEAMENTO COM SKIP-ON-ERROR
     // ========================================================================
     const effectiveMaxMonth = max_month || 12;
     const nextMonthData = getNextMonth(year, month);
     
-    // Verificar se devemos continuar para próximo mês OU finalizar com criativos
-    const shouldContinueToNextMonth = continue_chain && status === 'success' && nextMonthData && 
-      (nextMonthData.month <= effectiveMaxMonth || nextMonthData.year > year);
+    // Acumular meses que falharam
+    const updatedFailedMonths = hasError 
+      ? [...failed_months, { year, month }] 
+      : failed_months;
     
-    if (shouldContinueToNextMonth && nextMonthData) {
-      console.log(`[MONTH-IMPORT] Chaining to ${getMonthName(nextMonthData.month)} ${nextMonthData.year} in ${chainDelay/1000}s...`);
+    // Verificar se devemos continuar para próximo mês
+    const hasNextMonth = nextMonthData && (nextMonthData.month <= effectiveMaxMonth || nextMonthData.year > year);
+    const shouldContinue = continue_chain && (status === 'success' || skip_on_error);
+    
+    if (shouldContinue && hasNextMonth && nextMonthData) {
+      console.log(`[MONTH-IMPORT] Chaining to ${getMonthName(nextMonthData.month)} ${nextMonthData.year} in ${chainDelay/1000}s... ${hasError ? '(previous failed, will retry later)' : ''}`);
       
       await delay(chainDelay);
       
-      // Próximo mês (base sync) - AWAIT para garantir que a requisição seja enviada
       try {
         const chainController = new AbortController();
-        const chainTimeout = setTimeout(() => chainController.abort(), 5000); // 5s para iniciar
+        const chainTimeout = setTimeout(() => chainController.abort(), 5000);
         
         const chainResponse = await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
           method: 'POST',
@@ -719,6 +847,8 @@ Deno.serve(async (req) => {
             ad_account_id: accountId,
             max_month: effectiveMaxMonth,
             phase: 'base',
+            skip_on_error: true,
+            failed_months: updatedFailedMonths,
           }),
           signal: chainController.signal,
         });
@@ -726,7 +856,6 @@ Deno.serve(async (req) => {
         
         console.log(`[MONTH-IMPORT] ✓ Chain initiated to ${getMonthName(nextMonthData.month)} ${nextMonthData.year} (status: ${chainResponse.status})`);
       } catch (chainErr: any) {
-        // Se der timeout, tudo bem - a requisição foi enviada
         if (chainErr.name === 'AbortError') {
           console.log(`[MONTH-IMPORT] ✓ Chain request sent (async) to ${getMonthName(nextMonthData.month)} ${nextMonthData.year}`);
         } else {
@@ -734,19 +863,42 @@ Deno.serve(async (req) => {
         }
       }
       
-    } else if (continue_chain && status === 'success') {
+    } else if (continue_chain) {
       // ========================================================================
-      // TODOS OS MESES IMPORTADOS - SEMPRE DISPARAR SYNC DE CRIATIVOS
+      // TODOS OS MESES TENTADOS - VERIFICAR SE HÁ FALHAS PARA RETRY
       // ========================================================================
-      if (force_light_sync) {
+      if (updatedFailedMonths.length > 0) {
+        console.log(`[MONTH-IMPORT] 📋 Import complete! ${updatedFailedMonths.length} months failed, initiating retry...`);
+        
+        await delay(5000);
+        
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/import-month-by-month`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              project_id,
+              year,
+              month,
+              ad_account_id: accountId,
+              phase: 'retry_failed',
+              failed_months: updatedFailedMonths,
+            }),
+          });
+          console.log(`[MONTH-IMPORT] ✓ Retry failed months initiated`);
+        } catch (e) {
+          console.log(`[MONTH-IMPORT] Retry call sent`);
+        }
+      } else if (force_light_sync) {
         console.log(`[MONTH-IMPORT] 🎉 All months imported! (Light Sync - skipping creatives)`);
         
-        // Atualizar last_sync_at
         await supabase.from('projects').update({
           last_sync_at: new Date().toISOString(),
         }).eq('id', project_id);
       } else {
-        // HD Total - Iniciar Creative Sync SEMPRE após completar importação
         console.log(`[MONTH-IMPORT] 🎉 All months imported! Starting Creative Sync (HD)...`);
         
         await delay(3000);
@@ -755,7 +907,6 @@ Deno.serve(async (req) => {
           const creativeController = new AbortController();
           const creativeTimeout = setTimeout(() => creativeController.abort(), 5000);
           
-          // Chamar diretamente o meta-ads-sync com syncMode: creatives
           await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
             method: 'POST',
             headers: {
