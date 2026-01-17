@@ -297,22 +297,28 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
           ))}
         </div>
 
-        {/* Continue Import Buttons - Show ONLY when there are errors AND not currently importing */}
-        {hasErrors && isIdle && (
-          <div className="glass-card p-4 border-primary/30 bg-primary/5 space-y-3">
+        {/* Continue Import Buttons - Show when import is idle AND there are pending/error months */}
+        {isIdle && (hasErrors || hasPending) && (
+          <div className={cn(
+            "glass-card p-4 space-y-3",
+            hasErrors ? "border-metric-negative/30 bg-metric-negative/5" : "border-primary/30 bg-primary/5"
+          )}>
             <div className="flex items-center justify-center gap-2 text-sm">
               {hasErrors ? (
                 <>
                   <AlertCircle className="w-4 h-4 text-metric-negative" />
                   <span className="font-medium">{stats.error} {stats.error === 1 ? 'mês com erro' : 'meses com erro'}</span>
+                  {hasPending && (
+                    <span className="text-muted-foreground">+ {stats.pending} pendente{stats.pending !== 1 ? 's' : ''}</span>
+                  )}
                 </>
               ) : (
                 <>
-                  <Clock className="w-4 h-4 text-primary" />
-                  <span className="font-medium">{stats.pending} {stats.pending === 1 ? 'mês pendente' : 'meses pendentes'}</span>
+                  <RotateCcw className="w-4 h-4 text-primary" />
+                  <span className="font-medium">Importação parou</span>
+                  <span className="text-muted-foreground">• {stats.pending} {stats.pending === 1 ? 'mês pendente' : 'meses pendentes'}</span>
                 </>
               )}
-              <span className="text-muted-foreground">• Continuar importação</span>
             </div>
             <div className="flex justify-center gap-3">
               <Button 
