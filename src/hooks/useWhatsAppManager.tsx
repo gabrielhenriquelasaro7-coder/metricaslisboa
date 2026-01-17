@@ -44,6 +44,9 @@ export interface ReportConfig {
   include_frequency: boolean;
   balance_alert_enabled: boolean;
   balance_alert_threshold: number;
+  balance_alert_phone_number: string | null;
+  balance_alert_instance_id: string | null;
+  balance_alert_use_separate_config: boolean;
   last_balance_alert_at: string | null;
   last_report_sent_at: string | null;
   created_at: string;

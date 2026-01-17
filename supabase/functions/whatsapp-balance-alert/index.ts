@@ -226,30 +226,43 @@ Deno.serve(async (req) => {
           avgDailySpend
         );
 
-        // Determine target type and destination
-        const targetType = config.target_type || 'phone';
-        const groupId = config.group_id;
-        const phoneNumber = config.phone_number;
+        // Determine target - use separate config for balance alerts (for investor/manager, NOT client)
+        const useSeparateConfig = config.balance_alert_use_separate_config !== false;
+        const alertInstanceId = useSeparateConfig && config.balance_alert_instance_id 
+          ? config.balance_alert_instance_id 
+          : config.instance_id;
+        const alertPhoneNumber = useSeparateConfig && config.balance_alert_phone_number 
+          ? config.balance_alert_phone_number 
+          : config.phone_number;
 
-        console.log(`[BALANCE-ALERT] Sending alert to ${targetType}: ${targetType === 'group' ? groupId : phoneNumber}`);
+        // Balance alerts always go to phone (investor), never to group (client)
+        const targetType = 'phone';
+
+        if (!alertPhoneNumber) {
+          console.log(`[BALANCE-ALERT] No phone number configured for balance alert for ${project.name}`);
+          results.push({
+            configId: config.id,
+            projectId,
+            success: false,
+            error: 'No phone number configured for balance alert',
+          });
+          continue;
+        }
+
+        console.log(`[BALANCE-ALERT] Sending alert to phone: ${alertPhoneNumber} (separate config: ${useSeparateConfig})`);
 
         // Build request payload for whatsapp-send
         const sendPayload: Record<string, unknown> = {
           message,
           configId: config.id,
           messageType: 'balance_alert',
-          targetType,
+          targetType: 'phone',
+          phone: alertPhoneNumber,
         };
 
-        if (config.instance_id) {
-          sendPayload.instanceId = config.instance_id;
+        if (alertInstanceId) {
+          sendPayload.instanceId = alertInstanceId;
           sendPayload.useManagerInstance = true;
-        }
-
-        if (targetType === 'group' && groupId) {
-          sendPayload.groupId = groupId;
-        } else {
-          sendPayload.phone = phoneNumber;
         }
 
         // Send via whatsapp-send function
