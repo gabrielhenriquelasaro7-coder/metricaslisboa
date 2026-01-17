@@ -1749,7 +1749,7 @@ Deno.serve(async (req) => {
         const { error: upsertError, count } = await supabase
           .from('ads_daily_metrics')
           .upsert(batch, { 
-            onConflict: 'id',  // Use ID único ao invés de constraint composta
+            onConflict: 'project_id,ad_id,date',  // Usa constraint única correta
             ignoreDuplicates: false 
           })
           .select();
