@@ -216,7 +216,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                   <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56 bg-popover border-border">
+              <DropdownMenuContent align="start" className="w-56 bg-popover border-border max-h-[400px] overflow-y-auto">
                 {projects.filter(p => !p.archived).map((project) => (
                   <DropdownMenuItem 
                     key={project.id}
