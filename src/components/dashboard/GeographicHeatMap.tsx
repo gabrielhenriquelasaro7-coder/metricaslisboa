@@ -236,11 +236,11 @@ function HeatLayer({
 
     if (heatData.length === 0) return;
 
-    // Raio menor para menos sobreposição
-    const baseRadius = 25;
-    const zoomFactor = Math.pow(1.15, currentZoom - 4);
-    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 20), 50);
-    const dynamicBlur = dynamicRadius * 0.4;
+    // Raio menor e blur maior para melhor visualização
+    const baseRadius = 18;
+    const zoomFactor = Math.pow(1.12, currentZoom - 4);
+    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 15), 35);
+    const dynamicBlur = dynamicRadius * 0.8;
 
     // @ts-ignore
     heatLayerRef.current = L.heatLayer(heatData, {
