@@ -28,7 +28,7 @@ interface FinancialMetric {
 }
 
 interface FinancialMetricsGridProps {
-  businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | 'infoproduto';
+  businessModel: 'inside_sales' | 'ecommerce' | 'pdv' | 'infoproduto' | 'custom';
   metrics?: {
     revenue?: number;
     sales?: number;
