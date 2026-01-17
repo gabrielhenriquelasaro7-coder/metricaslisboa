@@ -27,10 +27,12 @@ import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { GuidedTour } from '@/components/tour/GuidedTour';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
-import { DollarSign, MousePointerClick, Eye, Target, TrendingUp, ShoppingCart, Users, Percent, Phone, Store, Loader2, GitCompare, RefreshCw, MoreVertical, Banknote, BarChart3, Activity, Crosshair, Receipt, Zap, Instagram } from 'lucide-react';
+import { DollarSign, MousePointerClick, Eye, Target, TrendingUp, ShoppingCart, Users, Percent, Phone, Store, Loader2, GitCompare, RefreshCw, MoreVertical, Banknote, BarChart3, Activity, Crosshair, Receipt, Zap, Instagram, Building2 } from 'lucide-react';
 import { MetricVisibilityConfig } from '@/components/metrics/MetricVisibilityConfig';
 import { useHiddenMetrics, MetricKey } from '@/hooks/useHiddenMetrics';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useCargo } from '@/hooks/useCargo';
+import { useSquads } from '@/hooks/useSquads';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -64,6 +66,11 @@ export default function Dashboard() {
 
   // UserRole for guests
   const { isGuest } = useUserRole();
+
+  // Cargo system for squad filtering
+  const { isTech, isGerente, canSeeAllProjects } = useCargo();
+  const { squads, loading: squadsLoading } = useSquads();
+  const [selectedSquadFilter, setSelectedSquadFilter] = useState<string>('all');
 
   // Get campaigns and selected project from hook (uses localStorage)
   const {
@@ -132,8 +139,17 @@ export default function Dashboard() {
     endDate: demographicDateRange.endDate
   });
 
-  // Get active (non-archived) projects
-  const activeProjects = useMemo(() => projects.filter(p => !p.archived), [projects]);
+  // Get active (non-archived) projects, filtered by squad if selected
+  const activeProjects = useMemo(() => {
+    let filtered = projects.filter(p => !p.archived);
+    
+    // Apply squad filter for tech/gerente users
+    if (canSeeAllProjects && selectedSquadFilter && selectedSquadFilter !== 'all') {
+      filtered = filtered.filter(p => p.squad_id === selectedSquadFilter);
+    }
+    
+    return filtered;
+  }, [projects, canSeeAllProjects, selectedSquadFilter]);
 
   // Determine business model - only show specific metrics when a project is selected
   const hasSelectedProject = selectedProject !== null && selectedProject !== undefined;
@@ -366,6 +382,30 @@ export default function Dashboard() {
           
             {/* Controls - Stack on mobile */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              {/* Squad Filter for Tech/Gerente */}
+              {canSeeAllProjects && squads.length > 0 && (
+                <Select value={selectedSquadFilter} onValueChange={setSelectedSquadFilter}>
+                  <SelectTrigger className="w-full sm:w-[180px] h-9 text-sm">
+                    <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder="Filtrar por Squad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as Squads</SelectItem>
+                    {squads.map((squad) => (
+                      <SelectItem key={squad.id} value={squad.id}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-2 h-2 rounded-full" 
+                            style={{ backgroundColor: squad.color }}
+                          />
+                          {squad.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
               <div data-tour="date-picker" className="w-full sm:w-auto">
                 <DateRangePicker dateRange={dateRange} onDateRangeChange={handleDateRangeChange} timezone={projectTimezone} onPresetChange={handlePresetChange} selectedPreset={selectedPreset} />
               </div>
