@@ -34,6 +34,7 @@ const RESULT_METRICS = [
   { key: 'registrations', label: 'Registros', description: 'Inscrições, sign-ups', icon: CheckCircle2 },
   { key: 'conversions', label: 'Conversões', description: 'Ações de conversão genéricas', icon: Target },
   { key: 'messages', label: 'Mensagens', description: 'Contatos via chat/WhatsApp', icon: Zap },
+  { key: 'profile_visits', label: 'Visitas ao Perfil', description: 'Visitas ao perfil do Instagram', icon: Eye },
 ];
 
 const BASE_METRICS = [
@@ -52,6 +53,7 @@ const COST_METRICS = [
   { key: 'cpa', label: 'CPA', description: 'Custo por Aquisição', icon: Target },
   { key: 'cac', label: 'CAC', description: 'Custo de Aquisição de Cliente', icon: DollarSign },
   { key: 'cpp', label: 'CPP', description: 'Custo por Compra', icon: ShoppingCart },
+  { key: 'cpv', label: 'CPV', description: 'Custo por Visita ao Perfil', icon: Eye },
 ];
 
 const EFFICIENCY_METRICS = [
@@ -68,8 +70,10 @@ const CHART_METRICS = [
   { key: 'reach', label: 'Alcance' },
   { key: 'leads', label: 'Leads' },
   { key: 'purchases', label: 'Vendas' },
+  { key: 'profile_visits', label: 'Visitas ao Perfil' },
   { key: 'cpa', label: 'CPA' },
   { key: 'cpl', label: 'CPL' },
+  { key: 'cpv', label: 'CPV' },
   { key: 'cpc', label: 'CPC' },
   { key: 'cpm', label: 'CPM' },
   { key: 'roas', label: 'ROAS' },
