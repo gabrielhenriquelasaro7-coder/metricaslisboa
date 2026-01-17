@@ -231,15 +231,23 @@ function HeatLayer({
     const logValues = validPoints.map(d => Math.log10(d.value + 1));
     const logMin = Math.min(...logValues);
     const logMax = Math.max(...logValues);
-    const logRange = logMax - logMin || 1;
+    const logRange = logMax - logMin;
 
     // Criar pontos de calor com intensidade normalizada
     const heatData = validPoints.map(d => {
       const logValue = Math.log10(d.value + 1);
-      // Normalização 0-1 com escala logarítmica
-      const normalizedIntensity = (logValue - logMin) / logRange;
-      // Garantir mínimo de 0.15 para visibilidade e máximo de 1.0
-      const intensity = Math.max(0.15, Math.min(1.0, normalizedIntensity));
+      
+      let intensity: number;
+      
+      // Se há apenas 1 ponto OU todos têm o mesmo valor → máxima intensidade (vermelho)
+      if (validPoints.length === 1 || logRange === 0) {
+        intensity = 1.0;
+      } else {
+        // Normalização 0-1 com escala logarítmica
+        const normalizedIntensity = (logValue - logMin) / logRange;
+        // Garantir mínimo de 0.2 para visibilidade e máximo de 1.0
+        intensity = Math.max(0.2, Math.min(1.0, normalizedIntensity));
+      }
       
       return [d.coords![0], d.coords![1], intensity] as [number, number, number];
     });
