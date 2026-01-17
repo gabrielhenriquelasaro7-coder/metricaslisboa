@@ -1328,8 +1328,14 @@ function validateSyncData(records: any[]): { isValid: boolean; totalSpend: numbe
   const totalSpend = records.reduce((s, r) => s + (r.spend || 0), 0);
   const totalImpressions = records.reduce((s, r) => s + (r.impressions || 0), 0);
   const totalConversions = records.reduce((s, r) => s + (r.conversions || 0), 0);
+  
+  // CORREÇÃO: Dados com spend/impressions zero são VÁLIDOS (campanha pausada, sem gasto no período)
+  // Só é inválido se tiver MUITOS registros e TODOS forem zero (provável erro de API)
+  // Se tiver poucos registros (< 10), aceitar mesmo com zeros
   const allZero = records.length > 0 && records.every(r => (r.spend || 0) === 0 && (r.impressions || 0) === 0 && (r.clicks || 0) === 0);
-  return { isValid: !allZero || records.length === 0, totalSpend, totalImpressions, totalConversions };
+  const isLikelyApiError = allZero && records.length >= 10; // Só considerar erro se muitos registros zerados
+  
+  return { isValid: !isLikelyApiError, totalSpend, totalImpressions, totalConversions };
 }
 
 function summarizeTargeting(targeting: any): string | null {
