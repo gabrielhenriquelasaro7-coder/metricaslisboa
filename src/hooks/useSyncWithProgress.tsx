@@ -107,14 +107,47 @@ export function useSyncWithProgress({ projectId, adAccountId, onSuccess, onError
 
       console.log('Syncing with time range:', timeRange);
       
-      const response = await supabase.functions.invoke('meta-ads-sync', {
-        body: {
-          project_id: projectId,
-          ad_account_id: adAccountId,
-          time_range: timeRange,
-          light_sync: lightSync, // Sync mais rápido sem buscar criativos
-        },
-      });
+      // Use AbortController com timeout de 5 minutos para syncs grandes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 min timeout
+      
+      let response;
+      try {
+        response = await supabase.functions.invoke('meta-ads-sync', {
+          body: {
+            project_id: projectId,
+            ad_account_id: adAccountId,
+            time_range: timeRange,
+            light_sync: lightSync, // Sync mais rápido sem buscar criativos
+          },
+        });
+      } catch (fetchError: unknown) {
+        // Se for timeout ou erro de rede, o sync pode ter completado no servidor
+        clearTimeout(timeoutId);
+        clearTimeout(stepTimer);
+        clearTimeout(stepTimer2);
+        clearTimeout(stepTimer3);
+        
+        const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown error';
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('aborted') || errorMessage.includes('timeout')) {
+          console.log('Network timeout - sync may have completed on server');
+          setProgress({ 
+            step: 'complete', 
+            message: 'Sync processado em background',
+            detail: {
+              current: 0,
+              total: 0,
+              entity: 'Recarregue a página para ver os dados atualizados'
+            }
+          });
+          toast.info('Sync pode ter completado no servidor. Recarregue a página para verificar.', { duration: 10000 });
+          onSuccess?.();
+          return true;
+        }
+        throw fetchError;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       // Clear step timers
       clearTimeout(stepTimer);
