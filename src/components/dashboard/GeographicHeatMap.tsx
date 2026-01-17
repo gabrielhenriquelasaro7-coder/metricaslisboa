@@ -431,7 +431,7 @@ export function GeographicHeatMap({
       </CardHeader>
       <CardContent>
         {/* Mapa de calor interativo */}
-        <div className="relative h-[450px] rounded-lg border border-border overflow-hidden">
+        <div className="relative h-[300px] sm:h-[350px] md:h-[400px] lg:h-[450px] rounded-lg border border-border overflow-hidden">
           <MapContainer
             center={mapCenter}
             zoom={mapZoom}
