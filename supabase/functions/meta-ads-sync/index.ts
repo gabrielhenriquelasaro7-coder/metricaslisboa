@@ -1239,6 +1239,9 @@ function extractConversions(row: any, campaignObjective?: string): {
         if (CONTACT_LEAD_ACTION_TYPES.includes(actionType)) {
           leadsCount = Math.max(leadsCount, val);
           console.log(`[CONVERSIONS-FIELD] Found ${actionType}: ${val}`);
+        } else if (PHONE_CALL_ACTION_TYPES.includes(actionType)) {
+          leadsCount = Math.max(leadsCount, val);
+          console.log(`[PHONE-CALL-CONV] Found ${actionType}: ${val}`);
         } else if (ALL_LEAD_ACTION_TYPES.includes(actionType)) {
           leadsCount = Math.max(leadsCount, val);
         } else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
@@ -1260,6 +1263,10 @@ function extractConversions(row: any, campaignObjective?: string): {
       const val = parseInt(result.value) || 0;
       if (val > 0) {
         if (PURCHASE_ACTION_TYPES.includes(actionType)) purchasesCount = Math.max(purchasesCount, val);
+        else if (PHONE_CALL_ACTION_TYPES.includes(actionType)) {
+          leadsCount = Math.max(leadsCount, val);
+          console.log(`[PHONE-CALL-RESULTS] Found ${actionType}: ${val}`);
+        }
         else if (ALL_LEAD_ACTION_TYPES.includes(actionType)) leadsCount = Math.max(leadsCount, val);
         else if (INITIATE_CHECKOUT_ACTION_TYPES.includes(actionType)) initiateCheckoutCount = Math.max(initiateCheckoutCount, val);
       }
