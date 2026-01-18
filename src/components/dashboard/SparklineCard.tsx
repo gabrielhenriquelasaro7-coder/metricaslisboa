@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
-import { motion } from 'framer-motion';
+
 
 interface SparklineCardProps {
   title: string;
@@ -68,13 +68,9 @@ export default function SparklineCard({
   );
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: index * 0.03, duration: 0.3, ease: "easeOut" }}
-      whileHover={{ y: -2, transition: { duration: 0.15 } }}
+    <div 
       className={cn(
-        'premium-card group relative cursor-default p-3 sm:p-4',
+        'premium-card group relative cursor-default p-3 sm:p-4 transition-transform duration-150 hover:-translate-y-0.5',
         className
       )}
     >
@@ -163,6 +159,6 @@ export default function SparklineCard({
           )}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

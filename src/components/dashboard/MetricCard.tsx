@@ -2,7 +2,6 @@ import { cn } from '@/lib/utils';
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useEffect, useState, useRef } from 'react';
-import { motion } from 'framer-motion';
 
 interface MetricCardProps {
   title: string;
@@ -123,12 +122,8 @@ export default function MetricCard({
   );
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: index * 0.03, duration: 0.3, ease: "easeOut" }}
-      whileHover={{ y: -2, transition: { duration: 0.15 } }}
-      className={cn('premium-card group cursor-default p-3 sm:p-4', className)}
+    <div 
+      className={cn('premium-card group cursor-default p-3 sm:p-4 transition-transform duration-150 hover:-translate-y-0.5', className)}
     >
       {/* Header row: Title + Badge aligned, Icon on right */}
       <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1 relative z-10">
@@ -155,6 +150,6 @@ export default function MetricCard({
           {changeLabel}
         </p>
       )}
-    </motion.div>
+    </div>
   );
 }
