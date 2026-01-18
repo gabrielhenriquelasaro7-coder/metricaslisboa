@@ -9,21 +9,18 @@ interface PageTransitionProps {
 const pageVariants = {
   initial: {
     opacity: 0,
-    y: 8,
   },
   in: {
     opacity: 1,
-    y: 0,
   },
   out: {
     opacity: 0,
-    y: -8,
   },
 };
 
 const pageTransition: Transition = {
   type: 'tween',
-  ease: 'easeOut',
+  ease: [0.25, 0.1, 0.25, 1],
   duration: 0.2,
 };
 
@@ -31,7 +28,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={location.pathname}
         initial="initial"
@@ -47,7 +44,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   );
 }
 
-// Simple fade wrapper for individual components
+// Simple fade wrapper for individual components - smoother
 export function FadeIn({ 
   children, 
   delay = 0,
@@ -59,12 +56,12 @@ export function FadeIn({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ 
-        duration: 0.3, 
+        duration: 0.25, 
         delay,
-        ease: 'easeOut' 
+        ease: [0.25, 0.1, 0.25, 1]
       }}
       className={className}
     >
@@ -73,11 +70,11 @@ export function FadeIn({
   );
 }
 
-// Staggered children animation
+// Staggered children animation - faster
 export function StaggerContainer({ 
   children,
   className = '',
-  staggerDelay = 0.05
+  staggerDelay = 0.03
 }: { 
   children: ReactNode;
   className?: string;
@@ -93,6 +90,7 @@ export function StaggerContainer({
           opacity: 1,
           transition: {
             staggerChildren: staggerDelay,
+            delayChildren: 0.05,
           },
         },
       }}
@@ -113,13 +111,13 @@ export function StaggerItem({
   return (
     <motion.div
       variants={{
-        hidden: { opacity: 0, y: 10 },
+        hidden: { opacity: 0, y: 6 },
         visible: { 
           opacity: 1, 
           y: 0,
           transition: {
             duration: 0.2,
-            ease: 'easeOut'
+            ease: [0.25, 0.1, 0.25, 1]
           }
         },
       }}
@@ -127,5 +125,45 @@ export function StaggerItem({
     >
       {children}
     </motion.div>
+  );
+}
+
+// Smooth content loader - prevents blinking
+export function SmoothLoader({ 
+  loading, 
+  children,
+  skeleton,
+  className = ''
+}: { 
+  loading: boolean;
+  children: ReactNode;
+  skeleton?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div
+            key="skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            {skeleton}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25, delay: 0.05 }}
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
