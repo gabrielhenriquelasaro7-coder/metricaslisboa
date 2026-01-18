@@ -6,10 +6,11 @@ const corsHeaders = {
 };
 
 // Configuration
-const CONCURRENT_PROJECTS = 5; // Sync 5 projects at the same time (reduced for stability)
-const DELAY_BETWEEN_BATCHES = 60000; // 60 seconds between batches
+const CONCURRENT_PROJECTS = 10; // Sync 10 projects at the same time (increased for full coverage)
+const DELAY_BETWEEN_BATCHES = 30000; // 30 seconds between batches (reduced)
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 15 * 60 * 1000; // 15 minutes
+const FUNCTION_TIMEOUT_BUFFER = 50000; // Leave 50s buffer before function timeout
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
