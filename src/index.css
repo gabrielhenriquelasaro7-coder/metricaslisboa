@@ -847,18 +847,86 @@
     animation: fade-in 0.4s ease-out forwards;
   }
 
-  .stagger-fade-in > *:nth-child(1) { animation-delay: 0.05s; }
-  .stagger-fade-in > *:nth-child(2) { animation-delay: 0.1s; }
-  .stagger-fade-in > *:nth-child(3) { animation-delay: 0.15s; }
-  .stagger-fade-in > *:nth-child(4) { animation-delay: 0.2s; }
-  .stagger-fade-in > *:nth-child(5) { animation-delay: 0.25s; }
-  .stagger-fade-in > *:nth-child(6) { animation-delay: 0.3s; }
-  .stagger-fade-in > *:nth-child(7) { animation-delay: 0.35s; }
-  .stagger-fade-in > *:nth-child(8) { animation-delay: 0.4s; }
+  .stagger-fade-in > *:nth-child(1) { animation-delay: 0.03s; }
+  .stagger-fade-in > *:nth-child(2) { animation-delay: 0.06s; }
+  .stagger-fade-in > *:nth-child(3) { animation-delay: 0.09s; }
+  .stagger-fade-in > *:nth-child(4) { animation-delay: 0.12s; }
+  .stagger-fade-in > *:nth-child(5) { animation-delay: 0.15s; }
+  .stagger-fade-in > *:nth-child(6) { animation-delay: 0.18s; }
+  .stagger-fade-in > *:nth-child(7) { animation-delay: 0.21s; }
+  .stagger-fade-in > *:nth-child(8) { animation-delay: 0.24s; }
+  .stagger-fade-in > *:nth-child(9) { animation-delay: 0.27s; }
+  .stagger-fade-in > *:nth-child(10) { animation-delay: 0.30s; }
 
   @keyframes fade-in {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Smooth skeleton shimmer - no blink */
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: hsl(var(--muted) / 0.4);
+  }
+
+  .skeleton-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.04),
+      transparent
+    );
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  /* Content fade transition */
+  .content-fade-enter {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  .content-fade-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  }
+
+  .content-fade-exit {
+    opacity: 1;
+  }
+
+  .content-fade-exit-active {
+    opacity: 0;
+    transition: opacity 0.15s ease-in;
+  }
+
+  /* Page transition - smooth and quick */
+  .page-transition-enter {
+    opacity: 0;
+  }
+
+  .page-transition-enter-active {
+    opacity: 1;
+    transition: opacity 0.25s ease-out;
+  }
+
+  .page-transition-exit {
+    opacity: 1;
+  }
+
+  .page-transition-exit-active {
+    opacity: 0;
+    transition: opacity 0.15s ease-in;
   }
 
   /* Status badges */

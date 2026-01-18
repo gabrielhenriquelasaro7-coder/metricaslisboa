@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import { CreativeImage } from '@/components/ui/creative-image';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { DateRange } from 'react-day-picker';
 import { usePeriodContext } from '@/hooks/usePeriodContext';
+import { CreativesSkeleton } from '@/components/skeletons';
 import { 
   Search, 
   Loader2,
@@ -207,36 +209,20 @@ export default function Creatives() {
   const avgTicket = totalConversions > 0 ? totalConversionValue / totalConversions : 0;
   const avgCpl = totalConversions > 0 ? totalSpend / totalConversions : 0;
 
-  // Show loading skeleton while projects are loading
-  if (projectsLoading) {
-    return (
-      <DashboardLayout>
-        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-          <div className="flex flex-col gap-4">
-            <div className="h-8 w-48 bg-muted rounded animate-pulse" />
-            <div className="h-5 w-64 bg-muted rounded animate-pulse" />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-64 bg-muted rounded-lg animate-pulse" />
-            ))}
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   // Redirect only after loading is complete
-  if (!selectedProject) {
+  if (!projectsLoading && !selectedProject) {
     navigate('/projects');
     return null;
   }
 
-  if (loading) {
+  // Show smooth skeleton while loading
+  const isLoading = projectsLoading || loading;
+
+  if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="p-4 sm:p-6 lg:p-8">
+          <CreativesSkeleton />
         </div>
       </DashboardLayout>
     );
