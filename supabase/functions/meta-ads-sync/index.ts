@@ -1203,8 +1203,10 @@ const CONTACT_LEAD_ACTION_TYPES = ['contact_total', 'contact_website', 'contact'
 const MESSAGE_LEAD_ACTION_TYPES = ['messaging_conversation_started_7d', 'onsite_conversion.messaging_conversation_started_7d'];
 const PURCHASE_ACTION_TYPES = ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'onsite_web_purchase'];
 const INITIATE_CHECKOUT_ACTION_TYPES = ['initiate_checkout', 'omni_initiated_checkout', 'offsite_conversion.fb_pixel_initiate_checkout', 'onsite_conversion.initiate_checkout'];
+// NOVO: Tipos de pixel customizado que também contam como leads
+const PIXEL_CUSTOM_LEAD_TYPES = ['offsite_conversion.fb_pixel_custom'];
 
-const ALL_LEAD_ACTION_TYPES = [...FORM_LEAD_ACTION_TYPES, ...CONTACT_LEAD_ACTION_TYPES, ...MESSAGE_LEAD_ACTION_TYPES];
+const ALL_LEAD_ACTION_TYPES = [...FORM_LEAD_ACTION_TYPES, ...CONTACT_LEAD_ACTION_TYPES, ...MESSAGE_LEAD_ACTION_TYPES, ...PIXEL_CUSTOM_LEAD_TYPES];
 const CONVERSION_ACTION_TYPES = [...ALL_LEAD_ACTION_TYPES, ...PURCHASE_ACTION_TYPES, ...INITIATE_CHECKOUT_ACTION_TYPES];
 const TRAFFIC_OBJECTIVES = ['OUTCOME_TRAFFIC', 'LINK_CLICKS', 'TRAFFIC', 'POST_ENGAGEMENT'];
 
@@ -1226,8 +1228,31 @@ function extractConversions(row: any, campaignObjective?: string): {
   let conversions = 0, costPerResult = 0, conversionValue = 0;
   let source = 'none', leadsCount = 0, purchasesCount = 0, initiateCheckoutCount = 0;
 
+  // FONTE 0 (NOVA!): Campo "conversions" - Meta envia contact_website/contact_total aqui!
+  if (Array.isArray(row.conversions) && row.conversions.length > 0) {
+    for (const conv of row.conversions) {
+      const actionType = conv.action_type || '';
+      const val = parseInt(conv.value) || 0;
+      if (val > 0) {
+        if (CONTACT_LEAD_ACTION_TYPES.includes(actionType)) {
+          leadsCount = Math.max(leadsCount, val);
+          console.log(`[CONVERSIONS-FIELD] Found ${actionType}: ${val}`);
+        } else if (ALL_LEAD_ACTION_TYPES.includes(actionType)) {
+          leadsCount = Math.max(leadsCount, val);
+        } else if (PURCHASE_ACTION_TYPES.includes(actionType)) {
+          purchasesCount = Math.max(purchasesCount, val);
+        }
+      }
+    }
+    
+    if (leadsCount > 0 || purchasesCount > 0) {
+      conversions = leadsCount + purchasesCount;
+      source = 'conversions_field';
+    }
+  }
+
   // FONTE 1: Campo "results"
-  if (Array.isArray(row.results) && row.results.length > 0) {
+  if (conversions === 0 && Array.isArray(row.results) && row.results.length > 0) {
     for (const result of row.results) {
       const actionType = result.action_type || '';
       const val = parseInt(result.value) || 0;
@@ -1258,6 +1283,7 @@ function extractConversions(row: any, campaignObjective?: string): {
         if (actionType === 'lead' || actionType === 'onsite_conversion.lead_grouped') leadsCount = val;
         else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType)) leadsCount = Math.max(leadsCount, val);
         else if (MESSAGE_LEAD_ACTION_TYPES.includes(actionType)) leadsCount = Math.max(leadsCount, val);
+        else if (PIXEL_CUSTOM_LEAD_TYPES.includes(actionType)) leadsCount = Math.max(leadsCount, val);
         else if (PURCHASE_ACTION_TYPES.includes(actionType)) purchasesCount = Math.max(purchasesCount, val);
         else if (INITIATE_CHECKOUT_ACTION_TYPES.includes(actionType)) initiateCheckoutCount = Math.max(initiateCheckoutCount, val);
       }
