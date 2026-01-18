@@ -1201,12 +1201,14 @@ async function cacheViaStoryId(
 const FORM_LEAD_ACTION_TYPES = ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead', 'fb_pixel_lead'];
 const CONTACT_LEAD_ACTION_TYPES = ['contact_total', 'contact_website', 'contact', 'omni_complete_registration', 'complete_registration', 'submit_application', 'submit_application_total'];
 const MESSAGE_LEAD_ACTION_TYPES = ['messaging_conversation_started_7d', 'onsite_conversion.messaging_conversation_started_7d'];
+// NOVO: Ligações (Phone Calls) - também contam como leads
+const PHONE_CALL_ACTION_TYPES = ['onsite_web_app_call_confirm', 'call_confirm', 'onsite_conversion.call_confirm', 'phone_call', 'click_to_call'];
 const PURCHASE_ACTION_TYPES = ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'onsite_web_purchase'];
 const INITIATE_CHECKOUT_ACTION_TYPES = ['initiate_checkout', 'omni_initiated_checkout', 'offsite_conversion.fb_pixel_initiate_checkout', 'onsite_conversion.initiate_checkout'];
-// NOVO: Tipos de pixel customizado que também contam como leads
+// Tipos de pixel customizado que também contam como leads
 const PIXEL_CUSTOM_LEAD_TYPES = ['offsite_conversion.fb_pixel_custom'];
 
-const ALL_LEAD_ACTION_TYPES = [...FORM_LEAD_ACTION_TYPES, ...CONTACT_LEAD_ACTION_TYPES, ...MESSAGE_LEAD_ACTION_TYPES, ...PIXEL_CUSTOM_LEAD_TYPES];
+const ALL_LEAD_ACTION_TYPES = [...FORM_LEAD_ACTION_TYPES, ...CONTACT_LEAD_ACTION_TYPES, ...MESSAGE_LEAD_ACTION_TYPES, ...PHONE_CALL_ACTION_TYPES, ...PIXEL_CUSTOM_LEAD_TYPES];
 const CONVERSION_ACTION_TYPES = [...ALL_LEAD_ACTION_TYPES, ...PURCHASE_ACTION_TYPES, ...INITIATE_CHECKOUT_ACTION_TYPES];
 const TRAFFIC_OBJECTIVES = ['OUTCOME_TRAFFIC', 'LINK_CLICKS', 'TRAFFIC', 'POST_ENGAGEMENT'];
 
@@ -1283,6 +1285,10 @@ function extractConversions(row: any, campaignObjective?: string): {
         if (actionType === 'lead' || actionType === 'onsite_conversion.lead_grouped') leadsCount = val;
         else if (CONTACT_LEAD_ACTION_TYPES.includes(actionType)) leadsCount = Math.max(leadsCount, val);
         else if (MESSAGE_LEAD_ACTION_TYPES.includes(actionType)) leadsCount = Math.max(leadsCount, val);
+        else if (PHONE_CALL_ACTION_TYPES.includes(actionType)) {
+          leadsCount = Math.max(leadsCount, val);
+          console.log(`[PHONE-CALL] Found ${actionType}: ${val}`);
+        }
         else if (PIXEL_CUSTOM_LEAD_TYPES.includes(actionType)) leadsCount = Math.max(leadsCount, val);
         else if (PURCHASE_ACTION_TYPES.includes(actionType)) purchasesCount = Math.max(purchasesCount, val);
         else if (INITIATE_CHECKOUT_ACTION_TYPES.includes(actionType)) initiateCheckoutCount = Math.max(initiateCheckoutCount, val);
