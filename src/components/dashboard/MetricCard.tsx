@@ -139,8 +139,8 @@ export default function MetricCard({
         )}
       </div>
       
-      {/* Value */}
-      <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-foreground transition-colors duration-300 truncate">
+      {/* Value - smaller on mobile */}
+      <p className="text-xs sm:text-lg md:text-xl lg:text-2xl font-bold text-foreground transition-colors duration-300 truncate">
         {animatedValue}
       </p>
       
