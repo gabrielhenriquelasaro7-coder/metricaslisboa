@@ -343,77 +343,78 @@ export default function Creatives() {
         </div>
 
         {/* Stats - Dynamic based on business model */}
-        <div className={cn("grid gap-3 sm:gap-4", isEcommerce ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-4")}>
-          <div className="glass-card p-4 border-l-2 border-l-primary">
-            <div className="flex items-center gap-2 mb-1">
-              <Target className="w-4 h-4 text-primary" />
-              <p className="text-xs text-muted-foreground">Total Criativos</p>
+        {/* Stats - Dynamic based on business model - Smaller on mobile */}
+        <div className={cn("grid gap-2 sm:gap-4", isEcommerce ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-4")}>
+          <div className="glass-card p-2.5 sm:p-4 border-l-2 border-l-primary">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+              <Target className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Total Criativos</p>
             </div>
-            <p className="text-2xl font-bold text-foreground">{filteredCreatives.length}</p>
+            <p className="text-base sm:text-2xl font-bold text-foreground">{filteredCreatives.length}</p>
           </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="w-4 h-4 text-primary" />
-              <p className="text-xs text-muted-foreground">Gasto Total</p>
+          <div className="glass-card p-2.5 sm:p-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+              <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Gasto Total</p>
             </div>
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(totalSpend)}</p>
+            <p className="text-base sm:text-2xl font-bold text-foreground">{formatCurrency(totalSpend)}</p>
           </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <ShoppingCart className="w-4 h-4 text-primary" />
-              <p className="text-xs text-muted-foreground">{isEcommerce ? 'Total Compras' : 'Total Leads'}</p>
+          <div className="glass-card p-2.5 sm:p-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+              <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{isEcommerce ? 'Total Compras' : 'Total Leads'}</p>
             </div>
-            <p className="text-2xl font-bold text-metric-positive">{formatNumber(totalConversions)}</p>
+            <p className="text-base sm:text-2xl font-bold text-metric-positive">{formatNumber(totalConversions)}</p>
           </div>
           
           {/* E-commerce specific metrics */}
           {isEcommerce && (
             <>
-              <div className="glass-card p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <DollarSign className="w-4 h-4 text-primary" />
-                  <p className="text-xs text-muted-foreground">Faturamento</p>
+              <div className="glass-card p-2.5 sm:p-4">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Faturamento</p>
                 </div>
-                <p className="text-2xl font-bold text-foreground">{formatCurrency(totalConversionValue)}</p>
+                <p className="text-base sm:text-2xl font-bold text-foreground">{formatCurrency(totalConversionValue)}</p>
               </div>
-              <div className="glass-card p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                  <p className="text-xs text-muted-foreground">ROAS Médio</p>
+              <div className="glass-card p-2.5 sm:p-4">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+                  <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">ROAS Médio</p>
                 </div>
-                <p className={cn("text-2xl font-bold", avgRoas >= 3 ? "text-metric-positive" : avgRoas >= 1 ? "text-metric-warning" : "text-metric-negative")}>
+                <p className={cn("text-base sm:text-2xl font-bold", avgRoas >= 3 ? "text-metric-positive" : avgRoas >= 1 ? "text-metric-warning" : "text-metric-negative")}>
                   {avgRoas.toFixed(2)}x
                 </p>
               </div>
-              <div className="glass-card p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <ShoppingCart className="w-4 h-4 text-primary" />
-                  <p className="text-xs text-muted-foreground">Ticket Médio</p>
+              <div className="glass-card p-2.5 sm:p-4">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+                  <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Ticket Médio</p>
                 </div>
-                <p className="text-2xl font-bold text-foreground">{formatCurrency(avgTicket)}</p>
+                <p className="text-base sm:text-2xl font-bold text-foreground">{formatCurrency(avgTicket)}</p>
               </div>
             </>
           )}
           
           {/* Inside Sales specific metrics */}
           {isInsideSales && (
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="w-4 h-4 text-primary" />
-                <p className="text-xs text-muted-foreground">CPL Médio</p>
+            <div className="glass-card p-2.5 sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+                <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
+                <p className="text-[10px] sm:text-xs text-muted-foreground">CPL Médio</p>
               </div>
-              <p className="text-2xl font-bold text-foreground">{formatCurrency(avgCpl)}</p>
+              <p className="text-base sm:text-2xl font-bold text-foreground">{formatCurrency(avgCpl)}</p>
             </div>
           )}
           
           {/* PDV specific metrics */}
           {isPdv && (
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="w-4 h-4 text-primary" />
-                <p className="text-xs text-muted-foreground">Custo por Visita</p>
+            <div className="glass-card p-2.5 sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+                <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Custo por Visita</p>
               </div>
-              <p className="text-2xl font-bold text-foreground">{formatCurrency(avgCpl)}</p>
+              <p className="text-base sm:text-2xl font-bold text-foreground">{formatCurrency(avgCpl)}</p>
             </div>
           )}
         </div>

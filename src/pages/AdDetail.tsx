@@ -365,15 +365,17 @@ export default function AdDetail() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <Button 
               onClick={syncThisCreativeHD} 
               disabled={syncing || !selectedProject}
               variant="outline"
               size="sm"
+              className="h-7 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm"
             >
-              <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-              {syncing ? 'Sincronizando...' : 'Sincronizar HD'}
+              <RefreshCw className={cn("w-3 h-3 sm:w-4 sm:h-4", syncing && "animate-spin")} />
+              <span className="hidden sm:inline ml-2">{syncing ? 'Sincronizando...' : 'Sincronizar HD'}</span>
+              <span className="sm:hidden ml-1">{syncing ? '...' : 'Sync HD'}</span>
             </Button>
             <DateRangePicker 
               dateRange={dateRange} 

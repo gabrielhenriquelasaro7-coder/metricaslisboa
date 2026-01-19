@@ -18,7 +18,10 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, LineChart, TrendingUp, Settings2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { BarChart2, LineChart, TrendingUp, Settings2, Maximize2, X } from 'lucide-react';
+import { useChartResponsive, sampleDataForMobile, formatCompactCurrency, formatCompactNumber } from '@/hooks/useChartResponsive';
 
 type ChartType = 'area' | 'bar' | 'composed';
 
@@ -146,6 +149,8 @@ export default function AdSetCharts({
   currency = 'BRL'
 }: AdSetChartsProps) {
   const isEcommerce = businessModel === 'ecommerce';
+  const responsiveConfig = useChartResponsive();
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   const METRIC_OPTIONS = useMemo(() => createMetricOptions(currency), [currency]);
   
@@ -250,36 +255,36 @@ export default function AdSetCharts({
       <Button
         size="sm"
         variant={value === 'area' ? 'default' : 'ghost'}
-        className="h-7 px-2 text-xs"
+        className="h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-xs"
         onClick={() => onChange('area')}
       >
-        <TrendingUp className="w-3 h-3 mr-1" />
-        Área
+        <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+        <span className="hidden xs:inline">Área</span>
       </Button>
       <Button
         size="sm"
         variant={value === 'bar' ? 'default' : 'ghost'}
-        className="h-7 px-2 text-xs"
+        className="h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-xs"
         onClick={() => onChange('bar')}
       >
-        <BarChart2 className="w-3 h-3 mr-1" />
-        Barras
+        <BarChart2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+        <span className="hidden xs:inline">Barras</span>
       </Button>
       <Button
         size="sm"
         variant={value === 'composed' ? 'default' : 'ghost'}
-        className="h-7 px-2 text-xs"
+        className="h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-xs"
         onClick={() => onChange('composed')}
       >
-        <LineChart className="w-3 h-3 mr-1" />
-        Combinado
+        <LineChart className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+        <span className="hidden xs:inline">Combinado</span>
       </Button>
     </div>
   );
 
   const MetricSelector = ({ value, onChange, exclude }: { value: string; onChange: (v: string) => void; exclude?: string }) => (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-8 text-xs w-[120px] bg-secondary/50 border-0">
+      <SelectTrigger className="h-6 sm:h-8 text-[10px] sm:text-xs w-[80px] sm:w-[120px] bg-secondary/50 border-0">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -298,9 +303,13 @@ export default function AdSetCharts({
   const gradientId2 = `adset-gradient-${secondaryMetric}`;
 
   const renderChart = () => {
+    const { isMobile, xAxisFontSize, yAxisFontSize, chartMargins, legendWrapperStyle, strokeWidth, barRadius } = responsiveConfig;
+    const dataToRender = isMobile ? displayData : chartData;
+    const margins = isMobile ? chartMargins : { top: 10, right: 30, left: 0, bottom: 0 };
+    
     if (chartType === 'area') {
       return (
-        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+        <AreaChart data={dataToRender} margin={margins}>
           <defs>
             <linearGradient id={gradientId1} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={primary.color} stopOpacity={0.4} />
@@ -312,31 +321,31 @@ export default function AdSetCharts({
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={20} />
-          <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
-          <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
+          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={xAxisFontSize} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={isMobile ? 15 : 20} />
+          <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={yAxisFontSize} tickLine={false} axisLine={false} tickFormatter={primary.format} width={isMobile ? 40 : 60} />
+          <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={yAxisFontSize} tickLine={false} axisLine={false} tickFormatter={secondary.format} width={isMobile ? 35 : 50} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primary.color} strokeWidth={2} fill={`url(#${gradientId1})`} animationDuration={800} />
-          <Area yAxisId="right" type="monotone" dataKey={secondaryMetric} name={secondary.label} stroke={secondary.color} strokeWidth={2} fill={`url(#${gradientId2})`} animationDuration={800} />
+          <Legend wrapperStyle={legendWrapperStyle} />
+          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primary.color} strokeWidth={strokeWidth} fill={`url(#${gradientId1})`} animationDuration={800} />
+          <Area yAxisId="right" type="monotone" dataKey={secondaryMetric} name={secondary.label} stroke={secondary.color} strokeWidth={strokeWidth} fill={`url(#${gradientId2})`} animationDuration={800} />
         </AreaChart>
       );
     } else if (chartType === 'bar') {
       return (
-        <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+        <BarChart data={dataToRender} margin={margins}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={20} />
-          <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
-          <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
+          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={xAxisFontSize} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={isMobile ? 15 : 20} />
+          <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={yAxisFontSize} tickLine={false} axisLine={false} tickFormatter={primary.format} width={isMobile ? 40 : 60} />
+          <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={yAxisFontSize} tickLine={false} axisLine={false} tickFormatter={secondary.format} width={isMobile ? 35 : 50} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Bar yAxisId="left" dataKey={primaryMetric} name={primary.label} fill={primary.color} radius={[4, 4, 0, 0]} animationDuration={800} />
-          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondary.color} radius={[4, 4, 0, 0]} animationDuration={800} />
+          <Legend wrapperStyle={legendWrapperStyle} />
+          <Bar yAxisId="left" dataKey={primaryMetric} name={primary.label} fill={primary.color} radius={barRadius} animationDuration={800} />
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondary.color} radius={barRadius} animationDuration={800} />
         </BarChart>
       );
     } else {
       return (
-        <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+        <ComposedChart data={dataToRender} margin={margins}>
           <defs>
             <linearGradient id={gradientId1} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={primary.color} stopOpacity={0.4} />
@@ -344,13 +353,13 @@ export default function AdSetCharts({
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={20} />
-          <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={primary.format} />
-          <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={secondary.format} />
+          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={xAxisFontSize} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={isMobile ? 15 : 20} />
+          <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={yAxisFontSize} tickLine={false} axisLine={false} tickFormatter={primary.format} width={isMobile ? 40 : 60} />
+          <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={yAxisFontSize} tickLine={false} axisLine={false} tickFormatter={secondary.format} width={isMobile ? 35 : 50} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primary.color} strokeWidth={2} fill={`url(#${gradientId1})`} animationDuration={800} />
-          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondary.color} radius={[4, 4, 0, 0]} opacity={0.8} animationDuration={800} />
+          <Legend wrapperStyle={legendWrapperStyle} />
+          <Area yAxisId="left" type="monotone" dataKey={primaryMetric} name={primary.label} stroke={primary.color} strokeWidth={strokeWidth} fill={`url(#${gradientId1})`} animationDuration={800} />
+          <Bar yAxisId="right" dataKey={secondaryMetric} name={secondary.label} fill={secondary.color} radius={barRadius} opacity={0.8} animationDuration={800} />
         </ComposedChart>
       );
     }
@@ -367,27 +376,107 @@ export default function AdSetCharts({
     );
   }
 
-  return (
-    <div className={cn('glass-card p-6 transition-all duration-300', className)}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-        <div className="flex items-center gap-2">
-          <Settings2 className="w-4 h-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold">
-            {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
-          </h3>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
-          <span className="text-muted-foreground text-xs">vs</span>
-          <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
-          <ChartTypeSelector value={chartType} onChange={setChartType} />
-        </div>
-      </div>
-      <div className="h-[320px]">
-        <ResponsiveContainer width="100%" height="100%">
-          {renderChart()}
-        </ResponsiveContainer>
-      </div>
+  // Sample data for mobile to reduce clutter
+  const displayData = useMemo(() => {
+    if (responsiveConfig.isMobile) {
+      return sampleDataForMobile(chartData, responsiveConfig.maxDataPoints);
+    }
+    return chartData;
+  }, [chartData, responsiveConfig.isMobile, responsiveConfig.maxDataPoints]);
+
+  const chartHeight = isFullscreen ? 400 : (responsiveConfig.isMobile ? 220 : 320);
+
+  const ChartContent = ({ fullscreen = false }: { fullscreen?: boolean }) => (
+    <div className={cn(fullscreen ? 'h-[400px]' : `h-[${chartHeight}px]`)} style={{ height: fullscreen ? 400 : chartHeight }}>
+      <ResponsiveContainer width="100%" height="100%">
+        {renderChart()}
+      </ResponsiveContainer>
     </div>
+  );
+
+  return (
+    <>
+      <div className={cn('glass-card p-3 sm:p-6 transition-all duration-300', className)}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-6 gap-2 sm:gap-4">
+          <div className="flex items-center gap-2">
+            <Settings2 className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
+            <h3 className="text-sm sm:text-lg font-semibold">
+              {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
+            </h3>
+          </div>
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+            <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
+            <span className="text-muted-foreground text-[10px] sm:text-xs">vs</span>
+            <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
+            <div className="hidden sm:block">
+              <ChartTypeSelector value={chartType} onChange={setChartType} />
+            </div>
+            {/* Fullscreen button for mobile */}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0 sm:ml-2"
+              onClick={() => setIsFullscreen(true)}
+              title="Expandir gráfico"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+        <ChartContent />
+      </div>
+
+      {/* Fullscreen Chart Dialog - Horizontal landscape view */}
+      <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+        <DialogContent className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] p-0 bg-background border-0 rounded-none">
+          <VisuallyHidden>
+            <DialogTitle>Gráfico em Tela Cheia</DialogTitle>
+          </VisuallyHidden>
+          <div className="flex flex-col h-full">
+            {/* Fullscreen Header */}
+            <div className="flex items-center justify-between p-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-muted-foreground" />
+                <h3 className="text-base font-semibold">
+                  {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
+                <span className="text-muted-foreground text-xs">vs</span>
+                <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
+                <ChartTypeSelector value={chartType} onChange={setChartType} />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 ml-2"
+                  onClick={() => setIsFullscreen(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            {/* Fullscreen Chart - Rotate on mobile for horizontal view */}
+            <div className="flex-1 p-4 overflow-hidden">
+              <div className="h-full w-full" style={{ 
+                transform: responsiveConfig.isMobile ? 'rotate(90deg)' : 'none',
+                transformOrigin: responsiveConfig.isMobile ? 'center center' : 'unset',
+                width: responsiveConfig.isMobile ? '100vh' : '100%',
+                height: responsiveConfig.isMobile ? '100vw' : '100%',
+                position: responsiveConfig.isMobile ? 'absolute' : 'relative',
+                top: responsiveConfig.isMobile ? '50%' : 'auto',
+                left: responsiveConfig.isMobile ? '50%' : 'auto',
+                marginTop: responsiveConfig.isMobile ? '-50vw' : 0,
+                marginLeft: responsiveConfig.isMobile ? '-50vh' : 0,
+              }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  {renderChart()}
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
