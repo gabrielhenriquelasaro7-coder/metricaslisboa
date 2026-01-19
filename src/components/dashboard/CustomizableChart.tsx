@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart2, LineChart, TrendingUp, Settings2, Pencil, Circle } from 'lucide-react';
 import { ChartCustomizationDialog } from './ChartCustomizationDialog';
+import { ChartFullscreenButton, ChartFullscreenModal, useChartFullscreen } from '@/components/ui/chart-fullscreen';
 import { useChartPreferences, ChartPreference } from '@/hooks/useChartPreferences';
 
 type ChartType = 'line' | 'bar' | 'composed' | 'scatter';
@@ -160,6 +161,7 @@ export function CustomizableChart({
     savedPref?.secondary_color || 'hsl(200, 80%, 50%)'
   );
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { isFullscreen, openFullscreen, closeFullscreen } = useChartFullscreen();
 
   // Update state when preferences load
   useEffect(() => {
@@ -550,6 +552,7 @@ export function CustomizableChart({
               exclude={primaryMetric} 
             />
             <ChartTypeSelector />
+            <ChartFullscreenButton onClick={openFullscreen} />
           </div>
         </div>
         <div className="h-[280px]">
@@ -573,6 +576,30 @@ export function CustomizableChart({
         secondaryColor={secondaryColor}
         onSave={handleSaveCustomization}
       />
+
+      <ChartFullscreenModal
+        isOpen={isFullscreen}
+        onClose={closeFullscreen}
+        title={displayTitle}
+        controls={
+          <>
+            <MetricSelector 
+              value={primaryMetric} 
+              onChange={(v) => handleMetricChange(true, v)} 
+              exclude={secondaryMetric} 
+            />
+            <span className="text-muted-foreground text-xs">vs</span>
+            <MetricSelector 
+              value={secondaryMetric} 
+              onChange={(v) => handleMetricChange(false, v)} 
+              exclude={primaryMetric} 
+            />
+            <ChartTypeSelector />
+          </>
+        }
+      >
+        {renderChart()}
+      </ChartFullscreenModal>
     </>
   );
 }
