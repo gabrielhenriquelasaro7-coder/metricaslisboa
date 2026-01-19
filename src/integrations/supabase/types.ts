@@ -2734,6 +2734,117 @@ export type Database = {
           },
         ]
       }
+      whatsapp_planner_configs: {
+        Row: {
+          cac_atual: number | null
+          created_at: string | null
+          criterios_mudanca_step: Json | null
+          current_step: string | null
+          faturamento_marketing: number | null
+          group_id: string | null
+          group_name: string | null
+          id: string
+          instance_id: string | null
+          investimento_mensal: number | null
+          last_report_sent_at: string | null
+          link_forecasting: string | null
+          link_planejamento_quarter: string | null
+          link_plano_midia: string | null
+          message_template: string | null
+          meta_principal_quarter: string | null
+          meta_semana: string | null
+          meta_semana_porque: string | null
+          phone_number: string | null
+          planner_enabled: boolean | null
+          project_id: string | null
+          report_day_of_week: number | null
+          report_time: string | null
+          roi_atual: number | null
+          sub_metas: Json | null
+          target_step: string | null
+          target_type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cac_atual?: number | null
+          created_at?: string | null
+          criterios_mudanca_step?: Json | null
+          current_step?: string | null
+          faturamento_marketing?: number | null
+          group_id?: string | null
+          group_name?: string | null
+          id?: string
+          instance_id?: string | null
+          investimento_mensal?: number | null
+          last_report_sent_at?: string | null
+          link_forecasting?: string | null
+          link_planejamento_quarter?: string | null
+          link_plano_midia?: string | null
+          message_template?: string | null
+          meta_principal_quarter?: string | null
+          meta_semana?: string | null
+          meta_semana_porque?: string | null
+          phone_number?: string | null
+          planner_enabled?: boolean | null
+          project_id?: string | null
+          report_day_of_week?: number | null
+          report_time?: string | null
+          roi_atual?: number | null
+          sub_metas?: Json | null
+          target_step?: string | null
+          target_type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cac_atual?: number | null
+          created_at?: string | null
+          criterios_mudanca_step?: Json | null
+          current_step?: string | null
+          faturamento_marketing?: number | null
+          group_id?: string | null
+          group_name?: string | null
+          id?: string
+          instance_id?: string | null
+          investimento_mensal?: number | null
+          last_report_sent_at?: string | null
+          link_forecasting?: string | null
+          link_planejamento_quarter?: string | null
+          link_plano_midia?: string | null
+          message_template?: string | null
+          meta_principal_quarter?: string | null
+          meta_semana?: string | null
+          meta_semana_porque?: string | null
+          phone_number?: string | null
+          planner_enabled?: boolean | null
+          project_id?: string | null
+          report_day_of_week?: number | null
+          report_time?: string | null
+          roi_atual?: number | null
+          sub_metas?: Json | null
+          target_step?: string | null
+          target_type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_planner_configs_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_manager_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_planner_configs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_report_configs: {
         Row: {
           balance_alert_enabled: boolean | null
