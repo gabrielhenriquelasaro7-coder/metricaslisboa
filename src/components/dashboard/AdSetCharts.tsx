@@ -413,16 +413,18 @@ export default function AdSetCharts({
             <div className="hidden sm:block">
               <ChartTypeSelector value={chartType} onChange={setChartType} />
             </div>
-            {/* Fullscreen button for mobile */}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0 sm:ml-2"
-              onClick={() => setIsFullscreen(true)}
-              title="Expandir gráfico"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </Button>
+            {/* Fullscreen button for mobile only */}
+            {responsiveConfig.isMobile && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                onClick={() => setIsFullscreen(true)}
+                title="Expandir gráfico"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </Button>
+            )}
           </div>
         </div>
         <ChartContent />

@@ -553,15 +553,17 @@ export function CustomizableChart({
               exclude={primaryMetric} 
             />
             <ChartTypeSelector />
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0"
-              onClick={() => setIsFullscreen(true)}
-              title="Expandir gráfico"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </Button>
+            {responsiveConfig.isMobile && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                onClick={() => setIsFullscreen(true)}
+                title="Expandir gráfico"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </Button>
+            )}
           </div>
         </div>
         <div className="h-[280px]">
