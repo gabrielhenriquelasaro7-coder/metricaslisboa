@@ -223,6 +223,14 @@ export default function AdSetCharts({
     });
   }, [data, shouldAggregateByMonth]);
 
+  // Sample data for mobile to reduce clutter - MUST be before any conditional returns
+  const displayData = useMemo(() => {
+    if (responsiveConfig.isMobile && chartData.length > 0) {
+      return sampleDataForMobile(chartData, responsiveConfig.maxDataPoints);
+    }
+    return chartData;
+  }, [chartData, responsiveConfig.isMobile, responsiveConfig.maxDataPoints]);
+
   const getMetric = (key: string) => METRIC_OPTIONS.find(m => m.key === key) || METRIC_OPTIONS[0];
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -376,13 +384,7 @@ export default function AdSetCharts({
     );
   }
 
-  // Sample data for mobile to reduce clutter
-  const displayData = useMemo(() => {
-    if (responsiveConfig.isMobile) {
-      return sampleDataForMobile(chartData, responsiveConfig.maxDataPoints);
-    }
-    return chartData;
-  }, [chartData, responsiveConfig.isMobile, responsiveConfig.maxDataPoints]);
+  // displayData is now defined above, before the early return
 
   const chartHeight = isFullscreen ? 400 : (responsiveConfig.isMobile ? 220 : 320);
 
