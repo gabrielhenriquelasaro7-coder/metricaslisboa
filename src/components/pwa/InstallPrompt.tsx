@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Download, X, Share, Plus } from 'lucide-react';
+import { X, Share, Plus } from 'lucide-react';
 import { usePWA } from '@/hooks/usePWA';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
+import v4Logo from '@/assets/v4-logo-icon.png';
 
 export function InstallPrompt() {
   const { 
@@ -38,15 +39,27 @@ export function InstallPrompt() {
       }
     }
 
-    // Show prompt after a delay
+    // Show prompt immediately (after 1 second for smooth page load)
     const timer = setTimeout(() => {
-      if (canPromptInstall || platform === 'ios') {
+      if (canPromptInstall || platform === 'ios' || platform === 'android' || platform === 'desktop') {
         setShowPrompt(true);
       }
-    }, 5000);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [isInstalled, isStandalone, canPromptInstall, platform, dismissed]);
+
+  // Auto-hide after 10 seconds
+  useEffect(() => {
+    if (!showPrompt) return;
+    
+    const hideTimer = setTimeout(() => {
+      // Don't auto-hide, keep showing until user interacts
+      // Remove this if you want auto-hide after 10s
+    }, 10000);
+
+    return () => clearTimeout(hideTimer);
+  }, [showPrompt]);
 
   const handleInstall = async () => {
     if (platform === 'ios') {
@@ -91,7 +104,10 @@ export function InstallPrompt() {
             <Card className="bg-card border-border">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-lg">Instalar V4 Traffic</h3>
+                  <div className="flex items-center gap-3">
+                    <img src={v4Logo} alt="V4" className="w-10 h-10 rounded-lg" />
+                    <h3 className="font-semibold text-lg">Instalar V4 Traffic</h3>
+                  </div>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -135,8 +151,8 @@ export function InstallPrompt() {
           <Card className="bg-card border-border shadow-xl">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Download className="h-6 w-6 text-primary" />
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+                  <img src={v4Logo} alt="V4" className="w-10 h-10 object-contain" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-sm">Instalar V4 Traffic</h3>
