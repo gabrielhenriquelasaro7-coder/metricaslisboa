@@ -589,18 +589,15 @@ export function CustomizableChart({
       {/* Fullscreen Chart - Horizontal on mobile */}
       {isFullscreen && (
         <div 
-          className="fixed z-50 bg-background flex flex-col"
+          className="fixed inset-0 z-[100] bg-background flex flex-col"
           style={responsiveConfig.isMobile ? {
-            top: '12px',
-            left: 'calc(100% - 12px)',
-            width: 'calc(100dvh - 24px)',
-            height: 'calc(100vw - 24px)',
             transform: 'rotate(90deg)',
             transformOrigin: 'top left',
-            borderRadius: '8px',
-          } : {
-            inset: 0,
-          }}
+            top: 0,
+            left: '100%',
+            width: '100dvh',
+            height: '100vw',
+          } : undefined}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
