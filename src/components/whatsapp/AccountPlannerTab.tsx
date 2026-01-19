@@ -166,8 +166,17 @@ export function AccountPlannerTab({
         const totalLeads = data.reduce((acc, row) => acc + (row.leads_count || 0), 0);
         const totalConversionValue = data.reduce((acc, row) => acc + (row.conversion_value || 0), 0);
         
-        setRealCPL(totalLeads > 0 ? totalSpend / totalLeads : null);
-        setRealROAS(totalSpend > 0 ? totalConversionValue / totalSpend : null);
+        const cpl = totalLeads > 0 ? totalSpend / totalLeads : null;
+        const roas = totalSpend > 0 ? totalConversionValue / totalSpend : null;
+        
+        console.log('AccountPlannerTab metrics:', { totalSpend, totalLeads, totalConversionValue, cpl, roas });
+        
+        setRealCPL(cpl);
+        setRealROAS(roas);
+      } else {
+        console.log('AccountPlannerTab: No data found for project', project.id);
+        setRealCPL(null);
+        setRealROAS(null);
       }
     };
     
