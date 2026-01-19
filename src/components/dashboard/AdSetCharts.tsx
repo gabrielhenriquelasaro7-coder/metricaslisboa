@@ -433,12 +433,13 @@ export default function AdSetCharts({
         <div 
           className="fixed z-50 bg-background flex flex-col"
           style={responsiveConfig.isMobile ? {
-            top: 0,
-            left: '100%',
-            width: '100dvh',
-            height: '100vw',
+            top: '12px',
+            left: 'calc(100% - 12px)',
+            width: 'calc(100dvh - 24px)',
+            height: 'calc(100vw - 24px)',
             transform: 'rotate(90deg)',
             transformOrigin: 'top left',
+            borderRadius: '8px',
           } : {
             inset: 0,
           }}
