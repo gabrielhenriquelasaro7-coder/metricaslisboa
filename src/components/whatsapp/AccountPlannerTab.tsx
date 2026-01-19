@@ -101,6 +101,7 @@ export function AccountPlannerTab({
 
   // Planner fields
   const [currentStep, setCurrentStep] = useState('V1');
+  const [metricType, setMetricType] = useState<'roi' | 'roas'>('roi');
   const [roiAtual, setRoiAtual] = useState('');
   const [cacAtual, setCacAtual] = useState('');
   const [investimentoMensal, setInvestimentoMensal] = useState('');
@@ -128,6 +129,7 @@ export function AccountPlannerTab({
     setReportDayOfWeek(existingConfig?.report_day_of_week ?? 1);
     setReportTime(existingConfig?.report_time || '09:00');
     setCurrentStep(existingConfig?.current_step || 'V1');
+    setMetricType((existingConfig as any)?.metric_type || 'roi');
     setRoiAtual(existingConfig?.roi_atual?.toString() || '');
     setCacAtual(existingConfig?.cac_atual?.toString() || '');
     setInvestimentoMensal(existingConfig?.investimento_mensal?.toString() || '');
@@ -227,10 +229,17 @@ export function AccountPlannerTab({
     const weekStart = new Date(now);
     weekStart.setDate(weekStart.getDate() - 7);
     
-    // Determine ROI display: use manual ROI or fallback to ROAS
-    const roiDisplay = roiAtual 
-      ? `${Math.round(parseFloat(roiAtual))}x` 
-      : (realROAS ? `${Math.round(realROAS)}x (ROAS)` : '____');
+    // Determine metric display based on user choice
+    let metricLabel: string;
+    let metricValue: string;
+    
+    if (metricType === 'roi') {
+      metricLabel = 'ROI atual';
+      metricValue = roiAtual ? `${Math.round(parseFloat(roiAtual))}x` : '____';
+    } else {
+      metricLabel = 'ROAS atual';
+      metricValue = realROAS ? `${Math.round(realROAS)}x` : '____';
+    }
     
     let msg = `📊 *Diagnóstico Atual do Cliente (Ponto de Partida)*\n`;
     msg += `📋 Projeto: *${project.name}*\n\n`;
@@ -238,7 +247,7 @@ export function AccountPlannerTab({
     msg += `🎯 Step Alvo no Q1: *${targetStep}*\n\n`;
     
     msg += `📈 *Métricas Atuais* - Últimos 7 dias\n`;
-    msg += `• ROI atual: ${roiDisplay}\n`;
+    msg += `• ${metricLabel}: ${metricValue}\n`;
     msg += `• CPL atual: ${realCPL ? formatCurrency(realCPL) : '____'}\n`;
     msg += `• CAC atual: ${cacAtual ? formatCurrency(parseFloat(cacAtual)) : '____'}\n`;
     msg += `• Investimento mensal em mídia: ${investimentoMensal ? formatCurrency(parseFloat(investimentoMensal)) : '____'}\n`;
@@ -278,7 +287,7 @@ export function AccountPlannerTab({
     
     return msg;
   }, [
-    project.name, currentStep, targetStep, roiAtual, realCPL, realROAS, cacAtual,
+    project.name, currentStep, targetStep, metricType, roiAtual, realCPL, realROAS, cacAtual,
     investimentoMensal, faturamentoMarketing, metaPrincipalQuarter,
     subMetas, criteriosMudancaStep, metaSemana, metaSemanaPorque,
     linkForecasting, linkPlanoMidia, linkPlanejamentoQuarter
@@ -322,7 +331,7 @@ export function AccountPlannerTab({
 
     setSaving(true);
     try {
-      const config: Partial<PlannerConfig> & { project_id: string } = {
+      const config: Partial<PlannerConfig> & { project_id: string; metric_type?: string } = {
         project_id: project.id,
         instance_id: instanceId,
         target_type: targetType,
@@ -334,7 +343,7 @@ export function AccountPlannerTab({
         report_time: reportTime,
         current_step: currentStep,
         target_step: targetStep,
-        roi_atual: roiAtual ? parseFloat(roiAtual) : null,
+        roi_atual: metricType === 'roi' && roiAtual ? parseFloat(roiAtual) : null,
         cac_atual: cacAtual ? parseFloat(cacAtual) : null,
         investimento_mensal: investimentoMensal ? parseFloat(investimentoMensal) : null,
         faturamento_marketing: faturamentoMarketing ? parseFloat(faturamentoMarketing) : null,
@@ -538,18 +547,39 @@ export function AccountPlannerTab({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>ROI atual (manual - número inteiro)</Label>
-                <Input
-                  placeholder="Ex: 5"
-                  value={roiAtual}
-                  onChange={(e) => setRoiAtual(e.target.value)}
-                  type="number"
-                  step="1"
-                />
-                {!roiAtual && realROAS && (
-                  <p className="text-xs text-muted-foreground">
-                    Sem ROI manual, usará ROAS automático: {Math.round(realROAS)}x
-                  </p>
+                <Label>Métrica de Retorno</Label>
+                <Select value={metricType} onValueChange={(v) => setMetricType(v as 'roi' | 'roas')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="roi">ROI (manual)</SelectItem>
+                    <SelectItem value="roas">ROAS (automático)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                {metricType === 'roi' ? (
+                  <>
+                    <Label>ROI atual (número inteiro)</Label>
+                    <Input
+                      placeholder="Ex: 5"
+                      value={roiAtual}
+                      onChange={(e) => setRoiAtual(e.target.value)}
+                      type="number"
+                      step="1"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Label>ROAS atual (automático)</Label>
+                    <Input
+                      value={realROAS ? `${Math.round(realROAS)}x` : 'Aguardando dados...'}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </>
                 )}
               </div>
 
