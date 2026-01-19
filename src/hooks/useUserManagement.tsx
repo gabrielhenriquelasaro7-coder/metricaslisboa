@@ -29,7 +29,7 @@ interface UseUserManagementReturn {
   loading: boolean;
   createUser: (data: CreateUserData) => Promise<CreateUserResult>;
   updateUser: (userId: string, data: Partial<CreateUserData>) => Promise<void>;
-  deleteUser: (userId: string) => Promise<void>;
+  deleteUser: (userId: string | null, managementId?: string) => Promise<void>;
   updateUserCargo: (userId: string, cargo: UserCargo) => Promise<void>;
   updateUserSquad: (userId: string, squadId: string | null) => Promise<void>;
   importUsersFromCSV: (users: CSVUserData[]) => Promise<{ success: number; failed: number }>;
@@ -244,19 +244,31 @@ export function useUserManagement(): UseUserManagementReturn {
     }
   }, [user, canManage, fetchUsers]);
 
-  const deleteUser = useCallback(async (userId: string) => {
+  const deleteUser = useCallback(async (userId: string | null, managementId?: string) => {
     if (!user || !canManage) {
       toast.error('Você não tem permissão para excluir usuários');
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from('user_management')
-        .delete()
-        .eq('user_id', userId);
+      // If user has user_id, delete by user_id, otherwise delete by management table id
+      if (userId) {
+        const { error } = await supabase
+          .from('user_management')
+          .delete()
+          .eq('user_id', userId);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else if (managementId) {
+        const { error } = await supabase
+          .from('user_management')
+          .delete()
+          .eq('id', managementId);
+
+        if (error) throw error;
+      } else {
+        throw new Error('Nenhum identificador fornecido');
+      }
 
       toast.success('Usuário excluído com sucesso');
       await fetchUsers();
