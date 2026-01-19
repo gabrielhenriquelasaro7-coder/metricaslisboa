@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Smartphone, Users, Calendar, Clock, Link2, Target, TrendingUp, Plus, Trash2, Send, Eye, EyeOff, Edit3 } from 'lucide-react';
+import { Loader2, Smartphone, Users, Link2, Target, TrendingUp, Plus, Trash2, Send, Eye, EyeOff, Edit3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { ManagerInstance, WhatsAppGroup } from '@/hooks/useWhatsAppManager';
@@ -33,23 +33,6 @@ interface AccountPlannerTabProps {
   onListGroups: (instanceId: string) => Promise<WhatsAppGroup[]>;
   onClose: () => void;
 }
-
-const DAYS_OF_WEEK = [
-  { value: 0, label: 'Domingo' },
-  { value: 1, label: 'Segunda-feira' },
-  { value: 2, label: 'Terça-feira' },
-  { value: 3, label: 'Quarta-feira' },
-  { value: 4, label: 'Quinta-feira' },
-  { value: 5, label: 'Sexta-feira' },
-  { value: 6, label: 'Sábado' },
-];
-
-const HOUR_OPTIONS = Array.from({ length: 15 }, (_, i) => {
-  const hour = i + 6;
-  return hour.toString().padStart(2, '0');
-});
-
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
 
 const STEP_OPTIONS = ['V0', 'V1', 'V2', 'V3', 'V4'];
 
@@ -84,10 +67,9 @@ export function AccountPlannerTab({
   const [saving, setSaving] = useState(false);
   const [groups, setGroups] = useState<WhatsAppGroup[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
-  const [testingReport, setTestingReport] = useState(false);
+  const [sendingPlanner, setSendingPlanner] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [realCPL, setRealCPL] = useState<number | null>(null);
-  const [realROAS, setRealROAS] = useState<number | null>(null);
 
   // Form state
   const [instanceId, setInstanceId] = useState<string | null>(null);
@@ -95,9 +77,6 @@ export function AccountPlannerTab({
   const [phoneNumber, setPhoneNumber] = useState('');
   const [groupId, setGroupId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState<string | null>(null);
-  const [plannerEnabled, setPlannerEnabled] = useState(true);
-  const [reportDayOfWeek, setReportDayOfWeek] = useState(1);
-  const [reportTime, setReportTime] = useState('09:00');
 
   // Planner fields
   const [currentStep, setCurrentStep] = useState('V1');
@@ -122,36 +101,38 @@ export function AccountPlannerTab({
   const connectedInstances = instances.filter(i => i.instance_status === 'connected');
   const targetStep = getNextStep(currentStep);
 
-  // Reset form when config changes
+  // Initialize form only once when existingConfig is first available
+  const [initialized, setInitialized] = useState(false);
+  
   useEffect(() => {
-    setInstanceId(existingConfig?.instance_id || null);
-    setTargetType(existingConfig?.target_type || 'phone');
-    setPhoneNumber(existingConfig?.phone_number || '');
-    setGroupId(existingConfig?.group_id || null);
-    setGroupName(existingConfig?.group_name || null);
-    setPlannerEnabled(existingConfig?.planner_enabled ?? true);
-    setReportDayOfWeek(existingConfig?.report_day_of_week ?? 1);
-    setReportTime(existingConfig?.report_time || '09:00');
-    setCurrentStep(existingConfig?.current_step || 'V1');
-    setMetricType(existingConfig?.metric_type || 'roi');
-    setRoiAtual(existingConfig?.roi_atual?.toString() || '');
-    setRoasAtual(existingConfig?.roas_atual?.toString() || '');
-    setCacAtual(existingConfig?.cac_atual?.toString() || '');
-    setInvestimentoMensal(existingConfig?.investimento_mensal?.toString() || '');
-    setFaturamentoMarketing(existingConfig?.faturamento_marketing?.toString() || '');
-    setMetaPrincipalQuarter(existingConfig?.meta_principal_quarter || '');
-    setSubMetas(existingConfig?.sub_metas || []);
-    setCriteriosMudancaStep(existingConfig?.criterios_mudanca_step || []);
-    setMetaSemana(existingConfig?.meta_semana || '');
-    setMetaSemanaPorque(existingConfig?.meta_semana_porque || '');
-    setLinkForecasting(existingConfig?.link_forecasting || '');
-    setLinkPlanoMidia(existingConfig?.link_plano_midia || '');
-    setLinkPlanejamentoQuarter(existingConfig?.link_planejamento_quarter || '');
-    setHiddenFields(existingConfig?.hidden_fields || []);
-    setCustomMessage(existingConfig?.custom_message || '');
-    setUseCustomMessage(!!existingConfig?.custom_message);
-    setGroups([]);
-  }, [project.id, existingConfig]);
+    if (existingConfig && !initialized) {
+      setInstanceId(existingConfig.instance_id || null);
+      setTargetType(existingConfig.target_type || 'phone');
+      setPhoneNumber(existingConfig.phone_number || '');
+      setGroupId(existingConfig.group_id || null);
+      setGroupName(existingConfig.group_name || null);
+      // Note: planner_enabled, report_day_of_week, report_time removed - manual sending only
+      setCurrentStep(existingConfig.current_step || 'V1');
+      setMetricType(existingConfig.metric_type || 'roi');
+      setRoiAtual(existingConfig.roi_atual?.toString() || '');
+      setRoasAtual(existingConfig.roas_atual?.toString() || '');
+      setCacAtual(existingConfig.cac_atual?.toString() || '');
+      setInvestimentoMensal(existingConfig.investimento_mensal?.toString() || '');
+      setFaturamentoMarketing(existingConfig.faturamento_marketing?.toString() || '');
+      setMetaPrincipalQuarter(existingConfig.meta_principal_quarter || '');
+      setSubMetas(existingConfig.sub_metas || []);
+      setCriteriosMudancaStep(existingConfig.criterios_mudanca_step || []);
+      setMetaSemana(existingConfig.meta_semana || '');
+      setMetaSemanaPorque(existingConfig.meta_semana_porque || '');
+      setLinkForecasting(existingConfig.link_forecasting || '');
+      setLinkPlanoMidia(existingConfig.link_plano_midia || '');
+      setLinkPlanejamentoQuarter(existingConfig.link_planejamento_quarter || '');
+      setHiddenFields(existingConfig.hidden_fields || []);
+      setCustomMessage(existingConfig.custom_message || '');
+      setUseCustomMessage(!!existingConfig.custom_message);
+      setInitialized(true);
+    }
+  }, [existingConfig, initialized]);
 
   // Fetch real CPL and ROAS from database
   useEffect(() => {
@@ -173,16 +154,13 @@ export function AccountPlannerTab({
         const totalConversionValue = data.reduce((acc, row) => acc + (row.conversion_value || 0), 0);
         
         const cpl = totalLeads > 0 ? totalSpend / totalLeads : null;
-        const roas = totalSpend > 0 ? totalConversionValue / totalSpend : null;
         
-        console.log('AccountPlannerTab metrics:', { totalSpend, totalLeads, totalConversionValue, cpl, roas });
+        console.log('AccountPlannerTab metrics:', { totalSpend, totalLeads, cpl });
         
         setRealCPL(cpl);
-        setRealROAS(roas);
       } else {
         console.log('AccountPlannerTab: No data found for project', project.id);
         setRealCPL(null);
-        setRealROAS(null);
       }
     };
     
@@ -351,7 +329,7 @@ export function AccountPlannerTab({
     useCustomMessage, customMessage
   ]);
 
-  const handleTestReport = async () => {
+  const handleSendPlanner = async () => {
     if (!instanceId) return;
     
     const target = targetType === 'phone' ? phoneNumber.replace(/\D/g, '') : groupId;
@@ -360,7 +338,7 @@ export function AccountPlannerTab({
       return;
     }
 
-    setTestingReport(true);
+    setSendingPlanner(true);
     try {
       const messageToSend = generateMessage();
 
@@ -370,17 +348,17 @@ export function AccountPlannerTab({
           targetType,
           phone: targetType === 'phone' ? target : undefined,
           groupId: targetType === 'group' ? target : undefined,
-          message: `🧪 *TESTE DE PLANNER MONDAY*\n\n${messageToSend}`,
+          message: messageToSend,
         }
       });
 
       if (error) throw error;
-      toast.success('Mensagem de teste enviada com sucesso!');
+      toast.success('Planner Monday enviado com sucesso!');
     } catch (error: any) {
-      console.error('Error sending test report:', error);
-      toast.error('Erro ao enviar teste: ' + (error.message || 'Erro desconhecido'));
+      console.error('Error sending planner:', error);
+      toast.error('Erro ao enviar: ' + (error.message || 'Erro desconhecido'));
     } finally {
-      setTestingReport(false);
+      setSendingPlanner(false);
     }
   };
 
@@ -396,9 +374,7 @@ export function AccountPlannerTab({
         phone_number: targetType === 'phone' ? phoneNumber.replace(/\D/g, '') : null,
         group_id: targetType === 'group' ? groupId : null,
         group_name: targetType === 'group' ? groupName : null,
-        planner_enabled: plannerEnabled,
-        report_day_of_week: reportDayOfWeek,
-        report_time: reportTime,
+        // Note: Removed automatic scheduling - manual sending only
         current_step: currentStep,
         target_step: targetStep,
         metric_type: metricType,
@@ -498,77 +474,6 @@ export function AccountPlannerTab({
               />
             </TabsContent>
           </Tabs>
-
-          {/* Schedule Settings */}
-          <div className="space-y-4 pt-4 border-t">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Relatório Semanal (Planner Monday)</Label>
-                <p className="text-sm text-muted-foreground">Enviar planner automático</p>
-              </div>
-              <Switch checked={plannerEnabled} onCheckedChange={setPlannerEnabled} />
-            </div>
-
-            {plannerEnabled && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" /> Dia da Semana
-                  </Label>
-                  <Select 
-                    value={reportDayOfWeek.toString()} 
-                    onValueChange={(v) => setReportDayOfWeek(parseInt(v))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DAYS_OF_WEEK.map(day => (
-                        <SelectItem key={day.value} value={day.value.toString()}>
-                          {day.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" /> Horário
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Select 
-                      value={reportTime.split(':')[0]} 
-                      onValueChange={(h) => setReportTime(`${h}:${reportTime.split(':')[1] || '00'}`)}
-                    >
-                      <SelectTrigger className="w-20">
-                        <SelectValue placeholder="Hora" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {HOUR_OPTIONS.map(hour => (
-                          <SelectItem key={hour} value={hour}>{hour}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className="text-lg font-medium">:</span>
-                    <Select 
-                      value={reportTime.split(':')[1] || '00'} 
-                      onValueChange={(m) => setReportTime(`${reportTime.split(':')[0] || '09'}:${m}`)}
-                    >
-                      <SelectTrigger className="w-20">
-                        <SelectValue placeholder="Min" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MINUTE_OPTIONS.map(min => (
-                          <SelectItem key={min} value={min}>{min}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Step Configuration */}
           <div className="space-y-4 pt-4 border-t">
@@ -966,7 +871,7 @@ export function AccountPlannerTab({
             )}
           </div>
 
-          {/* Preview and Test */}
+          {/* Preview and Actions */}
           <div className="space-y-3 pt-4 border-t">
             <Button
               type="button"
@@ -986,7 +891,7 @@ export function AccountPlannerTab({
                     {generateMessage()}
                   </pre>
                   <span className="text-[10px] text-white/60 float-right mt-1">
-                    {reportTime} ✓✓
+                    Agora ✓✓
                   </span>
                 </div>
               </div>
@@ -994,18 +899,16 @@ export function AccountPlannerTab({
 
             <Button
               type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleTestReport}
-              disabled={testingReport || !instanceId}
+              onClick={handleSendPlanner}
+              disabled={sendingPlanner || !instanceId || !(targetType === 'phone' ? phoneNumber : groupId)}
               className="w-full gap-2"
             >
-              {testingReport ? (
+              {sendingPlanner ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Send className="w-4 h-4" />
               )}
-              Testar Planner Monday
+              Enviar Planner Monday
             </Button>
           </div>
 
