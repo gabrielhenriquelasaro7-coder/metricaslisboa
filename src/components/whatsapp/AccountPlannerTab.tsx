@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -13,16 +12,27 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Smartphone, Users, Link2, Target, TrendingUp, Plus, Trash2, Send, Eye, EyeOff, Edit3 } from 'lucide-react';
+import { Loader2, Smartphone, Users, Link2, Target, TrendingUp, Plus, Trash2, Send, Eye, EyeOff, Edit3, Clock, History, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { ManagerInstance, WhatsAppGroup } from '@/hooks/useWhatsAppManager';
 import type { PlannerConfig, SubMeta } from '@/hooks/useWhatsAppPlannerConfig';
 import { WhatsAppGroupSelector } from './WhatsAppGroupSelector';
+import { useAuth } from '@/hooks/useAuth';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface Project {
   id: string;
   name: string;
+}
+
+interface PlannerHistoryItem {
+  id: string;
+  sent_at: string;
+  target_type: string;
+  target_name: string | null;
+  status: string;
 }
 
 interface AccountPlannerTabProps {
@@ -64,12 +74,14 @@ export function AccountPlannerTab({
   onListGroups,
   onClose,
 }: AccountPlannerTabProps) {
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [groups, setGroups] = useState<WhatsAppGroup[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [sendingPlanner, setSendingPlanner] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [realCPL, setRealCPL] = useState<number | null>(null);
+  const [sendHistory, setSendHistory] = useState<PlannerHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Form state
   const [instanceId, setInstanceId] = useState<string | null>(null);
@@ -95,9 +107,8 @@ export function AccountPlannerTab({
   const [linkPlanoMidia, setLinkPlanoMidia] = useState('');
   const [linkPlanejamentoQuarter, setLinkPlanejamentoQuarter] = useState('');
   const [hiddenFields, setHiddenFields] = useState<string[]>([]);
-  const [customMessage, setCustomMessage] = useState('');
-  const [useCustomMessage, setUseCustomMessage] = useState(false);
-
+  const [messageTemplate, setMessageTemplate] = useState('');
+  const [metricsLoaded, setMetricsLoaded] = useState(false);
   const connectedInstances = instances.filter(i => i.instance_status === 'connected');
   const targetStep = getNextStep(currentStep);
 
@@ -128,8 +139,7 @@ export function AccountPlannerTab({
       setLinkPlanoMidia(existingConfig.link_plano_midia || '');
       setLinkPlanejamentoQuarter(existingConfig.link_planejamento_quarter || '');
       setHiddenFields(existingConfig.hidden_fields || []);
-      setCustomMessage(existingConfig.custom_message || '');
-      setUseCustomMessage(!!existingConfig.custom_message);
+      setMessageTemplate(existingConfig.custom_message || '');
       setInitialized(true);
     }
   }, [existingConfig, initialized]);
@@ -158,9 +168,11 @@ export function AccountPlannerTab({
         console.log('AccountPlannerTab metrics:', { totalSpend, totalLeads, cpl });
         
         setRealCPL(cpl);
+        setMetricsLoaded(true);
       } else {
         console.log('AccountPlannerTab: No data found for project', project.id);
         setRealCPL(null);
+        setMetricsLoaded(true);
       }
     };
     
@@ -229,16 +241,8 @@ export function AccountPlannerTab({
 
   const formatCurrency = (n: number) => `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const generateMessage = useCallback(() => {
-    // If using custom message, return it directly
-    if (useCustomMessage && customMessage.trim()) {
-      return customMessage;
-    }
-
-    const now = new Date();
-    const weekStart = new Date(now);
-    weekStart.setDate(weekStart.getDate() - 7);
-    
+  // Generate the default template message
+  const generateDefaultTemplate = useCallback(() => {
     // Determine metric display based on user choice
     let metricLabel: string;
     let metricValue: string;
@@ -250,6 +254,11 @@ export function AccountPlannerTab({
       metricLabel = 'ROAS atual';
       metricValue = roasAtual ? `${Math.round(parseFloat(roasAtual))}x` : '____';
     }
+
+    // CPL display: show R$ 0,00 or message if no leads
+    const cplDisplay = realCPL !== null 
+      ? formatCurrency(realCPL) 
+      : 'Não teve leads nos últimos 7 dias';
     
     let msg = `📊 *Diagnóstico Atual do Cliente (Ponto de Partida)*\n`;
     msg += `📋 Projeto: *${project.name}*\n\n`;
@@ -261,7 +270,7 @@ export function AccountPlannerTab({
       msg += `• ${metricLabel}: ${metricValue}\n`;
     }
     if (!isFieldHidden('cpl')) {
-      msg += `• CPL atual: ${realCPL ? formatCurrency(realCPL) : '____'}\n`;
+      msg += `• CPL atual: ${cplDisplay}\n`;
     }
     if (!isFieldHidden('cac')) {
       msg += `• CAC atual: ${cacAtual ? formatCurrency(parseFloat(cacAtual)) : '____'}\n`;
@@ -325,12 +334,52 @@ export function AccountPlannerTab({
     project.name, currentStep, targetStep, metricType, roiAtual, roasAtual, realCPL, cacAtual,
     investimentoMensal, faturamentoMarketing, metaPrincipalQuarter,
     subMetas, criteriosMudancaStep, metaSemana, metaSemanaPorque,
-    linkForecasting, linkPlanoMidia, linkPlanejamentoQuarter, hiddenFields,
-    useCustomMessage, customMessage
+    linkForecasting, linkPlanoMidia, linkPlanejamentoQuarter, hiddenFields
   ]);
 
+  // Pre-populate message template when metrics load
+  useEffect(() => {
+    if (metricsLoaded && !messageTemplate && !existingConfig?.custom_message) {
+      setMessageTemplate(generateDefaultTemplate());
+    }
+  }, [metricsLoaded, existingConfig?.custom_message]);
+
+  // Update template when form fields change (only if user hasn't customized)
+  const handleRefreshTemplate = () => {
+    setMessageTemplate(generateDefaultTemplate());
+    toast.success('Mensagem atualizada com os dados atuais');
+  };
+
+  // The current message to send - always use the editable template
+  const currentMessage = messageTemplate || generateDefaultTemplate();
+
+  // Load send history
+  const loadSendHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from('whatsapp_planner_history')
+        .select('id, sent_at, target_type, target_name, status')
+        .eq('project_id', project.id)
+        .order('sent_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setSendHistory(data || []);
+    } catch (error) {
+      console.error('Error loading history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Load history on mount
+  useEffect(() => {
+    loadSendHistory();
+  }, [project.id]);
+
   const handleSendPlanner = async () => {
-    if (!instanceId) return;
+    if (!instanceId || !user) return;
     
     const target = targetType === 'phone' ? phoneNumber.replace(/\D/g, '') : groupId;
     if (!target) {
@@ -340,7 +389,7 @@ export function AccountPlannerTab({
 
     setSendingPlanner(true);
     try {
-      const messageToSend = generateMessage();
+      const messageToSend = currentMessage;
 
       const { error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
@@ -353,7 +402,22 @@ export function AccountPlannerTab({
       });
 
       if (error) throw error;
+
+      // Record send history
+      await supabase.from('whatsapp_planner_history').insert({
+        project_id: project.id,
+        config_id: existingConfig?.id || null,
+        user_id: user.id,
+        message_content: messageToSend,
+        target_type: targetType,
+        target_identifier: target,
+        target_name: targetType === 'group' ? groupName : phoneNumber,
+        instance_id: instanceId,
+        status: 'sent'
+      });
+
       toast.success('Planner Monday enviado com sucesso!');
+      loadSendHistory(); // Refresh history
     } catch (error: any) {
       console.error('Error sending planner:', error);
       toast.error('Erro ao enviar: ' + (error.message || 'Erro desconhecido'));
@@ -392,7 +456,7 @@ export function AccountPlannerTab({
         link_plano_midia: linkPlanoMidia || null,
         link_planejamento_quarter: linkPlanejamentoQuarter || null,
         hidden_fields: hiddenFields,
-        custom_message: useCustomMessage ? customMessage : null,
+        custom_message: messageTemplate || null,
       };
 
       const success = await onSave(config);
@@ -839,64 +903,96 @@ export function AccountPlannerTab({
             </div>
           </div>
 
-          {/* Custom Message Editor */}
+          {/* Editable Message Template */}
           <div className="space-y-4 pt-4 border-t">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-primary" />
-                <Label className="text-base font-semibold">Mensagem Personalizada</Label>
+                <Label className="text-base font-semibold">Mensagem do Planner Monday</Label>
               </div>
-              <Switch
-                checked={useCustomMessage}
-                onCheckedChange={setUseCustomMessage}
-              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleRefreshTemplate}
+                className="gap-1 text-xs"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Atualizar com dados
+              </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Ative para usar uma mensagem 100% customizada ao invés da gerada automaticamente
+              Edite a mensagem conforme necessário. Use *texto* para negrito, _texto_ para itálico
             </p>
             
-            {useCustomMessage && (
-              <div className="space-y-2">
-                <Textarea
-                  placeholder="Digite sua mensagem personalizada aqui... Use *texto* para negrito."
-                  value={customMessage}
-                  onChange={(e) => setCustomMessage(e.target.value)}
-                  rows={10}
-                  className="font-mono text-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Dica: Use *texto* para negrito, _texto_ para itálico
-                </p>
-              </div>
-            )}
-          </div>
+            <div className="space-y-2">
+              <Textarea
+                placeholder="A mensagem será gerada automaticamente..."
+                value={messageTemplate}
+                onChange={(e) => setMessageTemplate(e.target.value)}
+                rows={16}
+                className="font-mono text-sm"
+              />
+            </div>
 
-          {/* Preview and Actions */}
-          <div className="space-y-3 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowPreview(!showPreview)}
-              className="gap-2 w-full"
-            >
-              <Eye className="w-4 h-4" />
-              {showPreview ? 'Ocultar Preview' : 'Ver Preview no WhatsApp'}
-            </Button>
-            
-            {showPreview && (
-              <div className="bg-[#0b141a] rounded-lg p-4 border border-border/50">
+            {/* WhatsApp Preview */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Preview no WhatsApp:</Label>
+              <div className="bg-[#0b141a] rounded-lg p-4 border border-border/50 max-h-80 overflow-y-auto">
                 <div className="bg-[#005c4b] rounded-lg p-3 max-w-[85%] ml-auto">
                   <pre className="text-sm text-white whitespace-pre-wrap font-sans leading-relaxed">
-                    {generateMessage()}
+                    {currentMessage}
                   </pre>
                   <span className="text-[10px] text-white/60 float-right mt-1">
                     Agora ✓✓
                   </span>
                 </div>
               </div>
-            )}
+            </div>
+          </div>
 
+          {/* Send History */}
+          <div className="space-y-4 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-primary" />
+                <Label className="text-base font-semibold">Histórico de Envios</Label>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={loadSendHistory}
+                disabled={loadingHistory}
+                className="gap-1 text-xs"
+              >
+                {loadingHistory ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                Atualizar
+              </Button>
+            </div>
+
+            {sendHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">Nenhum envio registrado ainda</p>
+            ) : (
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {sendHistory.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                      <span>{format(new Date(item.sent_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      {item.target_type === 'group' ? <Users className="w-3 h-3" /> : <Smartphone className="w-3 h-3" />}
+                      <span className="text-xs">{item.target_name || 'Destino'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="space-y-3 pt-4 border-t">
             <Button
               type="button"
               onClick={handleSendPlanner}

@@ -2857,6 +2857,66 @@ export type Database = {
           },
         ]
       }
+      whatsapp_planner_history: {
+        Row: {
+          config_id: string | null
+          created_at: string
+          id: string
+          instance_id: string | null
+          message_content: string
+          project_id: string
+          sent_at: string
+          status: string | null
+          target_identifier: string | null
+          target_name: string | null
+          target_type: string
+          user_id: string
+        }
+        Insert: {
+          config_id?: string | null
+          created_at?: string
+          id?: string
+          instance_id?: string | null
+          message_content: string
+          project_id: string
+          sent_at?: string
+          status?: string | null
+          target_identifier?: string | null
+          target_name?: string | null
+          target_type?: string
+          user_id: string
+        }
+        Update: {
+          config_id?: string | null
+          created_at?: string
+          id?: string
+          instance_id?: string | null
+          message_content?: string
+          project_id?: string
+          sent_at?: string
+          status?: string | null
+          target_identifier?: string | null
+          target_name?: string | null
+          target_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_planner_history_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_planner_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_planner_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_report_configs: {
         Row: {
           balance_alert_enabled: boolean | null
