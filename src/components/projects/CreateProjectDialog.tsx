@@ -109,6 +109,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       .from('user_management')
       .select('id, user_id, full_name, email, squad_id')
       .eq('cargo', 'coordenador')
+      .not('user_id', 'is', null) // Only active users
       .order('full_name');
     
     if (!error && data) {

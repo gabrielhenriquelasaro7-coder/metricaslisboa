@@ -394,6 +394,7 @@ export default function ProjectSelector() {
         .from('user_management')
         .select('id, user_id, full_name, email, cargo, squad_id')
         .in('cargo', ['investidor', 'coordenador'])
+        .not('user_id', 'is', null) // Only active users
         .order('full_name');
       
       if (data) {
