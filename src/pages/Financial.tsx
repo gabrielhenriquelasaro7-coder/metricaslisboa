@@ -264,21 +264,7 @@ export default function Financial() {
         {/* Content based on business model */}
         {/* For infoproduto/ecommerce - show DRE without CRM requirement */}
         {(businessModel === 'infoproduto' || businessModel === 'ecommerce' || businessModel === 'custom') && !connectedCRM ? (
-          <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="inline-flex w-full sm:w-auto gap-1 p-1">
-              <TabsTrigger value="overview" className="flex-1 sm:flex-none gap-2 px-3 py-2 text-xs sm:text-sm">
-                <LayoutDashboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden xs:inline">Visão Geral</span>
-                <span className="xs:hidden">Geral</span>
-              </TabsTrigger>
-              <TabsTrigger value="dre" className="flex-1 sm:flex-none gap-2 px-3 py-2 text-xs sm:text-sm">
-                <PieChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">DRE Completo</span>
-                <span className="sm:hidden">DRE</span>
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="space-y-6">
+          <div className="space-y-6">
               {/* Overview metrics from ads - responsive grid */}
               <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-4">
                 <Card className="bg-gradient-to-br from-blue-600/20 to-blue-900/30 border-blue-500/30">
@@ -342,6 +328,24 @@ export default function Financial() {
                 </Card>
               </div>
 
+              {/* DRE Maintenance Card */}
+              <Card className="border-yellow-500/30 bg-yellow-500/5">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-yellow-500/10">
+                      <AlertCircle className="h-6 w-6 text-yellow-500" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">DRE em Manutenção</h3>
+                      <p className="text-muted-foreground mt-1">
+                        O módulo de Demonstração de Resultado (DRE) está temporariamente em manutenção. 
+                        Em breve estará disponível com melhorias.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Info card about connecting payment platform */}
               <Card className="border-primary/30 bg-primary/5">
                 <CardContent className="p-6">
@@ -359,18 +363,7 @@ export default function Financial() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            <TabsContent value="dre" className="space-y-6">
-              <CompleteDRE
-                grossRevenue={adsMetrics.revenue}
-                adSpend={totalAdSpend}
-                businessModel={businessModel}
-                period={drePeriod}
-                onPeriodChange={setDrePeriod}
-              />
-            </TabsContent>
-          </Tabs>
+          </div>
         ) : !connectedCRM ? (
           /* For inside_sales/pdv without CRM - show connection prompt */
           <CRMConnectionCard
@@ -387,7 +380,7 @@ export default function Financial() {
             {/* Header with tabs and pipeline selector */}
             <div className="flex flex-col gap-2">
               {/* Tabs - fixed grid, no scroll needed */}
-              <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted/50">
+              <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted/50">
                 <TabsTrigger value="overview" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
                   <LayoutDashboard className="w-4 h-4" />
                   <span>Geral</span>
@@ -399,10 +392,6 @@ export default function Financial() {
                 <TabsTrigger value="attribution" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
                   <Target className="w-4 h-4" />
                   <span>Atrib.</span>
-                </TabsTrigger>
-                <TabsTrigger value="dre" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
-                  <PieChart className="w-4 h-4" />
-                  <span>DRE</span>
                 </TabsTrigger>
               </TabsList>
               
@@ -482,7 +471,23 @@ export default function Financial() {
                   isRefreshing={crmLoading}
                 />
               ) : (
-                <FinancialDRECard {...dreData} />
+                /* DRE Maintenance Card */
+                <Card className="border-yellow-500/30 bg-yellow-500/5">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-xl bg-yellow-500/10">
+                        <AlertCircle className="h-6 w-6 text-yellow-500" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">DRE em Manutenção</h3>
+                        <p className="text-muted-foreground mt-1">
+                          O módulo de Demonstração de Resultado (DRE) está temporariamente em manutenção. 
+                          Em breve estará disponível com melhorias.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
 
@@ -513,15 +518,6 @@ export default function Financial() {
                 stages={crmStatus?.stages || []}
                 adSpend={totalAdSpend}
                 isLoading={crmLoading}
-              />
-            </TabsContent>
-
-            <TabsContent value="dre" className="space-y-6">
-              <CompleteDRE
-                grossRevenue={crmMetrics.revenue}
-                adSpend={totalAdSpend}
-                businessModel={businessModel!}
-                periodLabel="Últimos 30 dias"
               />
             </TabsContent>
           </Tabs>
