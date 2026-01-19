@@ -421,7 +421,7 @@ export default function AdvancedCharts({
                 <Settings2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
                 <h3 className="text-base sm:text-lg font-semibold">{title}</h3>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <ChartTypeSelector value={chartType} onChange={setChartType} />
                 <ChartFullscreenButton onClick={openFullscreen} />
               </div>
