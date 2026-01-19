@@ -430,82 +430,92 @@ export default function AdSetCharts({
 
       {/* Fullscreen Chart Dialog */}
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-        <DialogContent className="max-w-[100vw] w-[100vw] h-[100dvh] max-h-[100dvh] p-0 bg-background border-0 rounded-none overflow-hidden">
+        <DialogContent 
+          className={cn(
+            "p-0 bg-background border-0 overflow-hidden",
+            responsiveConfig.isMobile 
+              ? "fixed inset-0 w-screen h-screen max-w-none max-h-none rounded-none" 
+              : "max-w-[95vw] w-[95vw] h-[85vh] max-h-[85vh]"
+          )}
+        >
           <VisuallyHidden>
             <DialogTitle>Gráfico em Tela Cheia</DialogTitle>
           </VisuallyHidden>
           
-          {/* Close button - fixed position */}
-          <Button
-            size="sm"
-            variant="secondary"
-            className="fixed top-3 right-3 z-50 h-8 w-8 p-0 rounded-full shadow-lg"
-            onClick={() => setIsFullscreen(false)}
-          >
-            <X className="w-4 h-4" />
-          </Button>
-
-          {/* Chart container - full screen */}
-          <div className="w-full h-full flex items-center justify-center p-2">
-            {responsiveConfig.isMobile ? (
-              // Mobile: rotate the chart for landscape view
-              <div 
-                className="flex items-center justify-center"
-                style={{ 
-                  width: 'calc(100dvh - 20px)',
-                  height: 'calc(100vw - 40px)',
-                  transform: 'rotate(90deg)',
-                }}
-              >
-                <div className="w-full h-full flex flex-col">
-                  {/* Header inside rotated container */}
-                  <div className="flex items-center justify-between px-4 py-2 shrink-0">
-                    <div className="flex items-center gap-2">
-                      <Settings2 className="w-4 h-4 text-muted-foreground" />
-                      <h3 className="text-sm font-semibold">
-                        {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
-                      </h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
-                      <span className="text-muted-foreground text-xs">vs</span>
-                      <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
-                      <ChartTypeSelector value={chartType} onChange={setChartType} />
-                    </div>
-                  </div>
-                  {/* Chart */}
-                  <div className="flex-1 px-2 pb-2">
-                    <ResponsiveContainer width="100%" height="100%">
-                      {renderChart()}
-                    </ResponsiveContainer>
-                  </div>
+          {responsiveConfig.isMobile ? (
+            // Mobile: Landscape rotated view
+            <div 
+              className="fixed inset-0 bg-background flex flex-col"
+              style={{ 
+                width: '100vh',
+                height: '100vw',
+                transform: 'rotate(90deg) translateY(-100%)',
+                transformOrigin: 'top left',
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
+                <div className="flex items-center gap-2">
+                  <Settings2 className="w-3.5 h-3.5 text-muted-foreground" />
+                  <h3 className="text-xs font-semibold">
+                    {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
+                  <span className="text-muted-foreground text-[10px]">vs</span>
+                  <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
+                  <ChartTypeSelector value={chartType} onChange={setChartType} />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 ml-1"
+                    onClick={() => setIsFullscreen(false)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
-            ) : (
-              // Desktop: normal view
-              <div className="w-full h-full flex flex-col">
-                <div className="flex items-center justify-between p-4 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Settings2 className="w-4 h-4 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold">
-                      {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
-                    <span className="text-muted-foreground text-xs">vs</span>
-                    <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
-                    <ChartTypeSelector value={chartType} onChange={setChartType} />
-                  </div>
+              
+              {/* Chart - fills remaining space */}
+              <div className="flex-1 p-2 min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  {renderChart()}
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : (
+            // Desktop: normal fullscreen view
+            <div className="w-full h-full flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+                <div className="flex items-center gap-2">
+                  <Settings2 className="w-4 h-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold">
+                    {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
+                  </h3>
                 </div>
-                <div className="flex-1 px-4 pb-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    {renderChart()}
-                  </ResponsiveContainer>
+                <div className="flex items-center gap-2">
+                  <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
+                  <span className="text-muted-foreground text-xs">vs</span>
+                  <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
+                  <ChartTypeSelector value={chartType} onChange={setChartType} />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 ml-2"
+                    onClick={() => setIsFullscreen(false)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
-            )}
-          </div>
+              <div className="flex-1 p-4 min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  {renderChart()}
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
