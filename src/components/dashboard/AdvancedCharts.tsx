@@ -18,8 +18,9 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, LineChart, TrendingUp, Settings2 } from 'lucide-react';
+import { BarChart2, LineChart, TrendingUp, Settings2, Maximize2, X } from 'lucide-react';
 import { useChartResponsive, sampleDataForMobile, formatCompactCurrency, formatCompactNumber } from '@/hooks/useChartResponsive';
+import { ChartFullscreenButton, ChartFullscreenModal, useChartFullscreen } from '@/components/ui/chart-fullscreen';
 
 type ChartType = 'area' | 'bar' | 'composed';
 
@@ -399,29 +400,56 @@ export default function AdvancedCharts({
     setPrimaryMetric: (v: string) => void;
     secondaryMetric: string;
     setSecondaryMetric: (v: string) => void;
-  }) => (
-    <div className="glass-card p-4 sm:p-6 transition-all duration-300">
-      <div className="flex flex-col gap-3 mb-4 sm:mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Settings2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
-            <h3 className="text-base sm:text-lg font-semibold">{title}</h3>
+  }) => {
+    const { isFullscreen, openFullscreen, closeFullscreen } = useChartFullscreen();
+    
+    const fullscreenControls = (
+      <>
+        <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
+        <span className="text-muted-foreground text-xs">vs</span>
+        <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
+        <ChartTypeSelector value={chartType} onChange={setChartType} />
+      </>
+    );
+
+    return (
+      <>
+        <div className="glass-card p-4 sm:p-6 transition-all duration-300">
+          <div className="flex flex-col gap-3 mb-4 sm:mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Settings2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
+                <h3 className="text-base sm:text-lg font-semibold">{title}</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <ChartTypeSelector value={chartType} onChange={setChartType} />
+                <ChartFullscreenButton onClick={openFullscreen} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
+              <span className="text-muted-foreground text-xs">vs</span>
+              <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
+            </div>
           </div>
-          <ChartTypeSelector value={chartType} onChange={setChartType} />
+          <div style={{ height: responsive.chartHeight }} className="w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              {renderChart(chartType, primaryMetric, secondaryMetric)}
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
-          <span className="text-muted-foreground text-xs">vs</span>
-          <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
-        </div>
-      </div>
-      <div style={{ height: responsive.chartHeight }} className="w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        
+        <ChartFullscreenModal
+          isOpen={isFullscreen}
+          onClose={closeFullscreen}
+          title={title}
+          controls={fullscreenControls}
+        >
           {renderChart(chartType, primaryMetric, secondaryMetric)}
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
+        </ChartFullscreenModal>
+      </>
+    );
+  };
 
   return (
     <div className={cn('space-y-4 sm:space-y-6', className)}>

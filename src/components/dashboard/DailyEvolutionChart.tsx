@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { 
   AreaChart, 
   Area, 
@@ -17,6 +17,7 @@ import { DailyMetric } from '@/hooks/useDailyMetrics';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useChartResponsive, sampleDataForMobile, formatCompactCurrency } from '@/hooks/useChartResponsive';
+import { ChartFullscreenButton, ChartFullscreenModal, useChartFullscreen } from '@/components/ui/chart-fullscreen';
 
 interface DailyEvolutionChartProps {
   data: DailyMetric[];
@@ -85,6 +86,7 @@ export default function DailyEvolutionChart({
 }: DailyEvolutionChartProps) {
   const isEcommerce = businessModel === 'ecommerce';
   const responsive = useChartResponsive();
+  const { isFullscreen, openFullscreen, closeFullscreen } = useChartFullscreen();
   
   // Calculate the date range span to determine if we should aggregate by month
   const shouldAggregateByMonth = useMemo(() => {
@@ -188,115 +190,134 @@ export default function DailyEvolutionChart({
     );
   }
 
+  const chartTitle = `${shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'} - ${isEcommerce ? 'Gasto vs Receita' : 'Gasto vs Leads'}`;
+
+  const renderChartContent = () => (
+    <ComposedChart data={chartData} margin={responsive.chartMargins}>
+      <defs>
+        <linearGradient id="gradientSpend" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+        </linearGradient>
+        <linearGradient id="gradientRevenue" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="5%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.4} />
+          <stop offset="95%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+      <XAxis 
+        dataKey="date" 
+        stroke="hsl(var(--muted-foreground))" 
+        fontSize={responsive.xAxisFontSize}
+        tickLine={false}
+        axisLine={false}
+        angle={responsive.xAxisAngle}
+        textAnchor={responsive.xAxisTextAnchor}
+        height={responsive.isMobile ? 40 : 30}
+        interval={responsive.isMobile ? 'preserveStartEnd' : 'equidistantPreserveStart'}
+        tick={{ dy: responsive.isMobile ? 8 : 0 }}
+      />
+      <YAxis 
+        yAxisId="left"
+        stroke="hsl(var(--muted-foreground))" 
+        fontSize={responsive.yAxisFontSize}
+        tickLine={false}
+        axisLine={false}
+        tickFormatter={formatCurrency}
+        width={responsive.isMobile ? 45 : 60}
+      />
+      {!responsive.isMobile && (
+        <YAxis 
+          yAxisId="right"
+          orientation="right"
+          stroke="hsl(var(--muted-foreground))" 
+          fontSize={responsive.yAxisFontSize}
+          tickLine={false}
+          axisLine={false}
+        />
+      )}
+      <Tooltip content={<CustomTooltip />} />
+      <Legend 
+        wrapperStyle={responsive.legendWrapperStyle}
+        formatter={(value) => <span className="text-xs sm:text-sm">{value}</span>}
+        iconSize={responsive.isMobile ? 8 : 14}
+      />
+      
+      {/* Gasto */}
+      <Area
+        yAxisId="left"
+        type="monotone"
+        dataKey="spend"
+        name="Gasto"
+        stroke="hsl(var(--primary))"
+        strokeWidth={responsive.strokeWidth}
+        fill="url(#gradientSpend)"
+        dot={false}
+        activeDot={{ r: responsive.activeDotRadius }}
+      />
+      
+      {/* Receita (E-commerce) ou Conversões como barras */}
+      {isEcommerce ? (
+        <Area
+          yAxisId="left"
+          type="monotone"
+          dataKey="revenue"
+          name="Receita"
+          stroke="hsl(142, 76%, 36%)"
+          strokeWidth={responsive.strokeWidth}
+          fill="url(#gradientRevenue)"
+          dot={false}
+          activeDot={{ r: responsive.activeDotRadius }}
+        />
+      ) : (
+        <Bar
+          yAxisId={responsive.isMobile ? "left" : "right"}
+          dataKey="conversions"
+          name="Leads"
+          fill="hsl(var(--chart-1))"
+          radius={responsive.barRadius}
+          opacity={0.8}
+        />
+      )}
+      
+      {/* ROAS como linha secundária - hide on mobile for cleaner view */}
+      {isEcommerce && !responsive.isMobile && (
+        <Line
+          yAxisId="right"
+          type="monotone"
+          dataKey="roas"
+          name="ROAS"
+          stroke="hsl(var(--chart-2))"
+          strokeWidth={responsive.strokeWidth}
+          dot={false}
+        />
+      )}
+    </ComposedChart>
+  );
+
   return (
-    <div className={cn('glass-card p-4 sm:p-6', className)}>
-      <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">
-        {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'} - {isEcommerce ? 'Gasto vs Receita' : 'Gasto vs Leads'}
-      </h3>
-      <div style={{ height: responsive.chartHeight }} className="w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={responsive.chartMargins}>
-            <defs>
-              <linearGradient id="gradientSpend" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="gradientRevenue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-            <XAxis 
-              dataKey="date" 
-              stroke="hsl(var(--muted-foreground))" 
-              fontSize={responsive.xAxisFontSize}
-              tickLine={false}
-              axisLine={false}
-              angle={responsive.xAxisAngle}
-              textAnchor={responsive.xAxisTextAnchor}
-              height={responsive.isMobile ? 40 : 30}
-              interval={responsive.isMobile ? 'preserveStartEnd' : 'equidistantPreserveStart'}
-              tick={{ dy: responsive.isMobile ? 8 : 0 }}
-            />
-            <YAxis 
-              yAxisId="left"
-              stroke="hsl(var(--muted-foreground))" 
-              fontSize={responsive.yAxisFontSize}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={formatCurrency}
-              width={responsive.isMobile ? 45 : 60}
-            />
-            {!responsive.isMobile && (
-              <YAxis 
-                yAxisId="right"
-                orientation="right"
-                stroke="hsl(var(--muted-foreground))" 
-                fontSize={responsive.yAxisFontSize}
-                tickLine={false}
-                axisLine={false}
-              />
-            )}
-            <Tooltip content={<CustomTooltip />} />
-            <Legend 
-              wrapperStyle={responsive.legendWrapperStyle}
-              formatter={(value) => <span className="text-xs sm:text-sm">{value}</span>}
-              iconSize={responsive.isMobile ? 8 : 14}
-            />
-            
-            {/* Gasto */}
-            <Area
-              yAxisId="left"
-              type="monotone"
-              dataKey="spend"
-              name="Gasto"
-              stroke="hsl(var(--primary))"
-              strokeWidth={responsive.strokeWidth}
-              fill="url(#gradientSpend)"
-              dot={false}
-              activeDot={{ r: responsive.activeDotRadius }}
-            />
-            
-            {/* Receita (E-commerce) ou Conversões como barras */}
-            {isEcommerce ? (
-              <Area
-                yAxisId="left"
-                type="monotone"
-                dataKey="revenue"
-                name="Receita"
-                stroke="hsl(142, 76%, 36%)"
-                strokeWidth={responsive.strokeWidth}
-                fill="url(#gradientRevenue)"
-                dot={false}
-                activeDot={{ r: responsive.activeDotRadius }}
-              />
-            ) : (
-              <Bar
-                yAxisId={responsive.isMobile ? "left" : "right"}
-                dataKey="conversions"
-                name="Leads"
-                fill="hsl(var(--chart-1))"
-                radius={responsive.barRadius}
-                opacity={0.8}
-              />
-            )}
-            
-            {/* ROAS como linha secundária - hide on mobile for cleaner view */}
-            {isEcommerce && !responsive.isMobile && (
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="roas"
-                name="ROAS"
-                stroke="hsl(var(--chart-2))"
-                strokeWidth={responsive.strokeWidth}
-                dot={false}
-              />
-            )}
-          </ComposedChart>
-        </ResponsiveContainer>
+    <>
+      <div className={cn('glass-card p-4 sm:p-6', className)}>
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold">
+            {chartTitle}
+          </h3>
+          <ChartFullscreenButton onClick={openFullscreen} />
+        </div>
+        <div style={{ height: responsive.chartHeight }} className="w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            {renderChartContent()}
+          </ResponsiveContainer>
+        </div>
       </div>
-    </div>
+
+      <ChartFullscreenModal
+        isOpen={isFullscreen}
+        onClose={closeFullscreen}
+        title={chartTitle}
+      >
+        {renderChartContent()}
+      </ChartFullscreenModal>
+    </>
   );
 }
