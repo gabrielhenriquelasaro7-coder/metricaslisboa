@@ -22,7 +22,9 @@ export interface PlannerConfig {
   report_time: string;
   current_step: string;
   target_step: string;
+  metric_type: 'roi' | 'roas';
   roi_atual: number | null;
+  roas_atual: number | null;
   cac_atual: number | null;
   investimento_mensal: number | null;
   faturamento_marketing: number | null;
@@ -35,6 +37,8 @@ export interface PlannerConfig {
   link_plano_midia: string | null;
   link_planejamento_quarter: string | null;
   message_template: string | null;
+  custom_message: string | null;
+  hidden_fields: string[];
   last_report_sent_at: string | null;
   created_at: string;
   updated_at: string;
@@ -60,8 +64,10 @@ export function useWhatsAppPlannerConfig() {
       setConfigs((data || []).map(config => ({
         ...config,
         target_type: config.target_type as 'phone' | 'group',
+        metric_type: (config.metric_type as 'roi' | 'roas') || 'roi',
         sub_metas: (config.sub_metas as unknown as SubMeta[]) || [],
         criterios_mudanca_step: (config.criterios_mudanca_step as unknown as SubMeta[]) || [],
+        hidden_fields: (config.hidden_fields as unknown as string[]) || [],
       })));
     } catch (error) {
       console.error('Error fetching planner configs:', error);
@@ -97,7 +103,9 @@ export function useWhatsAppPlannerConfig() {
         report_time: config.report_time || '09:00',
         current_step: config.current_step || 'V1',
         target_step: config.target_step || 'V2',
+        metric_type: config.metric_type || 'roi',
         roi_atual: config.roi_atual,
+        roas_atual: config.roas_atual,
         cac_atual: config.cac_atual,
         investimento_mensal: config.investimento_mensal,
         faturamento_marketing: config.faturamento_marketing,
@@ -110,6 +118,8 @@ export function useWhatsAppPlannerConfig() {
         link_plano_midia: config.link_plano_midia,
         link_planejamento_quarter: config.link_planejamento_quarter,
         message_template: config.message_template,
+        custom_message: config.custom_message,
+        hidden_fields: config.hidden_fields || [],
         updated_at: new Date().toISOString(),
       } as Record<string, unknown>;
 

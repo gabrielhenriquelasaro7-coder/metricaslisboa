@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Smartphone, Users, Calendar, Clock, Link2, Target, TrendingUp, Plus, Trash2, Send, Eye } from 'lucide-react';
+import { Loader2, Smartphone, Users, Calendar, Clock, Link2, Target, TrendingUp, Plus, Trash2, Send, Eye, EyeOff, Edit3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { ManagerInstance, WhatsAppGroup } from '@/hooks/useWhatsAppManager';
@@ -115,6 +115,9 @@ export function AccountPlannerTab({
   const [linkForecasting, setLinkForecasting] = useState('');
   const [linkPlanoMidia, setLinkPlanoMidia] = useState('');
   const [linkPlanejamentoQuarter, setLinkPlanejamentoQuarter] = useState('');
+  const [hiddenFields, setHiddenFields] = useState<string[]>([]);
+  const [customMessage, setCustomMessage] = useState('');
+  const [useCustomMessage, setUseCustomMessage] = useState(false);
 
   const connectedInstances = instances.filter(i => i.instance_status === 'connected');
   const targetStep = getNextStep(currentStep);
@@ -130,9 +133,9 @@ export function AccountPlannerTab({
     setReportDayOfWeek(existingConfig?.report_day_of_week ?? 1);
     setReportTime(existingConfig?.report_time || '09:00');
     setCurrentStep(existingConfig?.current_step || 'V1');
-    setMetricType((existingConfig as any)?.metric_type || 'roi');
+    setMetricType(existingConfig?.metric_type || 'roi');
     setRoiAtual(existingConfig?.roi_atual?.toString() || '');
-    setRoasAtual((existingConfig as any)?.roas_atual?.toString() || '');
+    setRoasAtual(existingConfig?.roas_atual?.toString() || '');
     setCacAtual(existingConfig?.cac_atual?.toString() || '');
     setInvestimentoMensal(existingConfig?.investimento_mensal?.toString() || '');
     setFaturamentoMarketing(existingConfig?.faturamento_marketing?.toString() || '');
@@ -144,6 +147,9 @@ export function AccountPlannerTab({
     setLinkForecasting(existingConfig?.link_forecasting || '');
     setLinkPlanoMidia(existingConfig?.link_plano_midia || '');
     setLinkPlanejamentoQuarter(existingConfig?.link_planejamento_quarter || '');
+    setHiddenFields(existingConfig?.hidden_fields || []);
+    setCustomMessage(existingConfig?.custom_message || '');
+    setUseCustomMessage(!!existingConfig?.custom_message);
     setGroups([]);
   }, [project.id, existingConfig]);
 
@@ -233,9 +239,24 @@ export function AccountPlannerTab({
     setCriteriosMudancaStep(criteriosMudancaStep.filter(c => c.id !== id));
   };
 
+  const toggleHiddenField = (field: string) => {
+    setHiddenFields(prev => 
+      prev.includes(field) 
+        ? prev.filter(f => f !== field)
+        : [...prev, field]
+    );
+  };
+
+  const isFieldHidden = (field: string) => hiddenFields.includes(field);
+
   const formatCurrency = (n: number) => `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const generateMessage = useCallback(() => {
+    // If using custom message, return it directly
+    if (useCustomMessage && customMessage.trim()) {
+      return customMessage;
+    }
+
     const now = new Date();
     const weekStart = new Date(now);
     weekStart.setDate(weekStart.getDate() - 7);
@@ -258,11 +279,22 @@ export function AccountPlannerTab({
     msg += `🎯 Step Alvo no Q1: *${targetStep}*\n\n`;
     
     msg += `📈 *Métricas Atuais* - Últimos 7 dias\n`;
-    msg += `• ${metricLabel}: ${metricValue}\n`;
-    msg += `• CPL atual: ${realCPL ? formatCurrency(realCPL) : '____'}\n`;
-    msg += `• CAC atual: ${cacAtual ? formatCurrency(parseFloat(cacAtual)) : '____'}\n`;
-    msg += `• Investimento mensal em mídia: ${investimentoMensal ? formatCurrency(parseFloat(investimentoMensal)) : '____'}\n`;
-    msg += `• Faturamento do marketing: ${faturamentoMarketing ? formatCurrency(parseFloat(faturamentoMarketing)) : '____'}\n\n`;
+    if (!isFieldHidden('metric_retorno')) {
+      msg += `• ${metricLabel}: ${metricValue}\n`;
+    }
+    if (!isFieldHidden('cpl')) {
+      msg += `• CPL atual: ${realCPL ? formatCurrency(realCPL) : '____'}\n`;
+    }
+    if (!isFieldHidden('cac')) {
+      msg += `• CAC atual: ${cacAtual ? formatCurrency(parseFloat(cacAtual)) : '____'}\n`;
+    }
+    if (!isFieldHidden('investimento')) {
+      msg += `• Investimento mensal em mídia: ${investimentoMensal ? formatCurrency(parseFloat(investimentoMensal)) : '____'}\n`;
+    }
+    if (!isFieldHidden('faturamento')) {
+      msg += `• Faturamento do marketing: ${faturamentoMarketing ? formatCurrency(parseFloat(faturamentoMarketing)) : '____'}\n`;
+    }
+    msg += '\n';
     
     msg += `🎯 *Meta Principal do Cliente – Quarter (Q1)*\n`;
     msg += `${metaPrincipalQuarter || '(não definida)'}\n\n`;
@@ -289,10 +321,24 @@ export function AccountPlannerTab({
     }
     msg += '\n';
     
-    msg += `🔗 *Links Operacionais do Cliente*\n`;
-    msg += `• Forecasting: ${linkForecasting || '____'}\n`;
-    msg += `• Plano de Mídia: ${linkPlanoMidia || '____'}\n`;
-    msg += `• Planejamento Quarter: ${linkPlanejamentoQuarter || '____'}\n\n`;
+    // Only show links section if at least one link is visible
+    const hasVisibleLinks = (!isFieldHidden('link_forecasting') && linkForecasting) ||
+                           (!isFieldHidden('link_plano_midia') && linkPlanoMidia) ||
+                           (!isFieldHidden('link_planejamento_quarter') && linkPlanejamentoQuarter);
+    
+    if (hasVisibleLinks) {
+      msg += `🔗 *Links Operacionais do Cliente*\n`;
+      if (!isFieldHidden('link_forecasting') && linkForecasting) {
+        msg += `• Forecasting: ${linkForecasting}\n`;
+      }
+      if (!isFieldHidden('link_plano_midia') && linkPlanoMidia) {
+        msg += `• Plano de Mídia: ${linkPlanoMidia}\n`;
+      }
+      if (!isFieldHidden('link_planejamento_quarter') && linkPlanejamentoQuarter) {
+        msg += `• Planejamento Quarter: ${linkPlanejamentoQuarter}\n`;
+      }
+      msg += '\n';
+    }
     
     msg += `_Relatório automático via V4 Dashboard_`;
     
@@ -301,7 +347,8 @@ export function AccountPlannerTab({
     project.name, currentStep, targetStep, metricType, roiAtual, roasAtual, realCPL, cacAtual,
     investimentoMensal, faturamentoMarketing, metaPrincipalQuarter,
     subMetas, criteriosMudancaStep, metaSemana, metaSemanaPorque,
-    linkForecasting, linkPlanoMidia, linkPlanejamentoQuarter
+    linkForecasting, linkPlanoMidia, linkPlanejamentoQuarter, hiddenFields,
+    useCustomMessage, customMessage
   ]);
 
   const handleTestReport = async () => {
@@ -342,7 +389,7 @@ export function AccountPlannerTab({
 
     setSaving(true);
     try {
-      const config: Partial<PlannerConfig> & { project_id: string; metric_type?: string; roas_atual?: number | null } = {
+      const config: Partial<PlannerConfig> & { project_id: string } = {
         project_id: project.id,
         instance_id: instanceId,
         target_type: targetType,
@@ -354,6 +401,7 @@ export function AccountPlannerTab({
         report_time: reportTime,
         current_step: currentStep,
         target_step: targetStep,
+        metric_type: metricType,
         roi_atual: metricType === 'roi' && roiAtual ? parseFloat(roiAtual) : null,
         roas_atual: metricType === 'roas' && roasAtual ? parseFloat(roasAtual) : null,
         cac_atual: cacAtual ? parseFloat(cacAtual) : null,
@@ -367,6 +415,8 @@ export function AccountPlannerTab({
         link_forecasting: linkForecasting || null,
         link_plano_midia: linkPlanoMidia || null,
         link_planejamento_quarter: linkPlanejamentoQuarter || null,
+        hidden_fields: hiddenFields,
+        custom_message: useCustomMessage ? customMessage : null,
       };
 
       const success = await onSave(config);
@@ -598,33 +648,71 @@ export function AccountPlannerTab({
               </div>
 
               <div className="space-y-2">
-                <Label>CPL atual (automático)</Label>
+                <div className="flex items-center justify-between">
+                  <Label>CPL atual (automático)</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleHiddenField('cpl')}
+                    className="h-6 px-2 text-xs gap-1"
+                  >
+                    {isFieldHidden('cpl') ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    {isFieldHidden('cpl') ? 'Oculto' : 'Visível'}
+                  </Button>
+                </div>
                 <Input
-                  value={realCPL ? formatCurrency(realCPL) : 'Aguardando dados...'}
+                  value={realCPL ? formatCurrency(realCPL) : 'Sem leads nos últimos 7 dias'}
                   disabled
-                  className="bg-muted"
+                  className={`bg-muted ${isFieldHidden('cpl') ? 'opacity-50' : ''}`}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>CAC atual (manual)</Label>
+                <div className="flex items-center justify-between">
+                  <Label>CAC atual (manual)</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleHiddenField('cac')}
+                    className="h-6 px-2 text-xs gap-1"
+                  >
+                    {isFieldHidden('cac') ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    {isFieldHidden('cac') ? 'Oculto' : 'Visível'}
+                  </Button>
+                </div>
                 <Input
                   placeholder="Ex: 250.00"
                   value={cacAtual}
                   onChange={(e) => setCacAtual(e.target.value)}
                   type="number"
                   step="0.01"
+                  className={isFieldHidden('cac') ? 'opacity-50' : ''}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Investimento mensal em mídia</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Investimento mensal em mídia</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleHiddenField('investimento')}
+                    className="h-6 px-2 text-xs gap-1"
+                  >
+                    {isFieldHidden('investimento') ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    {isFieldHidden('investimento') ? 'Oculto' : 'Visível'}
+                  </Button>
+                </div>
                 <Input
                   placeholder="Ex: 15000.00"
                   value={investimentoMensal}
                   onChange={(e) => setInvestimentoMensal(e.target.value)}
                   type="number"
                   step="0.01"
+                  className={isFieldHidden('investimento') ? 'opacity-50' : ''}
                 />
               </div>
 
@@ -775,36 +863,107 @@ export function AccountPlannerTab({
               <Link2 className="w-5 h-5 text-primary" />
               <Label className="text-base font-semibold">Links Operacionais do Cliente</Label>
             </div>
-            <p className="text-sm text-muted-foreground">Obrigatório colocar os materiais do cliente aqui</p>
+            <p className="text-sm text-muted-foreground">Opcional - preencha se quiser incluir na mensagem</p>
             
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Link do Forecasting</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Link do Forecasting</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleHiddenField('link_forecasting')}
+                    className="h-6 px-2 text-xs gap-1"
+                  >
+                    {isFieldHidden('link_forecasting') ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    {isFieldHidden('link_forecasting') ? 'Oculto' : 'Visível'}
+                  </Button>
+                </div>
                 <Input
                   placeholder="https://..."
                   value={linkForecasting}
                   onChange={(e) => setLinkForecasting(e.target.value)}
+                  className={isFieldHidden('link_forecasting') ? 'opacity-50' : ''}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Link do Plano de Mídia</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Link do Plano de Mídia</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleHiddenField('link_plano_midia')}
+                    className="h-6 px-2 text-xs gap-1"
+                  >
+                    {isFieldHidden('link_plano_midia') ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    {isFieldHidden('link_plano_midia') ? 'Oculto' : 'Visível'}
+                  </Button>
+                </div>
                 <Input
                   placeholder="https://..."
                   value={linkPlanoMidia}
                   onChange={(e) => setLinkPlanoMidia(e.target.value)}
+                  className={isFieldHidden('link_plano_midia') ? 'opacity-50' : ''}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Link do Planejamento do Quarter</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Link do Planejamento do Quarter</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleHiddenField('link_planejamento_quarter')}
+                    className="h-6 px-2 text-xs gap-1"
+                  >
+                    {isFieldHidden('link_planejamento_quarter') ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    {isFieldHidden('link_planejamento_quarter') ? 'Oculto' : 'Visível'}
+                  </Button>
+                </div>
                 <Input
                   placeholder="https://..."
                   value={linkPlanejamentoQuarter}
                   onChange={(e) => setLinkPlanejamentoQuarter(e.target.value)}
+                  className={isFieldHidden('link_planejamento_quarter') ? 'opacity-50' : ''}
                 />
               </div>
             </div>
+          </div>
+
+          {/* Custom Message Editor */}
+          <div className="space-y-4 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-primary" />
+                <Label className="text-base font-semibold">Mensagem Personalizada</Label>
+              </div>
+              <Switch
+                checked={useCustomMessage}
+                onCheckedChange={setUseCustomMessage}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Ative para usar uma mensagem 100% customizada ao invés da gerada automaticamente
+            </p>
+            
+            {useCustomMessage && (
+              <div className="space-y-2">
+                <Textarea
+                  placeholder="Digite sua mensagem personalizada aqui... Use *texto* para negrito."
+                  value={customMessage}
+                  onChange={(e) => setCustomMessage(e.target.value)}
+                  rows={10}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Dica: Use *texto* para negrito, _texto_ para itálico
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Preview and Test */}

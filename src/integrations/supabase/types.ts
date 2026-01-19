@@ -2740,9 +2740,11 @@ export type Database = {
           created_at: string | null
           criterios_mudanca_step: Json | null
           current_step: string | null
+          custom_message: string | null
           faturamento_marketing: number | null
           group_id: string | null
           group_name: string | null
+          hidden_fields: Json | null
           id: string
           instance_id: string | null
           investimento_mensal: number | null
@@ -2754,11 +2756,13 @@ export type Database = {
           meta_principal_quarter: string | null
           meta_semana: string | null
           meta_semana_porque: string | null
+          metric_type: string | null
           phone_number: string | null
           planner_enabled: boolean | null
           project_id: string | null
           report_day_of_week: number | null
           report_time: string | null
+          roas_atual: number | null
           roi_atual: number | null
           sub_metas: Json | null
           target_step: string | null
@@ -2771,9 +2775,11 @@ export type Database = {
           created_at?: string | null
           criterios_mudanca_step?: Json | null
           current_step?: string | null
+          custom_message?: string | null
           faturamento_marketing?: number | null
           group_id?: string | null
           group_name?: string | null
+          hidden_fields?: Json | null
           id?: string
           instance_id?: string | null
           investimento_mensal?: number | null
@@ -2785,11 +2791,13 @@ export type Database = {
           meta_principal_quarter?: string | null
           meta_semana?: string | null
           meta_semana_porque?: string | null
+          metric_type?: string | null
           phone_number?: string | null
           planner_enabled?: boolean | null
           project_id?: string | null
           report_day_of_week?: number | null
           report_time?: string | null
+          roas_atual?: number | null
           roi_atual?: number | null
           sub_metas?: Json | null
           target_step?: string | null
@@ -2802,9 +2810,11 @@ export type Database = {
           created_at?: string | null
           criterios_mudanca_step?: Json | null
           current_step?: string | null
+          custom_message?: string | null
           faturamento_marketing?: number | null
           group_id?: string | null
           group_name?: string | null
+          hidden_fields?: Json | null
           id?: string
           instance_id?: string | null
           investimento_mensal?: number | null
@@ -2816,11 +2826,13 @@ export type Database = {
           meta_principal_quarter?: string | null
           meta_semana?: string | null
           meta_semana_porque?: string | null
+          metric_type?: string | null
           phone_number?: string | null
           planner_enabled?: boolean | null
           project_id?: string | null
           report_day_of_week?: number | null
           report_time?: string | null
+          roas_atual?: number | null
           roi_atual?: number | null
           sub_metas?: Json | null
           target_step?: string | null
