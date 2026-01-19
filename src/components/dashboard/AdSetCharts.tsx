@@ -428,54 +428,83 @@ export default function AdSetCharts({
         <ChartContent />
       </div>
 
-      {/* Fullscreen Chart Dialog - Horizontal landscape view */}
+      {/* Fullscreen Chart Dialog */}
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-        <DialogContent className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] p-0 bg-background border-0 rounded-none">
+        <DialogContent className="max-w-[100vw] w-[100vw] h-[100dvh] max-h-[100dvh] p-0 bg-background border-0 rounded-none overflow-hidden">
           <VisuallyHidden>
             <DialogTitle>Gráfico em Tela Cheia</DialogTitle>
           </VisuallyHidden>
-          <div className="flex flex-col h-full">
-            {/* Fullscreen Header */}
-            <div className="flex items-center justify-between p-3 border-b border-border">
-              <div className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-muted-foreground" />
-                <h3 className="text-base font-semibold">
-                  {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
-                </h3>
+          
+          {/* Close button - fixed position */}
+          <Button
+            size="sm"
+            variant="secondary"
+            className="fixed top-3 right-3 z-50 h-8 w-8 p-0 rounded-full shadow-lg"
+            onClick={() => setIsFullscreen(false)}
+          >
+            <X className="w-4 h-4" />
+          </Button>
+
+          {/* Chart container - full screen */}
+          <div className="w-full h-full flex items-center justify-center p-2">
+            {responsiveConfig.isMobile ? (
+              // Mobile: rotate the chart for landscape view
+              <div 
+                className="flex items-center justify-center"
+                style={{ 
+                  width: 'calc(100dvh - 20px)',
+                  height: 'calc(100vw - 40px)',
+                  transform: 'rotate(90deg)',
+                }}
+              >
+                <div className="w-full h-full flex flex-col">
+                  {/* Header inside rotated container */}
+                  <div className="flex items-center justify-between px-4 py-2 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Settings2 className="w-4 h-4 text-muted-foreground" />
+                      <h3 className="text-sm font-semibold">
+                        {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
+                      <span className="text-muted-foreground text-xs">vs</span>
+                      <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
+                      <ChartTypeSelector value={chartType} onChange={setChartType} />
+                    </div>
+                  </div>
+                  {/* Chart */}
+                  <div className="flex-1 px-2 pb-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      {renderChart()}
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
-                <span className="text-muted-foreground text-xs">vs</span>
-                <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
-                <ChartTypeSelector value={chartType} onChange={setChartType} />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0 ml-2"
-                  onClick={() => setIsFullscreen(false)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
+            ) : (
+              // Desktop: normal view
+              <div className="w-full h-full flex flex-col">
+                <div className="flex items-center justify-between p-4 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Settings2 className="w-4 h-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">
+                      {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
+                    <span className="text-muted-foreground text-xs">vs</span>
+                    <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
+                    <ChartTypeSelector value={chartType} onChange={setChartType} />
+                  </div>
+                </div>
+                <div className="flex-1 px-4 pb-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    {renderChart()}
+                  </ResponsiveContainer>
+                </div>
               </div>
-            </div>
-            {/* Fullscreen Chart - Rotate on mobile for horizontal view */}
-            <div className="flex-1 p-4 overflow-hidden">
-              <div className="h-full w-full" style={{ 
-                transform: responsiveConfig.isMobile ? 'rotate(90deg)' : 'none',
-                transformOrigin: responsiveConfig.isMobile ? 'center center' : 'unset',
-                width: responsiveConfig.isMobile ? '100vh' : '100%',
-                height: responsiveConfig.isMobile ? '100vw' : '100%',
-                position: responsiveConfig.isMobile ? 'absolute' : 'relative',
-                top: responsiveConfig.isMobile ? '50%' : 'auto',
-                left: responsiveConfig.isMobile ? '50%' : 'auto',
-                marginTop: responsiveConfig.isMobile ? '-50vw' : 0,
-                marginLeft: responsiveConfig.isMobile ? '-50vh' : 0,
-              }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  {renderChart()}
-                </ResponsiveContainer>
-              </div>
-            </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
