@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useWhatsAppManager } from '@/hooks/useWhatsAppManager';
+import { useWhatsAppPlannerConfig } from '@/hooks/useWhatsAppPlannerConfig';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,7 @@ import {
 } from 'lucide-react';
 import { ManagerInstanceCard } from '@/components/whatsapp/ManagerInstanceCard';
 import { WhatsAppQRModal } from '@/components/whatsapp/WhatsAppQRModal';
-import { ProjectReportConfigDialog } from '@/components/whatsapp/ProjectReportConfigDialog';
+import { ProjectReportConfigDialogNew } from '@/components/whatsapp/ProjectReportConfigDialogNew';
 import whatsappIcon from '@/assets/whatsapp-icon.png';
 import v4Logo from '@/assets/v4-logo-full.png';
 
@@ -65,6 +66,13 @@ export default function WhatsAppManager() {
     toggleConfigEnabled,
     resendReport,
   } = useWhatsAppManager();
+  
+  const {
+    configs: plannerConfigs,
+    fetchConfigs: fetchPlannerConfigs,
+    getConfigForProject: getPlannerConfigForProject,
+    saveConfig: savePlannerConfig,
+  } = useWhatsAppPlannerConfig();
 
   // Loading states for actions
   const [resendingProjectId, setResendingProjectId] = useState<string | null>(null);
@@ -94,6 +102,7 @@ export default function WhatsAppManager() {
   useEffect(() => {
     if (user) {
       fetchAll();
+      fetchPlannerConfigs();
     }
   }, [user, fetchAll]);
 
@@ -468,13 +477,15 @@ export default function WhatsAppManager() {
 
       {/* Project Config Dialog */}
       {selectedProject && (
-        <ProjectReportConfigDialog
+        <ProjectReportConfigDialogNew
           open={configDialogOpen}
           onOpenChange={setConfigDialogOpen}
           project={selectedProject}
           instances={instances}
           existingConfig={getConfigForProject(selectedProject.id)}
+          existingPlannerConfig={getPlannerConfigForProject(selectedProject.id)}
           onSave={saveConfig}
+          onSavePlanner={savePlannerConfig}
           onListGroups={listGroups}
         />
       )}
