@@ -10,7 +10,18 @@ import { Eye, EyeOff, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
 import v4LogoIcon from '@/assets/v4-logo-icon-small.png';
 
-const emailSchema = z.string().email('E-mail inválido');
+// Allowed email domains
+const ALLOWED_EMAIL_DOMAINS = ['@v4company.com', '@gmail.com', '@hotmail.com', '@outlook.com'];
+
+const validateEmailDomain = (email: string): boolean => {
+  const lowerEmail = email.toLowerCase();
+  return ALLOWED_EMAIL_DOMAINS.some(domain => lowerEmail.endsWith(domain));
+};
+
+const emailSchema = z.string().email('E-mail inválido').refine(
+  (email) => validateEmailDomain(email),
+  { message: 'Domínio não permitido. Use @v4company.com, @gmail.com, @hotmail.com ou @outlook.com' }
+);
 const passwordSchema = z.string().min(6, 'Mínimo de 6 caracteres');
 
 // Floating Particle Component - subtle
