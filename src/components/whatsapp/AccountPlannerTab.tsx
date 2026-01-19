@@ -87,6 +87,7 @@ export function AccountPlannerTab({
   const [testingReport, setTestingReport] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [realCPL, setRealCPL] = useState<number | null>(null);
+  const [realROAS, setRealROAS] = useState<number | null>(null);
 
   // Form state
   const [instanceId, setInstanceId] = useState<string | null>(null);
@@ -142,16 +143,16 @@ export function AccountPlannerTab({
     setGroups([]);
   }, [project.id, existingConfig]);
 
-  // Fetch real CPL from database
+  // Fetch real CPL and ROAS from database
   useEffect(() => {
-    const fetchCPL = async () => {
+    const fetchMetrics = async () => {
       const now = new Date();
       const startDate = new Date(now);
       startDate.setDate(startDate.getDate() - 7);
       
       const { data } = await supabase
         .from('ads_daily_metrics')
-        .select('spend, leads_count')
+        .select('spend, leads_count, conversion_value')
         .eq('project_id', project.id)
         .gte('date', startDate.toISOString().split('T')[0])
         .lte('date', now.toISOString().split('T')[0]);
@@ -159,11 +160,14 @@ export function AccountPlannerTab({
       if (data && data.length > 0) {
         const totalSpend = data.reduce((acc, row) => acc + (row.spend || 0), 0);
         const totalLeads = data.reduce((acc, row) => acc + (row.leads_count || 0), 0);
+        const totalConversionValue = data.reduce((acc, row) => acc + (row.conversion_value || 0), 0);
+        
         setRealCPL(totalLeads > 0 ? totalSpend / totalLeads : null);
+        setRealROAS(totalSpend > 0 ? totalConversionValue / totalSpend : null);
       }
     };
     
-    fetchCPL();
+    fetchMetrics();
   }, [project.id]);
 
   // Load groups when instance changes
@@ -223,13 +227,18 @@ export function AccountPlannerTab({
     const weekStart = new Date(now);
     weekStart.setDate(weekStart.getDate() - 7);
     
+    // Determine ROI display: use manual ROI or fallback to ROAS
+    const roiDisplay = roiAtual 
+      ? `${Math.round(parseFloat(roiAtual))}x` 
+      : (realROAS ? `${Math.round(realROAS)}x (ROAS)` : '____');
+    
     let msg = `📊 *Diagnóstico Atual do Cliente (Ponto de Partida)*\n`;
     msg += `📋 Projeto: *${project.name}*\n\n`;
     msg += `🎯 Step Atual: *${currentStep}*\n`;
     msg += `🎯 Step Alvo no Q1: *${targetStep}*\n\n`;
     
     msg += `📈 *Métricas Atuais* - Últimos 7 dias\n`;
-    msg += `• ROI atual: ${roiAtual ? `${roiAtual}x` : '____'}\n`;
+    msg += `• ROI atual: ${roiDisplay}\n`;
     msg += `• CPL atual: ${realCPL ? formatCurrency(realCPL) : '____'}\n`;
     msg += `• CAC atual: ${cacAtual ? formatCurrency(parseFloat(cacAtual)) : '____'}\n`;
     msg += `• Investimento mensal em mídia: ${investimentoMensal ? formatCurrency(parseFloat(investimentoMensal)) : '____'}\n`;
@@ -269,7 +278,7 @@ export function AccountPlannerTab({
     
     return msg;
   }, [
-    project.name, currentStep, targetStep, roiAtual, realCPL, cacAtual,
+    project.name, currentStep, targetStep, roiAtual, realCPL, realROAS, cacAtual,
     investimentoMensal, faturamentoMarketing, metaPrincipalQuarter,
     subMetas, criteriosMudancaStep, metaSemana, metaSemanaPorque,
     linkForecasting, linkPlanoMidia, linkPlanejamentoQuarter
@@ -529,14 +538,19 @@ export function AccountPlannerTab({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>ROI atual (manual)</Label>
+                <Label>ROI atual (manual - número inteiro)</Label>
                 <Input
-                  placeholder="Ex: 5.2"
+                  placeholder="Ex: 5"
                   value={roiAtual}
                   onChange={(e) => setRoiAtual(e.target.value)}
                   type="number"
-                  step="0.1"
+                  step="1"
                 />
+                {!roiAtual && realROAS && (
+                  <p className="text-xs text-muted-foreground">
+                    Sem ROI manual, usará ROAS automático: {Math.round(realROAS)}x
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

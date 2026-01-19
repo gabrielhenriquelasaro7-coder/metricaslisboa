@@ -54,6 +54,8 @@ export function WhatsAppGroupSelector({
         <SelectContent 
           className="z-[9999] bg-background border border-border shadow-lg"
           position="popper"
+          side="bottom"
+          align="start"
           sideOffset={4}
         >
           {groups.length === 0 ? (
