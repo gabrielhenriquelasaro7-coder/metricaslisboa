@@ -25,6 +25,7 @@ import { ptBR } from 'date-fns/locale';
 interface Project {
   id: string;
   name: string;
+  business_model?: string;
 }
 
 interface PlannerHistoryItem {
@@ -80,8 +81,13 @@ export function AccountPlannerTab({
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [sendingPlanner, setSendingPlanner] = useState(false);
   const [realCPL, setRealCPL] = useState<number | null>(null);
+  const [realROAS, setRealROAS] = useState<number | null>(null);
+  const [realVendas, setRealVendas] = useState<number | null>(null);
   const [sendHistory, setSendHistory] = useState<PlannerHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Check if project uses ecommerce/infoproduto business model
+  const isEcommerceOrInfo = project.business_model === 'ecommerce' || project.business_model === 'infoproduto';
 
   // Form state
   const [instanceId, setInstanceId] = useState<string | null>(null);
@@ -144,7 +150,7 @@ export function AccountPlannerTab({
     }
   }, [existingConfig, initialized]);
 
-  // Fetch real CPL and ROAS from database
+  // Fetch real CPL, ROAS and Vendas from database
   useEffect(() => {
     const fetchMetrics = async () => {
       const now = new Date();
@@ -153,7 +159,7 @@ export function AccountPlannerTab({
       
       const { data } = await supabase
         .from('ads_daily_metrics')
-        .select('spend, leads_count, conversion_value')
+        .select('spend, leads_count, conversion_value, purchases_count')
         .eq('project_id', project.id)
         .gte('date', startDate.toISOString().split('T')[0])
         .lte('date', now.toISOString().split('T')[0]);
@@ -162,16 +168,22 @@ export function AccountPlannerTab({
         const totalSpend = data.reduce((acc, row) => acc + (row.spend || 0), 0);
         const totalLeads = data.reduce((acc, row) => acc + (row.leads_count || 0), 0);
         const totalConversionValue = data.reduce((acc, row) => acc + (row.conversion_value || 0), 0);
+        const totalPurchases = data.reduce((acc, row) => acc + (row.purchases_count || 0), 0);
         
         const cpl = totalLeads > 0 ? totalSpend / totalLeads : null;
+        const roas = totalSpend > 0 ? totalConversionValue / totalSpend : null;
         
-        console.log('AccountPlannerTab metrics:', { totalSpend, totalLeads, cpl });
+        console.log('AccountPlannerTab metrics:', { totalSpend, totalLeads, cpl, roas, totalPurchases });
         
         setRealCPL(cpl);
+        setRealROAS(roas);
+        setRealVendas(totalPurchases);
         setMetricsLoaded(true);
       } else {
         console.log('AccountPlannerTab: No data found for project', project.id);
         setRealCPL(null);
+        setRealROAS(null);
+        setRealVendas(null);
         setMetricsLoaded(true);
       }
     };
@@ -243,11 +255,17 @@ export function AccountPlannerTab({
 
   // Generate the default template message
   const generateDefaultTemplate = useCallback(() => {
-    // Determine metric display based on user choice
+    // Determine metric display based on business model and user choice
     let metricLabel: string;
     let metricValue: string;
     
-    if (metricType === 'roi') {
+    if (isEcommerceOrInfo) {
+      // For ecommerce/infoproduto: ROAS is automatic
+      metricLabel = 'ROAS atual';
+      metricValue = realROAS !== null 
+        ? `${realROAS.toFixed(2)}x` 
+        : 'Aguardando dados...';
+    } else if (metricType === 'roi') {
       metricLabel = 'ROI atual';
       metricValue = roiAtual ? `${Math.round(parseFloat(roiAtual))}x` : '____';
     } else {
@@ -259,6 +277,11 @@ export function AccountPlannerTab({
     const cplDisplay = realCPL !== null 
       ? formatCurrency(realCPL) 
       : 'Não teve leads nos últimos 7 dias';
+
+    // Vendas display for ecommerce/infoproduto
+    const vendasDisplay = realVendas !== null 
+      ? `${realVendas} vendas` 
+      : 'Aguardando dados...';
     
     let msg = `📊 *Diagnóstico Atual do Cliente (Ponto de Partida)*\n`;
     msg += `📋 Projeto: *${project.name}*\n\n`;
@@ -273,7 +296,13 @@ export function AccountPlannerTab({
       msg += `• CPL atual: ${cplDisplay}\n`;
     }
     if (!isFieldHidden('cac')) {
-      msg += `• CAC atual: ${cacAtual ? formatCurrency(parseFloat(cacAtual)) : '____'}\n`;
+      if (isEcommerceOrInfo) {
+        // For ecommerce/infoproduto: CAC becomes Vendas (automatic)
+        msg += `• Vendas: ${vendasDisplay}\n`;
+      } else {
+        // For other business models: CAC is manual
+        msg += `• CAC atual: ${cacAtual ? formatCurrency(parseFloat(cacAtual)) : '____'}\n`;
+      }
     }
     if (!isFieldHidden('investimento')) {
       msg += `• Investimento mensal em mídia: ${investimentoMensal ? formatCurrency(parseFloat(investimentoMensal)) : '____'}\n`;
@@ -331,10 +360,10 @@ export function AccountPlannerTab({
     
     return msg;
   }, [
-    project.name, currentStep, targetStep, metricType, roiAtual, roasAtual, realCPL, cacAtual,
+    project.name, currentStep, targetStep, metricType, roiAtual, roasAtual, realCPL, realROAS, realVendas, cacAtual,
     investimentoMensal, faturamentoMarketing, metaPrincipalQuarter,
     subMetas, criteriosMudancaStep, metaSemana, metaSemanaPorque,
-    linkForecasting, linkPlanoMidia, linkPlanejamentoQuarter, hiddenFields
+    linkForecasting, linkPlanoMidia, linkPlanejamentoQuarter, hiddenFields, isEcommerceOrInfo
   ]);
 
   // Pre-populate message template when metrics load
@@ -577,23 +606,33 @@ export function AccountPlannerTab({
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Métrica de Retorno</Label>
-                <Select value={metricType} onValueChange={(v) => setMetricType(v as 'roi' | 'roas')}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="roi">ROI (manual)</SelectItem>
-                    <SelectItem value="roas">ROAS (manual)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Metric type selection - different for ecommerce/infoproduto */}
+              {isEcommerceOrInfo ? (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>ROAS atual (automático)</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleHiddenField('metric_retorno')}
+                        className="h-6 px-2 text-xs gap-1"
+                      >
+                        {isFieldHidden('metric_retorno') ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        {isFieldHidden('metric_retorno') ? 'Oculto' : 'Visível'}
+                      </Button>
+                    </div>
+                    <Input
+                      value={realROAS !== null ? `${realROAS.toFixed(2)}x` : 'Aguardando dados...'}
+                      disabled
+                      className={`bg-muted ${isFieldHidden('metric_retorno') ? 'opacity-50' : ''}`}
+                    />
+                    <p className="text-xs text-muted-foreground">Puxado automaticamente das campanhas</p>
+                  </div>
 
-              <div className="space-y-2">
-                {metricType === 'roi' ? (
-                  <>
-                    <Label>ROI atual (número inteiro)</Label>
+                  <div className="space-y-2">
+                    <Label>ROI atual (manual)</Label>
                     <Input
                       placeholder="Ex: 5"
                       value={roiAtual}
@@ -601,20 +640,51 @@ export function AccountPlannerTab({
                       type="number"
                       step="1"
                     />
-                  </>
-                ) : (
-                  <>
-                    <Label>ROAS atual (número inteiro)</Label>
-                    <Input
-                      placeholder="Ex: 3"
-                      value={roasAtual}
-                      onChange={(e) => setRoasAtual(e.target.value)}
-                      type="number"
-                      step="1"
-                    />
-                  </>
-                )}
-              </div>
+                    <p className="text-xs text-muted-foreground">Opcional - preencha se necessário</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>Métrica de Retorno</Label>
+                    <Select value={metricType} onValueChange={(v) => setMetricType(v as 'roi' | 'roas')}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="roi">ROI (manual)</SelectItem>
+                        <SelectItem value="roas">ROAS (manual)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    {metricType === 'roi' ? (
+                      <>
+                        <Label>ROI atual (número inteiro)</Label>
+                        <Input
+                          placeholder="Ex: 5"
+                          value={roiAtual}
+                          onChange={(e) => setRoiAtual(e.target.value)}
+                          type="number"
+                          step="1"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Label>ROAS atual (número inteiro)</Label>
+                        <Input
+                          placeholder="Ex: 3"
+                          value={roasAtual}
+                          onChange={(e) => setRoasAtual(e.target.value)}
+                          type="number"
+                          step="1"
+                        />
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -637,29 +707,54 @@ export function AccountPlannerTab({
                 />
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>CAC atual (manual)</Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleHiddenField('cac')}
-                    className="h-6 px-2 text-xs gap-1"
-                  >
-                    {isFieldHidden('cac') ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                    {isFieldHidden('cac') ? 'Oculto' : 'Visível'}
-                  </Button>
+              {/* CAC/Vendas - different for ecommerce/infoproduto */}
+              {isEcommerceOrInfo ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Vendas (automático)</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleHiddenField('cac')}
+                      className="h-6 px-2 text-xs gap-1"
+                    >
+                      {isFieldHidden('cac') ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                      {isFieldHidden('cac') ? 'Oculto' : 'Visível'}
+                    </Button>
+                  </div>
+                  <Input
+                    value={realVendas !== null ? `${realVendas} vendas` : 'Aguardando dados...'}
+                    disabled
+                    className={`bg-muted ${isFieldHidden('cac') ? 'opacity-50' : ''}`}
+                  />
+                  <p className="text-xs text-muted-foreground">Puxado automaticamente das campanhas</p>
                 </div>
-                <Input
-                  placeholder="Ex: 250.00"
-                  value={cacAtual}
-                  onChange={(e) => setCacAtual(e.target.value)}
-                  type="number"
-                  step="0.01"
-                  className={isFieldHidden('cac') ? 'opacity-50' : ''}
-                />
-              </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>CAC atual (manual)</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleHiddenField('cac')}
+                      className="h-6 px-2 text-xs gap-1"
+                    >
+                      {isFieldHidden('cac') ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                      {isFieldHidden('cac') ? 'Oculto' : 'Visível'}
+                    </Button>
+                  </div>
+                  <Input
+                    placeholder="Ex: 250.00"
+                    value={cacAtual}
+                    onChange={(e) => setCacAtual(e.target.value)}
+                    type="number"
+                    step="0.01"
+                    className={isFieldHidden('cac') ? 'opacity-50' : ''}
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
