@@ -1030,7 +1030,7 @@ export function UserManagement() {
                                 className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                                 onClick={() => {
                                   if (confirm('Tem certeza que deseja excluir este usuário permanentemente?')) {
-                                    deleteUser(user.user_id);
+                                    deleteUser(user.user_id, user.id);
                                   }
                                 }}
                                 title="Excluir usuário"
