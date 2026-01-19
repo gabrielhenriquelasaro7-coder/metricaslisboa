@@ -469,27 +469,46 @@ export function UserManagement() {
 
   // Deactivate a single user account
   const handleDeactivateUser = async (userId: string, email: string) => {
-    if (!confirm(`Tem certeza que deseja inativar a conta de ${email}? O usuário não poderá acessar o sistema.`)) {
+    if (!confirm(`Tem certeza que deseja inativar a conta de ${email}? O usuário não poderá acessar o sistema e será removido de todas as funções.`)) {
       return;
     }
     
     setDeactivatingUserId(userId);
     try {
-      // Clear the user_id in user_management to mark as inactive
+      // Clear the user_id, cargo and squad in user_management to mark as inactive
       const { error } = await supabase
         .from('user_management')
-        .update({ user_id: null })
+        .update({ 
+          user_id: null,
+          cargo: 'membro', // Reset to basic role
+          squad_id: null   // Remove from squad
+        })
         .eq('user_id', userId);
 
       if (error) throw error;
 
-      // Also update user_roles to mark password as not changed
+      // Remove from squad_members table
       await supabase
-        .from('user_roles')
-        .update({ password_changed: false })
+        .from('squad_members')
+        .delete()
         .eq('user_id', userId);
 
-      toast.success(`Conta de ${email} inativada com sucesso`);
+      // Update user_roles to reset cargo and mark password as not changed
+      await supabase
+        .from('user_roles')
+        .update({ 
+          password_changed: false,
+          cargo: 'membro' // Reset to basic role
+        })
+        .eq('user_id', userId);
+
+      // Update profiles to reset cargo (set to null as membro is not in enum)
+      await supabase
+        .from('profiles')
+        .update({ cargo: null })
+        .eq('user_id', userId);
+
+      toast.success(`Conta de ${email} inativada com sucesso. Cargo e squad removidos.`);
       
       // Refresh users list
       window.location.reload();
