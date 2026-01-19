@@ -116,14 +116,14 @@ export function useWhatsAppPlannerConfig() {
       if (existingConfig) {
         const { error } = await supabase
           .from('whatsapp_planner_configs')
-          .update(configData)
+          .update(configData as any)
           .eq('id', existingConfig.id);
 
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('whatsapp_planner_configs')
-          .insert(configData);
+          .insert(configData as any);
 
         if (error) throw error;
       }
