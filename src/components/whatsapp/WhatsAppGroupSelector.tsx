@@ -51,7 +51,11 @@ export function WhatsAppGroupSelector({
             )}
           </SelectValue>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent 
+          className="z-[9999] bg-background border border-border shadow-lg"
+          position="popper"
+          sideOffset={4}
+        >
           {groups.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               Nenhum grupo encontrado
