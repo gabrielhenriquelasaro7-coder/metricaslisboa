@@ -423,7 +423,7 @@ export default function AdvancedCharts({
               </div>
               <div className="flex items-center gap-1.5">
                 <ChartTypeSelector value={chartType} onChange={setChartType} />
-                <ChartFullscreenButton onClick={openFullscreen} />
+                {responsive.isMobile && <ChartFullscreenButton onClick={openFullscreen} />}
               </div>
             </div>
             <div className="flex items-center gap-2">
