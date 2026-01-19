@@ -103,6 +103,7 @@ export function AccountPlannerTab({
   const [currentStep, setCurrentStep] = useState('V1');
   const [metricType, setMetricType] = useState<'roi' | 'roas'>('roi');
   const [roiAtual, setRoiAtual] = useState('');
+  const [roasAtual, setRoasAtual] = useState('');
   const [cacAtual, setCacAtual] = useState('');
   const [investimentoMensal, setInvestimentoMensal] = useState('');
   const [faturamentoMarketing, setFaturamentoMarketing] = useState('');
@@ -131,6 +132,7 @@ export function AccountPlannerTab({
     setCurrentStep(existingConfig?.current_step || 'V1');
     setMetricType((existingConfig as any)?.metric_type || 'roi');
     setRoiAtual(existingConfig?.roi_atual?.toString() || '');
+    setRoasAtual((existingConfig as any)?.roas_atual?.toString() || '');
     setCacAtual(existingConfig?.cac_atual?.toString() || '');
     setInvestimentoMensal(existingConfig?.investimento_mensal?.toString() || '');
     setFaturamentoMarketing(existingConfig?.faturamento_marketing?.toString() || '');
@@ -238,7 +240,7 @@ export function AccountPlannerTab({
       metricValue = roiAtual ? `${Math.round(parseFloat(roiAtual))}x` : '____';
     } else {
       metricLabel = 'ROAS atual';
-      metricValue = realROAS ? `${Math.round(realROAS)}x` : '____';
+      metricValue = roasAtual ? `${Math.round(parseFloat(roasAtual))}x` : '____';
     }
     
     let msg = `📊 *Diagnóstico Atual do Cliente (Ponto de Partida)*\n`;
@@ -287,7 +289,7 @@ export function AccountPlannerTab({
     
     return msg;
   }, [
-    project.name, currentStep, targetStep, metricType, roiAtual, realCPL, realROAS, cacAtual,
+    project.name, currentStep, targetStep, metricType, roiAtual, roasAtual, realCPL, cacAtual,
     investimentoMensal, faturamentoMarketing, metaPrincipalQuarter,
     subMetas, criteriosMudancaStep, metaSemana, metaSemanaPorque,
     linkForecasting, linkPlanoMidia, linkPlanejamentoQuarter
@@ -331,7 +333,7 @@ export function AccountPlannerTab({
 
     setSaving(true);
     try {
-      const config: Partial<PlannerConfig> & { project_id: string; metric_type?: string } = {
+      const config: Partial<PlannerConfig> & { project_id: string; metric_type?: string; roas_atual?: number | null } = {
         project_id: project.id,
         instance_id: instanceId,
         target_type: targetType,
@@ -344,6 +346,7 @@ export function AccountPlannerTab({
         current_step: currentStep,
         target_step: targetStep,
         roi_atual: metricType === 'roi' && roiAtual ? parseFloat(roiAtual) : null,
+        roas_atual: metricType === 'roas' && roasAtual ? parseFloat(roasAtual) : null,
         cac_atual: cacAtual ? parseFloat(cacAtual) : null,
         investimento_mensal: investimentoMensal ? parseFloat(investimentoMensal) : null,
         faturamento_marketing: faturamentoMarketing ? parseFloat(faturamentoMarketing) : null,
@@ -554,7 +557,7 @@ export function AccountPlannerTab({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="roi">ROI (manual)</SelectItem>
-                    <SelectItem value="roas">ROAS (automático)</SelectItem>
+                    <SelectItem value="roas">ROAS (manual)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -573,11 +576,13 @@ export function AccountPlannerTab({
                   </>
                 ) : (
                   <>
-                    <Label>ROAS atual (automático)</Label>
+                    <Label>ROAS atual (número inteiro)</Label>
                     <Input
-                      value={realROAS ? `${Math.round(realROAS)}x` : 'Aguardando dados...'}
-                      disabled
-                      className="bg-muted"
+                      placeholder="Ex: 3"
+                      value={roasAtual}
+                      onChange={(e) => setRoasAtual(e.target.value)}
+                      type="number"
+                      step="1"
                     />
                   </>
                 )}
