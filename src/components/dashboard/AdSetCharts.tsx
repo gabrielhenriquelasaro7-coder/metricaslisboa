@@ -428,37 +428,47 @@ export default function AdSetCharts({
         <ChartContent />
       </div>
 
-      {/* Fullscreen Chart - Simple Sheet from bottom */}
+      {/* Fullscreen Chart - Horizontal on mobile */}
       {isFullscreen && (
-        <div className="fixed inset-0 z-50 bg-background">
+        <div 
+          className="fixed z-50 bg-background flex flex-col"
+          style={responsiveConfig.isMobile ? {
+            top: 0,
+            left: '100%',
+            width: '100dvh',
+            height: '100vw',
+            transform: 'rotate(90deg)',
+            transformOrigin: 'top left',
+          } : {
+            inset: 0,
+          }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between p-3 border-b border-border">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
             <div className="flex items-center gap-2">
               <Settings2 className="w-4 h-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold">
                 {shouldAggregateByMonth ? 'Evolução Mensal' : 'Evolução Diária'}
               </h3>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 w-8 p-0"
-              onClick={() => setIsFullscreen(false)}
-            >
-              <X className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center gap-1.5">
+              <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
+              <span className="text-muted-foreground text-xs">vs</span>
+              <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
+              <ChartTypeSelector value={chartType} onChange={setChartType} />
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 ml-1"
+                onClick={() => setIsFullscreen(false)}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
           
-          {/* Controls */}
-          <div className="flex items-center justify-center gap-2 p-3 border-b border-border flex-wrap">
-            <MetricSelector value={primaryMetric} onChange={setPrimaryMetric} exclude={secondaryMetric} />
-            <span className="text-muted-foreground text-xs">vs</span>
-            <MetricSelector value={secondaryMetric} onChange={setSecondaryMetric} exclude={primaryMetric} />
-            <ChartTypeSelector value={chartType} onChange={setChartType} />
-          </div>
-          
-          {/* Chart - full remaining height */}
-          <div className="p-3" style={{ height: 'calc(100dvh - 120px)' }}>
+          {/* Chart - fills remaining space */}
+          <div className="flex-1 p-2 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               {renderChart()}
             </ResponsiveContainer>
