@@ -73,9 +73,10 @@ Deno.serve(async (req) => {
     console.log(`[BALANCE-ALERT] Starting balance check at ${new Date().toISOString()}`);
 
     // Fetch configs from whatsapp_report_configs (NEW TABLE) with balance alerts enabled
+    // Use explicit FK hint for balance alert instance to resolve ambiguity
     let configsQuery = supabase
       .from('whatsapp_report_configs')
-      .select('*, whatsapp_manager_instances(instance_name, instance_status, token), projects(id, name, account_balance, account_balance_updated_at)')
+      .select('*, whatsapp_manager_instances!whatsapp_report_configs_balance_alert_instance_id_fkey(instance_name, instance_status, token), projects(id, name, account_balance, account_balance_updated_at)')
       .eq('balance_alert_enabled', true)
       .not('project_id', 'is', null);
 
