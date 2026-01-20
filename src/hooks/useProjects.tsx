@@ -279,6 +279,26 @@ export function useProjects() {
         await supabase
           .from('project_investidores')
           .insert(investidorRecords);
+        
+        // CRITICAL: Also insert into guest_project_access so investors can see the project
+        // Get user_ids from user_management for these investidores
+        const { data: investidorUsers } = await supabase
+          .from('user_management')
+          .select('id, user_id')
+          .in('id', investidor_ids)
+          .not('user_id', 'is', null);
+        
+        if (investidorUsers && investidorUsers.length > 0) {
+          const accessRecords = investidorUsers.map(inv => ({
+            project_id: project.id,
+            user_id: inv.user_id,
+            granted_by: user.id,
+          }));
+          
+          await supabase
+            .from('guest_project_access')
+            .upsert(accessRecords, { onConflict: 'user_id,project_id' });
+        }
       }
 
       // Trigger webhook for synchronization
@@ -367,13 +387,23 @@ export function useProjects() {
 
       // Update investidores if provided
       if (investidor_ids !== undefined) {
-        // Delete existing
+        // Get current user for granted_by
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        
+        // Delete existing investidores
         await supabase
           .from('project_investidores')
           .delete()
           .eq('project_id', id);
         
-        // Insert new
+        // Delete existing guest_project_access for investors of this project
+        // First get all investor user_ids that had access
+        const { data: oldInvestors } = await supabase
+          .from('guest_project_access')
+          .select('user_id')
+          .eq('project_id', id);
+        
+        // Insert new investidores
         if (investidor_ids.length > 0) {
           const investidorRecords = investidor_ids.map(investidor_id => ({
             project_id: id,
@@ -383,6 +413,50 @@ export function useProjects() {
           await supabase
             .from('project_investidores')
             .insert(investidorRecords);
+          
+          // Also update guest_project_access for new investors
+          const { data: investidorUsers } = await supabase
+            .from('user_management')
+            .select('id, user_id')
+            .in('id', investidor_ids)
+            .not('user_id', 'is', null);
+          
+          if (investidorUsers && investidorUsers.length > 0) {
+            const accessRecords = investidorUsers.map(inv => ({
+              project_id: id,
+              user_id: inv.user_id,
+              granted_by: currentUser?.id || '',
+            }));
+            
+            await supabase
+              .from('guest_project_access')
+              .upsert(accessRecords, { onConflict: 'user_id,project_id' });
+          }
+          
+          // Remove access for investors that were removed
+          if (oldInvestors && investidorUsers) {
+            const newUserIds = investidorUsers.map(u => u.user_id);
+            const toRemove = oldInvestors
+              .filter(old => !newUserIds.includes(old.user_id))
+              .map(old => old.user_id);
+            
+            if (toRemove.length > 0) {
+              await supabase
+                .from('guest_project_access')
+                .delete()
+                .eq('project_id', id)
+                .in('user_id', toRemove);
+            }
+          }
+        } else {
+          // No investors selected - remove all guest access for this project's investors
+          if (oldInvestors && oldInvestors.length > 0) {
+            await supabase
+              .from('guest_project_access')
+              .delete()
+              .eq('project_id', id)
+              .in('user_id', oldInvestors.map(o => o.user_id));
+          }
         }
       }
 
