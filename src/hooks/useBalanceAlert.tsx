@@ -21,6 +21,22 @@ export function useBalanceAlert(projectId: string | null, projectName?: string) 
   const { user } = useAuth();
   const hasShownAlert = useRef<string | null>(null);
 
+  // Check if alert was already shown today using localStorage (persists across page reloads)
+  const getAlertKey = useCallback((pid: string) => {
+    return `balance_alert_${pid}_${new Date().toDateString()}`;
+  }, []);
+
+  const wasAlertShownToday = useCallback((pid: string) => {
+    const key = getAlertKey(pid);
+    return localStorage.getItem(key) === 'true';
+  }, [getAlertKey]);
+
+  const markAlertAsShown = useCallback((pid: string) => {
+    const key = getAlertKey(pid);
+    localStorage.setItem(key, 'true');
+    hasShownAlert.current = key;
+  }, [getAlertKey]);
+
   const calculateBalanceStatus = useCallback(async (): Promise<BalanceData | null> => {
     if (!projectId) return null;
 
@@ -91,8 +107,14 @@ export function useBalanceAlert(projectId: string | null, projectName?: string) 
   const checkAndShowAlert = useCallback(async () => {
     if (!projectId || !user?.id) return;
 
-    // Only show alert once per session per project
-    const alertKey = `${projectId}-${new Date().toDateString()}`;
+    // Check if alert was already shown today (localStorage persists across page reloads/navigation)
+    if (wasAlertShownToday(projectId)) {
+      console.log('[BalanceAlert] Already shown today for project', projectId);
+      return;
+    }
+
+    // Also check the ref for same-session duplicates
+    const alertKey = getAlertKey(projectId);
     if (hasShownAlert.current === alertKey) return;
 
     try {
@@ -119,7 +141,8 @@ export function useBalanceAlert(projectId: string | null, projectName?: string) 
       const isCriticalDays = balanceData.daysRemaining <= threshold;
       
       if (isCriticalBalance || isCriticalDays) {
-        hasShownAlert.current = alertKey;
+        // Mark as shown in localStorage and ref to prevent duplicates
+        markAlertAsShown(projectId);
         
         const description = isCriticalBalance 
           ? `Saldo praticamente zerado: ${formatCurrency(balanceData.balance)}. Adicione créditos AGORA!`
@@ -137,7 +160,8 @@ export function useBalanceAlert(projectId: string | null, projectName?: string) 
           }
         );
       } else if (balanceData.daysRemaining <= 7) {
-        hasShownAlert.current = alertKey;
+        // Mark as shown in localStorage and ref to prevent duplicates
+        markAlertAsShown(projectId);
 
         toast.warning(
           `⚠️ Saldo Baixo${projectName ? ` - ${projectName}` : ''}`,
@@ -154,7 +178,7 @@ export function useBalanceAlert(projectId: string | null, projectName?: string) 
     } catch (error) {
       console.error('Error checking balance alert:', error);
     }
-  }, [projectId, user?.id, projectName, calculateBalanceStatus]);
+  }, [projectId, user?.id, projectName, calculateBalanceStatus, wasAlertShownToday, getAlertKey, markAlertAsShown]);
 
   useEffect(() => {
     // Check balance after a short delay to avoid blocking initial render

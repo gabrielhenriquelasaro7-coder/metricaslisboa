@@ -309,16 +309,17 @@ Deno.serve(async (req) => {
     console.log(`[WEEKLY-REPORT] Current day of week: ${currentDayOfWeek}`);
 
     // Fetch configs from whatsapp_report_configs (NEW TABLE)
+    // Use explicit FK hint to resolve ambiguity between instance_id and balance_alert_instance_id
     let configsQuery = supabase
       .from('whatsapp_report_configs')
-      .select('*, whatsapp_manager_instances(instance_name, instance_status, token), projects(id, name, business_model, timezone)')
+      .select('*, whatsapp_manager_instances!whatsapp_report_configs_instance_id_fkey(instance_name, instance_status, token), projects(id, name, business_model, timezone)')
       .eq('report_enabled', true)
       .not('project_id', 'is', null);
 
     if (targetConfigId) {
       configsQuery = supabase
         .from('whatsapp_report_configs')
-        .select('*, whatsapp_manager_instances(instance_name, instance_status, token), projects(id, name, business_model, timezone)')
+        .select('*, whatsapp_manager_instances!whatsapp_report_configs_instance_id_fkey(instance_name, instance_status, token), projects(id, name, business_model, timezone)')
         .eq('id', targetConfigId);
     } else {
       configsQuery = configsQuery.eq('report_day_of_week', currentDayOfWeek);
