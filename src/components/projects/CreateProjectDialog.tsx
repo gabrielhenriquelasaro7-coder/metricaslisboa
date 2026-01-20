@@ -123,6 +123,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       .select('id, user_id, full_name, email, squad_id')
       .eq('cargo', 'investidor')
       .eq('squad_id', squadId)
+      .not('user_id', 'is', null) // Only active users
       .order('full_name');
     
     if (!error && data) {
