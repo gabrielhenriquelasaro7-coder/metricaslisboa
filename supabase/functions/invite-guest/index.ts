@@ -71,19 +71,34 @@ serve(async (req) => {
       });
     }
 
-    // Verify the project belongs to the requesting user
+    // Check if user has permission to view/manage this project
+    // Using can_view_project function which supports investidores, coordenadores, etc.
+    const { data: canView } = await supabase.rpc('can_view_project', {
+      _user_id: requestingUser.id,
+      _project_id: project_id
+    });
+
+    console.log('Can view project:', { canView, userId: requestingUser.id, projectId: project_id });
+
+    if (!canView) {
+      return new Response(JSON.stringify({ error: 'Project not found or not authorized' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Get project details
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .select('id, name')
       .eq('id', project_id)
-      .eq('user_id', requestingUser.id)
-      .maybeSingle();
+      .single();
 
     console.log('Project lookup:', { project, projectError });
 
     if (projectError || !project) {
-      return new Response(JSON.stringify({ error: 'Project not found or not authorized' }), {
-        status: 403,
+      return new Response(JSON.stringify({ error: 'Failed to fetch project details' }), {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
