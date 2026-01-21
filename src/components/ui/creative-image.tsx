@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,20 +37,34 @@ const cleanImageUrl = (url: string | null): string | null => {
   return clean;
 };
 
-// Global cache version - incremented when HD sync completes
+// Global cache version with subscription pattern for React re-renders
 let globalCacheVersion = Date.now();
+const listeners = new Set<() => void>();
 
 export const invalidateCreativeImageCache = () => {
   globalCacheVersion = Date.now();
+  // Notify all subscribed components to re-render
+  listeners.forEach(listener => listener());
+};
+
+// Hook to subscribe to cache version changes
+const useCacheVersion = () => {
+  return useSyncExternalStore(
+    (callback) => {
+      listeners.add(callback);
+      return () => listeners.delete(callback);
+    },
+    () => globalCacheVersion
+  );
 };
 
 // Build Storage URL for cached creative images with cache-busting
-const getStorageImageUrl = (projectId: string | undefined, adId: string): string | null => {
+const getStorageImageUrl = (projectId: string | undefined, adId: string, cacheVersion: number): string | null => {
   if (!projectId) return null;
   const { data } = supabase.storage.from('creative-images').getPublicUrl(`${projectId}/${adId}.jpg`);
   if (!data?.publicUrl) return null;
-  // Use global cache version for instant invalidation after sync
-  return `${data.publicUrl}?v=${globalCacheVersion}`;
+  // Use cache version for instant invalidation after sync
+  return `${data.publicUrl}?v=${cacheVersion}`;
 };
 
 export function CreativeImage({
@@ -66,12 +80,13 @@ export function CreativeImage({
 }: CreativeImageProps) {
   const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
   const [hasError, setHasError] = useState(false);
+  const cacheVersion = useCacheVersion();
 
   // Build list of URLs to try in priority order
   const urls: string[] = [];
   
   // 1. Storage URL (permanent, never expires)
-  const storageUrl = getStorageImageUrl(projectId, adId);
+  const storageUrl = getStorageImageUrl(projectId, adId, cacheVersion);
   if (storageUrl) urls.push(storageUrl);
   
   // 2. Cached image URL from database
