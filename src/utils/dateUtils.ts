@@ -9,6 +9,7 @@ export interface DatePeriod {
 export interface TimePeriods {
   reference_date: string;
   yesterday: DatePeriod;
+  last_3d: DatePeriod;
   last_7d: DatePeriod;
   last_14d: DatePeriod;
   last_30d: DatePeriod;
@@ -101,6 +102,11 @@ export function calculateTimePeriods(timezone: string = 'America/Sao_Paulo'): Ti
       until: formatDate(yesterday),
     },
 
+    last_3d: {
+      since: formatDate(subDays(today, 3)),
+      until: formatDate(yesterday),
+    },
+
     last_7d: {
       since: formatDate(subDays(today, 7)),
       until: formatDate(yesterday),
@@ -151,6 +157,7 @@ export function calculateTimePeriods(timezone: string = 'America/Sao_Paulo'): Ti
 // TODOS os presets disponíveis
 export type DatePresetKey = 
   | 'yesterday'
+  | 'last_3d'
   | 'last_7d'
   | 'last_14d'
   | 'last_30d'
@@ -169,6 +176,7 @@ export interface DatePresetOption {
 
 export const DATE_PRESETS: DatePresetOption[] = [
   { key: 'yesterday', label: 'Ontem' },
+  { key: 'last_3d', label: 'Últimos 3 dias' },
   { key: 'last_7d', label: 'Últimos 7 dias' },
   { key: 'last_14d', label: 'Últimos 14 dias' },
   { key: 'last_30d', label: 'Últimos 30 dias' },
@@ -207,6 +215,7 @@ export function presetKeyToPeriodKey(presetKey: DatePresetKey): string {
 // Lista de todos os period_keys para sync
 export const ALL_PERIOD_KEYS = [
   'yesterday',
+  'last_3d',
   'last_7d',
   'last_14d', 
   'last_30d',

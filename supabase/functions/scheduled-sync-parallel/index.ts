@@ -61,10 +61,10 @@ async function syncProject(
   console.log(`[${project.name}] Starting sync (retry: ${retryCount})...`);
 
   try {
-    // NOVA ARQUITETURA: Sempre puxar last_90d com time_increment=1
+    // Sincronizar últimos 3 dias por padrão
     const now = new Date();
     const until = formatDate(now);
-    const since = formatDate(subDays(now, 90));
+    const since = formatDate(subDays(now, 3));
     
     const response = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
       method: 'POST',
@@ -76,7 +76,7 @@ async function syncProject(
         project_id: project.id,
         ad_account_id: project.ad_account_id,
         time_range: { since, until },
-        period_key: 'last_90d',
+        period_key: 'last_3d',
         retry_count: retryCount,
         // IMPORTANTE: Sempre buscar imagens HD no sync agendado
         light_sync: false,
@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
     console.log(`\n========== DAILY SYNC STARTED ==========`);
     console.log(`[SYNC] Projects: ${projects.length}`);
     console.log(`[SYNC] Concurrent: ${concurrentLimit}`);
-    console.log(`[SYNC] Mode: last_90d with time_increment=1`);
+    console.log(`[SYNC] Mode: last_3d`);
     console.log(`[SYNC] Started: ${new Date().toISOString()}`);
 
     const results: SyncResult[] = [];
