@@ -217,7 +217,7 @@ function AdminContent() {
         body: {
           project_id: selectedProject.id,
           ad_account_id: selectedProject.ad_account_id,
-          date_preset: 'last_90d',
+          date_preset: 'last_3d',
           syncOnly: syncType,
         }
       });
@@ -225,7 +225,9 @@ function AdminContent() {
       if (error) throw error;
 
       if (data.success) {
-        const recordCount = data.data?.daily_records_count || 
+        // Edge function returns summary.records, not data.daily_records_count
+        const recordCount = data.summary?.records || 
+                           data.data?.daily_records_count || 
                            data.data?.campaigns_count || 
                            data.data?.adsets_count || 
                            data.data?.ads_count || 
@@ -257,14 +259,14 @@ function AdminContent() {
         body: {
           project_id: selectedProject.id,
           ad_account_id: selectedProject.ad_account_id,
-          date_preset: 'last_90d',
+          date_preset: 'last_3d',
         }
       });
 
       if (error) throw error;
 
       if (data.success) {
-        toast.success(`Métricas importadas! ${data.data?.daily_records_count || 0} registros`);
+        toast.success(`Métricas importadas! ${data.summary?.records || data.data?.daily_records_count || 0} registros`);
         
         // FASE 2: Sync de criativos HD (com cache automático)
         toast.info('Buscando criativos em HD...');
