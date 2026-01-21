@@ -1673,8 +1673,8 @@ Deno.serve(async (req) => {
     } else { 
       const today = new Date(); 
       until = today.toISOString().split('T')[0]; 
-      const daysMap: Record<string, number> = { yesterday: 1, today: 0, last_7d: 7, last_14d: 14, last_30d: 30, last_90d: 90 }; 
-      const days = daysMap[date_preset || 'last_90d'] || 90; 
+      const daysMap: Record<string, number> = { yesterday: 1, today: 0, last_3d: 3, last_7d: 7, last_14d: 14, last_30d: 30, last_90d: 90 }; 
+      const days = daysMap[date_preset || 'last_3d'] || 3;
       const sinceDate = new Date(today); 
       sinceDate.setDate(sinceDate.getDate() - days); 
       since = sinceDate.toISOString().split('T')[0]; 
