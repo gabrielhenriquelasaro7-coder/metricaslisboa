@@ -37,14 +37,20 @@ const cleanImageUrl = (url: string | null): string | null => {
   return clean;
 };
 
+// Global cache version - incremented when HD sync completes
+let globalCacheVersion = Date.now();
+
+export const invalidateCreativeImageCache = () => {
+  globalCacheVersion = Date.now();
+};
+
 // Build Storage URL for cached creative images with cache-busting
 const getStorageImageUrl = (projectId: string | undefined, adId: string): string | null => {
   if (!projectId) return null;
   const { data } = supabase.storage.from('creative-images').getPublicUrl(`${projectId}/${adId}.jpg`);
   if (!data?.publicUrl) return null;
-  // Add cache-busting timestamp to force reload after HD sync
-  const cacheBuster = `t=${Math.floor(Date.now() / 60000)}`; // Changes every minute
-  return `${data.publicUrl}?${cacheBuster}`;
+  // Use global cache version for instant invalidation after sync
+  return `${data.publicUrl}?v=${globalCacheVersion}`;
 };
 
 export function CreativeImage({

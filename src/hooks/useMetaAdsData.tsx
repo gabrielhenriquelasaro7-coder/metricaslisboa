@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
+import { invalidateCreativeImageCache } from '@/components/ui/creative-image';
 
 export interface Campaign {
   id: string;
@@ -624,6 +625,9 @@ export function useMetaAdsData() {
       console.log('[CREATIVES HD] HD images sync response:', hdData);
 
       toast.success(`Criativos sincronizados em HD! ${creativesData?.images_cached || hdData?.images_cached || 0} imagens.`);
+      
+      // Invalidate image cache to force reload of new HD images
+      invalidateCreativeImageCache();
       
       // Reset and reload data
       lastLoadedPeriodRef.current = null;
