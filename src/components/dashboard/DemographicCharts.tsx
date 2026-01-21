@@ -165,25 +165,25 @@ function DemographicPieChart({
   return (
     <div className="premium-card relative overflow-hidden">
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-      <div className="p-4">
-        <h4 className="text-base font-medium flex items-center gap-2 mb-4">
-          <div className="w-7 h-7 rounded-md premium-bar flex items-center justify-center">
-            <Icon className="w-3.5 h-3.5 text-primary-foreground" />
+      <div className="p-3 sm:p-4">
+        <h4 className="text-sm sm:text-base font-medium flex items-center gap-2 mb-3 sm:mb-4">
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md premium-bar flex items-center justify-center flex-shrink-0">
+            <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary-foreground" />
           </div>
-          {title}
+          <span className="truncate">{title}</span>
         </h4>
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="h-[120px] w-[120px] sm:h-[160px] sm:w-[160px] flex-shrink-0">
+        <div className="flex flex-col xs:flex-row items-center gap-2 sm:gap-4">
+          <div className="h-[100px] w-[100px] sm:h-[140px] sm:w-[140px] md:h-[160px] md:w-[160px] flex-shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={chartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={30}
-                  outerRadius={55}
+                  innerRadius={25}
+                  outerRadius={45}
                   dataKey="value"
-                  strokeWidth={2}
+                  strokeWidth={1}
                   stroke="hsl(var(--background))"
                 >
                   {chartData.map((entry, index) => (
@@ -194,14 +194,14 @@ function DemographicPieChart({
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex-1 space-y-1 sm:space-y-2 min-w-0">
+          <div className="flex-1 w-full space-y-0.5 sm:space-y-1.5 min-w-0 overflow-hidden">
             {chartData.map((item, index) => (
-              <div key={index} className="flex items-center justify-between text-[10px] sm:text-sm gap-1">
-                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                  <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                  <span className="truncate">{item.name}</span>
+              <div key={index} className="flex items-center justify-between text-[9px] xs:text-[10px] sm:text-xs md:text-sm gap-1">
+                <div className="flex items-center gap-1 sm:gap-2 min-w-0 overflow-hidden">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 md:w-3 md:h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                  <span className="truncate max-w-[60px] xs:max-w-[80px] sm:max-w-none">{item.name}</span>
                 </div>
-                <span className="text-muted-foreground flex-shrink-0">{item.percent}%</span>
+                <span className="text-muted-foreground flex-shrink-0 font-medium">{item.percent}%</span>
               </div>
             ))}
           </div>
@@ -241,31 +241,39 @@ function AgeBarChart({ data, currency = 'BRL' }: { data: DemographicData[]; curr
   }
 
   return (
-    <Card className="glass-card">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium flex items-center gap-2">
-          <Users className="w-4 h-4 text-muted-foreground" />
-          Faixa Etária
+    <Card className="glass-card overflow-hidden">
+      <CardHeader className="pb-2 p-3 sm:p-4">
+        <CardTitle className="text-sm sm:text-base font-medium flex items-center gap-2">
+          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+          <span className="truncate">Faixa Etária</span>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="h-[200px]">
+      <CardContent className="p-2 sm:p-4 pt-0 sm:pt-0">
+        <div className="h-[160px] sm:h-[180px] md:h-[200px] w-full overflow-hidden">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <BarChart 
+              data={chartData} 
+              margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
               <XAxis 
                 dataKey="name" 
-                fontSize={11} 
+                fontSize={9}
                 tickLine={false} 
                 axisLine={false}
                 stroke="hsl(var(--muted-foreground))"
+                interval={0}
+                angle={-45}
+                textAnchor="end"
+                height={40}
               />
               <YAxis 
-                fontSize={11} 
+                fontSize={9}
                 tickLine={false} 
                 axisLine={false}
-                tickFormatter={formatCurrencyValue}
+                tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(0)}K` : value.toString()}
                 stroke="hsl(var(--muted-foreground))"
+                width={35}
               />
               <Tooltip
                 formatter={(value: number, name: string) => [
@@ -276,14 +284,14 @@ function AgeBarChart({ data, currency = 'BRL' }: { data: DemographicData[]; curr
                   backgroundColor: 'hsl(var(--background))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
+                  fontSize: '12px',
                 }}
               />
-              <Legend />
               <Bar 
                 dataKey="spend" 
                 name="Gasto" 
                 fill="hsl(220, 70%, 50%)" 
-                radius={[4, 4, 0, 0]} 
+                radius={[3, 3, 0, 0]} 
               />
             </BarChart>
           </ResponsiveContainer>
@@ -342,13 +350,13 @@ export function DemographicCharts({ data, isLoading, className, currency = 'BRL'
   }
 
   return (
-    <div className={cn('space-y-6', className)}>
-      <h3 className="text-lg font-semibold flex items-center gap-2">
-        <UserCircle2 className="w-5 h-5" />
-        Dados Demográficos
+    <div className={cn('space-y-4 sm:space-y-6 overflow-hidden', className)}>
+      <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
+        <UserCircle2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+        <span className="truncate">Dados Demográficos</span>
       </h3>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <DemographicPieChart
           data={data.gender}
           type="gender"
@@ -356,7 +364,9 @@ export function DemographicCharts({ data, isLoading, className, currency = 'BRL'
           icon={UserCircle2}
           currency={currency}
         />
-        <AgeBarChart data={data.age} currency={currency} />
+        <div className="xs:col-span-2 md:col-span-1">
+          <AgeBarChart data={data.age} currency={currency} />
+        </div>
         <DemographicPieChart
           data={data.device_platform}
           type="device_platform"
