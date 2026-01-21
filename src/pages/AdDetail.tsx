@@ -15,6 +15,7 @@ import { DatePresetKey } from '@/utils/dateUtils';
 import { translateCTA } from '@/utils/ctaTranslations';
 import { CatalogImagesCarousel } from '@/components/catalog/CatalogImagesCarousel';
 import { toast } from 'sonner';
+import { invalidateCreativeImageCache } from '@/components/ui/creative-image';
 import { 
   ChevronLeft,
   Image as ImageIcon,
@@ -45,11 +46,11 @@ import {
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 // Build Storage URL with cache-busting for fresh HD images
-const getStorageImageUrl = (projectId: string | undefined, adId: string): string | null => {
+const getStorageImageUrl = (projectId: string | undefined, adId: string, cacheKey?: number): string | null => {
   if (!projectId || !adId) return null;
   const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/creative-images/${projectId}/${adId}.jpg`;
-  // Cache-busting timestamp that changes every minute
-  const cacheBuster = `t=${Math.floor(Date.now() / 60000)}`;
+  // Use provided cacheKey for instant invalidation, or fallback to per-minute timestamp
+  const cacheBuster = cacheKey ? `v=${cacheKey}` : `t=${Math.floor(Date.now() / 60000)}`;
   return `${baseUrl}?${cacheBuster}`;
 };
 
@@ -102,6 +103,7 @@ export default function AdDetail() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [imageKey, setImageKey] = useState(Date.now()); // Key to force image remount
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
   
   // Use shared period context - persists across pages
@@ -245,11 +247,14 @@ export default function AdDetail() {
         toast.error('Erro ao sincronizar imagem HD');
       } else {
         console.log('[AdDetail] HD sync response:', data);
+        // Invalidate image cache to force reload
+        invalidateCreativeImageCache();
         toast.success('Imagem HD sincronizada com sucesso!');
       }
       
-      // Reset image error and refetch ad data
+      // Reset image error and refetch ad data with fresh timestamp
       setImageError(false);
+      setImageKey(Date.now()); // Force image component to remount
       await fetchAd();
       
     } catch (error) {
@@ -293,7 +298,8 @@ export default function AdDetail() {
                       campaign?.name?.toLowerCase().includes('catalogo');
   
   // Priorizar imagem do storage com cache-busting (nunca expira, sempre fresca)
-  const storageUrl = getStorageImageUrl(projectId, ad?.id || '');
+  // imageKey changes after HD sync to force fresh image load
+  const storageUrl = getStorageImageUrl(projectId, ad?.id || '', imageKey);
   const creativeUrl = storageUrl || ad?.cached_image_url || ad?.creative_image_url || ad?.creative_thumbnail || '';
   
   const handleImageError = () => {
@@ -411,6 +417,7 @@ export default function AdDetail() {
                     <div className="aspect-square rounded-lg overflow-hidden bg-muted cursor-zoom-in hover:opacity-90 transition-opacity relative">
                       {!imageError && creativeUrl && !isCatalogAd && (
                         <img 
+                          key={imageKey} // Force remount after HD sync
                           src={creativeUrl} 
                           alt={ad.name}
                           className="w-full h-full object-contain"
