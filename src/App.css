@@ -1,8 +1,9 @@
+/* App.css - Global app styles */
+/* Removed restrictive #root max-width to allow full-width layouts */
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  min-height: 100vh;
 }
 
 .logo {
