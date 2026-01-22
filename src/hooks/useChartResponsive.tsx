@@ -2,10 +2,12 @@ import * as React from "react";
 
 const MOBILE_BREAKPOINT = 640;
 const TABLET_BREAKPOINT = 1024;
+const SMALL_DESKTOP_BREAKPOINT = 1440; // New breakpoint for smaller desktops
 
 export interface ChartResponsiveConfig {
   isMobile: boolean;
   isTablet: boolean;
+  isSmallDesktop: boolean;
   isDesktop: boolean;
   // Chart dimensions
   chartHeight: number;
@@ -63,7 +65,8 @@ export function useChartResponsive(): ChartResponsiveConfig {
 
   const isMobile = screenWidth < MOBILE_BREAKPOINT;
   const isTablet = screenWidth >= MOBILE_BREAKPOINT && screenWidth < TABLET_BREAKPOINT;
-  const isDesktop = screenWidth >= TABLET_BREAKPOINT;
+  const isSmallDesktop = screenWidth >= TABLET_BREAKPOINT && screenWidth < SMALL_DESKTOP_BREAKPOINT;
+  const isDesktop = screenWidth >= SMALL_DESKTOP_BREAKPOINT;
 
   // Calculate responsive values based on screen size
   const config: ChartResponsiveConfig = React.useMemo(() => {
@@ -71,6 +74,7 @@ export function useChartResponsive(): ChartResponsiveConfig {
       return {
         isMobile: true,
         isTablet: false,
+        isSmallDesktop: false,
         isDesktop: false,
         chartHeight: 220,
         xAxisFontSize: 9,
@@ -102,6 +106,7 @@ export function useChartResponsive(): ChartResponsiveConfig {
       return {
         isMobile: false,
         isTablet: true,
+        isSmallDesktop: false,
         isDesktop: false,
         chartHeight: 280,
         xAxisFontSize: 10,
@@ -121,10 +126,44 @@ export function useChartResponsive(): ChartResponsiveConfig {
         pieInnerRadius: 35,
         pieOuterRadius: 60,
       };
-    } else {
+    } else if (isSmallDesktop) {
+      // NEW: Small desktop (1024px - 1440px) - optimized for smaller monitors
       return {
         isMobile: false,
         isTablet: false,
+        isSmallDesktop: true,
+        isDesktop: false,
+        chartHeight: 300,
+        xAxisFontSize: 10,
+        yAxisFontSize: 10,
+        xAxisTickCount: 8,
+        xAxisAngle: -15,
+        xAxisTextAnchor: "end" as const,
+        maxDataPoints: 45,
+        dotRadius: 3,
+        activeDotRadius: 5,
+        strokeWidth: 2,
+        legendFontSize: 11,
+        legendWrapperStyle: { 
+          paddingTop: '12px', 
+          fontSize: '11px',
+          display: 'flex',
+          flexWrap: 'wrap' as const,
+          justifyContent: 'center',
+          gap: '8px'
+        },
+        chartMargins: { top: 10, right: 20, bottom: 20, left: 0 },
+        tooltipFontSize: 12,
+        barRadius: [3, 3, 0, 0] as [number, number, number, number],
+        pieInnerRadius: 35,
+        pieOuterRadius: 60,
+      };
+    } else {
+      // Large desktop (1440px+)
+      return {
+        isMobile: false,
+        isTablet: false,
+        isSmallDesktop: false,
         isDesktop: true,
         chartHeight: 350,
         xAxisFontSize: 11,
@@ -145,7 +184,7 @@ export function useChartResponsive(): ChartResponsiveConfig {
         pieOuterRadius: 70,
       };
     }
-  }, [isMobile, isTablet, isDesktop]);
+  }, [isMobile, isTablet, isSmallDesktop, isDesktop]);
 
   return config;
 }

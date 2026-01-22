@@ -154,11 +154,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
-  // Desktop layout
+  // Desktop layout - ensure proper scrolling
   return (
-    <div className="min-h-screen bg-background red-texture-bg grid-background">
+    <div className="min-h-screen bg-background red-texture-bg grid-background overflow-y-auto">
       <Sidebar />
-      <main className={cn('ml-72 min-h-screen transition-all duration-300 relative z-10 p-6 lg:p-8')}>
+      <main className={cn('ml-72 min-h-screen transition-all duration-300 relative z-10 p-4 md:p-6 lg:p-8 overflow-y-auto')}>
         {children}
       </main>
     </div>
