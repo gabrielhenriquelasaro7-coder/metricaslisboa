@@ -1,19 +1,20 @@
-import { useState, useMemo } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { useProjects } from '@/hooks/useProjects';
-import { useProfile } from '@/hooks/useProfile';
-import { useUserRole } from '@/hooks/useUserRole';
-import { useCargo } from '@/hooks/useCargo';
-import { useSidebarCampaigns } from '@/hooks/useSidebarCampaigns';
-import { useTour } from '@/hooks/useTour';
-import { useTabVisibility } from '@/hooks/useTabVisibility';
-import { useTranslation } from 'react-i18next';
-import v4LogoFull from '@/assets/v4-logo-full.png';
+/* src/components/layout/Sidebar.tsx */
+import { useState, useMemo } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useProjects } from "@/hooks/useProjects";
+import { useProfile } from "@/hooks/useProfile";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useCargo } from "@/hooks/useCargo";
+import { useSidebarCampaigns } from "@/hooks/useSidebarCampaigns";
+import { useTour } from "@/hooks/useTour";
+import { useTabVisibility } from "@/hooks/useTabVisibility";
+import { useTranslation } from "react-i18next";
+import v4LogoFull from "@/assets/v4-logo-full.png";
 import {
-  LayoutDashboard, 
-  FolderKanban, 
-  Settings, 
+  LayoutDashboard,
+  FolderKanban,
+  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -34,34 +35,25 @@ import {
   DollarSign,
   AlertTriangle,
   Compass,
-  Database
-} from 'lucide-react';
-import { useTheme } from '@/hooks/useTheme';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Database,
+} from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
-import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
-import { LoadingScreen } from '@/components/ui/loading-screen';
-import { AdminAccessRequestModal } from '@/components/admin/AdminAccessRequestModal';
+} from "@/components/ui/dropdown-menu";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { SyncStatusBadge } from "@/components/sync/SyncStatusBadge";
+import { InviteGuestDialog } from "@/components/guests/InviteGuestDialog";
+import { LoadingScreen } from "@/components/ui/loading-screen";
+import { AdminAccessRequestModal } from "@/components/admin/AdminAccessRequestModal";
 
 // Skeleton component for campaign list items
 function CampaignSkeleton() {
@@ -89,9 +81,9 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const [guestSettingsOpen, setGuestSettingsOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [adminAccessModalOpen, setAdminAccessModalOpen] = useState(false);
-  
+
   const [isChangingProject, setIsChangingProject] = useState(false);
-  
+
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
@@ -102,47 +94,45 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const { triggerTour } = useTour();
   const { theme, toggleTheme } = useTheme();
   const { isTabHidden, loading: tabVisibilityLoading } = useTabVisibility();
-  const selectedProjectId = localStorage.getItem('selectedProjectId');
-  // Only return a project if explicitly selected - never auto-select
+  const selectedProjectId = localStorage.getItem("selectedProjectId");
+
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
-    return projects.find(p => p.id === selectedProjectId) || null;
+    return projects.find((p) => p.id === selectedProjectId) || null;
   }, [projects, selectedProjectId]);
 
-  // Use lightweight hook for sidebar campaigns instead of full useMetaAdsData
-  const { campaigns: sortedCampaigns, getCampaignAdSets, loading: campaignsLoading } = useSidebarCampaigns(selectedProject?.id || null);
-
+  const {
+    campaigns: sortedCampaigns,
+    getCampaignAdSets,
+    loading: campaignsLoading,
+  } = useSidebarCampaigns(selectedProject?.id || null);
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/auth');
+    navigate("/auth");
   };
 
   const handleChangeProject = (projectId: string) => {
     if (projectId === selectedProjectId) return;
     setIsChangingProject(true);
-    localStorage.setItem('selectedProjectId', projectId);
-    // Navigate without full page reload - use React Router only
-    navigate('/dashboard');
-    // Reset state after navigation
+    localStorage.setItem("selectedProjectId", projectId);
+    navigate("/dashboard");
     setTimeout(() => {
       setIsChangingProject(false);
     }, 100);
   };
 
   const toggleCampaignExpand = (campaignId: string) => {
-    setExpandedCampaigns(prev => ({
+    setExpandedCampaigns((prev) => ({
       ...prev,
-      [campaignId]: !prev[campaignId]
+      [campaignId]: !prev[campaignId],
     }));
   };
 
-  // getCampaignAdSets is now provided by useSidebarCampaigns hook
-
   const getStatusColor = (status: string) => {
-    if (status === 'ACTIVE') return 'bg-metric-positive';
-    if (status === 'PAUSED') return 'bg-metric-warning';
-    return 'bg-muted';
+    if (status === "ACTIVE") return "bg-metric-positive";
+    if (status === "PAUSED") return "bg-metric-warning";
+    return "bg-muted";
   };
 
   const handleNavClick = (to: string) => {
@@ -150,17 +140,17 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     onNavigate?.();
   };
 
-  // Show loading screen when changing projects
   if (isChangingProject) {
-    return <LoadingScreen message={t('sidebar.changingProject')} />;
+    return <LoadingScreen message={t("sidebar.changingProject")} />;
   }
 
   return (
     <aside
       className={cn(
-        'h-screen border-r border-sidebar-border transition-all duration-300 sidebar-container',
-        onNavigate ? 'relative w-full' : 'fixed left-0 top-0 z-40',
-        !onNavigate && (collapsed ? 'w-20' : 'w-72')
+        "h-screen border-r border-sidebar-border transition-all duration-300 sidebar-container",
+        onNavigate ? "relative w-full" : "fixed left-0 top-0 z-40",
+        // MUDANÇA: Agora usa w-64 em telas médias e w-72 em telas grandes para salvar espaço
+        !onNavigate && (collapsed ? "w-20" : "w-64 lg:w-72"),
       )}
     >
       <div className="relative flex flex-col h-full">
@@ -168,33 +158,29 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
           {!isGuest ? (
             <Link to="/projects" className="flex items-center gap-3">
-              <img 
-                src={v4LogoFull} 
-                alt="V4 Company" 
+              <img
+                src={v4LogoFull}
+                alt="V4 Company"
                 className={cn(
                   "transition-all duration-300 dark:brightness-0 dark:invert",
-                  collapsed ? "h-8 w-auto" : "h-10 w-auto"
+                  collapsed ? "h-8 w-auto" : "h-10 w-auto",
                 )}
               />
             </Link>
           ) : (
             <div className="flex items-center gap-3">
-              <img 
-                src={v4LogoFull} 
-                alt="V4 Company" 
+              <img
+                src={v4LogoFull}
+                alt="V4 Company"
                 className={cn(
                   "transition-all duration-300 dark:brightness-0 dark:invert",
-                  collapsed ? "h-8 w-auto" : "h-10 w-auto"
+                  collapsed ? "h-8 w-auto" : "h-10 w-auto",
                 )}
               />
             </div>
           )}
-          {/* Hide collapse button on mobile (when onNavigate is provided) */}
           {!onNavigate && (
-            <button
-              onClick={() => setCollapsed(!collapsed)}
-              className="sidebar-collapse-btn flex-shrink-0"
-            >
+            <button onClick={() => setCollapsed(!collapsed)} className="sidebar-collapse-btn flex-shrink-0">
               {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
           )}
@@ -209,146 +195,125 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                   <div className="text-left">
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-metric-positive" />
-                      {t('sidebar.activeProject')}
+                      {t("sidebar.activeProject")}
                     </p>
                     <p className="font-semibold truncate mt-0.5 text-foreground">{selectedProject.name}</p>
                   </div>
                   <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56 bg-popover border-border max-h-[400px] overflow-y-auto">
-                {projects.filter(p => !p.archived).map((project) => (
-                  <DropdownMenuItem 
-                    key={project.id}
-                    onClick={() => handleChangeProject(project.id)}
-                    className={cn(
-                      'transition-colors duration-200',
-                      project.id === selectedProject.id && 'bg-primary/15 text-primary'
-                    )}
-                  >
-                    <div>
-                      <p className="font-medium">{project.name}</p>
-                      {!isGuest && (
-                        <p className="text-xs text-muted-foreground">
-                          ID: {project.ad_account_id.replace('act_', '')}
-                        </p>
+              <DropdownMenuContent
+                align="start"
+                className="w-56 bg-popover border-border max-h-[400px] overflow-y-auto"
+              >
+                {projects
+                  .filter((p) => !p.archived)
+                  .map((project) => (
+                    <DropdownMenuItem
+                      key={project.id}
+                      onClick={() => handleChangeProject(project.id)}
+                      className={cn(
+                        "transition-colors duration-200",
+                        project.id === selectedProject.id && "bg-primary/15 text-primary",
                       )}
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-                {/* Hide "Gerenciar Projetos" for guests */}
+                    >
+                      <div>
+                        <p className="font-medium">{project.name}</p>
+                        {!isGuest && (
+                          <p className="text-xs text-muted-foreground">
+                            ID: {project.ad_account_id.replace("act_", "")}
+                          </p>
+                        )}
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
                 {!isGuest && (
-                  <DropdownMenuItem onClick={() => navigate('/projects')} className="border-t border-border mt-1 pt-2">
+                  <DropdownMenuItem onClick={() => navigate("/projects")} className="border-t border-border mt-1 pt-2">
                     <FolderKanban className="w-4 h-4 mr-2" />
-                    {t('sidebar.manageProjects')}
+                    {t("sidebar.manageProjects")}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-            
-            {/* Sync Status Badge */}
+
             <div className="mt-3 px-1">
               <SyncStatusBadge projectId={selectedProject.id} />
             </div>
           </div>
         )}
-        
-        {/* Divider decorativo */}
+
         {selectedProject && !collapsed && <div className="sidebar-divider mx-3" />}
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 overflow-y-auto flex flex-col">
           <div className="space-y-1" data-tour="sidebar-nav">
-            {/* Dashboard */}
-            <Link
-              to="/dashboard"
-              className={cn(
-                'sidebar-item',
-                location.pathname === '/dashboard' && 'active'
-              )}
-            >
+            <Link to="/dashboard" className={cn("sidebar-item", location.pathname === "/dashboard" && "active")}>
               <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
               {!collapsed && <span>Dashboard</span>}
             </Link>
 
-            {/* Campaigns with hierarchy */}
             {!collapsed ? (
               <Collapsible open={campaignsOpen} onOpenChange={setCampaignsOpen} data-tour="campaigns">
                 <CollapsibleTrigger asChild>
                   <button
                     className={cn(
-                      'sidebar-item w-full justify-between',
-                      (location.pathname.includes('/campaign') || location.pathname.includes('/adset')) && 'active'
+                      "sidebar-item w-full justify-between",
+                      (location.pathname.includes("/campaign") || location.pathname.includes("/adset")) && "active",
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <Megaphone className="w-5 h-5 flex-shrink-0" />
-                      <span>{t('sidebar.campaigns')}</span>
+                      <span>{t("sidebar.campaigns")}</span>
                     </div>
-                    {campaignsOpen ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
+                    {campaignsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-1 space-y-0.5">
                   <Link
                     to="/campaigns"
-                    className={cn(
-                      'sidebar-item pl-10 text-sm',
-                      location.pathname === '/campaigns' && 'active'
-                    )}
+                    className={cn("sidebar-item pl-10 text-sm", location.pathname === "/campaigns" && "active")}
                   >
-                    {t('sidebar.viewAll')}
+                    {t("sidebar.viewAll")}
                   </Link>
-                  
-                  {/* Campaign list with skeleton loader */}
+
                   <div className="max-h-[300px] overflow-y-auto">
                     {campaignsLoading ? (
                       <CampaignSkeleton />
                     ) : sortedCampaigns.length === 0 ? (
-                      <p className="text-xs text-muted-foreground px-3 py-2 pl-10">
-                        {t('sidebar.noCampaignsFound')}
-                      </p>
+                      <p className="text-xs text-muted-foreground px-3 py-2 pl-10">{t("sidebar.noCampaignsFound")}</p>
                     ) : (
                       sortedCampaigns.slice(0, 10).map((campaign) => {
                         const campaignAdSets = getCampaignAdSets(campaign.id);
                         const isExpanded = expandedCampaigns[campaign.id];
-                        
+
                         return (
                           <div key={campaign.id} className="group/campaign">
                             <button
                               onClick={() => {
                                 if (campaignAdSets.length === 0) {
-                                  // No ad sets - navigate to campaign ad sets page
                                   navigate(`/campaign/${campaign.id}/adsets`);
                                   onNavigate?.();
                                 } else {
-                                  // Has ad sets - toggle expand
                                   toggleCampaignExpand(campaign.id);
                                 }
                               }}
                               className="w-full flex items-center gap-2 px-3 py-2 pl-8 text-sm rounded-lg transition-colors duration-200 hover:bg-secondary"
                             >
-                              <span className={cn(
-                                'w-2 h-2 rounded-full flex-shrink-0',
-                                getStatusColor(campaign.status)
-                              )} />
-                              <span className="truncate flex-1 text-left text-muted-foreground group-hover/campaign:text-foreground transition-colors">{campaign.name}</span>
+                              <span
+                                className={cn("w-2 h-2 rounded-full flex-shrink-0", getStatusColor(campaign.status))}
+                              />
+                              <span className="truncate flex-1 text-left text-muted-foreground group-hover/campaign:text-foreground transition-colors">
+                                {campaign.name}
+                              </span>
                               {campaignAdSets.length > 0 ? (
-                                <span className={cn(
-                                  'transition-transform duration-200',
-                                  isExpanded && 'rotate-180'
-                                )}>
+                                <span className={cn("transition-transform duration-200", isExpanded && "rotate-180")}>
                                   <ChevronDown className="w-3 h-3 flex-shrink-0" />
                                 </span>
                               ) : (
                                 <ChevronRight className="w-3 h-3 flex-shrink-0 opacity-50" />
                               )}
                             </button>
-                            
-                            {/* Ad Sets */}
+
                             {isExpanded && campaignAdSets.length > 0 && (
                               <div className="ml-6 border-l border-border animate-fade-in">
                                 {campaignAdSets.map((adSet) => (
@@ -358,10 +323,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                                     className="flex items-center gap-2 px-3 py-1.5 pl-4 text-xs rounded-lg transition-colors duration-200 text-muted-foreground hover:text-foreground hover:bg-secondary"
                                   >
                                     <Layers className="w-3 h-3 flex-shrink-0 opacity-50" />
-                                    <span className={cn(
-                                      'w-1.5 h-1.5 rounded-full flex-shrink-0',
-                                      getStatusColor(adSet.status)
-                                    )} />
+                                    <span
+                                      className={cn(
+                                        "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                                        getStatusColor(adSet.status),
+                                      )}
+                                    />
                                     <span className="truncate">{adSet.name}</span>
                                   </Link>
                                 ))}
@@ -372,132 +339,105 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                       })
                     )}
                   </div>
-                  
-                    {sortedCampaigns.length > 10 && (
-                      <Link
-                        to="/campaigns"
-                        className="sidebar-item pl-10 text-sm text-muted-foreground hover:text-foreground"
-                      >
-                        + {sortedCampaigns.length - 10} {t('sidebar.moreCampaigns')}
+
+                  {sortedCampaigns.length > 10 && (
+                    <Link
+                      to="/campaigns"
+                      className="sidebar-item pl-10 text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      + {sortedCampaigns.length - 10} {t("sidebar.moreCampaigns")}
                     </Link>
                   )}
                 </CollapsibleContent>
               </Collapsible>
             ) : (
-              <Link
-                to="/campaigns"
-                className={cn(
-                  'sidebar-item',
-                  location.pathname.includes('/campaign') && 'active'
-                )}
-              >
+              <Link to="/campaigns" className={cn("sidebar-item", location.pathname.includes("/campaign") && "active")}>
                 <Megaphone className="w-5 h-5 flex-shrink-0" />
               </Link>
             )}
 
-
-            {/* Creatives */}
             <Link
               to="/creatives"
               data-tour="creatives"
-              className={cn(
-                'sidebar-item',
-                location.pathname === '/creatives' && 'active'
-              )}
+              className={cn("sidebar-item", location.pathname === "/creatives" && "active")}
             >
               <ImageIcon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>{t('sidebar.creatives')}</span>}
+              {!collapsed && <span>{t("sidebar.creatives")}</span>}
             </Link>
 
-            {/* Agente Lisboa - Hidden for guests, DISABLED - waiting for Gemini API */}
             {!roleLoading && !isGuest && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
                       className={cn(
-                        'sidebar-item opacity-50 cursor-not-allowed',
-                        location.pathname === '/ai-assistant' && 'active'
+                        "sidebar-item opacity-50 cursor-not-allowed",
+                        location.pathname === "/ai-assistant" && "active",
                       )}
                     >
                       <Bot className="w-5 h-5 flex-shrink-0" />
                       {!collapsed && (
                         <div className="flex items-center gap-2">
-                          <span>{t('sidebar.aiAgent')}</span>
+                          <span>{t("sidebar.aiAgent")}</span>
                           <Lock className="w-3 h-3 text-muted-foreground" />
                         </div>
                       )}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="bg-popover border-border">
-                    <p>{t('sidebar.maintenanceMessage')}</p>
+                    <p>{t("sidebar.maintenanceMessage")}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             )}
 
-            {/* Análise Preditiva - Hidden for guests, DISABLED - waiting for Gemini API */}
             {!roleLoading && !isGuest && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
                       className={cn(
-                        'sidebar-item opacity-50 cursor-not-allowed',
-                        location.pathname === '/predictive-analysis' && 'active'
+                        "sidebar-item opacity-50 cursor-not-allowed",
+                        location.pathname === "/predictive-analysis" && "active",
                       )}
                     >
                       <TrendingUp className="w-5 h-5 flex-shrink-0" />
                       {!collapsed && (
                         <div className="flex items-center gap-2">
-                          <span>{t('sidebar.predictiveAnalysis')}</span>
+                          <span>{t("sidebar.predictiveAnalysis")}</span>
                           <Lock className="w-3 h-3 text-muted-foreground" />
                         </div>
                       )}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="bg-popover border-border">
-                    <p>{t('sidebar.maintenanceMessage')}</p>
+                    <p>{t("sidebar.maintenanceMessage")}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             )}
 
-            {/* Histórico de Otimizações - respects tab visibility */}
-            {selectedProject && !isTabHidden('suggestions') && (
+            {selectedProject && !isTabHidden("suggestions") && (
               <Link
                 to="/optimization-history"
-                className={cn(
-                  'sidebar-item',
-                  location.pathname === '/optimization-history' && 'active'
-                )}
+                className={cn("sidebar-item", location.pathname === "/optimization-history" && "active")}
               >
                 <History className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>{t('sidebar.history')}</span>}
+                {!collapsed && <span>{t("sidebar.history")}</span>}
               </Link>
             )}
 
-            {/* Financeiro - liberado para TODOS os usuários */}
-            {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('financial') && (
-              <Link
-                to="/financeiro"
-                className={cn(
-                  'sidebar-item',
-                  location.pathname === '/financeiro' && 'active'
-                )}
-              >
+            {!roleLoading && !cargoLoading && !isGuest && !isTabHidden("financial") && (
+              <Link to="/financeiro" className={cn("sidebar-item", location.pathname === "/financeiro" && "active")}>
                 <DollarSign className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>{t('sidebar.financial')}</span>}
+                {!collapsed && <span>{t("sidebar.financial")}</span>}
               </Link>
             )}
 
-
-            {/* Tour Button - Only for guests */}
             {!roleLoading && isGuest && (
               <button
                 onClick={() => {
-                  navigate('/dashboard');
-                  // Small delay to let navigation complete, then trigger tour
+                  navigate("/dashboard");
                   setTimeout(() => {
                     triggerTour();
                   }, 300);
@@ -505,155 +445,114 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 className="sidebar-item w-full group"
               >
                 <Compass className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>{t('sidebar.viewTour')}</span>}
+                {!collapsed && <span>{t("sidebar.viewTour")}</span>}
               </button>
             )}
           </div>
 
-          {/* Spacer to push admin/settings to bottom */}
           <div className="flex-1" />
-          
-          {/* Divider antes da seção de admin */}
+
           {!roleLoading && !isGuest && !collapsed && <div className="sidebar-divider mx-3" />}
 
-        {/* Admin & Settings at bottom - Hidden for guests, hidden while loading role */}
           {!roleLoading && !cargoLoading && !isGuest && (
             <div className="space-y-1 mt-2 mb-2">
-
-              {/* Admin - Investidor precisa solicitar acesso */}
-              {!isTabHidden('admin') && (
-                needsAdminApproval ? (
-                  // Investidor/Coordenador - mostrar botão que abre modal de solicitação
+              {!isTabHidden("admin") &&
+                (needsAdminApproval ? (
                   <button
                     onClick={() => setAdminAccessModalOpen(true)}
                     className={cn(
-                      'sidebar-item w-full',
-                      (location.pathname === '/admin' || 
-                       location.pathname.includes('/admin')) && 'active'
+                      "sidebar-item w-full",
+                      (location.pathname === "/admin" || location.pathname.includes("/admin")) && "active",
                     )}
                   >
                     <Database className="w-5 h-5 flex-shrink-0" />
                     {!collapsed && (
                       <div className="flex items-center gap-2">
-                        <span>{t('sidebar.administration')}</span>
+                        <span>{t("sidebar.administration")}</span>
                         <AlertTriangle className="w-3 h-3 text-amber-500" />
                       </div>
                     )}
                   </button>
                 ) : (
-                  // Tech/Gerente - acesso direto
                   <Link
-                    to={selectedProject ? `/project/${selectedProject.id}/admin` : '/admin'}
+                    to={selectedProject ? `/project/${selectedProject.id}/admin` : "/admin"}
                     onClick={onNavigate}
                     className={cn(
-                      'sidebar-item',
-                      (location.pathname === '/admin' || 
-                       location.pathname.includes('/admin')) && 'active'
+                      "sidebar-item",
+                      (location.pathname === "/admin" || location.pathname.includes("/admin")) && "active",
                     )}
                   >
                     <Database className="w-5 h-5 flex-shrink-0" />
-                    {!collapsed && <span>{t('sidebar.administration')}</span>}
+                    {!collapsed && <span>{t("sidebar.administration")}</span>}
                   </Link>
-                )
-              )}
+                ))}
 
-              {/* Suggestions - respects tab visibility */}
-              {!isTabHidden('suggestions') && (
+              {!isTabHidden("suggestions") && (
                 <Link
                   to="/suggestions"
                   onClick={onNavigate}
-                  className={cn(
-                    'sidebar-item',
-                    location.pathname === '/suggestions' && 'active'
-                  )}
+                  className={cn("sidebar-item", location.pathname === "/suggestions" && "active")}
                 >
                   <Lightbulb className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && <span>{t('sidebar.suggestions')}</span>}
+                  {!collapsed && <span>{t("sidebar.suggestions")}</span>}
                 </Link>
               )}
 
-              {/* Settings - respects tab visibility */}
-              {!isTabHidden('settings') && (
-                <Link
-                  to="/settings"
-                  className={cn(
-                    'sidebar-item',
-                    location.pathname === '/settings' && 'active'
-                  )}
-                >
+              {!isTabHidden("settings") && (
+                <Link to="/settings" className={cn("sidebar-item", location.pathname === "/settings" && "active")}>
                   <Settings className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && <span>{t('sidebar.settings')}</span>}
+                  {!collapsed && <span>{t("sidebar.settings")}</span>}
                 </Link>
               )}
             </div>
           )}
 
-          {/* Guest Settings Section */}
           {!roleLoading && isGuest && (
             <div className="space-y-1 mt-2 mb-2">
               {!collapsed && <div className="sidebar-divider mx-3 mb-2" />}
-              
+
               {!collapsed ? (
                 <Collapsible open={guestSettingsOpen} onOpenChange={setGuestSettingsOpen}>
                   <CollapsibleTrigger asChild>
                     <button className="sidebar-item w-full justify-between">
                       <div className="flex items-center gap-3">
                         <Settings className="w-5 h-5 flex-shrink-0" />
-                        <span>{t('common.settings')}</span>
+                        <span>{t("common.settings")}</span>
                       </div>
-                      {guestSettingsOpen ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
+                      {guestSettingsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-1 space-y-0.5">
-                    {/* Theme Toggle */}
-                    <button
-                      onClick={toggleTheme}
-                      className="sidebar-item pl-10 text-sm w-full"
-                    >
-                      {theme === 'dark' ? (
+                    <button onClick={toggleTheme} className="sidebar-item pl-10 text-sm w-full">
+                      {theme === "dark" ? (
                         <>
                           <Sun className="w-4 h-4 mr-2" />
-                          {t('settings.lightTheme')}
+                          {t("settings.lightTheme")}
                         </>
                       ) : (
                         <>
                           <Moon className="w-4 h-4 mr-2" />
-                          {t('settings.darkTheme')}
+                          {t("settings.darkTheme")}
                         </>
                       )}
                     </button>
-                    
-                    {/* Edit Profile */}
-                    <Link
-                      to="/settings"
-                      onClick={onNavigate}
-                      className="sidebar-item pl-10 text-sm"
-                    >
+
+                    <Link to="/settings" onClick={onNavigate} className="sidebar-item pl-10 text-sm">
                       <User className="w-4 h-4 mr-2" />
-                      {t('projectSelector.editProfile')}
+                      {t("projectSelector.editProfile")}
                     </Link>
-                    
-                    {/* Change Password */}
-                    <Link
-                      to="/change-password"
-                      onClick={onNavigate}
-                      className="sidebar-item pl-10 text-sm"
-                    >
+
+                    <Link to="/change-password" onClick={onNavigate} className="sidebar-item pl-10 text-sm">
                       <KeyRound className="w-4 h-4 mr-2" />
-                      {t('projectSelector.changePassword')}
+                      {t("projectSelector.changePassword")}
                     </Link>
-                    
-                    {/* Logout */}
+
                     <button
                       onClick={handleSignOut}
                       className="sidebar-item pl-10 text-sm w-full text-destructive hover:bg-destructive/10"
                     >
                       <LogOut className="w-4 h-4 mr-2" />
-                      {t('navigation.logout')}
+                      {t("navigation.logout")}
                     </button>
                   </CollapsibleContent>
                 </Collapsible>
@@ -676,9 +575,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           )}
         </nav>
 
-        {/* User section - Different for guests vs regular users */}
         <div className="p-4 border-t border-sidebar-border bg-sidebar-accent/50">
-          <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
+          <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
             <Avatar className="w-10 h-10 ring-2 ring-primary/20">
               <AvatarImage src={profile?.avatar_url || undefined} />
               <AvatarFallback className="bg-primary text-primary-foreground font-bold">
@@ -687,24 +585,19 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             </Avatar>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate text-foreground">
-                  {profile?.full_name || 'Investidor'}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {user?.email}
-                </p>
+                <p className="text-sm font-medium truncate text-foreground">{profile?.full_name || "Investidor"}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
             )}
           </div>
-          {/* Only show logout button for non-guests (guests have it in their settings menu) */}
           {!isGuest && (
             <Button
               variant="ghost"
               onClick={handleSignOut}
               className={cn(
-                'mt-4 w-full transition-colors duration-200 group',
-                'hover:bg-destructive/10 hover:text-destructive',
-                collapsed ? 'px-0' : ''
+                "mt-4 w-full transition-colors duration-200 group",
+                "hover:bg-destructive/10 hover:text-destructive",
+                collapsed ? "px-0" : "",
               )}
             >
               <LogOut className="w-4 h-4" />
@@ -714,7 +607,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         </div>
       </div>
 
-      {/* Invite Guest Dialog */}
       {selectedProject && (
         <InviteGuestDialog
           open={inviteDialogOpen}
@@ -724,14 +616,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         />
       )}
 
-      {/* Admin Access Request Modal - para Investidor/Coordenador */}
       <AdminAccessRequestModal
         open={adminAccessModalOpen}
         onOpenChange={setAdminAccessModalOpen}
         projectId={selectedProject?.id}
         projectName={selectedProject?.name}
       />
-
     </aside>
   );
 }
