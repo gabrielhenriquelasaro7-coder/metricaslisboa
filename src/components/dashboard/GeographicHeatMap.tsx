@@ -1,151 +1,497 @@
-import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip } from "react-leaflet";
-import { useTranslation } from "react-i18next";
-import "leaflet/dist/leaflet.css";
-import { cn } from "@/lib/utils";
-
-const STATE_COORDINATES: Record<string, [number, number]> = {
-  SP: [-23.5505, -46.6333],
-  RJ: [-22.9068, -43.1729],
-  MG: [-19.9167, -43.9345],
-  RS: [-30.0346, -51.2177],
-  PR: [-25.4284, -49.2733],
-  SC: [-27.5954, -48.548],
-  BA: [-12.9777, -38.5016],
-  DF: [-15.7975, -47.8919],
-  PE: [-8.0476, -34.877],
-  CE: [-3.7172, -38.5434],
-  // Adicione outros estados conforme necessário
-};
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MapPin, Loader2 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet.heat';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface GeoData {
-  state: string;
+  breakdown_value: string;
+  spend: number;
   impressions: number;
   clicks: number;
-  spend: number;
-  platform?: string;
+  reach: number;
+  conversions: number;
+  conversion_value: number;
 }
 
 interface GeographicHeatMapProps {
-  data: GeoData[];
-  platformFilter?: string;
+  countryData: GeoData[];
+  regionData: GeoData[];
+  isLoading: boolean;
   className?: string;
-  countryData?: any[]; // Mantido para compatibilidade
-  regionData?: any[]; // Mantido para compatibilidade
-  isLoading?: boolean; // Mantido para compatibilidade
-  currency?: string; // Mantido para compatibilidade
+  currency?: string;
 }
 
-export function GeographicHeatMap({
-  data,
-  platformFilter = "all",
-  className,
-  regionData, // Se vier do Dashboard antigo
-}: GeographicHeatMapProps) {
-  const { t } = useTranslation();
-  const [selectedMetric, setSelectedMetric] = useState<"impressions" | "clicks" | "spend">("spend");
-  const [mounted, setMounted] = useState(false);
+// Brazilian states coordinates
+const BRAZIL_STATES_COORDS: Record<string, [number, number]> = {
+  'Acre': [-9.0238, -70.8120],
+  'Alagoas': [-9.5713, -36.7820],
+  'Amapá': [1.4102, -51.7772],
+  'Amazonas': [-3.4168, -65.8561],
+  'Bahia': [-12.5797, -41.7007],
+  'Ceará': [-5.4984, -39.3206],
+  'Distrito Federal': [-15.7998, -47.8645],
+  'Espírito Santo': [-19.1834, -40.3089],
+  'Goiás': [-15.8270, -49.8362],
+  'Maranhão': [-4.9609, -45.2744],
+  'Mato Grosso': [-12.6819, -56.9211],
+  'Mato Grosso do Sul': [-20.7722, -54.7852],
+  'Minas Gerais': [-18.5122, -44.5550],
+  'Pará': [-3.4168, -52.2166],
+  'Paraíba': [-7.2400, -36.7820],
+  'Paraná': [-24.8934, -51.5500],
+  'Pernambuco': [-8.3137, -37.8597],
+  'Piauí': [-7.7183, -42.7289],
+  'Rio de Janeiro': [-22.2587, -42.6505],
+  'Rio de Janeiro (state)': [-22.2587, -42.6505],
+  'Rio Grande do Norte': [-5.8126, -36.5900],
+  'Rio Grande do Sul': [-30.0346, -51.2177],
+  'Rondônia': [-10.8307, -63.3461],
+  'Roraima': [2.7376, -62.0751],
+  'Santa Catarina': [-27.2423, -50.2189],
+  'São Paulo': [-22.1922, -48.7945],
+  'Sao Paulo': [-22.1922, -48.7945],
+  'São Paulo (state)': [-22.1922, -48.7945],
+  'Sao Paulo (state)': [-22.1922, -48.7945],
+  'Sergipe': [-10.5741, -37.3857],
+  'Tocantins': [-10.1753, -48.2982],
+};
+
+// USA states coordinates
+const USA_STATES_COORDS: Record<string, [number, number]> = {
+  'Alabama': [32.806671, -86.791130],
+  'Alaska': [61.370716, -152.404419],
+  'Arizona': [33.729759, -111.431221],
+  'Arkansas': [34.969704, -92.373123],
+  'California': [36.116203, -119.681564],
+  'Colorado': [39.059811, -105.311104],
+  'Connecticut': [41.597782, -72.755371],
+  'Delaware': [39.318523, -75.507141],
+  'Florida': [27.766279, -81.686783],
+  'Georgia': [33.040619, -83.643074],
+  'Hawaii': [21.094318, -157.498337],
+  'Idaho': [44.240459, -114.478828],
+  'Illinois': [40.349457, -88.986137],
+  'Indiana': [39.849426, -86.258278],
+  'Iowa': [42.011539, -93.210526],
+  'Kansas': [38.526600, -96.726486],
+  'Kentucky': [37.668140, -84.670067],
+  'Louisiana': [31.169546, -91.867805],
+  'Maine': [44.693947, -69.381927],
+  'Maryland': [39.063946, -76.802101],
+  'Massachusetts': [42.230171, -71.530106],
+  'Michigan': [43.326618, -84.536095],
+  'Minnesota': [45.694454, -93.900192],
+  'Mississippi': [32.741646, -89.678696],
+  'Missouri': [38.456085, -92.288368],
+  'Montana': [46.921925, -110.454353],
+  'Nebraska': [41.125370, -98.268082],
+  'Nevada': [38.313515, -117.055374],
+  'New Hampshire': [43.452492, -71.563896],
+  'New Jersey': [40.298904, -74.521011],
+  'New Mexico': [34.840515, -106.248482],
+  'New York': [42.165726, -74.948051],
+  'North Carolina': [35.630066, -79.806419],
+  'North Dakota': [47.528912, -99.784012],
+  'Ohio': [40.388783, -82.764915],
+  'Oklahoma': [35.565342, -96.928917],
+  'Oregon': [44.572021, -122.070938],
+  'Pennsylvania': [40.590752, -77.209755],
+  'Rhode Island': [41.680893, -71.511780],
+  'South Carolina': [33.856892, -80.945007],
+  'South Dakota': [44.299782, -99.438828],
+  'Tennessee': [35.747845, -86.692345],
+  'Texas': [31.054487, -97.563461],
+  'Utah': [40.150032, -111.862434],
+  'Vermont': [44.045876, -72.710686],
+  'Virginia': [37.769337, -78.169968],
+  'Washington': [47.400902, -121.490494],
+  'West Virginia': [38.491226, -80.954456],
+  'Wisconsin': [44.268543, -89.616508],
+  'Wyoming': [42.755966, -107.302490],
+  'District of Columbia': [38.897438, -77.026817],
+  'Washington, D.C.': [38.897438, -77.026817],
+};
+
+// Country coordinates
+const COUNTRY_COORDS: Record<string, { center: [number, number]; zoom: number }> = {
+  'Brazil': { center: [-14.235, -51.925], zoom: 4 },
+  'Brasil': { center: [-14.235, -51.925], zoom: 4 },
+  'BR': { center: [-14.235, -51.925], zoom: 4 },
+  'United States': { center: [39.8283, -98.5795], zoom: 4 },
+  'US': { center: [39.8283, -98.5795], zoom: 4 },
+  'USA': { center: [39.8283, -98.5795], zoom: 4 },
+  'Mexico': { center: [23.6345, -102.5528], zoom: 5 },
+  'MX': { center: [23.6345, -102.5528], zoom: 5 },
+  'Argentina': { center: [-38.4161, -63.6167], zoom: 4 },
+  'AR': { center: [-38.4161, -63.6167], zoom: 4 },
+  'Colombia': { center: [4.5709, -74.2973], zoom: 5 },
+  'CO': { center: [4.5709, -74.2973], zoom: 5 },
+  'Chile': { center: [-35.6751, -71.5430], zoom: 4 },
+  'CL': { center: [-35.6751, -71.5430], zoom: 4 },
+  'Peru': { center: [-9.19, -75.0152], zoom: 5 },
+  'PE': { center: [-9.19, -75.0152], zoom: 5 },
+  'Portugal': { center: [39.3999, -8.2245], zoom: 6 },
+  'PT': { center: [39.3999, -8.2245], zoom: 6 },
+  'Spain': { center: [40.4637, -3.7492], zoom: 5 },
+  'ES': { center: [40.4637, -3.7492], zoom: 5 },
+  'United Kingdom': { center: [55.3781, -3.4360], zoom: 5 },
+  'UK': { center: [55.3781, -3.4360], zoom: 5 },
+  'GB': { center: [55.3781, -3.4360], zoom: 5 },
+  'Germany': { center: [51.1657, 10.4515], zoom: 5 },
+  'DE': { center: [51.1657, 10.4515], zoom: 5 },
+  'France': { center: [46.2276, 2.2137], zoom: 5 },
+  'FR': { center: [46.2276, 2.2137], zoom: 5 },
+  'Italy': { center: [41.8719, 12.5674], zoom: 5 },
+  'IT': { center: [41.8719, 12.5674], zoom: 5 },
+  'Canada': { center: [56.1304, -106.3468], zoom: 3 },
+  'CA': { center: [56.1304, -106.3468], zoom: 3 },
+  'Australia': { center: [-25.2744, 133.7751], zoom: 4 },
+  'AU': { center: [-25.2744, 133.7751], zoom: 4 },
+};
+
+function getRegionCoords(regionName: string): [number, number] | null {
+  if (BRAZIL_STATES_COORDS[regionName]) {
+    return BRAZIL_STATES_COORDS[regionName];
+  }
+  if (USA_STATES_COORDS[regionName]) {
+    return USA_STATES_COORDS[regionName];
+  }
+  return null;
+}
+
+function formatNumber(value: number): string {
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  return value.toLocaleString('pt-BR');
+}
+
+function formatCurrency(value: number, currency: string): string {
+  return new Intl.NumberFormat('pt-BR', { 
+    style: 'currency', 
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2 
+  }).format(value);
+}
+
+type MetricType = 'impressions' | 'spend' | 'clicks';
+
+function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    map.setView(center, zoom, { animate: true });
+  }, [map, center, zoom]);
+  
+  return null;
+}
+
+function HeatLayer({ 
+  data, 
+  metric, 
+  maxValue,
+  minValue
+}: { 
+  data: Array<{ coords: [number, number] | null; value: number }>; 
+  metric: MetricType;
+  maxValue: number;
+  minValue: number;
+}) {
+  const map = useMap();
+  const heatLayerRef = useRef<any>(null);
+
+  const updateHeatLayer = (currentZoom: number) => {
+    if (!map) return;
+
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+    }
+
+    const validPoints = data.filter(d => d.coords !== null && d.value > 0);
+    
+    if (validPoints.length === 0) return;
+
+    const logValues = validPoints.map(d => Math.log10(d.value + 1));
+    const logMin = Math.min(...logValues);
+    const logMax = Math.max(...logValues);
+    const logRange = logMax - logMin;
+
+    const heatData = validPoints.map(d => {
+      const logValue = Math.log10(d.value + 1);
+      
+      let intensity: number;
+      
+      if (validPoints.length === 1 || logRange === 0) {
+        intensity = 1.0;
+      } else {
+        const normalizedIntensity = (logValue - logMin) / logRange;
+        intensity = Math.max(0.2, Math.min(1.0, normalizedIntensity));
+      }
+      
+      return [d.coords![0], d.coords![1], intensity] as [number, number, number];
+    });
+
+    const baseRadius = 30;
+    const zoomFactor = Math.max(0.6, Math.pow(1.12, currentZoom - 4));
+    const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 20), 55);
+    
+    const dynamicBlur = dynamicRadius * 0.4;
+
+    const useSinglePointGradient = validPoints.length <= 2 || logRange < 0.1;
+    
+    // @ts-ignore
+    heatLayerRef.current = L.heatLayer(heatData, {
+      radius: useSinglePointGradient ? dynamicRadius * 1.3 : dynamicRadius,
+      blur: useSinglePointGradient ? dynamicBlur * 0.5 : dynamicBlur,
+      maxZoom: 12,
+      max: useSinglePointGradient ? 0.6 : 1.0,
+      minOpacity: useSinglePointGradient ? 0.7 : 0.4,
+      gradient: useSinglePointGradient 
+        ? {
+            0.0: '#f59e0b',
+            0.3: '#ea580c',
+            0.5: '#dc2626',
+            0.7: '#b91c1c',
+            1.0: '#7f1d1d'
+          }
+        : {
+            0.0: '#fefce8',
+            0.15: '#fef08a',
+            0.3: '#fde047',
+            0.45: '#facc15',
+            0.55: '#f59e0b',
+            0.7: '#ea580c',
+            0.85: '#dc2626',
+            1.0: '#991b1b'
+          }
+    }).addTo(map);
+  };
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!map) return;
 
-  // Usa 'data' ou 'regionData' (fallback)
-  const sourceData = data || regionData || [];
+    updateHeatLayer(map.getZoom());
 
-  const filteredData = sourceData.filter((item) => {
-    if (!platformFilter || platformFilter === "all") return true;
-    const itemPlatform = (item.platform || "").toLowerCase();
-    const filter = platformFilter.toLowerCase();
-    if (filter.includes("google")) return itemPlatform.includes("google");
-    if (filter.includes("meta")) return itemPlatform.includes("meta");
-    return itemPlatform === filter;
-  });
+    const onZoom = () => updateHeatLayer(map.getZoom());
+    map.on('zoomend', onZoom);
 
-  const stateData = filteredData.reduce(
-    (acc, curr) => {
-      const state = curr.state || "Unknown";
-      if (!acc[state]) {
-        acc[state] = { state, impressions: 0, clicks: 0, spend: 0 };
+    return () => {
+      map.off('zoomend', onZoom);
+      if (heatLayerRef.current && map) {
+        map.removeLayer(heatLayerRef.current);
       }
-      acc[state].impressions += curr.impressions || 0;
-      acc[state].clicks += curr.clicks || 0;
-      acc[state].spend += curr.spend || 0;
-      return acc;
-    },
-    {} as Record<string, GeoData>,
-  );
+    };
+  }, [map, data, metric, maxValue, minValue]);
 
-  const chartData = Object.values(stateData);
-  const maxValue = Math.max(...chartData.map((d) => d[selectedMetric] || 0), 1);
+  return null;
+}
 
-  if (!mounted) return <Card className={cn("h-[500px] premium-card", className)} />;
+export function GeographicHeatMap({ 
+  countryData, 
+  regionData, 
+  isLoading, 
+  className,
+  currency = 'BRL'
+}: GeographicHeatMapProps) {
+  const { t } = useTranslation();
+  const [metric, setMetric] = useState<MetricType>('impressions');
+  const isMobile = useIsMobile();
+
+  const { mapCenter, mapZoom, detectedCountry } = useMemo(() => {
+    if (!countryData?.length) {
+      return { mapCenter: [-14.235, -51.925] as [number, number], mapZoom: 4, detectedCountry: 'Brazil' };
+    }
+
+    const sortedCountries = [...countryData].sort((a, b) => b.spend - a.spend);
+    const topCountry = sortedCountries[0]?.breakdown_value || 'Brazil';
+
+    const countryConfig = COUNTRY_COORDS[topCountry];
+    if (countryConfig) {
+      return { 
+        mapCenter: countryConfig.center, 
+        mapZoom: countryConfig.zoom, 
+        detectedCountry: topCountry 
+      };
+    }
+
+    return { mapCenter: [-14.235, -51.925] as [number, number], mapZoom: 4, detectedCountry: topCountry };
+  }, [countryData]);
+
+  const processedData = useMemo(() => {
+    if (!regionData?.length) return [];
+    
+    const totalImpressions = regionData.reduce((sum, item) => sum + item.impressions, 0);
+    const minThreshold = Math.max(10, totalImpressions * 0.01);
+    
+    return regionData
+      .filter(item => item.impressions >= minThreshold || item.clicks > 0 || item.spend > 1)
+      .map(item => {
+        const ctr = item.impressions > 0 ? (item.clicks / item.impressions) * 100 : 0;
+        const cpc = item.clicks > 0 ? item.spend / item.clicks : 0;
+        const coords = getRegionCoords(item.breakdown_value);
+        return {
+          ...item,
+          ctr,
+          cpc,
+          coords
+        };
+      })
+      .sort((a, b) => b[metric] - a[metric]);
+  }, [regionData, metric]);
+
+  const heatMapData = useMemo(() => {
+    return processedData.map(item => ({
+      coords: item.coords,
+      value: item[metric]
+    }));
+  }, [processedData, metric]);
+
+  const maxValue = useMemo(() => {
+    if (!processedData.length) return 1;
+    return Math.max(...processedData.map(d => d[metric]));
+  }, [processedData, metric]);
+
+  const minValue = useMemo(() => {
+    if (!processedData.length) return 0;
+    const values = processedData.map(d => d[metric]).filter(v => v > 0);
+    return values.length > 0 ? Math.min(...values) : 0;
+  }, [processedData, metric]);
+
+  const getMetricLabel = (m: MetricType): string => {
+    switch (m) {
+      case 'impressions': return t('geographic.impressions');
+      case 'spend': return t('geographic.spend');
+      case 'clicks': return t('geographic.clicks');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card className={className}>
+        <CardContent className="flex items-center justify-center h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const hasData = processedData.length > 0;
+
+  if (!hasData) {
+    return (
+      <Card className={className}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            {t('geographic.geolocation')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
+          <MapPin className="h-12 w-12 mb-2 opacity-50" />
+          <p className="text-sm">{t('geographic.noData')}</p>
+          <p className="text-xs mt-1">{t('geographic.syncData')}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
 
   return (
-    <Card className={cn("flex flex-col h-[500px] premium-card overflow-hidden", className)}>
-      <div className="p-4 border-b border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4 z-[1000] relative bg-card/50 backdrop-blur-sm">
-        <h3 className="text-lg font-semibold">{t("geographic.title", "Mapa Geográfico")}</h3>
+    <Card className={className}>
+      <CardHeader className="pb-2 px-3 sm:px-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="h-6 sm:h-8 w-1 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
+            <div>
+              <CardTitle className="text-sm sm:text-lg font-semibold">{t('geographic.heatMap')}</CardTitle>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                {detectedCountry} • {processedData.length} {t('geographic.regions')}
+              </p>
+            </div>
+          </div>
+          <Select value={metric} onValueChange={(v) => setMetric(v as MetricType)}>
+            <SelectTrigger className="w-full sm:w-[140px] h-8 sm:h-9 text-xs sm:text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="impressions">{t('geographic.impressions')}</SelectItem>
+              <SelectItem value="clicks">{t('geographic.clicks')}</SelectItem>
+              <SelectItem value="spend">{t('geographic.spend')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent className="px-3 sm:px-6">
+        <div className="relative h-[220px] sm:h-[300px] md:h-[400px] lg:h-[450px] rounded-lg border border-border overflow-hidden">
+          <MapContainer
+            center={mapCenter}
+            zoom={isMobile ? Math.max(mapZoom - 1, 3) : mapZoom}
+            style={{ height: '100%', width: '100%' }}
+            scrollWheelZoom={!isMobile}
+            zoomControl={!isMobile}
+            dragging={!isMobile}
+            touchZoom={false}
+            doubleClickZoom={!isMobile}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            />
+            <MapUpdater center={mapCenter} zoom={isMobile ? Math.max(mapZoom - 1, 3) : mapZoom} />
+            <HeatLayer 
+              data={heatMapData} 
+              metric={metric} 
+              maxValue={maxValue}
+              minValue={minValue}
+            />
+          </MapContainer>
 
-        <Select value={selectedMetric} onValueChange={(value: any) => setSelectedMetric(value)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder={t("common.filter", "Filtrar")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="spend">{t("metrics.spend", "Investimento")}</SelectItem>
-            <SelectItem value="impressions">{t("metrics.impressions", "Impressões")}</SelectItem>
-            <SelectItem value="clicks">{t("metrics.clicks", "Cliques")}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+          {/* Legend */}
+          <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 bg-background/90 backdrop-blur-sm rounded-lg p-1.5 sm:p-2 border border-border">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="w-12 sm:w-20 h-2 sm:h-3 rounded-full bg-gradient-to-r from-yellow-200 via-orange-500 to-red-700" />
+              <span className="text-[8px] sm:text-[10px] text-muted-foreground">{getMetricLabel(metric)}</span>
+            </div>
+          </div>
+        </div>
 
-      <div className="flex-1 w-full relative z-0">
-        <MapContainer
-          center={[-14.235, -51.925]}
-          zoom={3.5}
-          scrollWheelZoom={false}
-          className="w-full h-full bg-slate-900/20"
-          attributionControl={false}
-        >
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-          />
-
-          {chartData.map((item) => {
-            const coords = STATE_COORDINATES[item.state];
-            if (!coords) return null;
-
-            const value = item[selectedMetric];
-            const radius = 5 + (value / maxValue) * 25;
-
-            return (
-              <CircleMarker
-                key={item.state}
-                center={coords}
-                radius={radius}
-                fillColor="hsl(0, 85%, 55%)"
-                color="hsl(0, 85%, 55%)"
-                weight={1}
-                opacity={0.8}
-                fillOpacity={0.6}
-              >
-                <LeafletTooltip direction="top" offset={[0, -10]} opacity={1}>
-                  <div className="text-center">
-                    <strong className="block text-sm">{item.state}</strong>
-                    <span className="text-xs text-muted-foreground">
-                      {selectedMetric === "spend"
-                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value)
-                        : new Intl.NumberFormat("pt-BR").format(value)}
+        {/* Top regions list */}
+        <div className="mt-4">
+          <h4 className="text-xs sm:text-sm font-medium mb-2">
+            {t('geographic.topStates')} {getMetricLabel(metric)}
+          </h4>
+          <ScrollArea className="h-[120px] sm:h-[150px]">
+            <div className="space-y-1">
+              {processedData.slice(0, 10).map((item, index) => (
+                <div 
+                  key={item.breakdown_value} 
+                  className="flex items-center justify-between text-xs sm:text-sm py-1 px-2 rounded hover:bg-secondary/50"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground w-4">{index + 1}.</span>
+                    <span className="truncate max-w-[120px] sm:max-w-none">{item.breakdown_value}</span>
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-4 text-muted-foreground">
+                    <span className="hidden sm:inline">{t('geographic.ctr')}: {item.ctr.toFixed(2)}%</span>
+                    <span className="font-medium text-foreground">
+                      {metric === 'spend' 
+                        ? formatCurrency(item[metric], currency)
+                        : formatNumber(item[metric])
+                      }
                     </span>
                   </div>
-                </LeafletTooltip>
-              </CircleMarker>
-            );
-          })}
-        </MapContainer>
-      </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      </CardContent>
     </Card>
   );
 }
