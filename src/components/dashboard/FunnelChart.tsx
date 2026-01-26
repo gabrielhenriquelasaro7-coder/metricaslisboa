@@ -11,35 +11,57 @@ interface FunnelStep {
 }
 
 interface FunnelChartProps {
-  data: FunnelStep[];
+  data?: FunnelStep[]; // Opcional para evitar erros
   platformFilter?: string;
   className?: string;
+  // Props de compatibilidade
+  impressions?: number;
+  reach?: number;
+  clicks?: number;
+  conversions?: number;
+  spend?: number;
+  ctr?: number;
+  cpc?: number;
+  cpl?: number;
+  cpm?: number;
+  frequency?: number;
+  currency?: string;
 }
 
-export default function FunnelChart({ data, platformFilter = "all", className }: FunnelChartProps) {
+export function FunnelChart({
+  data,
+  platformFilter = "all",
+  className,
+  // Fallback para props antigos se 'data' não for passado
+  impressions,
+  clicks,
+  conversions,
+}: FunnelChartProps) {
   const { t } = useTranslation();
 
-  // Filtragem dos dados (Google vs Meta)
-  const filteredData = data.filter((item) => {
+  // Se 'data' não existir, cria a partir dos props antigos
+  const chartData =
+    data ||
+    [
+      { name: "impressions", value: impressions || 0 },
+      { name: "clicks", value: clicks || 0 },
+      { name: "conversions", value: conversions || 0 },
+    ].filter((d) => d.value > 0);
+
+  const filteredData = chartData.filter((item) => {
     if (!platformFilter || platformFilter === "all") return true;
     const itemPlatform = (item.platform || "").toLowerCase();
     const filter = platformFilter.toLowerCase();
-
     if (filter.includes("google")) return itemPlatform.includes("google");
     if (filter.includes("meta")) return itemPlatform.includes("meta");
-
     return itemPlatform === filter;
   });
 
-  // Agrupamento e Soma dos valores
   const aggregatedData = Object.values(
     filteredData.reduce(
       (acc, curr) => {
-        // Normaliza a chave para minúsculas (ex: "Impressions" -> "impressions")
         const key = curr.name.toLowerCase();
-        if (!acc[key]) {
-          acc[key] = { ...curr, name: key, value: 0 };
-        }
+        if (!acc[key]) acc[key] = { ...curr, name: key, value: 0 };
         acc[key].value += curr.value;
         return acc;
       },
@@ -47,7 +69,6 @@ export default function FunnelChart({ data, platformFilter = "all", className }:
     ),
   );
 
-  // Ordem correta do funil
   const sortOrder = ["impressions", "clicks", "conversions", "sales", "leads", "purchases"];
   aggregatedData.sort((a, b) => {
     const indexA = sortOrder.indexOf(a.name.toLowerCase());
@@ -55,16 +76,10 @@ export default function FunnelChart({ data, platformFilter = "all", className }:
     return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
   });
 
-  // Função que resolve o problema dos nomes estranhos
   const getTranslatedLabel = (key: string) => {
     if (!key) return "";
     const lowerKey = key.toLowerCase();
-
-    // Procura a tradução em várias secções do seu arquivo JSON
-    // Tenta 'metrics.impressions', se não achar tenta 'dashboard.impressions', etc.
     const label = t(`metrics.${lowerKey}`, t(`dashboard.${lowerKey}`, t(`comparison.${lowerKey}`, "")));
-
-    // Se achou tradução, usa. Se não, deixa a primeira letra maiúscula (fallback).
     return label || key.charAt(0).toUpperCase() + key.slice(1);
   };
 
@@ -73,7 +88,6 @@ export default function FunnelChart({ data, platformFilter = "all", className }:
   return (
     <Card className={cn("p-6 flex flex-col h-[400px] premium-card", className)}>
       <h3 className="text-lg font-semibold mb-6">{t("dashboard.funnelChart", "Funil de Conversão")}</h3>
-
       <div className="flex-1 w-full min-h-0">
         {aggregatedData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
@@ -92,12 +106,12 @@ export default function FunnelChart({ data, platformFilter = "all", className }:
                 cursor={{ fill: "transparent" }}
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
-                    const data = payload[0].payload;
+                    const d = payload[0].payload;
                     return (
                       <div className="bg-popover border border-border p-2 rounded-lg shadow-lg">
-                        <p className="text-sm font-medium text-foreground">{getTranslatedLabel(data.name)}</p>
+                        <p className="text-sm font-medium text-foreground">{getTranslatedLabel(d.name)}</p>
                         <p className="text-2xl font-bold text-primary">
-                          {new Intl.NumberFormat("pt-BR").format(data.value)}
+                          {new Intl.NumberFormat("pt-BR").format(d.value)}
                         </p>
                       </div>
                     );
@@ -106,7 +120,7 @@ export default function FunnelChart({ data, platformFilter = "all", className }:
                 }}
               />
               <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={32}>
-                {aggregatedData.map((_entry, index) => (
+                {aggregatedData.map((_, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={colors[index % colors.length]}
