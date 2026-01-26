@@ -1,65 +1,44 @@
-import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
+import { useTranslation } from 'react-i18next';
+import { Globe } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Globe, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { supportedLanguages } from '@/i18n';
 
-const languages = [
-  { code: "pt-BR", name: "Português", flag: "🇧🇷" },
-  { code: "en-US", name: "English", flag: "🇺🇸" },
-  { code: "es", name: "Español", flag: "🇪🇸" },
-];
+export function LanguageSelector() {
+  const { i18n } = useTranslation();
 
-export default function LanguageSelector() {
-  const { i18n, t } = useTranslation();
+  const currentLanguage = supportedLanguages.find(
+    lang => lang.code === i18n.language
+  ) || supportedLanguages[0];
 
-  const changeLanguage = (lng: string) => {
-    // Executa a mudança global de idioma
-    i18n.changeLanguage(lng);
-    // Persiste manualmente para garantir sincronia com o motor de deteção
-    localStorage.setItem("i18nextLng", lng);
-
-    const langName = languages.find((l) => l.code === lng)?.name;
-    toast.success(`${t("settings.languageChanged", "Idioma alterado para")} ${langName}`);
+  const handleLanguageChange = (languageCode: string) => {
+    i18n.changeLanguage(languageCode);
   };
-
-  // Identifica o idioma atual ou usa o padrão
-  const currentLanguage = languages.find((l) => l.code === i18n.language) || languages[0];
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full justify-start gap-2 bg-background/50 border-sidebar-border hover:bg-accent"
-        >
-          <Globe className="h-4 w-4 text-muted-foreground" />
-          <span className="flex-1 text-left">{currentLanguage.name}</span>
-          <span className="text-xs">{currentLanguage.flag}</span>
+        <Button variant="ghost" size="icon" className="h-9 w-9">
+          <Globe className="h-4 w-4" />
+          <span className="sr-only">Change language</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[200px] bg-popover border-border shadow-xl">
-        {languages.map((lang) => (
+      <DropdownMenuContent align="end" className="min-w-[140px]">
+        {supportedLanguages.map((language) => (
           <DropdownMenuItem
-            key={lang.code}
-            onClick={() => changeLanguage(lang.code)}
-            className={cn(
-              "flex items-center justify-between cursor-pointer py-2",
-              i18n.language === lang.code && "bg-primary/10 text-primary font-medium",
-            )}
+            key={language.code}
+            onClick={() => handleLanguageChange(language.code)}
+            className={`flex items-center gap-2 cursor-pointer ${
+              currentLanguage.code === language.code ? 'bg-accent' : ''
+            }`}
           >
-            <div className="flex items-center gap-2">
-              <span>{lang.flag}</span>
-              <span>{lang.name}</span>
-            </div>
-            {i18n.language === lang.code && <Check className="h-4 w-4" />}
+            <span className="text-base">{language.flag}</span>
+            <span className="text-sm">{language.name}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
