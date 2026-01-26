@@ -418,15 +418,13 @@ export default function Dashboard() {
             {/* Account Balance Card - Top of Dashboard */}
             {hasSelectedProject && <AccountBalanceCard projectId={selectedProject?.id || null} currency={selectedProject?.currency} />}
             
-            {/* Comparison Toggle + Metric Config - Compact */}
+            {/* Comparison Toggle + Metric Config - Compact - Available for ALL roles */}
             <div className="flex items-center justify-end gap-2 flex-wrap">
-              {isGuest && (
-                <MetricVisibilityConfig 
-                  hiddenMetrics={hiddenMetrics}
-                  toggleMetric={toggleMetric}
-                  loading={hiddenMetricsLoading}
-                />
-              )}
+              <MetricVisibilityConfig 
+                hiddenMetrics={hiddenMetrics}
+                toggleMetric={toggleMetric}
+                loading={hiddenMetricsLoading}
+              />
               <Label htmlFor="comparison-toggle" className="text-[11px] sm:text-sm text-muted-foreground cursor-pointer">
                 <span className="hidden sm:inline">{t('dashboard.periodComparison')}</span>
                 <span className="sm:hidden">{t('comparison.compare')}</span>

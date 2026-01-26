@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Eye, Users, MousePointerClick, Percent, TrendingDown, Target, Coins } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -43,6 +44,7 @@ export function FunnelChart({
   currency = 'BRL',
   className,
 }: FunnelChartProps) {
+  const { t } = useTranslation();
   const responsive = useChartResponsive();
   
   const formatNumber = (num: number) => {
@@ -70,31 +72,31 @@ export function FunnelChart({
     // CTR, CPC, CPL moved to metrics below
     const allSteps = [
       {
-        label: 'Gasto',
+        label: t('funnel.spend'),
         value: formatCurrency(spend),
         icon: <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
         widthPercent: 100,
       },
       {
-        label: 'Impressões',
+        label: t('funnel.impressions'),
         value: formatNumber(impressions),
         icon: <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
         widthPercent: 85,
       },
       {
-        label: 'Alcance',
+        label: t('funnel.reach'),
         value: formatNumber(reach),
         icon: <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
         widthPercent: 70,
       },
       {
-        label: 'Cliques',
+        label: t('funnel.clicks'),
         value: formatNumber(clicks),
         icon: <MousePointerClick className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
         widthPercent: 55,
       },
       {
-        label: 'Leads',
+        label: t('funnel.leads'),
         value: formatNumber(conversions),
         icon: <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
         widthPercent: 40,
@@ -104,12 +106,12 @@ export function FunnelChart({
     // On mobile, show only key steps
     if (responsive.isMobile) {
       return allSteps.filter(step => 
-        ['Gasto', 'Impressões', 'Cliques', 'Leads'].includes(step.label)
+        [t('funnel.spend'), t('funnel.impressions'), t('funnel.clicks'), t('funnel.leads')].includes(step.label)
       );
     }
     
     return allSteps;
-  }, [spend, impressions, reach, clicks, conversions, currency, responsive.isMobile]);
+  }, [spend, impressions, reach, clicks, conversions, currency, responsive.isMobile, t]);
 
   return (
     <Card className={cn("glass-card overflow-hidden", className)}>
@@ -118,7 +120,7 @@ export function FunnelChart({
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
             <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
           </div>
-          Funil Geral
+          {t('funnel.title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-2 px-3 sm:px-6">
@@ -167,33 +169,33 @@ export function FunnelChart({
         >
           <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 sm:gap-3">
             <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">CTR</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.ctr')}</p>
               <p className="text-xs sm:text-sm font-bold text-foreground">{ctr.toFixed(responsive.isMobile ? 1 : 2)}%</p>
             </div>
             <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">CPC</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.cpc')}</p>
               <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpc)}</p>
             </div>
             <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">CPL</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.cpl')}</p>
               <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpl)}</p>
             </div>
             <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">CPM</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.cpm')}</p>
               <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpm)}</p>
             </div>
             <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Frequência</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('funnel.frequency')}</p>
               <p className="text-xs sm:text-sm font-bold text-foreground">{frequency.toFixed(2)}</p>
             </div>
             <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Tx Conversão</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('funnel.conversionRate')}</p>
               <p className="text-xs sm:text-sm font-bold text-foreground">
                 {clicks > 0 ? ((conversions / clicks) * 100).toFixed(responsive.isMobile ? 1 : 2) : '0.00'}%
               </p>
             </div>
             <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Custo Total</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('funnel.totalCost')}</p>
               <p className="text-xs sm:text-sm font-bold text-primary">{formatCurrency(spend)}</p>
             </div>
           </div>
