@@ -256,6 +256,7 @@
   },
   "geographic": {
     "title": "Mapa de Calor Geográfico",
+    "heatMap": "Mapa de Calor",
     "subtitle": "Distribuição por região",
     "topStates": "Top Estados por",
     "regions": "regiões",
@@ -265,6 +266,7 @@
     "state": "Estado",
     "ctr": "CTR",
     "cpc": "CPC",
+    "geolocation": "Geolocalização",
     "noData": "Nenhum dado geográfico disponível",
     "syncData": "Sincronize os dados demográficos para ver o mapa"
   },
@@ -476,6 +478,15 @@
     "customDesc": "Configure suas métricas"
   },
   "funnel": {
+    "title": "Funil de Vendas",
+    "spend": "Investimento",
+    "impressions": "Impressões",
+    "reach": "Alcance",
+    "clicks": "Cliques",
+    "leads": "Leads",
+    "frequency": "Frequência",
+    "conversionRate": "Taxa de Conversão",
+    "totalCost": "Custo Total",
     "loadingFunnel": "Carregando funil...",
     "clearFilters": "Limpar filtros",
     "noDeals": "Nenhum deal encontrado",
