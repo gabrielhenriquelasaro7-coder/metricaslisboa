@@ -53,6 +53,7 @@ import { SyncStatusBadge } from "@/components/sync/SyncStatusBadge";
 import { InviteGuestDialog } from "@/components/guests/InviteGuestDialog";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { AdminAccessRequestModal } from "@/components/admin/AdminAccessRequestModal";
+import LanguageSelector from "../LanguageSelector";
 
 function CampaignSkeleton() {
   return (
@@ -209,8 +210,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         <nav className="flex-1 px-3 py-4 overflow-y-auto flex flex-col">
           <div className="space-y-1">
             <Link to="/dashboard" className={cn("sidebar-item", location.pathname === "/dashboard" && "active")}>
-              <LayoutDashboard className="w-5 h-5 flex-shrink-0" />{" "}
-              {!collapsed && <span>{t("navigation.dashboard")}</span>}
+              <LayoutDashboard className="w-5 h-5 flex-shrink-0" /> {!collapsed && <span>Dashboard</span>}
             </Link>
 
             {!collapsed ? (
@@ -281,6 +281,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           </div>
 
           <div className="flex-1" />
+
+          {/* NOVO: Seletor de Idioma dentro da Sidebar para facilitar */}
+          {!collapsed && (
+            <div className="px-3 mb-4">
+              <p className="text-[10px] uppercase font-bold text-muted-foreground mb-2 px-3">{t("common.language")}</p>
+              <LanguageSelector />
+            </div>
+          )}
 
           <div className="space-y-1 mt-2">
             {!isGuest && !isTabHidden("admin") && (
