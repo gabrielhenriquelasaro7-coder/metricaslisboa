@@ -103,7 +103,7 @@ interface UseHiddenMetricsReturn {
   isMetricHidden: (metric: MetricKey) => boolean;
   toggleMetric: (metric: MetricKey) => Promise<void>;
   setHiddenMetrics: (metrics: MetricKey[]) => Promise<void>;
-  canCustomize: boolean;
+  canCustomize: boolean; // Now true for all roles, not just guests
   availableMetricsForModel: Record<string, { label: string; category: string }>;
 }
 
@@ -220,7 +220,8 @@ export function useHiddenMetrics(pageContext: PageContext = 'all', businessModel
     isMetricHidden,
     toggleMetric,
     setHiddenMetrics,
-    canCustomize: isGuest,
+    // ALL roles can now customize metrics visibility (not just guests)
+    canCustomize: true,
     availableMetricsForModel,
   };
 }

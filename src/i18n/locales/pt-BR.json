@@ -8,6 +8,9 @@
     "create": "Criar",
     "search": "Buscar",
     "filter": "Filtrar",
+    "filters": "Filtros",
+    "advancedFilters": "Filtros Avançados",
+    "clearFilters": "Limpar filtros",
     "export": "Exportar",
     "import": "Importar",
     "sync": "Sincronizar",
@@ -37,7 +40,10 @@
     "noInvestor": "Sem investidor",
     "squad": "Squad",
     "noSquad": "Sem squad",
-    "neverSynced": "Nunca sincronizado"
+    "neverSynced": "Nunca sincronizado",
+    "loadingAd": "Carregando anúncio...",
+    "loadingData": "Carregando dados...",
+    "campaign": "Campanha"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -157,15 +163,29 @@
     "totalResults": "Total de resultados",
     "conversionRate": "Conv."
   },
+  "metricsConfig": {
+    "customizeMetrics": "Personalizar Métricas",
+    "metrics": "Métricas",
+    "hidden": "ocultas",
+    "visible": "visíveis",
+    "customizeView": "Personalizar Visualização",
+    "description": "Escolha quais métricas você deseja ver. As métricas ocultas não aparecerão nos cards."
+  },
   "periods": {
     "today": "Hoje",
     "yesterday": "Ontem",
+    "last3Days": "Últimos 3 dias",
     "last7Days": "Últimos 7 dias",
     "last14Days": "Últimos 14 dias",
     "last30Days": "Últimos 30 dias",
+    "last60Days": "Últimos 60 dias",
+    "last90Days": "Últimos 90 dias",
     "thisMonth": "Este mês",
     "lastMonth": "Mês passado",
     "thisYear": "Este ano",
+    "lastYear": "Ano passado",
+    "thisWeek": "Esta semana",
+    "lastWeek": "Semana passada",
     "custom": "Personalizado",
     "from": "De",
     "to": "Até"
@@ -185,6 +205,16 @@
     "campaign": "Campanha",
     "all": "Todas",
     "noCampaignsFilters": "Nenhuma campanha encontrada com os filtros aplicados"
+  },
+  "adSets": {
+    "title": "Conjuntos de Anúncios",
+    "loading": "Carregando...",
+    "campaignLabel": "Campanha"
+  },
+  "ads": {
+    "title": "Anúncios",
+    "loading": "Carregando...",
+    "adSetLabel": "Conjunto"
   },
   "topCampaigns": {
     "title": "Top Campanhas",
@@ -369,7 +399,13 @@
     "syncing": "Sincronizando...",
     "syncNow": "Sincronizar agora",
     "syncSuccess": "Sincronização concluída",
-    "syncError": "Erro na sincronização"
+    "syncError": "Erro na sincronização",
+    "fetchingCampaigns": "Buscando campanhas...",
+    "fetchingAdSets": "Buscando conjuntos de anúncios...",
+    "fetchingAds": "Buscando anúncios...",
+    "loadingMetrics": "Carregando métricas...",
+    "savingData": "Salvando dados...",
+    "completed": "Sincronização concluída!"
   },
   "comparison": {
     "title": "Comparação de Período",
@@ -381,5 +417,63 @@
     "noChange": "sem alteração",
     "previous": "Anterior",
     "selectPeriod": "Selecione um período para ver a comparação com o período anterior."
+  },
+  "tabs": {
+    "dashboard": "Dashboard",
+    "campaigns": "Campanhas",
+    "creatives": "Criativos",
+    "aiAssistant": "Agente Lisboa",
+    "predictive": "Análise Preditiva",
+    "suggestions": "Sugestões",
+    "whatsapp": "WhatsApp",
+    "financial": "Financeiro",
+    "settings": "Configurações",
+    "admin": "Administração"
+  },
+  "roles": {
+    "trafficManager": "Gestor de Tráfego",
+    "accountManager": "Account Manager",
+    "coordinator": "Coordenador",
+    "manager": "Gerente",
+    "tech": "Tech",
+    "investor": "Investidor",
+    "member": "Membro"
+  },
+  "businessModels": {
+    "insideSales": "Inside Sales",
+    "insideSalesDesc": "Leads e vendas internas",
+    "ecommerce": "E-commerce",
+    "ecommerceDesc": "Vendas online",
+    "pdv": "PDV",
+    "pdvDesc": "Loja física",
+    "infoproduct": "Infoproduto",
+    "infoproductDesc": "Cursos e mentorias",
+    "custom": "Personalizado",
+    "customDesc": "Configure suas métricas"
+  },
+  "funnel": {
+    "loadingFunnel": "Carregando funil...",
+    "clearFilters": "Limpar filtros",
+    "noDeals": "Nenhum deal encontrado",
+    "deal": "Deal",
+    "deals": "deals"
+  },
+  "crm": {
+    "howToGetToken": "Como obter o Token do Kommo",
+    "step1": "Dentro do Kommo vá em Configurações",
+    "step2": "Clique em Integrações",
+    "step3": "Abra a integração que você criou",
+    "step4": "Ache a opção \"Token de longa duração\"",
+    "step5": "Clique em Gerar (1 ano ou mais)",
+    "step6": "Copie o token"
+  },
+  "loading": {
+    "default": "Carregando...",
+    "ad": "Carregando anúncio...",
+    "adSets": "Carregando conjuntos...",
+    "ads": "Carregando anúncios...",
+    "campaigns": "Carregando campanhas...",
+    "creatives": "Carregando criativos...",
+    "project": "Carregando projeto..."
   }
 }

@@ -8,6 +8,9 @@
     "create": "Create",
     "search": "Search",
     "filter": "Filter",
+    "filters": "Filters",
+    "advancedFilters": "Advanced Filters",
+    "clearFilters": "Clear filters",
     "export": "Export",
     "import": "Import",
     "sync": "Sync",
@@ -37,7 +40,10 @@
     "noInvestor": "No investor",
     "squad": "Squad",
     "noSquad": "No squad",
-    "neverSynced": "Never synced"
+    "neverSynced": "Never synced",
+    "loadingAd": "Loading ad...",
+    "loadingData": "Loading data...",
+    "campaign": "Campaign"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -157,15 +163,29 @@
     "totalResults": "Total results",
     "conversionRate": "Conv."
   },
+  "metricsConfig": {
+    "customizeMetrics": "Customize Metrics",
+    "metrics": "Metrics",
+    "hidden": "hidden",
+    "visible": "visible",
+    "customizeView": "Customize View",
+    "description": "Choose which metrics you want to see. Hidden metrics will not appear in the cards."
+  },
   "periods": {
     "today": "Today",
     "yesterday": "Yesterday",
+    "last3Days": "Last 3 days",
     "last7Days": "Last 7 days",
     "last14Days": "Last 14 days",
     "last30Days": "Last 30 days",
+    "last60Days": "Last 60 days",
+    "last90Days": "Last 90 days",
     "thisMonth": "This month",
     "lastMonth": "Last month",
     "thisYear": "This year",
+    "lastYear": "Last year",
+    "thisWeek": "This week",
+    "lastWeek": "Last week",
     "custom": "Custom",
     "from": "From",
     "to": "To"
@@ -185,6 +205,16 @@
     "campaign": "Campaign",
     "all": "All",
     "noCampaignsFilters": "No campaigns found with applied filters"
+  },
+  "adSets": {
+    "title": "Ad Sets",
+    "loading": "Loading...",
+    "campaignLabel": "Campaign"
+  },
+  "ads": {
+    "title": "Ads",
+    "loading": "Loading...",
+    "adSetLabel": "Ad Set"
   },
   "topCampaigns": {
     "title": "Top Campaigns",
@@ -369,7 +399,13 @@
     "syncing": "Syncing...",
     "syncNow": "Sync now",
     "syncSuccess": "Sync completed",
-    "syncError": "Sync error"
+    "syncError": "Sync error",
+    "fetchingCampaigns": "Fetching campaigns...",
+    "fetchingAdSets": "Fetching ad sets...",
+    "fetchingAds": "Fetching ads...",
+    "loadingMetrics": "Loading metrics...",
+    "savingData": "Saving data...",
+    "completed": "Sync completed!"
   },
   "comparison": {
     "title": "Period Comparison",
@@ -381,5 +417,63 @@
     "noChange": "no change",
     "previous": "Previous",
     "selectPeriod": "Select a period to see comparison with previous period."
+  },
+  "tabs": {
+    "dashboard": "Dashboard",
+    "campaigns": "Campaigns",
+    "creatives": "Creatives",
+    "aiAssistant": "AI Agent",
+    "predictive": "Predictive Analysis",
+    "suggestions": "Suggestions",
+    "whatsapp": "WhatsApp",
+    "financial": "Financial",
+    "settings": "Settings",
+    "admin": "Administration"
+  },
+  "roles": {
+    "trafficManager": "Traffic Manager",
+    "accountManager": "Account Manager",
+    "coordinator": "Coordinator",
+    "manager": "Manager",
+    "tech": "Tech",
+    "investor": "Investor",
+    "member": "Member"
+  },
+  "businessModels": {
+    "insideSales": "Inside Sales",
+    "insideSalesDesc": "Leads and internal sales",
+    "ecommerce": "E-commerce",
+    "ecommerceDesc": "Online sales",
+    "pdv": "POS",
+    "pdvDesc": "Physical store",
+    "infoproduct": "Infoproduct",
+    "infoproductDesc": "Courses and mentorships",
+    "custom": "Custom",
+    "customDesc": "Configure your metrics"
+  },
+  "funnel": {
+    "loadingFunnel": "Loading funnel...",
+    "clearFilters": "Clear filters",
+    "noDeals": "No deals found",
+    "deal": "Deal",
+    "deals": "deals"
+  },
+  "crm": {
+    "howToGetToken": "How to get the Kommo Token",
+    "step1": "Inside Kommo go to Settings",
+    "step2": "Click on Integrations",
+    "step3": "Open the integration you created",
+    "step4": "Find the option \"Long-term token\"",
+    "step5": "Click Generate (1 year or more)",
+    "step6": "Copy the token"
+  },
+  "loading": {
+    "default": "Loading...",
+    "ad": "Loading ad...",
+    "adSets": "Loading ad sets...",
+    "ads": "Loading ads...",
+    "campaigns": "Loading campaigns...",
+    "creatives": "Loading creatives...",
+    "project": "Loading project..."
   }
 }

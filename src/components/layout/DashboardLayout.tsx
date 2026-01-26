@@ -154,11 +154,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
-  // Desktop layout - ensure proper scrolling
+  // Desktop layout - CRITICAL: Force proper scrolling with no overflow hidden
   return (
-    <div className="min-h-screen bg-background red-texture-bg grid-background overflow-y-auto">
+    <div className="min-h-screen bg-background red-texture-bg grid-background" style={{ overflow: 'visible', height: 'auto' }}>
       <Sidebar />
-      <main className={cn('ml-72 min-h-screen transition-all duration-300 relative z-10 p-4 md:p-6 lg:p-8 overflow-y-auto')}>
+      <main 
+        className={cn('ml-72 min-h-screen transition-all duration-300 relative z-10 p-4 md:p-6 lg:p-8')}
+        style={{ overflow: 'visible', height: 'auto' }}
+      >
         {children}
       </main>
     </div>
