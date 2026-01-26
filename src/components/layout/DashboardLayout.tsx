@@ -1,4 +1,3 @@
-/* src/components/layout/DashboardLayout.tsx */
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -132,7 +131,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </Sheet>
           <span className="font-semibold text-foreground text-sm truncate">MetaAds Manager</span>
         </header>
-        <main className="pt-12 min-h-screen relative z-10 overflow-x-hidden safe-area-bottom p-4">{children}</main>
+        <main className="pt-12 min-h-screen relative z-10 overflow-x-hidden safe-area-bottom p-4 w-full">
+          {children}
+        </main>
       </div>
     );
   }
@@ -140,7 +141,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background red-texture-bg grid-background flex overflow-x-hidden">
       <Sidebar />
-      {/* Ajuste de margem responsiva e proteção de largura */}
       <main className="flex-1 min-h-screen p-4 md:p-6 lg:p-8 md:ml-64 lg:ml-72 w-full max-w-full overflow-x-hidden">
         {children}
       </main>
