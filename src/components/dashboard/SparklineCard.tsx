@@ -9,62 +9,59 @@ interface SparklineCardProps {
   icon: LucideIcon;
   data: { value: number }[];
   className?: string;
-  // Props mantidas para compatibilidade, mas ignoradas no render
+  // Propriedades mantidas para evitar erros, mas ignoradas visualmente
   change?: number;
   trend?: "up" | "down" | "neutral";
   description?: string;
 }
 
-export default function SparklineCard({
-  title,
-  value,
-  icon: Icon,
-  data,
-  className,
-  // Ignoramos change e trend para não mostrar o badge
-  change: _change,
-  trend: _trend,
-  description,
-}: SparklineCardProps) {
-  // Cor do gráfico baseada apenas no tema (sempre clean)
-  const chartColor = "hsl(var(--primary))";
+export default function SparklineCard({ title, value, icon: Icon, data, className, description }: SparklineCardProps) {
+  // Cor do gráfico (Vermelho V4)
+  const chartColor = "hsl(0, 85%, 55%)";
 
   return (
-    <Card className={cn("p-4 flex flex-col justify-between overflow-hidden premium-card group", className)}>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-muted-foreground truncate tracking-tight">{title}</span>
-        <div className="premium-icon w-8 h-8 flex items-center justify-center rounded-md bg-primary/10 text-primary">
-          <Icon className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+    <Card
+      className={cn(
+        "relative overflow-hidden p-4 flex flex-col justify-between h-full premium-card group hover:border-primary/40 transition-all duration-300",
+        className,
+      )}
+    >
+      {/* Topo: Título e Ícone */}
+      <div className="flex items-center justify-between mb-4 z-10 relative">
+        <span className="text-sm font-medium text-muted-foreground truncate pr-2">{title}</span>
+        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+          <Icon className="h-4 w-4" />
         </div>
       </div>
 
-      <div className="flex items-end justify-between gap-4">
-        <div className="flex flex-col min-w-0">
-          <h3 className="text-2xl font-bold tracking-tight truncate">{value}</h3>
-          {description && <p className="text-xs text-muted-foreground mt-1 truncate">{description}</p>}
-        </div>
+      {/* Meio: Valor e Descrição */}
+      <div className="flex flex-col z-10 relative mb-2">
+        {/* Valor com tamanho responsivo para não cortar */}
+        <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate">{value}</h3>
+        {description && <p className="text-xs text-muted-foreground mt-1 truncate opacity-80">{description}</p>}
+      </div>
 
-        <div className="h-[40px] w-[80px] shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data}>
-              <defs>
-                <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={chartColor} stopOpacity={0.2} />
-                  <stop offset="100%" stopColor={chartColor} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <YAxis domain={["dataMin", "dataMax"]} hide />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke={chartColor}
-                strokeWidth={2}
-                fill={`url(#gradient-${title})`}
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Fundo: Gráfico (Agora maior e sempre visível) */}
+      <div className="absolute bottom-0 right-0 w-full h-[60px] opacity-20 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data}>
+            <defs>
+              <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={chartColor} stopOpacity={0.8} />
+                <stop offset="90%" stopColor={chartColor} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <YAxis domain={["dataMin", "dataMax"]} hide />
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke={chartColor}
+              strokeWidth={2}
+              fill={`url(#gradient-${title})`}
+              isAnimationActive={true}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </Card>
   );
