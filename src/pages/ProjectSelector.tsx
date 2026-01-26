@@ -19,7 +19,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
-import { ptBR, enUS, es } from 'date-fns/locale';
+import { ptBR, enUS, es, Locale } from 'date-fns/locale';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import whatsappIcon from '@/assets/whatsapp-icon.png';
@@ -92,6 +92,8 @@ interface ClientCardProps {
   onUnarchive: (project: Project) => void;
   onResync: (project: Project) => void;
   onWhatsApp: (project: Project) => void;
+  t: (key: string) => string;
+  getDateLocale: () => Locale;
 }
 function ClientCard({
   project,
@@ -104,7 +106,9 @@ function ClientCard({
   onArchive,
   onUnarchive,
   onResync,
-  onWhatsApp
+  onWhatsApp,
+  t,
+  getDateLocale
 }: ClientCardProps) {
   const model = businessModels.find(m => m.value === project.business_model);
   const displayHealthScore: ExtendedHealthScore = project.health_score || 'undefined';
@@ -248,6 +252,8 @@ interface StatusGroupProps {
   onUnarchive: (project: Project) => void;
   onResync: (project: Project) => void;
   onWhatsApp: (project: Project) => void;
+  t: (key: string) => string;
+  getDateLocale: () => Locale;
 }
 function StatusGroup({
   status,
@@ -261,7 +267,9 @@ function StatusGroup({
   onArchive,
   onUnarchive,
   onResync,
-  onWhatsApp
+  onWhatsApp,
+  t,
+  getDateLocale
 }: StatusGroupProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   if (projects.length === 0) return null;
@@ -327,7 +335,9 @@ function StatusGroup({
                 onArchive={onArchive} 
                 onUnarchive={onUnarchive} 
                 onResync={onResync} 
-                onWhatsApp={onWhatsApp} 
+                onWhatsApp={onWhatsApp}
+                t={t}
+                getDateLocale={getDateLocale}
               />
             );
           })}
@@ -1352,10 +1362,10 @@ export default function ProjectSelector() {
               {searchQuery ? t('projectSelector.tryAdjustingFilters') : t('projectSelector.createFirstProject')}
             </p>
           </div> : <div>
-            <StatusGroup status="safe" projects={safeProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
-            <StatusGroup status="care" projects={careProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
-            <StatusGroup status="danger" projects={dangerProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
-            <StatusGroup status="undefined" projects={undefinedProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} />
+            <StatusGroup status="safe" projects={safeProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} t={t} getDateLocale={getDateLocale} />
+            <StatusGroup status="care" projects={careProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} t={t} getDateLocale={getDateLocale} />
+            <StatusGroup status="danger" projects={dangerProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} t={t} getDateLocale={getDateLocale} />
+            <StatusGroup status="undefined" projects={undefinedProjects} defaultOpen={true} projectInvestidores={projectInvestidores} squads={squads} onSelect={handleSelectProject} onEdit={handleEditClick} onDelete={handleDeleteClick} onArchive={p => archiveProject(p.id)} onUnarchive={p => unarchiveProject(p.id)} onResync={handleResync} onWhatsApp={handleWhatsApp} t={t} getDateLocale={getDateLocale} />
           </div>}
       </main>
 
