@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TrendingUp, TrendingDown, Minus, Calendar, ArrowRight, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -46,6 +47,7 @@ function ComparisonItem({
   isInverse = false,
   tooltip
 }: ComparisonItemProps) {
+  const { t } = useTranslation();
   const isPositive = isInverse ? change < 0 : change > 0;
   const isNegative = isInverse ? change > 0 : change < 0;
   const isNeutral = change === 0 || isNaN(change);
@@ -84,7 +86,7 @@ function ComparisonItem({
         <p className="sm:text-xl font-bold transition-colors duration-300 truncate text-base">{current}</p>
         
         {previous && <p className="sm:text-xs text-muted-foreground mt-1 sm:mt-2 truncate text-xs">
-            Anterior: {previous}
+            {t('comparison.previous')}: {previous}
           </p>}
         
         {/* Mobile-only compact badge */}
@@ -106,6 +108,7 @@ export default function PeriodComparison({
   resultMetricsLabels,
   hiddenMetrics = []
 }: PeriodComparisonProps) {
+  const { t } = useTranslation();
   // Helper to check if a metric should be shown (local function based on hiddenMetrics array)
   const shouldShowMetric = (metricKey: string) => !hiddenMetrics.includes(metricKey);
   const formatCurrencyValue = (value: number) => {
@@ -139,7 +142,7 @@ export default function PeriodComparison({
     // Base metrics - only add if not hidden
     if (shouldShowMetric('spend')) {
       items.push({
-        label: 'Gasto',
+        label: t('comparison.spend'),
         current: formatCurrencyValue(currentMetrics.totalSpend),
         previous: formatCurrencyValue(previousMetrics.totalSpend),
         change: calculateChange(currentMetrics.totalSpend, previousMetrics.totalSpend),
@@ -149,7 +152,7 @@ export default function PeriodComparison({
     
     if (shouldShowMetric('impressions')) {
       items.push({
-        label: 'Impressões',
+        label: t('comparison.impressions'),
         current: formatNumber(currentMetrics.totalImpressions),
         previous: formatNumber(previousMetrics.totalImpressions),
         change: calculateChange(currentMetrics.totalImpressions, previousMetrics.totalImpressions),
@@ -159,7 +162,7 @@ export default function PeriodComparison({
     
     if (shouldShowMetric('clicks')) {
       items.push({
-        label: 'Cliques',
+        label: t('comparison.clicks'),
         current: formatNumber(currentMetrics.totalClicks),
         previous: formatNumber(previousMetrics.totalClicks),
         change: calculateChange(currentMetrics.totalClicks, previousMetrics.totalClicks),
@@ -169,7 +172,7 @@ export default function PeriodComparison({
     
     if (shouldShowMetric('ctr')) {
       items.push({
-        label: 'CTR',
+        label: t('metrics.ctr'),
         current: `${currentMetrics.ctr.toFixed(2)}%`,
         previous: `${previousMetrics.ctr.toFixed(2)}%`,
         change: calculateChange(currentMetrics.ctr, previousMetrics.ctr),
@@ -179,7 +182,7 @@ export default function PeriodComparison({
     
     if (shouldShowMetric('cpm')) {
       items.push({
-        label: 'CPM',
+        label: t('metrics.cpm'),
         current: formatCurrencyValue(currentMetrics.cpm),
         previous: formatCurrencyValue(previousMetrics.cpm),
         change: calculateChange(currentMetrics.cpm, previousMetrics.cpm),
@@ -189,7 +192,7 @@ export default function PeriodComparison({
     
     if (shouldShowMetric('cpc')) {
       items.push({
-        label: 'CPC',
+        label: t('metrics.cpc'),
         current: formatCurrencyValue(currentMetrics.cpc),
         previous: formatCurrencyValue(previousMetrics.cpc),
         change: calculateChange(currentMetrics.cpc, previousMetrics.cpc),
@@ -207,25 +210,25 @@ export default function PeriodComparison({
       const currentCpaPurchases = currentPurchases > 0 ? currentMetrics.totalSpend / currentPurchases : 0;
       const previousCpaPurchases = previousPurchases > 0 ? previousMetrics.totalSpend / previousPurchases : 0;
       items.push({
-        label: 'ROAS',
+        label: t('metrics.roas'),
         current: `${currentMetrics.roas.toFixed(2)}x`,
         previous: `${previousMetrics.roas.toFixed(2)}x`,
         change: calculateChange(currentMetrics.roas, previousMetrics.roas),
         isInverse: false
       }, {
-        label: 'Compras',
+        label: t('comparison.purchases'),
         current: formatNumber(currentPurchases),
         previous: formatNumber(previousPurchases),
         change: calculateChange(currentPurchases, previousPurchases),
         isInverse: false
       }, {
-        label: 'Receita',
+        label: t('comparison.revenue'),
         current: formatCurrencyValue(currentMetrics.totalConversionValue),
         previous: formatCurrencyValue(previousMetrics.totalConversionValue),
         change: calculateChange(currentMetrics.totalConversionValue, previousMetrics.totalConversionValue),
         isInverse: false
       }, {
-        label: 'CPA',
+        label: t('comparison.cpa'),
         current: formatCurrencyValue(currentCpaPurchases),
         previous: formatCurrencyValue(previousCpaPurchases),
         change: calculateChange(currentCpaPurchases, previousCpaPurchases),
@@ -233,14 +236,13 @@ export default function PeriodComparison({
       });
     } else if (businessModel === 'inside_sales') {
       items.push({
-        label: 'Leads',
+        label: t('comparison.leads'),
         current: formatNumber(currentMetrics.totalConversions),
         previous: formatNumber(previousMetrics.totalConversions),
         change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
-        isInverse: false,
-        tooltip: 'Pequenas diferenças de ±1-2 resultados em relação ao Gerenciador são normais devido ao timing de atribuição do Meta.'
+        isInverse: false
       }, {
-        label: 'CPL',
+        label: t('metrics.cpl'),
         current: formatCurrencyValue(currentMetrics.cpa),
         previous: formatCurrencyValue(previousMetrics.cpa),
         change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
@@ -248,64 +250,58 @@ export default function PeriodComparison({
       });
     } else if (businessModel === 'pdv') {
       items.push({
-        label: 'Visitas',
+        label: t('comparison.visits'),
         current: formatNumber(currentMetrics.totalConversions),
         previous: formatNumber(previousMetrics.totalConversions),
         change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
         isInverse: false
       }, {
-        label: 'Custo/Visita',
+        label: t('comparison.costPerVisit'),
         current: formatCurrencyValue(currentMetrics.cpa),
         previous: formatCurrencyValue(previousMetrics.cpa),
         change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
         isInverse: true
       });
     } else if (businessModel === 'infoproduto') {
-      // Para infoproduto, "Vendas" = purchases (totalSalesConversions)
-      // Se não tiver totalSalesConversions, fallback para totalConversions
       const currentSales = currentMetrics.totalSalesConversions ?? currentMetrics.totalConversions;
       const previousSales = previousMetrics.totalSalesConversions ?? previousMetrics.totalConversions;
 
-      // CPA de vendas = spend / sales
       const currentCpaSales = currentSales > 0 ? currentMetrics.totalSpend / currentSales : 0;
       const previousCpaSales = previousSales > 0 ? previousMetrics.totalSpend / previousSales : 0;
       items.push({
-        label: 'Vendas',
+        label: t('comparison.sales'),
         current: formatNumber(currentSales),
         previous: formatNumber(previousSales),
         change: calculateChange(currentSales, previousSales),
         isInverse: false
       }, {
-        label: 'Receita',
+        label: t('comparison.revenue'),
         current: formatCurrencyValue(currentMetrics.totalConversionValue),
         previous: formatCurrencyValue(previousMetrics.totalConversionValue),
         change: calculateChange(currentMetrics.totalConversionValue, previousMetrics.totalConversionValue),
         isInverse: false
       }, {
-        label: 'ROAS',
+        label: t('metrics.roas'),
         current: `${currentMetrics.roas.toFixed(2)}x`,
         previous: `${previousMetrics.roas.toFixed(2)}x`,
         change: calculateChange(currentMetrics.roas, previousMetrics.roas),
         isInverse: false
       }, {
-        label: 'CPA',
+        label: t('comparison.cpa'),
         current: formatCurrencyValue(currentCpaSales),
         previous: formatCurrencyValue(previousCpaSales),
         change: calculateChange(currentCpaSales, previousCpaSales),
         isInverse: true
       });
     } else if (businessModel === 'custom') {
-      // For custom, show separate cards for each result metric based on configuration
-      // Default to showing leads, initiate_checkout, purchases, profile_visits separately (if they exist)
       const metricsToShow = resultMetrics || ['leads', 'initiate_checkout', 'purchases', 'profile_visits'];
       const labels: Record<string, string> = resultMetricsLabels || {
-        leads: 'Leads',
-        initiate_checkout: 'Initiate Checkout',
-        purchases: 'Vendas',
-        profile_visits: 'Visitas ao Perfil'
+        leads: t('comparison.leads'),
+        initiate_checkout: t('comparison.initiateCheckout'),
+        purchases: t('comparison.purchases'),
+        profile_visits: t('metrics.profileVisits')
       };
       
-      // Get current and previous values for each metric
       const getMetricValue = (m: Metrics, key: string): number => {
         switch (key) {
           case 'leads': return m.totalLeadsConversions || 0;
@@ -320,7 +316,6 @@ export default function PeriodComparison({
         const currentValue = getMetricValue(currentMetrics, metric);
         const previousValue = getMetricValue(previousMetrics, metric);
         
-        // Only show if there's actual data (value > 0) - hide metrics with 0 results
         if (currentValue > 0 || previousValue > 0) {
           items.push({
             label: labels[metric] || metric,
@@ -332,7 +327,6 @@ export default function PeriodComparison({
         }
       }
 
-      // Calculate CPL based on leads only - only if leads > 0
       const currentLeads = getMetricValue(currentMetrics, 'leads');
       const previousLeads = getMetricValue(previousMetrics, 'leads');
       
@@ -341,7 +335,7 @@ export default function PeriodComparison({
         const previousCpl = previousLeads > 0 ? previousMetrics.totalSpend / previousLeads : 0;
 
         items.push({
-          label: 'CPL',
+          label: t('metrics.cpl'),
           current: formatCurrencyValue(currentCpl),
           previous: formatCurrencyValue(previousCpl),
           change: calculateChange(currentCpl, previousCpl),
@@ -349,7 +343,6 @@ export default function PeriodComparison({
         });
       }
 
-      // Calculate CPV (Cost per Profile Visit) - only if profile visits > 0
       const currentProfileVisits = getMetricValue(currentMetrics, 'profile_visits');
       const previousProfileVisits = getMetricValue(previousMetrics, 'profile_visits');
       
@@ -363,11 +356,10 @@ export default function PeriodComparison({
           previous: formatCurrencyValue(previousCpv),
           change: calculateChange(currentCpv, previousCpv),
           isInverse: true,
-          tooltip: 'Custo por Visita ao Perfil'
+          tooltip: t('metrics.costPerVisit')
         });
       }
 
-      // Calculate Cost per Initiate Checkout - only if IC > 0
       const currentIC = getMetricValue(currentMetrics, 'initiate_checkout');
       const previousIC = getMetricValue(previousMetrics, 'initiate_checkout');
       
@@ -376,7 +368,7 @@ export default function PeriodComparison({
         const previousCpic = previousIC > 0 ? previousMetrics.totalSpend / previousIC : 0;
 
         items.push({
-          label: 'Custo/Init. Checkout',
+          label: t('dashboard.costInitCheckout'),
           current: formatCurrencyValue(currentCpic),
           previous: formatCurrencyValue(previousCpic),
           change: calculateChange(currentCpic, previousCpic),
@@ -384,7 +376,6 @@ export default function PeriodComparison({
         });
       }
 
-      // Calculate CPP (Cost per Purchase) only if there are purchases
       const currentPurchases = getMetricValue(currentMetrics, 'purchases');
       const previousPurchases = getMetricValue(previousMetrics, 'purchases');
       
@@ -393,7 +384,7 @@ export default function PeriodComparison({
         const previousCpp = previousPurchases > 0 ? previousMetrics.totalSpend / previousPurchases : 0;
 
         items.push({
-          label: 'CPP',
+          label: t('metrics.cpp'),
           current: formatCurrencyValue(currentCpp),
           previous: formatCurrencyValue(previousCpp),
           change: calculateChange(currentCpp, previousCpp),
@@ -402,7 +393,7 @@ export default function PeriodComparison({
       }
     }
     return items;
-  }, [currentMetrics, previousMetrics, businessModel, resultMetrics, resultMetricsLabels, hiddenMetrics]);
+  }, [currentMetrics, previousMetrics, businessModel, resultMetrics, resultMetricsLabels, hiddenMetrics, t]);
 
   // Check if previous period has no data (all zeros)
   const hasPreviousData = previousMetrics && (previousMetrics.totalSpend > 0 || previousMetrics.totalImpressions > 0 || previousMetrics.totalClicks > 0);

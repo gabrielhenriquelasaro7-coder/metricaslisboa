@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, ChevronDown, Check } from 'lucide-react';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { ptBR, enUS, es } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import {
   Select,
@@ -15,7 +16,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { 
-  DATE_PRESETS, 
   DatePresetKey, 
   getDateRangeFromPreset, 
   datePeriodToDateRange,
@@ -37,11 +37,34 @@ export default function DateRangePicker({
   onPresetChange,
   selectedPreset: externalPreset
 }: DateRangePickerProps) {
+  const { t, i18n } = useTranslation();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [internalPreset, setInternalPreset] = useState<DatePresetKey>('this_month');
   
   // Use external preset if provided, otherwise use internal state
   const selectedPreset = externalPreset ?? internalPreset;
+
+  // Get locale for date-fns
+  const dateLocale = useMemo(() => {
+    if (i18n.language.startsWith('en')) return enUS;
+    if (i18n.language.startsWith('es')) return es;
+    return ptBR;
+  }, [i18n.language]);
+
+  // Translated presets
+  const translatedPresets = useMemo(() => [
+    { key: 'yesterday' as DatePresetKey, label: t('periods.yesterday') },
+    { key: 'last_3d' as DatePresetKey, label: t('periods.last3Days') },
+    { key: 'last_7d' as DatePresetKey, label: t('periods.last7Days') },
+    { key: 'last_14d' as DatePresetKey, label: t('periods.last14Days') },
+    { key: 'last_30d' as DatePresetKey, label: t('periods.last30Days') },
+    { key: 'last_60d' as DatePresetKey, label: t('periods.last60Days') },
+    { key: 'last_90d' as DatePresetKey, label: t('periods.last90Days') },
+    { key: 'this_month' as DatePresetKey, label: t('periods.thisMonth') },
+    { key: 'last_month' as DatePresetKey, label: t('periods.lastMonth') },
+    { key: 'this_year' as DatePresetKey, label: t('periods.thisYear') },
+    { key: 'last_year' as DatePresetKey, label: t('periods.lastYear') },
+  ], [t]);
 
   // Calcula os períodos baseado no timezone
   const periods = useMemo(() => calculateTimePeriods(timezone), [timezone]);
@@ -71,20 +94,29 @@ export default function DateRangePicker({
     }
   };
 
+  // Get current preset label
+  const currentPresetLabel = useMemo(() => {
+    if (selectedPreset === 'custom') return t('periods.custom');
+    const found = translatedPresets.find(p => p.key === selectedPreset);
+    return found?.label || t('periods.thisMonth');
+  }, [selectedPreset, translatedPresets, t]);
+
   return (
     <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
       {/* Period selector */}
       <Select value={selectedPreset} onValueChange={(value) => handlePresetChange(value as DatePresetKey)}>
         <SelectTrigger className="w-full sm:w-[160px] h-9 sm:h-10 text-xs sm:text-sm">
-          <SelectValue placeholder="Período" />
+          <SelectValue placeholder={t('common.selectPeriod')}>
+            {currentPresetLabel}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent className="bg-popover">
-          {DATE_PRESETS.map((preset) => (
+          {translatedPresets.map((preset) => (
             <SelectItem key={preset.key} value={preset.key}>
               {preset.label}
             </SelectItem>
           ))}
-          <SelectItem value="custom">Personalizado</SelectItem>
+          <SelectItem value="custom">{t('periods.custom')}</SelectItem>
         </SelectContent>
       </Select>
       
@@ -103,13 +135,13 @@ export default function DateRangePicker({
             {dateRange?.from ? (
               dateRange.to ? (
                 <span className="truncate">
-                  {format(dateRange.from, 'dd/MM', { locale: ptBR })} - {format(dateRange.to, 'dd/MM', { locale: ptBR })}
+                  {format(dateRange.from, 'dd/MM', { locale: dateLocale })} - {format(dateRange.to, 'dd/MM', { locale: dateLocale })}
                 </span>
               ) : (
-                format(dateRange.from, 'dd/MM', { locale: ptBR })
+                format(dateRange.from, 'dd/MM', { locale: dateLocale })
               )
             ) : (
-              <span>Datas</span>
+              <span>{t('common.dates')}</span>
             )}
           </Button>
         </PopoverTrigger>
@@ -119,7 +151,7 @@ export default function DateRangePicker({
           sideOffset={4}
         >
           <div className="p-2 border-b border-border/30">
-            <p className="text-xs text-muted-foreground font-medium">Selecione o período</p>
+            <p className="text-xs text-muted-foreground font-medium">{t('common.selectPeriod')}</p>
           </div>
           <Calendar
             initialFocus
@@ -128,18 +160,18 @@ export default function DateRangePicker({
             selected={dateRange}
             onSelect={handleCalendarSelect}
             numberOfMonths={1}
-            locale={ptBR}
+            locale={dateLocale}
             className="p-2"
           />
           {dateRange?.from && dateRange?.to && (
             <div className="p-2 sm:p-3 border-t border-border/30 bg-muted/30">
               <p className="text-xs text-center text-muted-foreground">
                 <span className="font-medium text-foreground">
-                  {format(dateRange.from, 'dd/MM/yyyy', { locale: ptBR })}
+                  {format(dateRange.from, 'dd/MM/yyyy', { locale: dateLocale })}
                 </span>
-                {' até '}
+                {' '}{t('common.until')}{' '}
                 <span className="font-medium text-foreground">
-                  {format(dateRange.to, 'dd/MM/yyyy', { locale: ptBR })}
+                  {format(dateRange.to, 'dd/MM/yyyy', { locale: dateLocale })}
                 </span>
               </p>
             </div>
