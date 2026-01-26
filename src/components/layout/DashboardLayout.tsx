@@ -5,7 +5,6 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import Sidebar from './Sidebar';
 import { ImportLoadingScreen } from './ImportLoadingScreen';
-import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -154,14 +153,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
-  // Desktop layout - CRITICAL: No overflow traps, let body scroll naturally
+  // Desktop layout - SIMPLE: just a normal page that scrolls
   return (
-    <div className="min-h-screen bg-background red-texture-bg grid-background flex" style={{ overflow: 'visible' }}>
+    <div className="min-h-screen bg-background red-texture-bg grid-background flex">
       <Sidebar />
-      <main 
-        className={cn('ml-72 flex-1 min-h-screen transition-all duration-300 relative z-10 p-4 md:p-6 lg:p-8')}
-        style={{ overflow: 'visible', height: 'auto' }}
-      >
+      <main className="ml-72 flex-1 min-h-screen p-4 md:p-6 lg:p-8">
         {children}
       </main>
     </div>
