@@ -4,11 +4,18 @@
   min-height: 100vh;
 }
 
-/* Trava de segurança para rolagem horizontal */
-html,
-body {
+/* Ajuste de segurança para permitir scroll vertical e evitar horizontal */
+html {
   max-width: 100vw;
   overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
+  /* Permitir scroll vertical sempre */
+  overflow-y: auto;
+  /* Evitar bounce horizontal */
+  position: relative;
 }
 
 * {
