@@ -34,8 +34,7 @@ import {
   DollarSign,
   AlertTriangle,
   Compass,
-  Database,
-  MessageSquare
+  Database
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
@@ -489,21 +488,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               >
                 <DollarSign className="w-5 h-5 flex-shrink-0" />
                 {!collapsed && <span>{t('sidebar.financial')}</span>}
-              </Link>
-            )}
-
-            {/* WhatsApp - visible for all non-guest users */}
-            {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('whatsapp') && (
-              <Link
-                to="/whatsapp"
-                onClick={onNavigate}
-                className={cn(
-                  'sidebar-item',
-                  location.pathname === '/whatsapp' && 'active'
-                )}
-              >
-                <MessageSquare className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>{t('sidebar.whatsapp')}</span>}
               </Link>
             )}
 
