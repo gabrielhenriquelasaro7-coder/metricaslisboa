@@ -7,33 +7,32 @@
 
 /* ===== MOBILE-FIRST RESPONSIVE UTILITIES ===== */
 @layer utilities {
-  /* Global mobile-first foundation - CRITICAL: Allow natural page scroll */
+  /* Global mobile-first foundation - CRITICAL: Force wheel/touchpad scroll to work */
   html {
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow-x: hidden !important;
+    overflow-y: scroll !important;
     max-width: 100vw;
-    height: 100%;
+    height: auto !important;
     min-height: 100vh;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
   }
   
   body {
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow-x: hidden !important;
+    overflow-y: scroll !important;
     max-width: 100vw;
     min-height: 100vh;
-    height: 100%;
+    height: auto !important;
     -webkit-overflow-scrolling: touch;
     position: relative;
   }
   
-  /* Root container - allow scroll */
+  /* Root container - allow scroll, never trap content */
   #root {
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: visible !important;
     min-height: 100vh;
-    height: 100%;
+    height: auto !important;
   }
   
   /* Safe area support for notch devices */
