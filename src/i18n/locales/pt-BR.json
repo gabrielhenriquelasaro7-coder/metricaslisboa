@@ -131,7 +131,8 @@
     "profileVisits": "Visitas ao Perfil",
     "initiateCheckout": "Início Checkout",
     "costInitCheckout": "Custo/Init. Checkout",
-    "previous": "Anterior"
+    "previous": "Anterior",
+    "period": "Período"
   },
   "metrics": {
     "spend": "Investimento",
@@ -417,7 +418,29 @@
     "decrease": "redução",
     "noChange": "sem alteração",
     "previous": "Anterior",
-    "selectPeriod": "Selecione um período para ver a comparação com o período anterior."
+    "selectPeriod": "Selecione um período para ver a comparação com o período anterior.",
+    "previous_period": "Período Anterior",
+    "spend": "Investimento",
+    "impressions": "Impressões",
+    "clicks": "Cliques",
+    "conversions": "Conversões",
+    "cpc": "CPC Médio",
+    "ctr": "CTR",
+    "cpa": "CPA",
+    "roas": "ROAS",
+    "revenue": "Receita",
+    "leads": "Leads",
+    "whatsapp_conversations": "Conversas WhatsApp",
+    "purchases": "Compras",
+    "sales": "Vendas",
+    "cost_per_purchase": "Custo por Compra",
+    "cost_per_lead": "Custo por Lead",
+    "initiate_checkout": "Início de Checkout"
+  },
+  "filters": {
+    "all": "Todas as Plataformas",
+    "google": "Google Ads",
+    "meta": "Meta Ads"
   },
   "tabs": {
     "dashboard": "Dashboard",
