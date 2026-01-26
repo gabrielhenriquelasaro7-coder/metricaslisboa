@@ -1,54 +1,50 @@
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import LanguageDetector from "i18next-browser-languagedetector";
 
-import ptBR from './locales/pt-BR.json';
-import enUS from './locales/en-US.json';
-import es from './locales/es.json';
+// Importação direta para garantir que o compilador inclua os dados
+import ptBR from "./locales/pt-BR.json";
+import enUS from "./locales/en-US.json";
+import es from "./locales/es.json";
 
 export const resources = {
-  'pt-BR': { translation: ptBR },
-  'en-US': { translation: enUS },
-  'es': { translation: es }
+  "pt-BR": { translation: ptBR },
+  "en-US": { translation: enUS },
+  es: { translation: es },
 } as const;
 
 export const supportedLanguages = [
-  { code: 'pt-BR', name: 'Português', flag: '🇧🇷' },
-  { code: 'en-US', name: 'English', flag: '🇺🇸' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' }
+  { code: "pt-BR", name: "Português", flag: "🇧🇷" },
+  { code: "en-US", name: "English", flag: "🇺🇸" },
+  { code: "es", name: "Español", flag: "🇪🇸" },
 ] as const;
 
-// Initialize i18n synchronously
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'pt-BR',
-    supportedLngs: ['pt-BR', 'en-US', 'es'],
-    
+    // Idioma padrão se nada for detetado
+    fallbackLng: "pt-BR",
+    // Permite apenas estes idiomas
+    supportedLngs: ["pt-BR", "en-US", "es"],
+
     detection: {
-      // Check localStorage first, then browser navigator language
-      order: ['localStorage', 'navigator', 'htmlTag'],
-      caches: ['localStorage'],
-      lookupLocalStorage: 'i18nextLng',
-      // Convert browser language codes to our supported codes
-      convertDetectedLanguage: (lng: string) => {
-        // Handle common browser language codes
-        if (lng.startsWith('pt')) return 'pt-BR';
-        if (lng.startsWith('es')) return 'es';
-        if (lng.startsWith('en')) return 'en-US';
-        return lng;
-      }
+      // Prioridade: LocalStorage > Navegador > HTML Tag
+      order: ["localStorage", "navigator", "htmlTag"],
+      // Nome da chave guardada no navegador
+      lookupLocalStorage: "i18nextLng",
+      // Guarda a escolha do utilizador automaticamente
+      caches: ["localStorage"],
     },
 
     interpolation: {
-      escapeValue: false
+      escapeValue: false, // O React já trata da segurança contra XSS
     },
 
     react: {
-      useSuspense: false
-    }
+      useSuspense: false, // Evita que a aplicação "pisque" ou trave ao carregar
+    },
   });
 
 export default i18n;
