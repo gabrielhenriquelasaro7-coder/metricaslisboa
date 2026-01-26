@@ -1,9 +1,18 @@
-/* App.css - Global app styles */
-/* Removed restrictive #root max-width to allow full-width layouts */
-
+/* src/App.css */
 #root {
   width: 100%;
   min-height: 100vh;
+}
+
+/* Trava de segurança para rolagem horizontal */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 .logo {
