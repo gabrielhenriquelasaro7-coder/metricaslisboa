@@ -275,6 +275,7 @@
     "title": "Dados Demográficos",
     "gender": "Gênero",
     "age": "Faixa Etária",
+    "ageRange": "Faixa Etária",
     "device": "Dispositivos",
     "platform": "Plataformas",
     "male": "Masculino",
