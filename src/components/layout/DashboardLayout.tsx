@@ -115,7 +115,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background red-texture-bg grid-background overflow-x-hidden">
+      <div className="min-h-screen bg-background grid-background flex flex-col">
         <header className="fixed top-0 left-0 right-0 z-50 h-12 bg-sidebar/95 backdrop-blur-lg border-b border-sidebar-border flex items-center px-3 safe-area-top">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetTrigger asChild>
@@ -132,18 +132,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </Sheet>
           <span className="font-semibold text-foreground text-sm truncate">MetaAds Manager</span>
         </header>
-        <main className="pt-12 min-h-screen relative z-10 overflow-x-hidden safe-area-bottom p-4">{children}</main>
+        {/* Adicionado h-full e removido overflow-x-hidden agressivo */}
+        <main className="flex-1 pt-12 min-h-screen relative z-10 safe-area-bottom p-4 overflow-y-auto">{children}</main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background red-texture-bg grid-background flex overflow-x-hidden">
+    <div className="min-h-screen bg-background grid-background flex">
       <Sidebar />
-      {/* Ajuste de margem responsiva e proteção de largura */}
-      <main className="flex-1 min-h-screen p-4 md:p-6 lg:p-8 md:ml-64 lg:ml-72 w-full max-w-full overflow-x-hidden">
-        {children}
-      </main>
+      {/* Removido overflow-x-hidden que travava o scroll vertical */}
+      <main className="flex-1 p-4 md:p-6 lg:p-8 md:ml-64 lg:ml-72 w-full">{children}</main>
     </div>
   );
 }
