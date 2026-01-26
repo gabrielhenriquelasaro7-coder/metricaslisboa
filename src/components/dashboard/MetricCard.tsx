@@ -3,8 +3,8 @@ import { LucideIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEffect, useState, useRef } from "react";
 
-// Mantemos as propriedades na interface para evitar erros de compilação nas outras páginas,
-// mas não as usaremos no visual do componente.
+// Aceitamos as props antigas na interface para silenciar os erros do TypeScript,
+// mas elas são ignoradas no código abaixo.
 interface MetricCardProps {
   title: string;
   value: string | number;
@@ -12,7 +12,7 @@ interface MetricCardProps {
   changeLabel?: string;
   className?: string;
   tooltip?: string;
-  // Propriedades abaixo são mantidas apenas para compatibilidade (evitar erro TS2322)
+  // Propriedades mantidas APENAS para compatibilidade com Dashboard.tsx e ProjectDetail.tsx
   change?: any;
   trend?: any;
   index?: number;
@@ -22,55 +22,42 @@ interface MetricCardProps {
 function useCountAnimation(value: string | number, duration: number = 800) {
   const [displayValue, setDisplayValue] = useState(value);
   const prevValue = useRef(value);
-
   useEffect(() => {
     if (prevValue.current === value) return;
     prevValue.current = value;
-
     const stringValue = String(value);
     const numericMatch = stringValue.match(/[\d.,]+/g);
     if (!numericMatch) {
       setDisplayValue(value);
       return;
     }
-
     const numericString = numericMatch.join("");
     const cleanNumber = numericString.replace(/\./g, "").replace(",", ".");
     const targetNumber = parseFloat(cleanNumber);
-
     if (isNaN(targetNumber)) {
       setDisplayValue(value);
       return;
     }
-
     const startTime = performance.now();
-    const startNumber = 0;
-
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const easeOut = 1 - Math.pow(1 - progress, 3);
-      const currentNumber = startNumber + (targetNumber - startNumber) * easeOut;
-
+      const currentNumber = targetNumber * easeOut;
       const prefix = stringValue.match(/^[^\d]*/)?.[0] || "";
       const suffix = stringValue.match(/[^\d.,]*$/)?.[0] || "";
       const hasDecimal =
         stringValue.includes(",") || (stringValue.includes(".") && stringValue.split(".")[1]?.length === 2);
-
       const formatted = currentNumber.toLocaleString("pt-BR", {
         minimumFractionDigits: hasDecimal ? 2 : 0,
         maximumFractionDigits: 2,
       });
-
       setDisplayValue(`${prefix}${formatted}${suffix}`);
-
       if (progress < 1) requestAnimationFrame(animate);
       else setDisplayValue(value);
     };
-
     requestAnimationFrame(animate);
   }, [value, duration]);
-
   return displayValue;
 }
 
@@ -81,50 +68,36 @@ export default function MetricCard({
   changeLabel,
   className,
   tooltip,
-  // As props abaixo são recebidas mas ignoradas (não aparecem no HTML)
-  change: _change,
-  trend: _trend,
-  index: _index,
-  format: _format,
+  change: _c,
+  trend: _t,
+  index: _i,
+  format: _f, // Ignorados propositalmente
 }: MetricCardProps) {
   const animatedValue = useCountAnimation(value);
 
-  const titleElement = tooltip ? (
-    <Tooltip>
-      <TooltipTrigger className="text-[10px] sm:text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help text-left truncate uppercase tracking-wider font-medium">
-        {title}
-      </TooltipTrigger>
-      <TooltipContent className="max-w-xs bg-background/95 backdrop-blur-xl border-border/50">{tooltip}</TooltipContent>
-    </Tooltip>
-  ) : (
-    <span className="text-[10px] sm:text-xs text-muted-foreground truncate uppercase tracking-wider font-medium">
-      {title}
-    </span>
-  );
-
   return (
-    <div
-      className={cn(
-        "premium-card group cursor-default p-3 sm:p-4 transition-all duration-300 hover:border-primary/30",
-        className,
-      )}
-    >
-      {/* Linha Superior: Título e Ícone (Badge de % removido daqui) */}
+    <div className={cn("premium-card group p-3 sm:p-4 transition-all duration-300", className)}>
       <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="min-w-0 flex-1">{titleElement}</div>
+        <div className="min-w-0 flex-1">
+          {tooltip ? (
+            <Tooltip>
+              <TooltipTrigger className="text-[10px] sm:text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 truncate uppercase font-medium">
+                {title}
+              </TooltipTrigger>
+              <TooltipContent>{tooltip}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-[10px] sm:text-xs text-muted-foreground truncate uppercase font-medium">{title}</span>
+          )}
+        </div>
         {Icon && (
-          <div className="premium-icon w-7 h-7 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center rounded-lg bg-primary/10">
-            <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary transition-transform duration-300 group-hover:scale-110" />
+          <div className="premium-icon w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center rounded-lg bg-primary/10">
+            <Icon className="w-3.5 h-3.5 text-primary" />
           </div>
         )}
       </div>
-
-      {/* Valor e Rótulo de Comparação */}
       <div className="flex flex-col">
-        <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground tracking-tight truncate">
-          {animatedValue}
-        </h3>
-
+        <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground truncate">{animatedValue}</h3>
         {changeLabel && (
           <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-1 truncate opacity-70">{changeLabel}</p>
         )}
