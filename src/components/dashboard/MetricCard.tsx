@@ -3,16 +3,22 @@ import { LucideIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEffect, useState, useRef } from "react";
 
+// Mantemos as propriedades na interface para evitar erros de compilação nas outras páginas,
+// mas não as usaremos no visual do componente.
 interface MetricCardProps {
   title: string;
   value: string | number;
-  changeLabel?: string;
   icon?: LucideIcon;
+  changeLabel?: string;
   className?: string;
   tooltip?: string;
+  // Propriedades abaixo são mantidas apenas para compatibilidade (evitar erro TS2322)
+  change?: any;
+  trend?: any;
+  index?: number;
+  format?: string;
 }
 
-// Hook para animação dos números (Count Up)
 function useCountAnimation(value: string | number, duration: number = 800) {
   const [displayValue, setDisplayValue] = useState(value);
   const prevValue = useRef(value);
@@ -58,11 +64,8 @@ function useCountAnimation(value: string | number, duration: number = 800) {
 
       setDisplayValue(`${prefix}${formatted}${suffix}`);
 
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        setDisplayValue(value);
-      }
+      if (progress < 1) requestAnimationFrame(animate);
+      else setDisplayValue(value);
     };
 
     requestAnimationFrame(animate);
@@ -71,7 +74,19 @@ function useCountAnimation(value: string | number, duration: number = 800) {
   return displayValue;
 }
 
-export default function MetricCard({ title, value, changeLabel, icon: Icon, className, tooltip }: MetricCardProps) {
+export default function MetricCard({
+  title,
+  value,
+  icon: Icon,
+  changeLabel,
+  className,
+  tooltip,
+  // As props abaixo são recebidas mas ignoradas (não aparecem no HTML)
+  change: _change,
+  trend: _trend,
+  index: _index,
+  format: _format,
+}: MetricCardProps) {
   const animatedValue = useCountAnimation(value);
 
   const titleElement = tooltip ? (
@@ -94,7 +109,7 @@ export default function MetricCard({ title, value, changeLabel, icon: Icon, clas
         className,
       )}
     >
-      {/* Linha Superior: Título e Ícone */}
+      {/* Linha Superior: Título e Ícone (Badge de % removido daqui) */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0 flex-1">{titleElement}</div>
         {Icon && (
@@ -104,7 +119,7 @@ export default function MetricCard({ title, value, changeLabel, icon: Icon, clas
         )}
       </div>
 
-      {/* Valor e Rótulo Adicional */}
+      {/* Valor e Rótulo de Comparação */}
       <div className="flex flex-col">
         <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground tracking-tight truncate">
           {animatedValue}
