@@ -1,116 +1,155 @@
-import { cn } from "@/lib/utils";
-import { LucideIcon } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useEffect, useState, useRef } from "react";
+import { cn } from '@/lib/utils';
+import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useEffect, useState, useRef } from 'react';
 
 interface MetricCardProps {
   title: string;
   value: string | number;
+  change?: number;
   changeLabel?: string;
   icon?: LucideIcon;
+  trend?: 'up' | 'down' | 'neutral';
+  format?: 'currency' | 'percent' | 'number';
   className?: string;
   tooltip?: string;
+  index?: number;
 }
 
-// Hook para animação suave dos números
-function useCountAnimation(value: string | number, duration: number = 800) {
+// Hook for count animation
+function useCountAnimation(value: string | number, duration: number = 1000) {
   const [displayValue, setDisplayValue] = useState(value);
   const prevValue = useRef(value);
-
+  
   useEffect(() => {
     if (prevValue.current === value) return;
     prevValue.current = value;
-
+    
     const stringValue = String(value);
     const numericMatch = stringValue.match(/[\d.,]+/g);
     if (!numericMatch) {
       setDisplayValue(value);
       return;
     }
-
-    const numericString = numericMatch.join("");
-    const cleanNumber = numericString.replace(/\./g, "").replace(",", ".");
+    
+    const numericString = numericMatch.join('');
+    const cleanNumber = numericString.replace(/\./g, '').replace(',', '.');
     const targetNumber = parseFloat(cleanNumber);
-
+    
     if (isNaN(targetNumber)) {
       setDisplayValue(value);
       return;
     }
-
+    
     const startTime = performance.now();
     const startNumber = 0;
-
+    
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const easeOut = 1 - Math.pow(1 - progress, 3);
       const currentNumber = startNumber + (targetNumber - startNumber) * easeOut;
-
-      const prefix = stringValue.match(/^[^\d]*/)?.[0] || "";
-      const suffix = stringValue.match(/[^\d.,]*$/)?.[0] || "";
-      const hasDecimal = stringValue.includes(",") || stringValue.includes(".");
-
-      const formatted = currentNumber.toLocaleString("pt-BR", {
-        minimumFractionDigits: hasDecimal ? 2 : 0,
-        maximumFractionDigits: 2,
-      });
-
+      
+      const prefix = stringValue.match(/^[^\d]*/)?.[0] || '';
+      const suffix = stringValue.match(/[^\d.,]*$/)?.[0] || '';
+      const hasDecimal = stringValue.includes(',') && stringValue.match(/,\d{2}$/);
+      const formatted = hasDecimal 
+        ? currentNumber.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : currentNumber.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+      
       setDisplayValue(`${prefix}${formatted}${suffix}`);
-
-      if (progress < 1) requestAnimationFrame(animate);
-      else setDisplayValue(value);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setDisplayValue(value);
+      }
     };
-
+    
     requestAnimationFrame(animate);
   }, [value, duration]);
-
+  
   return displayValue;
 }
 
-export default function MetricCard({ title, value, changeLabel, icon: Icon, className, tooltip }: MetricCardProps) {
-  const animatedValue = useCountAnimation(value);
+export default function MetricCard({
+  title,
+  value,
+  change,
+  changeLabel,
+  icon: Icon,
+  trend,
+  className,
+  tooltip,
+  index = 0,
+}: MetricCardProps) {
+  const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
+  const animatedValue = useCountAnimation(value, 800);
 
-  const titleElement = tooltip ? (
-    <Tooltip>
-      <TooltipTrigger className="text-[10px] sm:text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help text-left truncate uppercase tracking-wider font-medium">
-        {title}
-      </TooltipTrigger>
-      <TooltipContent className="max-w-xs bg-background/95 backdrop-blur-xl border-border/50">{tooltip}</TooltipContent>
-    </Tooltip>
-  ) : (
-    <span className="text-[10px] sm:text-xs text-muted-foreground truncate uppercase tracking-wider font-medium">
-      {title}
+  // MetricDeltaBadge - Hidden on mobile, visible on sm+ screens
+  const MetricDeltaBadge = change !== undefined && (
+    <span 
+      className={cn(
+        // Hidden on mobile, visible on tablet+
+        'hidden sm:inline-flex',
+        // Base styles
+        'items-center gap-0.5 whitespace-nowrap shrink-0',
+        'px-1.5 py-0.5 text-[10px] font-medium rounded-full border leading-none',
+        // Dynamic colors based on trend
+        trend === 'up' 
+          ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20' 
+          : trend === 'down' 
+            ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20' 
+            : 'bg-muted/50 text-muted-foreground border-muted/30'
+      )}
+    >
+      <TrendIcon className="w-2.5 h-2.5 shrink-0" />
+      <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
     </span>
   );
 
+  const titleElement = tooltip ? (
+    <Tooltip>
+      <TooltipTrigger className="text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help text-left truncate">
+        {title}
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs bg-background/95 backdrop-blur-xl border-border/50">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  ) : (
+    <span className="text-xs text-muted-foreground truncate">{title}</span>
+  );
+
   return (
-    <div
-      className={cn(
-        "premium-card group cursor-default p-3 sm:p-4 transition-all duration-300 hover:border-primary/30",
-        className,
-      )}
+    <div 
+      className={cn('premium-card group cursor-default p-2.5 sm:p-3 lg:p-4 transition-transform duration-150 hover:-translate-y-0.5', className)}
     >
-      {/* Topo: Título e Ícone */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="min-w-0 flex-1">{titleElement}</div>
+      {/* Header row: Title + Badge aligned, Icon on right */}
+      <div className="flex items-center justify-between gap-1 sm:gap-1.5 lg:gap-2 mb-1 relative z-10">
+        {/* Title and Badge container - flex with center alignment */}
+        <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 min-w-0 flex-1">
+          {titleElement}
+          {MetricDeltaBadge}
+        </div>
         {Icon && (
-          <div className="premium-icon w-7 h-7 sm:w-9 sm:h-9 shrink-0">
-            <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary transition-transform duration-300 group-hover:scale-110" />
+          <div className="premium-icon w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 shrink-0">
+            <Icon className="w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4 text-primary transition-all duration-300 group-hover:scale-110" />
           </div>
         )}
       </div>
-
-      {/* Valor Principal - Tamanho robusto e responsivo */}
-      <div className="flex flex-col">
-        <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground tracking-tight truncate">
-          {animatedValue}
-        </h3>
-
-        {/* Rótulo de comparação (Opcional) */}
-        {changeLabel && (
-          <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-1 truncate opacity-80">{changeLabel}</p>
-        )}
-      </div>
+      
+      {/* Value - responsive sizing for all screen sizes including small desktops */}
+      <p className="text-[11px] sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl font-bold text-foreground transition-colors duration-300 truncate">
+        {animatedValue}
+      </p>
+      
+      {/* Change label (e.g., "Anterior: R$ 1.922,54") */}
+      {changeLabel && (
+        <p className="text-[9px] sm:text-[10px] lg:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">
+          {changeLabel}
+        </p>
+      )}
     </div>
   );
 }
