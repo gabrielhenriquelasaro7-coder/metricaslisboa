@@ -29,7 +29,6 @@ import googleAdsIcon from '@/assets/google-ads-icon.png';
 import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 import { useTranslation } from 'react-i18next';
 import { supportedLanguages } from '@/i18n';
-
 const cargoOptions: {
   value: UserCargo;
   label: string;
@@ -244,7 +243,10 @@ interface StatusGroupProps {
   projects: Project[];
   defaultOpen?: boolean;
   projectInvestidores: Record<string, string[]>;
-  squads: Array<{ id: string; name: string }>;
+  squads: Array<{
+    id: string;
+    name: string;
+  }>;
   onSelect: (project: Project) => void;
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
@@ -320,33 +322,19 @@ function StatusGroup({
       <CollapsibleContent className="pt-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-4">
           {projects.map(project => {
-            const investidorNames = projectInvestidores[project.id] || [];
-            const squadName = squads.find(s => s.id === project.squad_id)?.name || null;
-            return (
-              <ClientCard 
-                key={project.id} 
-                project={project} 
-                showWhatsApp={showWhatsApp} 
-                investidorNames={investidorNames}
-                squadName={squadName}
-                onSelect={onSelect} 
-                onEdit={onEdit} 
-                onDelete={onDelete} 
-                onArchive={onArchive} 
-                onUnarchive={onUnarchive} 
-                onResync={onResync} 
-                onWhatsApp={onWhatsApp}
-                t={t}
-                getDateLocale={getDateLocale}
-              />
-            );
-          })}
+          const investidorNames = projectInvestidores[project.id] || [];
+          const squadName = squads.find(s => s.id === project.squad_id)?.name || null;
+          return <ClientCard key={project.id} project={project} showWhatsApp={showWhatsApp} investidorNames={investidorNames} squadName={squadName} onSelect={onSelect} onEdit={onEdit} onDelete={onDelete} onArchive={onArchive} onUnarchive={onUnarchive} onResync={onResync} onWhatsApp={onWhatsApp} t={t} getDateLocale={getDateLocale} />;
+        })}
         </div>
       </CollapsibleContent>
     </Collapsible>;
 }
 export default function ProjectSelector() {
-  const { t, i18n } = useTranslation();
+  const {
+    t,
+    i18n
+  } = useTranslation();
   const {
     user,
     loading: authLoading,
@@ -372,8 +360,17 @@ export default function ProjectSelector() {
   const {
     isGuest
   } = useUserRole();
-  const { cargo, isTech, isGerente, isCoordenador, isInvestidor, userSquads } = useCargo();
-  const { squads } = useSquads();
+  const {
+    cargo,
+    isTech,
+    isGerente,
+    isCoordenador,
+    isInvestidor,
+    userSquads
+  } = useCargo();
+  const {
+    squads
+  } = useSquads();
   const navigate = useNavigate();
 
   // Get date-fns locale based on current language
@@ -383,7 +380,6 @@ export default function ProjectSelector() {
     if (lang.startsWith('es')) return es;
     return enUS;
   };
-
   const handleLanguageChange = (langCode: string) => {
     i18n.changeLanguage(langCode);
     const langName = supportedLanguages.find(l => l.code === langCode)?.name || langCode;
@@ -391,22 +387,30 @@ export default function ProjectSelector() {
   };
 
   // Investidores e coordenadores para atribuição
-  const [investidores, setInvestidores] = useState<Array<{ id: string; user_id: string; full_name: string; email: string; squad_id: string | null }>>([]);
-  const [coordenadores, setCoordenadores] = useState<Array<{ id: string; user_id: string; full_name: string; email: string; squad_id: string | null }>>([]);
+  const [investidores, setInvestidores] = useState<Array<{
+    id: string;
+    user_id: string;
+    full_name: string;
+    email: string;
+    squad_id: string | null;
+  }>>([]);
+  const [coordenadores, setCoordenadores] = useState<Array<{
+    id: string;
+    user_id: string;
+    full_name: string;
+    email: string;
+    squad_id: string | null;
+  }>>([]);
   // Mapa de investidores por projeto para exibição no card
   const [projectInvestidores, setProjectInvestidores] = useState<Record<string, string[]>>({});
   // Coordenador selecionado para cascata
   const [selectedCoordinatorId, setSelectedCoordinatorId] = useState<string>('');
-
   useEffect(() => {
     const fetchPeople = async () => {
-      const { data } = await supabase
-        .from('user_management')
-        .select('id, user_id, full_name, email, cargo, squad_id')
-        .in('cargo', ['investidor', 'coordenador'])
-        .not('user_id', 'is', null) // Only active users
-        .order('full_name');
-      
+      const {
+        data
+      } = await supabase.from('user_management').select('id, user_id, full_name, email, cargo, squad_id').in('cargo', ['investidor', 'coordenador']).not('user_id', 'is', null) // Only active users
+      .order('full_name');
       if (data) {
         setInvestidores(data.filter(u => u.cargo === 'investidor').map(u => ({
           id: u.id,
@@ -431,28 +435,23 @@ export default function ProjectSelector() {
   useEffect(() => {
     const fetchProjectInvestidores = async () => {
       if (projects.length === 0) return;
-      
+
       // Fetch from project_investidores with profile names
-      const { data } = await supabase
-        .from('project_investidores')
-        .select('project_id, investidor_id')
-        .in('project_id', projects.map(p => p.id));
-      
+      const {
+        data
+      } = await supabase.from('project_investidores').select('project_id, investidor_id').in('project_id', projects.map(p => p.id));
       if (data && data.length > 0) {
         // Get unique investidor_ids
         const investidorIds = [...new Set(data.map(pi => pi.investidor_id))];
-        
+
         // Fetch profiles for these investidores
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', investidorIds);
-        
+        const {
+          data: profilesData
+        } = await supabase.from('profiles').select('user_id, full_name').in('user_id', investidorIds);
         const profilesMap: Record<string, string> = {};
         profilesData?.forEach(p => {
           profilesMap[p.user_id] = p.full_name || 'Sem nome';
         });
-        
         const map: Record<string, string[]> = {};
         data.forEach(pi => {
           const fullName = profilesMap[pi.investidor_id];
@@ -519,8 +518,8 @@ export default function ProjectSelector() {
   }, [profile]);
 
   // Form data with new fields
-  const [formData, setFormData] = useState<CreateProjectData & { 
-    investidor_ids?: string[]; 
+  const [formData, setFormData] = useState<CreateProjectData & {
+    investidor_ids?: string[];
     squad_id?: string | null;
   }>({
     name: '',
@@ -532,7 +531,7 @@ export default function ProjectSelector() {
     avatar_url: null,
     google_customer_id: '',
     investidor_ids: [],
-    squad_id: null,
+    squad_id: null
   });
   const [editFormData, setEditFormData] = useState<{
     name: string;
@@ -553,7 +552,7 @@ export default function ProjectSelector() {
     health_score: null,
     avatar_url: null,
     investidor_ids: [],
-    squad_id: null,
+    squad_id: null
   });
   useEffect(() => {
     if (!authLoading && !user) {
@@ -565,15 +564,10 @@ export default function ProjectSelector() {
   const activeProjects = projects.filter(p => !p.archived);
   const archivedProjects = projects.filter(p => p.archived);
   const displayProjects = showArchived ? archivedProjects : activeProjects;
-  
+
   // Apply squad filter for tech/gerente users
-  const squadFilteredProjects = (isTech || isGerente) && squadFilter !== 'all'
-    ? displayProjects.filter(p => p.squad_id === squadFilter)
-    : displayProjects;
-  
-  const filteredProjects = squadFilteredProjects
-    .filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter)
-    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.ad_account_id.toLowerCase().includes(searchQuery.toLowerCase()));
+  const squadFilteredProjects = (isTech || isGerente) && squadFilter !== 'all' ? displayProjects.filter(p => p.squad_id === squadFilter) : displayProjects;
+  const filteredProjects = squadFilteredProjects.filter(p => healthFilter === 'all' || (p.health_score || 'undefined') === healthFilter).filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.ad_account_id.toLowerCase().includes(searchQuery.toLowerCase()));
 
   // Group by status
   const safeProjects = filteredProjects.filter(p => p.health_score === 'safe');
@@ -612,10 +606,9 @@ export default function ProjectSelector() {
         setPendingProjectName(formData.name);
         setPendingProjectBusinessModel(formData.business_model);
         setShowImportModeDialog(true);
-        
+
         // Refresh project list immediately
         refetch();
-        
         setFormData({
           name: '',
           ad_account_id: '',
@@ -625,7 +618,7 @@ export default function ProjectSelector() {
           health_score: null,
           avatar_url: null,
           investidor_ids: [],
-          squad_id: null,
+          squad_id: null
         });
         setSelectedCoordinatorId('');
         setAvatarPreview(null);
@@ -640,19 +633,18 @@ export default function ProjectSelector() {
   // Start import with selected mode
   const handleStartImport = async (mode: 'light' | 'full') => {
     if (!pendingProjectId) return;
-
     const projectId = pendingProjectId;
     const projectName = pendingProjectName;
     const isCustom = pendingProjectBusinessModel === 'custom';
-    
+
     // Close dialog immediately
     setShowImportModeDialog(false);
-    
+
     // Clear pending state
     setPendingProjectId(null);
     setPendingProjectName('');
     setPendingProjectBusinessModel('ecommerce');
-    
+
     // If custom, navigate to setup FIRST (before import)
     // The import will be started from ProjectSetup after config
     if (isCustom) {
@@ -662,21 +654,21 @@ export default function ProjectSelector() {
       navigate(`/project-setup/${projectId}`);
       return;
     }
-    
+
     // For non-custom projects, show toast and start import immediately
     toast.success(`Importação ${mode === 'light' ? 'Light' : 'Total HD'} iniciada para ${projectName}!`);
-    
+
     // Refresh list
     refetch();
 
     // Update project sync status and start import in background
     supabase.from('projects').update({
-      sync_progress: { 
-        status: 'importing', 
-        progress: 0, 
-        message: mode === 'light' ? 'Iniciando Light Sync...' : 'Iniciando Importação Total HD...', 
-        started_at: new Date().toISOString() 
-      },
+      sync_progress: {
+        status: 'importing',
+        progress: 0,
+        message: mode === 'light' ? 'Iniciando Light Sync...' : 'Iniciando Importação Total HD...',
+        started_at: new Date().toISOString()
+      }
     }).eq('id', projectId).then(() => {
       // Fire and forget - start the import
       supabase.functions.invoke('import-month-by-month', {
@@ -686,9 +678,11 @@ export default function ProjectSelector() {
           month: 1,
           continue_chain: true,
           force_light_sync: mode === 'light',
-          safe_mode: true,
-        },
-      }).then(({ error }) => {
+          safe_mode: true
+        }
+      }).then(({
+        error
+      }) => {
         if (error) {
           console.error('Error starting import:', error);
           toast.error('Erro ao iniciar importação');
@@ -698,7 +692,6 @@ export default function ProjectSelector() {
       });
     });
   };
-
   const handleImportModeClose = () => {
     setShowImportModeDialog(false);
     setPendingProjectId(null);
@@ -707,15 +700,12 @@ export default function ProjectSelector() {
   };
   const handleEditClick = async (project: Project) => {
     setSelectedProject(project);
-    
+
     // Fetch investidores do projeto
-    const { data: projectInvestidores } = await supabase
-      .from('project_investidores')
-      .select('investidor_id')
-      .eq('project_id', project.id);
-    
+    const {
+      data: projectInvestidores
+    } = await supabase.from('project_investidores').select('investidor_id').eq('project_id', project.id);
     const investidorIds = projectInvestidores?.map(pi => pi.investidor_id) || [];
-    
     setEditFormData({
       name: project.name,
       ad_account_id: project.ad_account_id,
@@ -725,7 +715,7 @@ export default function ProjectSelector() {
       health_score: project.health_score,
       avatar_url: project.avatar_url,
       investidor_ids: investidorIds,
-      squad_id: project.squad_id || null,
+      squad_id: project.squad_id || null
     });
     setEditAvatarPreview(project.avatar_url);
     setEditDialogOpen(true);
@@ -936,15 +926,13 @@ export default function ProjectSelector() {
                 </TooltipProvider>
                 <button onClick={() => navigate('/whatsapp-manager')} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
                   <img src={whatsappIcon} alt="" className="w-4 h-4 md:w-4.5 md:h-4.5 lg:w-5 lg:h-5 opacity-70" />
-                  <span className="hidden lg:inline">WhatsApp Admin</span>
+                  <span className="hidden lg:inline">WhatsApp </span>
                 </button>
                 {/* Admin button - hidden for investidor and convidado */}
-                {!isInvestidor && !isGuest && (
-                  <button onClick={() => navigate('/admin')} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
+                {!isInvestidor && !isGuest && <button onClick={() => navigate('/admin')} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
                     <Shield className="w-4 h-4" />
                     <span className="hidden lg:inline">Admin</span>
-                  </button>
-                )}
+                  </button>}
                 <button onClick={() => setSettingsDialogOpen(true)} className="h-9 md:h-10 lg:h-11 px-2.5 md:px-3 lg:px-5 rounded-lg text-xs md:text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center gap-1.5 md:gap-2 lg:gap-2.5 border border-border whitespace-nowrap touch-target">
                   <User className="w-4 h-4" />
                   <span className="hidden lg:inline">{t('projectSelector.settings')}</span>
@@ -1031,27 +1019,22 @@ export default function ProjectSelector() {
               </Select>
               
               {/* Squad filter for tech/gerente */}
-              {(isTech || isGerente) && squads.length > 0 && (
-                <Select value={squadFilter} onValueChange={setSquadFilter}>
+              {(isTech || isGerente) && squads.length > 0 && <Select value={squadFilter} onValueChange={setSquadFilter}>
                   <SelectTrigger className="w-full sm:w-36 md:w-32 lg:w-40 h-10 bg-secondary border-border text-muted-foreground rounded-xl focus:border-primary/50 touch-target text-sm">
                     <SelectValue placeholder="Squad" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50">
                     <SelectItem value="all" className="text-foreground rounded-lg">Todas as Squads</SelectItem>
-                    {squads.map((squad) => (
-                      <SelectItem key={squad.id} value={squad.id} className="text-foreground rounded-lg">
+                    {squads.map(squad => <SelectItem key={squad.id} value={squad.id} className="text-foreground rounded-lg">
                         <div className="flex items-center gap-2">
-                          <div 
-                            className="w-2 h-2 rounded-full flex-shrink-0" 
-                            style={{ backgroundColor: squad.color }}
-                          />
+                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{
+                      backgroundColor: squad.color
+                    }} />
                           <span className="truncate">{squad.name}</span>
                         </div>
-                      </SelectItem>
-                    ))}
+                      </SelectItem>)}
                   </SelectContent>
-                </Select>
-              )}
+                </Select>}
             </div>
             
             {/* Actions - Scrollable on mobile, inline on tablet+ */}
@@ -1118,13 +1101,12 @@ export default function ProjectSelector() {
                         </div>
 
                         {/* Health Score - somente tech e gerente podem definir */}
-                        {(isTech || isGerente) && (
-                          <div className="space-y-2">
+                        {(isTech || isGerente) && <div className="space-y-2">
                             <Label className="text-muted-foreground text-xs">Health Score</Label>
                             <Select value={formData.health_score || 'none'} onValueChange={val => setFormData(prev => ({
-                              ...prev,
-                              health_score: val === 'none' ? null : val as HealthScore
-                            }))}>
+                        ...prev,
+                        health_score: val === 'none' ? null : val as HealthScore
+                      }))}>
                               <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 touch-target">
                                 <SelectValue placeholder="Selecione..." />
                               </SelectTrigger>
@@ -1135,148 +1117,109 @@ export default function ProjectSelector() {
                                 <SelectItem value="danger" className="text-red-500 rounded-lg">Danger</SelectItem>
                               </SelectContent>
                             </Select>
-                          </div>
-                        )}
+                          </div>}
 
                         {/* Coordenador - primeiro da cascata */}
-                        {(isTech || isGerente) && (
-                          <div className="space-y-2">
+                        {(isTech || isGerente) && <div className="space-y-2">
                             <Label className="text-muted-foreground text-xs">Coordenador</Label>
-                            <Select 
-                              value={selectedCoordinatorId || 'none'} 
-                              onValueChange={val => {
-                                const coordId = val === 'none' ? '' : val;
-                                setSelectedCoordinatorId(coordId);
-                                
-                                // Auto-atribuir squad do coordenador
-                                if (coordId) {
-                                  const coord = coordenadores.find(c => c.user_id === coordId);
-                                  if (coord?.squad_id) {
-                                    setFormData(prev => ({
-                                      ...prev,
-                                      squad_id: coord.squad_id,
-                                      investidor_ids: [] // Reset investidores ao mudar coordenador
-                                    }));
-                                  }
-                                } else {
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    squad_id: null,
-                                    investidor_ids: []
-                                  }));
-                                }
-                              }}
-                            >
+                            <Select value={selectedCoordinatorId || 'none'} onValueChange={val => {
+                        const coordId = val === 'none' ? '' : val;
+                        setSelectedCoordinatorId(coordId);
+
+                        // Auto-atribuir squad do coordenador
+                        if (coordId) {
+                          const coord = coordenadores.find(c => c.user_id === coordId);
+                          if (coord?.squad_id) {
+                            setFormData(prev => ({
+                              ...prev,
+                              squad_id: coord.squad_id,
+                              investidor_ids: [] // Reset investidores ao mudar coordenador
+                            }));
+                          }
+                        } else {
+                          setFormData(prev => ({
+                            ...prev,
+                            squad_id: null,
+                            investidor_ids: []
+                          }));
+                        }
+                      }}>
                               <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 touch-target">
                                 <SelectValue placeholder="Selecione o coordenador..." />
                               </SelectTrigger>
                               <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50 max-h-60">
                                 <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhum</SelectItem>
-                                {coordenadores.map(coord => (
-                                  <SelectItem key={coord.user_id} value={coord.user_id} className="text-foreground rounded-lg">
+                                {coordenadores.map(coord => <SelectItem key={coord.user_id} value={coord.user_id} className="text-foreground rounded-lg">
                                     {coord.full_name}
-                                  </SelectItem>
-                                ))}
+                                  </SelectItem>)}
                               </SelectContent>
                             </Select>
-                          </div>
-                        )}
+                          </div>}
 
                         {/* Squad - auto-atribuída pelo coordenador (tech/gerente) ou fixa (coordenador) */}
-                        {(isTech || isGerente || isCoordenador) && (
-                          <div className="space-y-2">
+                        {(isTech || isGerente || isCoordenador) && <div className="space-y-2">
                             <Label className="text-muted-foreground text-xs">Squad</Label>
-                            {(isTech || isGerente) && formData.squad_id ? (
-                              <div className="px-3 py-2.5 rounded-xl bg-secondary border border-border text-sm font-medium text-foreground flex items-center gap-2">
-                                <div 
-                                  className="w-2 h-2 rounded-full" 
-                                  style={{ backgroundColor: squads.find(s => s.id === formData.squad_id)?.color || '#666' }} 
-                                />
+                            {(isTech || isGerente) && formData.squad_id ? <div className="px-3 py-2.5 rounded-xl bg-secondary border border-border text-sm font-medium text-foreground flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{
+                          backgroundColor: squads.find(s => s.id === formData.squad_id)?.color || '#666'
+                        }} />
                                 {squads.find(s => s.id === formData.squad_id)?.name || 'Squad'}
-                              </div>
-                            ) : (isTech || isGerente) && !formData.squad_id ? (
-                              <div className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-muted-foreground italic">
+                              </div> : (isTech || isGerente) && !formData.squad_id ? <div className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-muted-foreground italic">
                                 Selecione um coordenador primeiro
-                              </div>
-                            ) : (
-                              // Coordenador só vê suas squads
-                              <Select value={formData.squad_id || 'none'} onValueChange={val => setFormData(prev => ({
-                                ...prev,
-                                squad_id: val === 'none' ? null : val,
-                                investidor_ids: []
-                              }))}>
+                              </div> :
+                      // Coordenador só vê suas squads
+                      <Select value={formData.squad_id || 'none'} onValueChange={val => setFormData(prev => ({
+                        ...prev,
+                        squad_id: val === 'none' ? null : val,
+                        investidor_ids: []
+                      }))}>
                                 <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50 h-10 touch-target">
                                   <SelectValue placeholder="Selecione a squad..." />
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover backdrop-blur-xl border-border rounded-xl z-50 max-h-60">
                                   <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhuma</SelectItem>
-                                  {userSquads.map(squad => (
-                                    <SelectItem key={squad.id} value={squad.id} className="text-foreground rounded-lg">
+                                  {userSquads.map(squad => <SelectItem key={squad.id} value={squad.id} className="text-foreground rounded-lg">
                                       <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: squad.color }} />
+                                        <div className="w-2 h-2 rounded-full" style={{
+                                backgroundColor: squad.color
+                              }} />
                                         {squad.name}
                                       </div>
-                                    </SelectItem>
-                                  ))}
+                                    </SelectItem>)}
                                 </SelectContent>
-                              </Select>
-                            )}
-                            {(isTech || isGerente) && formData.squad_id && (
-                              <p className="text-xs text-muted-foreground">Atribuída automaticamente pelo coordenador</p>
-                            )}
-                          </div>
-                        )}
+                              </Select>}
+                            {(isTech || isGerente) && formData.squad_id && <p className="text-xs text-muted-foreground">Atribuída automaticamente pelo coordenador</p>}
+                          </div>}
 
                         {/* Investidores - filtrados pela squad selecionada */}
-                        {(isTech || isGerente || isCoordenador) && formData.squad_id && (
-                          <div className="space-y-2">
+                        {(isTech || isGerente || isCoordenador) && formData.squad_id && <div className="space-y-2">
                             <Label className="text-muted-foreground text-xs">Investidores</Label>
                             {(() => {
-                              const filteredInvestidores = investidores.filter(inv => inv.squad_id === formData.squad_id);
-                              return filteredInvestidores.length === 0 ? (
-                                <div className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-muted-foreground italic">
+                        const filteredInvestidores = investidores.filter(inv => inv.squad_id === formData.squad_id);
+                        return filteredInvestidores.length === 0 ? <div className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-muted-foreground italic">
                                   Nenhum investidor nesta squad
-                                </div>
-                              ) : (
-                                <>
+                                </div> : <>
                                   <div className="bg-secondary border border-border rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
-                                    {filteredInvestidores.map(inv => (
-                                      <label key={inv.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-1.5 transition-colors">
-                                        <div 
-                                          onClick={() => {
-                                            const isSelected = formData.investidor_ids?.includes(inv.user_id);
-                                            setFormData(prev => ({
-                                              ...prev,
-                                              investidor_ids: isSelected 
-                                                ? (prev.investidor_ids || []).filter(id => id !== inv.user_id)
-                                                : [...(prev.investidor_ids || []), inv.user_id]
-                                            }));
-                                          }}
-                                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${
-                                            formData.investidor_ids?.includes(inv.user_id)
-                                              ? 'bg-primary border-primary'
-                                              : 'border-border bg-background'
-                                          }`}
-                                        >
-                                          {formData.investidor_ids?.includes(inv.user_id) && (
-                                            <Check className="w-3 h-3 text-primary-foreground" />
-                                          )}
+                                    {filteredInvestidores.map(inv => <label key={inv.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-1.5 transition-colors">
+                                        <div onClick={() => {
+                                const isSelected = formData.investidor_ids?.includes(inv.user_id);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  investidor_ids: isSelected ? (prev.investidor_ids || []).filter(id => id !== inv.user_id) : [...(prev.investidor_ids || []), inv.user_id]
+                                }));
+                              }} className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${formData.investidor_ids?.includes(inv.user_id) ? 'bg-primary border-primary' : 'border-border bg-background'}`}>
+                                          {formData.investidor_ids?.includes(inv.user_id) && <Check className="w-3 h-3 text-primary-foreground" />}
                                         </div>
                                         <span className="text-sm text-foreground">{inv.full_name}</span>
-                                      </label>
-                                    ))}
+                                      </label>)}
                                   </div>
-                                  {(formData.investidor_ids?.length || 0) > 0 && (
-                                    <p className="text-xs text-muted-foreground">{formData.investidor_ids?.length} investidor(es) selecionado(s)</p>
-                                  )}
+                                  {(formData.investidor_ids?.length || 0) > 0 && <p className="text-xs text-muted-foreground">{formData.investidor_ids?.length} investidor(es) selecionado(s)</p>}
                                   <p className="text-xs text-muted-foreground">
                                     Mostrando apenas investidores da squad {squads.find(s => s.id === formData.squad_id)?.name}
                                   </p>
-                                </>
-                              );
-                            })()}
-                          </div>
-                        )}
+                                </>;
+                      })()}
+                          </div>}
 
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-2">
@@ -1416,71 +1359,48 @@ export default function ProjectSelector() {
             </div>
 
             {/* Investidores */}
-            {(isTech || isGerente || isCoordenador) && (
-              <div className="space-y-2">
+            {(isTech || isGerente || isCoordenador) && <div className="space-y-2">
                 <Label className="text-muted-foreground text-xs">Investidores</Label>
                 <div className="bg-secondary border border-border rounded-xl p-3 max-h-40 overflow-y-auto space-y-2">
-                  {investidores.length === 0 ? (
-                    <p className="text-muted-foreground text-xs">Nenhum investidor cadastrado</p>
-                  ) : (
-                    investidores.map(inv => (
-                      <label key={inv.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-1.5 transition-colors">
-                        <div 
-                          onClick={() => {
-                            const isSelected = editFormData.investidor_ids.includes(inv.id);
-                            setEditFormData(prev => ({
-                              ...prev,
-                              investidor_ids: isSelected 
-                                ? prev.investidor_ids.filter(id => id !== inv.id)
-                                : [...prev.investidor_ids, inv.id]
-                            }));
-                          }}
-                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${
-                            editFormData.investidor_ids.includes(inv.id)
-                              ? 'bg-primary border-primary'
-                              : 'border-border bg-background'
-                          }`}
-                        >
-                          {editFormData.investidor_ids.includes(inv.id) && (
-                            <Check className="w-3 h-3 text-primary-foreground" />
-                          )}
+                  {investidores.length === 0 ? <p className="text-muted-foreground text-xs">Nenhum investidor cadastrado</p> : investidores.map(inv => <label key={inv.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-1.5 transition-colors">
+                        <div onClick={() => {
+                  const isSelected = editFormData.investidor_ids.includes(inv.id);
+                  setEditFormData(prev => ({
+                    ...prev,
+                    investidor_ids: isSelected ? prev.investidor_ids.filter(id => id !== inv.id) : [...prev.investidor_ids, inv.id]
+                  }));
+                }} className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${editFormData.investidor_ids.includes(inv.id) ? 'bg-primary border-primary' : 'border-border bg-background'}`}>
+                          {editFormData.investidor_ids.includes(inv.id) && <Check className="w-3 h-3 text-primary-foreground" />}
                         </div>
                         <span className="text-sm text-foreground">{inv.full_name}</span>
-                      </label>
-                    ))
-                  )}
+                      </label>)}
                 </div>
-                {editFormData.investidor_ids.length > 0 && (
-                  <p className="text-xs text-muted-foreground">{editFormData.investidor_ids.length} investidor(es) selecionado(s)</p>
-                )}
-              </div>
-            )}
+                {editFormData.investidor_ids.length > 0 && <p className="text-xs text-muted-foreground">{editFormData.investidor_ids.length} investidor(es) selecionado(s)</p>}
+              </div>}
 
             {/* Squad */}
-            {(isTech || isGerente || isCoordenador) && (
-              <div className="space-y-2">
+            {(isTech || isGerente || isCoordenador) && <div className="space-y-2">
                 <Label className="text-muted-foreground text-xs">Squad</Label>
                 <Select value={editFormData.squad_id || 'none'} onValueChange={val => setEditFormData(prev => ({
-                  ...prev,
-                  squad_id: val === 'none' ? null : val
-                }))}>
+              ...prev,
+              squad_id: val === 'none' ? null : val
+            }))}>
                   <SelectTrigger className="bg-secondary border-border text-foreground rounded-xl focus:border-primary/50">
                     <SelectValue placeholder="Selecione a squad..." />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border rounded-xl max-h-60">
                     <SelectItem value="none" className="text-muted-foreground rounded-lg">Nenhuma</SelectItem>
-                    {(isCoordenador ? userSquads : squads).map(squad => (
-                      <SelectItem key={squad.id} value={squad.id} className="text-foreground rounded-lg">
+                    {(isCoordenador ? userSquads : squads).map(squad => <SelectItem key={squad.id} value={squad.id} className="text-foreground rounded-lg">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: squad.color }} />
+                          <div className="w-2 h-2 rounded-full" style={{
+                      backgroundColor: squad.color
+                    }} />
                           {squad.name}
                         </div>
-                      </SelectItem>
-                    ))}
+                      </SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
-            )}
+              </div>}
 
             <div className="flex gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} className="flex-1 border-border text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl">
@@ -1622,21 +1542,10 @@ export default function ProjectSelector() {
             <div className="space-y-3">
               <Label className="text-muted-foreground text-xs uppercase tracking-wider">{t('projectSelector.language')}</Label>
               <div className="flex gap-2">
-                {supportedLanguages.map((lang) => (
-                  <button
-                    key={lang.code}
-                    onClick={() => handleLanguageChange(lang.code)}
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border transition-all",
-                      i18n.language === lang.code
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border text-muted-foreground hover:bg-secondary"
-                    )}
-                  >
+                {supportedLanguages.map(lang => <button key={lang.code} onClick={() => handleLanguageChange(lang.code)} className={cn("flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border transition-all", i18n.language === lang.code ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-secondary")}>
                     <span className="text-lg">{lang.flag}</span>
                     <span className="font-medium text-sm">{lang.name.split(' ')[0]}</span>
-                  </button>
-                ))}
+                  </button>)}
               </div>
             </div>
 
@@ -1668,7 +1577,7 @@ export default function ProjectSelector() {
       <InviteGuestDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} onSuccess={refetch} />
 
       {/* Import Mode Selection Dialog */}
-      <Dialog open={showImportModeDialog} onOpenChange={(open) => !open && handleImportModeClose()}>
+      <Dialog open={showImportModeDialog} onOpenChange={open => !open && handleImportModeClose()}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
@@ -1682,15 +1591,7 @@ export default function ProjectSelector() {
 
           <div className="grid grid-cols-1 gap-4 py-4">
             {/* Light Sync Option */}
-            <button
-              onClick={() => handleStartImport('light')}
-              className={cn(
-                "p-6 rounded-xl border-2 text-left transition-all hover:scale-[1.02]",
-                "bg-gradient-to-br from-yellow-500/10 to-amber-500/5",
-                "border-yellow-500/30 hover:border-yellow-500/60",
-                "hover:shadow-lg hover:shadow-yellow-500/10"
-              )}
-            >
+            <button onClick={() => handleStartImport('light')} className={cn("p-6 rounded-xl border-2 text-left transition-all hover:scale-[1.02]", "bg-gradient-to-br from-yellow-500/10 to-amber-500/5", "border-yellow-500/30 hover:border-yellow-500/60", "hover:shadow-lg hover:shadow-yellow-500/10")}>
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-lg bg-yellow-500/20">
                   <Zap className="w-6 h-6 text-yellow-500" />
@@ -1718,15 +1619,7 @@ export default function ProjectSelector() {
             </button>
 
             {/* HD Total Option */}
-            <button
-              onClick={() => handleStartImport('full')}
-              className={cn(
-                "p-6 rounded-xl border-2 text-left transition-all hover:scale-[1.02]",
-                "bg-gradient-to-br from-primary/10 to-violet-500/5",
-                "border-primary/30 hover:border-primary/60",
-                "hover:shadow-lg hover:shadow-primary/10"
-              )}
-            >
+            <button onClick={() => handleStartImport('full')} className={cn("p-6 rounded-xl border-2 text-left transition-all hover:scale-[1.02]", "bg-gradient-to-br from-primary/10 to-violet-500/5", "border-primary/30 hover:border-primary/60", "hover:shadow-lg hover:shadow-primary/10")}>
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-lg bg-primary/20">
                   <Image className="w-6 h-6 text-primary" />
