@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   PieChart,
   Pie,
@@ -10,10 +11,8 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Legend,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DemographicInsights, DemographicData } from '@/hooks/useDemographicInsights';
 import { Users, Smartphone, Globe, UserCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -46,65 +45,73 @@ const createFormatCurrency = (currency: string = 'BRL') => (value: number) => {
   }).format(value);
 };
 
-// Default formatCurrency for static usage
-const formatCurrency = createFormatCurrency('BRL');
-
 const formatNumber = (value: number) => {
   if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
   if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
   return value.toLocaleString('pt-BR');
 };
 
-const GENDER_LABELS: Record<string, string> = {
-  male: 'Masculino',
-  female: 'Feminino',
-  unknown: 'Desconhecido',
-};
-
-const DEVICE_LABELS: Record<string, string> = {
-  mobile: 'Mobile',
-  desktop: 'Desktop',
-  tablet: 'Tablet',
-  unknown: 'Desconhecido',
-};
-
-const PLATFORM_LABELS: Record<string, string> = {
-  facebook: 'Facebook',
-  instagram: 'Instagram',
-  messenger: 'Messenger',
-  audience_network: 'Audience Network',
-  whatsapp: 'WhatsApp',
-  unknown: 'Desconhecido',
-};
-
-function translateLabel(type: string, value: string): string {
-  switch (type) {
-    case 'gender':
-      return GENDER_LABELS[value.toLowerCase()] || value;
-    case 'device_platform':
-      return DEVICE_LABELS[value.toLowerCase()] || value;
-    case 'publisher_platform':
-      return PLATFORM_LABELS[value.toLowerCase()] || value;
-    default:
-      return value;
-  }
-}
-
 function DemographicPieChart({ 
   data, 
   type, 
   title, 
   icon: Icon,
-  currency = 'BRL'
+  currency = 'BRL',
+  translations
 }: { 
   data: DemographicData[]; 
   type: string;
   title: string; 
   icon: React.ElementType;
   currency?: string;
+  translations: {
+    male: string;
+    female: string;
+    unknown: string;
+    noData: string;
+    spend: string;
+    percentage: string;
+    impressions: string;
+    clicks: string;
+  };
 }) {
   const formatCurrencyValue = createFormatCurrency(currency);
   const totalSpend = data.reduce((sum, d) => sum + d.spend, 0);
+
+  const GENDER_LABELS: Record<string, string> = {
+    male: translations.male,
+    female: translations.female,
+    unknown: translations.unknown,
+  };
+
+  const DEVICE_LABELS: Record<string, string> = {
+    mobile: 'Mobile',
+    desktop: 'Desktop',
+    tablet: 'Tablet',
+    unknown: translations.unknown,
+  };
+
+  const PLATFORM_LABELS: Record<string, string> = {
+    facebook: 'Facebook',
+    instagram: 'Instagram',
+    messenger: 'Messenger',
+    audience_network: 'Audience Network',
+    whatsapp: 'WhatsApp',
+    unknown: translations.unknown,
+  };
+
+  function translateLabel(breakdownType: string, value: string): string {
+    switch (breakdownType) {
+      case 'gender':
+        return GENDER_LABELS[value.toLowerCase()] || value;
+      case 'device_platform':
+        return DEVICE_LABELS[value.toLowerCase()] || value;
+      case 'publisher_platform':
+        return PLATFORM_LABELS[value.toLowerCase()] || value;
+      default:
+        return value;
+    }
+  }
   
   const chartData = data.map((d, i) => ({
     name: translateLabel(type, d.breakdown_value),
@@ -123,19 +130,19 @@ function DemographicPieChart({
         <p className="font-medium text-sm mb-2">{item.name}</p>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">Gasto:</span>
+            <span className="text-muted-foreground">{translations.spend}:</span>
             <span className="font-medium">{formatCurrencyValue(item.value)}</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">Porcentagem:</span>
+            <span className="text-muted-foreground">{translations.percentage}:</span>
             <span className="font-medium">{item.percent}%</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">Impressões:</span>
+            <span className="text-muted-foreground">{translations.impressions}:</span>
             <span className="font-medium">{formatNumber(item.impressions)}</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">Cliques:</span>
+            <span className="text-muted-foreground">{translations.clicks}:</span>
             <span className="font-medium">{formatNumber(item.clicks)}</span>
           </div>
         </div>
@@ -155,7 +162,7 @@ function DemographicPieChart({
             {title}
           </h4>
           <div className="h-[160px] flex items-center justify-center text-muted-foreground text-sm">
-            Sem dados demográficos
+            {translations.noData}
           </div>
         </div>
       </div>
@@ -211,14 +218,22 @@ function DemographicPieChart({
   );
 }
 
-function AgeBarChart({ data, currency = 'BRL' }: { data: DemographicData[]; currency?: string }) {
+function AgeBarChart({ data, currency = 'BRL', translations }: { 
+  data: DemographicData[]; 
+  currency?: string;
+  translations: {
+    ageRange: string;
+    noData: string;
+    spend: string;
+    conversions: string;
+  };
+}) {
   const formatCurrencyValue = createFormatCurrency(currency);
   const chartData = data.map((d) => ({
     name: d.breakdown_value,
     spend: d.spend,
     conversions: d.conversions,
   })).sort((a, b) => {
-    // Sort by age range naturally
     const ageA = parseInt(a.name.split('-')[0]) || 0;
     const ageB = parseInt(b.name.split('-')[0]) || 0;
     return ageA - ageB;
@@ -230,11 +245,11 @@ function AgeBarChart({ data, currency = 'BRL' }: { data: DemographicData[]; curr
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-medium flex items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
-            Faixa Etária
+            {translations.ageRange}
           </CardTitle>
         </CardHeader>
         <CardContent className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-          Sem dados de faixa etária
+          {translations.noData}
         </CardContent>
       </Card>
     );
@@ -245,7 +260,7 @@ function AgeBarChart({ data, currency = 'BRL' }: { data: DemographicData[]; curr
       <CardHeader className="pb-2 p-3 sm:p-4">
         <CardTitle className="text-sm sm:text-base font-medium flex items-center gap-2">
           <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-          <span className="truncate">Faixa Etária</span>
+          <span className="truncate">{translations.ageRange}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-2 sm:p-4 pt-0 sm:pt-0">
@@ -278,7 +293,7 @@ function AgeBarChart({ data, currency = 'BRL' }: { data: DemographicData[]; curr
               <Tooltip
                 formatter={(value: number, name: string) => [
                   name === 'spend' ? formatCurrencyValue(value) : formatNumber(value),
-                  name === 'spend' ? 'Gasto' : 'Conversões'
+                  name === 'spend' ? translations.spend : translations.conversions
                 ]}
                 contentStyle={{
                   backgroundColor: 'hsl(var(--background))',
@@ -289,7 +304,7 @@ function AgeBarChart({ data, currency = 'BRL' }: { data: DemographicData[]; curr
               />
               <Bar 
                 dataKey="spend" 
-                name="Gasto" 
+                name={translations.spend}
                 fill="hsl(220, 70%, 50%)" 
                 radius={[3, 3, 0, 0]} 
               />
@@ -302,6 +317,27 @@ function AgeBarChart({ data, currency = 'BRL' }: { data: DemographicData[]; curr
 }
 
 export function DemographicCharts({ data, isLoading, className, currency = 'BRL' }: DemographicChartsProps) {
+  const { t } = useTranslation();
+
+  const translations = {
+    male: t('demographic.male'),
+    female: t('demographic.female'),
+    unknown: t('demographic.unknown'),
+    noData: t('demographic.noData'),
+    spend: t('demographic.spend'),
+    percentage: t('demographic.percentage'),
+    impressions: t('dashboard.impressions'),
+    clicks: t('dashboard.clicks'),
+    ageRange: t('demographic.ageRange'),
+    conversions: t('dashboard.conversions'),
+    title: t('demographic.title'),
+    gender: t('demographic.gender'),
+    device: t('demographic.device'),
+    platform: t('demographic.platform'),
+    noDataForPeriod: t('demographic.noDataForPeriod'),
+    syncToView: t('demographic.syncToView'),
+  };
+
   if (isLoading) {
     return (
       <div className={cn('glass-card p-6', className)}>
@@ -318,11 +354,11 @@ export function DemographicCharts({ data, isLoading, className, currency = 'BRL'
       <div className={cn('glass-card p-6', className)}>
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <UserCircle2 className="w-5 h-5" />
-          Dados Demográficos
+          {translations.title}
         </h3>
         <div className="h-[200px] flex flex-col items-center justify-center text-muted-foreground">
-          <p>Sem dados demográficos disponíveis</p>
-          <p className="text-sm mt-1">Sincronize os dados para visualizar</p>
+          <p>{translations.noData}</p>
+          <p className="text-sm mt-1">{translations.syncToView}</p>
         </div>
       </div>
     );
@@ -339,11 +375,11 @@ export function DemographicCharts({ data, isLoading, className, currency = 'BRL'
       <div className={cn('glass-card p-6', className)}>
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <UserCircle2 className="w-5 h-5" />
-          Dados Demográficos
+          {translations.title}
         </h3>
         <div className="h-[200px] flex flex-col items-center justify-center text-muted-foreground">
-          <p>Sem dados demográficos para o período</p>
-          <p className="text-sm mt-1">Sincronize os dados para visualizar</p>
+          <p>{translations.noDataForPeriod}</p>
+          <p className="text-sm mt-1">{translations.syncToView}</p>
         </div>
       </div>
     );
@@ -353,33 +389,36 @@ export function DemographicCharts({ data, isLoading, className, currency = 'BRL'
     <div className={cn('space-y-4 sm:space-y-6 overflow-hidden', className)}>
       <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
         <UserCircle2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-        <span className="truncate">Dados Demográficos</span>
+        <span className="truncate">{translations.title}</span>
       </h3>
       
       <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <DemographicPieChart
           data={data.gender}
           type="gender"
-          title="Gênero"
+          title={translations.gender}
           icon={UserCircle2}
           currency={currency}
+          translations={translations}
         />
         <div className="xs:col-span-2 md:col-span-1">
-          <AgeBarChart data={data.age} currency={currency} />
+          <AgeBarChart data={data.age} currency={currency} translations={translations} />
         </div>
         <DemographicPieChart
           data={data.device_platform}
           type="device_platform"
-          title="Dispositivos"
+          title={translations.device}
           icon={Smartphone}
           currency={currency}
+          translations={translations}
         />
         <DemographicPieChart
           data={data.publisher_platform}
           type="publisher_platform"
-          title="Plataformas"
+          title={translations.platform}
           icon={Globe}
           currency={currency}
+          translations={translations}
         />
       </div>
     </div>

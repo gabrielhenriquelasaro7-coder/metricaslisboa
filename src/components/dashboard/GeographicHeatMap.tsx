@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Loader2 } from 'lucide-react';
@@ -26,7 +27,7 @@ interface GeographicHeatMapProps {
   currency?: string;
 }
 
-// Coordenadas para estados brasileiros
+// Brazilian states coordinates
 const BRAZIL_STATES_COORDS: Record<string, [number, number]> = {
   'Acre': [-9.0238, -70.8120],
   'Alagoas': [-9.5713, -36.7820],
@@ -61,7 +62,7 @@ const BRAZIL_STATES_COORDS: Record<string, [number, number]> = {
   'Tocantins': [-10.1753, -48.2982],
 };
 
-// Coordenadas para estados dos EUA
+// USA states coordinates
 const USA_STATES_COORDS: Record<string, [number, number]> = {
   'Alabama': [32.806671, -86.791130],
   'Alaska': [61.370716, -152.404419],
@@ -117,7 +118,7 @@ const USA_STATES_COORDS: Record<string, [number, number]> = {
   'Washington, D.C.': [38.897438, -77.026817],
 };
 
-// Coordenadas para países (centro geográfico)
+// Country coordinates
 const COUNTRY_COORDS: Record<string, { center: [number, number]; zoom: number }> = {
   'Brazil': { center: [-14.235, -51.925], zoom: 4 },
   'Brasil': { center: [-14.235, -51.925], zoom: 4 },
@@ -154,13 +155,10 @@ const COUNTRY_COORDS: Record<string, { center: [number, number]; zoom: number }>
   'AU': { center: [-25.2744, 133.7751], zoom: 4 },
 };
 
-// Combina todas as coordenadas de regiões
 function getRegionCoords(regionName: string): [number, number] | null {
-  // Tenta Brasil primeiro
   if (BRAZIL_STATES_COORDS[regionName]) {
     return BRAZIL_STATES_COORDS[regionName];
   }
-  // Tenta EUA
   if (USA_STATES_COORDS[regionName]) {
     return USA_STATES_COORDS[regionName];
   }
@@ -182,13 +180,8 @@ function formatCurrency(value: number, currency: string): string {
   }).format(value);
 }
 
-function formatPercent(value: number): string {
-  return `${value.toFixed(2)}%`;
-}
-
 type MetricType = 'impressions' | 'spend' | 'clicks';
 
-// Componente para atualizar view do mapa
 function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   
@@ -199,7 +192,6 @@ function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }
   return null;
 }
 
-// Componente para o Heat Layer - Estilo GA4/Looker Studio
 function HeatLayer({ 
   data, 
   metric, 
@@ -217,78 +209,66 @@ function HeatLayer({
   const updateHeatLayer = (currentZoom: number) => {
     if (!map) return;
 
-    // Remove layer anterior
     if (heatLayerRef.current) {
       map.removeLayer(heatLayerRef.current);
     }
 
-    // Filtrar apenas pontos COM coordenadas válidas (regra 10)
     const validPoints = data.filter(d => d.coords !== null && d.value > 0);
     
     if (validPoints.length === 0) return;
 
-    // Normalização logarítmica para evitar que valores altos dominem (regra 6)
     const logValues = validPoints.map(d => Math.log10(d.value + 1));
     const logMin = Math.min(...logValues);
     const logMax = Math.max(...logValues);
     const logRange = logMax - logMin;
 
-    // Criar pontos de calor com intensidade normalizada
     const heatData = validPoints.map(d => {
       const logValue = Math.log10(d.value + 1);
       
       let intensity: number;
       
-      // Se há apenas 1 ponto OU todos têm o mesmo valor → máxima intensidade (vermelho)
       if (validPoints.length === 1 || logRange === 0) {
         intensity = 1.0;
       } else {
-        // Normalização 0-1 com escala logarítmica
         const normalizedIntensity = (logValue - logMin) / logRange;
-        // Garantir mínimo de 0.2 para visibilidade e máximo de 1.0
         intensity = Math.max(0.2, Math.min(1.0, normalizedIntensity));
       }
       
       return [d.coords![0], d.coords![1], intensity] as [number, number, number];
     });
 
-    // Raio dinâmico baseado no zoom
     const baseRadius = 30;
     const zoomFactor = Math.max(0.6, Math.pow(1.12, currentZoom - 4));
     const dynamicRadius = Math.min(Math.max(baseRadius * zoomFactor, 20), 55);
     
-    // Blur baixo para bordas definidas - estilo GA4 (regra 9)
     const dynamicBlur = dynamicRadius * 0.4;
 
-    // Quando há apenas 1 ponto ou pouca variação, usar gradiente que mostra vermelho diretamente
     const useSinglePointGradient = validPoints.length <= 2 || logRange < 0.1;
     
     // @ts-ignore
     heatLayerRef.current = L.heatLayer(heatData, {
-      radius: useSinglePointGradient ? dynamicRadius * 1.3 : dynamicRadius, // Raio maior para ponto único
-      blur: useSinglePointGradient ? dynamicBlur * 0.5 : dynamicBlur, // Menos blur para mais intensidade
+      radius: useSinglePointGradient ? dynamicRadius * 1.3 : dynamicRadius,
+      blur: useSinglePointGradient ? dynamicBlur * 0.5 : dynamicBlur,
       maxZoom: 12,
-      max: useSinglePointGradient ? 0.6 : 1.0, // Valor max menor força cores mais intensas
+      max: useSinglePointGradient ? 0.6 : 1.0,
       minOpacity: useSinglePointGradient ? 0.7 : 0.4,
       gradient: useSinglePointGradient 
         ? {
-            // Gradiente para ponto único: vai direto para vermelho
-            0.0: '#f59e0b',  // Laranja (mínimo já é quente)
-            0.3: '#ea580c',  // Laranja escuro
-            0.5: '#dc2626',  // Vermelho
-            0.7: '#b91c1c',  // Vermelho escuro
-            1.0: '#7f1d1d'   // Vermelho muito escuro
+            0.0: '#f59e0b',
+            0.3: '#ea580c',
+            0.5: '#dc2626',
+            0.7: '#b91c1c',
+            1.0: '#7f1d1d'
           }
         : {
-            // Gradiente normal: amarelo claro (baixo) -> vermelho escuro (alto)
-            0.0: '#fefce8',  // Amarelo muito claro
-            0.15: '#fef08a', // Amarelo claro
-            0.3: '#fde047',  // Amarelo
-            0.45: '#facc15', // Amarelo dourado
-            0.55: '#f59e0b', // Laranja
-            0.7: '#ea580c',  // Laranja escuro
-            0.85: '#dc2626', // Vermelho
-            1.0: '#991b1b'   // Vermelho escuro
+            0.0: '#fefce8',
+            0.15: '#fef08a',
+            0.3: '#fde047',
+            0.45: '#facc15',
+            0.55: '#f59e0b',
+            0.7: '#ea580c',
+            0.85: '#dc2626',
+            1.0: '#991b1b'
           }
     }).addTo(map);
   };
@@ -319,20 +299,18 @@ export function GeographicHeatMap({
   className,
   currency = 'BRL'
 }: GeographicHeatMapProps) {
+  const { t } = useTranslation();
   const [metric, setMetric] = useState<MetricType>('impressions');
   const isMobile = useIsMobile();
 
-  // Detectar país principal baseado nos dados
   const { mapCenter, mapZoom, detectedCountry } = useMemo(() => {
     if (!countryData?.length) {
       return { mapCenter: [-14.235, -51.925] as [number, number], mapZoom: 4, detectedCountry: 'Brazil' };
     }
 
-    // Ordenar por spend para encontrar o país principal
     const sortedCountries = [...countryData].sort((a, b) => b.spend - a.spend);
     const topCountry = sortedCountries[0]?.breakdown_value || 'Brazil';
 
-    // Buscar configuração do país
     const countryConfig = COUNTRY_COORDS[topCountry];
     if (countryConfig) {
       return { 
@@ -342,11 +320,9 @@ export function GeographicHeatMap({
       };
     }
 
-    // Fallback para Brasil
     return { mapCenter: [-14.235, -51.925] as [number, number], mapZoom: 4, detectedCountry: topCountry };
   }, [countryData]);
 
-  // Processar dados de região
   const processedData = useMemo(() => {
     if (!regionData?.length) return [];
     
@@ -389,9 +365,9 @@ export function GeographicHeatMap({
 
   const getMetricLabel = (m: MetricType): string => {
     switch (m) {
-      case 'impressions': return 'Impressões';
-      case 'spend': return 'Investimento';
-      case 'clicks': return 'Cliques';
+      case 'impressions': return t('geographic.impressions');
+      case 'spend': return t('geographic.spend');
+      case 'clicks': return t('geographic.clicks');
     }
   };
 
@@ -413,13 +389,13 @@ export function GeographicHeatMap({
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <MapPin className="h-4 w-4" />
-            Geolocalização
+            {t('geographic.geolocation')}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
           <MapPin className="h-12 w-12 mb-2 opacity-50" />
-          <p className="text-sm">Nenhum dado geográfico disponível</p>
-          <p className="text-xs mt-1">Sincronize os dados demográficos para ver o mapa</p>
+          <p className="text-sm">{t('geographic.noData')}</p>
+          <p className="text-xs mt-1">{t('geographic.syncData')}</p>
         </CardContent>
       </Card>
     );
@@ -433,9 +409,9 @@ export function GeographicHeatMap({
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="h-6 sm:h-8 w-1 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
             <div>
-              <CardTitle className="text-sm sm:text-lg font-semibold">Mapa de Calor</CardTitle>
+              <CardTitle className="text-sm sm:text-lg font-semibold">{t('geographic.heatMap')}</CardTitle>
               <p className="text-[10px] sm:text-xs text-muted-foreground">
-                {detectedCountry} • {processedData.length} regiões
+                {detectedCountry} • {processedData.length} {t('geographic.regions')}
               </p>
             </div>
           </div>
@@ -444,15 +420,14 @@ export function GeographicHeatMap({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="impressions">Impressões</SelectItem>
-              <SelectItem value="clicks">Cliques</SelectItem>
-              <SelectItem value="spend">Investimento</SelectItem>
+              <SelectItem value="impressions">{t('geographic.impressions')}</SelectItem>
+              <SelectItem value="clicks">{t('geographic.clicks')}</SelectItem>
+              <SelectItem value="spend">{t('geographic.spend')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </CardHeader>
       <CardContent className="px-3 sm:px-6">
-        {/* Mapa de calor interativo */}
         <div className="relative h-[220px] sm:h-[300px] md:h-[400px] lg:h-[450px] rounded-lg border border-border overflow-hidden">
           <MapContainer
             center={mapCenter}
@@ -477,45 +452,38 @@ export function GeographicHeatMap({
             />
           </MapContainer>
 
-          {/* Legenda - simplificada no mobile */}
-          <div className="absolute bottom-2 left-2 right-2 sm:left-3 sm:right-auto flex items-center justify-between sm:justify-start gap-1 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground bg-card/95 backdrop-blur-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg border border-border z-[1000]">
-            <span className="hidden sm:inline">{getMetricLabel(metric)}</span>
-            <div className="flex items-center h-2 sm:h-3 w-16 sm:w-24 rounded-sm overflow-hidden">
-              <div className="h-full flex-1" style={{ background: 'linear-gradient(to right, #fef08a, #fbbf24, #f97316, #ef4444, #991b1b)' }}></div>
+          {/* Legend */}
+          <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 bg-background/90 backdrop-blur-sm rounded-lg p-1.5 sm:p-2 border border-border">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="w-12 sm:w-20 h-2 sm:h-3 rounded-full bg-gradient-to-r from-yellow-200 via-orange-500 to-red-700" />
+              <span className="text-[8px] sm:text-[10px] text-muted-foreground">{getMetricLabel(metric)}</span>
             </div>
-            <span className="text-[10px] sm:text-xs">{formatNumber(minValue)} - {formatNumber(maxValue)}</span>
           </div>
         </div>
 
-        {/* Top Regiões - Lista simples no mobile */}
-        <div className="mt-3 sm:mt-4">
-          <h4 className="text-xs sm:text-sm font-medium mb-2 sm:mb-3 flex items-center gap-2">
-            <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500" />
-            Top Regiões
+        {/* Top regions list */}
+        <div className="mt-4">
+          <h4 className="text-xs sm:text-sm font-medium mb-2">
+            {t('geographic.topStates')} {getMetricLabel(metric)}
           </h4>
-          <ScrollArea className="h-[160px] sm:h-[200px]">
+          <ScrollArea className="h-[120px] sm:h-[150px]">
             <div className="space-y-1">
               {processedData.slice(0, 10).map((item, index) => (
                 <div 
                   key={item.breakdown_value} 
-                  className="flex items-center justify-between py-2 px-2 sm:px-3 rounded-md hover:bg-muted/30 border-b border-border/50 last:border-0"
+                  className="flex items-center justify-between text-xs sm:text-sm py-1 px-2 rounded hover:bg-secondary/50"
                 >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground w-4 sm:w-5 shrink-0">
-                      {index + 1}
-                    </span>
-                    <span className="text-xs sm:text-sm font-medium truncate">
-                      {item.breakdown_value}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground w-4">{index + 1}.</span>
+                    <span className="truncate max-w-[120px] sm:max-w-none">{item.breakdown_value}</span>
                   </div>
-                  <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-                    <span className="text-xs sm:text-sm font-semibold">
+                  <div className="flex items-center gap-2 sm:gap-4 text-muted-foreground">
+                    <span className="hidden sm:inline">{t('geographic.ctr')}: {item.ctr.toFixed(2)}%</span>
+                    <span className="font-medium text-foreground">
                       {metric === 'spend' 
                         ? formatCurrency(item[metric], currency)
-                        : formatNumber(item[metric])}
-                    </span>
-                    <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">
-                      CTR {formatPercent(item.ctr)}
+                        : formatNumber(item[metric])
+                      }
                     </span>
                   </div>
                 </div>

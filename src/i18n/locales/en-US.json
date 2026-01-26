@@ -41,6 +41,8 @@
     "squad": "Squad",
     "noSquad": "No squad",
     "neverSynced": "Never synced",
+    "lastSync": "Last sync",
+    "never": "Never",
     "loadingAd": "Loading ad...",
     "loadingData": "Loading data...",
     "campaign": "Campaign",
@@ -56,7 +58,14 @@
     "about": "about",
     "hoursAgo": "hours ago",
     "minutesAgo": "minutes ago",
-    "daysAgo": "days ago"
+    "daysAgo": "days ago",
+    "noCategory": "No category",
+    "noStatus": "No status",
+    "client": "client",
+    "clients": "clients",
+    "restore": "Restore",
+    "archive": "Archive",
+    "synchronize": "Sync"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -203,7 +212,8 @@
     "lastWeek": "Last week",
     "custom": "Custom",
     "from": "From",
-    "to": "To"
+    "to": "To",
+    "period": "Period"
   },
   "campaigns": {
     "title": "Campaigns",
@@ -244,7 +254,10 @@
     "bestRoas": "Best ROAS",
     "lowestCpl": "Lowest CPL",
     "highestCtr": "Highest CTR",
-    "mostClicks": "Most Clicks"
+    "mostClicks": "Most Clicks",
+    "noCampaignsFilters": "No campaigns found with applied filters",
+    "totalSpend": "Total Spend",
+    "totalRevenue": "Total Revenue"
   },
   "status": {
     "active": "Active",
@@ -279,12 +292,15 @@
     "ctr": "CTR",
     "cpc": "CPC",
     "noData": "No geographic data available",
-    "syncData": "Sync demographic data to see the map"
+    "syncData": "Sync demographic data to see the map",
+    "heatMap": "Heat Map",
+    "geolocation": "Geolocation"
   },
   "demographic": {
     "title": "Demographic Data",
     "gender": "Gender",
     "age": "Age Range",
+    "ageRange": "Age Range",
     "device": "Devices",
     "platform": "Platforms",
     "male": "Male",
@@ -601,5 +617,19 @@
     "gracePeriod": "Grace period",
     "pendingClosure": "Pending closure",
     "accountClosed": "Account closed"
+  },
+  "notifications": {
+    "profileUpdated": "Profile updated!",
+    "passwordChanged": "Password changed successfully!",
+    "errorOccurred": "An error occurred",
+    "saved": "Saved successfully",
+    "deleted": "Deleted successfully",
+    "copied": "Copied to clipboard"
+  },
+  "history": {
+    "title": "History",
+    "syncHistory": "Sync History",
+    "optimizationHistory": "Optimization History",
+    "noRecords": "No records found"
   }
 }
