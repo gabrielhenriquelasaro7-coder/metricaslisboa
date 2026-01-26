@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Settings2, Eye, EyeOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,7 +15,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { MetricKey, AVAILABLE_METRICS } from '@/hooks/useHiddenMetrics';
-import { useUserRole } from '@/hooks/useUserRole';
 
 interface MetricVisibilityConfigProps {
   hiddenMetrics: MetricKey[];
@@ -27,7 +27,7 @@ export function MetricVisibilityConfig({
   toggleMetric,
   loading = false,
 }: MetricVisibilityConfigProps) {
-  const { isGuest } = useUserRole();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   // Get all available metrics
@@ -35,11 +35,7 @@ export function MetricVisibilityConfig({
     return AVAILABLE_METRICS;
   }, []);
 
-  // Only show for guests
-  if (!isGuest) {
-    return null;
-  }
-
+  // Show for ALL roles now (not just guests)
   const metricsToShow = Object.keys(metricsForModel) as MetricKey[];
 
   // Group metrics by category
@@ -67,11 +63,11 @@ export function MetricVisibilityConfig({
           className="gap-2 text-xs h-8"
         >
           <Settings2 className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Personalizar Métricas</span>
-          <span className="sm:hidden">Métricas</span>
+          <span className="hidden sm:inline">{t('metricsConfig.customizeMetrics')}</span>
+          <span className="sm:hidden">{t('metricsConfig.metrics')}</span>
           {hiddenCount > 0 && (
             <span className="ml-1 h-5 px-1.5 text-[10px] bg-secondary text-secondary-foreground rounded-md flex items-center">
-              {hiddenCount} ocultas
+              {hiddenCount} {t('metricsConfig.hidden')}
             </span>
           )}
         </Button>
@@ -80,21 +76,21 @@ export function MetricVisibilityConfig({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings2 className="w-5 h-5 text-primary" />
-            Personalizar Visualização
+            {t('metricsConfig.customizeView')}
           </DialogTitle>
           <DialogDescription>
-            Escolha quais métricas você deseja ver. As métricas ocultas não aparecerão nos cards.
+            {t('metricsConfig.description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50">
           <div className="flex items-center gap-2">
             <Eye className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium">{visibleCount} visíveis</span>
+            <span className="text-sm font-medium">{visibleCount} {t('metricsConfig.visible')}</span>
           </div>
           <div className="flex items-center gap-2">
             <EyeOff className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{hiddenCount} ocultas</span>
+            <span className="text-sm text-muted-foreground">{hiddenCount} {t('metricsConfig.hidden')}</span>
           </div>
         </div>
 
@@ -151,7 +147,7 @@ export function MetricVisibilityConfig({
 
         <div className="flex justify-end pt-2">
           <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
-            Fechar
+            {t('common.close')}
           </Button>
         </div>
       </DialogContent>
