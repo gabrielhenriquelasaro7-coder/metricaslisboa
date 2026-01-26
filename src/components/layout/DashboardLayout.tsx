@@ -1,14 +1,15 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { useUserRole } from '@/hooks/useUserRole';
-import { supabase } from '@/integrations/supabase/client';
-import Sidebar from './Sidebar';
-import { ImportLoadingScreen } from './ImportLoadingScreen';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Menu } from 'lucide-react';
+/* src/components/layout/DashboardLayout.tsx */
+import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
+import Sidebar from "./Sidebar";
+import { ImportLoadingScreen } from "./ImportLoadingScreen";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Menu } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -23,65 +24,57 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
 
-  // Check if user dismissed the import screen
-  const importDismissedKey = projectInfo ? `import_dismissed_${projectInfo.id}` : null;
   const checkImportStatus = useCallback(async (projectId: string) => {
     try {
-      // Check if user dismissed the import screen for this project
       const dismissed = localStorage.getItem(`import_dismissed_${projectId}`);
-      if (dismissed === 'true') {
+      if (dismissed === "true") {
         return false;
       }
 
       const { data: months } = await supabase
-        .from('project_import_months')
-        .select('status')
-        .eq('project_id', projectId);
+        .from("project_import_months")
+        .select("status")
+        .eq("project_id", projectId);
 
       if (!months || months.length === 0) {
         return false;
       }
 
-      return months.some((m: any) => m.status === 'importing' || m.status === 'pending');
+      return months.some((m: any) => m.status === "importing" || m.status === "pending");
     } catch {
       return false;
     }
   }, []);
 
   useEffect(() => {
-    // Redirect to auth if not loading and no user
     if (!loading && !user) {
-      navigate('/auth');
+      navigate("/auth");
       return;
     }
 
-    // Skip initialization if still loading auth
     if (loading || roleLoading || !user) return;
 
     const init = async () => {
       try {
-        let selectedProjectId = localStorage.getItem('selectedProjectId');
-        
+        let selectedProjectId = localStorage.getItem("selectedProjectId");
+
         if (!selectedProjectId) {
-          const { data: projects } = await supabase
-            .from('projects')
-            .select('id, name')
-            .limit(1);
-          
+          const { data: projects } = await supabase.from("projects").select("id, name").limit(1);
+
           if (projects && projects.length > 0) {
             selectedProjectId = projects[0].id;
-            localStorage.setItem('selectedProjectId', selectedProjectId);
+            localStorage.setItem("selectedProjectId", selectedProjectId);
           } else if (!isGuest) {
-            navigate('/projects');
+            navigate("/projects");
             return;
           }
         }
-        
+
         if (selectedProjectId) {
           const { data: project } = await supabase
-            .from('projects')
-            .select('id, name')
-            .eq('id', selectedProjectId)
+            .from("projects")
+            .select("id, name")
+            .eq("id", selectedProjectId)
             .maybeSingle();
 
           if (project) {
@@ -89,15 +82,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             const importing = await checkImportStatus(selectedProjectId);
             setIsImporting(importing);
           } else {
-            localStorage.removeItem('selectedProjectId');
-            // Don't block - just navigate to projects
+            localStorage.removeItem("selectedProjectId");
             if (!isGuest) {
-              navigate('/projects');
+              navigate("/projects");
             }
           }
         }
       } catch (error) {
-        console.error('Error in dashboard init:', error);
+        console.error("Error in dashboard init:", error);
       }
     };
 
@@ -105,14 +97,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [user, loading, roleLoading, isGuest, navigate, checkImportStatus]);
 
   const handleImportComplete = useCallback(() => {
-    // Mark as dismissed so it doesn't show again on navigation
     if (projectInfo) {
-      localStorage.setItem(`import_dismissed_${projectInfo.id}`, 'true');
+      localStorage.setItem(`import_dismissed_${projectInfo.id}`, "true");
     }
     setIsImporting(false);
   }, [projectInfo]);
 
-  // Show import screen only when actively importing
   if (isImporting && projectInfo) {
     return (
       <ImportLoadingScreen
@@ -123,41 +113,35 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
-  // Mobile layout with Sheet
   if (isMobile) {
     return (
       <div className="min-h-screen bg-background red-texture-bg grid-background overflow-x-hidden">
-        {/* Mobile Header - Compact & Touch-friendly */}
         <header className="fixed top-0 left-0 right-0 z-50 h-12 bg-sidebar/95 backdrop-blur-lg border-b border-sidebar-border flex items-center px-3 safe-area-top">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="mr-2 h-9 w-9 touch-target"
-                data-tour="mobile-menu"
-              >
+              <Button variant="ghost" size="icon" className="mr-2 h-9 w-9 touch-target" data-tour="mobile-menu">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-[85vw] max-w-[320px] bg-sidebar border-sidebar-border safe-area-left">
+            <SheetContent
+              side="left"
+              className="p-0 w-[85vw] max-w-[320px] bg-sidebar border-sidebar-border safe-area-left"
+            >
               <Sidebar onNavigate={() => setSidebarOpen(false)} />
             </SheetContent>
           </Sheet>
           <span className="font-semibold text-foreground text-sm truncate">MetaAds Manager</span>
         </header>
-        <main className="pt-12 min-h-screen relative z-10 overflow-x-hidden safe-area-bottom p-4">
-          {children}
-        </main>
+        <main className="pt-12 min-h-screen relative z-10 overflow-x-hidden safe-area-bottom p-4">{children}</main>
       </div>
     );
   }
 
-  // Desktop layout - SIMPLE: just a normal page that scrolls
   return (
-    <div className="min-h-screen bg-background red-texture-bg grid-background flex">
+    <div className="min-h-screen bg-background red-texture-bg grid-background flex overflow-x-hidden">
       <Sidebar />
-      <main className="ml-72 flex-1 min-h-screen p-4 md:p-6 lg:p-8">
+      {/* Ajuste de margem responsiva e proteção de largura */}
+      <main className="flex-1 min-h-screen p-4 md:p-6 lg:p-8 md:ml-64 lg:ml-72 w-full max-w-full overflow-x-hidden">
         {children}
       </main>
     </div>
