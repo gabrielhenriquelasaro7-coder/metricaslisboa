@@ -1,164 +1,71 @@
-import { cn } from '@/lib/utils';
-import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AreaChart, Area, ResponsiveContainer } from 'recharts';
-
+import { Card } from "@/components/ui/card";
+import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
+import { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface SparklineCardProps {
   title: string;
   value: string | number;
-  change?: number;
-  changeLabel?: string;
-  previousValue?: string | number;
-  icon?: LucideIcon;
-  trend?: 'up' | 'down' | 'neutral';
-  sparklineData?: number[];
-  sparklineColor?: string;
-  invertTrend?: boolean;
+  icon: LucideIcon;
+  data: { value: number }[];
   className?: string;
-  tooltip?: string;
-  accentColor?: 'primary' | 'success' | 'warning' | 'danger' | 'info';
-  index?: number;
+  // Props mantidas para compatibilidade, mas ignoradas no render
+  change?: number;
+  trend?: "up" | "down" | "neutral";
+  description?: string;
 }
 
 export default function SparklineCard({
   title,
   value,
-  change,
-  changeLabel,
-  previousValue,
   icon: Icon,
-  trend,
-  sparklineData = [],
-  invertTrend = false,
+  data,
   className,
-  tooltip,
-  index = 0,
+  // Ignoramos change e trend para não mostrar o badge
+  change: _change,
+  trend: _trend,
+  description,
 }: SparklineCardProps) {
-  const actualTrend = trend ?? (change !== undefined 
-    ? change > 0 ? 'up' : change < 0 ? 'down' : 'neutral'
-    : 'neutral');
-  
-  const displayTrend = invertTrend 
-    ? (actualTrend === 'up' ? 'down' : actualTrend === 'down' ? 'up' : 'neutral')
-    : actualTrend;
-  
-  const TrendIcon = actualTrend === 'up' ? TrendingUp : actualTrend === 'down' ? TrendingDown : Minus;
-
-  const chartData = sparklineData.map((value, index) => ({ value, index }));
-  const uniqueId = `sparkline-${title.replace(/\s/g, '')}-${Math.random().toString(36).substr(2, 9)}`;
-
-  const titleElement = tooltip ? (
-    <Tooltip delayDuration={100}>
-      <TooltipTrigger asChild>
-        <span className="text-xs text-muted-foreground border-b border-dashed border-muted-foreground/50 cursor-help inline-block text-left">
-          {title}
-        </span>
-      </TooltipTrigger>
-      <TooltipContent 
-        side="top" 
-        sideOffset={8}
-        className="max-w-[280px] p-3 text-sm leading-relaxed bg-popover text-popover-foreground border border-border shadow-xl z-[9999]"
-      >
-        {tooltip}
-      </TooltipContent>
-    </Tooltip>
-  ) : (
-    <span className="text-xs text-muted-foreground block">{title}</span>
-  );
+  // Cor do gráfico baseada apenas no tema (sempre clean)
+  const chartColor = "hsl(var(--primary))";
 
   return (
-    <div 
-      className={cn(
-        'premium-card group relative cursor-default p-2.5 sm:p-3 lg:p-4 transition-transform duration-150 hover:-translate-y-0.5',
-        className
-      )}
-    >
-      <div className="flex items-start justify-between mb-1.5 sm:mb-2 lg:mb-3 relative z-10">
-        <div className="flex-1 min-w-0">
-          {titleElement}
-          <p className="text-[11px] sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl font-bold mt-0.5 text-foreground transition-colors duration-300 break-words">
-            {value}
-          </p>
-          {previousValue !== undefined && (
-            <p className="text-[9px] sm:text-[10px] lg:text-xs text-muted-foreground mt-0.5 break-words">
-              Anterior: {previousValue}
-            </p>
-          )}
+    <Card className={cn("p-4 flex flex-col justify-between overflow-hidden premium-card group", className)}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-medium text-muted-foreground truncate tracking-tight">{title}</span>
+        <div className="premium-icon w-8 h-8 flex items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Icon className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
         </div>
-        {Icon && (
-          <div className="premium-icon w-7 h-7 sm:w-8 sm:h-8 lg:w-11 lg:h-11 flex-shrink-0 ml-1.5 sm:ml-2 lg:ml-3">
-            <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-5 lg:h-5 text-primary transition-all duration-300 group-hover:scale-110" />
-          </div>
-        )}
       </div>
-      
-      {/* Sparkline - Responsive height */}
-      {sparklineData.length > 1 && (
-        <div className="h-8 sm:h-10 lg:h-14 -mx-1 sm:-mx-1.5 lg:-mx-2 mt-1 relative z-10">
+
+      <div className="flex items-end justify-between gap-4">
+        <div className="flex flex-col min-w-0">
+          <h3 className="text-2xl font-bold tracking-tight truncate">{value}</h3>
+          {description && <p className="text-xs text-muted-foreground mt-1 truncate">{description}</p>}
+        </div>
+
+        <div className="h-[40px] w-[80px] shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+            <AreaChart data={data}>
               <defs>
-                <linearGradient id={`area-gradient-${uniqueId}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                  <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
-                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id={`stroke-gradient-${uniqueId}`} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="hsl(var(--primary) / 0.6)" />
-                  <stop offset="50%" stopColor="hsl(var(--primary))" />
-                  <stop offset="100%" stopColor="hsl(var(--primary) / 0.6)" />
+                <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={chartColor} stopOpacity={0.2} />
+                  <stop offset="100%" stopColor={chartColor} stopOpacity={0} />
                 </linearGradient>
               </defs>
+              <YAxis domain={["dataMin", "dataMax"]} hide />
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke={`url(#stroke-gradient-${uniqueId})`}
-                strokeWidth={1.5}
-                fill={`url(#area-gradient-${uniqueId})`}
-                dot={false}
-                activeDot={false}
-                animationDuration={800}
-                animationEasing="ease-out"
+                stroke={chartColor}
+                strokeWidth={2}
+                fill={`url(#gradient-${title})`}
+                isAnimationActive={false}
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      )}
-      
-      {/* Change indicator - Responsive with proper tooltip on mobile */}
-      {change !== undefined && (
-        <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 mt-1.5 sm:mt-2 lg:mt-3 relative z-10 flex-wrap">
-          <Tooltip delayDuration={100}>
-            <TooltipTrigger asChild>
-              <div className={cn(
-                'flex items-center gap-0.5 sm:gap-1 text-[9px] sm:text-[10px] lg:text-xs font-medium px-1.5 py-0.5 sm:px-2 lg:px-3 lg:py-1.5 rounded-full cursor-default',
-                'transition-all duration-300 border',
-                displayTrend === 'up' 
-                  ? 'bg-metric-positive/15 text-metric-positive border-metric-positive/20' 
-                  : displayTrend === 'down' 
-                    ? 'bg-metric-negative/15 text-metric-negative border-metric-negative/20' 
-                    : 'bg-muted/50 text-muted-foreground border-muted/30'
-              )}>
-                <TrendIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4" />
-                <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
-              </div>
-            </TooltipTrigger>
-            {changeLabel && (
-              <TooltipContent 
-                side="top" 
-                sideOffset={4}
-                className="text-xs bg-popover text-popover-foreground border border-border shadow-lg z-[9999]"
-              >
-                {changeLabel}
-              </TooltipContent>
-            )}
-          </Tooltip>
-          {changeLabel && (
-            <span className="hidden lg:inline text-[10px] xl:text-xs text-muted-foreground truncate max-w-[120px] xl:max-w-none">{changeLabel}</span>
-          )}
-        </div>
-      )}
-    </div>
+      </div>
+    </Card>
   );
 }
