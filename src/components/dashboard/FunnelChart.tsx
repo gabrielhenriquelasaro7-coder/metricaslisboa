@@ -1,206 +1,123 @@
-import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Eye, Users, MousePointerClick, Percent, TrendingDown, Target, Coins } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { useChartResponsive } from '@/hooks/useChartResponsive';
+import { Card } from "@/components/ui/card";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell } from "recharts";
+import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
+
+// Interface dos dados
+interface FunnelStep {
+  name: string;
+  value: number;
+  platform?: string;
+  fill?: string;
+}
 
 interface FunnelChartProps {
-  impressions: number;
-  reach?: number;
-  clicks: number;
-  conversions: number;
-  spend?: number;
-  ctr?: number;
-  cpc?: number;
-  cpl?: number;
-  cpm?: number;
-  frequency?: number;
-  conversionRate?: number;
-  currency?: string;
+  data: FunnelStep[];
+  platformFilter?: string;
   className?: string;
 }
 
-interface FunnelStep {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  widthPercent: number;
-}
-
-export function FunnelChart({
-  impressions,
-  reach = 0,
-  clicks,
-  conversions,
-  spend = 0,
-  ctr = 0,
-  cpc = 0,
-  cpl = 0,
-  cpm = 0,
-  frequency = 0,
-  conversionRate = 0,
-  currency = 'BRL',
-  className,
-}: FunnelChartProps) {
+export default function FunnelChart({ data, platformFilter = "all", className }: FunnelChartProps) {
   const { t } = useTranslation();
-  const responsive = useChartResponsive();
-  
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toLocaleString('pt-BR');
+
+  // Filtragem robusta (ignora maiúsculas/minúsculas)
+  const filteredData = data.filter((item) => {
+    if (!platformFilter || platformFilter === "all") return true;
+    const itemPlatform = (item.platform || "").toLowerCase();
+    const filter = platformFilter.toLowerCase();
+
+    if (filter.includes("google")) return itemPlatform.includes("google");
+    if (filter.includes("meta") || filter.includes("facebook")) return itemPlatform.includes("meta");
+
+    return itemPlatform === filter;
+  });
+
+  // Agrupa os dados se houver duplicatas após o filtro (ex: soma impressões de todas as campanhas)
+  const aggregatedData = Object.values(
+    filteredData.reduce(
+      (acc, curr) => {
+        if (!acc[curr.name]) {
+          acc[curr.name] = { ...curr, value: 0 };
+        }
+        acc[curr.name].value += curr.value;
+        return acc;
+      },
+      {} as Record<string, FunnelStep>,
+    ),
+  );
+
+  // Ordem lógica do funil (se necessário, pode ajustar esta lista)
+  const sortOrder = ["impressions", "clicks", "conversions", "sales"];
+  aggregatedData.sort((a, b) => sortOrder.indexOf(a.name) - sortOrder.indexOf(b.name));
+
+  // Função auxiliar para traduzir o nome da etapa
+  const getTranslatedLabel = (key: string) => {
+    // Tenta encontrar em 'metrics', depois em 'dashboard', ou usa a chave original
+    return t(`metrics.${key}`, t(`dashboard.${key}`, key));
   };
 
-  const formatCurrency = (value: number) => {
-    if (responsive.isMobile && value >= 1000) {
-      const symbol = currency === 'USD' ? '$' : 'R$';
-      if (value >= 1000000) return symbol + (value / 1000000).toFixed(1) + 'M';
-      if (value >= 1000) return symbol + (value / 1000).toFixed(0) + 'K';
-    }
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+  const formatValue = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      notation: "compact",
+      maximumFractionDigits: 1,
     }).format(value);
   };
 
-  const steps: FunnelStep[] = useMemo(() => {
-    // Funnel now only shows main flow metrics (Gasto -> Impressões -> Alcance -> Cliques -> Leads)
-    // CTR, CPC, CPL moved to metrics below
-    const allSteps = [
-      {
-        label: t('funnel.spend'),
-        value: formatCurrency(spend),
-        icon: <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 100,
-      },
-      {
-        label: t('funnel.impressions'),
-        value: formatNumber(impressions),
-        icon: <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 85,
-      },
-      {
-        label: t('funnel.reach'),
-        value: formatNumber(reach),
-        icon: <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 70,
-      },
-      {
-        label: t('funnel.clicks'),
-        value: formatNumber(clicks),
-        icon: <MousePointerClick className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 55,
-      },
-      {
-        label: t('funnel.leads'),
-        value: formatNumber(conversions),
-        icon: <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 40,
-      },
-    ];
-    
-    // On mobile, show only key steps
-    if (responsive.isMobile) {
-      return allSteps.filter(step => 
-        [t('funnel.spend'), t('funnel.impressions'), t('funnel.clicks'), t('funnel.leads')].includes(step.label)
-      );
-    }
-    
-    return allSteps;
-  }, [spend, impressions, reach, clicks, conversions, currency, responsive.isMobile, t]);
+  // Cores personalizadas para o funil
+  const colors = ["#ef4444", "#f97316", "#eab308", "#10b981"];
 
   return (
-    <Card className={cn("glass-card overflow-hidden", className)}>
-      <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6">
-        <CardTitle className="text-base sm:text-lg font-semibold flex items-center gap-2">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-            <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-          </div>
-          {t('funnel.title')}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-2 px-3 sm:px-6">
-        <div className="space-y-1.5 sm:space-y-2 flex flex-col items-center">
-          {steps.map((step, index) => (
-            <motion.div
-              key={step.label}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.05, duration: 0.3, ease: "easeOut" }}
-              className="w-full flex justify-center"
-            >
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${step.widthPercent}%` }}
-                transition={{ delay: index * 0.05 + 0.1, duration: 0.4, ease: "easeOut" }}
-                className={cn(
-                  "relative h-9 sm:h-11 rounded-md",
-                  "bg-primary/90",
-                  "flex items-center justify-between px-2.5 sm:px-4",
-                  "border border-primary/30"
-                )}
-                style={{ minWidth: responsive.isMobile ? '160px' : '200px' }}
-              >
-                {/* Ícone e Label */}
-                <div className="flex items-center gap-1.5 sm:gap-2 text-primary-foreground">
-                  {step.icon}
-                  <span className="text-[10px] sm:text-xs font-medium">{step.label}</span>
-                </div>
-                
-                {/* Valor */}
-                <span className="text-xs sm:text-sm font-bold text-primary-foreground">
-                  {step.value}
-                </span>
-              </motion.div>
-            </motion.div>
-          ))}
-        </div>
+    <Card className={cn("p-6 flex flex-col h-[400px] premium-card", className)}>
+      <h3 className="text-lg font-semibold mb-6">{t("dashboard.funnelChart", "Funil de Conversão")}</h3>
 
-        {/* Métricas adicionais - CTR, CPC, CPL movidas para cá */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.3 }}
-          className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-border/50"
-        >
-          <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 sm:gap-3">
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.ctr')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">{ctr.toFixed(responsive.isMobile ? 1 : 2)}%</p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.cpc')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpc)}</p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.cpl')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpl)}</p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.cpm')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpm)}</p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('funnel.frequency')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">{frequency.toFixed(2)}</p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('funnel.conversionRate')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">
-                {clicks > 0 ? ((conversions / clicks) * 100).toFixed(responsive.isMobile ? 1 : 2) : '0.00'}%
-              </p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('funnel.totalCost')}</p>
-              <p className="text-xs sm:text-sm font-bold text-primary">{formatCurrency(spend)}</p>
-            </div>
+      <div className="flex-1 w-full min-h-0">
+        {aggregatedData.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={aggregatedData} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
+              <XAxis type="number" hide />
+              <YAxis
+                dataKey="name"
+                type="category"
+                width={100}
+                tickFormatter={(value) => getTranslatedLabel(value)} // TRADUÇÃO AQUI
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: "transparent" }}
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="bg-popover border border-border p-2 rounded-lg shadow-lg">
+                        <p className="text-sm font-medium">{getTranslatedLabel(data.name)}</p>
+                        <p className="text-2xl font-bold text-primary">
+                          {new Intl.NumberFormat("pt-BR").format(data.value)}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={32}>
+                {aggregatedData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={colors[index % colors.length]}
+                    className="opacity-80 hover:opacity-100 transition-opacity"
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-full flex items-center justify-center text-muted-foreground border border-dashed rounded-lg">
+            {t("common.noData", "Sem dados disponíveis")}
           </div>
-        </motion.div>
-      </CardContent>
+        )}
+      </div>
     </Card>
   );
 }
