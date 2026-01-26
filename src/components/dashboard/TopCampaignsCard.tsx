@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -33,20 +34,21 @@ interface TopCampaignsCardProps {
 type SortOption = 'spend' | 'conversions' | 'roas' | 'cpl' | 'ctr' | 'clicks';
 type StatusFilter = 'all' | 'ACTIVE' | 'PAUSED';
 
-const sortOptions: { value: SortOption; label: string; icon: React.ReactNode }[] = [
-  { value: 'spend', label: 'Maior Gasto', icon: <DollarSign className="h-3 w-3" /> },
-  { value: 'conversions', label: 'Mais Conversões', icon: <Target className="h-3 w-3" /> },
-  { value: 'roas', label: 'Melhor ROAS', icon: <TrendingUp className="h-3 w-3" /> },
-  { value: 'cpl', label: 'Menor CPL', icon: <Users className="h-3 w-3" /> },
-  { value: 'ctr', label: 'Maior CTR', icon: <Percent className="h-3 w-3" /> },
-  { value: 'clicks', label: 'Mais Cliques', icon: <ArrowUpRight className="h-3 w-3" /> },
-];
-
 export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }: TopCampaignsCardProps) {
+  const { t } = useTranslation();
   const [sortBy, setSortBy] = useState<SortOption>('spend');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [limit, setLimit] = useState(5);
+
+  const sortOptions: { value: SortOption; label: string; icon: React.ReactNode }[] = [
+    { value: 'spend', label: t('topCampaigns.highestSpend'), icon: <DollarSign className="h-3 w-3" /> },
+    { value: 'conversions', label: t('topCampaigns.mostConversions'), icon: <Target className="h-3 w-3" /> },
+    { value: 'roas', label: t('topCampaigns.bestRoas'), icon: <TrendingUp className="h-3 w-3" /> },
+    { value: 'cpl', label: t('topCampaigns.lowestCpl'), icon: <Users className="h-3 w-3" /> },
+    { value: 'ctr', label: t('topCampaigns.highestCtr'), icon: <Percent className="h-3 w-3" /> },
+    { value: 'clicks', label: t('topCampaigns.mostClicks'), icon: <ArrowUpRight className="h-3 w-3" /> },
+  ];
 
   const isEcommerce = businessModel === 'ecommerce';
   const isInsideSales = businessModel === 'inside_sales';
@@ -71,12 +73,10 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
   const filteredAndSortedCampaigns = useMemo(() => {
     let result = [...campaigns];
 
-    // Filter by status
     if (statusFilter !== 'all') {
       result = result.filter(c => c.status === statusFilter);
     }
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(c => 
@@ -85,7 +85,6 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
       );
     }
 
-    // Sort
     result.sort((a, b) => {
       switch (sortBy) {
         case 'spend':
@@ -95,7 +94,6 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
         case 'roas':
           return b.roas - a.roas;
         case 'cpl':
-          // Menor CPL primeiro (inversão)
           const cplA = a.conversions > 0 ? a.spend / a.conversions : Infinity;
           const cplB = b.conversions > 0 ? b.spend / b.conversions : Infinity;
           return cplA - cplB;
@@ -111,7 +109,6 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
     return result.slice(0, limit);
   }, [campaigns, sortBy, statusFilter, searchQuery, limit]);
 
-  // Calculate ranking position indicator
   const getRankBadge = (index: number) => {
     if (index === 0) return <Trophy className="h-4 w-4 text-yellow-500" />;
     if (index === 1) return <span className="text-xs font-bold text-gray-400">2º</span>;
@@ -120,17 +117,17 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
   };
 
   const getResultLabel = () => {
-    if (isEcommerce || isInfoproduto) return 'Compras';
-    if (isInsideSales) return 'Leads';
-    if (isPdv) return 'Visitas';
-    return 'Conversões';
+    if (isEcommerce || isInfoproduto) return t('dashboard.purchases');
+    if (isInsideSales) return t('dashboard.leads');
+    if (isPdv) return t('dashboard.visits');
+    return t('dashboard.conversions');
   };
 
   const getCostPerResultLabel = () => {
-    if (isEcommerce || isInfoproduto) return 'CPA';
-    if (isInsideSales) return 'CPL';
-    if (isPdv) return 'Custo/Visita';
-    return 'CPA';
+    if (isEcommerce || isInfoproduto) return t('dashboard.cpa');
+    if (isInsideSales) return t('dashboard.cpl');
+    if (isPdv) return t('dashboard.costPerVisit');
+    return t('dashboard.cpa');
   };
 
   const activeCount = campaigns.filter(c => c.status === 'ACTIVE').length;
@@ -138,10 +135,8 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
 
   return (
     <div className="premium-card overflow-hidden relative">
-      {/* Top gradient line */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/60 to-transparent z-10" />
       
-      {/* Header */}
       <div className="p-6 border-b border-border/50">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -149,29 +144,25 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
               <Trophy className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold">Top Campanhas</h3>
+              <h3 className="text-lg font-semibold">{t('topCampaigns.title')}</h3>
               <p className="text-sm text-muted-foreground">
-                {filteredAndSortedCampaigns.length} de {campaigns.length} campanhas
+                {filteredAndSortedCampaigns.length} {t('topCampaigns.of')} {campaigns.length} {t('topCampaigns.campaigns')}
               </p>
             </div>
           </div>
 
-          {/* Mobile: Stack vertically, Desktop: Row */}
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            {/* Search - Full width on mobile */}
             <div className="relative w-full sm:w-auto">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar campanha"
+                placeholder={t('topCampaigns.searchCampaign')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 h-9 w-full sm:w-[180px]"
               />
             </div>
 
-            {/* Filters row - 3 items on same row on mobile */}
             <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-2">
-              {/* Status Filter */}
               <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
                 <SelectTrigger className="h-9 text-[11px] sm:text-sm sm:w-[130px]">
                   <Filter className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 flex-shrink-0" />
@@ -180,13 +171,12 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
                   </span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas ({campaigns.length})</SelectItem>
-                  <SelectItem value="ACTIVE">Ativas ({activeCount})</SelectItem>
-                  <SelectItem value="PAUSED">Pausadas ({pausedCount})</SelectItem>
+                  <SelectItem value="all">{t('topCampaigns.allStatus')} ({campaigns.length})</SelectItem>
+                  <SelectItem value="ACTIVE">{t('topCampaigns.activeOnly')} ({activeCount})</SelectItem>
+                  <SelectItem value="PAUSED">{t('topCampaigns.pausedOnly')} ({pausedCount})</SelectItem>
                 </SelectContent>
               </Select>
 
-              {/* Sort By */}
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
                 <SelectTrigger className="h-9 text-[11px] sm:text-sm sm:w-[160px]">
                   <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 flex-shrink-0" />
@@ -206,7 +196,6 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
                 </SelectContent>
               </Select>
 
-              {/* Limit */}
               <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
                 <SelectTrigger className="h-9 text-[11px] sm:text-sm sm:w-[80px]">
                   <span className="truncate">
@@ -222,32 +211,30 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
               </Select>
             </div>
 
-            {/* Ver todas - separate row on mobile */}
             <Link to="/campaigns" className="w-full sm:w-auto">
-              <Button variant="outline" size="sm" className="w-full sm:w-auto">Ver todas</Button>
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">{t('common.viewAll')}</Button>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-secondary/30">
             <tr>
               <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">#</th>
-              <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Campanha</th>
-              <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-              <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Gasto</th>
-              <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Impressões</th>
-              <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Cliques</th>
-              <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">CTR</th>
+              <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('campaigns.campaign')}</th>
+              <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('campaigns.status')}</th>
+              <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('dashboard.spend')}</th>
+              <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('dashboard.impressions')}</th>
+              <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('dashboard.clicks')}</th>
+              <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('dashboard.ctr')}</th>
               <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">{getResultLabel()}</th>
               <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">{getCostPerResultLabel()}</th>
               {(isEcommerce || isInfoproduto) && (
                 <>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Receita</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">ROAS</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('dashboard.revenue')}</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('dashboard.roas')}</th>
                 </>
               )}
             </tr>
@@ -257,7 +244,7 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
               <tr>
                 <td colSpan={10} className="py-8 text-center text-muted-foreground">
                   <Filter className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>Nenhuma campanha encontrada com os filtros aplicados</p>
+                  <p>{t('topCampaigns.noCampaignsFilters')}</p>
                 </td>
               </tr>
             ) : (
@@ -286,7 +273,7 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
                           {campaign.name}
                         </Link>
                         <p className="text-xs text-muted-foreground truncate">
-                          {campaign.objective?.replace(/_/g, ' ') || 'Sem objetivo'}
+                          {campaign.objective?.replace(/_/g, ' ') || t('common.noObjective')}
                         </p>
                       </div>
                     </td>
@@ -299,7 +286,7 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
                           campaign.status === 'PAUSED' && "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
                         )}
                       >
-                        {campaign.status === 'ACTIVE' ? 'Ativa' : campaign.status === 'PAUSED' ? 'Pausada' : campaign.status}
+                        {campaign.status === 'ACTIVE' ? t('status.active') : campaign.status === 'PAUSED' ? t('status.paused') : campaign.status}
                       </Badge>
                     </td>
                     <td className="py-4 px-4 text-right font-medium">
@@ -358,22 +345,21 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
         </table>
       </div>
 
-      {/* Footer Summary */}
       {filteredAndSortedCampaigns.length > 0 && (
         <div className="p-3 sm:p-4 bg-secondary/20 border-t border-border">
           <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2 sm:gap-4 text-xs sm:text-sm">
             <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-6 w-full sm:w-auto">
               <div className="flex flex-col sm:flex-row sm:items-center">
-                <span className="text-muted-foreground text-[10px] sm:text-sm">Total Gasto:</span>
+                <span className="text-muted-foreground text-[10px] sm:text-sm">{t('topCampaigns.totalSpend')}:</span>
                 <span className="font-semibold text-xs sm:text-sm sm:ml-2 truncate">{formatCurrency(filteredAndSortedCampaigns.reduce((sum, c) => sum + c.spend, 0))}</span>
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center">
-                <span className="text-muted-foreground text-[10px] sm:text-sm">Total {getResultLabel()}:</span>
+                <span className="text-muted-foreground text-[10px] sm:text-sm">{t('common.totalResult')} {getResultLabel()}:</span>
                 <span className="font-semibold text-xs sm:text-sm sm:ml-2">{filteredAndSortedCampaigns.reduce((sum, c) => sum + c.conversions, 0)}</span>
               </div>
               {(isEcommerce || isInfoproduto) && (
                 <div className="flex flex-col sm:flex-row sm:items-center">
-                  <span className="text-muted-foreground text-[10px] sm:text-sm">Total Receita:</span>
+                  <span className="text-muted-foreground text-[10px] sm:text-sm">{t('topCampaigns.totalRevenue')}:</span>
                   <span className="font-semibold text-xs sm:text-sm text-metric-positive sm:ml-2 truncate">
                     {formatCurrency(filteredAndSortedCampaigns.reduce((sum, c) => sum + c.conversion_value, 0))}
                   </span>
@@ -381,7 +367,7 @@ export function TopCampaignsCard({ campaigns, businessModel, currency = 'BRL' }:
               )}
             </div>
             <p className="text-[10px] sm:text-xs text-muted-foreground">
-              Ordenado por: {sortOptions.find(o => o.value === sortBy)?.label}
+              {t('common.sortedBy')}: {sortOptions.find(o => o.value === sortBy)?.label}
             </p>
           </div>
         </div>

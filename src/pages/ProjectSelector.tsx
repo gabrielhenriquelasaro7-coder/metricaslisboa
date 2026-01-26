@@ -150,7 +150,7 @@ function ClientCard({
               <p className="text-xs text-muted-foreground mt-0.5" style={{
               fontFamily: 'Inter, sans-serif'
             }}>
-                {model?.label || 'Sem categoria'}
+                {model?.label || t('common.noCategory')}
               </p>
             </div>
           </div>
@@ -165,24 +165,24 @@ function ClientCard({
             <DropdownMenuContent align="end" className="w-44 bg-popover backdrop-blur-xl border-border rounded-xl shadow-2xl" onClick={e => e.stopPropagation()}>
               <DropdownMenuItem onClick={() => onEdit(project)} className="gap-2 cursor-pointer text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg">
                 <Pencil className="w-4 h-4" />
-                Editar
+                {t('common.edit')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onResync(project)} className="gap-2 cursor-pointer text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg">
                 <RefreshCw className="w-4 h-4" />
-                Sincronizar
+                {t('common.synchronize')}
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border" />
               {project.archived ? <DropdownMenuItem onClick={() => onUnarchive(project)} className="gap-2 cursor-pointer text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg">
                   <ArchiveRestore className="w-4 h-4" />
-                  Restaurar
+                  {t('common.restore')}
                 </DropdownMenuItem> : <DropdownMenuItem onClick={() => onArchive(project)} className="gap-2 cursor-pointer text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg">
                   <Archive className="w-4 h-4" />
-                  Arquivar
+                  {t('common.archive')}
                 </DropdownMenuItem>}
               <DropdownMenuSeparator className="bg-border" />
               <DropdownMenuItem onClick={() => onDelete(project)} className="gap-2 cursor-pointer text-destructive focus:text-destructive hover:bg-destructive/10 rounded-lg">
                 <Trash2 className="w-4 h-4" />
-                Excluir
+                {t('common.delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -191,22 +191,22 @@ function ClientCard({
         {/* Info */}
         <div className="space-y-2 mb-4">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Investidor</span>
+            <span className="text-muted-foreground">{t('common.investor')}</span>
             <span className="text-foreground/70 truncate max-w-[140px]" title={investidorNames.length > 0 ? investidorNames.join(', ') : undefined}>
-              {investidorNames.length > 0 ? investidorNames.join(', ') : 'Sem investidor'}
+              {investidorNames.length > 0 ? investidorNames.join(', ') : t('common.noInvestor')}
             </span>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Squad</span>
-            <span className="text-foreground/70">{squadName || 'Sem squad'}</span>
+            <span className="text-muted-foreground">{t('common.squad')}</span>
+            <span className="text-foreground/70">{squadName || t('common.noSquad')}</span>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Última sync</span>
+            <span className="text-muted-foreground">{t('common.lastSync')}</span>
             <span className="text-foreground/70">
               {lastSyncDate ? formatDistanceToNow(lastSyncDate, {
               addSuffix: true,
-              locale: ptBR
-            }) : 'Nunca'}
+              locale: getDateLocale()
+            }) : t('common.never')}
             </span>
           </div>
         </div>
@@ -219,7 +219,7 @@ function ClientCard({
         }} className="flex-1 h-9 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20" style={{
           fontFamily: 'Space Grotesk, sans-serif'
         }}>
-            Acessar
+            {t('common.accessProject')}
             <ExternalLink className="w-3.5 h-3.5" />
           </button>
           
