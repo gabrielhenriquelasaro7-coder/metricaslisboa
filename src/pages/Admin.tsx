@@ -21,7 +21,7 @@ import { ExportDataButton } from '@/components/admin/ExportDataButton';
 import { FullProjectExport } from '@/components/admin/FullProjectExport';
 import { SquadsManagement } from '@/components/admin/SquadsManagement';
 import { UserManagement } from '@/components/admin/UserManagement';
-
+import { TabVisibilityManager } from '@/components/admin/TabVisibilityManager';
 import { GuestsManagement } from '@/components/admin/GuestsManagement';
 import { InvestorSuggestionsManagement } from '@/components/admin/InvestorSuggestionsManagement';
 import { RequestsManagement } from '@/components/admin/RequestsManagement';
@@ -710,6 +710,7 @@ function AdminContent() {
           {visibleTabs.includes('users') && (
             <TabsContent value="users" className="space-y-6">
               <UserManagement />
+              <TabVisibilityManager />
             </TabsContent>
           )}
 
