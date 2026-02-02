@@ -194,13 +194,25 @@ Deno.serve(async (req) => {
 
     if (!evolutionResponse.ok) {
       console.error('[WHATSAPP-SEND] Evolution API error:', evolutionData);
+      
+      // Check for specific Evolution API errors
+      let errorMessage = 'Failed to send message';
+      const responseMessages = evolutionData?.response?.message || [];
+      
+      if (responseMessages.some((m: string) => m.includes('sendMessage') || m.includes('undefined'))) {
+        errorMessage = 'Instância WhatsApp desconectada. Reconecte escaneando o QR Code.';
+      } else if (evolutionData?.error === 'Bad Request') {
+        errorMessage = 'Erro de conexão com WhatsApp. Verifique se a instância está conectada.';
+      }
+      
+      // Return 200 with success: false so frontend can handle it gracefully
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Failed to send message',
+          error: errorMessage,
           details: evolutionData 
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

@@ -479,7 +479,7 @@ export function AccountPlannerTab({
     try {
       const messageToSend = currentMessage;
 
-      const { error } = await supabase.functions.invoke('whatsapp-send', {
+      const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
           instanceId,
           targetType,
@@ -490,6 +490,19 @@ export function AccountPlannerTab({
       });
 
       if (error) throw error;
+      
+      // Check for Evolution API errors in the response
+      if (data && !data.success) {
+        const errorMsg = data.error || 'Erro desconhecido';
+        const details = data.details;
+        
+        // Check for disconnected instance error
+        if (details?.response?.message?.some?.((m: string) => m.includes('sendMessage'))) {
+          throw new Error('Instância WhatsApp desconectada. Por favor, reconecte escaneando o QR Code novamente.');
+        }
+        
+        throw new Error(errorMsg);
+      }
 
       // Record send history
       await supabase.from('whatsapp_planner_history').insert({
@@ -508,7 +521,17 @@ export function AccountPlannerTab({
       loadSendHistory(); // Refresh history
     } catch (error: any) {
       console.error('Error sending planner:', error);
-      toast.error('Erro ao enviar: ' + (error.message || 'Erro desconhecido'));
+      
+      // Provide more helpful error messages
+      let errorMessage = error.message || 'Erro desconhecido';
+      
+      if (errorMessage.includes('sendMessage') || errorMessage.includes('undefined')) {
+        errorMessage = 'Instância WhatsApp desconectada. Por favor, reconecte escaneando o QR Code novamente.';
+      } else if (errorMessage.includes('not connected')) {
+        errorMessage = 'Instância não está conectada. Verifique a conexão do WhatsApp.';
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setSendingPlanner(false);
     }
