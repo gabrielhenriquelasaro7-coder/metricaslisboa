@@ -118,37 +118,96 @@ export function AccountPlannerTab({
   const connectedInstances = instances.filter(i => i.instance_status === 'connected');
   const targetStep = getNextStep(currentStep);
 
-  // Initialize form only once when existingConfig is first available
+  // Draft key for localStorage persistence
+  const DRAFT_KEY = `planner_draft_${project.id}`;
+
+  // Initialize form from existingConfig OR localStorage draft
   const [initialized, setInitialized] = useState(false);
   
   useEffect(() => {
-    if (existingConfig && !initialized) {
-      setInstanceId(existingConfig.instance_id || null);
-      setTargetType(existingConfig.target_type || 'phone');
-      setPhoneNumber(existingConfig.phone_number || '');
-      setGroupId(existingConfig.group_id || null);
-      setGroupName(existingConfig.group_name || null);
-      // Note: planner_enabled, report_day_of_week, report_time removed - manual sending only
-      setCurrentStep(existingConfig.current_step || 'V1');
-      setMetricType(existingConfig.metric_type || 'roi');
-      setRoiAtual(existingConfig.roi_atual?.toString() || '');
-      setRoasAtual(existingConfig.roas_atual?.toString() || '');
-      setCacAtual(existingConfig.cac_atual?.toString() || '');
-      setInvestimentoMensal(existingConfig.investimento_mensal?.toString() || '');
-      setFaturamentoMarketing(existingConfig.faturamento_marketing?.toString() || '');
-      setMetaPrincipalQuarter(existingConfig.meta_principal_quarter || '');
-      setSubMetas(existingConfig.sub_metas || []);
-      setCriteriosMudancaStep(existingConfig.criterios_mudanca_step || []);
-      setMetaSemana(existingConfig.meta_semana || '');
-      setMetaSemanaPorque(existingConfig.meta_semana_porque || '');
-      setLinkForecasting(existingConfig.link_forecasting || '');
-      setLinkPlanoMidia(existingConfig.link_plano_midia || '');
-      setLinkPlanejamentoQuarter(existingConfig.link_planejamento_quarter || '');
-      setHiddenFields(existingConfig.hidden_fields || []);
-      setMessageTemplate(existingConfig.custom_message || '');
+    if (!initialized) {
+      // Try to load from localStorage first (user's unsaved draft)
+      const savedDraft = localStorage.getItem(DRAFT_KEY);
+      let draftData: any = null;
+      
+      if (savedDraft) {
+        try {
+          draftData = JSON.parse(savedDraft);
+        } catch (e) {
+          console.error('Error parsing draft:', e);
+        }
+      }
+
+      // Prioritize draft if it exists and is newer than existingConfig
+      const source = draftData || existingConfig;
+      
+      if (source) {
+        setInstanceId(source.instance_id || null);
+        setTargetType(source.target_type || 'phone');
+        setPhoneNumber(source.phone_number || '');
+        setGroupId(source.group_id || null);
+        setGroupName(source.group_name || null);
+        setCurrentStep(source.current_step || 'V1');
+        setMetricType(source.metric_type || 'roi');
+        setRoiAtual(source.roi_atual?.toString() || '');
+        setRoasAtual(source.roas_atual?.toString() || '');
+        setCacAtual(source.cac_atual?.toString() || '');
+        setInvestimentoMensal(source.investimento_mensal?.toString() || '');
+        setFaturamentoMarketing(source.faturamento_marketing?.toString() || '');
+        setMetaPrincipalQuarter(source.meta_principal_quarter || '');
+        setSubMetas(source.sub_metas || []);
+        setCriteriosMudancaStep(source.criterios_mudanca_step || []);
+        setMetaSemana(source.meta_semana || '');
+        setMetaSemanaPorque(source.meta_semana_porque || '');
+        setLinkForecasting(source.link_forecasting || '');
+        setLinkPlanoMidia(source.link_plano_midia || '');
+        setLinkPlanejamentoQuarter(source.link_planejamento_quarter || '');
+        setHiddenFields(source.hidden_fields || []);
+        setMessageTemplate(source.custom_message || source.message_template || '');
+      }
       setInitialized(true);
     }
-  }, [existingConfig, initialized]);
+  }, [existingConfig, initialized, DRAFT_KEY]);
+
+  // Auto-save draft to localStorage whenever form changes
+  useEffect(() => {
+    if (!initialized) return;
+
+    const draftData = {
+      instance_id: instanceId,
+      target_type: targetType,
+      phone_number: phoneNumber,
+      group_id: groupId,
+      group_name: groupName,
+      current_step: currentStep,
+      metric_type: metricType,
+      roi_atual: roiAtual ? parseFloat(roiAtual) : null,
+      roas_atual: roasAtual ? parseFloat(roasAtual) : null,
+      cac_atual: cacAtual ? parseFloat(cacAtual) : null,
+      investimento_mensal: investimentoMensal ? parseFloat(investimentoMensal) : null,
+      faturamento_marketing: faturamentoMarketing ? parseFloat(faturamentoMarketing) : null,
+      meta_principal_quarter: metaPrincipalQuarter,
+      sub_metas: subMetas,
+      criterios_mudanca_step: criteriosMudancaStep,
+      meta_semana: metaSemana,
+      meta_semana_porque: metaSemanaPorque,
+      link_forecasting: linkForecasting,
+      link_plano_midia: linkPlanoMidia,
+      link_planejamento_quarter: linkPlanejamentoQuarter,
+      hidden_fields: hiddenFields,
+      custom_message: messageTemplate,
+      saved_at: new Date().toISOString(),
+    };
+
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+  }, [
+    initialized, instanceId, targetType, phoneNumber, groupId, groupName,
+    currentStep, metricType, roiAtual, roasAtual, cacAtual,
+    investimentoMensal, faturamentoMarketing, metaPrincipalQuarter,
+    subMetas, criteriosMudancaStep, metaSemana, metaSemanaPorque,
+    linkForecasting, linkPlanoMidia, linkPlanejamentoQuarter,
+    hiddenFields, messageTemplate, DRAFT_KEY
+  ]);
 
   // Fetch real CPL, ROAS and Vendas from database
   useEffect(() => {
@@ -490,6 +549,8 @@ export function AccountPlannerTab({
 
       const success = await onSave(config);
       if (success) {
+        // Clear the draft from localStorage after successful save
+        localStorage.removeItem(DRAFT_KEY);
         onClose();
       }
     } finally {
