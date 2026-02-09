@@ -199,12 +199,26 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
         }).eq('id', project.id);
       }
       
-      // Adicionar investidor na tabela project_investidores (se selecionado)
+      // Adicionar investidor na tabela project_investidores e guest_project_access
       if (selectedInvestorId) {
-        await supabase.from('project_investidores').insert({
+        // Find the user_management.id for this investor (selectedInvestorId is user_id/auth id)
+        const selectedInvestor = investors.find(inv => inv.user_id === selectedInvestorId);
+        
+        if (selectedInvestor) {
+          // Insert into project_investidores using user_management.id
+          await supabase.from('project_investidores').insert({
+            project_id: project.id,
+            investidor_id: selectedInvestor.id,
+          });
+        }
+        
+        // CRITICAL: Add investor to guest_project_access so they can see the project
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        await supabase.from('guest_project_access').upsert({
           project_id: project.id,
-          investidor_id: selectedInvestorId,
-        });
+          user_id: selectedInvestorId, // auth user_id
+          granted_by: currentUser?.id || '',
+        }, { onConflict: 'user_id,project_id' });
       }
       
       if (formData.business_model === 'custom') {

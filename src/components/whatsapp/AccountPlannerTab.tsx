@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -121,6 +121,18 @@ export function AccountPlannerTab({
   // Draft key for localStorage persistence
   const DRAFT_KEY = `planner_draft_${project.id}`;
 
+  // Use ref to track draft data for synchronous saves (prevents data loss on unmount)
+  const draftRef = useRef<Record<string, any> | null>(null);
+  const initializedRef = useRef(false);
+
+  // Helper to save draft immediately (synchronous localStorage write)
+  const saveDraftNow = useCallback(() => {
+    if (!initializedRef.current) return;
+    if (draftRef.current) {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftRef.current));
+    }
+  }, [DRAFT_KEY]);
+
   // Initialize form from existingConfig OR localStorage draft
   const [initialized, setInitialized] = useState(false);
   
@@ -138,7 +150,7 @@ export function AccountPlannerTab({
         }
       }
 
-      // Prioritize draft if it exists and is newer than existingConfig
+      // Prioritize draft if it exists
       const source = draftData || existingConfig;
       
       if (source) {
@@ -166,14 +178,15 @@ export function AccountPlannerTab({
         setMessageTemplate(source.custom_message || source.message_template || '');
       }
       setInitialized(true);
+      initializedRef.current = true;
     }
   }, [existingConfig, initialized, DRAFT_KEY]);
 
-  // Auto-save draft to localStorage whenever form changes
+  // Update draft ref and save to localStorage on every form change
   useEffect(() => {
     if (!initialized) return;
 
-    const draftData = {
+    const data = {
       instance_id: instanceId,
       target_type: targetType,
       phone_number: phoneNumber,
@@ -199,7 +212,8 @@ export function AccountPlannerTab({
       saved_at: new Date().toISOString(),
     };
 
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+    draftRef.current = data;
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
   }, [
     initialized, instanceId, targetType, phoneNumber, groupId, groupName,
     currentStep, metricType, roiAtual, roasAtual, cacAtual,
@@ -208,6 +222,18 @@ export function AccountPlannerTab({
     linkForecasting, linkPlanoMidia, linkPlanejamentoQuarter,
     hiddenFields, messageTemplate, DRAFT_KEY
   ]);
+
+  // Save draft on unmount and page unload to prevent data loss
+  useEffect(() => {
+    const handleBeforeUnload = () => saveDraftNow();
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Save on component unmount (navigation away)
+      saveDraftNow();
+    };
+  }, [saveDraftNow]);
 
   // Fetch real CPL, ROAS and Vendas from database
   useEffect(() => {
