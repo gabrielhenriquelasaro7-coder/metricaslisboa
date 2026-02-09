@@ -213,10 +213,11 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
         }
         
         // CRITICAL: Add investor to guest_project_access so they can see the project
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
         await supabase.from('guest_project_access').upsert({
           project_id: project.id,
           user_id: selectedInvestorId, // auth user_id
-          granted_by: user!.id,
+          granted_by: currentUser?.id || '',
         }, { onConflict: 'user_id,project_id' });
       }
       
