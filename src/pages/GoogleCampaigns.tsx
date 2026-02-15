@@ -128,7 +128,7 @@ export default function GoogleCampaigns() {
 
   // Redirect if no project after loading
   if (!loading && !selectedProject) {
-    navigate('/projects');
+    navigate('/dashboard');
     return null;
   }
 
@@ -319,7 +319,7 @@ export default function GoogleCampaigns() {
             <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6 max-w-md mx-auto">
               Para sincronizar campanhas do Google Ads, adicione o <strong>ID do cliente</strong> (ex: 123-456-7890) nas configurações do projeto.
             </p>
-            <Button onClick={() => navigate('/projects')} variant="gradient">
+            <Button onClick={() => navigate('/dashboard')} variant="gradient">
               Ir para Projetos
             </Button>
           </div>

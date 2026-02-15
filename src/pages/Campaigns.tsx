@@ -115,9 +115,9 @@ export default function Campaigns() {
     );
   }
 
-  // Redirect to project selector only after loading is complete
+  // Redirect if no project selected
   if (!selectedProject) {
-    navigate('/projects');
+    navigate('/dashboard');
     return null;
   }
 

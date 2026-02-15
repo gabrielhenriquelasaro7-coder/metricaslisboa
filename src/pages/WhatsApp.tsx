@@ -984,7 +984,7 @@ export default function WhatsApp() {
       <DashboardLayout>
         <div className="p-6 lg:p-8 flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <p className="text-muted-foreground">Selecione um projeto primeiro</p>
-          <Button onClick={() => navigate('/projects')}>
+          <Button onClick={() => navigate('/dashboard')}>
             Ir para Projetos
           </Button>
         </div>

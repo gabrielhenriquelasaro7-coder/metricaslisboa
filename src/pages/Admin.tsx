@@ -348,7 +348,7 @@ function AdminContent() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => navigate('/projects')}
+              onClick={() => navigate('/dashboard')}
               className="gap-2"
             >
               Voltar aos Projetos
@@ -357,7 +357,7 @@ function AdminContent() {
               variant="outline"
               onClick={() => {
                 logout();
-                navigate('/projects');
+                navigate('/dashboard');
               }}
               className="gap-2 text-muted-foreground hover:text-destructive hover:border-destructive"
             >

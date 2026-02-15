@@ -214,7 +214,7 @@ export default function ProjectSetup() {
 
   const handleBack = () => {
     if (currentStep === 0) {
-      navigate('/projects');
+      navigate('/dashboard');
     } else {
       setCurrentStep(currentStep - 1);
     }
