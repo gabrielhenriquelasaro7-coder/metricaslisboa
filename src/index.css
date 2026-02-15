@@ -849,6 +849,42 @@
     color: hsl(var(--primary));
   }
   
+  /* Icon button for narrow sidebar */
+  .sidebar-icon-btn {
+    @apply w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground transition-all duration-200 relative;
+  }
+
+  .sidebar-icon-btn:hover {
+    @apply text-foreground;
+    background: hsl(var(--foreground) / 0.06);
+  }
+
+  .sidebar-icon-btn:hover svg,
+  .sidebar-icon-btn:hover img {
+    opacity: 1;
+  }
+
+  .sidebar-icon-btn.active {
+    @apply text-foreground;
+    background: hsl(var(--primary) / 0.12);
+  }
+
+  .sidebar-icon-btn.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: hsl(var(--primary));
+    border-radius: 0 3px 3px 0;
+  }
+
+  .sidebar-icon-btn.active svg {
+    color: hsl(var(--primary));
+  }
+
   /* Collapse button */
   .sidebar-collapse-btn {
     @apply p-2 rounded-lg transition-all duration-200;
