@@ -415,7 +415,11 @@ export default function MetaAds() {
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="text-xs sm:text-sm font-semibold">{formatCurrency(campaign.spend || 0)}</p>
-                              <p className="text-[10px] text-muted-foreground">{campaign.conversions || 0} conv.</p>
+                              {(() => {
+                                const obj = ((campaign as any).objective || '').toLowerCase();
+                                const isProfileVisit = obj.includes('profile_visit') || obj.includes('ig_') || obj.includes('instagram');
+                                return <p className="text-[10px] text-muted-foreground">{campaign.conversions || 0} {isProfileVisit ? 'visitas' : 'conv.'}</p>;
+                              })()}
                             </div>
                           </button>
                           {/* Ad Sets */}
@@ -434,7 +438,12 @@ export default function MetaAds() {
                                       </div>
                                       <div className="text-right flex-shrink-0">
                                         <p className="text-[11px] sm:text-xs font-semibold">{formatCurrency(adSet.spend || 0)}</p>
-                                        <p className="text-[9px] text-muted-foreground">{adSet.conversions || 0} conv.</p>
+                                        {(() => {
+                                          const parentCampaign = campaigns.find(c => c.id === adSet.campaign_id);
+                                          const obj = ((parentCampaign as any)?.objective || '').toLowerCase();
+                                          const isProfileVisit = obj.includes('profile_visit') || obj.includes('ig_') || obj.includes('instagram');
+                                          return <p className="text-[9px] text-muted-foreground">{adSet.conversions || 0} {isProfileVisit ? 'visitas' : 'conv.'}</p>;
+                                        })()}
                                       </div>
                                     </button>
                                     {/* Ads */}

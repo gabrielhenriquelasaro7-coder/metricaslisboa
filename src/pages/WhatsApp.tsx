@@ -994,61 +994,62 @@ export default function WhatsApp() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 overflow-x-hidden">
-        {/* Header */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg flex-shrink-0">
-            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">WhatsApp</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground truncate">
-              Relatório: <span className="font-medium text-foreground">{selectedProject.name}</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Connections Section */}
-        <Card className="glass-card border-border/50">
-          <CardHeader className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-              <div>
-                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Conexões
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Conecte até 3 WhatsApps
-                </CardDescription>
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 overflow-x-hidden animate-fade-in">
+        {/* Hero Header */}
+        <div className="glass-card overflow-hidden">
+          <div className="bg-gradient-to-r from-green-600/20 via-green-500/10 to-transparent p-4 sm:p-6">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg flex-shrink-0">
+                  <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Relatórios Automáticos WhatsApp</h1>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Configure relatórios que são enviados automaticamente via WhatsApp</p>
+                </div>
               </div>
-              <Button
-                onClick={handleCreateInstance}
-                disabled={creatingInstance || instances.length >= 3}
-                size="sm"
-                className="w-full sm:w-auto h-9 text-sm"
-              >
-                {creatingInstance ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Plus className="w-4 h-4 mr-2" />
-                )}
-                Nova Conexão
+              <Button onClick={handleCreateInstance} disabled={creatingInstance || instances.length >= 3} size="sm" className="gap-1.5 bg-green-600 hover:bg-green-700 text-white flex-shrink-0">
+                {creatingInstance ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">Nova Conexão</span>
               </Button>
             </div>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6 pt-0">
-            {instancesLoading ? (
-              <div className="flex justify-center py-6 sm:py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+
+            {/* Stats row */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <div className="bg-background/40 backdrop-blur-sm rounded-lg p-2.5 sm:p-3 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                  <Smartphone className="w-3.5 h-3.5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm sm:text-lg font-bold">{instances.length}</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Conexões</p>
+                </div>
               </div>
-            ) : instances.length === 0 ? (
-              <div className="text-center py-6 sm:py-8 text-muted-foreground">
-                <Smartphone className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">Nenhuma conexão configurada</p>
-                <p className="text-xs">Crie uma conexão para enviar relatórios</p>
+              <div className="bg-background/40 backdrop-blur-sm rounded-lg p-2.5 sm:p-3 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm sm:text-lg font-bold">{connectedInstances.length > 0 ? 'Conectado' : 'Offline'}</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Status</p>
+                </div>
               </div>
-            ) : (
-              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="bg-background/40 backdrop-blur-sm rounded-lg p-2.5 sm:p-3 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                  <Calendar className="w-3.5 h-3.5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm sm:text-lg font-bold">{weeklyReportEnabled ? 'Ativo' : 'Inativo'}</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Automação</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Instances grid inside card */}
+          {instances.length > 0 && (
+            <div className="p-3 sm:p-4 border-t border-border/30">
+              <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {instances.map((instance) => (
                   <WhatsAppInstanceCard
                     key={instance.id}
@@ -1061,14 +1062,9 @@ export default function WhatsApp() {
                   />
                 ))}
               </div>
-            )}
-            {instances.length >= 3 && (
-              <p className="text-xs text-muted-foreground mt-4 text-center">
-                Limite de 3 conexões atingido
-              </p>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
+        </div>
 
         {/* Anomaly Alerts Card */}
         <AnomalyAlertsCard projectId={selectedProject.id} />
