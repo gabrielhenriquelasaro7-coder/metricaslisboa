@@ -34,6 +34,8 @@ import WhatsAppManager from "./pages/WhatsAppManager";
 import ChangePassword from "./pages/ChangePassword";
 import GuestOnboarding from "./pages/GuestOnboarding";
 import GoogleCampaigns from "./pages/GoogleCampaigns";
+import MetaAds from "./pages/MetaAds";
+import Analytics from "./pages/Analytics";
 import PredictiveAnalysis from "./pages/PredictiveAnalysis";
 import OptimizationHistory from "./pages/OptimizationHistory";
 import Suggestions from "./pages/Suggestions";
@@ -67,7 +69,9 @@ function AnimatedRoutes() {
           <Route path="/project/:id" element={<ProjectDetail />} />
           <Route path="/project/:id/admin" element={<ProjectAdmin />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/campaigns" element={<Campaigns />} />
+          <Route path="/meta-ads" element={<MetaAds />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/campaigns" element={<Navigate to="/meta-ads" replace />} />
           <Route path="/campaign/:campaignId/adsets" element={<AdSets />} />
           <Route path="/adset/:adSetId" element={<AdSetDetail />} />
           <Route path="/ad/:adId" element={<AdDetail />} />

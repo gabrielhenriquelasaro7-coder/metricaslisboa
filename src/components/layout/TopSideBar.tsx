@@ -14,22 +14,18 @@ import whatsappIcon from '@/assets/whatsapp-icon.png';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
 import metaIcon from '@/assets/meta-icon.png';
 import {
-  LayoutDashboard,
+  Home,
   ImageIcon,
-  Bot,
-  Lock,
-  TrendingUp,
   History,
   DollarSign,
   Settings,
   LogOut,
-  Database,
   Lightbulb,
-  Compass,
   Sun,
   Moon,
   KeyRound,
   Shield,
+  BarChart3,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -81,7 +77,8 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
     onNavigate?.();
   };
 
-  const isActive = (match: string) => location.pathname.includes(match) || location.pathname === match;
+  const isActive = (match: string) => location.pathname === match || location.pathname.startsWith(match + '/');
+  const isActiveExact = (match: string) => location.pathname === match;
 
   const showWhatsApp = !roleLoading && !isGuest;
 
@@ -101,18 +98,18 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
         <div className="flex-1 py-3 w-full overflow-y-auto">
           <div className="flex flex-col items-center gap-1.5 px-2">
             <TooltipProvider delayDuration={0}>
-              {/* Dashboard */}
+              {/* Home */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => handleNavClick('/dashboard')}
-                    className={cn('sidebar-icon-btn', isActive('/dashboard') && 'active')}
+                    className={cn('sidebar-icon-btn', isActiveExact('/dashboard') && 'active')}
                   >
-                    <LayoutDashboard className="w-5 h-5" />
+                    <Home className="w-5 h-5" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                  <p>Dashboard</p>
+                  <p>Home</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -120,8 +117,8 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => handleNavClick('/campaigns')}
-                    className={cn('sidebar-icon-btn', (isActive('/campaign') || isActive('/ad')) && 'active')}
+                    onClick={() => handleNavClick('/meta-ads')}
+                    className={cn('sidebar-icon-btn', (isActive('/meta-ads') || isActive('/campaign') || isActive('/adset') || isActive('/ad')) && 'active')}
                   >
                     <img src={metaIcon} alt="Meta Ads" className="w-5 h-5 object-contain" />
                   </button>
@@ -136,13 +133,28 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => handleNavClick('/google-campaigns')}
-                    className={cn('sidebar-icon-btn', isActive('/google') && 'active')}
+                    className={cn('sidebar-icon-btn', isActive('/google-campaigns') && 'active')}
                   >
                     <img src={googleAdsIcon} alt="Google Ads" className="w-5 h-5 object-contain" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="bg-popover border-border z-[60]">
                   <p>Google Ads</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* GA4 */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleNavClick('/analytics')}
+                    className={cn('sidebar-icon-btn', isActive('/analytics') && 'active')}
+                  >
+                    <BarChart3 className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                  <p>Google Analytics</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -160,32 +172,6 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                   <p>{t('sidebar.creatives')}</p>
                 </TooltipContent>
               </Tooltip>
-
-              {/* Disabled: AI Agent */}
-              {!roleLoading && !isGuest && (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="sidebar-icon-btn opacity-30 cursor-not-allowed">
-                        <Bot className="w-5 h-5" />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                      <p>{t('sidebar.maintenanceMessage')}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="sidebar-icon-btn opacity-30 cursor-not-allowed">
-                        <TrendingUp className="w-5 h-5" />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                      <p>{t('sidebar.maintenanceMessage')}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </>
-              )}
 
               {/* Financial */}
               {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('financial') && (
@@ -237,20 +223,6 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                   </TooltipContent>
                 </Tooltip>
               )}
-
-              {/* Guest tour */}
-              {!roleLoading && isGuest && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button onClick={() => handleNavClick('/dashboard')} className="sidebar-icon-btn">
-                      <Compass className="w-5 h-5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                    <p>{t('sidebar.viewTour')}</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
             </TooltipProvider>
           </div>
         </div>
@@ -277,13 +249,13 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                 </Tooltip>
               )}
 
-              {/* Admin */}
-              {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('admin') && (
+              {/* Admin - ALWAYS visible for non-guests */}
+              {!roleLoading && !cargoLoading && !isGuest && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => needsAdminApproval ? setAdminAccessModalOpen(true) : handleNavClick(selectedProject ? `/project/${selectedProject.id}/admin` : '/admin')}
-                      className={cn('sidebar-icon-btn', isActive('/admin') && 'active')}
+                      className={cn('sidebar-icon-btn', (isActive('/admin') || location.pathname.includes('/admin')) && 'active')}
                     >
                       <Shield className="w-5 h-5" />
                       {needsAdminApproval && (
@@ -298,7 +270,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
               )}
 
               {/* Settings */}
-              {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('settings') && (
+              {!roleLoading && !cargoLoading && !isGuest && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
