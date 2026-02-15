@@ -21,20 +21,28 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [projectInfo, setProjectInfo] = useState<{ id: string; name: string } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('sidebarCollapsed') === 'true';
+  });
   const isMobile = useIsMobile();
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('sidebarCollapsed', String(next));
+      return next;
+    });
+  }, []);
 
   const checkImportStatus = useCallback(async (projectId: string) => {
     try {
       const dismissed = localStorage.getItem(`import_dismissed_${projectId}`);
       if (dismissed === "true") return false;
-
       const { data: months } = await supabase
         .from("project_import_months")
         .select("status")
         .eq("project_id", projectId);
-
       if (!months || months.length === 0) return false;
-
       return months.some((m: any) => m.status === "importing" || m.status === "pending");
     } catch {
       return false;
@@ -56,9 +64,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           if (projects && projects.length > 0) {
             selectedProjectId = projects[0].id;
             localStorage.setItem("selectedProjectId", selectedProjectId);
-          } else if (!isGuest) {
-            navigate("/projects");
-            return;
           }
         }
 
@@ -75,7 +80,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             setIsImporting(importing);
           } else {
             localStorage.removeItem("selectedProjectId");
-            if (!isGuest) navigate("/projects");
           }
         }
       } catch (error) {
@@ -103,7 +107,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Mobile Layout
   if (isMobile) {
     return (
-      <div className="flex flex-col min-h-screen w-full bg-background grid-background overflow-hidden">
+      <div className="flex flex-col min-h-screen w-full bg-background overflow-hidden">
         <header className="fixed top-0 left-0 right-0 z-50 h-12 bg-sidebar/95 backdrop-blur-lg border-b border-sidebar-border flex items-center px-3 safe-area-top">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetTrigger asChild>
@@ -117,7 +121,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </Sheet>
           <span className="font-semibold text-foreground text-sm truncate">V4 Métricas</span>
         </header>
-        <main className="flex-1 pt-12 w-full relative z-10 p-4 safe-area-bottom overflow-y-auto overflow-x-hidden">
+        <main className="flex-1 pt-12 w-full relative p-4 safe-area-bottom overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </div>
@@ -125,12 +129,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   // Desktop Layout
+  const sidebarWidth = sidebarCollapsed ? 'w-[68px]' : 'w-60 lg:w-64';
+
   return (
-    <div className="flex min-h-screen w-full bg-background grid-background overflow-hidden">
-      <div className="hidden md:flex md:w-64 lg:w-72 flex-shrink-0 h-screen sticky top-0">
-        <TopSideBar />
+    <div className="flex min-h-screen w-full bg-background overflow-hidden">
+      <div className={`hidden md:flex ${sidebarWidth} flex-shrink-0 h-screen sticky top-0 transition-all duration-300 ease-in-out`}>
+        <TopSideBar collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
       </div>
-      <main className="flex-1 min-h-screen p-4 md:p-6 lg:p-8 w-full max-w-full overflow-x-hidden overflow-y-auto">
+      <main className="flex-1 min-h-screen p-4 md:p-5 lg:p-6 w-full max-w-full overflow-x-hidden overflow-y-auto">
         <div className="max-w-full mx-auto">{children}</div>
       </main>
     </div>

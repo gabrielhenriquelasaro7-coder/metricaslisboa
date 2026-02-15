@@ -14,7 +14,7 @@ export default function Index() {
     // If user exists, navigate immediately (don't wait for loading)
     if (user) {
       hasNavigatedRef.current = true;
-      navigate('/projects', { replace: true });
+      navigate('/dashboard', { replace: true });
       return;
     }
     

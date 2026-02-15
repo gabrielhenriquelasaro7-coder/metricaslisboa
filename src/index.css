@@ -757,7 +757,7 @@
   
   /* Item da sidebar */
   .sidebar-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground transition-all duration-200 relative;
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground transition-all duration-200 relative;
     border: 1px solid transparent;
   }
 
@@ -794,6 +794,23 @@
 
   .sidebar-item.active svg {
     color: hsl(var(--primary));
+  }
+
+  /* Collapsed active state */
+  .sidebar-collapsed-active {
+    position: relative;
+  }
+
+  .sidebar-collapsed-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: hsl(var(--primary));
+    border-radius: 0 3px 3px 0;
   }
   
   /* Divider */
