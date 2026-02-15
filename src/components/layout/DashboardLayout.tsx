@@ -1,10 +1,9 @@
-/* src/components/layout/DashboardLayout.tsx */
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
-import Sidebar from "./Sidebar";
+import TopSideBar from "./TopSideBar";
 import { ImportLoadingScreen } from "./ImportLoadingScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -101,7 +100,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
-  // Layout Mobile (Celulares e Tablets Pequenos)
+  // Mobile Layout
   if (isMobile) {
     return (
       <div className="flex flex-col min-h-screen w-full bg-background grid-background overflow-hidden">
@@ -113,12 +112,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-[280px] bg-sidebar border-sidebar-border">
-              <Sidebar onNavigate={() => setSidebarOpen(false)} />
+              <TopSideBar onNavigate={() => setSidebarOpen(false)} />
             </SheetContent>
           </Sheet>
-          <span className="font-semibold text-foreground text-sm truncate">MetaAds Manager</span>
+          <span className="font-semibold text-foreground text-sm truncate">V4 Métricas</span>
         </header>
-        {/* O segredo: w-full e overflow-y-auto no conteúdo principal */}
         <main className="flex-1 pt-12 w-full relative z-10 p-4 safe-area-bottom overflow-y-auto overflow-x-hidden">
           {children}
         </main>
@@ -126,14 +124,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
-  // Layout Desktop
+  // Desktop Layout
   return (
     <div className="flex min-h-screen w-full bg-background grid-background overflow-hidden">
-      <div className="hidden md:block">
-        <Sidebar />
+      <div className="hidden md:flex md:w-64 lg:w-72 flex-shrink-0 h-screen sticky top-0">
+        <TopSideBar />
       </div>
-      {/* ml-64/72 para dar espaço à sidebar, w-full para ocupar o resto sem estourar */}
-      <main className="flex-1 min-h-screen p-4 md:p-6 lg:p-8 md:ml-64 lg:ml-72 w-full max-w-full overflow-x-hidden overflow-y-auto">
+      <main className="flex-1 min-h-screen p-4 md:p-6 lg:p-8 w-full max-w-full overflow-x-hidden overflow-y-auto">
         <div className="max-w-full mx-auto">{children}</div>
       </main>
     </div>
