@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ClientSelector } from '@/components/layout/ClientSelector';
 import SparklineCard from '@/components/dashboard/SparklineCard';
@@ -10,7 +11,6 @@ import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
 import { GeographicHeatMap } from '@/components/dashboard/GeographicHeatMap';
 import { DynamicResultMetrics } from '@/components/dashboard/DynamicResultMetrics';
-import { TopCampaignsCard } from '@/components/dashboard/TopCampaignsCard';
 import { FunnelChart } from '@/components/dashboard/FunnelChart';
 import { LeadsSyncCard } from '@/components/leads/LeadsSyncCard';
 import { AccountBalanceCard } from '@/components/dashboard/AccountBalanceCard';
@@ -26,14 +26,14 @@ import { useProfileVisitsMetrics } from '@/hooks/useProfileVisitsMetrics';
 import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
-import { DollarSign, MousePointerClick, Eye, Target, TrendingUp, ShoppingCart, Users, Phone, Store, RefreshCw, MoreVertical, Banknote, BarChart3, Activity, Crosshair, Receipt, Zap, Instagram } from 'lucide-react';
+import { DollarSign, MousePointerClick, Eye, Target, TrendingUp, ShoppingCart, Users, Phone, Store, RefreshCw, MoreVertical, Banknote, BarChart3, Activity, Crosshair, Receipt, Zap, Instagram, ChevronDown, ChevronRight, Layers } from 'lucide-react';
 import { MetricVisibilityConfig } from '@/components/metrics/MetricVisibilityConfig';
 import { useHiddenMetrics } from '@/hooks/useHiddenMetrics';
 import { useUserRole } from '@/hooks/useUserRole';
-import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
 import { cn } from '@/lib/utils';
@@ -44,11 +44,28 @@ export default function MetaAds() {
   const { projects, loading: projectsLoading } = useProjects();
   const { selectedPreset, dateRange, setSelectedPreset, setDateRange } = usePeriodContext();
   const [showComparison, setShowComparison] = useState(true);
+  const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
+  const [expandedAdSets, setExpandedAdSets] = useState<Set<string>>(new Set());
   const chartRef = useRef<HTMLDivElement>(null);
 
   const { isGuest } = useUserRole();
 
-  const { campaigns, loading: dataLoading, syncing, syncData, syncDemographics, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
+  const { campaigns, adSets, ads, loading: dataLoading, syncing, syncData, syncDemographics, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
+
+  const toggleCampaign = (id: string) => {
+    setExpandedCampaigns(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleAdSet = (id: string) => {
+    setExpandedAdSets(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   useBalanceAlert(selectedProject?.id || null, selectedProject?.name);
 
@@ -370,8 +387,87 @@ export default function MetaAds() {
               {/* Demographics */}
               <DemographicCharts data={demographicData} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
 
-              {/* Top Campaigns */}
-              <TopCampaignsCard campaigns={campaigns} businessModel={businessModel || null} currency={selectedProject?.currency || 'BRL'} />
+              {/* Campaigns with expandable Ad Sets & Ads */}
+              {campaigns.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2 sm:mb-4">
+                    <div className="w-1 h-4 sm:h-6 bg-gradient-to-b from-blue-500 to-blue-500/50 rounded-full" />
+                    <h2 className="text-sm sm:text-lg font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                      Campanhas ({campaigns.length})
+                    </h2>
+                  </div>
+                  <div className="glass-card overflow-hidden divide-y divide-border/30">
+                    {campaigns.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map((campaign) => {
+                      const isExpanded = expandedCampaigns.has(campaign.id);
+                      const campaignAdSets = adSets.filter(as => as.campaign_id === campaign.id);
+                      return (
+                        <div key={campaign.id}>
+                          <button onClick={() => toggleCampaign(campaign.id)} className="w-full flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 hover:bg-secondary/30 transition-colors text-left">
+                            {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs sm:text-sm font-medium truncate">{campaign.name}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <Badge variant={campaign.status === 'ACTIVE' ? 'default' : 'secondary'} className="text-[9px] px-1.5 py-0">
+                                  {campaign.status === 'ACTIVE' ? 'Ativo' : 'Pausado'}
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground">{campaignAdSets.length} conjuntos</span>
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-xs sm:text-sm font-semibold">{formatCurrency(campaign.spend || 0)}</p>
+                              <p className="text-[10px] text-muted-foreground">{campaign.conversions || 0} conv.</p>
+                            </div>
+                          </button>
+                          {/* Ad Sets */}
+                          {isExpanded && campaignAdSets.length > 0 && (
+                            <div className="bg-secondary/20 border-t border-border/20">
+                              {campaignAdSets.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map(adSet => {
+                                const isAdSetExpanded = expandedAdSets.has(adSet.id);
+                                const adSetAds = ads.filter(ad => ad.ad_set_id === adSet.id);
+                                return (
+                                  <div key={adSet.id}>
+                                    <button onClick={() => toggleAdSet(adSet.id)} className="w-full flex items-center gap-2 pl-8 sm:pl-10 pr-3 py-2 hover:bg-secondary/40 transition-colors text-left">
+                                      {isAdSetExpanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+                                      <Layers className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-[11px] sm:text-xs font-medium truncate">{adSet.name}</p>
+                                      </div>
+                                      <div className="text-right flex-shrink-0">
+                                        <p className="text-[11px] sm:text-xs font-semibold">{formatCurrency(adSet.spend || 0)}</p>
+                                        <p className="text-[9px] text-muted-foreground">{adSet.conversions || 0} conv.</p>
+                                      </div>
+                                    </button>
+                                    {/* Ads */}
+                                    {isAdSetExpanded && adSetAds.length > 0 && (
+                                      <div className="bg-secondary/30">
+                                        {adSetAds.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map(ad => (
+                                          <Link key={ad.id} to={`/creative/${ad.id}`} className="flex items-center gap-2 pl-14 sm:pl-16 pr-3 py-1.5 hover:bg-secondary/50 transition-colors">
+                                            <div className="w-6 h-6 rounded bg-muted overflow-hidden flex-shrink-0">
+                                              {(ad.creative_thumbnail || ad.cached_image_url) && (
+                                                <img src={ad.cached_image_url || ad.creative_thumbnail || ''} className="w-full h-full object-cover" />
+                                              )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-[10px] sm:text-[11px] truncate">{ad.name}</p>
+                                            </div>
+                                            <div className="text-right flex-shrink-0">
+                                              <p className="text-[10px] sm:text-[11px] font-semibold">{formatCurrency(ad.spend || 0)}</p>
+                                            </div>
+                                          </Link>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

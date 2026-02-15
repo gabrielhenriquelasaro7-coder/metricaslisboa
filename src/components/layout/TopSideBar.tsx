@@ -13,6 +13,7 @@ import v4LogoIcon from '@/assets/v4-logo-icon.png';
 import whatsappIcon from '@/assets/whatsapp-icon.png';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
 import metaIcon from '@/assets/meta-icon.png';
+import ga4Icon from '@/assets/ga4-icon.png';
 import {
   Home,
   ImageIcon,
@@ -25,7 +26,6 @@ import {
   Moon,
   KeyRound,
   Shield,
-  BarChart3,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -150,7 +150,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                     onClick={() => handleNavClick('/analytics')}
                     className={cn('sidebar-icon-btn', isActive('/analytics') && 'active')}
                   >
-                    <BarChart3 className="w-5 h-5" />
+                    <img src={ga4Icon} alt="GA4" className="w-5 h-5 object-contain" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="bg-popover border-border z-[60]">
@@ -205,6 +205,13 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                     <p>{t('sidebar.history')}</p>
                   </TooltipContent>
                 </Tooltip>
+              )}
+
+              {/* Separator before WhatsApp */}
+              {showWhatsApp && (
+                <div className="w-8 mx-auto my-1">
+                  <Separator className="bg-sidebar-border" />
+                </div>
               )}
 
               {/* WhatsApp */}

@@ -11,13 +11,14 @@ import { useDailyMetrics } from '@/hooks/useDailyMetrics';
 import { useGoogleAdsData } from '@/hooks/useGoogleAdsData';
 import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { DashboardSkeleton } from '@/components/skeletons';
-import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
-import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, ImageIcon } from 'lucide-react';
+import { getDateRangeFromPreset } from '@/utils/dateUtils';
+import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, ImageIcon, Plus, Crosshair, Zap, BarChart3, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CreativeImage } from '@/components/ui/creative-image';
 import metaIcon from '@/assets/meta-icon.png';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
+import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -55,12 +56,22 @@ export default function Dashboard() {
 
   const metaClicks = metaCampaigns.reduce((s, c) => s + (c.clicks || 0), 0);
   const googleClicks = googleCampaigns.reduce((s, c) => s + (c.clicks || 0), 0);
+  const totalClicks = metaClicks + googleClicks;
 
   const metaImpressions = metaCampaigns.reduce((s, c) => s + (c.impressions || 0), 0);
   const googleImpressions = googleCampaigns.reduce((s, c) => s + (c.impressions || 0), 0);
+  const totalImpressions = metaImpressions + googleImpressions;
 
   const metaConversions = metaCampaigns.reduce((s, c) => s + (c.conversions || 0), 0);
   const googleConversions = googleCampaigns.reduce((s, c) => s + (c.conversions || 0), 0);
+  const totalConversions = metaConversions + googleConversions;
+
+  const metaReach = metaCampaigns.reduce((s, c) => s + (c.reach || 0), 0);
+
+  const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+  const cpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
+  const cpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
+  const cpl = totalConversions > 0 ? totalSpend / totalConversions : 0;
 
   // Top 3 creatives by spend
   const topCreatives = useMemo(() => {
@@ -81,6 +92,7 @@ export default function Dashboard() {
   const formatNumber = (num: number) => { if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'; if (num >= 1000) return (num / 1000).toFixed(1) + 'K'; return num.toLocaleString('pt-BR'); };
 
   const loading = projectsLoading || metaLoading;
+  const activeProjects = useMemo(() => projects.filter(p => !p.archived), [projects]);
 
   return (
     <DashboardLayout>
@@ -101,46 +113,86 @@ export default function Dashboard() {
                 <p className="text-muted-foreground text-[11px] sm:text-sm">Visão geral de todas as plataformas</p>
               </div>
             </div>
-            <div className="w-48 sm:w-56 flex-shrink-0">
-              <ClientSelector />
+            <div className="flex items-center gap-2">
+              <CreateProjectDialog />
+              <div className="w-48 sm:w-56 flex-shrink-0">
+                <ClientSelector />
+              </div>
             </div>
           </div>
 
-          {loading ? <DashboardSkeleton /> : (
+          {loading ? <DashboardSkeleton /> : activeProjects.length === 0 ? (
+            <div className="glass-card p-12 text-center">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Target className="w-8 h-8 text-primary" />
+              </div>
+              <h2 className="text-xl font-semibold mb-2">Nenhum projeto ainda</h2>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">Crie seu primeiro projeto para começar a acompanhar suas campanhas.</p>
+              <CreateProjectDialog />
+            </div>
+          ) : (
             <>
-              {/* Quick Stats Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                <div className="glass-card p-3 sm:p-4 border-l-4 border-l-primary">
-                  <div className="flex items-center gap-2 mb-1">
-                    <DollarSign className="w-4 h-4 text-primary" />
-                    <span className="text-[10px] sm:text-xs text-muted-foreground">Investimento Total</span>
+              {/* Metric Cards - 2 rows */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
+                <div className="glass-card p-2.5 sm:p-3 border-l-4 border-l-primary">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <DollarSign className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">Investimento</span>
                   </div>
-                  <p className="text-lg sm:text-2xl font-bold">{formatCurrency(totalSpend)}</p>
-                  <div className="flex items-center gap-2 mt-1 text-[10px] sm:text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><img src={metaIcon} className="w-3 h-3" />{formatCurrency(metaTotalSpend)}</span>
-                    <span className="flex items-center gap-1"><img src={googleAdsIcon} className="w-3 h-3" />{formatCurrency(googleTotalSpend)}</span>
+                  <p className="text-sm sm:text-lg font-bold">{formatCurrency(totalSpend)}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5 text-[9px] text-muted-foreground">
+                    <span className="flex items-center gap-0.5"><img src={metaIcon} className="w-2.5 h-2.5" />{formatCurrency(metaTotalSpend)}</span>
+                    <span className="flex items-center gap-0.5"><img src={googleAdsIcon} className="w-2.5 h-2.5" />{formatCurrency(googleTotalSpend)}</span>
                   </div>
                 </div>
-                <div className="glass-card p-3 sm:p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Eye className="w-4 h-4 text-primary" />
-                    <span className="text-[10px] sm:text-xs text-muted-foreground">Impressões</span>
+                <div className="glass-card p-2.5 sm:p-3">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <Eye className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">Impressões</span>
                   </div>
-                  <p className="text-lg sm:text-2xl font-bold">{formatNumber(metaImpressions + googleImpressions)}</p>
+                  <p className="text-sm sm:text-lg font-bold">{formatNumber(totalImpressions)}</p>
                 </div>
-                <div className="glass-card p-3 sm:p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <MousePointerClick className="w-4 h-4 text-primary" />
-                    <span className="text-[10px] sm:text-xs text-muted-foreground">Cliques</span>
+                <div className="glass-card p-2.5 sm:p-3">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <MousePointerClick className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">Cliques</span>
                   </div>
-                  <p className="text-lg sm:text-2xl font-bold">{formatNumber(metaClicks + googleClicks)}</p>
+                  <p className="text-sm sm:text-lg font-bold">{formatNumber(totalClicks)}</p>
                 </div>
-                <div className="glass-card p-3 sm:p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Users className="w-4 h-4 text-primary" />
-                    <span className="text-[10px] sm:text-xs text-muted-foreground">Conversões</span>
+                <div className="glass-card p-2.5 sm:p-3">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <Users className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">Conversões</span>
                   </div>
-                  <p className="text-lg sm:text-2xl font-bold">{formatNumber(metaConversions + googleConversions)}</p>
+                  <p className="text-sm sm:text-lg font-bold">{formatNumber(totalConversions)}</p>
+                </div>
+                <div className="glass-card p-2.5 sm:p-3">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <Crosshair className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">CTR</span>
+                  </div>
+                  <p className="text-sm sm:text-lg font-bold">{ctr.toFixed(2)}%</p>
+                </div>
+                <div className="glass-card p-2.5 sm:p-3">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <Zap className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">CPC</span>
+                  </div>
+                  <p className="text-sm sm:text-lg font-bold">{formatCurrency(cpc)}</p>
+                </div>
+                <div className="glass-card p-2.5 sm:p-3">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <BarChart3 className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">CPM</span>
+                  </div>
+                  <p className="text-sm sm:text-lg font-bold">{formatCurrency(cpm)}</p>
+                </div>
+                <div className="glass-card p-2.5 sm:p-3">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <Target className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">CPL</span>
+                  </div>
+                  <p className="text-sm sm:text-lg font-bold">{formatCurrency(cpl)}</p>
                 </div>
               </div>
 
@@ -188,7 +240,7 @@ export default function Dashboard() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-1 h-5 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
-                    <h2 className="text-sm sm:text-lg font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top Campanhas</h2>
+                    <h2 className="text-sm sm:text-lg font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top 5 Campanhas</h2>
                   </div>
                   <div className="glass-card overflow-hidden">
                     <div className="divide-y divide-border/50">
