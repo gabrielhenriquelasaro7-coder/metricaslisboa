@@ -1,124 +1,115 @@
-# Plano de Reestruturação Visual e Segurança do Sistema
 
-## Resumo
+# Reestruturacao: Separar Conteudo por Plataforma na Sidebar
 
-Transformar o sistema atual (que usa sidebar + seletor de projetos em tela separada) para um layout unificado com **menubar no topo** e **seletor de cliente tipo dropdown** (similar ao Google Ads / Meta Ads), mantendo tudo responsivo para celular. Adicionar criptografia para proteger API keys expostas.
+## Visao Geral
+
+Reorganizar toda a navegacao para que cada plataforma (Meta Ads, Google Ads, GA4) tenha sua propria secao acessada pela sidebar fixa. A Home vira um resumo geral e o dropdown de projetos fica no conteudo da pagina, nao na sidebar.
 
 ---
 
 ## O Que Muda
 
-**Antes:** Login -> Tela de seletor de projetos (cards) -> Sidebar lateral fixa com navegacao -> Tela de cada funcionalidade
+**Sidebar atual:** Logo > Dashboard > Meta > Google > Criativos > ... > Admin (invisivel?)
 
-**Depois:** Login -> Tela principal unificada com sidebar -> Dropdown de cliente no canto -> Todo conteudo na mesma area
+**Sidebar nova:** Logo > Home (icone casa) > Meta Ads > Google Ads > GA4 > Criativos > ... > Admin (sempre visivel)
 
----
+**Dashboard atual:** Mostra metricas Meta Ads com dropdown de projeto
 
-## Fase 1: Layout Unificado com sidebar
-
-### 1.1 Novo componente `SideBar`
-
-- Barra fixa no canto com:
-  - Logo V4 (esquerda)
-  - **Dropdown de seletor de cliente** (similar ao Google Ads) - mostra o cliente ativo e permite trocar sem sair da tela
-  - Links de navegacao: Dashboard, Campanhas, Criativos, Financeiro, WhatsApp
-  - Mais opcoes via dropdown: Sugestoes, Historico, Administracao, Configuracoes
-  - Avatar do usuario + menu de perfil (direita)
-  - Toggle de tema (dark/light)
-
-### 1.2 No celular
-
-- O menubar se adapta: logo + dropdown de cliente + botao hamburger
-- O hamburger abre um Sheet/drawer com todas as opcoes de navegacao
-- Todos os dropdowns funcionam como bottom sheets no mobile
-
-### 1.3 Novo `DashboardLayout` (simplificado)
-
-- Layout: TopSideBar (fixo no topo) + conteudo abaixo
-- Sem necessidade de margem lateral para sidebar
-
-### 1.4 Seletor de cliente no menubar
-
-- Dropdown com busca integrada (campo de pesquisa)
-- Mostra nome do cliente, indicador de status (safe/care/danger), modelo de negocio
-- Ao trocar de cliente, o conteudo da pagina atualiza automaticamente (ja funciona assim hoje via localStorage)
+**Depois:**
+- **Home** (`/dashboard`): Resumo geral - Top 3 criativos, Top campanhas, dados demograficos (Meta + Google combinados), com dropdown de projeto no topo
+- **Meta Ads** (`/meta-ads`): Todo o conteudo atual do Dashboard (metricas, graficos, funil, demograficos) focado em Meta, com header "Meta Ads" igual ao print de referencia
+- **Google Ads** (`/google-campaigns`): Layout igual ao Meta Ads mas com dados Google (ja existe, sera melhorado visualmente)
+- **GA4** (`/analytics`): Pagina placeholder para futuro Google Analytics
 
 ---
 
-## Fase 2: Simplificacao de Telas
+## Mudancas Detalhadas
 
-### 2.1 Remover tela separada de ProjectSelector
+### 1. Sidebar (`TopSideBar.tsx`)
+- Trocar icone Dashboard (LayoutDashboard) por icone Home (House/Home)
+- Rota Home aponta para `/dashboard`
+- Meta Ads aponta para `/meta-ads` (nova rota)
+- Google Ads aponta para `/google-campaigns` (existente)
+- Adicionar icone GA4 (BarChart3 ou icone customizado) apontando para `/analytics`
+- Criativos continua em `/creatives`
+- **Admin (Shield)**: Garantir que aparece SEMPRE para usuarios nao-guest, sem depender de `isTabHidden`
+- Remover itens desabilitados (Bot, TrendingUp com opacity-30) para limpar
 
-- A funcionalidade de criar/editar/arquivar projetos sera acessivel via:
-  - Item "Gerenciar Projetos" dentro do dropdown de cliente no menubar
-  - Ou uma secao dentro de Configuracoes/Admin
+### 2. Nova pagina Home (`/dashboard` - reescrever `Dashboard.tsx`)
+- Header com titulo "Home" + dropdown ClientSelector no topo
+- Cards resumo: Top 3 criativos (imagem + metricas basicas)
+- Top 5 campanhas (unificando Meta + Google)
+- Mini cards de investimento total (Meta + Google somados)
+- Graficos demograficos simplificados (genero, dispositivo)
+- Layout clean e visual, como painel de controle
 
-### 2.2 Manter todas as paginas existentes
+### 3. Nova pagina Meta Ads (`/meta-ads` - novo arquivo `MetaAds.tsx`)
+- Mover TODO o conteudo atual de `Dashboard.tsx` para ca
+- Header com logo Meta + titulo "Meta Ads" + dropdown de conta/campanha + DateRangePicker (igual print referencia)
+- Metricas: Investimento, Resultados, Custo por Resultado, Cliques, Total cliques no link, Visualizacoes do site, Atendimentos
+- Graficos de performance, funil, demograficos
+- Tabela de campanhas com link para conjuntos/anuncios
+- ClientSelector no header da pagina (nao na sidebar)
 
-- Dashboard, Campaigns, AdSets, AdDetail, Creatives, Financial, WhatsApp, Settings, Admin
-- Apenas o **wrapper de layout** muda (de Sidebar para TopMenuBar)
-- O conteudo interno das paginas permanece identico
+### 4. Melhorar Google Ads (`GoogleCampaigns.tsx`)
+- Header com logo Google Ads + titulo "Google Ads" + conta dropdown + DateRangePicker (igual print referencia)
+- Layout de metricas em grid 4 colunas (Investimento, Receita, ROAS, Custo por Conversao, Conversoes, Impressoes, Cliques, CTR, CPC, CPM, Share de Impressao, etc.)
+- Mesma estetica visual do Meta Ads
 
----
+### 5. Pagina GA4 placeholder (`Analytics.tsx`)
+- Pagina simples com mensagem "Em breve" e icone GA4
+- Preparada para futura integracao com Google Analytics
 
-## Fase 3: Seguranca - Criptografia de API Keys
+### 6. Criativos (`Creatives.tsx`)
+- Adicionar filtro/tabs no topo: "Meta Ads" | "Google Ads" | "Todos"
+- Filtrar criativos pela plataforma selecionada
 
-### 3.1 Problema atual
-
-- API keys (Meta access token, Evolution API key, etc.) estao visiveis no codigo fonte do navegador ou nas chamadas de rede
-
-### 3.2 Solucao
-
-- **Mover TODAS as chamadas com API keys para Edge Functions** (backend) - as keys ficam em secrets do servidor, nunca chegam ao frontend
-- Auditar o codigo para garantir que nenhuma API key sensivel e passada do frontend
-- As API keys ja estao configuradas como secrets do backend - precisamos garantir que o frontend NUNCA as receba
-
-### 3.3 Implementacao
-
-- Revisar todas as chamadas que usam tokens no frontend
-- Criar/ajustar Edge Functions como proxy para APIs externas
-- O frontend chama a Edge Function, que injeta a key no servidor
+### 7. Rotas (`App.tsx`)
+- Adicionar rota `/meta-ads` -> `MetaAds`
+- Adicionar rota `/analytics` -> `Analytics`
+- `/dashboard` continua apontando para Home
+- Redirecionar `/campaigns` para `/meta-ads` (compatibilidade)
 
 ---
 
 ## Detalhes Tecnicos
 
 ### Arquivos a criar:
-
-- `src/components/layout/TopSideBar.tsx` - novo menubar principal
-- `src/components/layout/ClientSelector.tsx` - dropdown de seletor de cliente com busca
+- `src/pages/MetaAds.tsx` - pagina completa Meta Ads (conteudo migrado do Dashboard.tsx)
+- `src/pages/Analytics.tsx` - placeholder GA4
 
 ### Arquivos a modificar:
+- `src/components/layout/TopSideBar.tsx` - nova estrutura de icones
+- `src/pages/Dashboard.tsx` - reescrever como Home resumo
+- `src/pages/GoogleCampaigns.tsx` - melhorar layout visual
+- `src/pages/Creatives.tsx` - adicionar filtro de plataforma
+- `src/App.tsx` - novas rotas
 
-- `src/components/layout/DashboardLayout.tsx` - substituir Sidebar por TopMenuBar
-- `src/App.tsx` - ajustar rota de `/projects` (redirecionar para dashboard com dialog de gerenciamento)
-- Todas as paginas que usam `DashboardLayout` (nenhuma mudanca interna, apenas o layout externo muda)
-
-### Arquivos a remover/deprecar:
-
-- `src/components/layout/Sidebar.tsx` - substituido pelo TopSideBar
-- `src/pages/ProjectSelector.tsx` - funcionalidade movida para dentro do menubar
-
-### Navegacao no MenuBar (desktop):
-
+### Icones na sidebar (ordem de cima para baixo):
 ```text
-[Logo] [Cliente: dropdown] | Dashboard | Campanhas | Criativos | Financeiro | WhatsApp | [Mais v] | [Avatar]
+[V4 Logo]
+---
+Home (House)
+Meta Ads (meta-icon.png)
+Google Ads (google-ads-icon.png)
+GA4 (BarChart3)
+Criativos (ImageIcon)
+Financeiro (DollarSign)
+Historico (History)
+WhatsApp (whatsapp-icon.png)
+---
+Sugestoes (Lightbulb)
+Admin (Shield) -- SEMPRE visivel
+Config (Settings)
+Tema (Sun/Moon)
+[Avatar]
 ```
-
-### Navegacao no MenuBar (mobile):
-
-```text
-[Logo] [Cliente: dropdown] [Hamburguer]
-```
-
-### Bibliotecas
-
-- Nenhuma nova dependencia necessaria - usaremos os componentes Radix/shadcn ja instalados (DropdownMenu, NavigationMenu, Sheet)
 
 ### Sequencia de execucao:
-
-1. Criar TopSideBar + ClientSelector
-2. Atualizar DashboardLayout para usar TopSideBar
-3. Mover logica de gerenciamento de projetos para dialog acessivel pelo menubar
-4. Auditar e corrigir exposicao de API keys
-5. Testar responsividade em mobile
+1. Atualizar sidebar com novos icones e rotas
+2. Criar pagina MetaAds.tsx (migrar conteudo do Dashboard)
+3. Reescrever Dashboard.tsx como Home resumo
+4. Criar pagina Analytics.tsx (placeholder)
+5. Atualizar rotas no App.tsx
+6. Melhorar visual do GoogleCampaigns.tsx
+7. Adicionar filtro de plataforma nos Criativos
