@@ -1,6 +1,7 @@
 import { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { ClientSelector } from '@/components/layout/ClientSelector';
 import SparklineCard from '@/components/dashboard/SparklineCard';
 import { DashboardSkeleton } from '@/components/skeletons';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -358,12 +359,19 @@ export default function Dashboard() {
         
         <div className="relative z-10 p-3 sm:p-6 lg:p-8 space-y-3 sm:space-y-6 lg:space-y-8 animate-fade-in overflow-x-hidden w-full">
           {/* Header - Compact on mobile */}
-          <div className="flex flex-col gap-3 sm:gap-4">
-            <div>
-              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold" style={{
-                fontFamily: 'Space Grotesk, sans-serif'
-              }}>{t('dashboard.title')}</h1>
-              <p className="text-muted-foreground text-[11px] sm:text-sm">{t('dashboard.overview')}</p>
+           <div className="flex flex-col gap-3 sm:gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold" style={{
+                    fontFamily: 'Space Grotesk, sans-serif'
+                  }}>{t('dashboard.title')}</h1>
+                  <p className="text-muted-foreground text-[11px] sm:text-sm">{t('dashboard.overview')}</p>
+                </div>
+              </div>
+              <div className="w-48 sm:w-56 flex-shrink-0">
+                <ClientSelector />
+              </div>
             </div>
           
             {/* Controls - Stack on mobile */}

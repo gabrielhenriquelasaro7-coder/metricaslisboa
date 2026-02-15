@@ -9,6 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
+import v4LogoIcon from "@/assets/v4-logo-icon.png";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -21,18 +22,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [projectInfo, setProjectInfo] = useState<{ id: string; name: string } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    return localStorage.getItem('sidebarCollapsed') === 'true';
-  });
   const isMobile = useIsMobile();
-
-  const toggleSidebar = useCallback(() => {
-    setSidebarCollapsed(prev => {
-      const next = !prev;
-      localStorage.setItem('sidebarCollapsed', String(next));
-      return next;
-    });
-  }, []);
 
   const checkImportStatus = useCallback(async (projectId: string) => {
     try {
@@ -115,10 +105,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-[280px] bg-sidebar border-sidebar-border">
+            <SheetContent side="left" className="p-0 w-[60px] bg-sidebar border-sidebar-border">
               <TopSideBar onNavigate={() => setSidebarOpen(false)} />
             </SheetContent>
           </Sheet>
+          <img src={v4LogoIcon} alt="V4" className="h-6 w-6 dark:brightness-0 dark:invert mr-2" />
           <span className="font-semibold text-foreground text-sm truncate">V4 Métricas</span>
         </header>
         <main className="flex-1 pt-12 w-full relative p-4 safe-area-bottom overflow-y-auto overflow-x-hidden">
@@ -128,13 +119,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
-  // Desktop Layout
-  const sidebarWidth = sidebarCollapsed ? 'w-[68px]' : 'w-60 lg:w-64';
-
+  // Desktop Layout - narrow icon sidebar
   return (
     <div className="flex min-h-screen w-full bg-background overflow-hidden">
-      <div className={`hidden md:flex ${sidebarWidth} flex-shrink-0 h-screen sticky top-0 transition-all duration-300 ease-in-out`}>
-        <TopSideBar collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
+      <div className="hidden md:flex w-[60px] flex-shrink-0 h-screen sticky top-0">
+        <TopSideBar />
       </div>
       <main className="flex-1 min-h-screen p-4 md:p-5 lg:p-6 w-full max-w-full overflow-x-hidden overflow-y-auto">
         <div className="max-w-full mx-auto">{children}</div>
