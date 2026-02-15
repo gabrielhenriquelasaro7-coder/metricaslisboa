@@ -73,19 +73,13 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
             )}
           </div>
           <div className="text-left min-w-0">
-            <p className="text-sm font-semibold truncate text-foreground max-w-[160px]">
+            <p className="text-xs sm:text-sm font-semibold truncate text-foreground max-w-[120px] sm:max-w-[160px]">
               {selectedProject?.name || t('sidebar.selectProject')}
             </p>
             {selectedProject && (
               <div className="flex items-center gap-1.5">
                 <span className={cn('w-1.5 h-1.5 rounded-full', statusColor(selectedProject.health_score || null))} />
-                <span className="text-[11px] text-muted-foreground">
-                  {selectedProject.business_model === 'inside_sales' ? 'Inside Sales' :
-                   selectedProject.business_model === 'ecommerce' ? 'E-commerce' :
-                   selectedProject.business_model === 'pdv' ? 'PDV' :
-                   selectedProject.business_model === 'infoproduto' ? 'Infoproduto' :
-                   selectedProject.business_model || 'Projeto'}
-                </span>
+                <span className="text-[10px] text-muted-foreground">Projeto</span>
               </div>
             )}
           </div>
@@ -140,13 +134,6 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
                     <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', statusColor(project.health_score))} />
                     <span className="text-sm font-medium text-foreground truncate">{project.name}</span>
                   </div>
-                  <span className="text-[11px] text-muted-foreground">
-                    {project.business_model === 'inside_sales' ? 'Inside Sales' :
-                     project.business_model === 'ecommerce' ? 'E-commerce' :
-                     project.business_model === 'pdv' ? 'PDV' :
-                     project.business_model === 'infoproduto' ? 'Infoproduto' :
-                     project.business_model || ''}
-                  </span>
                 </div>
                 {project.id === selectedProjectId && (
                   <Check className="w-4 h-4 text-primary flex-shrink-0" />
