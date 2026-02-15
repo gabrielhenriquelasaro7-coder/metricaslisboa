@@ -119,13 +119,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
-  // Desktop Layout - narrow icon sidebar
+  // Desktop Layout - narrow icon sidebar FIXED
   return (
-    <div className="flex min-h-screen w-full bg-background overflow-hidden">
-      <div className="hidden md:flex w-[60px] flex-shrink-0 h-screen sticky top-0">
+    <div className="flex min-h-screen w-full bg-background">
+      {/* Fixed sidebar - stays in place while content scrolls */}
+      <aside className="hidden md:flex w-[60px] flex-shrink-0 h-screen fixed top-0 left-0 z-40 border-r border-sidebar-border">
         <TopSideBar />
-      </div>
-      <main className="flex-1 min-h-screen p-4 md:p-5 lg:p-6 w-full max-w-full overflow-x-hidden overflow-y-auto">
+      </aside>
+      {/* Content with left margin to account for fixed sidebar */}
+      <main className="flex-1 min-h-screen p-4 md:p-5 lg:p-6 w-full md:ml-[60px] overflow-x-hidden">
         <div className="max-w-full mx-auto">{children}</div>
       </main>
     </div>

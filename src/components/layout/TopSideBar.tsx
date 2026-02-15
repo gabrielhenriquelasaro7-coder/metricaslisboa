@@ -11,9 +11,10 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import v4LogoIcon from '@/assets/v4-logo-icon.png';
 import whatsappIcon from '@/assets/whatsapp-icon.png';
+import googleAdsIcon from '@/assets/google-ads-icon.png';
+import metaIcon from '@/assets/meta-icon.png';
 import {
   LayoutDashboard,
-  Megaphone,
   ImageIcon,
   Bot,
   Lock,
@@ -24,12 +25,11 @@ import {
   LogOut,
   Database,
   Lightbulb,
-  AlertTriangle,
   Compass,
   Sun,
   Moon,
   KeyRound,
-  MessageCircle,
+  Shield,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -45,6 +45,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 import { AdminAccessRequestModal } from '@/components/admin/AdminAccessRequestModal';
 
 interface TopSideBarProps {
@@ -61,7 +62,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
   const { isGuest, loading: roleLoading } = useUserRole();
   const { needsAdminApproval, loading: cargoLoading } = useCargo();
   const { theme, toggleTheme } = useTheme();
-  const { isTabHidden, loading: tabVisibilityLoading } = useTabVisibility();
+  const { isTabHidden } = useTabVisibility();
   const [adminAccessModalOpen, setAdminAccessModalOpen] = useState(false);
 
   const selectedProjectId = localStorage.getItem('selectedProjectId');
@@ -82,69 +83,85 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
 
   const isActive = (match: string) => location.pathname.includes(match) || location.pathname === match;
 
-  // Build nav items
-  const mainNavItems = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, match: '/dashboard' },
-    { to: '/campaigns', label: t('sidebar.campaigns'), icon: Megaphone, match: '/campaign' },
-    { to: '/creatives', label: t('sidebar.creatives'), icon: ImageIcon, match: '/creatives' },
-  ];
-
-  const conditionalItems: typeof mainNavItems = [];
-  if (!roleLoading && !cargoLoading && !isGuest && !isTabHidden('financial')) {
-    conditionalItems.push({ to: '/financeiro', label: t('sidebar.financial'), icon: DollarSign, match: '/financeiro' });
-  }
-  if (selectedProject && !isTabHidden('suggestions')) {
-    conditionalItems.push({ to: '/optimization-history', label: t('sidebar.history'), icon: History, match: '/optimization-history' });
-  }
-
-  // WhatsApp nav
   const showWhatsApp = !roleLoading && !isGuest;
-
-  // System items
-  const systemItems: typeof mainNavItems = [];
-  if (!roleLoading && !cargoLoading && !isGuest) {
-    if (!isTabHidden('suggestions')) {
-      systemItems.push({ to: '/suggestions', label: t('sidebar.suggestions'), icon: Lightbulb, match: '/suggestions' });
-    }
-    if (!isTabHidden('settings')) {
-      systemItems.push({ to: '/settings', label: t('sidebar.settings'), icon: Settings, match: '/settings' });
-    }
-  }
 
   return (
     <>
-      <nav className="flex flex-col h-full w-full bg-sidebar border-r border-sidebar-border items-center">
+      <nav className="flex flex-col h-full w-full bg-sidebar items-center">
         {/* Logo */}
-        <div className="flex items-center justify-center h-14 w-full flex-shrink-0 border-b border-sidebar-border">
+        <div className="flex items-center justify-center h-14 w-full flex-shrink-0">
           <button onClick={() => handleNavClick('/dashboard')} className="p-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors">
             <img src={v4LogoIcon} alt="V4" className="h-7 w-7 object-contain dark:brightness-0 dark:invert" />
           </button>
         </div>
 
+        <Separator className="w-8 bg-sidebar-border" />
+
         {/* Main Nav Icons */}
         <div className="flex-1 py-3 w-full overflow-y-auto">
-          <div className="flex flex-col items-center gap-1 px-2">
+          <div className="flex flex-col items-center gap-1.5 px-2">
             <TooltipProvider delayDuration={0}>
-              {mainNavItems.map((item) => (
-                <Tooltip key={item.to}>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleNavClick(item.to)}
-                      className={cn(
-                        'sidebar-icon-btn',
-                        isActive(item.match) && 'active'
-                      )}
-                    >
-                      <item.icon className="w-5 h-5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                    <p>{item.label}</p>
-                  </TooltipContent>
-                </Tooltip>
-              ))}
+              {/* Dashboard */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleNavClick('/dashboard')}
+                    className={cn('sidebar-icon-btn', isActive('/dashboard') && 'active')}
+                  >
+                    <LayoutDashboard className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                  <p>Dashboard</p>
+                </TooltipContent>
+              </Tooltip>
 
-              {/* Disabled items */}
+              {/* Meta Ads */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleNavClick('/campaigns')}
+                    className={cn('sidebar-icon-btn', (isActive('/campaign') || isActive('/ad')) && 'active')}
+                  >
+                    <img src={metaIcon} alt="Meta Ads" className="w-5 h-5 object-contain" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                  <p>Meta Ads</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Google Ads */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleNavClick('/google-campaigns')}
+                    className={cn('sidebar-icon-btn', isActive('/google') && 'active')}
+                  >
+                    <img src={googleAdsIcon} alt="Google Ads" className="w-5 h-5 object-contain" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                  <p>Google Ads</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Creatives */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleNavClick('/creatives')}
+                    className={cn('sidebar-icon-btn', isActive('/creatives') && 'active')}
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                  <p>{t('sidebar.creatives')}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Disabled: AI Agent */}
               {!roleLoading && !isGuest && (
                 <>
                   <Tooltip>
@@ -170,24 +187,39 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                 </>
               )}
 
-              {conditionalItems.map((item) => (
-                <Tooltip key={item.to}>
+              {/* Financial */}
+              {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('financial') && (
+                <Tooltip>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => handleNavClick(item.to)}
-                      className={cn(
-                        'sidebar-icon-btn',
-                        isActive(item.match) && 'active'
-                      )}
+                      onClick={() => handleNavClick('/financeiro')}
+                      className={cn('sidebar-icon-btn', isActive('/financeiro') && 'active')}
                     >
-                      <item.icon className="w-5 h-5" />
+                      <DollarSign className="w-5 h-5" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                    <p>{item.label}</p>
+                    <p>{t('sidebar.financial')}</p>
                   </TooltipContent>
                 </Tooltip>
-              ))}
+              )}
+
+              {/* History */}
+              {selectedProject && !isTabHidden('suggestions') && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleNavClick('/optimization-history')}
+                      className={cn('sidebar-icon-btn', isActive('/optimization-history') && 'active')}
+                    >
+                      <History className="w-5 h-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                    <p>{t('sidebar.history')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
 
               {/* WhatsApp */}
               {showWhatsApp && (
@@ -195,10 +227,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => handleNavClick('/whatsapp')}
-                      className={cn(
-                        'sidebar-icon-btn',
-                        isActive('/whatsapp') && 'active'
-                      )}
+                      className={cn('sidebar-icon-btn', isActive('/whatsapp') && 'active')}
                     >
                       <img src={whatsappIcon} alt="WhatsApp" className="w-5 h-5 object-contain" />
                     </button>
@@ -213,10 +242,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
               {!roleLoading && isGuest && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button
-                      onClick={() => { handleNavClick('/dashboard'); }}
-                      className="sidebar-icon-btn"
-                    >
+                    <button onClick={() => handleNavClick('/dashboard')} className="sidebar-icon-btn">
                       <Compass className="w-5 h-5" />
                     </button>
                   </TooltipTrigger>
@@ -229,24 +255,39 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
           </div>
         </div>
 
-        {/* Bottom Section - System */}
-        <div className="py-2 w-full border-t border-sidebar-border flex-shrink-0">
-          <div className="flex flex-col items-center gap-1 px-2">
+        {/* Bottom Section */}
+        <div className="py-2 w-full flex-shrink-0">
+          <Separator className="w-8 mx-auto bg-sidebar-border mb-2" />
+          <div className="flex flex-col items-center gap-1.5 px-2">
             <TooltipProvider delayDuration={0}>
+              {/* Suggestions */}
+              {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('suggestions') && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleNavClick('/suggestions')}
+                      className={cn('sidebar-icon-btn', isActive('/suggestions') && 'active')}
+                    >
+                      <Lightbulb className="w-5 h-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                    <p>{t('sidebar.suggestions')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
               {/* Admin */}
               {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('admin') && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => needsAdminApproval ? setAdminAccessModalOpen(true) : handleNavClick(selectedProject ? `/project/${selectedProject.id}/admin` : '/admin')}
-                      className={cn(
-                        'sidebar-icon-btn',
-                        isActive('/admin') && 'active'
-                      )}
+                      className={cn('sidebar-icon-btn', isActive('/admin') && 'active')}
                     >
-                      <Database className="w-5 h-5" />
+                      <Shield className="w-5 h-5" />
                       {needsAdminApproval && (
-                        <span className="absolute top-1 right-1 w-2 h-2 bg-warning rounded-full" />
+                        <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
                       )}
                     </button>
                   </TooltipTrigger>
@@ -256,24 +297,22 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                 </Tooltip>
               )}
 
-              {systemItems.map((item) => (
-                <Tooltip key={item.to}>
+              {/* Settings */}
+              {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('settings') && (
+                <Tooltip>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => handleNavClick(item.to)}
-                      className={cn(
-                        'sidebar-icon-btn',
-                        isActive(item.match) && 'active'
-                      )}
+                      onClick={() => handleNavClick('/settings')}
+                      className={cn('sidebar-icon-btn', isActive('/settings') && 'active')}
                     >
-                      <item.icon className="w-5 h-5" />
+                      <Settings className="w-5 h-5" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                    <p>{item.label}</p>
+                    <p>{t('sidebar.settings')}</p>
                   </TooltipContent>
                 </Tooltip>
-              ))}
+              )}
 
               {/* Theme toggle */}
               <Tooltip>
