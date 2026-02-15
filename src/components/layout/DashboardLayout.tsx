@@ -63,7 +63,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           const { data: projects } = await supabase.from("projects").select("id, name").limit(1);
           if (projects && projects.length > 0) {
             selectedProjectId = projects[0].id;
-            localStorage.setItem("selectedProjectId", selectedProjectId);
+            localStorage.setItem("selectedProjectId", selectedProjectId!);
           }
         }
 

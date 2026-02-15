@@ -602,7 +602,7 @@ export default function OptimizationHistory() {
 
   // Redirect only after loading is complete and no project (AFTER all hooks)
   if (!selectedProject) {
-    navigate('/projects');
+    navigate('/dashboard');
     return null;
   }
 

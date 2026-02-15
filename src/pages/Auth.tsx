@@ -71,7 +71,7 @@ export default function Auth() {
 
   useEffect(() => {
     if (user) {
-      navigate('/projects');
+      navigate('/dashboard');
     }
   }, [user, navigate]);
 
@@ -147,7 +147,7 @@ export default function Auth() {
           
           toast.success('Login realizado com sucesso!');
           // Force navigation with replace to avoid back button issues
-          window.location.href = '/projects';
+          window.location.href = '/dashboard';
         }
       } else {
         const { error } = await signUp(email, password, fullName);

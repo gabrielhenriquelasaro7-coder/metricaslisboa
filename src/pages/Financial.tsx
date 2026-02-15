@@ -191,7 +191,7 @@ export default function Financial() {
         <div className="flex flex-col items-center justify-center h-96 gap-4">
           <AlertCircle className="w-12 h-12 text-muted-foreground" />
           <h2 className="text-xl font-semibold">Nenhum projeto selecionado</h2>
-          <Button onClick={() => navigate('/projects')}>Ir para Projetos</Button>
+          <Button onClick={() => navigate('/dashboard')}>Selecionar Projeto</Button>
         </div>
       </DashboardLayout>
     );

@@ -65,7 +65,7 @@ export default function Onboarding() {
 
   const handleComplete = () => {
     localStorage.setItem('onboardingCompleted', 'true');
-    navigate('/projects');
+    navigate('/dashboard');
   };
 
   const handleNext = () => {

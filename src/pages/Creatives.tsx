@@ -215,7 +215,7 @@ export default function Creatives() {
 
   // Redirect only after loading is complete
   if (!projectsLoading && !selectedProject) {
-    navigate('/projects');
+    navigate('/dashboard');
     return null;
   }
 

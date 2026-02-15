@@ -225,7 +225,7 @@ export default function WhatsAppManager() {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => navigate('/projects')}
+            onClick={() => navigate('/dashboard')}
             className="gap-1 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm flex-shrink-0"
           >
             <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

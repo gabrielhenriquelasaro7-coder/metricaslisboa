@@ -25,7 +25,6 @@ const GUEST_ALLOWED_ROUTES = [
 
 // Pages that require password change before access
 const REQUIRES_PASSWORD_CHANGE = [
-  '/projects',
   '/dashboard',
   '/campaigns',
   '/campaign/',

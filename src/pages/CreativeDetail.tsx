@@ -55,7 +55,7 @@ export default function CreativeDetail() {
 
   // Redirect if no project selected
   if (!selectedProject && !projectsLoading && !loading) {
-    navigate('/projects');
+    navigate('/dashboard');
     return null;
   }
 
