@@ -6,6 +6,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Clean image URLs - removes ALL resize parameters to get original HD
+function cleanMetaImageUrl(url: string | null): string | null {
+  if (!url) return null;
+  let clean = url;
+  clean = clean.replace(/[&?]stp=[^&]*/gi, '');
+  clean = clean.replace(/\/p\d+x\d+\//g, '/');
+  clean = clean.replace(/\/s\d+x\d+\//g, '/');
+  if (clean.includes('&') && !clean.includes('?')) {
+    clean = clean.replace('&', '?');
+  }
+  clean = clean.replace(/[&?]$/g, '');
+  return clean;
+}
+
 // Fetch HD thumbnail directly from creative endpoint (the ONLY way that works)
 async function fetchHDThumbnail(creativeId: string, accessToken: string): Promise<string | null> {
   try {
@@ -19,7 +33,8 @@ async function fetchHDThumbnail(creativeId: string, accessToken: string): Promis
       console.log(`[SYNC-COPIES] Creative ${creativeId} thumbnail error: ${data.error.message}`);
       return null;
     }
-    return data.thumbnail_url || null;
+    // ALWAYS clean the URL to remove resize params
+    return cleanMetaImageUrl(data.thumbnail_url || null);
   } catch (e) {
     console.log(`[SYNC-COPIES] Failed to fetch HD thumbnail for creative ${creativeId}`);
     return null;

@@ -82,15 +82,22 @@ export function CreativeImage({
   const [hasError, setHasError] = useState(false);
   const cacheVersion = useCacheVersion();
 
+  // Helper: check if URL contains low-res resize params
+  const isLowResUrl = (url: string | null): boolean => {
+    if (!url) return false;
+    return /p64x64|p100x100|s64x64|s100x100/i.test(url);
+  };
+
   // Build list of URLs to try in priority order
   const urls: string[] = [];
   
-  // 1. Storage URL (permanent, never expires)
+  // 1. Cached image URL from database (only if not low-res)
+  const cleanedCachedUrl = cleanImageUrl(cachedImageUrl);
+  if (cleanedCachedUrl && !isLowResUrl(cachedImageUrl)) urls.push(cleanedCachedUrl);
+  
+  // 2. Storage URL (permanent, never expires)
   const storageUrl = getStorageImageUrl(projectId, adId, cacheVersion);
   if (storageUrl) urls.push(storageUrl);
-  
-  // 2. Cached image URL from database
-  if (cachedImageUrl) urls.push(cachedImageUrl);
   
   // 3. Creative image URL (cleaned)
   const cleanedCreativeUrl = cleanImageUrl(creativeImageUrl);
