@@ -5,17 +5,23 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ClientSelector } from '@/components/layout/ClientSelector';
 import SparklineCard from '@/components/dashboard/SparklineCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
+import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
+import { FunnelChart } from '@/components/dashboard/FunnelChart';
 import { useGoogleAdsData } from '@/hooks/useGoogleAdsData';
+import { DailyMetric } from '@/hooks/useDailyMetrics';
 import { DateRange } from 'react-day-picker';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { DashboardSkeleton } from '@/components/skeletons';
 import {
   Megaphone, TrendingUp, DollarSign, MousePointerClick, Eye, ShoppingCart,
   RefreshCw, AlertCircle, Users, Search, Video, ShoppingBag, Globe,
-  ChevronDown, ChevronRight, Key, BarChart3, MoreVertical
+  ChevronDown, ChevronRight, Key, BarChart3, MoreVertical, ExternalLink,
+  ChevronLeft, ChevronRight as ChevronRightIcon, Filter
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
@@ -47,6 +53,8 @@ const formatGender = (val: string) => ({ MALE: 'Masculino', FEMALE: 'Feminino', 
 
 const formatDevice = (val: string) => ({ MOBILE: 'Mobile', DESKTOP: 'Desktop', TABLET: 'Tablet', CONNECTED_TV: 'TV', OTHER: 'Outro' } as Record<string, string>)[val] || val;
 
+const KEYWORDS_PER_PAGE = 20;
+
 export default function GoogleCampaigns() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
@@ -57,13 +65,23 @@ export default function GoogleCampaigns() {
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
   const [expandedAdGroups, setExpandedAdGroups] = useState<Set<string>>(new Set());
 
-  const { campaigns, adGroups, ads, keywords, demographics, loading, syncing, selectedProject, loadAllData, syncData, projectsLoading } = useGoogleAdsData();
+  // Keywords state
+  const [kwPage, setKwPage] = useState(0);
+  const [kwSearch, setKwSearch] = useState('');
+  const [kwMatchFilter, setKwMatchFilter] = useState<string>('all');
+  const [funnelFilter, setFunnelFilter] = useState<'all' | 'active' | 'paused'>('all');
+
+  const { campaigns, adGroups, ads, keywords, demographics, dailyMetrics, loading, syncing, selectedProject, loadAllData, loadDailyMetrics, syncData, aggregateDailyMetrics, projectsLoading } = useGoogleAdsData();
 
   useEffect(() => {
-    if (selectedProject?.id) loadAllData(selectedProject.id);
-  }, [selectedProject?.id, loadAllData]);
+    if (selectedProject?.id) {
+      loadAllData(selectedProject.id);
+      // Load daily metrics for charts - all of 2025
+      loadDailyMetrics(selectedProject.id, '2025-01-01');
+    }
+  }, [selectedProject?.id, loadAllData, loadDailyMetrics]);
 
-  const handleSync = useCallback(() => syncData({ days: 30 }), [syncData]);
+  const handleSync = useCallback(() => syncData({ days: 420 }), [syncData]); // All of 2025+
 
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isPageLoading = loading && campaigns.length === 0;
@@ -76,10 +94,38 @@ export default function GoogleCampaigns() {
   const avgCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
   const avgCpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
   const avgRoas = totals.spend > 0 ? totals.revenue / totals.spend : 0;
+  const avgCpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0;
+  const avgCpm = totals.impressions > 0 ? (totals.spend / totals.impressions) * 1000 : 0;
+  const convRate = totals.clicks > 0 ? (totals.conversions / totals.clicks) * 100 : 0;
 
   const formatCurrency = useCallback((num: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: selectedProject?.currency || 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num), [selectedProject?.currency]);
   const formatNumber = (num: number) => { if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'; if (num >= 1000) return (num / 1000).toFixed(1) + 'K'; return num.toLocaleString('pt-BR'); };
 
+  // Convert Google daily metrics to DailyMetric format for charts
+  const chartData = useMemo((): DailyMetric[] => {
+    const agg = aggregateDailyMetrics(dailyMetrics);
+    return agg.map(d => ({
+      date: d.date,
+      spend: d.spend,
+      impressions: d.impressions,
+      clicks: d.clicks,
+      reach: 0,
+      conversions: d.conversions,
+      conversion_value: d.conversion_value,
+      messaging_replies: 0,
+      profile_visits: 0,
+      leads_conversions: 0,
+      sales_conversions: 0,
+      initiate_checkout_conversions: 0,
+      ctr: d.ctr,
+      cpm: d.cpm,
+      cpc: d.cpc,
+      roas: d.roas,
+      cpa: d.cpa,
+    }));
+  }, [dailyMetrics, aggregateDailyMetrics]);
+
+  // Demographics
   const demoAggregated = useMemo(() => {
     const agg = new Map<string, { type: string; value: string; spend: number; impressions: number; clicks: number; conversions: number }>();
     for (const d of demographics) {
@@ -94,6 +140,34 @@ export default function GoogleCampaigns() {
   const ageData = useMemo(() => demoAggregated.filter(d => d.type === 'age').sort((a, b) => b.spend - a.spend), [demoAggregated]);
   const genderData = useMemo(() => demoAggregated.filter(d => d.type === 'gender').sort((a, b) => b.spend - a.spend), [demoAggregated]);
   const deviceData = useMemo(() => demoAggregated.filter(d => d.type === 'device').sort((a, b) => b.spend - a.spend), [demoAggregated]);
+
+  // Filtered keywords
+  const filteredKeywords = useMemo(() => {
+    let kws = [...keywords];
+    if (kwSearch) {
+      const s = kwSearch.toLowerCase();
+      kws = kws.filter(k => k.keyword_text.toLowerCase().includes(s) || (k.campaign_name || '').toLowerCase().includes(s) || (k.ad_group_name || '').toLowerCase().includes(s));
+    }
+    if (kwMatchFilter !== 'all') {
+      kws = kws.filter(k => k.match_type === kwMatchFilter);
+    }
+    return kws;
+  }, [keywords, kwSearch, kwMatchFilter]);
+
+  const kwTotalPages = Math.ceil(filteredKeywords.length / KEYWORDS_PER_PAGE);
+  const pagedKeywords = filteredKeywords.slice(kwPage * KEYWORDS_PER_PAGE, (kwPage + 1) * KEYWORDS_PER_PAGE);
+
+  // Reset page on filter change
+  useEffect(() => { setKwPage(0); }, [kwSearch, kwMatchFilter]);
+
+  // Funnel data filtered by campaign status
+  const funnelTotals = useMemo(() => {
+    const filtered = funnelFilter === 'all' ? campaigns : campaigns.filter(c => funnelFilter === 'active' ? c.status === 'ENABLED' : c.status === 'PAUSED');
+    return filtered.reduce((acc, c) => ({
+      spend: acc.spend + c.spend, impressions: acc.impressions + c.impressions, clicks: acc.clicks + c.clicks,
+      conversions: acc.conversions + c.conversions, revenue: acc.revenue + c.conversion_value,
+    }), { spend: 0, impressions: 0, clicks: 0, conversions: 0, revenue: 0 });
+  }, [campaigns, funnelFilter]);
 
   if (!loading && !projectsLoading && !selectedProject) {
     navigate('/dashboard');
@@ -110,7 +184,7 @@ export default function GoogleCampaigns() {
   return (
     <DashboardLayout>
       <div className="relative min-h-screen overflow-x-hidden w-full max-w-full">
-        <div className="relative z-10 p-3 sm:p-6 lg:p-8 pb-16 space-y-5 sm:space-y-8 animate-fade-in w-full">
+        <div className="relative z-10 p-3 sm:p-6 lg:p-8 pb-16 space-y-4 sm:space-y-6 animate-fade-in w-full">
           {/* Header */}
           <div className="flex flex-col gap-3 sm:gap-4">
             <div className="flex items-center justify-between gap-4">
@@ -120,7 +194,7 @@ export default function GoogleCampaigns() {
                 </div>
                 <div>
                   <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Google Ads</h1>
-                  <p className="text-muted-foreground text-[11px] sm:text-sm">Visão geral</p>
+                  <p className="text-muted-foreground text-[11px] sm:text-sm">Visão completa</p>
                 </div>
               </div>
               <div className="w-48 sm:w-56 flex-shrink-0">
@@ -141,13 +215,13 @@ export default function GoogleCampaigns() {
                 <DropdownMenuContent align="end" className="bg-popover border-border z-50">
                   <DropdownMenuItem onClick={handleSync} disabled={syncing || !selectedProject}>
                     <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-                    {syncing ? 'Sincronizando...' : 'Sincronizar Tudo'}
+                    {syncing ? 'Sincronizando...' : 'Sincronizar Tudo (2025)'}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => syncData({ syncType: 'keywords' })} disabled={syncing || !selectedProject}>
+                  <DropdownMenuItem onClick={() => syncData({ syncType: 'keywords', days: 420 })} disabled={syncing || !selectedProject}>
                     <Key className="w-4 h-4 mr-2" />
                     Palavras-chave
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => syncData({ syncType: 'demographics' })} disabled={syncing || !selectedProject}>
+                  <DropdownMenuItem onClick={() => syncData({ syncType: 'demographics', days: 420 })} disabled={syncing || !selectedProject}>
                     <Users className="w-4 h-4 mr-2" />
                     Demográficos
                   </DropdownMenuItem>
@@ -168,14 +242,14 @@ export default function GoogleCampaigns() {
               <div className="glass-card p-6 sm:p-8 lg:p-12 text-center">
                 <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Nenhuma campanha</h3>
-                <p className="text-muted-foreground mb-6">Clique em sincronizar para importar.</p>
+                <p className="text-muted-foreground mb-6">Clique em sincronizar para importar dados de 2025.</p>
                 <Button onClick={handleSync} disabled={syncing} variant="gradient">
                   <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
                   {syncing ? 'Sincronizando...' : 'Sincronizar Agora'}
                 </Button>
               </div>
             ) : (
-              <>
+              <div className="space-y-4 sm:space-y-6">
                 {/* Metric Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
                   <SparklineCard title="Gasto Total" value={formatCurrency(totals.spend)} icon={DollarSign} />
@@ -186,20 +260,73 @@ export default function GoogleCampaigns() {
                   <SparklineCard title={isEcommerce ? 'ROAS' : 'Custo/Conv'} value={isEcommerce ? `${avgRoas.toFixed(2)}x` : formatCurrency(avgCpa)} icon={TrendingUp} />
                 </div>
 
+                {/* Funil de Vendas */}
+                <FunnelChart
+                  impressions={funnelTotals.impressions}
+                  clicks={funnelTotals.clicks}
+                  conversions={funnelTotals.conversions}
+                  spend={funnelTotals.spend}
+                  ctr={funnelTotals.impressions > 0 ? (funnelTotals.clicks / funnelTotals.impressions) * 100 : 0}
+                  cpc={funnelTotals.clicks > 0 ? funnelTotals.spend / funnelTotals.clicks : 0}
+                  cpl={funnelTotals.conversions > 0 ? funnelTotals.spend / funnelTotals.conversions : 0}
+                  cpm={funnelTotals.impressions > 0 ? (funnelTotals.spend / funnelTotals.impressions) * 1000 : 0}
+                  conversionRate={funnelTotals.clicks > 0 ? (funnelTotals.conversions / funnelTotals.clicks) * 100 : 0}
+                  currency={selectedProject?.currency || 'BRL'}
+                  campaignFilter={funnelFilter}
+                  onCampaignFilterChange={setFunnelFilter}
+                />
+
+                {/* 3 Gráficos Google Ads */}
+                {chartData.length > 0 && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <CustomizableChart
+                      chartKey="google_invest_clicks"
+                      data={chartData}
+                      defaultTitle="Investimento vs Cliques"
+                      defaultPrimaryMetric="spend"
+                      defaultSecondaryMetric="clicks"
+                      defaultChartType="composed"
+                      currency={selectedProject?.currency || 'BRL'}
+                    />
+                    <CustomizableChart
+                      chartKey="google_conv_cpa"
+                      data={chartData}
+                      defaultTitle="Conversões vs CPA"
+                      defaultPrimaryMetric="conversions"
+                      defaultSecondaryMetric="cpa"
+                      defaultChartType="composed"
+                      currency={selectedProject?.currency || 'BRL'}
+                    />
+                    <CustomizableChart
+                      chartKey="google_ctr_cpc"
+                      data={chartData}
+                      defaultTitle="CTR vs CPC"
+                      defaultPrimaryMetric="ctr"
+                      defaultSecondaryMetric="cpc"
+                      defaultChartType="line"
+                      currency={selectedProject?.currency || 'BRL'}
+                    />
+                  </div>
+                )}
+
                 {/* === CAMPANHAS === */}
                 <div className="glass-card overflow-hidden border-t-2 border-t-primary/30">
+                  <div className="px-4 py-3 bg-secondary/30 border-b border-border flex items-center justify-between">
+                    <h3 className="text-sm font-medium flex items-center gap-2"><Megaphone className="w-4 h-4" /> Campanhas</h3>
+                    <span className="text-xs text-muted-foreground">{campaigns.length} campanhas · {adGroups.length} grupos · {ads.length} anúncios</span>
+                  </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border bg-secondary/50">
-                          <th className="text-left py-3 px-3 font-medium">Nome</th>
-                          <th className="text-center py-3 px-2 font-medium hidden sm:table-cell">Status</th>
-                          <th className="text-center py-3 px-2 font-medium hidden md:table-cell">Tipo</th>
-                          <th className="text-right py-3 px-2 font-medium">Gasto</th>
-                          <th className="text-right py-3 px-2 font-medium hidden sm:table-cell">Cliques</th>
-                          <th className="text-right py-3 px-2 font-medium hidden md:table-cell">CTR</th>
-                          <th className="text-right py-3 px-2 font-medium">Conv</th>
-                          <th className="text-right py-3 px-2 font-medium hidden sm:table-cell">{isEcommerce ? 'ROAS' : 'CPA'}</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-xs">Nome</th>
+                          <th className="text-center py-2.5 px-2 font-medium text-xs hidden sm:table-cell">Status</th>
+                          <th className="text-center py-2.5 px-2 font-medium text-xs hidden md:table-cell">Tipo</th>
+                          <th className="text-right py-2.5 px-2 font-medium text-xs">Gasto</th>
+                          <th className="text-right py-2.5 px-2 font-medium text-xs hidden sm:table-cell">Cliques</th>
+                          <th className="text-right py-2.5 px-2 font-medium text-xs hidden md:table-cell">CTR</th>
+                          <th className="text-right py-2.5 px-2 font-medium text-xs">Conv</th>
+                          <th className="text-right py-2.5 px-2 font-medium text-xs hidden sm:table-cell">{isEcommerce ? 'ROAS' : 'CPA'}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -207,7 +334,6 @@ export default function GoogleCampaigns() {
                           const CIcon = campaignTypeIcons[campaign.campaign_type || ''] || Megaphone;
                           const isExp = expandedCampaigns.has(campaign.id);
                           const cAdGroups = adGroups.filter(ag => ag.campaign_id === campaign.id);
-
                           return (
                             <CampaignRow key={campaign.id} campaign={campaign} icon={CIcon} isExpanded={isExp} adGroups={cAdGroups} ads={ads}
                               expandedAdGroups={expandedAdGroups} onToggleCampaign={toggleCampaign} onToggleAdGroup={toggleAdGroup}
@@ -217,41 +343,64 @@ export default function GoogleCampaigns() {
                       </tbody>
                     </table>
                   </div>
-                  <div className="px-4 py-2.5 bg-secondary/30 border-t border-border flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{campaigns.length} campanhas · {adGroups.length} grupos · {ads.length} anúncios</span>
+                  <div className="px-4 py-2 bg-secondary/30 border-t border-border flex items-center justify-end text-xs">
                     <span className="font-medium">Total: {formatCurrency(totals.spend)}</span>
                   </div>
                 </div>
 
                 {/* === PALAVRAS-CHAVE === */}
                 <div className="glass-card overflow-hidden border-t-2 border-t-primary/30">
-                  <div className="px-4 py-3 bg-secondary/30 border-b border-border flex items-center justify-between">
-                    <h3 className="text-sm font-medium flex items-center gap-2"><Key className="w-4 h-4" /> Palavras-chave</h3>
-                    <span className="text-xs text-muted-foreground">{keywords.length} palavras</span>
+                  <div className="px-4 py-3 bg-secondary/30 border-b border-border">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <h3 className="text-sm font-medium flex items-center gap-2"><Key className="w-4 h-4" /> Palavras-chave</h3>
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar..."
+                            value={kwSearch}
+                            onChange={e => setKwSearch(e.target.value)}
+                            className="h-8 pl-7 text-xs w-40 sm:w-52"
+                          />
+                        </div>
+                        <Select value={kwMatchFilter} onValueChange={setKwMatchFilter}>
+                          <SelectTrigger className="h-8 w-24 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos</SelectItem>
+                            <SelectItem value="EXACT">Exata</SelectItem>
+                            <SelectItem value="PHRASE">Frase</SelectItem>
+                            <SelectItem value="BROAD">Ampla</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">{filteredKeywords.length} palavras</span>
+                      </div>
+                    </div>
                   </div>
-                  {keywords.length === 0 ? (
+                  {filteredKeywords.length === 0 ? (
                     <div className="p-6 text-center">
                       <Key className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground text-xs">Nenhuma palavra-chave. Clique em sincronizar.</p>
+                      <p className="text-muted-foreground text-xs">{keywords.length === 0 ? 'Nenhuma palavra-chave. Clique em sincronizar.' : 'Nenhum resultado para o filtro.'}</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-border bg-secondary/50">
-                            <th className="text-left py-2.5 px-3 font-medium text-xs">Palavra-chave</th>
-                            <th className="text-center py-2.5 px-2 font-medium text-xs hidden sm:table-cell">Tipo</th>
-                            <th className="text-center py-2.5 px-2 font-medium text-xs hidden md:table-cell">QS</th>
-                            <th className="text-right py-2.5 px-2 font-medium text-xs">Gasto</th>
-                            <th className="text-right py-2.5 px-2 font-medium text-xs hidden sm:table-cell">Impr.</th>
-                            <th className="text-right py-2.5 px-2 font-medium text-xs">Cliques</th>
-                            <th className="text-right py-2.5 px-2 font-medium text-xs hidden md:table-cell">CTR</th>
-                            <th className="text-right py-2.5 px-2 font-medium text-xs hidden sm:table-cell">CPC</th>
-                            <th className="text-right py-2.5 px-2 font-medium text-xs">Conv</th>
+                            <th className="text-left py-2 px-3 font-medium text-xs">Palavra-chave</th>
+                            <th className="text-center py-2 px-2 font-medium text-xs hidden sm:table-cell">Tipo</th>
+                            <th className="text-center py-2 px-2 font-medium text-xs hidden md:table-cell">QS</th>
+                            <th className="text-right py-2 px-2 font-medium text-xs">Gasto</th>
+                            <th className="text-right py-2 px-2 font-medium text-xs hidden sm:table-cell">Impr.</th>
+                            <th className="text-right py-2 px-2 font-medium text-xs">Cliques</th>
+                            <th className="text-right py-2 px-2 font-medium text-xs hidden md:table-cell">CTR</th>
+                            <th className="text-right py-2 px-2 font-medium text-xs hidden sm:table-cell">CPC</th>
+                            <th className="text-right py-2 px-2 font-medium text-xs">Conv</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {keywords.slice(0, 100).map(kw => (
+                          {pagedKeywords.map(kw => (
                             <tr key={kw.id} className="border-b border-border/30 hover:bg-secondary/20 transition-colors">
                               <td className="py-2 px-3">
                                 <span className="font-medium text-xs block">{kw.keyword_text}</span>
@@ -279,9 +428,18 @@ export default function GoogleCampaigns() {
                       </table>
                     </div>
                   )}
-                  {keywords.length > 100 && (
-                    <div className="px-4 py-2 bg-secondary/30 border-t border-border text-xs text-muted-foreground">
-                      Exibindo top 100 de {keywords.length}
+                  {/* Pagination */}
+                  {kwTotalPages > 1 && (
+                    <div className="px-4 py-2.5 bg-secondary/30 border-t border-border flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Pág. {kwPage + 1} de {kwTotalPages}</span>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={kwPage === 0} onClick={() => setKwPage(p => p - 1)}>
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={kwPage >= kwTotalPages - 1} onClick={() => setKwPage(p => p + 1)}>
+                          <ChevronRightIcon className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -297,7 +455,7 @@ export default function GoogleCampaigns() {
                     </div>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </SmoothLoader>
         </div>
@@ -337,24 +495,24 @@ function CampaignRow({ campaign, icon: CIcon, isExpanded, adGroups, ads, expande
   return (
     <>
       <tr className="border-b border-border/30 hover:bg-secondary/20 cursor-pointer transition-colors" onClick={() => onToggleCampaign(campaign.id)}>
-        <td className="py-3 px-3">
+        <td className="py-2.5 px-3">
           <div className="flex items-center gap-2">
             {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
             <CIcon className="w-4 h-4 text-primary flex-shrink-0" />
-            <span className="font-medium truncate max-w-[200px]">{campaign.name}</span>
+            <span className="font-medium text-xs truncate max-w-[200px]">{campaign.name}</span>
           </div>
         </td>
-        <td className="py-3 px-2 text-center hidden sm:table-cell">
-          <Badge variant={campaign.status === 'ENABLED' ? 'default' : 'secondary'} className={cn("text-[10px]", campaign.status === 'ENABLED' && "bg-metric-positive text-white", campaign.status === 'PAUSED' && "bg-metric-warning text-white")}>
+        <td className="py-2.5 px-2 text-center hidden sm:table-cell">
+          <Badge className={cn("text-[10px]", campaign.status === 'ENABLED' ? "bg-metric-positive text-white" : campaign.status === 'PAUSED' ? "bg-metric-warning text-white" : "bg-secondary text-muted-foreground")}>
             {campaign.status === 'ENABLED' ? 'Ativo' : campaign.status === 'PAUSED' ? 'Pausado' : campaign.status}
           </Badge>
         </td>
-        <td className="py-3 px-2 text-center text-xs text-muted-foreground hidden md:table-cell">{formatCampaignType(campaign.campaign_type)}</td>
-        <td className="py-3 px-2 text-right font-medium text-xs">{formatCurrency(campaign.spend)}</td>
-        <td className="py-3 px-2 text-right text-xs hidden sm:table-cell">{formatNumber(campaign.clicks)}</td>
-        <td className="py-3 px-2 text-right text-xs hidden md:table-cell">{campaign.ctr.toFixed(2)}%</td>
-        <td className="py-3 px-2 text-right text-xs">{formatNumber(campaign.conversions)}</td>
-        <td className="py-3 px-2 text-right text-xs hidden sm:table-cell">{isEcommerce ? `${campaign.roas.toFixed(2)}x` : formatCurrency(campaign.cost_per_conversion)}</td>
+        <td className="py-2.5 px-2 text-center text-xs text-muted-foreground hidden md:table-cell">{formatCampaignType(campaign.campaign_type)}</td>
+        <td className="py-2.5 px-2 text-right font-medium text-xs">{formatCurrency(campaign.spend)}</td>
+        <td className="py-2.5 px-2 text-right text-xs hidden sm:table-cell">{formatNumber(campaign.clicks)}</td>
+        <td className="py-2.5 px-2 text-right text-xs hidden md:table-cell">{campaign.ctr.toFixed(2)}%</td>
+        <td className="py-2.5 px-2 text-right text-xs">{formatNumber(campaign.conversions)}</td>
+        <td className="py-2.5 px-2 text-right text-xs hidden sm:table-cell">{isEcommerce ? `${campaign.roas.toFixed(2)}x` : formatCurrency(campaign.cost_per_conversion)}</td>
       </tr>
 
       {isExpanded && adGroups.map((ag: any) => {
@@ -373,13 +531,13 @@ function AdGroupRow({ adGroup: ag, isExpanded, ads, onToggle, formatCurrency, fo
   return (
     <>
       <tr className="border-b border-border/20 bg-secondary/10 hover:bg-secondary/20 cursor-pointer transition-colors" onClick={() => onToggle(ag.id)}>
-        <td className="py-2.5 px-3 pl-10">
+        <td className="py-2 px-3 pl-10">
           <div className="flex items-center gap-2">
             {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
             <span className="text-xs font-medium truncate max-w-[180px]">{ag.name}</span>
           </div>
         </td>
-        <td className="py-2.5 px-2 text-center hidden sm:table-cell">
+        <td className="py-2 px-2 text-center hidden sm:table-cell">
           <Badge className={cn(
             "text-[10px]",
             ag.status === 'ENABLED' ? "bg-metric-positive text-white" : "bg-secondary text-muted-foreground"
@@ -387,41 +545,76 @@ function AdGroupRow({ adGroup: ag, isExpanded, ads, onToggle, formatCurrency, fo
             {ag.status === 'ENABLED' ? 'Ativo' : ag.status === 'PAUSED' ? 'Pausado' : ag.status}
           </Badge>
         </td>
-        <td className="py-2.5 px-2 hidden md:table-cell" />
-        <td className="py-2.5 px-2 text-right text-xs">{formatCurrency(ag.spend)}</td>
-        <td className="py-2.5 px-2 text-right text-xs hidden sm:table-cell">{formatNumber(ag.clicks)}</td>
-        <td className="py-2.5 px-2 text-right text-xs hidden md:table-cell">{ag.ctr.toFixed(2)}%</td>
-        <td className="py-2.5 px-2 text-right text-xs">{formatNumber(ag.conversions)}</td>
-        <td className="py-2.5 px-2 text-right text-xs hidden sm:table-cell">{isEcommerce ? `${ag.roas.toFixed(2)}x` : formatCurrency(ag.cost_per_conversion)}</td>
+        <td className="py-2 px-2 hidden md:table-cell" />
+        <td className="py-2 px-2 text-right text-xs">{formatCurrency(ag.spend)}</td>
+        <td className="py-2 px-2 text-right text-xs hidden sm:table-cell">{formatNumber(ag.clicks)}</td>
+        <td className="py-2 px-2 text-right text-xs hidden md:table-cell">{ag.ctr.toFixed(2)}%</td>
+        <td className="py-2 px-2 text-right text-xs">{formatNumber(ag.conversions)}</td>
+        <td className="py-2 px-2 text-right text-xs hidden sm:table-cell">{isEcommerce ? `${ag.roas.toFixed(2)}x` : formatCurrency(ag.cost_per_conversion)}</td>
       </tr>
 
-      {isExpanded && ads.map((ad: any) => (
-        <tr key={ad.id} className="border-b border-border/10 bg-secondary/5 hover:bg-secondary/15 transition-colors">
-          <td className="py-2 px-3 pl-16" colSpan={3}>
-            <div className="space-y-1">
-              <span className="text-xs truncate block max-w-[300px]">{ad.name}</span>
-              {ad.headlines && ad.headlines.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {ad.headlines.slice(0, 3).map((h: string, i: number) => (
-                    <span key={i} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">{h}</span>
-                  ))}
+      {isExpanded && ads.length > 0 && (
+        <tr className="border-b border-border/10">
+          <td colSpan={8} className="p-0">
+            <div className="pl-14 pr-4 py-3 space-y-2 bg-secondary/5">
+              {ads.map((ad: any) => (
+                <div key={ad.id} className="glass-card p-3 flex flex-col sm:flex-row sm:items-start gap-3">
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <Badge className={cn(
+                        "text-[9px]",
+                        ad.status === 'ENABLED' ? "bg-metric-positive text-white" : "bg-secondary text-muted-foreground"
+                      )}>
+                        {ad.status === 'ENABLED' ? 'Ativo' : ad.status === 'PAUSED' ? 'Pausado' : ad.status}
+                      </Badge>
+                      <span className="text-xs font-medium truncate">{ad.name}</span>
+                      {ad.ad_type && <span className="text-[9px] text-muted-foreground">{ad.ad_type}</span>}
+                    </div>
+                    {ad.headlines && ad.headlines.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {ad.headlines.map((h: string, i: number) => (
+                          <span key={i} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">{h}</span>
+                        ))}
+                      </div>
+                    )}
+                    {ad.descriptions && ad.descriptions.length > 0 && (
+                      <div className="space-y-0.5">
+                        {ad.descriptions.slice(0, 2).map((d: string, i: number) => (
+                          <p key={i} className="text-[10px] text-muted-foreground">{d}</p>
+                        ))}
+                      </div>
+                    )}
+                    {ad.final_urls && ad.final_urls.length > 0 && (
+                      <a href={ad.final_urls[0]} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 truncate">
+                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{ad.final_urls[0]}</span>
+                      </a>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-4 gap-3 text-center flex-shrink-0">
+                    <div>
+                      <p className="text-[9px] text-muted-foreground">Gasto</p>
+                      <p className="text-xs font-medium">{formatCurrency(ad.spend)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-muted-foreground">Cliques</p>
+                      <p className="text-xs font-medium">{formatNumber(ad.clicks)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-muted-foreground">CTR</p>
+                      <p className="text-xs font-medium">{ad.ctr.toFixed(2)}%</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-muted-foreground">Conv</p>
+                      <p className="text-xs font-medium">{formatNumber(ad.conversions)}</p>
+                    </div>
+                  </div>
                 </div>
-              )}
-              {ad.descriptions && ad.descriptions.length > 0 && (
-                <p className="text-[10px] text-muted-foreground truncate max-w-[400px]">{ad.descriptions[0]}</p>
-              )}
-              {ad.final_urls && ad.final_urls.length > 0 && (
-                <a href={ad.final_urls[0]} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline truncate block max-w-[300px]">{ad.final_urls[0]}</a>
-              )}
+              ))}
             </div>
           </td>
-          <td className="py-2 px-2 text-right text-xs">{formatCurrency(ad.spend)}</td>
-          <td className="py-2 px-2 text-right text-xs hidden sm:table-cell">{formatNumber(ad.clicks)}</td>
-          <td className="py-2 px-2 text-right text-xs hidden md:table-cell">{ad.ctr.toFixed(2)}%</td>
-          <td className="py-2 px-2 text-right text-xs">{formatNumber(ad.conversions)}</td>
-          <td className="py-2 px-2 text-right text-xs hidden sm:table-cell">{isEcommerce ? `${ad.roas.toFixed(2)}x` : formatCurrency(ad.cost_per_conversion)}</td>
         </tr>
-      ))}
+      )}
     </>
   );
 }
