@@ -74,14 +74,21 @@ serve(async (req) => {
     const days = numOfDays || 3;
     const token = clarityProject.api_token;
 
-    // 3 parallel calls with different dimension combos
-    const [byDevice, bySource, byChannel] = await Promise.all([
+    // 5 parallel calls (of 10 allowed daily) for maximum data extraction
+    const [byDevice, bySource, byChannel, byUtm, byEngagement] = await Promise.all([
+      // Call 1: Device + Browser + OS
       fetchClarityData(token, days, { dimension1: "Device", dimension2: "Browser", dimension3: "OS" }),
+      // Call 2: URL + Source + Country
       fetchClarityData(token, days, { dimension1: "URL", dimension2: "Source", dimension3: "Country" }),
+      // Call 3: Channel + Medium + Campaign
       fetchClarityData(token, days, { dimension1: "Channel", dimension2: "Medium", dimension3: "Campaign" }),
+      // Call 4: Campaign + Source + Medium (UTM focus)
+      fetchClarityData(token, days, { dimension1: "Campaign", dimension2: "Source", dimension3: "Medium" }),
+      // Call 5: URL + Device (engagement per page per device)
+      fetchClarityData(token, days, { dimension1: "URL", dimension2: "Device" }),
     ]);
 
-    return new Response(JSON.stringify({ byDevice, bySource, byChannel }), {
+    return new Response(JSON.stringify({ byDevice, bySource, byChannel, byUtm, byEngagement }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
