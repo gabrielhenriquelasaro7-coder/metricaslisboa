@@ -173,6 +173,38 @@ serve(async (req) => {
             if (hdThumbnailUrl) {
               updateData.creative_thumbnail = hdThumbnailUrl;
               updateData.creative_image_url = hdThumbnailUrl;
+              
+              // CACHE HD image in Storage (replace any low-res version)
+              try {
+                const imgController = new AbortController();
+                const imgTimeout = setTimeout(() => imgController.abort(), 15000);
+                const imgResponse = await fetch(hdThumbnailUrl, { 
+                  headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'image/*', 'Referer': 'https://www.facebook.com/' },
+                  signal: imgController.signal 
+                });
+                clearTimeout(imgTimeout);
+                
+                if (imgResponse.ok) {
+                  const imageBuffer = await imgResponse.arrayBuffer();
+                  // Only cache if >= 20KB (reject low-res)
+                  if (imageBuffer.byteLength >= 20000) {
+                    const fileName = `${projectId}/${currentAdId}.jpg`;
+                    await supabase.storage.from('creative-images').upload(fileName, imageBuffer, { 
+                      contentType: imgResponse.headers.get('content-type') || 'image/jpeg', 
+                      upsert: true 
+                    });
+                    const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
+                    if (publicUrlData?.publicUrl) {
+                      updateData.cached_image_url = publicUrlData.publicUrl;
+                      console.log(`[SYNC-COPIES] ✅ Cached HD image (${Math.round(imageBuffer.byteLength/1024)}KB) for ${currentAdId}`);
+                    }
+                  } else {
+                    console.log(`[SYNC-COPIES] ⚠️ Image too small (${Math.round(imageBuffer.byteLength/1024)}KB), not caching for ${currentAdId}`);
+                  }
+                }
+              } catch (cacheErr) {
+                console.log(`[SYNC-COPIES] Cache image failed for ${currentAdId}: ${cacheErr}`);
+              }
             }
 
             const { error: updateError } = await supabase
@@ -189,9 +221,10 @@ serve(async (req) => {
                 primaryText: primaryText?.substring(0, 50),
                 headline,
                 cta,
-                hdThumbnail: hdThumbnailUrl ? 'YES_1080' : 'NO'
+                hdThumbnail: hdThumbnailUrl ? 'YES_1080' : 'NO',
+                cachedImageUrl: updateData.cached_image_url || null
               });
-              console.log(`[SYNC-COPIES] ✅ Updated ad ${currentAdId}: HD=${hdThumbnailUrl ? '1080px' : 'none'}, headline=${headline}`);
+              console.log(`[SYNC-COPIES] ✅ Updated ad ${currentAdId}: HD=${hdThumbnailUrl ? '1080px' : 'none'}, cached=${!!updateData.cached_image_url}`);
             }
           }
         }

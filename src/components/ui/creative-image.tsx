@@ -91,21 +91,21 @@ export function CreativeImage({
   // Build list of URLs to try in priority order
   const urls: string[] = [];
   
-  // 1. Cached image URL from database (only if not low-res)
+  // 1. Cached image URL from database (highest priority - known HD from Storage)
   const cleanedCachedUrl = cleanImageUrl(cachedImageUrl);
   if (cleanedCachedUrl && !isLowResUrl(cachedImageUrl)) urls.push(cleanedCachedUrl);
   
-  // 2. Storage URL (permanent, never expires)
-  const storageUrl = getStorageImageUrl(projectId, adId, cacheVersion);
-  if (storageUrl) urls.push(storageUrl);
-  
-  // 3. Creative image URL (cleaned)
+  // 2. Creative image URL (cleaned - direct from Meta HD)
   const cleanedCreativeUrl = cleanImageUrl(creativeImageUrl);
   if (cleanedCreativeUrl) urls.push(cleanedCreativeUrl);
   
-  // 4. Creative thumbnail (cleaned)
+  // 3. Creative thumbnail (cleaned)
   const cleanedThumbnail = cleanImageUrl(creativeThumbnail);
   if (cleanedThumbnail) urls.push(cleanedThumbnail);
+  
+  // 4. Storage URL as fallback (may have old low-res version)
+  const storageUrl = getStorageImageUrl(projectId, adId, cacheVersion);
+  if (storageUrl) urls.push(storageUrl);
 
   const currentUrl = urls[currentUrlIndex];
 
@@ -113,7 +113,7 @@ export function CreativeImage({
   useEffect(() => {
     setCurrentUrlIndex(0);
     setHasError(false);
-  }, [projectId, adId, cachedImageUrl, creativeImageUrl, creativeThumbnail]);
+  }, [projectId, adId, cachedImageUrl, creativeImageUrl, creativeThumbnail, cacheVersion]);
 
   const handleError = () => {
     // Try next URL
