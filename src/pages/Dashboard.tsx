@@ -297,6 +297,12 @@ export default function Dashboard() {
                       businessModel={selectedProject.business_model as any}
                       currency={selectedProject.currency || 'BRL'}
                       currentPeriod={(() => {
+                        if (selectedPreset === 'custom' && dateRange?.from && dateRange?.to) {
+                          return {
+                            since: dateRange.from.toISOString().split('T')[0],
+                            until: dateRange.to.toISOString().split('T')[0],
+                          };
+                        }
                         const period = getDateRangeFromPreset(selectedPreset, selectedProject.timezone || 'America/Sao_Paulo');
                         return period || { since: new Date().toISOString().split('T')[0], until: new Date().toISOString().split('T')[0] };
                       })()}

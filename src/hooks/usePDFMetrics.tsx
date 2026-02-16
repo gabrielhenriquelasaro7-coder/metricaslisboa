@@ -142,7 +142,7 @@ function aggregateCampaigns(rows: any[]): CampaignData[] {
   }
   
   return Array.from(campaignMap.values())
-    .filter(c => c.campaign_status === 'ACTIVE')
+    .filter(c => c.campaign_status === 'ACTIVE' || c.campaign_status === 'ENABLED')
     .map(c => ({
       ...c,
       ctr: c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,

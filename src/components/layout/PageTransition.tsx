@@ -144,11 +144,11 @@ export function SmoothLoader({
 }) {
   if (loading) {
     return (
-      <div className={cn("min-h-[60vh] flex flex-col items-center justify-center", className)}>
+      <div className={cn("fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background", className)}>
         <motion.img 
           src={v4LogoIcon} 
           alt="V4" 
-          className="w-12 h-12 object-contain"
+          className="w-12 h-12 object-contain brightness-0 invert"
           animate={{ 
             opacity: [0.4, 1, 0.4],
             scale: [0.95, 1.05, 0.95],
