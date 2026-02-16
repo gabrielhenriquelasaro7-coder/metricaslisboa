@@ -3,8 +3,33 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+async function fetchClarityData(token: string, numOfDays: number, dimensions: Record<string, string>) {
+  const params = new URLSearchParams();
+  params.set("numOfDays", String(numOfDays));
+  for (const [key, value] of Object.entries(dimensions)) {
+    params.set(key, value);
+  }
+
+  const url = `https://www.clarity.ms/export-data/api/v1/project-live-insights?${params.toString()}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Clarity API error:", response.status, errorText);
+    return null;
+  }
+
+  return await response.json();
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -24,7 +49,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { clarityProjectId, numOfDays, dimension1, dimension2, dimension3 } = await req.json();
+    const { clarityProjectId, numOfDays } = await req.json();
 
     if (!clarityProjectId) {
       return new Response(JSON.stringify({ error: "clarityProjectId is required" }), {
@@ -33,10 +58,9 @@ serve(async (req) => {
       });
     }
 
-    // Fetch the API token from the database
     const { data: clarityProject, error: dbError } = await supabase
       .from("clarity_projects")
-      .select("api_token")
+      .select("api_token, clarity_project_id")
       .eq("id", clarityProjectId)
       .single();
 
@@ -47,38 +71,17 @@ serve(async (req) => {
       });
     }
 
-    // Build query params
-    const params = new URLSearchParams();
-    params.set("numOfDays", String(numOfDays || 3));
-    if (dimension1) params.set("dimension1", dimension1);
-    if (dimension2) params.set("dimension2", dimension2);
-    if (dimension3) params.set("dimension3", dimension3);
+    const days = numOfDays || 3;
+    const token = clarityProject.api_token;
 
-    const clarityUrl = `https://www.clarity.ms/export-data/api/v1/project-live-insights?${params.toString()}`;
+    // 3 parallel calls with different dimension combos
+    const [byDevice, bySource, byChannel] = await Promise.all([
+      fetchClarityData(token, days, { dimension1: "Device", dimension2: "Browser", dimension3: "OS" }),
+      fetchClarityData(token, days, { dimension1: "URL", dimension2: "Source", dimension3: "Country" }),
+      fetchClarityData(token, days, { dimension1: "Channel", dimension2: "Medium", dimension3: "Campaign" }),
+    ]);
 
-    const clarityResponse = await fetch(clarityUrl, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${clarityProject.api_token}`,
-      },
-    });
-
-    if (!clarityResponse.ok) {
-      const errorText = await clarityResponse.text();
-      console.error("Clarity API error:", clarityResponse.status, errorText);
-      return new Response(JSON.stringify({ 
-        error: `Clarity API error: ${clarityResponse.status}`,
-        details: errorText 
-      }), {
-        status: clarityResponse.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await clarityResponse.json();
-
-    return new Response(JSON.stringify(data), {
+    return new Response(JSON.stringify({ byDevice, bySource, byChannel }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
