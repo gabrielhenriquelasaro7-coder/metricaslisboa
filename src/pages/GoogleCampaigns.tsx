@@ -69,6 +69,7 @@ export default function GoogleCampaigns() {
   const [kwPage, setKwPage] = useState(0);
   const [kwSearch, setKwSearch] = useState('');
   const [kwMatchFilter, setKwMatchFilter] = useState<string>('all');
+  const [kwCampaignFilter, setKwCampaignFilter] = useState<string>('all');
   const [funnelFilter, setFunnelFilter] = useState<'all' | 'active' | 'paused'>('all');
 
   const { campaigns, adGroups, ads, keywords, demographics, dailyMetrics, loading, syncing, selectedProject, loadAllData, loadDailyMetrics, syncData, aggregateDailyMetrics, projectsLoading } = useGoogleAdsData();
@@ -76,12 +77,11 @@ export default function GoogleCampaigns() {
   useEffect(() => {
     if (selectedProject?.id) {
       loadAllData(selectedProject.id);
-      // Load daily metrics for charts - all of 2025
       loadDailyMetrics(selectedProject.id, '2025-01-01');
     }
   }, [selectedProject?.id, loadAllData, loadDailyMetrics]);
 
-  const handleSync = useCallback(() => syncData({ days: 420 }), [syncData]); // All of 2025+
+  const handleSync = useCallback(() => syncData({ days: 420 }), [syncData]);
 
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isPageLoading = loading && campaigns.length === 0;
@@ -101,31 +101,16 @@ export default function GoogleCampaigns() {
   const formatCurrency = useCallback((num: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: selectedProject?.currency || 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num), [selectedProject?.currency]);
   const formatNumber = (num: number) => { if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'; if (num >= 1000) return (num / 1000).toFixed(1) + 'K'; return num.toLocaleString('pt-BR'); };
 
-  // Convert Google daily metrics to DailyMetric format for charts
   const chartData = useMemo((): DailyMetric[] => {
     const agg = aggregateDailyMetrics(dailyMetrics);
     return agg.map(d => ({
-      date: d.date,
-      spend: d.spend,
-      impressions: d.impressions,
-      clicks: d.clicks,
-      reach: 0,
-      conversions: d.conversions,
-      conversion_value: d.conversion_value,
-      messaging_replies: 0,
-      profile_visits: 0,
-      leads_conversions: 0,
-      sales_conversions: 0,
-      initiate_checkout_conversions: 0,
-      ctr: d.ctr,
-      cpm: d.cpm,
-      cpc: d.cpc,
-      roas: d.roas,
-      cpa: d.cpa,
+      date: d.date, spend: d.spend, impressions: d.impressions, clicks: d.clicks, reach: 0,
+      conversions: d.conversions, conversion_value: d.conversion_value, messaging_replies: 0, profile_visits: 0,
+      leads_conversions: 0, sales_conversions: 0, initiate_checkout_conversions: 0,
+      ctr: d.ctr, cpm: d.cpm, cpc: d.cpc, roas: d.roas, cpa: d.cpa,
     }));
   }, [dailyMetrics, aggregateDailyMetrics]);
 
-  // Demographics
   const demoAggregated = useMemo(() => {
     const agg = new Map<string, { type: string; value: string; spend: number; impressions: number; clicks: number; conversions: number }>();
     for (const d of demographics) {
@@ -141,26 +126,22 @@ export default function GoogleCampaigns() {
   const genderData = useMemo(() => demoAggregated.filter(d => d.type === 'gender').sort((a, b) => b.spend - a.spend), [demoAggregated]);
   const deviceData = useMemo(() => demoAggregated.filter(d => d.type === 'device').sort((a, b) => b.spend - a.spend), [demoAggregated]);
 
-  // Filtered keywords
   const filteredKeywords = useMemo(() => {
     let kws = [...keywords];
     if (kwSearch) {
       const s = kwSearch.toLowerCase();
       kws = kws.filter(k => k.keyword_text.toLowerCase().includes(s) || (k.campaign_name || '').toLowerCase().includes(s) || (k.ad_group_name || '').toLowerCase().includes(s));
     }
-    if (kwMatchFilter !== 'all') {
-      kws = kws.filter(k => k.match_type === kwMatchFilter);
-    }
+    if (kwMatchFilter !== 'all') kws = kws.filter(k => k.match_type === kwMatchFilter);
+    if (kwCampaignFilter !== 'all') kws = kws.filter(k => k.campaign_id === kwCampaignFilter);
     return kws;
-  }, [keywords, kwSearch, kwMatchFilter]);
+  }, [keywords, kwSearch, kwMatchFilter, kwCampaignFilter]);
 
   const kwTotalPages = Math.ceil(filteredKeywords.length / KEYWORDS_PER_PAGE);
   const pagedKeywords = filteredKeywords.slice(kwPage * KEYWORDS_PER_PAGE, (kwPage + 1) * KEYWORDS_PER_PAGE);
 
-  // Reset page on filter change
-  useEffect(() => { setKwPage(0); }, [kwSearch, kwMatchFilter]);
+  useEffect(() => { setKwPage(0); }, [kwSearch, kwMatchFilter, kwCampaignFilter]);
 
-  // Funnel data filtered by campaign status
   const funnelTotals = useMemo(() => {
     const filtered = funnelFilter === 'all' ? campaigns : campaigns.filter(c => funnelFilter === 'active' ? c.status === 'ENABLED' : c.status === 'PAUSED');
     return filtered.reduce((acc, c) => ({
@@ -250,8 +231,8 @@ export default function GoogleCampaigns() {
               </div>
             ) : (
               <div className="space-y-4 sm:space-y-6">
-                {/* Metric Cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
+                {/* Métricas Gerais */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
                   <SparklineCard title="Gasto Total" value={formatCurrency(totals.spend)} icon={DollarSign} />
                   <SparklineCard title="Impressões" value={formatNumber(totals.impressions)} icon={Eye} />
                   <SparklineCard title="Cliques" value={formatNumber(totals.clicks)} icon={MousePointerClick} />
@@ -260,54 +241,13 @@ export default function GoogleCampaigns() {
                   <SparklineCard title={isEcommerce ? 'ROAS' : 'Custo/Conv'} value={isEcommerce ? `${avgRoas.toFixed(2)}x` : formatCurrency(avgCpa)} icon={TrendingUp} />
                 </div>
 
-                {/* Funil de Vendas */}
-                <FunnelChart
-                  impressions={funnelTotals.impressions}
-                  clicks={funnelTotals.clicks}
-                  conversions={funnelTotals.conversions}
-                  spend={funnelTotals.spend}
-                  ctr={funnelTotals.impressions > 0 ? (funnelTotals.clicks / funnelTotals.impressions) * 100 : 0}
-                  cpc={funnelTotals.clicks > 0 ? funnelTotals.spend / funnelTotals.clicks : 0}
-                  cpl={funnelTotals.conversions > 0 ? funnelTotals.spend / funnelTotals.conversions : 0}
-                  cpm={funnelTotals.impressions > 0 ? (funnelTotals.spend / funnelTotals.impressions) * 1000 : 0}
-                  conversionRate={funnelTotals.clicks > 0 ? (funnelTotals.conversions / funnelTotals.clicks) * 100 : 0}
-                  currency={selectedProject?.currency || 'BRL'}
-                  campaignFilter={funnelFilter}
-                  onCampaignFilterChange={setFunnelFilter}
-                />
-
-                {/* 3 Gráficos Google Ads */}
-                {chartData.length > 0 && (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <CustomizableChart
-                      chartKey="google_invest_clicks"
-                      data={chartData}
-                      defaultTitle="Investimento vs Cliques"
-                      defaultPrimaryMetric="spend"
-                      defaultSecondaryMetric="clicks"
-                      defaultChartType="composed"
-                      currency={selectedProject?.currency || 'BRL'}
-                    />
-                    <CustomizableChart
-                      chartKey="google_conv_cpa"
-                      data={chartData}
-                      defaultTitle="Conversões vs CPA"
-                      defaultPrimaryMetric="conversions"
-                      defaultSecondaryMetric="cpa"
-                      defaultChartType="composed"
-                      currency={selectedProject?.currency || 'BRL'}
-                    />
-                    <CustomizableChart
-                      chartKey="google_ctr_cpc"
-                      data={chartData}
-                      defaultTitle="CTR vs CPC"
-                      defaultPrimaryMetric="ctr"
-                      defaultSecondaryMetric="cpc"
-                      defaultChartType="line"
-                      currency={selectedProject?.currency || 'BRL'}
-                    />
-                  </div>
-                )}
+                {/* Métricas de Resultado */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+                  <SparklineCard title="CPC Médio" value={formatCurrency(avgCpc)} icon={MousePointerClick} />
+                  <SparklineCard title="CPM" value={formatCurrency(avgCpm)} icon={Eye} />
+                  <SparklineCard title="Taxa de Conv." value={`${convRate.toFixed(2)}%`} icon={Users} />
+                  {isEcommerce && <SparklineCard title="Receita" value={formatCurrency(totals.revenue)} icon={ShoppingCart} />}
+                </div>
 
                 {/* === CAMPANHAS === */}
                 <div className="glass-card overflow-hidden border-t-2 border-t-primary/30">
@@ -348,27 +288,90 @@ export default function GoogleCampaigns() {
                   </div>
                 </div>
 
+                {/* 3 Gráficos - Um abaixo do outro */}
+                {chartData.length > 0 && (
+                  <div className="space-y-4 sm:space-y-6">
+                    <CustomizableChart
+                      chartKey="google_invest_clicks"
+                      data={chartData}
+                      defaultTitle="Investimento vs Cliques"
+                      defaultPrimaryMetric="spend"
+                      defaultSecondaryMetric="clicks"
+                      defaultChartType="composed"
+                      currency={selectedProject?.currency || 'BRL'}
+                    />
+                    <CustomizableChart
+                      chartKey="google_conv_cpa"
+                      data={chartData}
+                      defaultTitle="Conversões vs CPA"
+                      defaultPrimaryMetric="conversions"
+                      defaultSecondaryMetric="cpa"
+                      defaultChartType="composed"
+                      currency={selectedProject?.currency || 'BRL'}
+                    />
+                    <CustomizableChart
+                      chartKey="google_ctr_cpc"
+                      data={chartData}
+                      defaultTitle="CTR vs CPC"
+                      defaultPrimaryMetric="ctr"
+                      defaultSecondaryMetric="cpc"
+                      defaultChartType="line"
+                      currency={selectedProject?.currency || 'BRL'}
+                    />
+                  </div>
+                )}
+
+                {/* Funil de Vendas */}
+                <FunnelChart
+                  impressions={funnelTotals.impressions}
+                  clicks={funnelTotals.clicks}
+                  conversions={funnelTotals.conversions}
+                  spend={funnelTotals.spend}
+                  ctr={funnelTotals.impressions > 0 ? (funnelTotals.clicks / funnelTotals.impressions) * 100 : 0}
+                  cpc={funnelTotals.clicks > 0 ? funnelTotals.spend / funnelTotals.clicks : 0}
+                  cpl={funnelTotals.conversions > 0 ? funnelTotals.spend / funnelTotals.conversions : 0}
+                  cpm={funnelTotals.impressions > 0 ? (funnelTotals.spend / funnelTotals.impressions) * 1000 : 0}
+                  conversionRate={funnelTotals.clicks > 0 ? (funnelTotals.conversions / funnelTotals.clicks) * 100 : 0}
+                  currency={selectedProject?.currency || 'BRL'}
+                  campaignFilter={funnelFilter}
+                  onCampaignFilterChange={setFunnelFilter}
+                />
+
                 {/* === PALAVRAS-CHAVE === */}
                 <div className="glass-card overflow-hidden border-t-2 border-t-primary/30">
                   <div className="px-4 py-3 bg-secondary/30 border-b border-border">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex flex-col gap-2">
                       <h3 className="text-sm font-medium flex items-center gap-2"><Key className="w-4 h-4" /> Palavras-chave</h3>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <div className="relative">
                           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                           <Input
-                            placeholder="Buscar..."
+                            placeholder="Buscar palavra-chave..."
                             value={kwSearch}
                             onChange={e => setKwSearch(e.target.value)}
-                            className="h-8 pl-7 text-xs w-40 sm:w-52"
+                            className="h-8 pl-7 text-xs w-44 sm:w-56"
                           />
                         </div>
+                        <Select value={kwCampaignFilter} onValueChange={setKwCampaignFilter}>
+                          <SelectTrigger className="h-8 w-40 text-xs">
+                            <Filter className="w-3 h-3 mr-1 flex-shrink-0" />
+                            <SelectValue placeholder="Campanha" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todas Campanhas</SelectItem>
+                            {campaigns.map(c => (
+                              <SelectItem key={c.id} value={c.id} className="text-xs">
+                                <span className="truncate max-w-[180px] block">{c.name}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Select value={kwMatchFilter} onValueChange={setKwMatchFilter}>
-                          <SelectTrigger className="h-8 w-24 text-xs">
+                          <SelectTrigger className="h-8 w-28 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">Todos</SelectItem>
+                            <SelectItem value="all">Tipo: Todos</SelectItem>
                             <SelectItem value="EXACT">Exata</SelectItem>
                             <SelectItem value="PHRASE">Frase</SelectItem>
                             <SelectItem value="BROAD">Ampla</SelectItem>
@@ -390,7 +393,7 @@ export default function GoogleCampaigns() {
                           <tr className="border-b border-border bg-secondary/50">
                             <th className="text-left py-2 px-3 font-medium text-xs">Palavra-chave</th>
                             <th className="text-center py-2 px-2 font-medium text-xs hidden sm:table-cell">Tipo</th>
-                            <th className="text-center py-2 px-2 font-medium text-xs hidden md:table-cell">QS</th>
+                            <th className="text-center py-2 px-2 font-medium text-xs hidden md:table-cell">Qualidade</th>
                             <th className="text-right py-2 px-2 font-medium text-xs">Gasto</th>
                             <th className="text-right py-2 px-2 font-medium text-xs hidden sm:table-cell">Impr.</th>
                             <th className="text-right py-2 px-2 font-medium text-xs">Cliques</th>
@@ -428,7 +431,6 @@ export default function GoogleCampaigns() {
                       </table>
                     </div>
                   )}
-                  {/* Pagination */}
                   {kwTotalPages > 1 && (
                     <div className="px-4 py-2.5 bg-secondary/30 border-t border-border flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">Pág. {kwPage + 1} de {kwTotalPages}</span>
