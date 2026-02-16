@@ -1,95 +1,76 @@
 
 
-# Plano: Corrigir Google Ads + Import Simultaneo Meta/Google
+# Corrigir Google Ads Sync + Redesign da Pagina
 
-## Problemas Identificados
+## 1. Corrigir Erro do Sync (PAGE_SIZE_NOT_SUPPORTED)
 
-1. **Google Ads quebrando**: A versao v19 da API foi desativada pelo Google em 11/fev/2026. O erro "UNSUPPORTED_VERSION" confirma isso. Precisamos atualizar para **v23** (a mais recente, lancada em 28/jan/2026).
+O erro e claro: a API v23 do Google Ads no endpoint `search` nao aceita `pageSize`. O campo precisa ser removido do body da requisicao.
 
-2. **Import nao e simultaneo**: Quando um projeto novo e criado, so o Meta e importado. Se tiver Google Customer ID, o Google deveria rodar ao mesmo tempo.
+**Arquivo**: `supabase/functions/google-ads-sync/index.ts`
+- Remover `pageSize: 10000` do body da funcao `executeGoogleAdsQuery`
+- A API retorna automaticamente ate 10.000 resultados por pagina
 
-3. **Video do Meta**: Nao consome tokens. E apenas uma URL que a API do Meta retorna. Vamos adicionar suporte a reproducao de video nos criativos.
+## 2. Redesign da Pagina Google Ads (Hierarquia Unica, Sem Abas)
 
-## Mudancas Planejadas
+Atualmente a pagina usa `Tabs` (Campanhas | Palavras-chave | Demograficos). O usuario quer tudo na mesma pagina em sequencia vertical, igual ao Meta Ads.
 
-### 1. Atualizar Google Ads API de v19 para v23
+**Arquivo**: `src/pages/GoogleCampaigns.tsx`
 
-- **Arquivo**: `supabase/functions/google-ads-sync/index.ts`
-- Trocar a URL de `v19` para `v23` na funcao `executeGoogleAdsQuery`
-- Verificar se ha campos novos/removidos na v23 (geralmente retrocompativel)
-
-### 2. Import Simultaneo (Meta + Google em paralelo)
-
-- **Arquivo**: `src/components/projects/CreateProjectDialog.tsx`
-- Ao criar projeto, se tiver `google_customer_id` preenchido, disparar `Promise.all` com:
-  - `meta-ads-sync` (ja existe)
-  - `google-ads-sync` (novo)
-- Ambos rodam ao mesmo tempo, sem esperar um pelo outro
-
-- **Arquivo**: `src/components/projects/EditProjectDialog.tsx`
-- Ao salvar com novo `google_customer_id`, disparar sync do Google automaticamente (ja implementado parcialmente)
-
-### 3. Sync Agendado Tambem em Paralelo
-
-- **Arquivo**: `supabase/functions/scheduled-sync-parallel/index.ts`
-- Apos o sync do Meta, verificar se o projeto tem `google_customer_id`
-- Se sim, chamar `google-ads-sync` em paralelo dentro do mesmo batch
-
-### 4. Hierarquia de Dados Google Ads
-
-A estrutura ja existe e e identica ao Meta:
+Nova estrutura hierarquica (scroll unico):
 
 ```text
-Conta (Customer ID)
-  └── Campanhas (google_campaigns)
-       └── Grupos de Anuncios (google_ad_groups)
-            └── Anuncios (google_ads)
-                 └── Metricas Diarias (google_ads_daily_metrics)
+[Header + ClientSelector + DateRangePicker]
+[Cards de Metricas Compactos - 6 SparklineCards]
+[Campanhas Expandiveis]
+   └── Grupo de Anuncio (com status VERDE quando ENABLED)
+        └── Anuncios individuais (com headlines, descriptions, URLs)
+[Palavras-chave - Tabela compacta]
+[Demograficos - 3 cards lado a lado (Idade, Genero, Dispositivo)]
 ```
 
-## Detalhes Tecnicos
+### Mudancas especificas na UI:
 
-### Atualizacao da API (v19 -> v23)
+- **Remover Tabs completamente** - tudo numa unica pagina
+- **Status do Grupo de Anuncio**: quando `ENABLED`, badge verde (`bg-metric-positive text-white`) em vez de cinza
+- **Anuncios visiveis**: quando expandir o grupo, os anuncios aparecem com headlines, descriptions e URLs
+- **Formato identico ao Meta**: Campanha como botao expansivel com chevron, metricas inline, sub-nivel para grupos e anuncios
+- **Secao de Palavras-chave**: abaixo das campanhas, sem aba separada
+- **Secao de Demograficos**: abaixo das palavras-chave, grid de 3 colunas
 
+## 3. Detalhes Tecnicos
+
+### Edge Function Fix (linha 73):
 ```typescript
 // ANTES (quebrado)
-const url = `https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:searchStream`;
+const body: any = { query, pageSize: 10000 };
 
-// DEPOIS (corrigido)
-const url = `https://googleads.googleapis.com/v23/customers/${customerId}/googleAds:searchStream`;
+// DEPOIS (corrigido)  
+const body: any = { query };
 ```
 
-### Import Simultaneo no CreateProject
-
+### Status Badge do Ad Group:
 ```typescript
-// Disparar ambos ao mesmo tempo
-const syncPromises = [];
+// ANTES (sempre cinza)
+<Badge variant="secondary">
 
-// Meta sempre roda
-syncPromises.push(
-  supabase.functions.invoke('meta-ads-sync', { body: { project_id, ... } })
-);
-
-// Google roda se tiver customer_id
-if (google_customer_id) {
-  syncPromises.push(
-    supabase.functions.invoke('google-ads-sync', { body: { projectId, syncType: 'full', days: 90 } })
-  );
-}
-
-await Promise.all(syncPromises);
+// DEPOIS (verde quando ativo)
+<Badge className={cn(
+  "text-[10px]",
+  ag.status === 'ENABLED' ? "bg-metric-positive text-white" : "bg-secondary text-muted-foreground"
+)}>
 ```
 
-### Sync Agendado Paralelo
+### Layout Hierarquico (sem Tabs):
+- Campanhas: botao expansivel com ChevronDown/Right + nome + gasto + conversoes
+- Ao expandir campanha: grid de metricas + lista de Ad Groups
+- Ao expandir Ad Group: grid de metricas + lista de Ads com detalhes
+- Palavras-chave: secao separada abaixo com titulo e tabela
+- Demograficos: secao separada abaixo com 3 cards
 
-Na funcao `scheduled-sync-parallel`, apos o sync Meta de cada projeto, adicionar chamada ao Google Ads se o projeto tiver `google_customer_id` configurado. Ambos rodam em `Promise.all` dentro do mesmo batch.
-
-## Resumo de Arquivos a Editar
+## Resumo de Arquivos
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `supabase/functions/google-ads-sync/index.ts` | v19 -> v23 |
-| `src/components/projects/CreateProjectDialog.tsx` | Import simultaneo Meta+Google |
-| `src/components/projects/EditProjectDialog.tsx` | Manter auto-sync ao adicionar Google ID |
-| `supabase/functions/scheduled-sync-parallel/index.ts` | Incluir Google no sync diario |
+| `supabase/functions/google-ads-sync/index.ts` | Remover `pageSize` |
+| `src/pages/GoogleCampaigns.tsx` | Remover Tabs, layout hierarquico unico, status verde |
 
