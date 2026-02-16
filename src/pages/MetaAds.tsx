@@ -40,6 +40,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DatePresetKey, getDateRangeFromPreset } from '@/utils/dateUtils';
 import { cn } from '@/lib/utils';
+import { translateCTA } from '@/utils/ctaTranslations';
 import metaIcon from '@/assets/meta-icon.png';
 
 export default function MetaAds() {
@@ -581,37 +582,53 @@ export default function MetaAds() {
 
                 {/* Creative Detail Modal */}
                 <Dialog open={!!selectedCreative} onOpenChange={(open) => !open && setSelectedCreative(null)}>
-                   <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-border">
+                   <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto border-red-500/30 bg-background/95 backdrop-blur-xl">
                     {selectedCreative && (
                       <>
                         <DialogHeader>
-                          <DialogTitle className="text-base font-bold truncate" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                          <DialogTitle className="text-base font-bold truncate text-red-400" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                             {selectedCreative.name}
                           </DialogTitle>
-                          <p className="text-[10px] text-muted-foreground font-mono">ID: {selectedCreative.id} | Creative ID: {selectedCreative.creative_id || '—'}</p>
-                        </DialogHeader>
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
-                          {/* Image - 2 cols, auto aspect ratio */}
-                          <div className="md:col-span-2 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
-                            <CreativeImage
-                              projectId={selectedProject?.id}
-                              adId={selectedCreative.id}
-                              cachedImageUrl={selectedCreative.cached_image_url}
-                              creativeImageUrl={selectedCreative.creative_image_url}
-                              creativeThumbnail={selectedCreative.creative_thumbnail}
-                              alt={selectedCreative.name}
-                              className="w-full h-auto max-h-[500px] object-contain"
-                            />
+                          <div className="flex items-center justify-between">
+                            <p className="text-[10px] text-muted-foreground font-mono">ID: {selectedCreative.id} | Creative ID: {selectedCreative.creative_id || '—'}</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[10px] gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10"
+                              onClick={() => {
+                                syncCreativesHD();
+                              }}
+                              disabled={syncing}
+                            >
+                              <ImageIcon className={cn("w-3 h-3", syncing && "animate-spin")} />
+                              Sync HD
+                            </Button>
                           </div>
-                          {/* Metrics - 3 cols */}
-                          <div className="md:col-span-3 space-y-3">
+                        </DialogHeader>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                          {/* Image - tall vertical */}
+                          <div className="rounded-lg overflow-hidden bg-muted border border-red-500/20">
+                            <div className="aspect-[3/4] relative">
+                              <CreativeImage
+                                projectId={selectedProject?.id}
+                                adId={selectedCreative.id}
+                                cachedImageUrl={selectedCreative.cached_image_url}
+                                creativeImageUrl={selectedCreative.creative_image_url}
+                                creativeThumbnail={selectedCreative.creative_thumbnail}
+                                alt={selectedCreative.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          </div>
+                          {/* Metrics */}
+                          <div className="space-y-3">
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                              <div className="glass-card p-2.5">
-                                <p className="text-[9px] text-muted-foreground mb-0.5">Gasto</p>
+                              <div className="glass-card p-2.5 border-l-2 border-l-red-500">
+                                <p className="text-[9px] text-red-400/80 mb-0.5">Gasto</p>
                                 <p className="text-sm font-bold">{formatCurrency(selectedCreative.spend || 0)}</p>
                               </div>
-                              <div className="glass-card p-2.5">
-                                <p className="text-[9px] text-muted-foreground mb-0.5">Conversões</p>
+                              <div className="glass-card p-2.5 border-l-2 border-l-red-500/60">
+                                <p className="text-[9px] text-red-400/80 mb-0.5">Conversões</p>
                                 <p className="text-sm font-bold">{selectedCreative.conversions || 0}</p>
                               </div>
                               <div className="glass-card p-2.5">
@@ -639,23 +656,23 @@ export default function MetaAds() {
                                 <p className="text-sm font-bold">{formatNumberCompact(selectedCreative.reach || 0)}</p>
                               </div>
                             </div>
-                            {/* CPA / ROAS - ROAS only for ecommerce/infoproduto */}
+                            {/* CPA / ROAS */}
                             <div className={cn("grid gap-2", (isEcommerce || isInfoproduto) ? "grid-cols-2" : "grid-cols-1")}>
-                              <div className="glass-card p-2.5">
-                                <p className="text-[9px] text-muted-foreground mb-0.5">CPA</p>
+                              <div className="glass-card p-2.5 border-l-2 border-l-red-500/40">
+                                <p className="text-[9px] text-red-400/80 mb-0.5">CPA</p>
                                 <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpa || 0)}</p>
                               </div>
                               {(isEcommerce || isInfoproduto) && (
-                                <div className="glass-card p-2.5">
-                                  <p className="text-[9px] text-muted-foreground mb-0.5">ROAS</p>
+                                <div className="glass-card p-2.5 border-l-2 border-l-red-500/40">
+                                  <p className="text-[9px] text-red-400/80 mb-0.5">ROAS</p>
                                   <p className="text-sm font-bold">{(selectedCreative.roas || 0).toFixed(2)}x</p>
                                 </div>
                               )}
                             </div>
                             {/* Headline & Primary Text */}
                             {selectedCreative.headline && (
-                              <div className="glass-card p-2.5">
-                                <p className="text-[9px] text-muted-foreground mb-0.5">Headline</p>
+                              <div className="glass-card p-2.5 border-l-2 border-l-red-500/30">
+                                <p className="text-[9px] text-red-400/70 mb-0.5">Headline</p>
                                 <p className="text-xs font-medium">{selectedCreative.headline}</p>
                               </div>
                             )}
@@ -665,14 +682,14 @@ export default function MetaAds() {
                                 <p className="text-xs line-clamp-4">{selectedCreative.primary_text}</p>
                               </div>
                             )}
-                            {/* CTA */}
+                            {/* CTA - translated */}
                             {selectedCreative.cta && (
-                              <div className="glass-card p-2.5">
-                                <p className="text-[9px] text-muted-foreground mb-0.5">CTA</p>
-                                <p className="text-xs font-medium">{selectedCreative.cta}</p>
+                              <div className="glass-card p-2.5 border-l-2 border-l-red-500/30">
+                                <p className="text-[9px] text-red-400/70 mb-0.5">CTA</p>
+                                <p className="text-xs font-medium">{translateCTA(selectedCreative.cta)}</p>
                               </div>
                             )}
-                            {/* Ad Set & Campaign info */}
+                            {/* Ad Set & Status */}
                             <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
                               <div className="glass-card p-2">
                                 <p className="text-[8px] text-muted-foreground/70">Conjunto</p>
