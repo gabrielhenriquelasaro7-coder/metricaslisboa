@@ -133,7 +133,7 @@ export default function Dashboard() {
           <div className="absolute top-0 right-0 w-[200px] sm:w-[400px] lg:w-[600px] h-[200px] sm:h-[400px] lg:h-[600px] bg-primary/3 rounded-full blur-[80px] sm:blur-[150px]" />
         </div>
 
-        <div className="relative z-10 p-3 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 lg:space-y-8 w-full">
+        <div className="relative z-10 p-3 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 lg:space-y-10 w-full">
           {/* Header */}
           <FadeIn>
             <div className="flex items-center justify-between gap-3">
@@ -183,7 +183,7 @@ export default function Dashboard() {
 
               {/* Metric Cards - compact grid */}
               <StaggerItem>
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
                   {/* Investimento */}
                   <div className="glass-card p-2.5 sm:p-3 border-l-2 border-l-primary">
                     <div className="flex items-center gap-1 mb-1">
