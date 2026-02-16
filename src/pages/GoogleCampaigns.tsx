@@ -49,7 +49,7 @@ export default function GoogleCampaigns() {
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
-  const { campaigns, loading, syncing, selectedProject, loadAllData, syncData } = useGoogleAdsData();
+  const { campaigns, loading, syncing, selectedProject, loadAllData, syncData, projectsLoading } = useGoogleAdsData();
 
   // Load data when project changes
   useEffect(() => {
@@ -88,8 +88,8 @@ export default function GoogleCampaigns() {
 
   const isPageLoading = loading && campaigns.length === 0;
 
-  // Redirect if no project after loading
-  if (!loading && !selectedProject) {
+  // Redirect if no project after loading (wait for projects to load too)
+  if (!loading && !projectsLoading && !selectedProject) {
     navigate('/dashboard');
     return null;
   }
