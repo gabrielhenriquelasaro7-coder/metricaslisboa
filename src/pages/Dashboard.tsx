@@ -48,7 +48,7 @@ export default function Dashboard() {
   const [googleKeywords, setGoogleKeywords] = useState<any[]>([]);
 
   const { campaigns: metaCampaigns, ads: metaAds, adSets: metaAdSets, loading: metaLoading, selectedProject, syncCreativesHD, syncing, loadMetricsByPeriod } = useMetaAdsData();
-  const { campaigns: googleCampaigns, keywords: gKeywords, demographics: googleDemographics, loading: googleLoading, loadAllData } = useGoogleAdsData();
+  const { campaigns: googleCampaigns, keywords: gKeywords, demographics: googleDemographics, dailyMetrics: googleDailyMetrics, loading: googleLoading, loadAllData, loadDailyMetrics: loadGoogleDailyMetrics } = useGoogleAdsData();
 
   const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset, selectedPreset === 'custom' ? dateRange : undefined);
 
@@ -58,7 +58,10 @@ export default function Dashboard() {
   }, [selectedProject?.id, selectedPreset, dateRange?.from?.getTime(), dateRange?.to?.getTime()]);
 
   useMemo(() => {
-    if (selectedProject?.id) loadAllData(selectedProject.id);
+    if (selectedProject?.id) {
+      loadAllData(selectedProject.id);
+      loadGoogleDailyMetrics(selectedProject.id, '2025-01-01');
+    }
   }, [selectedProject?.id]);
 
   // Load Google keywords
@@ -155,22 +158,34 @@ export default function Dashboard() {
     return merged;
   }, [demographicData, googleDemographics]);
 
-  // Combined metrics - use dailyData (period-filtered) for Meta, and dailyMetrics don't exist for Google yet so fallback to campaigns
-  // Meta spend from dailyData (already period-filtered)
+  // Combined metrics - use dailyData (period-filtered) for Meta, Google daily metrics filtered by period
   const metaTotalSpend = useMemo(() => dailyData.reduce((s, d) => s + (d.spend || 0), 0), [dailyData]);
-  const googleTotalSpend = googleCampaigns.reduce((s, c) => s + (c.spend || 0), 0);
+  
+  const googlePeriodMetrics = useMemo(() => {
+    if (!googleDailyMetrics.length) return { spend: 0, clicks: 0, impressions: 0, conversions: 0 };
+    const period = getDateRangeFromPreset(selectedPreset, selectedProject?.timezone || 'America/Sao_Paulo');
+    const since = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : period?.since || '';
+    const until = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : period?.until || '';
+    const filtered = googleDailyMetrics.filter(d => d.date >= since && d.date <= until);
+    return filtered.reduce((acc, d) => ({
+      spend: acc.spend + d.spend, clicks: acc.clicks + d.clicks,
+      impressions: acc.impressions + d.impressions, conversions: acc.conversions + (d.conversions || 0),
+    }), { spend: 0, clicks: 0, impressions: 0, conversions: 0 });
+  }, [googleDailyMetrics, selectedPreset, dateRange, selectedProject?.timezone]);
+
+  const googleTotalSpend = googlePeriodMetrics.spend;
   const totalSpend = metaTotalSpend + googleTotalSpend;
 
   const metaClicks = useMemo(() => dailyData.reduce((s, d) => s + (d.clicks || 0), 0), [dailyData]);
-  const googleClicks = googleCampaigns.reduce((s, c) => s + (c.clicks || 0), 0);
+  const googleClicks = googlePeriodMetrics.clicks;
   const totalClicks = metaClicks + googleClicks;
 
   const metaImpressions = useMemo(() => dailyData.reduce((s, d) => s + (d.impressions || 0), 0), [dailyData]);
-  const googleImpressions = googleCampaigns.reduce((s, c) => s + (c.impressions || 0), 0);
+  const googleImpressions = googlePeriodMetrics.impressions;
   const totalImpressions = metaImpressions + googleImpressions;
 
   const metaConversions = useMemo(() => dailyData.reduce((s, d) => s + (d.conversions || 0), 0), [dailyData]);
-  const googleConversions = googleCampaigns.reduce((s, c) => s + (c.conversions || 0), 0);
+  const googleConversions = googlePeriodMetrics.conversions;
   const totalConversions = metaConversions + googleConversions;
 
   const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
@@ -285,6 +300,7 @@ export default function Dashboard() {
                         const period = getDateRangeFromPreset(selectedPreset, selectedProject.timezone || 'America/Sao_Paulo');
                         return period || { since: new Date().toISOString().split('T')[0], until: new Date().toISOString().split('T')[0] };
                       })()}
+                      source="all"
                     />
                   )}
                   <CreateProjectDialog />

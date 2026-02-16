@@ -334,6 +334,7 @@ export default function GoogleCampaigns() {
                     businessModel={selectedProject.business_model as any}
                     currency={selectedProject.currency || 'BRL'}
                     currentPeriod={periodBounds || { since: new Date().toISOString().split('T')[0], until: new Date().toISOString().split('T')[0] }}
+                    source="google"
                   />
                 )}
                 <DropdownMenu>
