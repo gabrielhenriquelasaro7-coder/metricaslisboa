@@ -24,6 +24,8 @@ interface ClarityProject {
 interface ClarityFullData {
   byDevice: any[] | null;
   bySource: any[] | null;
+  byUtm: any[] | null;
+  byEngagement: any[] | null;
   byChannel: any[] | null;
 }
 
