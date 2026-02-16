@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Loader2, ExternalLink, Trash2, Eye, BarChart3, MousePointerClick, Clock, ScrollText, AlertTriangle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus, Loader2, ExternalLink, Trash2, Eye, BarChart3 } from 'lucide-react';
 import clarityIcon from '@/assets/clarity-icon.png';
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/layout/PageTransition';
+import ClarityDataModal from '@/components/clarity/ClarityDataModal';
 
 interface ClarityProject {
   id: string;
@@ -21,9 +21,10 @@ interface ClarityProject {
   created_at: string;
 }
 
-interface ClarityMetric {
-  metricName: string;
-  information: Record<string, any>[];
+interface ClarityFullData {
+  byDevice: any[] | null;
+  bySource: any[] | null;
+  byChannel: any[] | null;
 }
 
 export default function Clarity() {
@@ -37,8 +38,9 @@ export default function Clarity() {
   const [saving, setSaving] = useState(false);
   const [dataModalOpen, setDataModalOpen] = useState(false);
   const [selectedClarityProject, setSelectedClarityProject] = useState<ClarityProject | null>(null);
-  const [clarityData, setClarityData] = useState<ClarityMetric[] | null>(null);
+  const [clarityData, setClarityData] = useState<ClarityFullData | null>(null);
   const [loadingData, setLoadingData] = useState(false);
+  const [numOfDays, setNumOfDays] = useState(3);
 
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = useMemo(() => {
@@ -93,48 +95,41 @@ export default function Clarity() {
     toast.success('Projeto removido');
   };
 
-  const handleViewData = async (cp: ClarityProject) => {
+  const fetchClarityData = useCallback(async (cp: ClarityProject, days: number) => {
     setSelectedClarityProject(cp);
     setDataModalOpen(true);
     setClarityData(null);
     setLoadingData(true);
     try {
       const { data, error } = await supabase.functions.invoke('clarity-proxy', {
-        body: { clarityProjectId: cp.id, numOfDays: 3, dimension1: 'Device' },
+        body: { clarityProjectId: cp.id, numOfDays: days },
       });
       if (error) throw error;
-      setClarityData(Array.isArray(data) ? data : []);
+      setClarityData(data as ClarityFullData);
     } catch (err: any) {
       console.error('Clarity fetch error:', err);
       toast.error('Erro ao buscar dados do Clarity');
-      setClarityData([]);
+      setClarityData(null);
     } finally {
       setLoadingData(false);
     }
+  }, []);
+
+  const handleViewData = (cp: ClarityProject) => {
+    fetchClarityData(cp, numOfDays);
   };
 
-  const getMetricValue = (metrics: ClarityMetric[] | null, name: string) => {
-    if (!metrics) return null;
-    const m = metrics.find(m => m.metricName === name);
-    if (!m || !m.information?.length) return null;
-    return m.information;
+  const handleChangeDays = (days: number) => {
+    setNumOfDays(days);
+    if (selectedClarityProject) {
+      fetchClarityData(selectedClarityProject, days);
+    }
   };
-
-  const trafficInfo = getMetricValue(clarityData, 'Traffic');
-  const engagementInfo = getMetricValue(clarityData, 'Engagement Time');
-  const deadClickInfo = getMetricValue(clarityData, 'Dead Click Count');
-  const rageClickInfo = getMetricValue(clarityData, 'Rage Click Count');
-  const scrollInfo = getMetricValue(clarityData, 'Excessive Scroll');
-  const quickbackInfo = getMetricValue(clarityData, 'Quickback Click');
-
-  const totalSessions = trafficInfo?.reduce((s, i) => s + Number(i.totalSessionCount || 0), 0) || 0;
-  const totalUsers = trafficInfo?.reduce((s, i) => s + Number(i.distantUserCount || 0), 0) || 0;
 
   return (
     <DashboardLayout>
       <div className="relative min-h-screen overflow-x-hidden w-full max-w-full">
         <div className="relative z-10 p-4 sm:p-6 lg:p-8 pb-16 space-y-6 sm:space-y-8">
-          {/* Hero Header */}
           <FadeIn>
             <div className="glass-card overflow-hidden">
               <div className="bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-purple-600/20 p-6 sm:p-8">
@@ -148,7 +143,7 @@ export default function Clarity() {
                         Microsoft Clarity
                       </h1>
                       <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
-                        Análise de comportamento e mapas de calor das Landing Pages
+                        Análise completa de comportamento nas Landing Pages
                       </p>
                     </div>
                   </div>
@@ -172,7 +167,6 @@ export default function Clarity() {
             </div>
           </FadeIn>
 
-          {/* Project List */}
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -234,7 +228,7 @@ export default function Clarity() {
         </div>
       </div>
 
-      {/* Add Clarity Dialog */}
+      {/* Add Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -273,92 +267,15 @@ export default function Clarity() {
       </Dialog>
 
       {/* Data Modal */}
-      <Dialog open={dataModalOpen} onOpenChange={setDataModalOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <img src={clarityIcon} alt="" className="w-5 h-5" />
-              {selectedClarityProject?.label} — Dados Clarity
-            </DialogTitle>
-            <DialogDescription>Últimos 3 dias de insights</DialogDescription>
-          </DialogHeader>
-
-          {loadingData ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Buscando dados do Clarity...</p>
-            </div>
-          ) : !clarityData || clarityData.length === 0 ? (
-            <div className="text-center py-8">
-              <AlertTriangle className="w-10 h-10 mx-auto text-yellow-500 mb-3" />
-              <p className="font-medium">Nenhum dado disponível</p>
-              <p className="text-sm text-muted-foreground mt-1">Verifique se o token e o projeto estão corretos.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Summary Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <MetricMiniCard icon={<BarChart3 className="w-4 h-4" />} label="Sessões" value={totalSessions.toLocaleString()} />
-                <MetricMiniCard icon={<Eye className="w-4 h-4" />} label="Usuários" value={totalUsers.toLocaleString()} />
-                <MetricMiniCard icon={<MousePointerClick className="w-4 h-4" />} label="Dead Clicks" value={deadClickInfo?.reduce((s, i) => s + Number(i.value || i.deadClickCount || 0), 0).toLocaleString() || '0'} color="text-yellow-500" />
-                <MetricMiniCard icon={<AlertTriangle className="w-4 h-4" />} label="Rage Clicks" value={rageClickInfo?.reduce((s, i) => s + Number(i.value || i.rageClickCount || 0), 0).toLocaleString() || '0'} color="text-red-500" />
-              </div>
-
-              {/* Breakdown by device */}
-              {trafficInfo && trafficInfo.length > 0 && (
-                <div className="glass-card p-4">
-                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <ScrollText className="w-4 h-4 text-primary" /> Tráfego por Dispositivo
-                  </h4>
-                  <div className="space-y-2">
-                    {trafficInfo.map((item, i) => {
-                      const sessions = Number(item.totalSessionCount || 0);
-                      const pct = totalSessions > 0 ? (sessions / totalSessions) * 100 : 0;
-                      return (
-                        <div key={i} className="flex items-center gap-3">
-                          <span className="text-xs w-20 truncate text-muted-foreground">{item.Device || item.OS || 'N/A'}</span>
-                          <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
-                          </div>
-                          <span className="text-xs font-medium w-16 text-right">{sessions.toLocaleString()}</span>
-                          <span className="text-[10px] text-muted-foreground w-10 text-right">{pct.toFixed(1)}%</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* All other metrics raw */}
-              {clarityData.filter(m => m.metricName !== 'Traffic').map((metric, idx) => (
-                <div key={idx} className="glass-card p-4">
-                  <h4 className="text-sm font-semibold mb-2">{metric.metricName}</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {metric.information?.slice(0, 6).map((info, j) => (
-                      <div key={j} className="bg-secondary/30 rounded-lg p-2 text-center">
-                        <p className="text-xs text-muted-foreground truncate">{info.Device || info.OS || info.Browser || `Item ${j + 1}`}</p>
-                        <p className="text-sm font-bold mt-0.5">
-                          {Object.values(info).find(v => typeof v === 'string' && !isNaN(Number(v)) && v !== info.Device && v !== info.OS && v !== info.Browser) || '-'}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ClarityDataModal
+        open={dataModalOpen}
+        onOpenChange={setDataModalOpen}
+        label={selectedClarityProject?.label || ''}
+        data={clarityData}
+        loading={loadingData}
+        numOfDays={numOfDays}
+        onChangeDays={handleChangeDays}
+      />
     </DashboardLayout>
-  );
-}
-
-function MetricMiniCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color?: string }) {
-  return (
-    <div className="bg-secondary/30 rounded-lg p-3 text-center">
-      <div className={cn("flex items-center justify-center mb-1", color || "text-primary")}>{icon}</div>
-      <p className="text-lg font-bold">{value}</p>
-      <p className="text-[10px] text-muted-foreground">{label}</p>
-    </div>
   );
 }
