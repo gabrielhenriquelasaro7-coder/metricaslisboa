@@ -75,8 +75,8 @@ serve(async (req) => {
     if (adId) {
       adsQuery = adsQuery.eq('id', adId);
     } else {
-      // Only fetch ads that still need HD thumbnails
-      adsQuery = adsQuery.is('creative_thumbnail', null);
+      // Fetch ads that need caching in Storage (no cached_image_url)
+      adsQuery = adsQuery.is('cached_image_url', null);
     }
     
     const { data: ads, error: adsError } = await adsQuery;
@@ -88,7 +88,7 @@ serve(async (req) => {
     console.log(`[SYNC-COPIES] Found ${ads?.length || 0} ads to sync for project ${projectId}`);
 
     const results: any[] = [];
-    const batchSize = adId ? 1 : 10;
+    const batchSize = adId ? 1 : 5;
 
     for (let i = 0; i < (ads?.length || 0); i += batchSize) {
       const batch = ads!.slice(i, i + batchSize);
@@ -239,7 +239,7 @@ serve(async (req) => {
       }
 
       if (i + batchSize < (ads?.length || 0)) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
 
