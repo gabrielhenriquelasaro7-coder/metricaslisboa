@@ -14,6 +14,7 @@ import whatsappIcon from '@/assets/whatsapp-icon.png';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
 import metaIcon from '@/assets/meta-icon.png';
 import ga4Icon from '@/assets/ga4-icon.png';
+import clarityIcon from '@/assets/clarity-icon.png';
 import {
   Home,
   ImageIcon,
@@ -26,6 +27,9 @@ import {
   Moon,
   KeyRound,
   Shield,
+  Share2,
+  FileText,
+  Search,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -207,6 +211,38 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                 </Tooltip>
               )}
 
+              {/* Separator before tools */}
+              <div className="w-8 mx-auto my-1">
+                <Separator className="bg-sidebar-border" />
+              </div>
+
+              {/* Share - Compartilhamento */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleNavClick('/settings')}
+                    className={cn('sidebar-icon-btn')}
+                  >
+                    <Share2 className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                  <p>Compartilhar</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Clarity - LP Analysis */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button className="sidebar-icon-btn opacity-50 cursor-not-allowed">
+                    <img src={clarityIcon} alt="Clarity" className="w-5 h-5 object-contain" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                  <p>Clarity (Em breve)</p>
+                </TooltipContent>
+              </Tooltip>
+
               {/* Separator before WhatsApp */}
               {showWhatsApp && (
                 <div className="w-8 mx-auto my-1">
@@ -256,7 +292,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                 </Tooltip>
               )}
 
-              {/* Admin - ALWAYS visible for non-guests */}
+              {/* Admin */}
               {!roleLoading && !cargoLoading && !isGuest && (
                 <Tooltip>
                   <TooltipTrigger asChild>

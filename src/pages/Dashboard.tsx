@@ -15,7 +15,7 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { DashboardSkeleton } from '@/components/skeletons';
 import { SmoothLoader } from '@/components/layout/PageTransition';
 import { getDateRangeFromPreset } from '@/utils/dateUtils';
-import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, Plus, Crosshair, Zap, BarChart3, Target, Instagram, ArrowUpRight, ArrowDownRight, Layers, ImageIcon, Key, Filter } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, Plus, Crosshair, Zap, BarChart3, Target, Instagram, ArrowUpRight, ArrowDownRight, Layers, ImageIcon, Key, Filter, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CreativeImage } from '@/components/ui/creative-image';
@@ -30,6 +30,7 @@ import googleAdsIcon from '@/assets/google-ads-icon.png';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/layout/PageTransition';
 import { supabase } from '@/integrations/supabase/client';
+import { PDFBuilderDialog } from '@/components/pdf/PDFBuilderDialog';
 
 type CreativeSortKey = 'spend' | 'conversions' | 'ctr';
 
@@ -154,20 +155,21 @@ export default function Dashboard() {
     return merged;
   }, [demographicData, googleDemographics]);
 
-  // Combined metrics
-  const metaTotalSpend = metaCampaigns.reduce((s, c) => s + (c.spend || 0), 0);
+  // Combined metrics - use dailyData (period-filtered) for Meta, and dailyMetrics don't exist for Google yet so fallback to campaigns
+  // Meta spend from dailyData (already period-filtered)
+  const metaTotalSpend = useMemo(() => dailyData.reduce((s, d) => s + (d.spend || 0), 0), [dailyData]);
   const googleTotalSpend = googleCampaigns.reduce((s, c) => s + (c.spend || 0), 0);
   const totalSpend = metaTotalSpend + googleTotalSpend;
 
-  const metaClicks = metaCampaigns.reduce((s, c) => s + (c.clicks || 0), 0);
+  const metaClicks = useMemo(() => dailyData.reduce((s, d) => s + (d.clicks || 0), 0), [dailyData]);
   const googleClicks = googleCampaigns.reduce((s, c) => s + (c.clicks || 0), 0);
   const totalClicks = metaClicks + googleClicks;
 
-  const metaImpressions = metaCampaigns.reduce((s, c) => s + (c.impressions || 0), 0);
+  const metaImpressions = useMemo(() => dailyData.reduce((s, d) => s + (d.impressions || 0), 0), [dailyData]);
   const googleImpressions = googleCampaigns.reduce((s, c) => s + (c.impressions || 0), 0);
   const totalImpressions = metaImpressions + googleImpressions;
 
-  const metaConversions = metaCampaigns.reduce((s, c) => s + (c.conversions || 0), 0);
+  const metaConversions = useMemo(() => dailyData.reduce((s, d) => s + (d.conversions || 0), 0), [dailyData]);
   const googleConversions = googleCampaigns.reduce((s, c) => s + (c.conversions || 0), 0);
   const totalConversions = metaConversions + googleConversions;
 
@@ -273,6 +275,18 @@ export default function Dashboard() {
                     onPresetChange={setSelectedPreset}
                     selectedPreset={selectedPreset}
                   />
+                  {selectedProject && (
+                    <PDFBuilderDialog
+                      projectId={selectedProject.id}
+                      projectName={selectedProject.name}
+                      businessModel={selectedProject.business_model as any}
+                      currency={selectedProject.currency || 'BRL'}
+                      currentPeriod={(() => {
+                        const period = getDateRangeFromPreset(selectedPreset, selectedProject.timezone || 'America/Sao_Paulo');
+                        return period || { since: new Date().toISOString().split('T')[0], until: new Date().toISOString().split('T')[0] };
+                      })()}
+                    />
+                  )}
                   <CreateProjectDialog />
                   <ClientSelector />
                 </div>
