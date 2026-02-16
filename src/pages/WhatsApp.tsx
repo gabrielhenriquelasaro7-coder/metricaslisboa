@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { SmoothLoader } from '@/components/layout/PageTransition';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
@@ -32,7 +33,6 @@ import {
 import { WhatsAppInstanceCard } from '@/components/whatsapp/WhatsAppInstanceCard';
 import { WhatsAppQRModal } from '@/components/whatsapp/WhatsAppQRModal';
 import { AnomalyAlertsCard } from '@/components/alerts/AnomalyAlertsCard';
-import { WhatsAppSkeleton } from '@/components/skeletons';
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/layout/PageTransition';
 import { ProjectReportConfigDialogNew } from '@/components/whatsapp/ProjectReportConfigDialogNew';
 import whatsappIcon from '@/assets/whatsapp-icon.png';
@@ -156,12 +156,9 @@ export default function WhatsApp() {
 
   const loading = authLoading || instancesLoading || (projects.length === 0 && projectsLoading);
 
-  if (loading || !selectedProject) {
-    return <DashboardLayout><div className="p-6 lg:p-8"><WhatsAppSkeleton /></div></DashboardLayout>;
-  }
-
   return (
     <DashboardLayout>
+      <SmoothLoader loading={loading || !selectedProject}>
       <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 overflow-x-hidden">
         {/* Hero Header */}
         <FadeIn>
@@ -391,6 +388,7 @@ export default function WhatsApp() {
           onCheckStatus={handleCheckStatus}
         />
       </div>
+      </SmoothLoader>
     </DashboardLayout>
   );
 }

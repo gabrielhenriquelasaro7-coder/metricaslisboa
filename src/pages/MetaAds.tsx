@@ -29,7 +29,7 @@ import { SmoothLoader } from '@/components/layout/PageTransition';
 import { CreativeImage } from '@/components/ui/creative-image';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
-import { DollarSign, MousePointerClick, Eye, Target, TrendingUp, ShoppingCart, Users, Phone, Store, RefreshCw, MoreVertical, Banknote, BarChart3, Activity, Crosshair, Receipt, Zap, Instagram, ChevronDown, ChevronRight, Layers } from 'lucide-react';
+import { DollarSign, MousePointerClick, Eye, Target, TrendingUp, ShoppingCart, Users, Phone, Store, RefreshCw, MoreVertical, Banknote, BarChart3, Activity, Crosshair, Receipt, Zap, Instagram, ChevronDown, ChevronRight, Layers, ImageIcon } from 'lucide-react';
 import { MetricVisibilityConfig } from '@/components/metrics/MetricVisibilityConfig';
 import { useHiddenMetrics } from '@/hooks/useHiddenMetrics';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -55,7 +55,7 @@ export default function MetaAds() {
 
   const { isGuest } = useUserRole();
 
-  const { campaigns, adSets, ads, loading: dataLoading, syncing, syncData, syncDemographics, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
+  const { campaigns, adSets, ads, loading: dataLoading, syncing, syncData, syncDemographics, syncCreativesHD, selectedProject, loadMetricsByPeriod } = useMetaAdsData();
 
   const toggleCampaign = (id: string) => {
     setExpandedCampaigns(prev => {
@@ -246,6 +246,10 @@ export default function MetaAds() {
                       <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
                       <span className="truncate">{syncing ? t('dashboard.syncing') : t('dashboard.syncNow')}</span>
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => syncCreativesHD()} disabled={syncing || !selectedProject}>
+                      <ImageIcon className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+                      <span className="truncate">Sincronizar Criativos HD</span>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleSyncDemographics} disabled={syncing || !selectedProject}>
                       <Users className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
                       <span className="truncate">{t('dashboard.demographics')}</span>
@@ -272,7 +276,7 @@ export default function MetaAds() {
               <>
                 {hasSelectedProject && <AccountBalanceCard projectId={selectedProject?.id || null} currency={selectedProject?.currency} />}
 
-                <div className="flex items-center justify-end gap-2 flex-wrap mt-6">
+                <div className="flex items-center justify-end gap-2 flex-wrap mt-4 mb-4">
                   <MetricVisibilityConfig hiddenMetrics={hiddenMetrics} toggleMetric={toggleMetric} loading={hiddenMetricsLoading} />
                   <Label htmlFor="comparison-toggle" className="text-[11px] sm:text-sm text-muted-foreground cursor-pointer">
                     <span className="hidden sm:inline">{t('dashboard.periodComparison')}</span>
@@ -509,7 +513,7 @@ export default function MetaAds() {
                                           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                                             {adSetAds.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map(ad => (
                                               <button key={ad.id} onClick={() => setSelectedCreative(ad)} className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all group text-left">
-                                                <div className="aspect-square relative bg-muted">
+                                                <div className="aspect-[3/4] relative bg-muted">
                                                   <CreativeImage
                                                     projectId={selectedProject?.id}
                                                     adId={ad.id}
@@ -635,16 +639,18 @@ export default function MetaAds() {
                                 <p className="text-sm font-bold">{formatNumberCompact(selectedCreative.reach || 0)}</p>
                               </div>
                             </div>
-                            {/* CPA / ROAS */}
-                            <div className="grid grid-cols-2 gap-2">
+                            {/* CPA / ROAS - ROAS only for ecommerce/infoproduto */}
+                            <div className={cn("grid gap-2", (isEcommerce || isInfoproduto) ? "grid-cols-2" : "grid-cols-1")}>
                               <div className="glass-card p-2.5">
                                 <p className="text-[9px] text-muted-foreground mb-0.5">CPA</p>
                                 <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpa || 0)}</p>
                               </div>
-                              <div className="glass-card p-2.5">
-                                <p className="text-[9px] text-muted-foreground mb-0.5">ROAS</p>
-                                <p className="text-sm font-bold">{(selectedCreative.roas || 0).toFixed(2)}x</p>
-                              </div>
+                              {(isEcommerce || isInfoproduto) && (
+                                <div className="glass-card p-2.5">
+                                  <p className="text-[9px] text-muted-foreground mb-0.5">ROAS</p>
+                                  <p className="text-sm font-bold">{(selectedCreative.roas || 0).toFixed(2)}x</p>
+                                </div>
+                              )}
                             </div>
                             {/* Headline & Primary Text */}
                             {selectedCreative.headline && (

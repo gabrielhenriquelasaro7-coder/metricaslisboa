@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { CreativeImage } from '@/components/ui/creative-image';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import metaIcon from '@/assets/meta-icon.png';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const { projects, loading: projectsLoading } = useProjects();
   const { selectedPreset, dateRange } = usePeriodContext();
   const [creativeSortBy, setCreativeSortBy] = useState<CreativeSortKey>('spend');
+  const [selectedCreative, setSelectedCreative] = useState<any>(null);
 
   const { campaigns: metaCampaigns, ads: metaAds, adSets: metaAdSets, loading: metaLoading, selectedProject } = useMetaAdsData();
   const { campaigns: googleCampaigns, loading: googleLoading, loadAllData } = useGoogleAdsData();
@@ -130,6 +132,10 @@ export default function Dashboard() {
 
   const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: selectedProject?.currency || 'BRL', minimumFractionDigits: 2 }).format(value);
   const formatNumber = (num: number) => { if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'; if (num >= 1000) return (num / 1000).toFixed(1) + 'K'; return num.toLocaleString('pt-BR'); };
+  const formatNumberCompact = formatNumber;
+  const businessModel = selectedProject?.business_model;
+  const isEcommerce = businessModel === 'ecommerce';
+  const isInfoproduto = businessModel === 'infoproduto';
 
   const loading = projectsLoading || metaLoading;
   const activeProjects = useMemo(() => projects.filter(p => !p.archived), [projects]);
@@ -295,8 +301,8 @@ export default function Dashboard() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {topCreatives.map((ad, idx) => (
-                          <Link key={ad.id} to={`/creative/${ad.id}`} className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all group">
-                            <div className="aspect-square relative bg-muted">
+                          <button key={ad.id} onClick={() => setSelectedCreative(ad)} className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all group text-left">
+                            <div className="aspect-[3/4] relative bg-muted">
                               <CreativeImage
                                 projectId={selectedProject?.id}
                                 adId={ad.id}
@@ -318,7 +324,7 @@ export default function Dashboard() {
                                 <span>CTR {(ad.ctr || 0).toFixed(2)}%</span>
                               </div>
                             </div>
-                          </Link>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -448,6 +454,94 @@ export default function Dashboard() {
               </StaggerContainer>
             )}
           </SmoothLoader>
+
+          {/* Creative Detail Modal */}
+          <Dialog open={!!selectedCreative} onOpenChange={(open) => !open && setSelectedCreative(null)}>
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-border">
+              {selectedCreative && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="text-base font-bold truncate" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                      {selectedCreative.name}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
+                    <div className="md:col-span-2 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                      <CreativeImage
+                        projectId={selectedProject?.id}
+                        adId={selectedCreative.id}
+                        cachedImageUrl={selectedCreative.cached_image_url}
+                        creativeImageUrl={selectedCreative.creative_image_url}
+                        creativeThumbnail={selectedCreative.creative_thumbnail}
+                        alt={selectedCreative.name}
+                        className="w-full h-auto max-h-[500px] object-contain"
+                      />
+                    </div>
+                    <div className="md:col-span-3 space-y-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div className="glass-card p-2.5">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">Gasto</p>
+                          <p className="text-sm font-bold">{formatCurrency(selectedCreative.spend || 0)}</p>
+                        </div>
+                        <div className="glass-card p-2.5">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">Conversões</p>
+                          <p className="text-sm font-bold">{selectedCreative.conversions || 0}</p>
+                        </div>
+                        <div className="glass-card p-2.5">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">CTR</p>
+                          <p className="text-sm font-bold">{(selectedCreative.ctr || 0).toFixed(2)}%</p>
+                        </div>
+                        <div className="glass-card p-2.5">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">CPC</p>
+                          <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpc || 0)}</p>
+                        </div>
+                        <div className="glass-card p-2.5">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">CPM</p>
+                          <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpm || 0)}</p>
+                        </div>
+                        <div className="glass-card p-2.5">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">Impressões</p>
+                          <p className="text-sm font-bold">{formatNumberCompact(selectedCreative.impressions || 0)}</p>
+                        </div>
+                        <div className="glass-card p-2.5">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">Cliques</p>
+                          <p className="text-sm font-bold">{formatNumber(selectedCreative.clicks || 0)}</p>
+                        </div>
+                        <div className="glass-card p-2.5">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">Alcance</p>
+                          <p className="text-sm font-bold">{formatNumberCompact(selectedCreative.reach || 0)}</p>
+                        </div>
+                      </div>
+                      <div className={`grid gap-2 ${(isEcommerce || isInfoproduto) ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        <div className="glass-card p-2.5">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">CPA</p>
+                          <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpa || 0)}</p>
+                        </div>
+                        {(isEcommerce || isInfoproduto) && (
+                          <div className="glass-card p-2.5">
+                            <p className="text-[9px] text-muted-foreground mb-0.5">ROAS</p>
+                            <p className="text-sm font-bold">{(selectedCreative.roas || 0).toFixed(2)}x</p>
+                          </div>
+                        )}
+                      </div>
+                      {selectedCreative.headline && (
+                        <div className="glass-card p-2.5">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">Headline</p>
+                          <p className="text-xs font-medium">{selectedCreative.headline}</p>
+                        </div>
+                      )}
+                      {selectedCreative.primary_text && (
+                        <div className="glass-card p-2.5">
+                          <p className="text-[9px] text-muted-foreground mb-0.5">Texto Principal</p>
+                          <p className="text-xs line-clamp-4">{selectedCreative.primary_text}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </DashboardLayout>
