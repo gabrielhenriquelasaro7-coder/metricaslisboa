@@ -1,115 +1,100 @@
+# Plano de Melhorias: Home, Meta Ads, WhatsApp e Carregamento
 
-# Reestruturacao: Separar Conteudo por Plataforma na Sidebar
+## 1. Home (Dashboard.tsx) - Mais conteudo e espacamento
 
-## Visao Geral
+### Espacamento
 
-Reorganizar toda a navegacao para que cada plataforma (Meta Ads, Google Ads, GA4) tenha sua propria secao acessada pela sidebar fixa. A Home vira um resumo geral e o dropdown de projetos fica no conteudo da pagina, nao na sidebar.
+- Aumentar `gap-3 sm:gap-4` para `gap-4 sm:gap-5` nos metric cards (ligeiro aumento de tamanho)
+- Manter `space-y-6 sm:space-y-8 lg:space-y-10` entre secoes (ja esta bom)
+- Garantir `mb-4` entre titulo de secao e conteudo
 
----
+### Mais conteudo na Home
 
-## O Que Muda
+- Adicionar secao de **Graficos Comparativos Meta vs Google** usando `CustomizableChart` com dados de `dailyData`
+- Adicionar um grafico de performance combinado (investimento Meta vs Google ao longo do tempo)
+- Colocar + visualizações de conjunto de anúncios...
+- O grafico usa o mesmo componente `CustomizableChart` ja existente
 
-**Sidebar atual:** Logo > Dashboard > Meta > Google > Criativos > ... > Admin (invisivel?)
+### Botao Novo Projeto menor
 
-**Sidebar nova:** Logo > Home (icone casa) > Meta Ads > Google Ads > GA4 > Criativos > ... > Admin (sempre visivel)
+- Reduzir o `CreateProjectDialog` trigger para `size="sm"` com icone `Plus` menor e sem texto longo
 
-**Dashboard atual:** Mostra metricas Meta Ads com dropdown de projeto
+### Regra de "visitas ao perfil" nas Top Campanhas
 
-**Depois:**
-- **Home** (`/dashboard`): Resumo geral - Top 3 criativos, Top campanhas, dados demograficos (Meta + Google combinados), com dropdown de projeto no topo
-- **Meta Ads** (`/meta-ads`): Todo o conteudo atual do Dashboard (metricas, graficos, funil, demograficos) focado em Meta, com header "Meta Ads" igual ao print de referencia
-- **Google Ads** (`/google-campaigns`): Layout igual ao Meta Ads mas com dados Google (ja existe, sera melhorado visualmente)
-- **GA4** (`/analytics`): Pagina placeholder para futuro Google Analytics
+- Aplicar label `visitas` em vez de `conv.` nas campanhas com objetivo Instagram (ja tem logica `isProfileVisit` mas precisa aplicar no label)
 
----
+## 2. Meta Ads (MetaAds.tsx) - Cards maiores, criativos em grid
 
-## Mudancas Detalhadas
+### Cards de metricas
 
-### 1. Sidebar (`TopSideBar.tsx`)
-- Trocar icone Dashboard (LayoutDashboard) por icone Home (House/Home)
-- Rota Home aponta para `/dashboard`
-- Meta Ads aponta para `/meta-ads` (nova rota)
-- Google Ads aponta para `/google-campaigns` (existente)
-- Adicionar icone GA4 (BarChart3 ou icone customizado) apontando para `/analytics`
-- Criativos continua em `/creatives`
-- **Admin (Shield)**: Garantir que aparece SEMPRE para usuarios nao-guest, sem depender de `isTabHidden`
-- Remover itens desabilitados (Bot, TrendingUp com opacity-30) para limpar
+- Aumentar padding de `p-2 sm:p-2.5` para `p-2.5 sm:p-3` (ligeiro aumento)
+- Aumentar fonte de `text-[11px] sm:text-xs` para `text-xs sm:text-sm`
+- Aumentar espacamento entre secoes de `space-y-3 sm:space-y-6` para `space-y-5 sm:space-y-8`
 
-### 2. Nova pagina Home (`/dashboard` - reescrever `Dashboard.tsx`)
-- Header com titulo "Home" + dropdown ClientSelector no topo
-- Cards resumo: Top 3 criativos (imagem + metricas basicas)
-- Top 5 campanhas (unificando Meta + Google)
-- Mini cards de investimento total (Meta + Google somados)
-- Graficos demograficos simplificados (genero, dispositivo)
-- Layout clean e visual, como painel de controle
+### Cards de resultado menores
 
-### 3. Nova pagina Meta Ads (`/meta-ads` - novo arquivo `MetaAds.tsx`)
-- Mover TODO o conteudo atual de `Dashboard.tsx` para ca
-- Header com logo Meta + titulo "Meta Ads" + dropdown de conta/campanha + DateRangePicker (igual print referencia)
-- Metricas: Investimento, Resultados, Custo por Resultado, Cliques, Total cliques no link, Visualizacoes do site, Atendimentos
-- Graficos de performance, funil, demograficos
-- Tabela de campanhas com link para conjuntos/anuncios
-- ClientSelector no header da pagina (nao na sidebar)
+- Manter os SparklineCards com tamanho atual ou reduzir levemente
 
-### 4. Melhorar Google Ads (`GoogleCampaigns.tsx`)
-- Header com logo Google Ads + titulo "Google Ads" + conta dropdown + DateRangePicker (igual print referencia)
-- Layout de metricas em grid 4 colunas (Investimento, Receita, ROAS, Custo por Conversao, Conversoes, Impressoes, Cliques, CTR, CPC, CPM, Share de Impressao, etc.)
-- Mesma estetica visual do Meta Ads
+### Comparacao de periodos menor
 
-### 5. Pagina GA4 placeholder (`Analytics.tsx`)
-- Pagina simples com mensagem "Em breve" e icone GA4
-- Preparada para futura integracao com Google Analytics
+- Envolver em container com `scale-[0.95] origin-top-left` ou reduzir padding interno
 
-### 6. Criativos (`Creatives.tsx`)
-- Adicionar filtro/tabs no topo: "Meta Ads" | "Google Ads" | "Todos"
-- Filtrar criativos pela plataforma selecionada
+### Criativos em formato GRID (nao lista)
 
-### 7. Rotas (`App.tsx`)
-- Adicionar rota `/meta-ads` -> `MetaAds`
-- Adicionar rota `/analytics` -> `Analytics`
-- `/dashboard` continua apontando para Home
-- Redirecionar `/campaigns` para `/meta-ads` (compatibilidade)
+- Dentro da hierarquia expandida (Campaign > AdSet > **Ads**), trocar a lista de anuncios por um **grid 3 colunas** com thumbnail maior (aspect-square) + nome + gasto
+- Cada criativo tera imagem quadrada + metricas abaixo, usando `CreativeImage`
+
+### Espacamento entre secoes
+
+- Adicionar `mt-6 sm:mt-8` entre campanhas e graficos
+- Adicionar `mt-6 sm:mt-8` entre graficos e funil
+- Adicionar `mt-6 sm:mt-8` entre funil e geografico/demografico
+
+## 3. WhatsApp (WhatsApp.tsx) - Modal maior e mais bonito
+
+### Problema atual
+
+- O modal `ProjectReportConfigDialogNew` usa `max-w-2xl` que e pequeno
+- Precisa separar visualmente GT e Planner Monday
+
+### Solucao
+
+- Aumentar `DialogContent` para `max-w-4xl` com `min-h-[70vh]`
+- Adicionar backdrop mais opaco (`bg-black/60`)
+- Melhorar visual das tabs GT vs Account com icones maiores e descricao
+- Adicionar bordas coloridas: GT = verde, Account/Planner = azul
+
+## 4. Carregamento e Animacoes
+
+### Problema
+
+- Ao trocar de aba na sidebar, a tela pisca em vez de ter transicao suave
+- O `AnimatePresence` no App.tsx com `mode="wait"` causa flash
+
+### Solucao
+
+- Usar `SmoothLoader` do PageTransition.tsx em cada pagina ao inves de renderizar skeleton direto
+- Envolver o conteudo principal de cada pagina (Dashboard, MetaAds, WhatsApp) com `SmoothLoader` que faz fade entre skeleton e conteudo
+- Ajustar `AnimatePresence` no App.tsx: mudar transicao para `duration: 0.15` para ser mais rapida
+
+## 5. Scrollbar vermelha
+
+- Ja foi implementada no index.css (verificar se esta funcionando)
 
 ---
 
 ## Detalhes Tecnicos
 
-### Arquivos a criar:
-- `src/pages/MetaAds.tsx` - pagina completa Meta Ads (conteudo migrado do Dashboard.tsx)
-- `src/pages/Analytics.tsx` - placeholder GA4
-
 ### Arquivos a modificar:
-- `src/components/layout/TopSideBar.tsx` - nova estrutura de icones
-- `src/pages/Dashboard.tsx` - reescrever como Home resumo
-- `src/pages/GoogleCampaigns.tsx` - melhorar layout visual
-- `src/pages/Creatives.tsx` - adicionar filtro de plataforma
-- `src/App.tsx` - novas rotas
 
-### Icones na sidebar (ordem de cima para baixo):
-```text
-[V4 Logo]
----
-Home (House)
-Meta Ads (meta-icon.png)
-Google Ads (google-ads-icon.png)
-GA4 (BarChart3)
-Criativos (ImageIcon)
-Financeiro (DollarSign)
-Historico (History)
-WhatsApp (whatsapp-icon.png)
----
-Sugestoes (Lightbulb)
-Admin (Shield) -- SEMPRE visivel
-Config (Settings)
-Tema (Sun/Moon)
-[Avatar]
-```
+1. `**src/pages/Dashboard.tsx**` - Adicionar graficos comparativos, aumentar cards, botao menor, regra visitas
+2. `**src/pages/MetaAds.tsx**` - Aumentar cards, criativos em grid, espacamento entre secoes
+3. `**src/components/whatsapp/ProjectReportConfigDialogNew.tsx**` - Modal maior e visual melhorado
+4. `**src/App.tsx**` - Transicao mais rapida (duration 0.15)
 
-### Sequencia de execucao:
-1. Atualizar sidebar com novos icones e rotas
-2. Criar pagina MetaAds.tsx (migrar conteudo do Dashboard)
-3. Reescrever Dashboard.tsx como Home resumo
-4. Criar pagina Analytics.tsx (placeholder)
-5. Atualizar rotas no App.tsx
-6. Melhorar visual do GoogleCampaigns.tsx
-7. Adicionar filtro de plataforma nos Criativos
+### Sequencia:
+
+1. Dashboard.tsx - graficos + espacamento + botao menor
+2. MetaAds.tsx - cards + criativos grid + espacamento
+3. ProjectReportConfigDialogNew.tsx - modal maior
+4. App.tsx - transicao mais fluida
