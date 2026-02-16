@@ -363,7 +363,7 @@ export default function GoogleCampaigns() {
           </div>
 
           <SmoothLoader loading={isPageLoading} skeleton={<DashboardSkeleton />}>
-            {!selectedProject?.google_customer_id ? (
+            {!selectedProject?.google_customer_id && !loading ? (
               <div className="glass-card p-6 sm:p-8 lg:p-12 text-center">
                 <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Configure o Google Ads</h3>

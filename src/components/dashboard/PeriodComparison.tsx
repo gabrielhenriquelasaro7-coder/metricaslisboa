@@ -139,7 +139,16 @@ export default function PeriodComparison({
       tooltip?: string;
     }> = [];
     
-    // Base metrics - only add if not hidden (skip spend/investment percentage)
+    // Base metrics - only add if not hidden
+    if (shouldShowMetric('spend')) {
+      items.push({
+        label: t('comparison.investment') || 'Investimento',
+        current: formatCurrencyValue(currentMetrics.totalSpend),
+        previous: formatCurrencyValue(previousMetrics.totalSpend),
+        change: calculateChange(currentMetrics.totalSpend, previousMetrics.totalSpend),
+        isInverse: false
+      });
+    }
     
     if (shouldShowMetric('impressions')) {
       items.push({
@@ -398,8 +407,8 @@ export default function PeriodComparison({
     // Show current period data without comparison when no previous data
     const currentOnlyItems: Array<{ label: string; value: string }> = [];
     
-    if (false && shouldShowMetric('spend')) {
-      currentOnlyItems.push({ label: 'Gasto', value: formatCurrencyValue(currentMetrics.totalSpend) });
+    if (shouldShowMetric('spend')) {
+      currentOnlyItems.push({ label: 'Investimento', value: formatCurrencyValue(currentMetrics.totalSpend) });
     }
     if (shouldShowMetric('impressions')) {
       currentOnlyItems.push({ label: 'Impressões', value: formatNumber(currentMetrics.totalImpressions) });
