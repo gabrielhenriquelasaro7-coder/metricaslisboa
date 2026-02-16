@@ -60,7 +60,7 @@ function ComparisonItem({
   }} animate={{
     opacity: 1,
     y: 0
-  }} className="group relative p-2.5 sm:p-4 rounded-xl bg-card/80 border border-border/50 hover:border-border transition-all duration-300 overflow-hidden min-w-0">
+  }} className="group relative p-2 sm:p-3 rounded-xl bg-card/80 border border-border/50 hover:border-border transition-all duration-300 overflow-hidden min-w-0">
       <div className="relative z-10 min-w-0">
         <div className="flex items-center justify-between mb-1 sm:mb-2 gap-1">
           <div className="flex items-center gap-1 min-w-0 flex-1">
@@ -494,43 +494,43 @@ export default function PeriodComparison({
         currentOnlyItems.push({ label: 'CPP', value: formatCurrencyValue(cpp) });
       }
     }
-    return <div className="glass-card p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-          <h3 className="text-lg font-semibold">Métricas do Período</h3>
-          <div className="flex items-center gap-2 text-sm">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full">
-              <Calendar className="w-4 h-4 text-primary" />
+    return <div className="glass-card p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+          <h3 className="text-base font-semibold">Métricas do Período</h3>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 rounded-full">
+              <Calendar className="w-3.5 h-3.5 text-primary" />
               <span className="font-medium text-primary">{currentPeriodLabel}</span>
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {currentOnlyItems.map(item => <div key={item.label} className="p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-all hover:scale-[1.02]">
-              <p className="text-sm text-muted-foreground mb-2">{item.label}</p>
-              <p className="text-xl font-bold">{item.value}</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {currentOnlyItems.map(item => <div key={item.label} className="p-2 sm:p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-all hover:scale-[1.02]">
+              <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
+              <p className="text-base font-bold">{item.value}</p>
             </div>)}
         </div>
-        <p className="text-xs text-muted-foreground mt-4 text-center">
+        <p className="text-xs text-muted-foreground mt-3 text-center">
           Sem dados de período anterior para comparação
         </p>
       </div>;
   }
-  return <div className="glass-card p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-        <h3 className="text-lg font-semibold">Comparação de Períodos</h3>
-        <div className="flex items-center gap-2 text-sm">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full">
-            <Calendar className="w-4 h-4 text-primary" />
+  return <div className="glass-card p-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+        <h3 className="text-base font-semibold">Comparação de Períodos</h3>
+        <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 rounded-full">
+            <Calendar className="w-3.5 h-3.5 text-primary" />
             <span className="font-medium text-primary">{currentPeriodLabel}</span>
           </div>
-          <ArrowRight className="w-4 h-4 text-muted-foreground" />
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-full">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
+          <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-secondary rounded-full">
+            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-muted-foreground">{previousPeriodLabel}</span>
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {comparisons.map(item => <ComparisonItem key={item.label} label={item.label} current={item.current} previous={item.previous} change={item.change} isInverse={item.isInverse} tooltip={item.tooltip} />)}
       </div>
     </div>;

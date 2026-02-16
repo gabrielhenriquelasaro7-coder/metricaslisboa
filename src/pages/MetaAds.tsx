@@ -50,6 +50,7 @@ export default function MetaAds() {
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
   const [expandedAdSets, setExpandedAdSets] = useState<Set<string>>(new Set());
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
+  const [funnelFilter, setFunnelFilter] = useState<'all' | 'active' | 'paused'>('all');
   const chartRef = useRef<HTMLDivElement>(null);
 
   const { isGuest } = useUserRole();
@@ -283,7 +284,7 @@ export default function MetaAds() {
                 {/* Period Comparison - slightly compact */}
                 {showComparison && hasSelectedProject && (
                   <div className="origin-top">
-                    <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? t('periods.thisMonth') : selectedPreset === 'last_7d' ? t('periods.last7Days') : selectedPreset === 'last_30d' ? t('periods.last30Days') : t('comparison.current')} previousPeriodLabel={t('dashboard.previous')} currency={selectedProject?.currency || 'BRL'} resultMetrics={metricConfig?.result_metrics} resultMetricsLabels={metricConfig?.result_metrics_labels} hiddenMetrics={hiddenMetrics} />
+                    <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? 'Últimos 7 Dias' : selectedPreset === 'last_30d' ? 'Últimos 30 Dias' : selectedPreset === 'last_month' ? 'Mês Passado' : 'Período Atual'} previousPeriodLabel="Período Anterior" currency={selectedProject?.currency || 'BRL'} resultMetrics={metricConfig?.result_metrics} resultMetricsLabels={metricConfig?.result_metrics_labels} hiddenMetrics={hiddenMetrics} />
                   </div>
                 )}
 
@@ -301,7 +302,7 @@ export default function MetaAds() {
                           <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">{t('metrics.spend')}</span>
                         </div>
                         <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(metrics.totalSpend)}</p>
-                        {changes?.spend !== undefined && <span className={`text-[8px] ${changes.spend >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{changes.spend >= 0 ? '↑' : '↓'}{Math.abs(changes.spend).toFixed(1)}%</span>}
+                        {/* Percentage removed per user request */}
                       </div>
                     )}
                     {!isMetricHidden('impressions') && (
@@ -557,7 +558,11 @@ export default function MetaAds() {
 
                 {/* Funnel */}
                 <div className="mt-8 sm:mt-10">
-                  {hasSelectedProject && <FunnelChart impressions={metrics.totalImpressions} reach={metrics.totalReach} clicks={metrics.totalClicks} conversions={metrics.totalConversions} spend={metrics.totalSpend} ctr={metrics.ctr} cpc={metrics.cpc} cpl={metrics.cpa} cpm={metrics.cpm} frequency={metrics.avgFrequency} currency={selectedProject?.currency || 'BRL'} />}
+                  {hasSelectedProject && (() => {
+                    const filteredCampaigns = funnelFilter === 'all' ? campaigns : campaigns.filter(c => funnelFilter === 'active' ? c.status === 'ACTIVE' : c.status !== 'ACTIVE');
+                    const fm = calculateMetrics(filteredCampaigns);
+                    return <FunnelChart impressions={fm.totalImpressions} reach={fm.totalReach} clicks={fm.totalClicks} conversions={fm.totalConversions} spend={fm.totalSpend} ctr={fm.ctr} cpc={fm.cpc} cpl={fm.cpa} cpm={fm.cpm} frequency={fm.avgFrequency} currency={selectedProject?.currency || 'BRL'} campaignFilter={funnelFilter} onCampaignFilterChange={setFunnelFilter} />;
+                  })()}
                 </div>
 
                 {/* Geographic */}
@@ -572,17 +577,18 @@ export default function MetaAds() {
 
                 {/* Creative Detail Modal */}
                 <Dialog open={!!selectedCreative} onOpenChange={(open) => !open && setSelectedCreative(null)}>
-                  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-border">
+                   <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-border">
                     {selectedCreative && (
                       <>
                         <DialogHeader>
-                          <DialogTitle className="text-sm font-bold truncate" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                          <DialogTitle className="text-base font-bold truncate" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                             {selectedCreative.name}
                           </DialogTitle>
-                          <p className="text-[10px] text-muted-foreground font-mono">ID: {selectedCreative.id}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">ID: {selectedCreative.id} | Creative ID: {selectedCreative.creative_id || '—'}</p>
                         </DialogHeader>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                          <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
+                          {/* Image - 2 cols, auto aspect ratio */}
+                          <div className="md:col-span-2 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
                             <CreativeImage
                               projectId={selectedProject?.id}
                               adId={selectedCreative.id}
@@ -590,56 +596,87 @@ export default function MetaAds() {
                               creativeImageUrl={selectedCreative.creative_image_url}
                               creativeThumbnail={selectedCreative.creative_thumbnail}
                               alt={selectedCreative.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-auto max-h-[500px] object-contain"
                             />
                           </div>
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="glass-card p-3">
+                          {/* Metrics - 3 cols */}
+                          <div className="md:col-span-3 space-y-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              <div className="glass-card p-2.5">
                                 <p className="text-[9px] text-muted-foreground mb-0.5">Gasto</p>
                                 <p className="text-sm font-bold">{formatCurrency(selectedCreative.spend || 0)}</p>
                               </div>
-                              <div className="glass-card p-3">
+                              <div className="glass-card p-2.5">
                                 <p className="text-[9px] text-muted-foreground mb-0.5">Conversões</p>
                                 <p className="text-sm font-bold">{selectedCreative.conversions || 0}</p>
                               </div>
-                              <div className="glass-card p-3">
+                              <div className="glass-card p-2.5">
                                 <p className="text-[9px] text-muted-foreground mb-0.5">CTR</p>
                                 <p className="text-sm font-bold">{(selectedCreative.ctr || 0).toFixed(2)}%</p>
                               </div>
-                              <div className="glass-card p-3">
+                              <div className="glass-card p-2.5">
                                 <p className="text-[9px] text-muted-foreground mb-0.5">CPC</p>
                                 <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpc || 0)}</p>
                               </div>
-                              <div className="glass-card p-3">
+                              <div className="glass-card p-2.5">
                                 <p className="text-[9px] text-muted-foreground mb-0.5">CPM</p>
                                 <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpm || 0)}</p>
                               </div>
-                              <div className="glass-card p-3">
+                              <div className="glass-card p-2.5">
                                 <p className="text-[9px] text-muted-foreground mb-0.5">Impressões</p>
                                 <p className="text-sm font-bold">{formatNumberCompact(selectedCreative.impressions || 0)}</p>
                               </div>
-                              <div className="glass-card p-3">
+                              <div className="glass-card p-2.5">
                                 <p className="text-[9px] text-muted-foreground mb-0.5">Cliques</p>
                                 <p className="text-sm font-bold">{formatNumber(selectedCreative.clicks || 0)}</p>
                               </div>
-                              <div className="glass-card p-3">
+                              <div className="glass-card p-2.5">
                                 <p className="text-[9px] text-muted-foreground mb-0.5">Alcance</p>
                                 <p className="text-sm font-bold">{formatNumberCompact(selectedCreative.reach || 0)}</p>
                               </div>
                             </div>
+                            {/* CPA / ROAS */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="glass-card p-2.5">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">CPA</p>
+                                <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpa || 0)}</p>
+                              </div>
+                              <div className="glass-card p-2.5">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">ROAS</p>
+                                <p className="text-sm font-bold">{(selectedCreative.roas || 0).toFixed(2)}x</p>
+                              </div>
+                            </div>
+                            {/* Headline & Primary Text */}
                             {selectedCreative.headline && (
-                              <div className="glass-card p-3">
+                              <div className="glass-card p-2.5">
                                 <p className="text-[9px] text-muted-foreground mb-0.5">Headline</p>
-                                <p className="text-xs">{selectedCreative.headline}</p>
+                                <p className="text-xs font-medium">{selectedCreative.headline}</p>
                               </div>
                             )}
                             {selectedCreative.primary_text && (
-                              <div className="glass-card p-3">
+                              <div className="glass-card p-2.5">
                                 <p className="text-[9px] text-muted-foreground mb-0.5">Texto Principal</p>
-                                <p className="text-xs line-clamp-3">{selectedCreative.primary_text}</p>
+                                <p className="text-xs line-clamp-4">{selectedCreative.primary_text}</p>
                               </div>
                             )}
+                            {/* CTA */}
+                            {selectedCreative.cta && (
+                              <div className="glass-card p-2.5">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">CTA</p>
+                                <p className="text-xs font-medium">{selectedCreative.cta}</p>
+                              </div>
+                            )}
+                            {/* Ad Set & Campaign info */}
+                            <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+                              <div className="glass-card p-2">
+                                <p className="text-[8px] text-muted-foreground/70">Conjunto</p>
+                                <p className="truncate">{selectedCreative.ad_set_id}</p>
+                              </div>
+                              <div className="glass-card p-2">
+                                <p className="text-[8px] text-muted-foreground/70">Status</p>
+                                <p>{selectedCreative.status === 'ACTIVE' ? '● Ativo' : '○ Pausado'}</p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </>

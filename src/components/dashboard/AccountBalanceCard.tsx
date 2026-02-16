@@ -242,7 +242,7 @@ export function AccountBalanceCard({
     "relative overflow-hidden transition-all",
     isZeroBalance && "border-2 border-destructive bg-destructive/5 shadow-[0_0_20px_rgba(239,68,68,0.3)]"
   )}>
-      <CardContent className="pt-3 pb-3 px-4">
+      <CardContent className="pt-2 pb-2 px-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className={cn(
@@ -254,7 +254,7 @@ export function AccountBalanceCard({
               (!data || (!isZeroBalance && data.status === 'unknown')) && "bg-muted"
             )}>
               <Wallet className={cn(
-                "w-4 h-4",
+                "w-3.5 h-3.5",
                 isZeroBalance ? "text-destructive" : data ? getStatusColor(data.status) : "text-muted-foreground"
               )} />
             </div>
@@ -263,7 +263,7 @@ export function AccountBalanceCard({
                 {isZeroBalance ? "⚠️ Saldo Meta Ads" : "Saldo Meta Ads"}
               </p>
               {loading ? <div className="h-5 w-20 bg-muted/50 animate-pulse rounded" /> : <p className={cn(
-                "text-base font-bold",
+                "text-sm font-bold",
                 isZeroBalance ? "text-destructive animate-pulse" : data ? getStatusColor(data.status) : "text-foreground"
               )}>
                   {data ? formatCurrency(data.balance) : '—'}

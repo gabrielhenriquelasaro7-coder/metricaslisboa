@@ -337,9 +337,9 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button variant="gradient">
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Projeto
+          <Button variant="outline" size="sm">
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Novo
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-lg max-h-[90vh]">

@@ -158,7 +158,7 @@ export function SmoothLoader({
             key="content"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.25, delay: 0.05 }}
+            transition={{ duration: 0.2, delay: 0 }}
           >
             {children}
           </motion.div>
