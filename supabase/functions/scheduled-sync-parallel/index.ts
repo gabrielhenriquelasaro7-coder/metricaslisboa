@@ -30,6 +30,7 @@ interface Project {
   id: string;
   ad_account_id: string;
   name: string;
+  google_customer_id?: string | null;
 }
 
 interface SyncResult {
@@ -66,37 +67,80 @@ async function syncProject(
     const until = formatDate(now);
     const since = formatDate(subDays(now, 3));
     
-    const response = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-      },
-      body: JSON.stringify({
-        project_id: project.id,
-        ad_account_id: project.ad_account_id,
-        time_range: { since, until },
-        period_key: 'last_3d',
-        retry_count: retryCount,
-        // IMPORTANTE: Sempre buscar imagens HD no sync agendado
-        light_sync: false,
-        skip_image_cache: false,
-      }),
-    });
-    
-    const data = await response.json().catch(() => ({ success: false }));
-    
-    if (data.success) {
-      result.success = true;
-      result.daily_records = data.data?.daily_records_count || 0;
-      console.log(`[${project.name}] ✓ ${result.daily_records} daily records in ${data.data?.elapsed_seconds || '?'}s`);
-    } else if (data.needs_retry && retryCount < MAX_RETRIES) {
-      result.needs_retry = true;
-      result.error = 'Scheduled for retry';
-      console.log(`[${project.name}] ⏳ Needs retry (${retryCount + 1}/${MAX_RETRIES})`);
+    const syncPromises: Promise<any>[] = [];
+
+    // Meta Ads sync (only if ad_account_id starts with 'act_')
+    const hasMeta = project.ad_account_id?.startsWith('act_');
+    if (hasMeta) {
+      syncPromises.push(
+        fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            project_id: project.id,
+            ad_account_id: project.ad_account_id,
+            time_range: { since, until },
+            period_key: 'last_3d',
+            retry_count: retryCount,
+            light_sync: false,
+            skip_image_cache: false,
+          }),
+        }).then(r => r.json().catch(() => ({ success: false }))).then(data => ({ type: 'meta', data }))
+      );
+    }
+
+    // Google Ads sync (only if google_customer_id is set)
+    const hasGoogle = !!project.google_customer_id?.trim();
+    if (hasGoogle) {
+      syncPromises.push(
+        fetch(`${supabaseUrl}/functions/v1/google-ads-sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            projectId: project.id,
+            syncType: 'full',
+            days: 3,
+          }),
+        }).then(r => r.json().catch(() => ({ success: false }))).then(data => ({ type: 'google', data }))
+      );
+    }
+
+    if (syncPromises.length === 0) {
+      result.error = 'No ad accounts configured';
+      console.log(`[${project.name}] ⚠ No Meta or Google configured, skipping`);
     } else {
-      result.error = data.error || 'Failed';
-      console.log(`[${project.name}] ✗ ${result.error}`);
+      const results = await Promise.all(syncPromises);
+      
+      let allSuccess = true;
+      let needsRetry = false;
+
+      for (const r of results) {
+        if (r.data.success) {
+          const records = r.data.data?.daily_records_count || r.data.recordsCount || 0;
+          result.daily_records += records;
+          console.log(`[${project.name}] ✓ ${r.type}: ${records} records`);
+        } else if (r.data.needs_retry && retryCount < MAX_RETRIES) {
+          needsRetry = true;
+          console.log(`[${project.name}] ⏳ ${r.type}: Needs retry`);
+        } else {
+          allSuccess = false;
+          console.log(`[${project.name}] ✗ ${r.type}: ${r.data.error || 'Failed'}`);
+        }
+      }
+
+      result.success = allSuccess;
+      if (needsRetry) {
+        result.needs_retry = true;
+        result.error = 'Scheduled for retry';
+      } else if (!allSuccess) {
+        result.error = results.filter(r => !r.data.success).map(r => `${r.type}: ${r.data.error}`).join('; ');
+      }
     }
   } catch (error) {
     result.error = error instanceof Error ? error.message : 'Error';
@@ -177,13 +221,11 @@ Deno.serve(async (req) => {
 
     const concurrentLimit = Math.min(concurrent, 10); // Max 10 concurrent
 
-    // Fetch META ONLY projects (ad_account_id starts with 'act_')
+    // Fetch ALL projects (Meta and/or Google)
     let projectsQuery = supabase
       .from('projects')
-      .select('id, ad_account_id, name')
-      .eq('archived', false)
-      .not('ad_account_id', 'is', null)
-      .like('ad_account_id', 'act_%'); // Only Meta Ads accounts
+      .select('id, ad_account_id, name, google_customer_id')
+      .eq('archived', false);
 
     if (project_ids && project_ids.length > 0) {
       projectsQuery = projectsQuery.in('id', project_ids);
@@ -193,12 +235,19 @@ Deno.serve(async (req) => {
     if (retry_failed) {
       projectsQuery = projectsQuery.eq('webhook_status', 'retry_pending');
     }
-    
-    console.log(`[SYNC] Filtering Meta projects only (ad_account_id LIKE 'act_%')`);
 
-    const { data: projects, error: projectsError } = await projectsQuery;
+    // Filter: must have at least Meta OR Google configured
+    // We'll filter in-memory after fetch since OR conditions are complex
+    console.log(`[SYNC] Fetching projects with Meta or Google configured`);
 
-    if (projectsError || !projects || projects.length === 0) {
+    const { data: allProjects, error: projectsError } = await projectsQuery;
+
+    // Filter: must have at least Meta OR Google configured
+    const projects = (allProjects || []).filter(p => 
+      p.ad_account_id?.startsWith('act_') || !!p.google_customer_id?.trim()
+    );
+
+    if (projectsError || projects.length === 0) {
       return new Response(
         JSON.stringify({ 
           success: true, 

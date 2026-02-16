@@ -287,27 +287,53 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     }).eq('id', pendingProjectId);
 
     try {
-      // Don't specify parallel_batch_size - let the edge function auto-calculate based on account size
-      // Small accounts: 4 months parallel
-      // Medium accounts: 3 months parallel  
-      // Large accounts: 2 months parallel
-      // Very large accounts: 1 month (sequential)
-      const { error, data } = await supabase.functions.invoke('import-month-by-month', {
-        body: {
-          project_id: pendingProjectId,
-          year: startYear,
-          month: 1,
-          continue_chain: true,
-          // parallel_batch_size not set = auto-calculate based on account size!
-          force_light_sync: lightSync,
-          safe_mode: true,
-        },
-      });
+      // Build parallel sync promises
+      const syncPromises: Promise<any>[] = [];
+
+      // Meta Ads import (always runs)
+      syncPromises.push(
+        supabase.functions.invoke('import-month-by-month', {
+          body: {
+            project_id: pendingProjectId,
+            year: startYear,
+            month: 1,
+            continue_chain: true,
+            force_light_sync: lightSync,
+            safe_mode: true,
+          },
+        })
+      );
+
+      // Google Ads import (runs in parallel if google_customer_id is set)
+      if (formData.google_customer_id?.trim()) {
+        console.log(`[IMPORT] Starting Google Ads sync in parallel for project ${pendingProjectId}`);
+        syncPromises.push(
+          supabase.functions.invoke('google-ads-sync', {
+            body: {
+              projectId: pendingProjectId,
+              syncType: 'full',
+              days: 90,
+            },
+          })
+        );
+      }
+
+      const results = await Promise.all(syncPromises);
       
-      if (error) {
-        console.error('Error starting import:', error);
+      const metaResult = results[0];
+      if (metaResult.error) {
+        console.error('Error starting Meta import:', metaResult.error);
       } else {
-        console.log(`[IMPORT] Started SMART import for project ${pendingProjectId}`, data);
+        console.log(`[IMPORT] Started SMART Meta import for project ${pendingProjectId}`, metaResult.data);
+      }
+
+      if (results[1]) {
+        const googleResult = results[1];
+        if (googleResult.error || !googleResult.data?.success) {
+          console.error('Error starting Google import:', googleResult.error || googleResult.data?.error);
+        } else {
+          console.log(`[IMPORT] Google Ads imported: ${googleResult.data?.recordsCount || 0} records`);
+        }
       }
     } catch (error) {
       console.error('Error starting import:', error);
