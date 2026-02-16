@@ -5,6 +5,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// GLOBAL: Clean image URLs - removes ALL resize parameters to get original HD
+function cleanMetaImageUrl(url: string | null): string | null {
+  if (!url) return null;
+  let clean = url;
+  // Remove stp= parameter that forces resize (p64x64, etc)
+  clean = clean.replace(/[&?]stp=[^&]*/gi, '');
+  // Remove size parameters in path
+  clean = clean.replace(/\/p\d+x\d+\//g, '/');
+  clean = clean.replace(/\/s\d+x\d+\//g, '/');
+  // Fix malformed URL
+  if (clean.includes('&') && !clean.includes('?')) {
+    clean = clean.replace('&', '?');
+  }
+  clean = clean.replace(/[&?]$/g, '');
+  return clean;
+}
+
 // ===========================================================================================
 // NOVA ARQUITETURA DE SINCRONIZAÇÃO META ADS
 // 
@@ -426,15 +443,7 @@ async function syncCreatives(
       }
       
       // LIMPAR URL - remover parâmetros de resize forçado (p64x64, etc)
-      if (thumbnailUrl) {
-        thumbnailUrl = thumbnailUrl.replace(/[&?]stp=[^&]*/gi, '');
-        thumbnailUrl = thumbnailUrl.replace(/\/p\d+x\d+\//g, '/');
-        thumbnailUrl = thumbnailUrl.replace(/\/s\d+x\d+\//g, '/');
-        if (thumbnailUrl.includes('&') && !thumbnailUrl.includes('?')) {
-          thumbnailUrl = thumbnailUrl.replace('&', '?');
-        }
-        thumbnailUrl = thumbnailUrl.replace(/[&?]$/g, '');
-      }
+      thumbnailUrl = cleanMetaImageUrl(thumbnailUrl);
       
       // Preparar dados de atualização
       const updateData: any = {
@@ -669,9 +678,10 @@ async function syncHDImages(
       try {
         const cachedUrl = await cacheCreativeImage(supabase, projectId, ad.id, hdUrl);
         if (cachedUrl) {
-          await supabase.from('ads').update({ 
+           await supabase.from('ads').update({ 
             cached_image_url: cachedUrl,
-            creative_thumbnail: hdUrl,
+            creative_thumbnail: cleanMetaImageUrl(hdUrl),
+            creative_image_url: cleanMetaImageUrl(hdUrl),
             synced_at: new Date().toISOString()
           }).eq('id', ad.id);
           cachedCount++;
@@ -712,7 +722,8 @@ async function syncHDImages(
         if (cachedUrl) {
           await supabase.from('ads').update({ 
             cached_image_url: cachedUrl,
-            creative_thumbnail: adData.creative.thumbnail_url,
+            creative_thumbnail: cleanMetaImageUrl(adData.creative.thumbnail_url),
+            creative_image_url: cleanMetaImageUrl(adData.creative.thumbnail_url),
             synced_at: new Date().toISOString()
           }).eq('id', ad.id);
           cachedCount++;
@@ -791,8 +802,8 @@ async function cacheCreativeImageRobust(
 async function cacheCreativeImage(supabase: any, projectId: string, adId: string, imageUrl: string, forceRecache: boolean = false): Promise<string | null> {
   if (!imageUrl) return null;
   
-  // THRESHOLD MÍNIMO REDUZIDO: 5KB (Meta retorna PNGs comprimidos que são pequenos mas com boa qualidade)
-  const MIN_SIZE = 5000;
+  // THRESHOLD MÍNIMO: 20KB - rejeita imagens low-res (64x64 ~= 5-10KB)
+  const MIN_SIZE = 20000;
   
   try {
     const fileName = `${projectId}/${adId}.jpg`;
