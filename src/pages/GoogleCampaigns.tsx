@@ -8,6 +8,8 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { FunnelChart } from '@/components/dashboard/FunnelChart';
 import PeriodComparison from '@/components/dashboard/PeriodComparison';
+import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
+import { useDemographicInsights } from '@/hooks/useDemographicInsights';
 import { useGoogleAdsData } from '@/hooks/useGoogleAdsData';
 import { DailyMetric } from '@/hooks/useDailyMetrics';
 import { DateRange } from 'react-day-picker';
@@ -60,7 +62,6 @@ const formatDevice = (val: string) => ({ MOBILE: 'Mobile', DESKTOP: 'Desktop', T
 
 const KEYWORDS_PER_PAGE = 20;
 
-// Helper to get previous period dates
 function getPreviousPeriod(since: string, until: string, preset: DatePresetKey) {
   const sinceDate = new Date(since);
   const untilDate = new Date(until);
@@ -80,7 +81,6 @@ function getPreviousPeriod(since: string, until: string, preset: DatePresetKey) 
     const prevYear = sinceDate.getMonth() === 0 ? sinceDate.getFullYear() - 1 : sinceDate.getFullYear();
     return { since: format(new Date(prevYear, prevMonth, 1), 'yyyy-MM-dd'), until: format(new Date(prevYear, prevMonth + 1, 0), 'yyyy-MM-dd') };
   }
-  // Default: same length before
   const prevUntil = new Date(sinceDate); prevUntil.setDate(prevUntil.getDate() - 1);
   const prevSince = new Date(prevUntil); prevSince.setDate(prevSince.getDate() - days + 1);
   return { since: format(prevSince, 'yyyy-MM-dd'), until: format(prevUntil, 'yyyy-MM-dd') };
@@ -97,7 +97,6 @@ export default function GoogleCampaigns() {
   const [expandedAdGroups, setExpandedAdGroups] = useState<Set<string>>(new Set());
   const [showComparison, setShowComparison] = useState(true);
 
-  // Keywords state
   const [kwPage, setKwPage] = useState(0);
   const [kwSearch, setKwSearch] = useState('');
   const [kwMatchFilter, setKwMatchFilter] = useState<string>('all');
@@ -119,10 +118,31 @@ export default function GoogleCampaigns() {
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
   const isPageLoading = loading && campaigns.length === 0;
 
-  const totals = useMemo(() => campaigns.reduce((acc, c) => ({
-    spend: acc.spend + c.spend, impressions: acc.impressions + c.impressions, clicks: acc.clicks + c.clicks,
-    conversions: acc.conversions + c.conversions, revenue: acc.revenue + c.conversion_value,
-  }), { spend: 0, impressions: 0, clicks: 0, conversions: 0, revenue: 0 }), [campaigns]);
+  // Get current period bounds
+  const periodBounds = useMemo(() => {
+    if (selectedPreset === 'custom' && dateRange?.from && dateRange?.to) {
+      return { since: format(dateRange.from, 'yyyy-MM-dd'), until: format(dateRange.to, 'yyyy-MM-dd') };
+    }
+    const period = getDateRangeFromPreset(selectedPreset, selectedProject?.timezone || 'America/Sao_Paulo');
+    if (period) return { since: period.since, until: period.until };
+    return null;
+  }, [selectedPreset, dateRange, selectedProject?.timezone]);
+
+  // Period-filtered totals from dailyMetrics (not from campaigns aggregate)
+  const totals = useMemo(() => {
+    if (!periodBounds || !dailyMetrics.length) {
+      // fallback to campaigns aggregate
+      return campaigns.reduce((acc, c) => ({
+        spend: acc.spend + c.spend, impressions: acc.impressions + c.impressions, clicks: acc.clicks + c.clicks,
+        conversions: acc.conversions + c.conversions, revenue: acc.revenue + c.conversion_value,
+      }), { spend: 0, impressions: 0, clicks: 0, conversions: 0, revenue: 0 });
+    }
+    const filtered = dailyMetrics.filter(d => d.date >= periodBounds.since && d.date <= periodBounds.until);
+    return filtered.reduce((acc, d) => ({
+      spend: acc.spend + d.spend, impressions: acc.impressions + d.impressions, clicks: acc.clicks + d.clicks,
+      conversions: acc.conversions + (d.conversions || 0), revenue: acc.revenue + (d.conversion_value || 0),
+    }), { spend: 0, impressions: 0, clicks: 0, conversions: 0, revenue: 0 });
+  }, [dailyMetrics, periodBounds, campaigns]);
 
   const avgCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
   const avgCpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
@@ -131,43 +151,41 @@ export default function GoogleCampaigns() {
   const avgCpm = totals.impressions > 0 ? (totals.spend / totals.impressions) * 1000 : 0;
   const convRate = totals.clicks > 0 ? (totals.conversions / totals.clicks) * 100 : 0;
 
-  // Budget summary from active campaigns
+  // Budget summary - show accumulated spend & daily budget
   const budgetSummary = useMemo(() => {
     const activeCampaigns = campaigns.filter(c => c.status === 'ENABLED');
     const totalDailyBudget = activeCampaigns.reduce((s, c) => s + (c.budget_amount || 0), 0);
-    return { totalDailyBudget, activeCampaigns: activeCampaigns.length, totalCampaigns: campaigns.length };
-  }, [campaigns]);
+    // Monthly budget estimate (daily x 30.4)
+    const monthlyBudget = totalDailyBudget * 30.4;
+    // Remaining = monthly budget - current spend
+    const remaining = monthlyBudget - totals.spend;
+    return { totalDailyBudget, monthlyBudget, remaining, activeCampaigns: activeCampaigns.length, totalCampaigns: campaigns.length };
+  }, [campaigns, totals.spend]);
 
   const formatCurrency = useCallback((num: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: selectedProject?.currency || 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num), [selectedProject?.currency]);
   const formatNumber = (num: number) => { if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'; if (num >= 1000) return (num / 1000).toFixed(1) + 'K'; return num.toLocaleString('pt-BR'); };
   const formatNumberCompact = formatNumber;
 
-  // Chart data from daily metrics
+  // Chart data filtered by period
   const chartData = useMemo((): DailyMetric[] => {
-    const agg = aggregateDailyMetrics(dailyMetrics);
+    let filtered = dailyMetrics;
+    if (periodBounds) {
+      filtered = dailyMetrics.filter(d => d.date >= periodBounds.since && d.date <= periodBounds.until);
+    }
+    const agg = aggregateDailyMetrics(filtered);
     return agg.map(d => ({
       date: d.date, spend: d.spend, impressions: d.impressions, clicks: d.clicks, reach: 0,
       conversions: d.conversions, conversion_value: d.conversion_value, messaging_replies: 0, profile_visits: 0,
       leads_conversions: 0, sales_conversions: 0, initiate_checkout_conversions: 0,
       ctr: d.ctr, cpm: d.cpm, cpc: d.cpc, roas: d.roas, cpa: d.cpa,
     }));
-  }, [dailyMetrics, aggregateDailyMetrics]);
+  }, [dailyMetrics, aggregateDailyMetrics, periodBounds]);
 
   // Period comparison from daily metrics
   const periodComparison = useMemo(() => {
-    if (!dailyMetrics.length) return null;
+    if (!dailyMetrics.length || !periodBounds) return null;
 
-    let since: string, until: string;
-    if (selectedPreset === 'custom' && dateRange?.from && dateRange?.to) {
-      since = format(dateRange.from, 'yyyy-MM-dd');
-      until = format(dateRange.to, 'yyyy-MM-dd');
-    } else {
-      const period = getDateRangeFromPreset(selectedPreset, selectedProject?.timezone || 'America/Sao_Paulo');
-      if (!period) return null;
-      since = period.since;
-      until = period.until;
-    }
-
+    const { since, until } = periodBounds;
     const prev = getPreviousPeriod(since, until, selectedPreset);
 
     const currentData = dailyMetrics.filter(d => d.date >= since && d.date <= until);
@@ -219,8 +237,18 @@ export default function GoogleCampaigns() {
         revenue: calcChange(cur.revenue, pre.revenue),
       },
     };
-  }, [dailyMetrics, selectedPreset, dateRange, selectedProject?.timezone]);
+  }, [dailyMetrics, periodBounds, selectedPreset]);
 
+  // Demographic data for Google via useDemographicInsights (from google_demographic_insights)
+  const demographicDateRange = useMemo(() => {
+    if (dateRange?.from && dateRange?.to) return { startDate: dateRange.from, endDate: dateRange.to };
+    const period = getDateRangeFromPreset(selectedPreset, selectedProject?.timezone || 'America/Sao_Paulo');
+    if (period) return { startDate: new Date(period.since + 'T00:00:00'), endDate: new Date(period.until + 'T23:59:59') };
+    const end = new Date(); const start = new Date(); start.setDate(start.getDate() - 30);
+    return { startDate: start, endDate: end };
+  }, [selectedPreset, selectedProject?.timezone, dateRange]);
+
+  // Use the Google-specific demographics from the loaded data
   const demoAggregated = useMemo(() => {
     const agg = new Map<string, { type: string; value: string; spend: number; impressions: number; clicks: number; conversions: number }>();
     for (const d of demographics) {
@@ -342,27 +370,33 @@ export default function GoogleCampaigns() {
             ) : (
               <div className="space-y-4 sm:space-y-6">
 
-                {/* Google Budget Card */}
+                {/* Saldo da Conta Google */}
                 {budgetSummary.totalDailyBudget > 0 && (
                   <div className="glass-card p-3 sm:p-4 border-l-4 border-l-yellow-500">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
                           <Wallet className="w-5 h-5 text-yellow-500" />
                         </div>
                         <div>
-                          <p className="text-[10px] sm:text-xs text-muted-foreground">Orçamento Diário Total</p>
-                          <p className="text-sm sm:text-lg font-bold">{formatCurrency(budgetSummary.totalDailyBudget)}</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">Saldo Estimado (Mensal)</p>
+                          <p className={cn("text-sm sm:text-lg font-bold", budgetSummary.remaining > 0 ? 'text-metric-positive' : 'text-metric-negative')}>
+                            {formatCurrency(Math.max(0, budgetSummary.remaining))}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4 text-right">
+                      <div className="flex items-center gap-4 sm:gap-6 text-right flex-wrap">
                         <div>
-                          <p className="text-[10px] text-muted-foreground">Campanhas Ativas</p>
-                          <p className="text-sm font-semibold text-metric-positive">{budgetSummary.activeCampaigns}/{budgetSummary.totalCampaigns}</p>
+                          <p className="text-[10px] text-muted-foreground">Orç. Mensal</p>
+                          <p className="text-xs sm:text-sm font-semibold">{formatCurrency(budgetSummary.monthlyBudget)}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-muted-foreground">Gasto Acumulado</p>
-                          <p className="text-sm font-semibold">{formatCurrency(totals.spend)}</p>
+                          <p className="text-[10px] text-muted-foreground">Gasto no Período</p>
+                          <p className="text-xs sm:text-sm font-semibold">{formatCurrency(totals.spend)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Campanhas Ativas</p>
+                          <p className="text-xs sm:text-sm font-semibold text-metric-positive">{budgetSummary.activeCampaigns}/{budgetSummary.totalCampaigns}</p>
                         </div>
                       </div>
                     </div>
@@ -391,7 +425,7 @@ export default function GoogleCampaigns() {
                   </div>
                 )}
 
-                {/* Métricas Gerais - Meta Ads Style */}
+                {/* Métricas Gerais */}
                 <div>
                   <div className="flex items-center gap-2 mb-3 sm:mb-4">
                     <div className="w-1 h-4 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
@@ -450,7 +484,7 @@ export default function GoogleCampaigns() {
                   </div>
                 </div>
 
-                {/* Resultados - Meta Ads Style */}
+                {/* Resultados */}
                 <div>
                   <div className="flex items-center gap-2 mb-3 sm:mb-4">
                     <div className="w-1 h-4 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
@@ -517,7 +551,7 @@ export default function GoogleCampaigns() {
                   </div>
                 </div>
 
-                {/* 3 Gráficos - Um abaixo do outro */}
+                {/* 3 Gráficos */}
                 {chartData.length > 0 && (
                   <div className="space-y-4 sm:space-y-6">
                     <CustomizableChart chartKey="google_invest_clicks" data={chartData} defaultTitle="Investimento vs Cliques" defaultPrimaryMetric="spend" defaultSecondaryMetric="clicks" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} />
@@ -526,7 +560,7 @@ export default function GoogleCampaigns() {
                   </div>
                 )}
 
-                {/* Funil de Vendas */}
+                {/* Funil */}
                 <FunnelChart
                   impressions={funnelTotals.impressions} clicks={funnelTotals.clicks} conversions={funnelTotals.conversions} spend={funnelTotals.spend}
                   ctr={funnelTotals.impressions > 0 ? (funnelTotals.clicks / funnelTotals.impressions) * 100 : 0}
@@ -642,11 +676,11 @@ export default function GoogleCampaigns() {
                 {/* === DEMOGRÁFICOS === */}
                 {demographics.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium flex items-center gap-2 mb-3"><Users className="w-4 h-4" /> Demográficos</h3>
+                    <h3 className="text-sm font-medium flex items-center gap-2 mb-3"><Users className="w-4 h-4" /> Demográficos Google</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <DemoCard title="Faixa Etária" icon={Users} data={ageData} formatLabel={formatAgeRange} barColor="bg-primary" />
-                      <DemoCard title="Gênero" icon={Users} data={genderData} formatLabel={formatGender} barColor="bg-accent" />
-                      <DemoCard title="Dispositivo" icon={BarChart3} data={deviceData} formatLabel={formatDevice} barColor="bg-secondary-foreground/50" />
+                      <DemoCard title="Faixa Etária" icon={Users} data={ageData} formatLabel={formatAgeRange} barColor="bg-primary" formatCurrency={formatCurrency} />
+                      <DemoCard title="Gênero" icon={Users} data={genderData} formatLabel={formatGender} barColor="bg-accent" formatCurrency={formatCurrency} />
+                      <DemoCard title="Dispositivo" icon={BarChart3} data={deviceData} formatLabel={formatDevice} barColor="bg-secondary-foreground/50" formatCurrency={formatCurrency} />
                     </div>
                   </div>
                 )}
@@ -661,23 +695,29 @@ export default function GoogleCampaigns() {
 
 // Sub-components
 
-function DemoCard({ title, icon: Icon, data, formatLabel, barColor }: { title: string; icon: React.ElementType; data: { value: string; spend: number }[]; formatLabel: (v: string) => string; barColor: string }) {
+function DemoCard({ title, icon: Icon, data, formatLabel, barColor, formatCurrency }: { title: string; icon: React.ElementType; data: { value: string; spend: number; clicks: number; conversions: number }[]; formatLabel: (v: string) => string; barColor: string; formatCurrency: (n: number) => string }) {
   const total = data.reduce((s, d) => s + d.spend, 0);
   return (
     <div className="glass-card overflow-hidden">
       <div className="px-4 py-3 bg-secondary/30 border-b border-border">
         <h3 className="text-sm font-medium flex items-center gap-2"><Icon className="w-4 h-4" /> {title}</h3>
       </div>
-      <div className="p-3 space-y-2">
+      <div className="p-3 space-y-2.5">
         {data.map((d, i) => {
           const pct = total > 0 ? (d.spend / total) * 100 : 0;
           return (
-            <div key={i} className="flex items-center gap-2">
-              <span className="text-xs w-20 text-muted-foreground truncate">{formatLabel(d.value)}</span>
-              <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
-                <div className={cn("h-full rounded-full", barColor)} style={{ width: `${pct}%` }} />
+            <div key={i} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-foreground">{formatLabel(d.value)}</span>
+                <span className="text-[10px] text-muted-foreground">{formatCurrency(d.spend)} · {pct.toFixed(0)}%</span>
               </div>
-              <span className="text-xs font-medium w-10 text-right">{pct.toFixed(0)}%</span>
+              <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+              </div>
+              <div className="flex items-center gap-3 text-[9px] text-muted-foreground">
+                <span>{d.clicks} cliques</span>
+                <span>{d.conversions} conv.</span>
+              </div>
             </div>
           );
         })}
@@ -745,42 +785,42 @@ function AdGroupRow({ adGroup: ag, isExpanded, ads, onToggle, formatCurrency, fo
           <td colSpan={8} className="p-0">
             <div className="pl-14 pr-4 py-3 space-y-2 bg-secondary/5">
               {ads.map((ad: any) => (
-                <div key={ad.id} className="glass-card p-3 flex flex-col sm:flex-row sm:items-start gap-3">
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <Badge className={cn("text-[9px]", ad.status === 'ENABLED' ? "bg-metric-positive text-white" : "bg-secondary text-muted-foreground")}>
-                        {ad.status === 'ENABLED' ? 'Ativo' : ad.status === 'PAUSED' ? 'Pausado' : ad.status}
+                <div key={ad.id} className="glass-card p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Badge className={cn("text-[9px] flex-shrink-0", ad.status === 'ENABLED' ? "bg-metric-positive text-white" : "bg-secondary text-muted-foreground")}>
+                        {ad.status === 'ENABLED' ? 'Ativo' : 'Pausado'}
                       </Badge>
                       <span className="text-xs font-medium truncate">{ad.name}</span>
-                      {ad.ad_type && <span className="text-[9px] text-muted-foreground">{ad.ad_type}</span>}
+                      {ad.ad_type && <span className="text-[9px] text-muted-foreground flex-shrink-0">{ad.ad_type}</span>}
                     </div>
-                    {ad.headlines?.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {ad.headlines.map((h: string, i: number) => (
-                          <span key={i} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">{h}</span>
-                        ))}
-                      </div>
-                    )}
-                    {ad.descriptions?.length > 0 && (
-                      <div className="space-y-0.5">
-                        {ad.descriptions.slice(0, 2).map((d: string, i: number) => (
-                          <p key={i} className="text-[10px] text-muted-foreground">{d}</p>
-                        ))}
-                      </div>
-                    )}
-                    {ad.final_urls?.length > 0 && (
-                      <a href={ad.final_urls[0]} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 truncate">
-                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{ad.final_urls[0]}</span>
-                      </a>
-                    )}
+                    <div className="grid grid-cols-4 gap-3 text-center flex-shrink-0">
+                      <div><p className="text-[9px] text-muted-foreground">Gasto</p><p className="text-xs font-semibold">{formatCurrency(ad.spend)}</p></div>
+                      <div><p className="text-[9px] text-muted-foreground">Cliques</p><p className="text-xs font-medium">{formatNumber(ad.clicks)}</p></div>
+                      <div><p className="text-[9px] text-muted-foreground">CTR</p><p className="text-xs font-medium">{ad.ctr.toFixed(2)}%</p></div>
+                      <div><p className="text-[9px] text-muted-foreground">Conv</p><p className="text-xs font-medium">{formatNumber(ad.conversions)}</p></div>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-3 text-center flex-shrink-0">
-                    <div><p className="text-[9px] text-muted-foreground">Gasto</p><p className="text-xs font-medium">{formatCurrency(ad.spend)}</p></div>
-                    <div><p className="text-[9px] text-muted-foreground">Cliques</p><p className="text-xs font-medium">{formatNumber(ad.clicks)}</p></div>
-                    <div><p className="text-[9px] text-muted-foreground">CTR</p><p className="text-xs font-medium">{ad.ctr.toFixed(2)}%</p></div>
-                    <div><p className="text-[9px] text-muted-foreground">Conv</p><p className="text-xs font-medium">{formatNumber(ad.conversions)}</p></div>
-                  </div>
+                  {ad.headlines?.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {ad.headlines.map((h: string, i: number) => (
+                        <span key={i} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">{h}</span>
+                      ))}
+                    </div>
+                  )}
+                  {ad.descriptions?.length > 0 && (
+                    <div className="space-y-0.5">
+                      {ad.descriptions.slice(0, 2).map((d: string, i: number) => (
+                        <p key={i} className="text-[10px] text-muted-foreground">{d}</p>
+                      ))}
+                    </div>
+                  )}
+                  {ad.final_urls?.length > 0 && (
+                    <a href={ad.final_urls[0]} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 truncate">
+                      <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{ad.final_urls[0]}</span>
+                    </a>
+                  )}
                 </div>
               ))}
             </div>
