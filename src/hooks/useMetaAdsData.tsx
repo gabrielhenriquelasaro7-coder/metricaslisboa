@@ -611,13 +611,24 @@ export function useMetaAdsData() {
       
       invalidateCreativeImageCache();
       
-      // For single ad, just update local state without full reload
-      if (!singleAdId) {
+      let fetchedAd = null;
+      if (singleAdId) {
+        const { data: updatedAd } = await supabase
+          .from('ads')
+          .select('*')
+          .eq('id', singleAdId)
+          .single();
+        
+        fetchedAd = updatedAd;
+        if (updatedAd) {
+          setAds(prev => prev.map(a => a.id === singleAdId ? { ...a, ...updatedAd } as Ad : a));
+        }
+      } else {
         lastLoadedPeriodRef.current = null;
         await loadDataFromDatabase();
       }
       
-      return { success: true, data: copiesData };
+      return { success: true, data: copiesData, updatedAd: fetchedAd };
     } catch (error) {
       console.error('Creatives HD sync error:', error);
       toast.error('Erro ao sincronizar criativo em HD');

@@ -597,7 +597,10 @@ export default function MetaAds() {
                               variant="outline"
                               size="sm"
                               className="h-7 text-[10px] gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10"
-                              onClick={() => syncCreativesHD(selectedCreative.id)}
+                              onClick={async () => {
+                                const result = await syncCreativesHD(selectedCreative.id);
+                                if (result?.updatedAd) setSelectedCreative({ ...selectedCreative, ...result.updatedAd });
+                              }}
                               disabled={syncing}
                             >
                               <ImageIcon className={cn("w-3 h-3", syncing && "animate-spin")} />
