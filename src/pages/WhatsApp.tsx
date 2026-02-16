@@ -4,6 +4,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
 import { useWhatsAppInstances } from '@/hooks/useWhatsAppInstances';
+// Note: projectsLoading is destructured below from useProjects
 import { useWhatsAppManager, type ManagerInstance, type ReportConfig } from '@/hooks/useWhatsAppManager';
 import { useWhatsAppPlannerConfig, type PlannerConfig } from '@/hooks/useWhatsAppPlannerConfig';
 import { toast } from 'sonner';
@@ -39,7 +40,7 @@ import whatsappIcon from '@/assets/whatsapp-icon.png';
 export default function WhatsApp() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { projects } = useProjects();
+  const { projects, loading: projectsLoading } = useProjects();
 
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
@@ -153,21 +154,10 @@ export default function WhatsApp() {
     return !manager.configs.some(c => c.project_id === p.id) && !plannerHook.configs.some(c => c.project_id === p.id);
   });
 
-  const loading = authLoading || instancesLoading;
+  const loading = authLoading || instancesLoading || (projects.length === 0 && projectsLoading);
 
-  if (loading) {
+  if (loading || !selectedProject) {
     return <DashboardLayout><div className="p-6 lg:p-8"><WhatsAppSkeleton /></div></DashboardLayout>;
-  }
-
-  if (!selectedProject) {
-    return (
-      <DashboardLayout>
-        <div className="p-6 lg:p-8 flex flex-col items-center justify-center min-h-[60vh] gap-4">
-          <p className="text-muted-foreground">Selecione um projeto primeiro</p>
-          <Button onClick={() => navigate('/dashboard')}>Ir para Projetos</Button>
-        </div>
-      </DashboardLayout>
-    );
   }
 
   return (

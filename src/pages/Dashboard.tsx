@@ -134,10 +134,16 @@ export default function Dashboard() {
   const loading = projectsLoading || metaLoading;
   const activeProjects = useMemo(() => projects.filter(p => !p.archived), [projects]);
 
+  // Top ad sets by spend
+  const topAdSets = useMemo(() => {
+    // We need ad set data - get it from metaAds hook if available
+    return [];
+  }, []);
+
   const PlatformBreakdown = ({ metaVal, googleVal, format: fmt }: { metaVal: number; googleVal: number; format: (n: number) => string }) => (
-    <div className="flex items-center gap-2 mt-1 text-[9px] text-muted-foreground">
-      <span className="flex items-center gap-0.5"><img src={metaIcon} className="w-2.5 h-2.5" alt="Meta" />{fmt(metaVal)}</span>
-      <span className="flex items-center gap-0.5"><img src={googleAdsIcon} className="w-2.5 h-2.5" alt="Google" />{fmt(googleVal)}</span>
+    <div className="flex items-center gap-3 mt-1 text-[9px] text-muted-foreground">
+      <span className="flex items-center gap-1.5"><img src={metaIcon} className="w-2.5 h-2.5" alt="Meta" />{fmt(metaVal)}</span>
+      <span className="flex items-center gap-1.5"><img src={googleAdsIcon} className="w-2.5 h-2.5" alt="Google" />{fmt(googleVal)}</span>
     </div>
   );
 
@@ -392,9 +398,18 @@ export default function Dashboard() {
                   </div>
                 </StaggerItem>
 
-                {/* Demographics */}
+                {/* Demographics - separated by channel */}
                 <StaggerItem>
-                  <DemographicCharts data={demographicData} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-1 h-4 bg-gradient-to-b from-purple-500 to-purple-500/50 rounded-full" />
+                      <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Dados Demográficos</h2>
+                      <Badge variant="outline" className="text-[9px] gap-1 border-blue-500/30 text-blue-400 ml-auto">
+                        <img src={metaIcon} className="w-3 h-3" alt="" /> Meta Ads
+                      </Badge>
+                    </div>
+                    <DemographicCharts data={demographicData} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
+                  </div>
                 </StaggerItem>
               </StaggerContainer>
             )}

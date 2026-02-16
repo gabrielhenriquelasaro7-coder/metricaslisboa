@@ -64,12 +64,12 @@ export default function SparklineCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden p-4 flex flex-col justify-between h-full premium-card group hover:border-primary/40 transition-all duration-300",
+        "relative overflow-hidden p-3 flex flex-col justify-between h-full premium-card group hover:border-primary/40 transition-all duration-300",
         className,
       )}
     >
       {/* Topo: Título e Ícone */}
-      <div className="flex items-center justify-between mb-4 z-10 relative">
+      <div className="flex items-center justify-between mb-2 z-10 relative">
         {tooltip ? (
           <Tooltip>
             <TooltipTrigger asChild>{titleContent}</TooltipTrigger>
@@ -81,14 +81,14 @@ export default function SparklineCard({
           titleContent
         )}
 
-        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+        <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
           <Icon className="h-4 w-4" />
         </div>
       </div>
 
       {/* Meio: Valor e Descrição */}
       <div className="flex flex-col z-10 relative mb-2">
-        <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate">{value}</h3>
+        <h3 className="text-lg sm:text-xl font-bold tracking-tight text-foreground truncate">{value}</h3>
         {description && <p className="text-xs text-muted-foreground mt-1 truncate opacity-80">{description}</p>}
       </div>
 

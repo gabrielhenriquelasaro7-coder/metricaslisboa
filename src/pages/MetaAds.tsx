@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ClientSelector } from '@/components/layout/ClientSelector';
@@ -48,6 +49,7 @@ export default function MetaAds() {
   const [showComparison, setShowComparison] = useState(true);
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
   const [expandedAdSets, setExpandedAdSets] = useState<Set<string>>(new Set());
+  const [selectedCreative, setSelectedCreative] = useState<any>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
   const { isGuest } = useUserRole();
@@ -399,7 +401,7 @@ export default function MetaAds() {
                       </h2>
                     </div>
 
-                    {isEcommerce && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                    {isEcommerce && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
                       {!isMetricHidden('roas') && <SparklineCard title={t('metrics.roas')} value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />}
                       {!isMetricHidden('conversions') && !isMetricHidden('purchases') && <SparklineCard title={t('metrics.purchases')} value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases.length > 0 ? sparklineData.purchases : sparklineData.conversions} />}
                       {!isMetricHidden('conversion_value') && <SparklineCard title={t('metrics.revenue')} value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />}
@@ -410,7 +412,7 @@ export default function MetaAds() {
                       const totalLeads = metrics.totalConversions;
                       const cpl = totalLeads > 0 ? metrics.totalSpend / totalLeads : 0;
                       const convRate = metrics.totalClicks > 0 ? totalLeads / metrics.totalClicks * 100 : 0;
-                      return <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                      return <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
                         {!isMetricHidden('conversions') && !isMetricHidden('leads') && <SparklineCard title={t('metrics.leads')} value={formatNumber(totalLeads)} change={changes?.conversions} icon={Users} sparklineData={sparklineData.leads.length > 0 ? sparklineData.leads : sparklineData.conversions} className="border-l-4 border-l-chart-1" />}
                         {!isMetricHidden('cpa') && <SparklineCard title={t('metrics.cpl')} value={formatCurrency(cpl)} change={changes?.cpa} icon={Receipt} sparklineData={sparklineData.cpl} invertTrend />}
                         <SparklineCard title={t('metrics.conversionRate')} value={`${convRate.toFixed(2)}%`} icon={Activity} />
@@ -418,14 +420,14 @@ export default function MetaAds() {
                       </div>;
                     })()}
 
-                    {isInfoproduto && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                    {isInfoproduto && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
                       {!isMetricHidden('conversions') && !isMetricHidden('purchases') && <SparklineCard title={t('metrics.sales')} value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases} className="border-l-4 border-l-metric-positive" />}
                       {!isMetricHidden('conversion_value') && <SparklineCard title={t('metrics.revenue')} value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />}
                       {!isMetricHidden('roas') && <SparklineCard title={t('metrics.roas')} value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />}
                       {!isMetricHidden('cpa') && <SparklineCard title={t('metrics.cpa')} value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={Target} sparklineData={sparklineData.cpl} invertTrend />}
                     </div>}
 
-                    {isPdv && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                    {isPdv && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
                       {!isMetricHidden('conversions') && <SparklineCard title={t('metrics.visits')} value={formatNumber(metrics.totalConversions)} change={changes?.conversions} icon={Store} sparklineData={sparklineData.conversions} sparklineColor="hsl(var(--chart-2))" className="border-l-4 border-l-chart-2" />}
                       {!isMetricHidden('cpa') && <SparklineCard title={t('metrics.costPerVisit')} value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={DollarSign} sparklineData={sparklineData.cpl} sparklineColor="hsl(var(--chart-3))" invertTrend />}
                       {!isMetricHidden('reach') && <MetricCard title={t('metrics.reach')} value={formatNumber(metrics.totalReach)} icon={Users} trend="neutral" />}
@@ -505,7 +507,7 @@ export default function MetaAds() {
                                         <div className="bg-secondary/30 p-3 sm:p-4">
                                           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                                             {adSetAds.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map(ad => (
-                                              <Link key={ad.id} to={`/creative/${ad.id}`} className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all group">
+                                              <button key={ad.id} onClick={() => setSelectedCreative(ad)} className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all group text-left">
                                                 <div className="aspect-square relative bg-muted">
                                                   <CreativeImage
                                                     projectId={selectedProject?.id}
@@ -527,7 +529,7 @@ export default function MetaAds() {
                                                     <span>CTR {(ad.ctr || 0).toFixed(2)}%</span>
                                                   </div>
                                                 </div>
-                                              </Link>
+                                              </button>
                                             ))}
                                           </div>
                                         </div>
@@ -567,6 +569,83 @@ export default function MetaAds() {
                 <div className="mt-8 sm:mt-10">
                   <DemographicCharts data={demographicData} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
                 </div>
+
+                {/* Creative Detail Modal */}
+                <Dialog open={!!selectedCreative} onOpenChange={(open) => !open && setSelectedCreative(null)}>
+                  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-border">
+                    {selectedCreative && (
+                      <>
+                        <DialogHeader>
+                          <DialogTitle className="text-sm font-bold truncate" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                            {selectedCreative.name}
+                          </DialogTitle>
+                          <p className="text-[10px] text-muted-foreground font-mono">ID: {selectedCreative.id}</p>
+                        </DialogHeader>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                          <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                            <CreativeImage
+                              projectId={selectedProject?.id}
+                              adId={selectedCreative.id}
+                              cachedImageUrl={selectedCreative.cached_image_url}
+                              creativeImageUrl={selectedCreative.creative_image_url}
+                              creativeThumbnail={selectedCreative.creative_thumbnail}
+                              alt={selectedCreative.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="glass-card p-3">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">Gasto</p>
+                                <p className="text-sm font-bold">{formatCurrency(selectedCreative.spend || 0)}</p>
+                              </div>
+                              <div className="glass-card p-3">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">Conversões</p>
+                                <p className="text-sm font-bold">{selectedCreative.conversions || 0}</p>
+                              </div>
+                              <div className="glass-card p-3">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">CTR</p>
+                                <p className="text-sm font-bold">{(selectedCreative.ctr || 0).toFixed(2)}%</p>
+                              </div>
+                              <div className="glass-card p-3">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">CPC</p>
+                                <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpc || 0)}</p>
+                              </div>
+                              <div className="glass-card p-3">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">CPM</p>
+                                <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpm || 0)}</p>
+                              </div>
+                              <div className="glass-card p-3">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">Impressões</p>
+                                <p className="text-sm font-bold">{formatNumberCompact(selectedCreative.impressions || 0)}</p>
+                              </div>
+                              <div className="glass-card p-3">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">Cliques</p>
+                                <p className="text-sm font-bold">{formatNumber(selectedCreative.clicks || 0)}</p>
+                              </div>
+                              <div className="glass-card p-3">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">Alcance</p>
+                                <p className="text-sm font-bold">{formatNumberCompact(selectedCreative.reach || 0)}</p>
+                              </div>
+                            </div>
+                            {selectedCreative.headline && (
+                              <div className="glass-card p-3">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">Headline</p>
+                                <p className="text-xs">{selectedCreative.headline}</p>
+                              </div>
+                            )}
+                            {selectedCreative.primary_text && (
+                              <div className="glass-card p-3">
+                                <p className="text-[9px] text-muted-foreground mb-0.5">Texto Principal</p>
+                                <p className="text-xs line-clamp-3">{selectedCreative.primary_text}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </DialogContent>
+                </Dialog>
               </>
             </SmoothLoader>
           )}
