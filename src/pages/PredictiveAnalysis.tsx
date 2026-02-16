@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { SmoothLoader } from '@/components/layout/PageTransition';
 import { usePredictiveAnalysis, OptimizationSuggestion } from '@/hooks/usePredictiveAnalysis';
 import { useAccountGoals } from '@/hooks/useAccountGoals';
 import { useSuggestionActions } from '@/hooks/useSuggestionActions';
@@ -245,6 +246,7 @@ export default function PredictiveAnalysis() {
 
   return (
     <DashboardLayout>
+      <SmoothLoader loading={loading && !data} skeleton={<div className="p-4 sm:p-6"><PredictiveSkeleton /></div>}>
       <TooltipProvider>
         <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 overflow-x-hidden">
           {/* Header */}
@@ -1298,6 +1300,7 @@ export default function PredictiveAnalysis() {
           )}
         </div>
       </TooltipProvider>
+      </SmoothLoader>
       
       {/* Suggestion Action Dialog */}
       {selectedSuggestion && (

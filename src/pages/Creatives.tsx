@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { SmoothLoader } from '@/components/layout/PageTransition';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -219,16 +220,10 @@ export default function Creatives() {
     return null;
   }
 
-  // Show smooth skeleton while loading
   const isLoading = projectsLoading || loading;
-  if (isLoading) {
-    return <DashboardLayout>
-        <div className="p-4 sm:p-6 lg:p-8">
-          <CreativesSkeleton />
-        </div>
-      </DashboardLayout>;
-  }
+
   return <DashboardLayout>
+      <SmoothLoader loading={isLoading} skeleton={<div className="p-4 sm:p-6 lg:p-8"><CreativesSkeleton /></div>}>
       <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in overflow-x-hidden">
         {/* Header */}
         <div className="flex flex-col gap-4">
@@ -506,5 +501,6 @@ export default function Creatives() {
               </div>}
           </div>}
       </div>
+      </SmoothLoader>
     </DashboardLayout>;
 }

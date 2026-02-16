@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { SmoothLoader } from '@/components/layout/PageTransition';
 import { useTranslation } from 'react-i18next';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/hooks/useAuth';
@@ -319,18 +320,9 @@ export default function Settings() {
     return format(date, "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR });
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="p-8 max-w-4xl">
-          <SettingsSkeleton />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout>
+      <SmoothLoader loading={loading} skeleton={<div className="p-8 max-w-4xl"><SettingsSkeleton /></div>}>
       <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-fade-in max-w-4xl overflow-x-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 sm:gap-4">
@@ -743,6 +735,7 @@ export default function Settings() {
 
         </Tabs>
       </div>
+      </SmoothLoader>
     </DashboardLayout>
   );
 }
