@@ -167,7 +167,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
           {!isGuest ? (
-            <Link to="/projects" className="flex items-center gap-3">
+            <Link to="/dashboard" className="flex items-center gap-3">
               <img 
                 src={v4LogoFull} 
                 alt="V4 Company" 
@@ -238,7 +238,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 ))}
                 {/* Hide "Gerenciar Projetos" for guests */}
                 {!isGuest && (
-                  <DropdownMenuItem onClick={() => navigate('/projects')} className="border-t border-border mt-1 pt-2">
+                  <DropdownMenuItem onClick={() => navigate('/dashboard')} className="border-t border-border mt-1 pt-2">
                     <FolderKanban className="w-4 h-4 mr-2" />
                     {t('sidebar.manageProjects')}
                   </DropdownMenuItem>
