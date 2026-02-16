@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import v4LogoIcon from '@/assets/v4-logo-icon.png';
 
 interface LoadingScreenProps {
   message?: string;
@@ -31,37 +32,21 @@ export function LoadingScreen({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.3 }}
       >
-        {/* Infinity Symbol Loader */}
-        <div className="relative w-16 h-10">
-          <svg viewBox="0 0 80 40" className="w-full h-full">
-            {/* Background track */}
-            <path
-              d="M20 20 C20 10, 35 10, 40 20 C45 30, 60 30, 60 20 C60 10, 45 10, 40 20 C35 30, 20 30, 20 20"
-              fill="none"
-              stroke="hsl(var(--muted-foreground))"
-              strokeWidth="4"
-              strokeLinecap="round"
-              opacity="0.25"
-            />
-            {/* Animated segment */}
-            <motion.path
-              d="M20 20 C20 10, 35 10, 40 20 C45 30, 60 30, 60 20 C60 10, 45 10, 40 20 C35 30, 20 30, 20 20"
-              fill="none"
-              stroke="hsl(221, 83%, 53%)"
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeDasharray="40 160"
-              animate={{
-                strokeDashoffset: [0, -200],
-              }}
-              transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                ease: 'linear',
-              }}
-            />
-          </svg>
-        </div>
+        {/* V4 Logo Loader */}
+        <motion.img 
+          src={v4LogoIcon} 
+          alt="V4" 
+          className="w-12 h-12 object-contain"
+          animate={{ 
+            opacity: [0.4, 1, 0.4],
+            scale: [0.95, 1.05, 0.95],
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
         
         <p className="text-sm text-muted-foreground tracking-widest">{message}</p>
       </motion.div>
@@ -70,38 +55,24 @@ export function LoadingScreen({
 }
 
 export function LoadingSpinner({ className, size = 'md' }: { className?: string; size?: 'sm' | 'md' | 'lg' }) {
-  const sizeMap = { sm: 'w-10 h-6', md: 'w-14 h-8', lg: 'w-16 h-10' };
+  const sizeMap = { sm: 'w-8 h-8', md: 'w-10 h-10', lg: 'w-12 h-12' };
 
   return (
     <div className={cn('flex flex-col items-center gap-2', className)}>
-      <div className={cn('relative', sizeMap[size])}>
-        <svg viewBox="0 0 80 40" className="w-full h-full">
-          <path
-            d="M20 20 C20 10, 35 10, 40 20 C45 30, 60 30, 60 20 C60 10, 45 10, 40 20 C35 30, 20 30, 20 20"
-            fill="none"
-            stroke="hsl(var(--muted-foreground))"
-            strokeWidth="4"
-            strokeLinecap="round"
-            opacity="0.25"
-          />
-          <motion.path
-            d="M20 20 C20 10, 35 10, 40 20 C45 30, 60 30, 60 20 C60 10, 45 10, 40 20 C35 30, 20 30, 20 20"
-            fill="none"
-            stroke="hsl(221, 83%, 53%)"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeDasharray="40 160"
-            animate={{
-              strokeDashoffset: [0, -200],
-            }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              ease: 'linear',
-            }}
-          />
-        </svg>
-      </div>
+      <motion.img 
+        src={v4LogoIcon} 
+        alt="V4" 
+        className={cn('object-contain', sizeMap[size])}
+        animate={{ 
+          opacity: [0.4, 1, 0.4],
+          scale: [0.95, 1.05, 0.95],
+        }}
+        transition={{
+          duration: 1.5,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
     </div>
   );
 }
