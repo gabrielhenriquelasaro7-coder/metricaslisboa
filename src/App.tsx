@@ -55,7 +55,7 @@ function AnimatedRoutes() {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ 
-          duration: 0.2, 
+          duration: 0.15, 
           ease: [0.25, 0.1, 0.25, 1]
         }}
         className="w-full min-h-screen"

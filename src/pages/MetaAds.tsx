@@ -24,6 +24,8 @@ import { useDailyMetrics } from '@/hooks/useDailyMetrics';
 import { useBalanceAlert } from '@/hooks/useBalanceAlert';
 import { useProfileVisitsMetrics } from '@/hooks/useProfileVisitsMetrics';
 import { usePeriodContext } from '@/hooks/usePeriodContext';
+import { SmoothLoader } from '@/components/layout/PageTransition';
+import { CreativeImage } from '@/components/ui/creative-image';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { DollarSign, MousePointerClick, Eye, Target, TrendingUp, ShoppingCart, Users, Phone, Store, RefreshCw, MoreVertical, Banknote, BarChart3, Activity, Crosshair, Receipt, Zap, Instagram, ChevronDown, ChevronRight, Layers } from 'lucide-react';
@@ -204,7 +206,7 @@ export default function MetaAds() {
           <div className="absolute top-0 right-0 w-[200px] sm:w-[400px] lg:w-[600px] h-[200px] sm:h-[400px] lg:h-[600px] bg-primary/3 rounded-full blur-[80px] sm:blur-[150px]" />
         </div>
 
-        <div className="relative z-10 p-3 sm:p-6 lg:p-8 space-y-3 sm:space-y-6 lg:space-y-8 animate-fade-in overflow-x-hidden w-full">
+        <div className="relative z-10 p-3 sm:p-6 lg:p-8 pb-16 sm:pb-20 space-y-5 sm:space-y-8 lg:space-y-10 animate-fade-in overflow-x-hidden w-full">
           {/* Header */}
           <div className="flex flex-col gap-3 sm:gap-4">
             <div className="flex items-center justify-between gap-4">
@@ -262,287 +264,311 @@ export default function MetaAds() {
                 <Button variant="gradient">{t('dashboard.createFirstProject')}</Button>
               </Link>
             </div>
-          ) : loading ? (
-            <DashboardSkeleton />
           ) : (
-            <>
-              {hasSelectedProject && <AccountBalanceCard projectId={selectedProject?.id || null} currency={selectedProject?.currency} />}
+            <SmoothLoader loading={loading} skeleton={<DashboardSkeleton />}>
+              <>
+                {hasSelectedProject && <AccountBalanceCard projectId={selectedProject?.id || null} currency={selectedProject?.currency} />}
 
-              <div className="flex items-center justify-end gap-2 flex-wrap">
-                <MetricVisibilityConfig hiddenMetrics={hiddenMetrics} toggleMetric={toggleMetric} loading={hiddenMetricsLoading} />
-                <Label htmlFor="comparison-toggle" className="text-[11px] sm:text-sm text-muted-foreground cursor-pointer">
-                  <span className="hidden sm:inline">{t('dashboard.periodComparison')}</span>
-                  <span className="sm:hidden">{t('comparison.compare')}</span>
-                </Label>
-                <Switch id="comparison-toggle" checked={showComparison} onCheckedChange={setShowComparison} className="scale-90 sm:scale-100" />
-              </div>
-
-              {showComparison && hasSelectedProject && <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? t('periods.thisMonth') : selectedPreset === 'last_7d' ? t('periods.last7Days') : selectedPreset === 'last_30d' ? t('periods.last30Days') : t('comparison.current')} previousPeriodLabel={t('dashboard.previous')} currency={selectedProject?.currency || 'BRL'} resultMetrics={metricConfig?.result_metrics} resultMetricsLabels={metricConfig?.result_metrics_labels} hiddenMetrics={hiddenMetrics} />}
-
-              {/* General Metrics - Compact Cards */}
-              <div>
-                <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                  <div className="w-1 h-4 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
-                  <h2 className="text-xs sm:text-sm font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{t('metrics.generalMetrics')}</h2>
+                <div className="flex items-center justify-end gap-2 flex-wrap mt-6">
+                  <MetricVisibilityConfig hiddenMetrics={hiddenMetrics} toggleMetric={toggleMetric} loading={hiddenMetricsLoading} />
+                  <Label htmlFor="comparison-toggle" className="text-[11px] sm:text-sm text-muted-foreground cursor-pointer">
+                    <span className="hidden sm:inline">{t('dashboard.periodComparison')}</span>
+                    <span className="sm:hidden">{t('comparison.compare')}</span>
+                  </Label>
+                  <Switch id="comparison-toggle" checked={showComparison} onCheckedChange={setShowComparison} className="scale-90 sm:scale-100" />
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3">
-                  {!isMetricHidden('spend') && (
-                    <div className="glass-card p-2 sm:p-2.5 border-l-2 border-l-primary">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <Banknote className="w-3 h-3 text-primary" />
-                        <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">{t('metrics.spend')}</span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs font-bold leading-tight">{formatCurrency(metrics.totalSpend)}</p>
-                      {changes?.spend !== undefined && <span className={`text-[8px] ${changes.spend >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{changes.spend >= 0 ? '↑' : '↓'}{Math.abs(changes.spend).toFixed(1)}%</span>}
-                    </div>
-                  )}
-                  {!isMetricHidden('impressions') && (
-                    <div className="glass-card p-2 sm:p-2.5">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <Eye className="w-3 h-3 text-primary" />
-                        <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">{t('metrics.impressions')}</span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs font-bold leading-tight">{formatNumberCompact(metrics.totalImpressions)}</p>
-                    </div>
-                  )}
-                  {!isMetricHidden('clicks') && (
-                    <div className="glass-card p-2 sm:p-2.5">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <MousePointerClick className="w-3 h-3 text-primary" />
-                        <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">{t('metrics.clicks')}</span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs font-bold leading-tight">{formatNumberCompact(metrics.totalClicks)}</p>
-                    </div>
-                  )}
-                  {!isMetricHidden('ctr') && (
-                    <div className="glass-card p-2 sm:p-2.5">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <Crosshair className="w-3 h-3 text-primary" />
-                        <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">{t('metrics.ctr')}</span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs font-bold leading-tight">{metrics.ctr.toFixed(2)}%</p>
-                    </div>
-                  )}
-                  {!isMetricHidden('cpm') && (
-                    <div className="glass-card p-2 sm:p-2.5">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <BarChart3 className="w-3 h-3 text-primary" />
-                        <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">{t('metrics.cpm')}</span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs font-bold leading-tight">{formatCurrency(metrics.cpm)}</p>
-                    </div>
-                  )}
-                  {!isMetricHidden('cpc') && (
-                    <div className="glass-card p-2 sm:p-2.5">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <Zap className="w-3 h-3 text-primary" />
-                        <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">{t('metrics.cpc')}</span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs font-bold leading-tight">{formatCurrency(metrics.cpc)}</p>
-                    </div>
-                  )}
-                  {!isMetricHidden('reach') && (
-                    <div className="glass-card p-2 sm:p-2.5">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <Users className="w-3 h-3 text-primary" />
-                        <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">{t('metrics.reach')}</span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs font-bold leading-tight">{formatNumberCompact(metrics.totalReach)}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Profile Visits */}
-              {hasSelectedProject && profileVisitsData.hasProfileVisitCampaigns && !isMetricHidden('profile_visits') && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                    <div className="w-1 h-4 bg-gradient-to-b from-pink-500 to-pink-500/50 rounded-full" />
-                    <h2 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                      <Instagram className="w-4 h-4 text-pink-500" />
-                      <span>{t('metrics.topOfFunnel')}</span>
-                    </h2>
+                {/* Period Comparison - slightly compact */}
+                {showComparison && hasSelectedProject && (
+                  <div className="origin-top">
+                    <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? t('periods.thisMonth') : selectedPreset === 'last_7d' ? t('periods.last7Days') : selectedPreset === 'last_30d' ? t('periods.last30Days') : t('comparison.current')} previousPeriodLabel={t('dashboard.previous')} currency={selectedProject?.currency || 'BRL'} resultMetrics={metricConfig?.result_metrics} resultMetricsLabels={metricConfig?.result_metrics_labels} hiddenMetrics={hiddenMetrics} />
                   </div>
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    <div className="glass-card p-2 sm:p-2.5 border-l-2 border-l-pink-500">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <Instagram className="w-3 h-3 text-pink-500" />
-                        <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">{t('metrics.profileVisits')}</span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs font-bold leading-tight">{formatNumber(profileVisitsData.totalProfileVisits)}</p>
-                    </div>
-                    <div className="glass-card p-2 sm:p-2.5">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <DollarSign className="w-3 h-3 text-primary" />
-                        <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">{t('metrics.costPerVisit')}</span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs font-bold leading-tight">{formatCurrency(profileVisitsData.costPerVisit)}</p>
-                    </div>
+                )}
+
+                {/* General Metrics - Slightly bigger cards */}
+                <div className="mt-8">
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                    <div className="w-1 h-4 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
+                    <h2 className="text-xs sm:text-sm font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{t('metrics.generalMetrics')}</h2>
                   </div>
-                </div>
-              )}
-
-              {/* Result Metrics */}
-              {hasSelectedProject && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                    <div className="w-1 h-4 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
-                    <h2 className="text-xs sm:text-sm font-semibold text-foreground flex items-center flex-wrap gap-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                      <span>{t('metrics.results')}</span>
-                      {!isCustom && <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">({isEcommerce ? 'E-com' : isInsideSales ? 'Inside' : isPdv ? 'PDV' : isInfoproduto ? 'Info' : ''})</span>}
-                    </h2>
-                  </div>
-
-                  {isEcommerce && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                    {!isMetricHidden('roas') && <SparklineCard title={t('metrics.roas')} value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />}
-                    {!isMetricHidden('conversions') && !isMetricHidden('purchases') && <SparklineCard title={t('metrics.purchases')} value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases.length > 0 ? sparklineData.purchases : sparklineData.conversions} />}
-                    {!isMetricHidden('conversion_value') && <SparklineCard title={t('metrics.revenue')} value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />}
-                    {!isMetricHidden('cpa') && <SparklineCard title={t('metrics.cpa')} value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={Target} sparklineData={sparklineData.cpl} invertTrend />}
-                  </div>}
-
-                  {isInsideSales && (() => {
-                    const totalLeads = metrics.totalConversions;
-                    const cpl = totalLeads > 0 ? metrics.totalSpend / totalLeads : 0;
-                    const convRate = metrics.totalClicks > 0 ? totalLeads / metrics.totalClicks * 100 : 0;
-                    return <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                      {!isMetricHidden('conversions') && !isMetricHidden('leads') && <SparklineCard title={t('metrics.leads')} value={formatNumber(totalLeads)} change={changes?.conversions} icon={Users} sparklineData={sparklineData.leads.length > 0 ? sparklineData.leads : sparklineData.conversions} className="border-l-4 border-l-chart-1" />}
-                      {!isMetricHidden('cpa') && <SparklineCard title={t('metrics.cpl')} value={formatCurrency(cpl)} change={changes?.cpa} icon={Receipt} sparklineData={sparklineData.cpl} invertTrend />}
-                      <SparklineCard title={t('metrics.conversionRate')} value={`${convRate.toFixed(2)}%`} icon={Activity} />
-                      {!isMetricHidden('reach') && <SparklineCard title={t('metrics.reach')} value={formatNumber(metrics.totalReach)} change={changes?.reach} icon={Eye} />}
-                    </div>;
-                  })()}
-
-                  {isInfoproduto && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                    {!isMetricHidden('conversions') && !isMetricHidden('purchases') && <SparklineCard title={t('metrics.sales')} value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases} className="border-l-4 border-l-metric-positive" />}
-                    {!isMetricHidden('conversion_value') && <SparklineCard title={t('metrics.revenue')} value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />}
-                    {!isMetricHidden('roas') && <SparklineCard title={t('metrics.roas')} value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />}
-                    {!isMetricHidden('cpa') && <SparklineCard title={t('metrics.cpa')} value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={Target} sparklineData={sparklineData.cpl} invertTrend />}
-                  </div>}
-
-                  {isPdv && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                    {!isMetricHidden('conversions') && <SparklineCard title={t('metrics.visits')} value={formatNumber(metrics.totalConversions)} change={changes?.conversions} icon={Store} sparklineData={sparklineData.conversions} sparklineColor="hsl(var(--chart-2))" className="border-l-4 border-l-chart-2" />}
-                    {!isMetricHidden('cpa') && <SparklineCard title={t('metrics.costPerVisit')} value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={DollarSign} sparklineData={sparklineData.cpl} sparklineColor="hsl(var(--chart-3))" invertTrend />}
-                    {!isMetricHidden('reach') && <MetricCard title={t('metrics.reach')} value={formatNumber(metrics.totalReach)} icon={Users} trend="neutral" />}
-                    {!isMetricHidden('frequency') && <MetricCard title={t('metrics.frequency')} value={metrics.avgFrequency.toFixed(2)} icon={Target} trend="neutral" />}
-                  </div>}
-
-                  {isCustom && metricConfig && <DynamicResultMetrics config={metricConfig} metrics={{
-                    totalConversions: metrics.totalConversions, totalConversionValue: metrics.totalConversionValue, totalSpend: metrics.totalSpend,
-                    totalClicks: metrics.totalClicks, totalImpressions: metrics.totalImpressions, totalReach: metrics.totalReach,
-                    totalMessages: metrics.totalMessages, totalProfileVisits: metrics.totalProfileVisits, totalLeadsConversions: metrics.totalLeadsConversions,
-                    totalSalesConversions: metrics.totalSalesConversions, totalInitiateCheckout: metrics.totalInitiateCheckout
-                  }} previousMetrics={previousMetrics ? {
-                    totalConversions: previousMetrics.totalConversions, totalMessages: previousMetrics.totalMessages,
-                    totalLeadsConversions: previousMetrics.totalLeadsConversions, totalSalesConversions: previousMetrics.totalSalesConversions,
-                    totalInitiateCheckout: previousMetrics.totalInitiateCheckout, totalSpend: previousMetrics.totalSpend
-                  } : null} changes={changes} sparklineData={sparklineData} currency={selectedProject?.currency || 'BRL'} />}
-                </div>
-              )}
-
-              {/* Campaigns with expandable Ad Sets & Ads - NOW ABOVE charts */}
-              {campaigns.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                    <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-blue-500/50 rounded-full" />
-                    <h2 className="text-xs sm:text-sm font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                      Campanhas ({campaigns.length})
-                    </h2>
-                  </div>
-                  <div className="glass-card overflow-hidden divide-y divide-border/30">
-                    {campaigns.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map((campaign) => {
-                      const isExpanded = expandedCampaigns.has(campaign.id);
-                      const campaignAdSets = adSets.filter(as => as.campaign_id === campaign.id);
-                      const obj = ((campaign as any).objective || '').toLowerCase();
-                      const isProfileVisit = obj.includes('profile_visit') || obj.includes('ig_') || obj.includes('instagram');
-                      return (
-                        <div key={campaign.id}>
-                          <button onClick={() => toggleCampaign(campaign.id)} className="w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 hover:bg-secondary/30 transition-colors text-left">
-                            {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[10px] sm:text-xs font-medium truncate">{campaign.name}</p>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className={`text-[8px] ${campaign.status === 'ACTIVE' ? 'text-emerald-400' : 'text-muted-foreground'}`}>
-                                  {campaign.status === 'ACTIVE' ? '● Ativo' : '○ Pausado'}
-                                </span>
-                                {isProfileVisit && (
-                                  <Badge variant="outline" className="text-[7px] px-1 py-0 h-3.5 border-pink-500/30 text-pink-400">
-                                    <Instagram className="w-2 h-2 mr-0.5" /> Perfil
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-[10px] sm:text-xs font-semibold">{formatCurrency(campaign.spend || 0)}</p>
-                              <p className="text-[9px] text-muted-foreground">{campaign.conversions || 0} {isProfileVisit ? 'visitas' : 'conv.'}</p>
-                            </div>
-                          </button>
-                          {isExpanded && campaignAdSets.length > 0 && (
-                            <div className="bg-secondary/20 border-t border-border/20">
-                              {campaignAdSets.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map(adSet => {
-                                const isAdSetExpanded = expandedAdSets.has(adSet.id);
-                                const adSetAds = ads.filter(ad => ad.ad_set_id === adSet.id);
-                                return (
-                                  <div key={adSet.id}>
-                                    <button onClick={() => toggleAdSet(adSet.id)} className="w-full flex items-center gap-2 pl-7 sm:pl-9 pr-2.5 py-1.5 hover:bg-secondary/40 transition-colors text-left">
-                                      {isAdSetExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
-                                      <Layers className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] sm:text-[11px] font-medium truncate">{adSet.name}</p>
-                                      </div>
-                                      <div className="text-right flex-shrink-0">
-                                        <p className="text-[10px] sm:text-[11px] font-semibold">{formatCurrency(adSet.spend || 0)}</p>
-                                        <p className="text-[8px] text-muted-foreground">{adSet.conversions || 0} {isProfileVisit ? 'visitas' : 'conv.'}</p>
-                                      </div>
-                                    </button>
-                                    {isAdSetExpanded && adSetAds.length > 0 && (
-                                      <div className="bg-secondary/30">
-                                        {adSetAds.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map(ad => (
-                                          <Link key={ad.id} to={`/creative/${ad.id}`} className="flex items-center gap-2 pl-12 sm:pl-14 pr-2.5 py-1 hover:bg-secondary/50 transition-colors">
-                                            <div className="w-5 h-5 rounded bg-muted overflow-hidden flex-shrink-0">
-                                              {(ad.creative_thumbnail || ad.cached_image_url) && (
-                                                <img src={ad.cached_image_url || ad.creative_thumbnail || ''} className="w-full h-full object-cover" alt="" />
-                                              )}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                              <p className="text-[9px] sm:text-[10px] truncate">{ad.name}</p>
-                                            </div>
-                                            <div className="text-right flex-shrink-0">
-                                              <p className="text-[9px] sm:text-[10px] font-semibold">{formatCurrency(ad.spend || 0)}</p>
-                                            </div>
-                                          </Link>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-3">
+                    {!isMetricHidden('spend') && (
+                      <div className="glass-card p-2.5 sm:p-3 border-l-2 border-l-primary">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <Banknote className="w-3 h-3 text-primary" />
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">{t('metrics.spend')}</span>
                         </div>
-                      );
-                    })}
+                        <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(metrics.totalSpend)}</p>
+                        {changes?.spend !== undefined && <span className={`text-[8px] ${changes.spend >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{changes.spend >= 0 ? '↑' : '↓'}{Math.abs(changes.spend).toFixed(1)}%</span>}
+                      </div>
+                    )}
+                    {!isMetricHidden('impressions') && (
+                      <div className="glass-card p-2.5 sm:p-3">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <Eye className="w-3 h-3 text-primary" />
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">{t('metrics.impressions')}</span>
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumberCompact(metrics.totalImpressions)}</p>
+                      </div>
+                    )}
+                    {!isMetricHidden('clicks') && (
+                      <div className="glass-card p-2.5 sm:p-3">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <MousePointerClick className="w-3 h-3 text-primary" />
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">{t('metrics.clicks')}</span>
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumberCompact(metrics.totalClicks)}</p>
+                      </div>
+                    )}
+                    {!isMetricHidden('ctr') && (
+                      <div className="glass-card p-2.5 sm:p-3">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <Crosshair className="w-3 h-3 text-primary" />
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">{t('metrics.ctr')}</span>
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold leading-tight">{metrics.ctr.toFixed(2)}%</p>
+                      </div>
+                    )}
+                    {!isMetricHidden('cpm') && (
+                      <div className="glass-card p-2.5 sm:p-3">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <BarChart3 className="w-3 h-3 text-primary" />
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">{t('metrics.cpm')}</span>
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(metrics.cpm)}</p>
+                      </div>
+                    )}
+                    {!isMetricHidden('cpc') && (
+                      <div className="glass-card p-2.5 sm:p-3">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <Zap className="w-3 h-3 text-primary" />
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">{t('metrics.cpc')}</span>
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(metrics.cpc)}</p>
+                      </div>
+                    )}
+                    {!isMetricHidden('reach') && (
+                      <div className="glass-card p-2.5 sm:p-3">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <Users className="w-3 h-3 text-primary" />
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">{t('metrics.reach')}</span>
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumberCompact(metrics.totalReach)}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
 
-              {/* Charts - BELOW campaigns */}
-              <div className="space-y-4 sm:space-y-5">
-                <div ref={chartRef}>
-                  <CustomizableChart chartKey="dashboard-chart-1" data={dailyData} defaultTitle="Gráfico 1 - Performance" defaultPrimaryMetric="spend" defaultSecondaryMetric="conversions" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
+                {/* Profile Visits */}
+                {hasSelectedProject && profileVisitsData.hasProfileVisitCampaigns && !isMetricHidden('profile_visits') && (
+                  <div className="mt-8">
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                      <div className="w-1 h-4 bg-gradient-to-b from-pink-500 to-pink-500/50 rounded-full" />
+                      <h2 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                        <Instagram className="w-4 h-4 text-pink-500" />
+                        <span>{t('metrics.topOfFunnel')}</span>
+                      </h2>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                      <div className="glass-card p-2.5 sm:p-3 border-l-2 border-l-pink-500">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <Instagram className="w-3 h-3 text-pink-500" />
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">{t('metrics.profileVisits')}</span>
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(profileVisitsData.totalProfileVisits)}</p>
+                      </div>
+                      <div className="glass-card p-2.5 sm:p-3">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <DollarSign className="w-3 h-3 text-primary" />
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">{t('metrics.costPerVisit')}</span>
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(profileVisitsData.costPerVisit)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Result Metrics */}
+                {hasSelectedProject && (
+                  <div className="mt-8">
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                      <div className="w-1 h-4 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
+                      <h2 className="text-xs sm:text-sm font-semibold text-foreground flex items-center flex-wrap gap-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                        <span>{t('metrics.results')}</span>
+                        {!isCustom && <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">({isEcommerce ? 'E-com' : isInsideSales ? 'Inside' : isPdv ? 'PDV' : isInfoproduto ? 'Info' : ''})</span>}
+                      </h2>
+                    </div>
+
+                    {isEcommerce && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                      {!isMetricHidden('roas') && <SparklineCard title={t('metrics.roas')} value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />}
+                      {!isMetricHidden('conversions') && !isMetricHidden('purchases') && <SparklineCard title={t('metrics.purchases')} value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases.length > 0 ? sparklineData.purchases : sparklineData.conversions} />}
+                      {!isMetricHidden('conversion_value') && <SparklineCard title={t('metrics.revenue')} value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />}
+                      {!isMetricHidden('cpa') && <SparklineCard title={t('metrics.cpa')} value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={Target} sparklineData={sparklineData.cpl} invertTrend />}
+                    </div>}
+
+                    {isInsideSales && (() => {
+                      const totalLeads = metrics.totalConversions;
+                      const cpl = totalLeads > 0 ? metrics.totalSpend / totalLeads : 0;
+                      const convRate = metrics.totalClicks > 0 ? totalLeads / metrics.totalClicks * 100 : 0;
+                      return <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                        {!isMetricHidden('conversions') && !isMetricHidden('leads') && <SparklineCard title={t('metrics.leads')} value={formatNumber(totalLeads)} change={changes?.conversions} icon={Users} sparklineData={sparklineData.leads.length > 0 ? sparklineData.leads : sparklineData.conversions} className="border-l-4 border-l-chart-1" />}
+                        {!isMetricHidden('cpa') && <SparklineCard title={t('metrics.cpl')} value={formatCurrency(cpl)} change={changes?.cpa} icon={Receipt} sparklineData={sparklineData.cpl} invertTrend />}
+                        <SparklineCard title={t('metrics.conversionRate')} value={`${convRate.toFixed(2)}%`} icon={Activity} />
+                        {!isMetricHidden('reach') && <SparklineCard title={t('metrics.reach')} value={formatNumber(metrics.totalReach)} change={changes?.reach} icon={Eye} />}
+                      </div>;
+                    })()}
+
+                    {isInfoproduto && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                      {!isMetricHidden('conversions') && !isMetricHidden('purchases') && <SparklineCard title={t('metrics.sales')} value={formatNumber(metrics.totalSalesConversions || metrics.totalConversions)} change={changes?.conversions} icon={ShoppingCart} sparklineData={sparklineData.purchases} className="border-l-4 border-l-metric-positive" />}
+                      {!isMetricHidden('conversion_value') && <SparklineCard title={t('metrics.revenue')} value={formatCurrency(metrics.totalConversionValue)} change={changes?.revenue} icon={Receipt} sparklineData={sparklineData.revenue} />}
+                      {!isMetricHidden('roas') && <SparklineCard title={t('metrics.roas')} value={`${metrics.roas.toFixed(2)}x`} change={changes?.roas} icon={TrendingUp} sparklineData={sparklineData.roas} className="border-l-4 border-l-metric-positive" />}
+                      {!isMetricHidden('cpa') && <SparklineCard title={t('metrics.cpa')} value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={Target} sparklineData={sparklineData.cpl} invertTrend />}
+                    </div>}
+
+                    {isPdv && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                      {!isMetricHidden('conversions') && <SparklineCard title={t('metrics.visits')} value={formatNumber(metrics.totalConversions)} change={changes?.conversions} icon={Store} sparklineData={sparklineData.conversions} sparklineColor="hsl(var(--chart-2))" className="border-l-4 border-l-chart-2" />}
+                      {!isMetricHidden('cpa') && <SparklineCard title={t('metrics.costPerVisit')} value={formatCurrency(metrics.cpa)} change={changes?.cpa} icon={DollarSign} sparklineData={sparklineData.cpl} sparklineColor="hsl(var(--chart-3))" invertTrend />}
+                      {!isMetricHidden('reach') && <MetricCard title={t('metrics.reach')} value={formatNumber(metrics.totalReach)} icon={Users} trend="neutral" />}
+                      {!isMetricHidden('frequency') && <MetricCard title={t('metrics.frequency')} value={metrics.avgFrequency.toFixed(2)} icon={Target} trend="neutral" />}
+                    </div>}
+
+                    {isCustom && metricConfig && <DynamicResultMetrics config={metricConfig} metrics={{
+                      totalConversions: metrics.totalConversions, totalConversionValue: metrics.totalConversionValue, totalSpend: metrics.totalSpend,
+                      totalClicks: metrics.totalClicks, totalImpressions: metrics.totalImpressions, totalReach: metrics.totalReach,
+                      totalMessages: metrics.totalMessages, totalProfileVisits: metrics.totalProfileVisits, totalLeadsConversions: metrics.totalLeadsConversions,
+                      totalSalesConversions: metrics.totalSalesConversions, totalInitiateCheckout: metrics.totalInitiateCheckout
+                    }} previousMetrics={previousMetrics ? {
+                      totalConversions: previousMetrics.totalConversions, totalMessages: previousMetrics.totalMessages,
+                      totalLeadsConversions: previousMetrics.totalLeadsConversions, totalSalesConversions: previousMetrics.totalSalesConversions,
+                      totalInitiateCheckout: previousMetrics.totalInitiateCheckout, totalSpend: previousMetrics.totalSpend
+                    } : null} changes={changes} sparklineData={sparklineData} currency={selectedProject?.currency || 'BRL'} />}
+                  </div>
+                )}
+
+                {/* Campaigns with expandable Ad Sets & Ads with GRID layout */}
+                {campaigns.length > 0 && (
+                  <div className="mt-8 sm:mt-10">
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                      <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-blue-500/50 rounded-full" />
+                      <h2 className="text-xs sm:text-sm font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                        Campanhas ({campaigns.length})
+                      </h2>
+                    </div>
+                    <div className="glass-card overflow-hidden divide-y divide-border/30">
+                      {campaigns.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map((campaign) => {
+                        const isExpanded = expandedCampaigns.has(campaign.id);
+                        const campaignAdSets = adSets.filter(as => as.campaign_id === campaign.id);
+                        const obj = ((campaign as any).objective || '').toLowerCase();
+                        const isProfileVisit = obj.includes('profile_visit') || obj.includes('ig_') || obj.includes('instagram');
+                        return (
+                          <div key={campaign.id}>
+                            <button onClick={() => toggleCampaign(campaign.id)} className="w-full flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 hover:bg-secondary/30 transition-colors text-left">
+                              {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] sm:text-xs font-medium truncate">{campaign.name}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className={`text-[8px] ${campaign.status === 'ACTIVE' ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                                    {campaign.status === 'ACTIVE' ? '● Ativo' : '○ Pausado'}
+                                  </span>
+                                  {isProfileVisit && (
+                                    <Badge variant="outline" className="text-[7px] px-1 py-0 h-3.5 border-pink-500/30 text-pink-400">
+                                      <Instagram className="w-2 h-2 mr-0.5" /> Perfil
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-[10px] sm:text-xs font-semibold">{formatCurrency(campaign.spend || 0)}</p>
+                                <p className="text-[9px] text-muted-foreground">{campaign.conversions || 0} {isProfileVisit ? 'visitas' : 'conv.'}</p>
+                              </div>
+                            </button>
+                            {isExpanded && campaignAdSets.length > 0 && (
+                              <div className="bg-secondary/20 border-t border-border/20">
+                                {campaignAdSets.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map(adSet => {
+                                  const isAdSetExpanded = expandedAdSets.has(adSet.id);
+                                  const adSetAds = ads.filter(ad => ad.ad_set_id === adSet.id);
+                                  return (
+                                    <div key={adSet.id}>
+                                      <button onClick={() => toggleAdSet(adSet.id)} className="w-full flex items-center gap-2 pl-7 sm:pl-9 pr-2.5 py-1.5 hover:bg-secondary/40 transition-colors text-left">
+                                        {isAdSetExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
+                                        <Layers className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[10px] sm:text-[11px] font-medium truncate">{adSet.name}</p>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                          <p className="text-[10px] sm:text-[11px] font-semibold">{formatCurrency(adSet.spend || 0)}</p>
+                                          <p className="text-[8px] text-muted-foreground">{adSet.conversions || 0} {isProfileVisit ? 'visitas' : 'conv.'}</p>
+                                        </div>
+                                      </button>
+                                      {/* Ads in GRID format */}
+                                      {isAdSetExpanded && adSetAds.length > 0 && (
+                                        <div className="bg-secondary/30 p-3 sm:p-4">
+                                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                                            {adSetAds.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map(ad => (
+                                              <Link key={ad.id} to={`/creative/${ad.id}`} className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all group">
+                                                <div className="aspect-square relative bg-muted">
+                                                  <CreativeImage
+                                                    projectId={selectedProject?.id}
+                                                    adId={ad.id}
+                                                    cachedImageUrl={ad.cached_image_url}
+                                                    creativeImageUrl={ad.creative_image_url}
+                                                    creativeThumbnail={ad.creative_thumbnail}
+                                                    alt={ad.name}
+                                                    className="w-full h-full object-cover"
+                                                  />
+                                                  <div className="absolute bottom-1 right-1 bg-background/80 backdrop-blur-sm text-[9px] font-semibold px-1.5 py-0.5 rounded">
+                                                    {formatCurrency(ad.spend || 0)}
+                                                  </div>
+                                                </div>
+                                                <div className="p-2">
+                                                  <p className="text-[9px] sm:text-[10px] font-medium truncate mb-1">{ad.name}</p>
+                                                  <div className="flex items-center justify-between text-[8px] sm:text-[9px] text-muted-foreground">
+                                                    <span>{ad.conversions || 0} {isProfileVisit ? 'visitas' : 'conv.'}</span>
+                                                    <span>CTR {(ad.ctr || 0).toFixed(2)}%</span>
+                                                  </div>
+                                                </div>
+                                              </Link>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Charts */}
+                <div className="mt-8 sm:mt-10 space-y-5 sm:space-y-6">
+                  <div ref={chartRef}>
+                    <CustomizableChart chartKey="dashboard-chart-1" data={dailyData} defaultTitle="Gráfico 1 - Performance" defaultPrimaryMetric="spend" defaultSecondaryMetric="conversions" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
+                  </div>
+                  <CustomizableChart chartKey="dashboard-chart-2" data={dailyData} defaultTitle="Gráfico 2 - Alcance" defaultPrimaryMetric="impressions" defaultSecondaryMetric="ctr" defaultChartType="line" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
+                  <CustomizableChart chartKey="dashboard-chart-3" data={dailyData} defaultTitle="Gráfico 3 - Custo" defaultPrimaryMetric="cpc" defaultSecondaryMetric="clicks" defaultChartType="bar" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
                 </div>
-                <CustomizableChart chartKey="dashboard-chart-2" data={dailyData} defaultTitle="Gráfico 2 - Alcance" defaultPrimaryMetric="impressions" defaultSecondaryMetric="ctr" defaultChartType="line" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
-                <CustomizableChart chartKey="dashboard-chart-3" data={dailyData} defaultTitle="Gráfico 3 - Custo" defaultPrimaryMetric="cpc" defaultSecondaryMetric="clicks" defaultChartType="bar" currency={selectedProject?.currency || 'BRL'} className="chart-container-mobile" />
-              </div>
 
-              {/* Funnel - BELOW charts */}
-              {hasSelectedProject && <FunnelChart impressions={metrics.totalImpressions} reach={metrics.totalReach} clicks={metrics.totalClicks} conversions={metrics.totalConversions} spend={metrics.totalSpend} ctr={metrics.ctr} cpc={metrics.cpc} cpl={metrics.cpa} cpm={metrics.cpm} frequency={metrics.avgFrequency} currency={selectedProject?.currency || 'BRL'} />}
+                {/* Funnel */}
+                <div className="mt-8 sm:mt-10">
+                  {hasSelectedProject && <FunnelChart impressions={metrics.totalImpressions} reach={metrics.totalReach} clicks={metrics.totalClicks} conversions={metrics.totalConversions} spend={metrics.totalSpend} ctr={metrics.ctr} cpc={metrics.cpc} cpl={metrics.cpa} cpm={metrics.cpm} frequency={metrics.avgFrequency} currency={selectedProject?.currency || 'BRL'} />}
+                </div>
 
-              {/* Geographic */}
-              <GeographicHeatMap countryData={demographicData?.country || []} regionData={demographicData?.region || []} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
+                {/* Geographic */}
+                <div className="mt-8 sm:mt-10">
+                  <GeographicHeatMap countryData={demographicData?.country || []} regionData={demographicData?.region || []} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
+                </div>
 
-              {/* Demographics */}
-              <DemographicCharts data={demographicData} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
-            </>
+                {/* Demographics */}
+                <div className="mt-8 sm:mt-10">
+                  <DemographicCharts data={demographicData} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
+                </div>
+              </>
+            </SmoothLoader>
           )}
         </div>
       </div>
