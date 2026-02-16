@@ -228,7 +228,7 @@ export default function ProjectDetail() {
       <DashboardLayout>
         <div className="p-8 text-center">
           <h1 className="text-2xl font-bold mb-4">Projeto não encontrado</h1>
-          <Link to="/projects">
+          <Link to="/dashboard">
             <Button variant="outline">Voltar aos projetos</Button>
           </Link>
         </div>
@@ -242,7 +242,7 @@ export default function ProjectDetail() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link to="/projects">
+            <Link to="/dashboard">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="w-5 h-5" />
               </Button>

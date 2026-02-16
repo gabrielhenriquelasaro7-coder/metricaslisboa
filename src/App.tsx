@@ -13,7 +13,7 @@ import "@/i18n"; // Initialize i18n
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
-import ProjectSelector from "./pages/ProjectSelector";
+// ProjectSelector removed - /projects redirects to /dashboard
 import ProjectSetup from "./pages/ProjectSetup";
 import ProjectDetail from "./pages/ProjectDetail";
 import Dashboard from "./pages/Dashboard";

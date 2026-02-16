@@ -209,7 +209,7 @@ export default function WhatsAppManager() {
         <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link 
-              to="/projects"
+              to="/dashboard"
               className="flex items-center gap-2 sm:gap-3 group transition-all duration-300 hover:opacity-80 flex-shrink-0"
             >
               <img 

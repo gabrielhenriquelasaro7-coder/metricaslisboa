@@ -269,7 +269,7 @@ export default function MetaAds() {
               </div>
               <h2 className="text-xl font-semibold mb-2">{t('dashboard.noProjectYet')}</h2>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">{t('dashboard.createFirstProjectDesc')}</p>
-              <Link to="/projects">
+              <Link to="/dashboard">
                 <Button variant="gradient">{t('dashboard.createFirstProject')}</Button>
               </Link>
             </div>

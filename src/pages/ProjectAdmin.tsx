@@ -460,7 +460,7 @@ export default function ProjectAdmin() {
       <DashboardLayout>
         <div className="p-8 text-center">
           <h1 className="text-2xl font-bold mb-4">Projeto não encontrado</h1>
-          <Link to="/projects">
+          <Link to="/dashboard">
             <Button variant="outline">Voltar aos projetos</Button>
           </Link>
         </div>
