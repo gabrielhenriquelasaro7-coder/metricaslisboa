@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
@@ -57,7 +56,6 @@ export default function GoogleCampaigns() {
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
   const [expandedAdGroups, setExpandedAdGroups] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState('campaigns');
 
   const { campaigns, adGroups, ads, keywords, demographics, loading, syncing, selectedProject, loadAllData, syncData, projectsLoading } = useGoogleAdsData();
 
@@ -188,128 +186,117 @@ export default function GoogleCampaigns() {
                   <SparklineCard title={isEcommerce ? 'ROAS' : 'Custo/Conv'} value={isEcommerce ? `${avgRoas.toFixed(2)}x` : formatCurrency(avgCpa)} icon={TrendingUp} />
                 </div>
 
-                {/* Tabs */}
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="w-full justify-start overflow-x-auto bg-secondary/50">
-                    <TabsTrigger value="campaigns" className="text-xs sm:text-sm">Campanhas</TabsTrigger>
-                    <TabsTrigger value="keywords" className="text-xs sm:text-sm">Palavras-chave ({keywords.length})</TabsTrigger>
-                    <TabsTrigger value="demographics" className="text-xs sm:text-sm">Demográficos</TabsTrigger>
-                  </TabsList>
+                {/* === CAMPANHAS === */}
+                <div className="glass-card overflow-hidden border-t-2 border-t-primary/30">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border bg-secondary/50">
+                          <th className="text-left py-3 px-3 font-medium">Nome</th>
+                          <th className="text-center py-3 px-2 font-medium hidden sm:table-cell">Status</th>
+                          <th className="text-center py-3 px-2 font-medium hidden md:table-cell">Tipo</th>
+                          <th className="text-right py-3 px-2 font-medium">Gasto</th>
+                          <th className="text-right py-3 px-2 font-medium hidden sm:table-cell">Cliques</th>
+                          <th className="text-right py-3 px-2 font-medium hidden md:table-cell">CTR</th>
+                          <th className="text-right py-3 px-2 font-medium">Conv</th>
+                          <th className="text-right py-3 px-2 font-medium hidden sm:table-cell">{isEcommerce ? 'ROAS' : 'CPA'}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {campaigns.map(campaign => {
+                          const CIcon = campaignTypeIcons[campaign.campaign_type || ''] || Megaphone;
+                          const isExp = expandedCampaigns.has(campaign.id);
+                          const cAdGroups = adGroups.filter(ag => ag.campaign_id === campaign.id);
 
-                  {/* CAMPAIGNS TAB */}
-                  <TabsContent value="campaigns" className="mt-4">
-                    <div className="glass-card overflow-hidden border-t-2 border-t-primary/30">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-border bg-secondary/50">
-                              <th className="text-left py-3 px-3 font-medium">Nome</th>
-                              <th className="text-center py-3 px-2 font-medium hidden sm:table-cell">Status</th>
-                              <th className="text-center py-3 px-2 font-medium hidden md:table-cell">Tipo</th>
-                              <th className="text-right py-3 px-2 font-medium">Gasto</th>
-                              <th className="text-right py-3 px-2 font-medium hidden sm:table-cell">Cliques</th>
-                              <th className="text-right py-3 px-2 font-medium hidden md:table-cell">CTR</th>
-                              <th className="text-right py-3 px-2 font-medium">Conv</th>
-                              <th className="text-right py-3 px-2 font-medium hidden sm:table-cell">{isEcommerce ? 'ROAS' : 'CPA'}</th>
+                          return (
+                            <CampaignRow key={campaign.id} campaign={campaign} icon={CIcon} isExpanded={isExp} adGroups={cAdGroups} ads={ads}
+                              expandedAdGroups={expandedAdGroups} onToggleCampaign={toggleCampaign} onToggleAdGroup={toggleAdGroup}
+                              formatCurrency={formatCurrency} formatNumber={formatNumber} isEcommerce={isEcommerce} />
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="px-4 py-2.5 bg-secondary/30 border-t border-border flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{campaigns.length} campanhas · {adGroups.length} grupos · {ads.length} anúncios</span>
+                    <span className="font-medium">Total: {formatCurrency(totals.spend)}</span>
+                  </div>
+                </div>
+
+                {/* === PALAVRAS-CHAVE === */}
+                <div className="glass-card overflow-hidden border-t-2 border-t-primary/30">
+                  <div className="px-4 py-3 bg-secondary/30 border-b border-border flex items-center justify-between">
+                    <h3 className="text-sm font-medium flex items-center gap-2"><Key className="w-4 h-4" /> Palavras-chave</h3>
+                    <span className="text-xs text-muted-foreground">{keywords.length} palavras</span>
+                  </div>
+                  {keywords.length === 0 ? (
+                    <div className="p-6 text-center">
+                      <Key className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground text-xs">Nenhuma palavra-chave. Clique em sincronizar.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border bg-secondary/50">
+                            <th className="text-left py-2.5 px-3 font-medium text-xs">Palavra-chave</th>
+                            <th className="text-center py-2.5 px-2 font-medium text-xs hidden sm:table-cell">Tipo</th>
+                            <th className="text-center py-2.5 px-2 font-medium text-xs hidden md:table-cell">QS</th>
+                            <th className="text-right py-2.5 px-2 font-medium text-xs">Gasto</th>
+                            <th className="text-right py-2.5 px-2 font-medium text-xs hidden sm:table-cell">Impr.</th>
+                            <th className="text-right py-2.5 px-2 font-medium text-xs">Cliques</th>
+                            <th className="text-right py-2.5 px-2 font-medium text-xs hidden md:table-cell">CTR</th>
+                            <th className="text-right py-2.5 px-2 font-medium text-xs hidden sm:table-cell">CPC</th>
+                            <th className="text-right py-2.5 px-2 font-medium text-xs">Conv</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {keywords.slice(0, 100).map(kw => (
+                            <tr key={kw.id} className="border-b border-border/30 hover:bg-secondary/20 transition-colors">
+                              <td className="py-2 px-3">
+                                <span className="font-medium text-xs block">{kw.keyword_text}</span>
+                                <span className="text-[10px] text-muted-foreground truncate block max-w-[200px]">{kw.campaign_name} › {kw.ad_group_name}</span>
+                              </td>
+                              <td className="py-2 px-2 text-center hidden sm:table-cell">
+                                <Badge variant="outline" className="text-[10px]">{formatMatchType(kw.match_type)}</Badge>
+                              </td>
+                              <td className="py-2 px-2 text-center hidden md:table-cell">
+                                {kw.quality_score ? (
+                                  <span className={cn("text-xs font-medium", kw.quality_score >= 7 ? 'text-metric-positive' : kw.quality_score >= 4 ? 'text-metric-warning' : 'text-metric-negative')}>
+                                    {kw.quality_score}/10
+                                  </span>
+                                ) : <span className="text-xs text-muted-foreground">-</span>}
+                              </td>
+                              <td className="py-2 px-2 text-right text-xs">{formatCurrency(kw.spend)}</td>
+                              <td className="py-2 px-2 text-right text-xs hidden sm:table-cell">{formatNumber(kw.impressions)}</td>
+                              <td className="py-2 px-2 text-right text-xs">{formatNumber(kw.clicks)}</td>
+                              <td className="py-2 px-2 text-right text-xs hidden md:table-cell">{kw.ctr.toFixed(2)}%</td>
+                              <td className="py-2 px-2 text-right text-xs hidden sm:table-cell">{formatCurrency(kw.cpc)}</td>
+                              <td className="py-2 px-2 text-right text-xs">{formatNumber(kw.conversions)}</td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {campaigns.map(campaign => {
-                              const CIcon = campaignTypeIcons[campaign.campaign_type || ''] || Megaphone;
-                              const isExp = expandedCampaigns.has(campaign.id);
-                              const cAdGroups = adGroups.filter(ag => ag.campaign_id === campaign.id);
-
-                              return (
-                                <CampaignRow key={campaign.id} campaign={campaign} icon={CIcon} isExpanded={isExp} adGroups={cAdGroups} ads={ads}
-                                  expandedAdGroups={expandedAdGroups} onToggleCampaign={toggleCampaign} onToggleAdGroup={toggleAdGroup}
-                                  formatCurrency={formatCurrency} formatNumber={formatNumber} isEcommerce={isEcommerce} />
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="px-4 py-2.5 bg-secondary/30 border-t border-border flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{campaigns.length} campanhas · {adGroups.length} grupos · {ads.length} anúncios</span>
-                        <span className="font-medium">Total: {formatCurrency(totals.spend)}</span>
-                      </div>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  </TabsContent>
-
-                  {/* KEYWORDS TAB */}
-                  <TabsContent value="keywords" className="mt-4">
-                    <div className="glass-card overflow-hidden border-t-2 border-t-primary/30">
-                      {keywords.length === 0 ? (
-                        <div className="p-8 text-center">
-                          <Key className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-                          <p className="text-muted-foreground text-sm">Nenhuma palavra-chave. Clique em sincronizar.</p>
-                        </div>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-border bg-secondary/50">
-                                <th className="text-left py-3 px-3 font-medium">Palavra-chave</th>
-                                <th className="text-center py-3 px-2 font-medium hidden sm:table-cell">Tipo</th>
-                                <th className="text-center py-3 px-2 font-medium hidden md:table-cell">QS</th>
-                                <th className="text-right py-3 px-2 font-medium">Gasto</th>
-                                <th className="text-right py-3 px-2 font-medium hidden sm:table-cell">Impr.</th>
-                                <th className="text-right py-3 px-2 font-medium">Cliques</th>
-                                <th className="text-right py-3 px-2 font-medium hidden md:table-cell">CTR</th>
-                                <th className="text-right py-3 px-2 font-medium hidden sm:table-cell">CPC</th>
-                                <th className="text-right py-3 px-2 font-medium">Conv</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {keywords.slice(0, 100).map(kw => (
-                                <tr key={kw.id} className="border-b border-border/30 hover:bg-secondary/20 transition-colors">
-                                  <td className="py-2.5 px-3">
-                                    <span className="font-medium text-xs block">{kw.keyword_text}</span>
-                                    <span className="text-[10px] text-muted-foreground truncate block max-w-[200px]">{kw.campaign_name} › {kw.ad_group_name}</span>
-                                  </td>
-                                  <td className="py-2.5 px-2 text-center hidden sm:table-cell">
-                                    <Badge variant="outline" className="text-[10px]">{formatMatchType(kw.match_type)}</Badge>
-                                  </td>
-                                  <td className="py-2.5 px-2 text-center hidden md:table-cell">
-                                    {kw.quality_score ? (
-                                      <span className={cn("text-xs font-medium", kw.quality_score >= 7 ? 'text-metric-positive' : kw.quality_score >= 4 ? 'text-metric-warning' : 'text-metric-negative')}>
-                                        {kw.quality_score}/10
-                                      </span>
-                                    ) : <span className="text-xs text-muted-foreground">-</span>}
-                                  </td>
-                                  <td className="py-2.5 px-2 text-right text-xs">{formatCurrency(kw.spend)}</td>
-                                  <td className="py-2.5 px-2 text-right text-xs hidden sm:table-cell">{formatNumber(kw.impressions)}</td>
-                                  <td className="py-2.5 px-2 text-right text-xs">{formatNumber(kw.clicks)}</td>
-                                  <td className="py-2.5 px-2 text-right text-xs hidden md:table-cell">{kw.ctr.toFixed(2)}%</td>
-                                  <td className="py-2.5 px-2 text-right text-xs hidden sm:table-cell">{formatCurrency(kw.cpc)}</td>
-                                  <td className="py-2.5 px-2 text-right text-xs">{formatNumber(kw.conversions)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                      <div className="px-4 py-2.5 bg-secondary/30 border-t border-border text-xs text-muted-foreground">
-                        {keywords.length} palavras-chave {keywords.length > 100 && '(exibindo top 100)'}
-                      </div>
+                  )}
+                  {keywords.length > 100 && (
+                    <div className="px-4 py-2 bg-secondary/30 border-t border-border text-xs text-muted-foreground">
+                      Exibindo top 100 de {keywords.length}
                     </div>
-                  </TabsContent>
+                  )}
+                </div>
 
-                  {/* DEMOGRAPHICS TAB */}
-                  <TabsContent value="demographics" className="mt-4">
-                    {demographics.length === 0 ? (
-                      <div className="glass-card p-8 text-center">
-                        <Users className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-                        <p className="text-muted-foreground text-sm">Nenhum dado demográfico. Sincronize para importar.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <DemoCard title="Faixa Etária" icon={Users} data={ageData} formatLabel={formatAgeRange} barColor="bg-primary" />
-                        <DemoCard title="Gênero" icon={Users} data={genderData} formatLabel={formatGender} barColor="bg-accent" />
-                        <DemoCard title="Dispositivo" icon={BarChart3} data={deviceData} formatLabel={formatDevice} barColor="bg-secondary-foreground/50" />
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
+                {/* === DEMOGRÁFICOS === */}
+                {demographics.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium flex items-center gap-2 mb-3"><Users className="w-4 h-4" /> Demográficos</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <DemoCard title="Faixa Etária" icon={Users} data={ageData} formatLabel={formatAgeRange} barColor="bg-primary" />
+                      <DemoCard title="Gênero" icon={Users} data={genderData} formatLabel={formatGender} barColor="bg-accent" />
+                      <DemoCard title="Dispositivo" icon={BarChart3} data={deviceData} formatLabel={formatDevice} barColor="bg-secondary-foreground/50" />
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </SmoothLoader>
@@ -319,7 +306,7 @@ export default function GoogleCampaigns() {
   );
 }
 
-// Sub-components to keep JSX clean
+// Sub-components
 
 function DemoCard({ title, icon: Icon, data, formatLabel, barColor }: { title: string; icon: React.ElementType; data: { value: string; spend: number }[]; formatLabel: (v: string) => string; barColor: string }) {
   const total = data.reduce((s, d) => s + d.spend, 0);
@@ -393,7 +380,12 @@ function AdGroupRow({ adGroup: ag, isExpanded, ads, onToggle, formatCurrency, fo
           </div>
         </td>
         <td className="py-2.5 px-2 text-center hidden sm:table-cell">
-          <Badge variant="secondary" className="text-[10px]">{ag.status === 'ENABLED' ? 'Ativo' : ag.status === 'PAUSED' ? 'Pausado' : ag.status}</Badge>
+          <Badge className={cn(
+            "text-[10px]",
+            ag.status === 'ENABLED' ? "bg-metric-positive text-white" : "bg-secondary text-muted-foreground"
+          )}>
+            {ag.status === 'ENABLED' ? 'Ativo' : ag.status === 'PAUSED' ? 'Pausado' : ag.status}
+          </Badge>
         </td>
         <td className="py-2.5 px-2 hidden md:table-cell" />
         <td className="py-2.5 px-2 text-right text-xs">{formatCurrency(ag.spend)}</td>
