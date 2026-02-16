@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ClientSelector } from '@/components/layout/ClientSelector';
@@ -9,6 +9,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { useDailyMetrics } from '@/hooks/useDailyMetrics';
 import { useGoogleAdsData } from '@/hooks/useGoogleAdsData';
+import { useProfile } from '@/hooks/useProfile';
 import { usePeriodContext } from '@/hooks/usePeriodContext';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { DashboardSkeleton } from '@/components/skeletons';
@@ -37,11 +38,18 @@ export default function Dashboard() {
   const [creativeSortBy, setCreativeSortBy] = useState<CreativeSortKey>('spend');
   const [imageKey, setImageKey] = useState(0);
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
+  const { profile } = useProfile();
 
-  const { campaigns: metaCampaigns, ads: metaAds, adSets: metaAdSets, loading: metaLoading, selectedProject, syncCreativesHD, syncing } = useMetaAdsData();
+  const { campaigns: metaCampaigns, ads: metaAds, adSets: metaAdSets, loading: metaLoading, selectedProject, syncCreativesHD, syncing, loadMetricsByPeriod } = useMetaAdsData();
   const { campaigns: googleCampaigns, loading: googleLoading, loadAllData } = useGoogleAdsData();
 
   const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset, selectedPreset === 'custom' ? dateRange : undefined);
+
+  // Load data by period when period changes
+  useEffect(() => {
+    if (!selectedProject) return;
+    loadMetricsByPeriod(selectedPreset, false, selectedPreset === 'custom' ? dateRange : undefined);
+  }, [selectedProject?.id, selectedPreset, dateRange?.from?.getTime(), dateRange?.to?.getTime()]);
 
   // Load Google data
   useMemo(() => {
@@ -167,26 +175,32 @@ export default function Dashboard() {
         <div className="relative z-10 p-4 sm:p-6 lg:p-8 pb-16 sm:pb-20 space-y-8 sm:space-y-10 lg:space-y-12 w-full">
           {/* Header */}
           <FadeIn>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Home className="w-4 h-4 text-primary" />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Home className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <h1 className="text-base sm:text-xl lg:text-2xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                      {profile?.full_name ? `Olá, ${profile.full_name.split(' ')[0]}! 👋` : 'Olá! 👋'}
+                    </h1>
+                    <p className="text-muted-foreground text-[10px] sm:text-xs">
+                      {selectedProject ? `Resumo de ${selectedProject.name}` : 'Visão geral de todas as plataformas'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-base sm:text-xl lg:text-2xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Home</h1>
-                  <p className="text-muted-foreground text-[10px] sm:text-xs">Visão geral de todas as plataformas</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DateRangePicker
+                    dateRange={dateRange}
+                    onDateRangeChange={setDateRange}
+                    timezone={selectedProject?.timezone}
+                    onPresetChange={setSelectedPreset}
+                    selectedPreset={selectedPreset}
+                  />
+                  <CreateProjectDialog />
+                  <ClientSelector />
                 </div>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <DateRangePicker
-                  dateRange={dateRange}
-                  onDateRangeChange={setDateRange}
-                  timezone={selectedProject?.timezone}
-                  onPresetChange={setSelectedPreset}
-                  selectedPreset={selectedPreset}
-                />
-                <CreateProjectDialog />
-                <ClientSelector />
               </div>
             </div>
           </FadeIn>
