@@ -335,7 +335,7 @@ export default function Dashboard() {
                                 creativeImageUrl={ad.creative_image_url}
                                 creativeThumbnail={ad.creative_thumbnail}
                                 alt={ad.name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-contain"
                               />
                               <div className="absolute top-1.5 left-1.5 bg-background/80 backdrop-blur-sm text-[10px] font-bold px-1.5 py-0.5 rounded">
                                 #{idx + 1}
@@ -521,7 +521,7 @@ export default function Dashboard() {
                         creativeImageUrl={selectedCreative.creative_image_url}
                         creativeThumbnail={selectedCreative.creative_thumbnail}
                         alt={selectedCreative.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                       />
                     </div>
                     <div className="overflow-y-auto space-y-2 min-h-0 pr-1">
