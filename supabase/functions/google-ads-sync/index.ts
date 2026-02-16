@@ -12,6 +12,7 @@ interface GoogleAdsCredentials {
   developerToken: string;
   refreshToken: string;
   customerId: string;
+  loginCustomerId: string; // MCC account ID
 }
 
 interface TokenResponse {
@@ -61,44 +62,54 @@ async function executeGoogleAdsQuery(
   query: string
 ): Promise<any[]> {
   const customerId = credentials.customerId.replace(/-/g, '');
-  const url = `https://googleads.googleapis.com/v23/customers/${customerId}/googleAds:searchStream`;
+  const loginId = credentials.loginCustomerId?.replace(/-/g, '') || '';
+  const url = `https://googleads.googleapis.com/v23/customers/${customerId}/googleAds:search`;
   
-  console.log('Executing Google Ads query:', query.substring(0, 100) + '...');
+  console.log(`Executing query for customer=${customerId}, login-customer-id=${loginId}`);
+  console.log('Query:', query.substring(0, 150));
   
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'developer-token': credentials.developerToken,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ query }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('Google Ads API error:', error);
-    throw new Error(`Google Ads API error: ${error}`);
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${accessToken}`,
+    'developer-token': credentials.developerToken,
+    'Content-Type': 'application/json',
+  };
+  
+  // Add login-customer-id header for MCC access
+  if (loginId) {
+    headers['login-customer-id'] = loginId;
   }
 
-  const results: any[] = [];
-  const text = await response.text();
-  
-  // Parse streaming response (NDJSON format)
-  const lines = text.split('\n').filter(line => line.trim());
-  for (const line of lines) {
-    try {
-      const parsed = JSON.parse(line);
-      if (parsed.results) {
-        results.push(...parsed.results);
-      }
-    } catch (e) {
-      // Skip non-JSON lines
+  const allResults: any[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const body: any = { query };
+    if (pageToken) body.pageToken = pageToken;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Google Ads API error:', error);
+      throw new Error(`Google Ads API error: ${error}`);
     }
-  }
+
+    const data = await response.json();
+    console.log(`Page returned ${data.results?.length || 0} results, totalSize: ${data.totalResultsCount || '?'}`);
+    
+    if (data.results) {
+      allResults.push(...data.results);
+    }
+    
+    pageToken = data.nextPageToken;
+  } while (pageToken);
   
-  console.log(`Query returned ${results.length} results`);
-  return results;
+  console.log(`Total results: ${allResults.length}`);
+  return allResults;
 }
 
 function formatDate(date: Date): string {
@@ -160,7 +171,7 @@ async function syncCampaigns(
     const costMicros = parseInt(result.metrics?.costMicros || '0');
     const impressions = parseInt(result.metrics?.impressions || '0');
     const clicks = parseInt(result.metrics?.clicks || '0');
-    const conversions = parseFloat(result.metrics?.conversions || '0');
+    const conversions = Math.round(parseFloat(result.metrics?.conversions || '0'));
     const conversionValue = parseFloat(result.metrics?.conversionsValue || '0');
     
     if (existing) {
@@ -261,7 +272,7 @@ async function syncAdGroups(
     const costMicros = parseInt(result.metrics?.costMicros || '0');
     const impressions = parseInt(result.metrics?.impressions || '0');
     const clicks = parseInt(result.metrics?.clicks || '0');
-    const conversions = parseFloat(result.metrics?.conversions || '0');
+    const conversions = Math.round(parseFloat(result.metrics?.conversions || '0'));
     const conversionValue = parseFloat(result.metrics?.conversionsValue || '0');
     
     // Extract campaign ID from resource name
@@ -367,7 +378,7 @@ async function syncDailyMetrics(
     const costMicros = parseInt(result.metrics?.costMicros || '0');
     const impressions = parseInt(result.metrics?.impressions || '0');
     const clicks = parseInt(result.metrics?.clicks || '0');
-    const conversions = parseFloat(result.metrics?.conversions || '0');
+    const conversions = Math.round(parseFloat(result.metrics?.conversions || '0'));
     const conversionValue = parseFloat(result.metrics?.conversionsValue || '0');
     const spend = costMicros / 1000000;
     
@@ -474,6 +485,7 @@ serve(async (req) => {
       developerToken: Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN')!,
       refreshToken: Deno.env.get('GOOGLE_ADS_REFRESH_TOKEN')!,
       customerId: googleCustomerId, // Use project's customer ID
+      loginCustomerId: Deno.env.get('GOOGLE_ADS_CUSTOMER_ID') || '', // MCC account ID
     };
 
     // Validate credentials
