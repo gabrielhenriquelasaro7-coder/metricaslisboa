@@ -6,6 +6,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Fetch HD thumbnail directly from creative endpoint (the ONLY way that works)
+async function fetchHDThumbnail(creativeId: string, accessToken: string): Promise<string | null> {
+  try {
+    const url = `https://graph.facebook.com/v22.0/${creativeId}?fields=thumbnail_url&thumbnail_width=1080&thumbnail_height=1080&access_token=${accessToken}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    const data = await response.json();
+    if (data.error) {
+      console.log(`[SYNC-COPIES] Creative ${creativeId} thumbnail error: ${data.error.message}`);
+      return null;
+    }
+    return data.thumbnail_url || null;
+  } catch (e) {
+    console.log(`[SYNC-COPIES] Failed to fetch HD thumbnail for creative ${creativeId}`);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -35,8 +55,8 @@ serve(async (req) => {
       throw new Error(`Project not found: ${projectError?.message}`);
     }
 
-    // Buscar ads - single or all
-    let adsQuery = supabase.from('ads').select('id, name').eq('project_id', projectId);
+    // Buscar ads
+    let adsQuery = supabase.from('ads').select('id, name, creative_id').eq('project_id', projectId);
     if (adId) adsQuery = adsQuery.eq('id', adId);
     
     const { data: ads, error: adsError } = await adsQuery;
@@ -48,7 +68,6 @@ serve(async (req) => {
     console.log(`[SYNC-COPIES] Found ${ads?.length || 0} ads to sync for project ${projectId}`);
 
     const results: any[] = [];
-    // Process in smaller batches to avoid timeouts
     const batchSize = adId ? 1 : 10;
 
     for (let i = 0; i < (ads?.length || 0); i += batchSize) {
@@ -58,12 +77,11 @@ serve(async (req) => {
       console.log(`[SYNC-COPIES] Batch ${Math.floor(i / batchSize) + 1}, ads: ${batch.length}`);
 
       try {
-        // IMPORTANTE: thumbnail_width=1080 e thumbnail_height=1080 para HD
-        const url = `https://graph.facebook.com/v22.0/?ids=${adIds}&fields=id,name,creative{id,name,body,title,call_to_action_type,thumbnail_url,object_story_spec,effective_object_story_id}&thumbnail_width=1080&thumbnail_height=1080&access_token=${accessToken}`;
+        // Step 1: Get ad data with creative info (text, headline, CTA)
+        const url = `https://graph.facebook.com/v22.0/?ids=${adIds}&fields=id,name,creative{id,name,body,title,call_to_action_type,object_story_spec,effective_object_story_id}&access_token=${accessToken}`;
 
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 25000);
-
         const response = await fetch(url, { signal: controller.signal });
         clearTimeout(timeout);
         
@@ -74,41 +92,31 @@ serve(async (req) => {
           continue;
         }
 
-        // Processar cada ad
+        // Process each ad
         for (const currentAdId of Object.keys(data)) {
           const adData = data[currentAdId];
-          if (!adData || adData.error) {
-            console.log(`[SYNC-COPIES] Skipping ad ${currentAdId}: ${adData?.error?.message || 'no data'}`);
-            continue;
-          }
+          if (!adData || adData.error) continue;
 
           const creative = adData.creative;
-          if (!creative) {
-            console.log(`[SYNC-COPIES] No creative for ad ${currentAdId}`);
-            continue;
-          }
+          if (!creative) continue;
 
           let primaryText: string | null = null;
           let headline: string | null = null;
           let cta: string | null = null;
 
-          // 1. Direto do creative
           if (creative.body) primaryText = creative.body;
           if (creative.title) headline = creative.title;
           if (creative.call_to_action_type) cta = creative.call_to_action_type;
 
-          // 2. Do object_story_spec
           const storySpec = creative.object_story_spec;
           if (storySpec) {
             const linkData = storySpec.link_data;
             const videoData = storySpec.video_data;
-
             if (linkData) {
               if (!primaryText && linkData.message) primaryText = linkData.message;
               if (!headline && linkData.name) headline = linkData.name;
               if (!cta && linkData.call_to_action?.type) cta = linkData.call_to_action.type;
             }
-
             if (videoData) {
               if (!primaryText && videoData.message) primaryText = videoData.message;
               if (!headline && videoData.title) headline = videoData.title;
@@ -116,7 +124,6 @@ serve(async (req) => {
             }
           }
 
-          // 3. Se tem effective_object_story_id, buscar o post
           if ((!primaryText || !headline) && creative.effective_object_story_id) {
             try {
               const postUrl = `https://graph.facebook.com/v22.0/${creative.effective_object_story_id}?fields=message,name,description,full_picture&access_token=${accessToken}`;
@@ -125,39 +132,32 @@ serve(async (req) => {
               const postResponse = await fetch(postUrl, { signal: postController.signal });
               clearTimeout(postTimeout);
               const postData = await postResponse.json();
-
               if (!postData.error) {
                 if (!primaryText && postData.message) primaryText = postData.message;
                 if (!headline && postData.name) headline = postData.name;
               }
-            } catch (e) {
+            } catch (_e) {
               console.log(`[SYNC-COPIES] Could not fetch post for ${currentAdId}`);
             }
           }
 
-          // Atualizar no banco se encontrou algo
-          if (primaryText || headline || cta || creative.thumbnail_url) {
+          // Step 2: Fetch HD thumbnail DIRECTLY from creative endpoint with 1080x1080
+          let hdThumbnailUrl: string | null = null;
+          if (creative.id) {
+            hdThumbnailUrl = await fetchHDThumbnail(creative.id, accessToken);
+            if (hdThumbnailUrl) {
+              console.log(`[SYNC-COPIES] ✅ Got TRUE HD 1080px thumbnail for ad ${currentAdId} from creative ${creative.id}`);
+            }
+          }
+
+          if (primaryText || headline || cta || hdThumbnailUrl) {
             const updateData: any = {};
             if (primaryText) updateData.primary_text = primaryText;
             if (headline) updateData.headline = headline;
             if (cta) updateData.cta = cta;
-            // Store the HD thumbnail URL - clean resize parameters to get full resolution
-            if (creative.thumbnail_url) {
-              let hdUrl = creative.thumbnail_url;
-              // Remove stp= parameter that forces small resize (e.g. p64x64)
-              hdUrl = hdUrl.replace(/[&?]stp=[^&]*/gi, '');
-              // Remove size parameters in path
-              hdUrl = hdUrl.replace(/\/p\d+x\d+\//g, '/');
-              hdUrl = hdUrl.replace(/\/s\d+x\d+\//g, '/');
-              // Fix malformed URL after param removal
-              if (hdUrl.includes('&') && !hdUrl.includes('?')) {
-                hdUrl = hdUrl.replace('&', '?');
-              }
-              hdUrl = hdUrl.replace(/[&?]$/g, '');
-              
-              updateData.creative_thumbnail = hdUrl;
-              updateData.creative_image_url = hdUrl;
-              console.log(`[SYNC-COPIES] HD URL for ${currentAdId}: cleaned stp params`);
+            if (hdThumbnailUrl) {
+              updateData.creative_thumbnail = hdThumbnailUrl;
+              updateData.creative_image_url = hdThumbnailUrl;
             }
 
             const { error: updateError } = await supabase
@@ -174,21 +174,19 @@ serve(async (req) => {
                 primaryText: primaryText?.substring(0, 50),
                 headline,
                 cta,
-                thumbnailUrl: creative.thumbnail_url ? 'YES' : 'NO'
+                hdThumbnail: hdThumbnailUrl ? 'YES_1080' : 'NO'
               });
-              console.log(`[SYNC-COPIES] ✅ Updated ad ${currentAdId}: thumbnail=${creative.thumbnail_url ? '1080px' : 'none'}, headline=${headline}`);
+              console.log(`[SYNC-COPIES] ✅ Updated ad ${currentAdId}: HD=${hdThumbnailUrl ? '1080px' : 'none'}, headline=${headline}`);
             }
           }
         }
       } catch (batchError) {
         console.error(`[SYNC-COPIES] Batch error:`, batchError);
-        // Continue with next batch even if this one fails
         continue;
       }
 
-      // Delay entre batches
       if (i + batchSize < (ads?.length || 0)) {
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
 
