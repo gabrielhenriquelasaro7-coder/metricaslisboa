@@ -10,6 +10,7 @@ import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { useDailyMetrics } from '@/hooks/useDailyMetrics';
 import { useGoogleAdsData } from '@/hooks/useGoogleAdsData';
 import { usePeriodContext } from '@/hooks/usePeriodContext';
+import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { DashboardSkeleton } from '@/components/skeletons';
 import { SmoothLoader } from '@/components/layout/PageTransition';
 import { getDateRangeFromPreset } from '@/utils/dateUtils';
@@ -32,8 +33,9 @@ type CreativeSortKey = 'spend' | 'conversions' | 'ctr';
 export default function Dashboard() {
   const { t } = useTranslation();
   const { projects, loading: projectsLoading } = useProjects();
-  const { selectedPreset, dateRange } = usePeriodContext();
+  const { selectedPreset, dateRange, setSelectedPreset, setDateRange } = usePeriodContext();
   const [creativeSortBy, setCreativeSortBy] = useState<CreativeSortKey>('spend');
+  const [imageKey, setImageKey] = useState(0);
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
 
   const { campaigns: metaCampaigns, ads: metaAds, adSets: metaAdSets, loading: metaLoading, selectedProject, syncCreativesHD, syncing } = useMetaAdsData();
@@ -175,7 +177,14 @@ export default function Dashboard() {
                   <p className="text-muted-foreground text-[10px] sm:text-xs">Visão geral de todas as plataformas</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <DateRangePicker
+                  dateRange={dateRange}
+                  onDateRangeChange={setDateRange}
+                  timezone={selectedProject?.timezone}
+                  onPresetChange={setSelectedPreset}
+                  selectedPreset={selectedPreset}
+                />
                 <CreateProjectDialog />
                 <ClientSelector />
               </div>
@@ -476,7 +485,10 @@ export default function Dashboard() {
                         className="h-7 text-[10px] gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10"
                         onClick={async () => {
                           const result = await syncCreativesHD(selectedCreative.id);
-                          if (result?.updatedAd) setSelectedCreative({ ...selectedCreative, ...result.updatedAd });
+                          if (result?.updatedAd) {
+                            setSelectedCreative({ ...selectedCreative, ...result.updatedAd });
+                            setImageKey(prev => prev + 1);
+                          }
                         }}
                         disabled={syncing}
                       >
@@ -488,6 +500,7 @@ export default function Dashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-3 flex-1 min-h-0 overflow-hidden">
                     <div className="rounded-lg overflow-hidden border border-red-500/20 min-h-0 bg-black">
                       <CreativeImage
+                        key={`${selectedCreative.id}-${imageKey}`}
                         projectId={selectedProject?.id}
                         adId={selectedCreative.id}
                         cachedImageUrl={selectedCreative.cached_image_url}
