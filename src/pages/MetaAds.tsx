@@ -582,18 +582,21 @@ export default function MetaAds() {
 
                 {/* Creative Detail Modal */}
                 <Dialog open={!!selectedCreative} onOpenChange={(open) => !open && setSelectedCreative(null)}>
-                   <DialogContent className="max-w-[95vw] md:max-w-6xl h-[85vh] border-red-500/30 bg-background/95 backdrop-blur-xl p-4 flex flex-col overflow-hidden">
+                   <DialogContent className="max-w-[95vw] md:max-w-5xl h-[85vh] border-red-500/30 bg-background/95 backdrop-blur-xl p-4 pt-10 flex flex-col overflow-hidden">
                     {selectedCreative && (
                       <>
                         <DialogHeader className="flex-shrink-0 pb-2">
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
                             <DialogTitle className="text-sm font-bold truncate text-red-400 flex-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                               {selectedCreative.name}
                             </DialogTitle>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <p className="text-[9px] text-muted-foreground font-mono">ID: {selectedCreative.id}</p>
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-7 text-[10px] gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10 flex-shrink-0"
+                              className="h-7 text-[10px] gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10"
                               onClick={() => syncCreativesHD(selectedCreative.id)}
                               disabled={syncing}
                             >
@@ -601,11 +604,10 @@ export default function MetaAds() {
                               Sync HD
                             </Button>
                           </div>
-                          <p className="text-[9px] text-muted-foreground font-mono">ID: {selectedCreative.id}</p>
                         </DialogHeader>
                         <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-3 flex-1 min-h-0 overflow-hidden">
-                          {/* Image - fills vertical space */}
-                          <div className="rounded-lg overflow-hidden bg-muted border border-red-500/20 min-h-0">
+                          {/* Image - cover sem barras cinzas */}
+                          <div className="rounded-lg overflow-hidden border border-red-500/20 min-h-0 bg-black flex items-center justify-center">
                             <CreativeImage
                               projectId={selectedProject?.id}
                               adId={selectedCreative.id}
@@ -613,10 +615,10 @@ export default function MetaAds() {
                               creativeImageUrl={selectedCreative.creative_image_url}
                               creativeThumbnail={selectedCreative.creative_thumbnail}
                               alt={selectedCreative.name}
-                              className="w-full h-full object-contain"
+                              className="max-w-full max-h-full object-contain"
                             />
                           </div>
-                          {/* Metrics - scrollable if needed */}
+                          {/* Metrics */}
                           <div className="overflow-y-auto space-y-2 min-h-0 pr-1">
                             <div className="grid grid-cols-4 gap-1.5">
                               <div className="glass-card p-2 border-l-2 border-l-red-500">
@@ -672,8 +674,8 @@ export default function MetaAds() {
                             )}
                             {selectedCreative.primary_text && (
                               <div className="glass-card p-2">
-                                <p className="text-[8px] text-muted-foreground">Texto Principal</p>
-                                <p className="text-[10px] line-clamp-3">{selectedCreative.primary_text}</p>
+                                <p className="text-[8px] text-muted-foreground mb-1">Texto Principal</p>
+                                <p className="text-[10px] whitespace-pre-line">{selectedCreative.primary_text}</p>
                               </div>
                             )}
                             {selectedCreative.cta && (
