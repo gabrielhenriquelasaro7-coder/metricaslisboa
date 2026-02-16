@@ -490,9 +490,20 @@ export default function MetaAds() {
                                 <p className="text-[9px] text-muted-foreground">{campaign.conversions || 0} {isProfileVisit ? 'visitas' : 'conv.'}</p>
                               </div>
                             </button>
-                            {isExpanded && campaignAdSets.length > 0 && (
+                            {isExpanded && (
                               <div className="bg-secondary/20 border-t border-border/20">
-                                {campaignAdSets.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map(adSet => {
+                                {/* Campaign metrics summary */}
+                                <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-8 gap-1.5 p-2.5 pl-7 sm:pl-9 border-b border-border/10">
+                                  <div><p className="text-[7px] text-muted-foreground">Impressões</p><p className="text-[10px] font-semibold">{formatNumberCompact(campaign.impressions || 0)}</p></div>
+                                  <div><p className="text-[7px] text-muted-foreground">Cliques</p><p className="text-[10px] font-semibold">{formatNumber(campaign.clicks || 0)}</p></div>
+                                  <div><p className="text-[7px] text-muted-foreground">CTR</p><p className="text-[10px] font-semibold">{(campaign.ctr || 0).toFixed(2)}%</p></div>
+                                  <div><p className="text-[7px] text-muted-foreground">CPC</p><p className="text-[10px] font-semibold">{formatCurrency(campaign.cpc || 0)}</p></div>
+                                  <div><p className="text-[7px] text-muted-foreground">CPM</p><p className="text-[10px] font-semibold">{formatCurrency(campaign.cpm || 0)}</p></div>
+                                  <div><p className="text-[7px] text-muted-foreground">Alcance</p><p className="text-[10px] font-semibold">{formatNumberCompact(campaign.reach || 0)}</p></div>
+                                  <div><p className="text-[7px] text-muted-foreground">Frequência</p><p className="text-[10px] font-semibold">{(campaign.frequency || 0).toFixed(2)}</p></div>
+                                  {(isEcommerce || isInfoproduto) && <div><p className="text-[7px] text-muted-foreground">ROAS</p><p className="text-[10px] font-semibold">{(campaign.roas || 0).toFixed(2)}x</p></div>}
+                                </div>
+                                {campaignAdSets.length > 0 && campaignAdSets.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map(adSet => {
                                   const isAdSetExpanded = expandedAdSets.has(adSet.id);
                                   const adSetAds = ads.filter(ad => ad.ad_set_id === adSet.id);
                                   return (
@@ -508,6 +519,19 @@ export default function MetaAds() {
                                           <p className="text-[8px] text-muted-foreground">{adSet.conversions || 0} {isProfileVisit ? 'visitas' : 'conv.'}</p>
                                         </div>
                                       </button>
+                                      {/* Ad Set metrics summary when expanded */}
+                                      {isAdSetExpanded && (
+                                        <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-8 gap-1.5 p-2 pl-12 sm:pl-14 bg-secondary/25 border-b border-border/10">
+                                          <div><p className="text-[7px] text-muted-foreground">Impressões</p><p className="text-[10px] font-semibold">{formatNumberCompact(adSet.impressions || 0)}</p></div>
+                                          <div><p className="text-[7px] text-muted-foreground">Cliques</p><p className="text-[10px] font-semibold">{formatNumber(adSet.clicks || 0)}</p></div>
+                                          <div><p className="text-[7px] text-muted-foreground">CTR</p><p className="text-[10px] font-semibold">{(adSet.ctr || 0).toFixed(2)}%</p></div>
+                                          <div><p className="text-[7px] text-muted-foreground">CPC</p><p className="text-[10px] font-semibold">{formatCurrency(adSet.cpc || 0)}</p></div>
+                                          <div><p className="text-[7px] text-muted-foreground">CPM</p><p className="text-[10px] font-semibold">{formatCurrency(adSet.cpm || 0)}</p></div>
+                                          <div><p className="text-[7px] text-muted-foreground">Alcance</p><p className="text-[10px] font-semibold">{formatNumberCompact(adSet.reach || 0)}</p></div>
+                                          <div><p className="text-[7px] text-muted-foreground">Frequência</p><p className="text-[10px] font-semibold">{((adSet.impressions || 0) > 0 && (adSet.reach || 0) > 0 ? (adSet.impressions! / adSet.reach!) : 0).toFixed(2)}</p></div>
+                                          {(isEcommerce || isInfoproduto) && <div><p className="text-[7px] text-muted-foreground">ROAS</p><p className="text-[10px] font-semibold">{(adSet.roas || 0).toFixed(2)}x</p></div>}
+                                        </div>
+                                      )}
                                       {/* Ads in GRID format */}
                                       {isAdSetExpanded && adSetAds.length > 0 && (
                                         <div className="bg-secondary/30 p-3 sm:p-4">

@@ -13,13 +13,15 @@ import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { DashboardSkeleton } from '@/components/skeletons';
 import { SmoothLoader } from '@/components/layout/PageTransition';
 import { getDateRangeFromPreset } from '@/utils/dateUtils';
-import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, Plus, Crosshair, Zap, BarChart3, Target, Instagram, ArrowUpRight, ArrowDownRight, Layers } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, Plus, Crosshair, Zap, BarChart3, Target, Instagram, ArrowUpRight, ArrowDownRight, Layers, ImageIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CreativeImage } from '@/components/ui/creative-image';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { translateCTA } from '@/utils/ctaTranslations';
+import { cn } from '@/lib/utils';
 import metaIcon from '@/assets/meta-icon.png';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
@@ -34,7 +36,7 @@ export default function Dashboard() {
   const [creativeSortBy, setCreativeSortBy] = useState<CreativeSortKey>('spend');
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
 
-  const { campaigns: metaCampaigns, ads: metaAds, adSets: metaAdSets, loading: metaLoading, selectedProject } = useMetaAdsData();
+  const { campaigns: metaCampaigns, ads: metaAds, adSets: metaAdSets, loading: metaLoading, selectedProject, syncCreativesHD, syncing } = useMetaAdsData();
   const { campaigns: googleCampaigns, loading: googleLoading, loadAllData } = useGoogleAdsData();
 
   const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset, selectedPreset === 'custom' ? dateRange : undefined);
@@ -455,18 +457,36 @@ export default function Dashboard() {
             )}
           </SmoothLoader>
 
-          {/* Creative Detail Modal */}
+          {/* Creative Detail Modal - same as MetaAds */}
           <Dialog open={!!selectedCreative} onOpenChange={(open) => !open && setSelectedCreative(null)}>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-border">
+            <DialogContent className="max-w-[95vw] md:max-w-5xl h-[85vh] border-red-500/30 bg-background/95 backdrop-blur-xl p-4 pt-10 flex flex-col overflow-hidden">
               {selectedCreative && (
                 <>
-                  <DialogHeader>
-                    <DialogTitle className="text-base font-bold truncate" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                      {selectedCreative.name}
-                    </DialogTitle>
+                  <DialogHeader className="flex-shrink-0 pb-2">
+                    <div className="flex items-center gap-2">
+                      <DialogTitle className="text-sm font-bold truncate text-red-400 flex-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                        {selectedCreative.name}
+                      </DialogTitle>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[9px] text-muted-foreground font-mono">ID: {selectedCreative.id}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-[10px] gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10"
+                        onClick={async () => {
+                          const result = await syncCreativesHD(selectedCreative.id);
+                          if (result?.updatedAd) setSelectedCreative({ ...selectedCreative, ...result.updatedAd });
+                        }}
+                        disabled={syncing}
+                      >
+                        <ImageIcon className={cn("w-3 h-3", syncing && "animate-spin")} />
+                        Sync HD
+                      </Button>
+                    </div>
                   </DialogHeader>
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
-                    <div className="md:col-span-2 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-3 flex-1 min-h-0 overflow-hidden">
+                    <div className="rounded-lg overflow-hidden border border-red-500/20 min-h-0 bg-black">
                       <CreativeImage
                         projectId={selectedProject?.id}
                         adId={selectedCreative.id}
@@ -474,68 +494,84 @@ export default function Dashboard() {
                         creativeImageUrl={selectedCreative.creative_image_url}
                         creativeThumbnail={selectedCreative.creative_thumbnail}
                         alt={selectedCreative.name}
-                        className="w-full h-auto max-h-[500px] object-contain"
+                        className="w-full h-full object-cover"
                       />
                     </div>
-                    <div className="md:col-span-3 space-y-3">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <div className="glass-card p-2.5">
-                          <p className="text-[9px] text-muted-foreground mb-0.5">Gasto</p>
-                          <p className="text-sm font-bold">{formatCurrency(selectedCreative.spend || 0)}</p>
+                    <div className="overflow-y-auto space-y-2 min-h-0 pr-1">
+                      <div className="grid grid-cols-4 gap-1.5">
+                        <div className="glass-card p-2 border-l-2 border-l-red-500">
+                          <p className="text-[8px] text-red-400/80">Gasto</p>
+                          <p className="text-[11px] font-bold">{formatCurrency(selectedCreative.spend || 0)}</p>
                         </div>
-                        <div className="glass-card p-2.5">
-                          <p className="text-[9px] text-muted-foreground mb-0.5">Conversões</p>
-                          <p className="text-sm font-bold">{selectedCreative.conversions || 0}</p>
+                        <div className="glass-card p-2 border-l-2 border-l-red-500/60">
+                          <p className="text-[8px] text-red-400/80">Conv.</p>
+                          <p className="text-[11px] font-bold">{selectedCreative.conversions || 0}</p>
                         </div>
-                        <div className="glass-card p-2.5">
-                          <p className="text-[9px] text-muted-foreground mb-0.5">CTR</p>
-                          <p className="text-sm font-bold">{(selectedCreative.ctr || 0).toFixed(2)}%</p>
+                        <div className="glass-card p-2">
+                          <p className="text-[8px] text-muted-foreground">CTR</p>
+                          <p className="text-[11px] font-bold">{(selectedCreative.ctr || 0).toFixed(2)}%</p>
                         </div>
-                        <div className="glass-card p-2.5">
-                          <p className="text-[9px] text-muted-foreground mb-0.5">CPC</p>
-                          <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpc || 0)}</p>
+                        <div className="glass-card p-2">
+                          <p className="text-[8px] text-muted-foreground">CPC</p>
+                          <p className="text-[11px] font-bold">{formatCurrency(selectedCreative.cpc || 0)}</p>
                         </div>
-                        <div className="glass-card p-2.5">
-                          <p className="text-[9px] text-muted-foreground mb-0.5">CPM</p>
-                          <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpm || 0)}</p>
+                        <div className="glass-card p-2">
+                          <p className="text-[8px] text-muted-foreground">CPM</p>
+                          <p className="text-[11px] font-bold">{formatCurrency(selectedCreative.cpm || 0)}</p>
                         </div>
-                        <div className="glass-card p-2.5">
-                          <p className="text-[9px] text-muted-foreground mb-0.5">Impressões</p>
-                          <p className="text-sm font-bold">{formatNumberCompact(selectedCreative.impressions || 0)}</p>
+                        <div className="glass-card p-2">
+                          <p className="text-[8px] text-muted-foreground">Impr.</p>
+                          <p className="text-[11px] font-bold">{formatNumberCompact(selectedCreative.impressions || 0)}</p>
                         </div>
-                        <div className="glass-card p-2.5">
-                          <p className="text-[9px] text-muted-foreground mb-0.5">Cliques</p>
-                          <p className="text-sm font-bold">{formatNumber(selectedCreative.clicks || 0)}</p>
+                        <div className="glass-card p-2">
+                          <p className="text-[8px] text-muted-foreground">Cliques</p>
+                          <p className="text-[11px] font-bold">{formatNumber(selectedCreative.clicks || 0)}</p>
                         </div>
-                        <div className="glass-card p-2.5">
-                          <p className="text-[9px] text-muted-foreground mb-0.5">Alcance</p>
-                          <p className="text-sm font-bold">{formatNumberCompact(selectedCreative.reach || 0)}</p>
+                        <div className="glass-card p-2">
+                          <p className="text-[8px] text-muted-foreground">Alcance</p>
+                          <p className="text-[11px] font-bold">{formatNumberCompact(selectedCreative.reach || 0)}</p>
                         </div>
                       </div>
-                      <div className={`grid gap-2 ${(isEcommerce || isInfoproduto) ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                        <div className="glass-card p-2.5">
-                          <p className="text-[9px] text-muted-foreground mb-0.5">CPA</p>
-                          <p className="text-sm font-bold">{formatCurrency(selectedCreative.cpa || 0)}</p>
+                      <div className={cn("grid gap-1.5", (isEcommerce || isInfoproduto) ? "grid-cols-2" : "grid-cols-1")}>
+                        <div className="glass-card p-2 border-l-2 border-l-red-500/40">
+                          <p className="text-[8px] text-red-400/80">CPA</p>
+                          <p className="text-[11px] font-bold">{formatCurrency(selectedCreative.cpa || 0)}</p>
                         </div>
                         {(isEcommerce || isInfoproduto) && (
-                          <div className="glass-card p-2.5">
-                            <p className="text-[9px] text-muted-foreground mb-0.5">ROAS</p>
-                            <p className="text-sm font-bold">{(selectedCreative.roas || 0).toFixed(2)}x</p>
+                          <div className="glass-card p-2 border-l-2 border-l-red-500/40">
+                            <p className="text-[8px] text-red-400/80">ROAS</p>
+                            <p className="text-[11px] font-bold">{(selectedCreative.roas || 0).toFixed(2)}x</p>
                           </div>
                         )}
                       </div>
                       {selectedCreative.headline && (
-                        <div className="glass-card p-2.5">
-                          <p className="text-[9px] text-muted-foreground mb-0.5">Headline</p>
-                          <p className="text-xs font-medium">{selectedCreative.headline}</p>
+                        <div className="glass-card p-2 border-l-2 border-l-red-500/30">
+                          <p className="text-[8px] text-red-400/70">Headline</p>
+                          <p className="text-[11px] font-medium">{selectedCreative.headline}</p>
                         </div>
                       )}
                       {selectedCreative.primary_text && (
-                        <div className="glass-card p-2.5">
-                          <p className="text-[9px] text-muted-foreground mb-0.5">Texto Principal</p>
-                          <p className="text-xs line-clamp-4">{selectedCreative.primary_text}</p>
+                        <div className="glass-card p-2">
+                          <p className="text-[8px] text-muted-foreground mb-1">Texto Principal</p>
+                          <p className="text-[10px] whitespace-pre-line">{selectedCreative.primary_text}</p>
                         </div>
                       )}
+                      {selectedCreative.cta && (
+                        <div className="glass-card p-2 border-l-2 border-l-red-500/30">
+                          <p className="text-[8px] text-red-400/70">CTA</p>
+                          <p className="text-[11px] font-medium">{translateCTA(selectedCreative.cta)}</p>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div className="glass-card p-1.5">
+                          <p className="text-[7px] text-muted-foreground/70">Status</p>
+                          <p className="text-[10px]">{selectedCreative.status === 'ACTIVE' ? '● Ativo' : '○ Pausado'}</p>
+                        </div>
+                        <div className="glass-card p-1.5">
+                          <p className="text-[7px] text-muted-foreground/70">Frequência</p>
+                          <p className="text-[10px]">{(selectedCreative.frequency || 0).toFixed(2)}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </>
