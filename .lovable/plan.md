@@ -1,104 +1,95 @@
 
-# Plano Completo: Meta Ads, Home, Carregamento e Correções
 
-## 1. Meta Ads - Cards de Resultado MENORES (SparklineCard)
+# Plano: Corrigir Google Ads + Import Simultaneo Meta/Google
 
-**Problema**: Os SparklineCards de resultado continuam grandes (imagem-432 mostra cards enormes).
+## Problemas Identificados
 
-**Solução**:
-- No `SparklineCard.tsx`, reduzir padding de `p-3` para `p-2 sm:p-2.5`
-- Reduzir titulo de `text-sm` para `text-[10px] sm:text-xs`
-- Reduzir valor de `text-lg sm:text-xl` para `text-sm sm:text-base`
-- Reduzir altura do sparkline de `h-[60px]` para `h-[40px]`
-- Nos grids de resultado no MetaAds.tsx, reduzir gap de `gap-2 sm:gap-2.5` para `gap-1.5 sm:gap-2`
+1. **Google Ads quebrando**: A versao v19 da API foi desativada pelo Google em 11/fev/2026. O erro "UNSUPPORTED_VERSION" confirma isso. Precisamos atualizar para **v23** (a mais recente, lancada em 28/jan/2026).
 
-## 2. Meta Ads - Modal do Criativo MAIOR e com mais info
+2. **Import nao e simultaneo**: Quando um projeto novo e criado, so o Meta e importado. Se tiver Google Customer ID, o Google deveria rodar ao mesmo tempo.
 
-**Problema**: Modal pequeno (max-w-3xl), imagem cortada, falta informações como headline e texto principal (imagem-433 mostra referência do que deveria ter).
+3. **Video do Meta**: Nao consome tokens. E apenas uma URL que a API do Meta retorna. Vamos adicionar suporte a reproducao de video nos criativos.
 
-**Solução**:
-- Aumentar `DialogContent` de `max-w-3xl` para `max-w-5xl`
-- Mudar layout: imagem ocupa lado esquerdo com `aspect-auto` (sem forçar quadrado) para não cortar
-- Lado direito: grid 2x4 com métricas (Gasto, Conversões, CTR, CPC, CPM, Impressões, Cliques, Alcance)
-- Abaixo das métricas: Headline e Texto Principal
-- Remover qualquer barra de frequência
+## Mudancas Planejadas
 
-## 3. Meta Ads - Remover "100,0%" do Investimento
+### 1. Atualizar Google Ads API de v19 para v23
 
-**Problema**: No card de investimento nas Métricas Gerais aparece "↑100.0%" (imagem-434).
+- **Arquivo**: `supabase/functions/google-ads-sync/index.ts`
+- Trocar a URL de `v19` para `v23` na funcao `executeGoogleAdsQuery`
+- Verificar se ha campos novos/removidos na v23 (geralmente retrocompativel)
 
-**Solução**:
-- Na linha 304 do MetaAds.tsx, remover a exibição condicional de `changes?.spend`
-- O card de investimento mostrará apenas o valor, sem porcentagem de variação
+### 2. Import Simultaneo (Meta + Google em paralelo)
 
-## 4. Meta Ads - Métricas do Período (PeriodComparison) consertado
+- **Arquivo**: `src/components/projects/CreateProjectDialog.tsx`
+- Ao criar projeto, se tiver `google_customer_id` preenchido, disparar `Promise.all` com:
+  - `meta-ads-sync` (ja existe)
+  - `google-ads-sync` (novo)
+- Ambos rodam ao mesmo tempo, sem esperar um pelo outro
 
-**Problema**: A seção "Métricas do Período" está bugada (imagem-432 mostra "comparison.current" como texto raw).
+- **Arquivo**: `src/components/projects/EditProjectDialog.tsx`
+- Ao salvar com novo `google_customer_id`, disparar sync do Google automaticamente (ja implementado parcialmente)
 
-**Solução**:
-- O label `currentPeriodLabel` está usando `t('comparison.current')` que não existe na tradução
-- Corrigir no MetaAds.tsx para usar labels corretos sem depender de chaves de tradução ausentes
-- Reduzir padding do componente PeriodComparison: de `p-6` para `p-4`, grid gap de `gap-4` para `gap-3`
-- Cards internos de `p-2.5 sm:p-4` para `p-2 sm:p-3`
+### 3. Sync Agendado Tambem em Paralelo
 
-## 5. Meta Ads - AccountBalanceCard menor
+- **Arquivo**: `supabase/functions/scheduled-sync-parallel/index.ts`
+- Apos o sync do Meta, verificar se o projeto tem `google_customer_id`
+- Se sim, chamar `google-ads-sync` em paralelo dentro do mesmo batch
 
-**Solução**:
-- Reduzir padding de `pt-3 pb-3 px-4` para `pt-2 pb-2 px-3`
-- Reduzir icone de `w-4 h-4` para `w-3.5 h-3.5`
-- Reduzir fonte do valor de `text-base` para `text-sm`
+### 4. Hierarquia de Dados Google Ads
 
-## 6. Meta Ads - Filtros no Funil de Vendas
+A estrutura ja existe e e identica ao Meta:
 
-**Solução**:
-- Adicionar dropdown/select no header do FunnelChart para filtrar por: Todas, Campanhas Ativas, Campanhas Pausadas
-- Passar filtro como prop do MetaAds para o FunnelChart
+```text
+Conta (Customer ID)
+  └── Campanhas (google_campaigns)
+       └── Grupos de Anuncios (google_ad_groups)
+            └── Anuncios (google_ads)
+                 └── Metricas Diarias (google_ads_daily_metrics)
+```
 
-## 7. Home - Gráficos comparativos Meta vs Google
+## Detalhes Tecnicos
 
-**Problema**: Os gráficos da Home ainda mostram apenas dados do Meta, não comparam com Google.
+### Atualizacao da API (v19 -> v23)
 
-**Solução**:
-- Modificar os `CustomizableChart` na Home para usar `comparativeData` que já foi criado (linha 119-129)
-- Passar as keys `meta_spend` e `google_spend` como métricas separadas
-- Alternativa mais simples: adicionar labels "Meta" e "Google" nos gráficos e usar os dados combinados
+```typescript
+// ANTES (quebrado)
+const url = `https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:searchStream`;
 
-## 8. Home - Botão "Novo Projeto" menor
+// DEPOIS (corrigido)
+const url = `https://googleads.googleapis.com/v23/customers/${customerId}/googleAds:searchStream`;
+```
 
-**Problema**: O `CreateProjectDialog` renderiza um botão `variant="gradient"` com texto "Novo Projeto" que é grande demais.
+### Import Simultaneo no CreateProject
 
-**Solução**:
-- No CreateProjectDialog.tsx, mudar o trigger para `size="sm"` com padding reduzido
-- Mudar para: `<Button variant="outline" size="sm"><Plus className="w-3.5 h-3.5 mr-1" />Novo</Button>`
+```typescript
+// Disparar ambos ao mesmo tempo
+const syncPromises = [];
 
-## 9. Carregamento em TODAS as telas
+// Meta sempre roda
+syncPromises.push(
+  supabase.functions.invoke('meta-ads-sync', { body: { project_id, ... } })
+);
 
-**Problema**: Ao trocar de aba ou projeto, a tela pisca sem loading.
+// Google roda se tiver customer_id
+if (google_customer_id) {
+  syncPromises.push(
+    supabase.functions.invoke('google-ads-sync', { body: { projectId, syncType: 'full', days: 90 } })
+  );
+}
 
-**Solução**:
-- O `App.tsx` já usa `mode="popLayout"` e `duration: 0.1` (correto)
-- O problema é que nem todas as páginas usam `SmoothLoader`
-- Verificar e adicionar `SmoothLoader` com `DashboardSkeleton` nas páginas: WhatsApp, Settings, GoogleCampaigns, Analytics, Financial, PredictiveAnalysis
-- No `SmoothLoader`, reduzir delay de conteúdo de `0.05` para `0` para transição mais rápida
+await Promise.all(syncPromises);
+```
 
-## Detalhes Técnicos
+### Sync Agendado Paralelo
 
-### Arquivos a modificar:
-1. **`src/components/dashboard/SparklineCard.tsx`** - Reduzir tamanhos (padding, fontes, sparkline height)
-2. **`src/pages/MetaAds.tsx`** - Modal maior, remover % investimento, labels corrigidos
-3. **`src/components/dashboard/PeriodComparison.tsx`** - Compactar padding e grid
-4. **`src/components/dashboard/AccountBalanceCard.tsx`** - Compactar
-5. **`src/components/projects/CreateProjectDialog.tsx`** - Botão menor
-6. **`src/pages/Dashboard.tsx`** - Gráficos comparativos Meta vs Google
-7. **`src/components/dashboard/FunnelChart.tsx`** - Adicionar filtros
-8. **`src/components/layout/PageTransition.tsx`** - Remover delay do SmoothLoader
-9. Páginas faltando SmoothLoader (WhatsApp, etc.)
+Na funcao `scheduled-sync-parallel`, apos o sync Meta de cada projeto, adicionar chamada ao Google Ads se o projeto tiver `google_customer_id` configurado. Ambos rodam em `Promise.all` dentro do mesmo batch.
 
-### Sequência:
-1. SparklineCard + AccountBalanceCard - compactar
-2. MetaAds - modal maior, remover %, corrigir labels
-3. PeriodComparison - compactar
-4. CreateProjectDialog - botão menor
-5. Dashboard - gráficos comparativos
-6. FunnelChart - filtros
-7. PageTransition + páginas restantes - carregamento universal
+## Resumo de Arquivos a Editar
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `supabase/functions/google-ads-sync/index.ts` | v19 -> v23 |
+| `src/components/projects/CreateProjectDialog.tsx` | Import simultaneo Meta+Google |
+| `src/components/projects/EditProjectDialog.tsx` | Manter auto-sync ao adicionar Google ID |
+| `supabase/functions/scheduled-sync-parallel/index.ts` | Incluir Google no sync diario |
+
