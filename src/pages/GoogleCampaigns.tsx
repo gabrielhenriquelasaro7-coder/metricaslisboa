@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { SmoothLoader } from '@/components/layout/PageTransition';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -85,52 +86,40 @@ export default function GoogleCampaigns() {
     ...(isEcommerce ? [{ value: 'roas', label: 'ROAS' }] : []),
   ];
 
-  // Show loading skeleton while loading
-  if (loading && campaigns.length === 0) {
-    return (
-      <DashboardLayout>
-        <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8">
-          <div className="flex flex-col gap-3 sm:gap-4">
-            <div>
-              <div className="h-8 w-48 bg-muted rounded animate-pulse mb-2" />
-              <div className="h-4 w-64 bg-muted rounded animate-pulse" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <SkeletonMetricCard key={i} />
-            ))}
-          </div>
-          <div className="glass-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border bg-secondary/50">
-                    <th className="py-4 px-4"><div className="h-3 w-20 bg-muted rounded animate-pulse" /></th>
-                    <th className="py-4 px-3"><div className="h-3 w-12 bg-muted rounded animate-pulse mx-auto" /></th>
-                    <th className="py-4 px-3"><div className="h-3 w-14 bg-muted rounded animate-pulse mx-auto" /></th>
-                    <th className="py-4 px-3"><div className="h-3 w-16 bg-muted rounded animate-pulse ml-auto" /></th>
-                    <th className="py-4 px-3"><div className="h-3 w-12 bg-muted rounded animate-pulse ml-auto" /></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <SkeletonTableRow key={i} columns={5} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const isPageLoading = loading && campaigns.length === 0;
 
   // Redirect if no project after loading
   if (!loading && !selectedProject) {
     navigate('/dashboard');
     return null;
   }
+
+  const GoogleSkeleton = () => (
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8">
+      <div className="flex flex-col gap-3 sm:gap-4">
+        <div>
+          <div className="h-8 w-48 bg-muted rounded animate-pulse mb-2" />
+          <div className="h-4 w-64 bg-muted rounded animate-pulse" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <SkeletonMetricCard key={i} />
+        ))}
+      </div>
+      <div className="glass-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <tbody>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonTableRow key={i} columns={5} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 
   const filteredCampaigns = campaigns
     .filter((campaign) => {
@@ -229,6 +218,7 @@ export default function GoogleCampaigns() {
 
   return (
     <DashboardLayout>
+      <SmoothLoader loading={isPageLoading} skeleton={<GoogleSkeleton />}>
       <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:gap-4">
@@ -534,6 +524,7 @@ export default function GoogleCampaigns() {
           </>
         )}
       </div>
+      </SmoothLoader>
     </DashboardLayout>
   );
 }

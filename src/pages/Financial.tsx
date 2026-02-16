@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { SmoothLoader } from '@/components/layout/PageTransition';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProjects } from '@/hooks/useProjects';
@@ -6,6 +7,7 @@ import { useDailyMetrics } from '@/hooks/useDailyMetrics';
 import { useCRMConnection, CRMProvider } from '@/hooks/useCRMConnection';
 import { useCargo } from '@/hooks/useCargo';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { DashboardSkeleton } from '@/components/skeletons';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -173,15 +175,7 @@ export default function Financial() {
     ebitda: crmMetrics.revenue * 0.67 - totalAdSpend,
   }), [crmMetrics, totalAdSpend]);
 
-  if (authLoading || projectsLoading || crmLoading || cargoLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const isPageLoading = authLoading || projectsLoading || crmLoading || cargoLoading;
 
   if (!isAuthorized) return null;
 
@@ -220,6 +214,7 @@ export default function Financial() {
 
   return (
     <DashboardLayout>
+      <SmoothLoader loading={isPageLoading} skeleton={<div className="p-6"><DashboardSkeleton /></div>}>
       <div className="space-y-8 pb-8 pt-4 sm:pt-0">
         {/* Hero Header - Clean & Minimal */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-2 sm:mt-0">
@@ -523,6 +518,7 @@ export default function Financial() {
           </Tabs>
         )}
       </div>
+      </SmoothLoader>
     </DashboardLayout>
   );
 }
