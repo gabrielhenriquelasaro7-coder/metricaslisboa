@@ -64,36 +64,41 @@ export default function SparklineCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden p-3 flex flex-col justify-between h-full premium-card group hover:border-primary/40 transition-all duration-300",
+        "relative overflow-hidden p-2 sm:p-2.5 flex flex-col justify-between h-full premium-card group hover:border-primary/40 transition-all duration-300",
         className,
       )}
     >
       {/* Topo: Título e Ícone */}
-      <div className="flex items-center justify-between mb-2 z-10 relative">
+      <div className="flex items-center justify-between mb-1 z-10 relative">
         {tooltip ? (
           <Tooltip>
-            <TooltipTrigger asChild>{titleContent}</TooltipTrigger>
+            <TooltipTrigger asChild>
+              <span className={cn(
+                "text-[10px] sm:text-xs font-medium text-muted-foreground truncate pr-2",
+                "cursor-help border-b border-dashed border-muted-foreground/50",
+              )}>{title}</span>
+            </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[200px] z-50">
               {tooltip}
             </TooltipContent>
           </Tooltip>
         ) : (
-          titleContent
+          <span className="text-[10px] sm:text-xs font-medium text-muted-foreground truncate pr-2">{title}</span>
         )}
 
-        <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
-          <Icon className="h-4 w-4" />
+        <div className="w-6 h-6 flex items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+          <Icon className="h-3.5 w-3.5" />
         </div>
       </div>
 
       {/* Meio: Valor e Descrição */}
-      <div className="flex flex-col z-10 relative mb-2">
-        <h3 className="text-lg sm:text-xl font-bold tracking-tight text-foreground truncate">{value}</h3>
-        {description && <p className="text-xs text-muted-foreground mt-1 truncate opacity-80">{description}</p>}
+      <div className="flex flex-col z-10 relative mb-1">
+        <h3 className="text-sm sm:text-base font-bold tracking-tight text-foreground truncate">{value}</h3>
+        {description && <p className="text-[10px] text-muted-foreground mt-0.5 truncate opacity-80">{description}</p>}
       </div>
 
       {/* Fundo: Gráfico */}
-      <div className="absolute bottom-0 right-0 w-full h-[60px] opacity-20 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none">
+      <div className="absolute bottom-0 right-0 w-full h-[40px] opacity-20 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData}>
             <defs>

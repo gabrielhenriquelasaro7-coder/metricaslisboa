@@ -141,7 +141,7 @@ export default function Dashboard() {
   }, []);
 
   const PlatformBreakdown = ({ metaVal, googleVal, format: fmt }: { metaVal: number; googleVal: number; format: (n: number) => string }) => (
-    <div className="flex items-center gap-3 mt-1 text-[9px] text-muted-foreground">
+    <div className="flex items-center gap-4 mt-1 text-[9px] text-muted-foreground">
       <span className="flex items-center gap-1.5"><img src={metaIcon} className="w-2.5 h-2.5" alt="Meta" />{fmt(metaVal)}</span>
       <span className="flex items-center gap-1.5"><img src={googleAdsIcon} className="w-2.5 h-2.5" alt="Google" />{fmt(googleVal)}</span>
     </div>
@@ -376,21 +376,21 @@ export default function Dashboard() {
                     <div className="space-y-6">
                       <CustomizableChart
                         chartKey="home-chart-1"
-                        data={dailyData}
-                        defaultTitle="Investimento & Conversões"
-                        defaultPrimaryMetric="spend"
-                        defaultSecondaryMetric="conversions"
+                        data={comparativeData.length > 0 ? comparativeData : dailyData}
+                        defaultTitle="Investimento (Meta vs Google)"
+                        defaultPrimaryMetric="meta_spend"
+                        defaultSecondaryMetric="google_spend"
                         defaultChartType="composed"
                         currency={selectedProject?.currency || 'BRL'}
                         className="chart-container-mobile"
                       />
                       <CustomizableChart
                         chartKey="home-chart-2"
-                        data={dailyData}
-                        defaultTitle="Alcance & CTR"
-                        defaultPrimaryMetric="impressions"
-                        defaultSecondaryMetric="ctr"
-                        defaultChartType="line"
+                        data={comparativeData.length > 0 ? comparativeData : dailyData}
+                        defaultTitle="Conversões (Meta vs Google)"
+                        defaultPrimaryMetric="meta_conversions"
+                        defaultSecondaryMetric="google_conversions"
+                        defaultChartType="composed"
                         currency={selectedProject?.currency || 'BRL'}
                         className="chart-container-mobile"
                       />

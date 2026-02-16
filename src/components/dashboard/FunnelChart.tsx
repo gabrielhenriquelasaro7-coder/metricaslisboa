@@ -20,6 +20,8 @@ interface FunnelChartProps {
   conversionRate?: number;
   currency?: string;
   className?: string;
+  campaignFilter?: 'all' | 'active' | 'paused';
+  onCampaignFilterChange?: (filter: 'all' | 'active' | 'paused') => void;
 }
 
 interface FunnelStep {
@@ -43,6 +45,8 @@ export function FunnelChart({
   conversionRate = 0,
   currency = 'BRL',
   className,
+  campaignFilter = 'all',
+  onCampaignFilterChange,
 }: FunnelChartProps) {
   const { t } = useTranslation();
   const responsive = useChartResponsive();
@@ -116,12 +120,25 @@ export function FunnelChart({
   return (
     <Card className={cn("glass-card overflow-hidden", className)}>
       <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6">
-        <CardTitle className="text-base sm:text-lg font-semibold flex items-center gap-2">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-            <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-          </div>
-          {t('funnel.title')}
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base sm:text-lg font-semibold flex items-center gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+              <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+            </div>
+            {t('funnel.title')}
+          </CardTitle>
+          {onCampaignFilterChange && (
+            <select
+              value={campaignFilter}
+              onChange={(e) => onCampaignFilterChange(e.target.value as 'all' | 'active' | 'paused')}
+              className="text-xs bg-secondary border border-border rounded-md px-2 py-1 text-foreground"
+            >
+              <option value="all">Todas</option>
+              <option value="active">Ativas</option>
+              <option value="paused">Pausadas</option>
+            </select>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="pt-2 px-3 sm:px-6">
         <div className="space-y-1.5 sm:space-y-2 flex flex-col items-center">

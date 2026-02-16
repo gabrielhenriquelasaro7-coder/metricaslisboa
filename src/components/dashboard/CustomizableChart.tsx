@@ -127,6 +127,11 @@ const createMetricOptions = (currency: string = 'BRL'): MetricOption[] => {
     { key: 'cpl', label: 'CPL/CPA', format: formatCurrency, color: 'hsl(30, 70%, 50%)' },
     { key: 'roas', label: 'ROAS', format: formatMultiplier, color: 'hsl(var(--metric-positive))' },
     { key: 'frequency', label: 'Frequência', format: (v) => v.toFixed(2), color: 'hsl(var(--muted-foreground))' },
+    // Comparative keys for Meta vs Google
+    { key: 'meta_spend', label: 'Meta Gasto', format: formatCurrency, color: 'hsl(221, 83%, 53%)' },
+    { key: 'google_spend', label: 'Google Gasto', format: formatCurrency, color: 'hsl(45, 93%, 47%)' },
+    { key: 'meta_conversions', label: 'Meta Conv.', format: formatNumber, color: 'hsl(221, 83%, 53%)' },
+    { key: 'google_conversions', label: 'Google Conv.', format: formatNumber, color: 'hsl(45, 93%, 47%)' },
   ];
 };
 
