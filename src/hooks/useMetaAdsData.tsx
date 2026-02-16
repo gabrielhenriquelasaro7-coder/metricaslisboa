@@ -581,8 +581,8 @@ export function useMetaAdsData() {
     }
   }, [selectedProject, loadDataFromDatabase, loadMetricsByPeriod]);
 
-  // Sync ONLY creatives in HD - uses sync-ad-copies for text/CTA/HD thumbnails
-  const syncCreativesHD = useCallback(async () => {
+  // Sync creatives in HD - optionally a single ad
+  const syncCreativesHD = useCallback(async (singleAdId?: string) => {
     if (!selectedProject) {
       toast.error('Nenhum projeto selecionado');
       return { success: false };
@@ -590,14 +590,12 @@ export function useMetaAdsData() {
 
     setSyncing(true);
     try {
-      console.log('[CREATIVES HD] Starting HD creatives sync via sync-ad-copies...');
+      const body: Record<string, unknown> = { projectId: selectedProject.id };
+      if (singleAdId) body.adId = singleAdId;
+
+      console.log('[CREATIVES HD] Starting HD sync...', singleAdId ? `single ad: ${singleAdId}` : 'all ads');
       
-      // Call sync-ad-copies which fetches creative text, CTA, and HD thumbnails (1080x1080)
-      const { data: copiesData, error: copiesError } = await supabase.functions.invoke('sync-ad-copies', {
-        body: {
-          projectId: selectedProject.id,
-        },
-      });
+      const { data: copiesData, error: copiesError } = await supabase.functions.invoke('sync-ad-copies', { body });
 
       if (copiesError) {
         console.error('sync-ad-copies error:', copiesError);
@@ -607,19 +605,18 @@ export function useMetaAdsData() {
       console.log('[CREATIVES HD] sync-ad-copies response:', copiesData);
       
       const updatedCount = copiesData?.updatedAds || 0;
-      toast.success(`Criativos sincronizados em HD! ${updatedCount} criativos atualizados.`);
+      toast.success(singleAdId 
+        ? `Criativo sincronizado em HD!` 
+        : `Criativos sincronizados em HD! ${updatedCount} atualizados.`);
       
-      // Invalidate image cache to force reload of new HD images
       invalidateCreativeImageCache();
-      
-      // Reset and reload data
       lastLoadedPeriodRef.current = null;
       await loadDataFromDatabase();
       
       return { success: true, data: copiesData };
     } catch (error) {
       console.error('Creatives HD sync error:', error);
-      toast.error('Erro ao sincronizar criativos em HD');
+      toast.error('Erro ao sincronizar criativo em HD');
       return { success: false, error };
     } finally {
       setSyncing(false);
