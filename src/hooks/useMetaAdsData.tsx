@@ -610,8 +610,12 @@ export function useMetaAdsData() {
         : `Criativos sincronizados em HD! ${updatedCount} atualizados.`);
       
       invalidateCreativeImageCache();
-      lastLoadedPeriodRef.current = null;
-      await loadDataFromDatabase();
+      
+      // For single ad, just update local state without full reload
+      if (!singleAdId) {
+        lastLoadedPeriodRef.current = null;
+        await loadDataFromDatabase();
+      }
       
       return { success: true, data: copiesData };
     } catch (error) {
