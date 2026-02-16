@@ -607,7 +607,7 @@ export default function MetaAds() {
                         </DialogHeader>
                         <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-3 flex-1 min-h-0 overflow-hidden">
                           {/* Image - cover sem barras cinzas */}
-                          <div className="rounded-lg overflow-hidden border border-red-500/20 min-h-0 bg-black flex items-center justify-center">
+                          <div className="rounded-lg overflow-hidden border border-red-500/20 min-h-0 bg-black">
                             <CreativeImage
                               projectId={selectedProject?.id}
                               adId={selectedCreative.id}
@@ -615,7 +615,7 @@ export default function MetaAds() {
                               creativeImageUrl={selectedCreative.creative_image_url}
                               creativeThumbnail={selectedCreative.creative_thumbnail}
                               alt={selectedCreative.name}
-                              className="max-w-full max-h-full object-contain"
+                              className="w-full h-full object-cover"
                             />
                           </div>
                           {/* Metrics */}
