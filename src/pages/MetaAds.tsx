@@ -51,6 +51,7 @@ export default function MetaAds() {
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
   const [expandedAdSets, setExpandedAdSets] = useState<Set<string>>(new Set());
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
+  const [imageKey, setImageKey] = useState(0);
   const [funnelFilter, setFunnelFilter] = useState<'all' | 'active' | 'paused'>('all');
   const chartRef = useRef<HTMLDivElement>(null);
 
@@ -623,7 +624,10 @@ export default function MetaAds() {
                               className="h-7 text-[10px] gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10"
                               onClick={async () => {
                                 const result = await syncCreativesHD(selectedCreative.id);
-                                if (result?.updatedAd) setSelectedCreative({ ...selectedCreative, ...result.updatedAd });
+                                if (result?.updatedAd) {
+                                  setSelectedCreative({ ...selectedCreative, ...result.updatedAd });
+                                  setImageKey(prev => prev + 1); // Force remount image
+                                }
                               }}
                               disabled={syncing}
                             >
@@ -636,6 +640,7 @@ export default function MetaAds() {
                           {/* Image - cover sem barras cinzas */}
                           <div className="rounded-lg overflow-hidden border border-red-500/20 min-h-0 bg-black">
                             <CreativeImage
+                              key={`creative-modal-${selectedCreative.id}-${imageKey}`}
                               projectId={selectedProject?.id}
                               adId={selectedCreative.id}
                               cachedImageUrl={selectedCreative.cached_image_url}
