@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ClientSelector } from '@/components/layout/ClientSelector';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
+import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { useDemographicInsights } from '@/hooks/useDemographicInsights';
 import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
@@ -10,6 +11,7 @@ import { useDailyMetrics } from '@/hooks/useDailyMetrics';
 import { useGoogleAdsData } from '@/hooks/useGoogleAdsData';
 import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { DashboardSkeleton } from '@/components/skeletons';
+import { SmoothLoader } from '@/components/layout/PageTransition';
 import { getDateRangeFromPreset } from '@/utils/dateUtils';
 import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, Plus, Crosshair, Zap, BarChart3, Target, Instagram, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -113,6 +115,19 @@ export default function Dashboard() {
   const activeCampaignsMeta = metaCampaigns.filter(c => c.status === 'ACTIVE').length;
   const activeCampaignsGoogle = googleCampaigns.filter(c => c.status === 'ENABLED' || c.status === 'ACTIVE').length;
 
+  // Build comparative daily data (Meta vs Google) for charts
+  const comparativeData = useMemo(() => {
+    if (!dailyData.length) return [];
+    // dailyData is Meta only - we can overlay Google totals as a flat reference
+    return dailyData.map(d => ({
+      ...d,
+      meta_spend: d.spend,
+      google_spend: googleTotalSpend > 0 ? googleTotalSpend / dailyData.length : 0,
+      meta_conversions: d.conversions,
+      google_conversions: googleConversions > 0 ? googleConversions / dailyData.length : 0,
+    }));
+  }, [dailyData, googleTotalSpend, googleConversions]);
+
   const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: selectedProject?.currency || 'BRL', minimumFractionDigits: 2 }).format(value);
   const formatNumber = (num: number) => { if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'; if (num >= 1000) return (num / 1000).toFixed(1) + 'K'; return num.toLocaleString('pt-BR'); };
 
@@ -133,7 +148,7 @@ export default function Dashboard() {
           <div className="absolute top-0 right-0 w-[200px] sm:w-[400px] lg:w-[600px] h-[200px] sm:h-[400px] lg:h-[600px] bg-primary/3 rounded-full blur-[80px] sm:blur-[150px]" />
         </div>
 
-        <div className="relative z-10 p-4 sm:p-6 lg:p-8 pb-12 sm:pb-16 space-y-6 sm:space-y-8 lg:space-y-10 w-full">
+        <div className="relative z-10 p-4 sm:p-6 lg:p-8 pb-16 sm:pb-20 space-y-8 sm:space-y-10 lg:space-y-12 w-full">
           {/* Header */}
           <FadeIn>
             <div className="flex items-center justify-between gap-3">
@@ -153,203 +168,237 @@ export default function Dashboard() {
             </div>
           </FadeIn>
 
-          {loading ? <DashboardSkeleton /> : activeProjects.length === 0 ? (
-            <div className="glass-card p-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Target className="w-8 h-8 text-primary" />
+          <SmoothLoader loading={loading} skeleton={<DashboardSkeleton />}>
+            {activeProjects.length === 0 ? (
+              <div className="glass-card p-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <Target className="w-8 h-8 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Nenhum projeto ainda</h2>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">Crie seu primeiro projeto para começar a acompanhar suas campanhas.</p>
+                <CreateProjectDialog />
               </div>
-              <h2 className="text-xl font-semibold mb-2">Nenhum projeto ainda</h2>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">Crie seu primeiro projeto para começar a acompanhar suas campanhas.</p>
-              <CreateProjectDialog />
-            </div>
-          ) : (
-            <StaggerContainer staggerDelay={0.04}>
-              {/* Quick Stats Bar */}
-              <StaggerItem>
-                <div className="flex items-center gap-2 flex-wrap text-[10px] sm:text-xs text-muted-foreground mb-2">
-                  <Badge variant="outline" className="gap-1 text-[10px] border-blue-500/30 text-blue-400">
-                    <img src={metaIcon} className="w-3 h-3" alt="" /> {activeCampaignsMeta} ativas
-                  </Badge>
-                  <Badge variant="outline" className="gap-1 text-[10px] border-yellow-500/30 text-yellow-400">
-                    <img src={googleAdsIcon} className="w-3 h-3" alt="" /> {activeCampaignsGoogle} ativas
-                  </Badge>
-                  {totalProfileVisits > 0 && (
-                    <Badge variant="outline" className="gap-1 text-[10px] border-pink-500/30 text-pink-400">
-                      <Instagram className="w-3 h-3" /> {formatNumber(totalProfileVisits)} visitas
-                    </Badge>
-                  )}
-                </div>
-              </StaggerItem>
-
-              {/* Metric Cards - compact grid */}
-              <StaggerItem>
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
-                  {/* Investimento */}
-                  <div className="glass-card p-2.5 sm:p-3 border-l-2 border-l-primary">
-                    <div className="flex items-center gap-1 mb-1">
-                      <DollarSign className="w-3 h-3 text-primary" />
-                      <span className="text-[9px] text-muted-foreground font-medium">Investimento</span>
-                    </div>
-                    <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(totalSpend)}</p>
-                    <PlatformBreakdown metaVal={metaTotalSpend} googleVal={googleTotalSpend} format={formatCurrency} />
-                  </div>
-                  {/* Impressões */}
-                  <div className="glass-card p-2.5 sm:p-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Eye className="w-3 h-3 text-primary" />
-                      <span className="text-[9px] text-muted-foreground font-medium">Impressões</span>
-                    </div>
-                    <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalImpressions)}</p>
-                    <PlatformBreakdown metaVal={metaImpressions} googleVal={googleImpressions} format={formatNumber} />
-                  </div>
-                  {/* Cliques */}
-                  <div className="glass-card p-2.5 sm:p-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <MousePointerClick className="w-3 h-3 text-primary" />
-                      <span className="text-[9px] text-muted-foreground font-medium">Cliques</span>
-                    </div>
-                    <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalClicks)}</p>
-                    <PlatformBreakdown metaVal={metaClicks} googleVal={googleClicks} format={formatNumber} />
-                  </div>
-                  {/* Conversões */}
-                  <div className="glass-card p-2.5 sm:p-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Users className="w-3 h-3 text-primary" />
-                      <span className="text-[9px] text-muted-foreground font-medium">Conversões</span>
-                    </div>
-                    <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalConversions)}</p>
-                    <PlatformBreakdown metaVal={metaConversions} googleVal={googleConversions} format={formatNumber} />
-                  </div>
-                  {/* CTR */}
-                  <div className="glass-card p-2.5 sm:p-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Crosshair className="w-3 h-3 text-primary" />
-                      <span className="text-[9px] text-muted-foreground font-medium">CTR</span>
-                    </div>
-                    <p className="text-xs sm:text-sm font-bold leading-tight">{ctr.toFixed(2)}%</p>
-                  </div>
-                  {/* CPC */}
-                  <div className="glass-card p-2.5 sm:p-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Zap className="w-3 h-3 text-primary" />
-                      <span className="text-[9px] text-muted-foreground font-medium">CPC</span>
-                    </div>
-                    <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(cpc)}</p>
-                  </div>
-                  {/* CPM */}
-                  <div className="glass-card p-2.5 sm:p-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <BarChart3 className="w-3 h-3 text-primary" />
-                      <span className="text-[9px] text-muted-foreground font-medium">CPM</span>
-                    </div>
-                    <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(cpm)}</p>
-                  </div>
-                  {/* CPL */}
-                  <div className="glass-card p-2.5 sm:p-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Target className="w-3 h-3 text-primary" />
-                      <span className="text-[9px] text-muted-foreground font-medium">CPL</span>
-                    </div>
-                    <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(cpl)}</p>
-                  </div>
-                </div>
-              </StaggerItem>
-
-              {/* Top 3 Creatives */}
-              {topCreatives.length > 0 && (
+            ) : (
+              <StaggerContainer staggerDelay={0.04} className="space-y-8 sm:space-y-10">
+                {/* Quick Stats Bar */}
                 <StaggerItem>
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-1 h-4 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
-                      <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top 3 Criativos</h2>
-                      <Tabs value={creativeSortBy} onValueChange={(v) => setCreativeSortBy(v as CreativeSortKey)} className="ml-auto">
-                        <TabsList className="h-6 p-0.5">
-                          <TabsTrigger value="spend" className="text-[9px] h-5 px-2">Gasto</TabsTrigger>
-                          <TabsTrigger value="conversions" className="text-[9px] h-5 px-2">Conv.</TabsTrigger>
-                          <TabsTrigger value="ctr" className="text-[9px] h-5 px-2">CTR</TabsTrigger>
-                        </TabsList>
-                      </Tabs>
-                      <Link to="/creatives" className="text-[10px] sm:text-xs text-primary hover:underline">Ver todos →</Link>
+                  <div className="flex items-center gap-2 flex-wrap text-[10px] sm:text-xs text-muted-foreground">
+                    <Badge variant="outline" className="gap-1 text-[10px] border-blue-500/30 text-blue-400">
+                      <img src={metaIcon} className="w-3 h-3" alt="" /> {activeCampaignsMeta} ativas
+                    </Badge>
+                    <Badge variant="outline" className="gap-1 text-[10px] border-yellow-500/30 text-yellow-400">
+                      <img src={googleAdsIcon} className="w-3 h-3" alt="" /> {activeCampaignsGoogle} ativas
+                    </Badge>
+                    {totalProfileVisits > 0 && (
+                      <Badge variant="outline" className="gap-1 text-[10px] border-pink-500/30 text-pink-400">
+                        <Instagram className="w-3 h-3" /> {formatNumber(totalProfileVisits)} visitas
+                      </Badge>
+                    )}
+                  </div>
+                </StaggerItem>
+
+                {/* Metric Cards - compact grid with slightly more gap */}
+                <StaggerItem>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 sm:gap-5">
+                    {/* Investimento */}
+                    <div className="glass-card p-2.5 sm:p-3 border-l-2 border-l-primary">
+                      <div className="flex items-center gap-1 mb-1">
+                        <DollarSign className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] text-muted-foreground font-medium">Investimento</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(totalSpend)}</p>
+                      <PlatformBreakdown metaVal={metaTotalSpend} googleVal={googleTotalSpend} format={formatCurrency} />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {topCreatives.map((ad, idx) => (
-                        <Link key={ad.id} to={`/creative/${ad.id}`} className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all group">
-                          <div className="aspect-square relative bg-muted">
-                            <CreativeImage
-                              projectId={selectedProject?.id}
-                              adId={ad.id}
-                              cachedImageUrl={ad.cached_image_url}
-                              creativeImageUrl={ad.creative_image_url}
-                              creativeThumbnail={ad.creative_thumbnail}
-                              alt={ad.name}
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute top-1.5 left-1.5 bg-background/80 backdrop-blur-sm text-[10px] font-bold px-1.5 py-0.5 rounded">
-                              #{idx + 1}
-                            </div>
-                          </div>
-                          <div className="p-2.5">
-                            <p className="text-[10px] sm:text-xs font-medium truncate mb-1">{ad.name}</p>
-                            <div className="flex items-center justify-between text-[9px] sm:text-[10px] text-muted-foreground">
-                              <span>{formatCurrency(ad.spend || 0)}</span>
-                              <span>{ad.conversions || 0} conv.</span>
-                              <span>CTR {(ad.ctr || 0).toFixed(2)}%</span>
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
+                    {/* Impressões */}
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Eye className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] text-muted-foreground font-medium">Impressões</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalImpressions)}</p>
+                      <PlatformBreakdown metaVal={metaImpressions} googleVal={googleImpressions} format={formatNumber} />
+                    </div>
+                    {/* Cliques */}
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-1">
+                        <MousePointerClick className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] text-muted-foreground font-medium">Cliques</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalClicks)}</p>
+                      <PlatformBreakdown metaVal={metaClicks} googleVal={googleClicks} format={formatNumber} />
+                    </div>
+                    {/* Conversões */}
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Users className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] text-muted-foreground font-medium">Conversões</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalConversions)}</p>
+                      <PlatformBreakdown metaVal={metaConversions} googleVal={googleConversions} format={formatNumber} />
+                    </div>
+                    {/* CTR */}
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Crosshair className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] text-muted-foreground font-medium">CTR</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{ctr.toFixed(2)}%</p>
+                    </div>
+                    {/* CPC */}
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Zap className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] text-muted-foreground font-medium">CPC</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(cpc)}</p>
+                    </div>
+                    {/* CPM */}
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-1">
+                        <BarChart3 className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] text-muted-foreground font-medium">CPM</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(cpm)}</p>
+                    </div>
+                    {/* CPL */}
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Target className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] text-muted-foreground font-medium">CPL</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(cpl)}</p>
                     </div>
                   </div>
                 </StaggerItem>
-              )}
 
-              {/* Top Campaigns */}
-              {allCampaigns.length > 0 && (
-                <StaggerItem>
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-1 h-4 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
-                      <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top 5 Campanhas</h2>
-                    </div>
-                    <div className="glass-card overflow-hidden">
-                      <div className="divide-y divide-border/50">
-                        {allCampaigns.map((c) => {
-                          const convLabel = c.isProfileVisit ? 'visitas ao perfil' : 'conv.';
-                          return (
-                            <div key={c.id} className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 hover:bg-secondary/30 transition-colors">
-                              <img src={c.platform === 'meta' ? metaIcon : googleAdsIcon} className="w-4 h-4 flex-shrink-0" alt="" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[10px] sm:text-xs font-medium truncate">{c.name}</p>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <span className={`text-[8px] sm:text-[9px] ${c.status === 'ACTIVE' || c.status === 'ENABLED' ? 'text-emerald-400' : 'text-muted-foreground'}`}>
-                                    {c.status === 'ACTIVE' || c.status === 'ENABLED' ? '● Ativo' : '○ Pausado'}
-                                  </span>
-                                  {c.isProfileVisit && (
-                                    <Badge variant="outline" className="text-[7px] px-1 py-0 h-3.5 border-pink-500/30 text-pink-400">
-                                      <Instagram className="w-2 h-2 mr-0.5" /> Perfil
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                <p className="text-[10px] sm:text-xs font-semibold">{formatCurrency(c.spend || 0)}</p>
-                                <p className="text-[9px] text-muted-foreground">{c.conversions || 0} {convLabel}</p>
+                {/* Top 3 Creatives */}
+                {topCreatives.length > 0 && (
+                  <StaggerItem>
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-1 h-4 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
+                        <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top 3 Criativos</h2>
+                        <Tabs value={creativeSortBy} onValueChange={(v) => setCreativeSortBy(v as CreativeSortKey)} className="ml-auto">
+                          <TabsList className="h-6 p-0.5">
+                            <TabsTrigger value="spend" className="text-[9px] h-5 px-2">Gasto</TabsTrigger>
+                            <TabsTrigger value="conversions" className="text-[9px] h-5 px-2">Conv.</TabsTrigger>
+                            <TabsTrigger value="ctr" className="text-[9px] h-5 px-2">CTR</TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                        <Link to="/creatives" className="text-[10px] sm:text-xs text-primary hover:underline">Ver todos →</Link>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {topCreatives.map((ad, idx) => (
+                          <Link key={ad.id} to={`/creative/${ad.id}`} className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all group">
+                            <div className="aspect-square relative bg-muted">
+                              <CreativeImage
+                                projectId={selectedProject?.id}
+                                adId={ad.id}
+                                cachedImageUrl={ad.cached_image_url}
+                                creativeImageUrl={ad.creative_image_url}
+                                creativeThumbnail={ad.creative_thumbnail}
+                                alt={ad.name}
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute top-1.5 left-1.5 bg-background/80 backdrop-blur-sm text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                #{idx + 1}
                               </div>
                             </div>
-                          );
-                        })}
+                            <div className="p-2.5">
+                              <p className="text-[10px] sm:text-xs font-medium truncate mb-1">{ad.name}</p>
+                              <div className="flex items-center justify-between text-[9px] sm:text-[10px] text-muted-foreground">
+                                <span>{formatCurrency(ad.spend || 0)}</span>
+                                <span>{ad.conversions || 0} conv.</span>
+                                <span>CTR {(ad.ctr || 0).toFixed(2)}%</span>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
                       </div>
                     </div>
+                  </StaggerItem>
+                )}
+
+                {/* Top Campaigns */}
+                {allCampaigns.length > 0 && (
+                  <StaggerItem>
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-1 h-4 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
+                        <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top 5 Campanhas</h2>
+                      </div>
+                      <div className="glass-card overflow-hidden">
+                        <div className="divide-y divide-border/50">
+                          {allCampaigns.map((c) => {
+                            const convLabel = c.isProfileVisit ? 'visitas ao perfil' : 'conv.';
+                            return (
+                              <div key={c.id} className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 hover:bg-secondary/30 transition-colors">
+                                <img src={c.platform === 'meta' ? metaIcon : googleAdsIcon} className="w-4 h-4 flex-shrink-0" alt="" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[10px] sm:text-xs font-medium truncate">{c.name}</p>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className={`text-[8px] sm:text-[9px] ${c.status === 'ACTIVE' || c.status === 'ENABLED' ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                                      {c.status === 'ACTIVE' || c.status === 'ENABLED' ? '● Ativo' : '○ Pausado'}
+                                    </span>
+                                    {c.isProfileVisit && (
+                                      <Badge variant="outline" className="text-[7px] px-1 py-0 h-3.5 border-pink-500/30 text-pink-400">
+                                        <Instagram className="w-2 h-2 mr-0.5" /> Perfil
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <p className="text-[10px] sm:text-xs font-semibold">{formatCurrency(c.spend || 0)}</p>
+                                  <p className="text-[9px] text-muted-foreground">{c.conversions || 0} {convLabel}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </StaggerItem>
+                )}
+
+                {/* Comparative Charts - Meta vs Google */}
+                <StaggerItem>
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-blue-500/50 rounded-full" />
+                      <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Gráficos de Performance</h2>
+                    </div>
+                    <div className="space-y-6">
+                      <CustomizableChart
+                        chartKey="home-chart-1"
+                        data={dailyData}
+                        defaultTitle="Investimento & Conversões"
+                        defaultPrimaryMetric="spend"
+                        defaultSecondaryMetric="conversions"
+                        defaultChartType="composed"
+                        currency={selectedProject?.currency || 'BRL'}
+                        className="chart-container-mobile"
+                      />
+                      <CustomizableChart
+                        chartKey="home-chart-2"
+                        data={dailyData}
+                        defaultTitle="Alcance & CTR"
+                        defaultPrimaryMetric="impressions"
+                        defaultSecondaryMetric="ctr"
+                        defaultChartType="line"
+                        currency={selectedProject?.currency || 'BRL'}
+                        className="chart-container-mobile"
+                      />
+                    </div>
                   </div>
                 </StaggerItem>
-              )}
 
-              {/* Demographics */}
-              <StaggerItem>
-                <DemographicCharts data={demographicData} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
-              </StaggerItem>
-            </StaggerContainer>
-          )}
+                {/* Demographics */}
+                <StaggerItem>
+                  <DemographicCharts data={demographicData} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
+                </StaggerItem>
+              </StaggerContainer>
+            )}
+          </SmoothLoader>
         </div>
       </div>
     </DashboardLayout>
