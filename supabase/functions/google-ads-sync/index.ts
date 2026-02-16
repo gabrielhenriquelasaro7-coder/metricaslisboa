@@ -70,7 +70,7 @@ async function executeGoogleAdsQuery(
   let pageToken: string | undefined;
 
   do {
-    const body: any = { query, pageSize: 10000 };
+    const body: any = { query };
     if (pageToken) body.pageToken = pageToken;
 
     const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
