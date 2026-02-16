@@ -7,20 +7,25 @@ import SparklineCard from '@/components/dashboard/SparklineCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { FunnelChart } from '@/components/dashboard/FunnelChart';
+import PeriodComparison from '@/components/dashboard/PeriodComparison';
 import { useGoogleAdsData } from '@/hooks/useGoogleAdsData';
 import { DailyMetric } from '@/hooks/useDailyMetrics';
 import { DateRange } from 'react-day-picker';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
 import { DashboardSkeleton } from '@/components/skeletons';
+import { format } from 'date-fns';
 import {
   Megaphone, TrendingUp, DollarSign, MousePointerClick, Eye, ShoppingCart,
   RefreshCw, AlertCircle, Users, Search, Video, ShoppingBag, Globe,
   ChevronDown, ChevronRight, Key, BarChart3, MoreVertical, ExternalLink,
-  ChevronLeft, ChevronRight as ChevronRightIcon, Filter
+  ChevronLeft, ChevronRight as ChevronRightIcon, Filter, Wallet, Banknote,
+  Crosshair, Zap, Receipt, Target, Activity
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
@@ -55,6 +60,32 @@ const formatDevice = (val: string) => ({ MOBILE: 'Mobile', DESKTOP: 'Desktop', T
 
 const KEYWORDS_PER_PAGE = 20;
 
+// Helper to get previous period dates
+function getPreviousPeriod(since: string, until: string, preset: DatePresetKey) {
+  const sinceDate = new Date(since);
+  const untilDate = new Date(until);
+  const days = Math.round((untilDate.getTime() - sinceDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+
+  if (preset === 'this_month') {
+    const now = new Date();
+    const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const prevFirst = new Date(prevYear, prevMonth, 1);
+    const prevLast = new Date(prevYear, prevMonth + 1, 0);
+    const prevUntilDay = Math.min(now.getDate(), prevLast.getDate());
+    return { since: format(prevFirst, 'yyyy-MM-dd'), until: format(new Date(prevYear, prevMonth, prevUntilDay), 'yyyy-MM-dd') };
+  }
+  if (preset === 'last_month') {
+    const prevMonth = sinceDate.getMonth() === 0 ? 11 : sinceDate.getMonth() - 1;
+    const prevYear = sinceDate.getMonth() === 0 ? sinceDate.getFullYear() - 1 : sinceDate.getFullYear();
+    return { since: format(new Date(prevYear, prevMonth, 1), 'yyyy-MM-dd'), until: format(new Date(prevYear, prevMonth + 1, 0), 'yyyy-MM-dd') };
+  }
+  // Default: same length before
+  const prevUntil = new Date(sinceDate); prevUntil.setDate(prevUntil.getDate() - 1);
+  const prevSince = new Date(prevUntil); prevSince.setDate(prevSince.getDate() - days + 1);
+  return { since: format(prevSince, 'yyyy-MM-dd'), until: format(prevUntil, 'yyyy-MM-dd') };
+}
+
 export default function GoogleCampaigns() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
@@ -64,6 +95,7 @@ export default function GoogleCampaigns() {
   const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
   const [expandedAdGroups, setExpandedAdGroups] = useState<Set<string>>(new Set());
+  const [showComparison, setShowComparison] = useState(true);
 
   // Keywords state
   const [kwPage, setKwPage] = useState(0);
@@ -84,6 +116,7 @@ export default function GoogleCampaigns() {
   const handleSync = useCallback(() => syncData({ days: 420 }), [syncData]);
 
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
+  const isInsideSales = selectedProject?.business_model === 'inside_sales';
   const isPageLoading = loading && campaigns.length === 0;
 
   const totals = useMemo(() => campaigns.reduce((acc, c) => ({
@@ -98,9 +131,18 @@ export default function GoogleCampaigns() {
   const avgCpm = totals.impressions > 0 ? (totals.spend / totals.impressions) * 1000 : 0;
   const convRate = totals.clicks > 0 ? (totals.conversions / totals.clicks) * 100 : 0;
 
+  // Budget summary from active campaigns
+  const budgetSummary = useMemo(() => {
+    const activeCampaigns = campaigns.filter(c => c.status === 'ENABLED');
+    const totalDailyBudget = activeCampaigns.reduce((s, c) => s + (c.budget_amount || 0), 0);
+    return { totalDailyBudget, activeCampaigns: activeCampaigns.length, totalCampaigns: campaigns.length };
+  }, [campaigns]);
+
   const formatCurrency = useCallback((num: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: selectedProject?.currency || 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num), [selectedProject?.currency]);
   const formatNumber = (num: number) => { if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'; if (num >= 1000) return (num / 1000).toFixed(1) + 'K'; return num.toLocaleString('pt-BR'); };
+  const formatNumberCompact = formatNumber;
 
+  // Chart data from daily metrics
   const chartData = useMemo((): DailyMetric[] => {
     const agg = aggregateDailyMetrics(dailyMetrics);
     return agg.map(d => ({
@@ -110,6 +152,74 @@ export default function GoogleCampaigns() {
       ctr: d.ctr, cpm: d.cpm, cpc: d.cpc, roas: d.roas, cpa: d.cpa,
     }));
   }, [dailyMetrics, aggregateDailyMetrics]);
+
+  // Period comparison from daily metrics
+  const periodComparison = useMemo(() => {
+    if (!dailyMetrics.length) return null;
+
+    let since: string, until: string;
+    if (selectedPreset === 'custom' && dateRange?.from && dateRange?.to) {
+      since = format(dateRange.from, 'yyyy-MM-dd');
+      until = format(dateRange.to, 'yyyy-MM-dd');
+    } else {
+      const period = getDateRangeFromPreset(selectedPreset, selectedProject?.timezone || 'America/Sao_Paulo');
+      if (!period) return null;
+      since = period.since;
+      until = period.until;
+    }
+
+    const prev = getPreviousPeriod(since, until, selectedPreset);
+
+    const currentData = dailyMetrics.filter(d => d.date >= since && d.date <= until);
+    const previousData = dailyMetrics.filter(d => d.date >= prev.since && d.date <= prev.until);
+
+    const sumMetrics = (data: typeof dailyMetrics) => data.reduce((acc, d) => ({
+      spend: acc.spend + d.spend, impressions: acc.impressions + d.impressions,
+      clicks: acc.clicks + d.clicks, conversions: acc.conversions + (d.conversions || 0),
+      revenue: acc.revenue + (d.conversion_value || 0),
+    }), { spend: 0, impressions: 0, clicks: 0, conversions: 0, revenue: 0 });
+
+    const cur = sumMetrics(currentData);
+    const pre = sumMetrics(previousData);
+
+    const calcChange = (c: number, p: number) => p > 0 ? ((c - p) / p) * 100 : c > 0 ? 100 : 0;
+
+    const curCtr = cur.impressions > 0 ? (cur.clicks / cur.impressions) * 100 : 0;
+    const preCtr = pre.impressions > 0 ? (pre.clicks / pre.impressions) * 100 : 0;
+    const curCpm = cur.impressions > 0 ? (cur.spend / cur.impressions) * 1000 : 0;
+    const preCpm = pre.impressions > 0 ? (pre.spend / pre.impressions) * 1000 : 0;
+    const curCpc = cur.clicks > 0 ? cur.spend / cur.clicks : 0;
+    const preCpc = pre.clicks > 0 ? pre.spend / pre.clicks : 0;
+    const curCpa = cur.conversions > 0 ? cur.spend / cur.conversions : 0;
+    const preCpa = pre.conversions > 0 ? pre.spend / pre.conversions : 0;
+    const curRoas = cur.spend > 0 ? cur.revenue / cur.spend : 0;
+    const preRoas = pre.spend > 0 ? pre.revenue / pre.spend : 0;
+
+    return {
+      currentMetrics: {
+        totalSpend: cur.spend, totalImpressions: cur.impressions, totalClicks: cur.clicks,
+        totalConversions: cur.conversions, totalConversionValue: cur.revenue,
+        ctr: curCtr, cpm: curCpm, cpc: curCpc, cpa: curCpa, roas: curRoas,
+      },
+      previousMetrics: previousData.length > 0 ? {
+        totalSpend: pre.spend, totalImpressions: pre.impressions, totalClicks: pre.clicks,
+        totalConversions: pre.conversions, totalConversionValue: pre.revenue,
+        ctr: preCtr, cpm: preCpm, cpc: preCpc, cpa: preCpa, roas: preRoas,
+      } : null,
+      changes: {
+        spend: calcChange(cur.spend, pre.spend),
+        impressions: calcChange(cur.impressions, pre.impressions),
+        clicks: calcChange(cur.clicks, pre.clicks),
+        conversions: calcChange(cur.conversions, pre.conversions),
+        roas: calcChange(curRoas, preRoas),
+        cpa: calcChange(curCpa, preCpa),
+        ctr: calcChange(curCtr, preCtr),
+        cpm: calcChange(curCpm, preCpm),
+        cpc: calcChange(curCpc, preCpc),
+        revenue: calcChange(cur.revenue, pre.revenue),
+      },
+    };
+  }, [dailyMetrics, selectedPreset, dateRange, selectedProject?.timezone]);
 
   const demoAggregated = useMemo(() => {
     const agg = new Map<string, { type: string; value: string; spend: number; impressions: number; clicks: number; conversions: number }>();
@@ -231,22 +341,141 @@ export default function GoogleCampaigns() {
               </div>
             ) : (
               <div className="space-y-4 sm:space-y-6">
-                {/* Métricas Gerais */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
-                  <SparklineCard title="Gasto Total" value={formatCurrency(totals.spend)} icon={DollarSign} />
-                  <SparklineCard title="Impressões" value={formatNumber(totals.impressions)} icon={Eye} />
-                  <SparklineCard title="Cliques" value={formatNumber(totals.clicks)} icon={MousePointerClick} />
-                  <SparklineCard title="CTR" value={`${avgCtr.toFixed(2)}%`} icon={TrendingUp} />
-                  <SparklineCard title={isEcommerce ? 'Compras' : 'Conversões'} value={formatNumber(totals.conversions)} icon={isEcommerce ? ShoppingCart : Users} />
-                  <SparklineCard title={isEcommerce ? 'ROAS' : 'Custo/Conv'} value={isEcommerce ? `${avgRoas.toFixed(2)}x` : formatCurrency(avgCpa)} icon={TrendingUp} />
+
+                {/* Google Budget Card */}
+                {budgetSummary.totalDailyBudget > 0 && (
+                  <div className="glass-card p-3 sm:p-4 border-l-4 border-l-yellow-500">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                          <Wallet className="w-5 h-5 text-yellow-500" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">Orçamento Diário Total</p>
+                          <p className="text-sm sm:text-lg font-bold">{formatCurrency(budgetSummary.totalDailyBudget)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 text-right">
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Campanhas Ativas</p>
+                          <p className="text-sm font-semibold text-metric-positive">{budgetSummary.activeCampaigns}/{budgetSummary.totalCampaigns}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Gasto Acumulado</p>
+                          <p className="text-sm font-semibold">{formatCurrency(totals.spend)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Comparison Toggle */}
+                <div className="flex items-center justify-end gap-2">
+                  <Label htmlFor="google-comparison-toggle" className="text-[11px] sm:text-sm text-muted-foreground cursor-pointer">
+                    Comparação de Períodos
+                  </Label>
+                  <Switch id="google-comparison-toggle" checked={showComparison} onCheckedChange={setShowComparison} className="scale-90 sm:scale-100" />
                 </div>
 
-                {/* Métricas de Resultado */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
-                  <SparklineCard title="CPC Médio" value={formatCurrency(avgCpc)} icon={MousePointerClick} />
-                  <SparklineCard title="CPM" value={formatCurrency(avgCpm)} icon={Eye} />
-                  <SparklineCard title="Taxa de Conv." value={`${convRate.toFixed(2)}%`} icon={Users} />
-                  {isEcommerce && <SparklineCard title="Receita" value={formatCurrency(totals.revenue)} icon={ShoppingCart} />}
+                {/* Period Comparison */}
+                {showComparison && periodComparison && (
+                  <div className="origin-top">
+                    <PeriodComparison
+                      currentMetrics={periodComparison.currentMetrics}
+                      previousMetrics={periodComparison.previousMetrics}
+                      businessModel={selectedProject?.business_model || null}
+                      currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? 'Últimos 7 Dias' : selectedPreset === 'last_30d' ? 'Últimos 30 Dias' : selectedPreset === 'last_month' ? 'Mês Passado' : 'Período Atual'}
+                      previousPeriodLabel="Período Anterior"
+                      currency={selectedProject?.currency || 'BRL'}
+                    />
+                  </div>
+                )}
+
+                {/* Métricas Gerais - Meta Ads Style */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                    <div className="w-1 h-4 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
+                    <h2 className="text-xs sm:text-sm font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Métricas Gerais</h2>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-3">
+                    <div className="glass-card p-2.5 sm:p-3 border-l-2 border-l-primary">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Banknote className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Investimento</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(totals.spend)}</p>
+                    </div>
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Eye className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Impressões</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumberCompact(totals.impressions)}</p>
+                    </div>
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <MousePointerClick className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Cliques</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumberCompact(totals.clicks)}</p>
+                    </div>
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Crosshair className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">CTR</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{avgCtr.toFixed(2)}%</p>
+                    </div>
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <BarChart3 className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">CPM</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(avgCpm)}</p>
+                    </div>
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Zap className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">CPC</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(avgCpc)}</p>
+                    </div>
+                    <div className="glass-card p-2.5 sm:p-3">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Users className="w-3 h-3 text-primary" />
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">Taxa Conv.</span>
+                      </div>
+                      <p className="text-xs sm:text-sm font-bold leading-tight">{convRate.toFixed(2)}%</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Resultados - Meta Ads Style */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                    <div className="w-1 h-4 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
+                    <h2 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                      <span>Resultados</span>
+                      <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">
+                        ({isEcommerce ? 'E-com' : isInsideSales ? 'Inside' : 'Google'})
+                      </span>
+                    </h2>
+                  </div>
+                  {isEcommerce ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+                      <SparklineCard title="ROAS" value={`${avgRoas.toFixed(2)}x`} change={periodComparison?.changes?.roas} icon={TrendingUp} className="border-l-4 border-l-metric-positive" />
+                      <SparklineCard title="Compras" value={formatNumber(totals.conversions)} change={periodComparison?.changes?.conversions} icon={ShoppingCart} />
+                      <SparklineCard title="Receita" value={formatCurrency(totals.revenue)} change={periodComparison?.changes?.revenue} icon={Receipt} />
+                      <SparklineCard title="CPA" value={formatCurrency(avgCpa)} change={periodComparison?.changes?.cpa} icon={Target} invertTrend />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+                      <SparklineCard title={isInsideSales ? 'Leads' : 'Conversões'} value={formatNumber(totals.conversions)} change={periodComparison?.changes?.conversions} icon={Users} className="border-l-4 border-l-chart-1" />
+                      <SparklineCard title={isInsideSales ? 'CPL' : 'CPA'} value={formatCurrency(avgCpa)} change={periodComparison?.changes?.cpa} icon={Receipt} invertTrend />
+                      <SparklineCard title="Taxa de Conv." value={`${convRate.toFixed(2)}%`} icon={Activity} />
+                      {totals.revenue > 0 && <SparklineCard title="ROAS" value={`${avgRoas.toFixed(2)}x`} change={periodComparison?.changes?.roas} icon={TrendingUp} />}
+                    </div>
+                  )}
                 </div>
 
                 {/* === CAMPANHAS === */}
@@ -291,50 +520,21 @@ export default function GoogleCampaigns() {
                 {/* 3 Gráficos - Um abaixo do outro */}
                 {chartData.length > 0 && (
                   <div className="space-y-4 sm:space-y-6">
-                    <CustomizableChart
-                      chartKey="google_invest_clicks"
-                      data={chartData}
-                      defaultTitle="Investimento vs Cliques"
-                      defaultPrimaryMetric="spend"
-                      defaultSecondaryMetric="clicks"
-                      defaultChartType="composed"
-                      currency={selectedProject?.currency || 'BRL'}
-                    />
-                    <CustomizableChart
-                      chartKey="google_conv_cpa"
-                      data={chartData}
-                      defaultTitle="Conversões vs CPA"
-                      defaultPrimaryMetric="conversions"
-                      defaultSecondaryMetric="cpa"
-                      defaultChartType="composed"
-                      currency={selectedProject?.currency || 'BRL'}
-                    />
-                    <CustomizableChart
-                      chartKey="google_ctr_cpc"
-                      data={chartData}
-                      defaultTitle="CTR vs CPC"
-                      defaultPrimaryMetric="ctr"
-                      defaultSecondaryMetric="cpc"
-                      defaultChartType="line"
-                      currency={selectedProject?.currency || 'BRL'}
-                    />
+                    <CustomizableChart chartKey="google_invest_clicks" data={chartData} defaultTitle="Investimento vs Cliques" defaultPrimaryMetric="spend" defaultSecondaryMetric="clicks" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} />
+                    <CustomizableChart chartKey="google_conv_cpa" data={chartData} defaultTitle="Conversões vs CPA" defaultPrimaryMetric="conversions" defaultSecondaryMetric="cpa" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} />
+                    <CustomizableChart chartKey="google_ctr_cpc" data={chartData} defaultTitle="CTR vs CPC" defaultPrimaryMetric="ctr" defaultSecondaryMetric="cpc" defaultChartType="line" currency={selectedProject?.currency || 'BRL'} />
                   </div>
                 )}
 
                 {/* Funil de Vendas */}
                 <FunnelChart
-                  impressions={funnelTotals.impressions}
-                  clicks={funnelTotals.clicks}
-                  conversions={funnelTotals.conversions}
-                  spend={funnelTotals.spend}
+                  impressions={funnelTotals.impressions} clicks={funnelTotals.clicks} conversions={funnelTotals.conversions} spend={funnelTotals.spend}
                   ctr={funnelTotals.impressions > 0 ? (funnelTotals.clicks / funnelTotals.impressions) * 100 : 0}
                   cpc={funnelTotals.clicks > 0 ? funnelTotals.spend / funnelTotals.clicks : 0}
                   cpl={funnelTotals.conversions > 0 ? funnelTotals.spend / funnelTotals.conversions : 0}
                   cpm={funnelTotals.impressions > 0 ? (funnelTotals.spend / funnelTotals.impressions) * 1000 : 0}
                   conversionRate={funnelTotals.clicks > 0 ? (funnelTotals.conversions / funnelTotals.clicks) * 100 : 0}
-                  currency={selectedProject?.currency || 'BRL'}
-                  campaignFilter={funnelFilter}
-                  onCampaignFilterChange={setFunnelFilter}
+                  currency={selectedProject?.currency || 'BRL'} campaignFilter={funnelFilter} onCampaignFilterChange={setFunnelFilter}
                 />
 
                 {/* === PALAVRAS-CHAVE === */}
@@ -345,12 +545,7 @@ export default function GoogleCampaigns() {
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="relative">
                           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                          <Input
-                            placeholder="Buscar palavra-chave..."
-                            value={kwSearch}
-                            onChange={e => setKwSearch(e.target.value)}
-                            className="h-8 pl-7 text-xs w-44 sm:w-56"
-                          />
+                          <Input placeholder="Buscar palavra-chave..." value={kwSearch} onChange={e => setKwSearch(e.target.value)} className="h-8 pl-7 text-xs w-44 sm:w-56" />
                         </div>
                         <Select value={kwCampaignFilter} onValueChange={setKwCampaignFilter}>
                           <SelectTrigger className="h-8 w-40 text-xs">
@@ -367,9 +562,7 @@ export default function GoogleCampaigns() {
                           </SelectContent>
                         </Select>
                         <Select value={kwMatchFilter} onValueChange={setKwMatchFilter}>
-                          <SelectTrigger className="h-8 w-28 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-8 w-28 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">Tipo: Todos</SelectItem>
                             <SelectItem value="EXACT">Exata</SelectItem>
@@ -516,14 +709,10 @@ function CampaignRow({ campaign, icon: CIcon, isExpanded, adGroups, ads, expande
         <td className="py-2.5 px-2 text-right text-xs">{formatNumber(campaign.conversions)}</td>
         <td className="py-2.5 px-2 text-right text-xs hidden sm:table-cell">{isEcommerce ? `${campaign.roas.toFixed(2)}x` : formatCurrency(campaign.cost_per_conversion)}</td>
       </tr>
-
       {isExpanded && adGroups.map((ag: any) => {
         const isAgExp = expandedAdGroups.has(ag.id);
         const agAds = ads.filter((a: any) => a.ad_group_id === ag.id);
-        return (
-          <AdGroupRow key={ag.id} adGroup={ag} isExpanded={isAgExp} ads={agAds} onToggle={onToggleAdGroup}
-            formatCurrency={formatCurrency} formatNumber={formatNumber} isEcommerce={isEcommerce} />
-        );
+        return <AdGroupRow key={ag.id} adGroup={ag} isExpanded={isAgExp} ads={agAds} onToggle={onToggleAdGroup} formatCurrency={formatCurrency} formatNumber={formatNumber} isEcommerce={isEcommerce} />;
       })}
     </>
   );
@@ -540,10 +729,7 @@ function AdGroupRow({ adGroup: ag, isExpanded, ads, onToggle, formatCurrency, fo
           </div>
         </td>
         <td className="py-2 px-2 text-center hidden sm:table-cell">
-          <Badge className={cn(
-            "text-[10px]",
-            ag.status === 'ENABLED' ? "bg-metric-positive text-white" : "bg-secondary text-muted-foreground"
-          )}>
+          <Badge className={cn("text-[10px]", ag.status === 'ENABLED' ? "bg-metric-positive text-white" : "bg-secondary text-muted-foreground")}>
             {ag.status === 'ENABLED' ? 'Ativo' : ag.status === 'PAUSED' ? 'Pausado' : ag.status}
           </Badge>
         </td>
@@ -554,7 +740,6 @@ function AdGroupRow({ adGroup: ag, isExpanded, ads, onToggle, formatCurrency, fo
         <td className="py-2 px-2 text-right text-xs">{formatNumber(ag.conversions)}</td>
         <td className="py-2 px-2 text-right text-xs hidden sm:table-cell">{isEcommerce ? `${ag.roas.toFixed(2)}x` : formatCurrency(ag.cost_per_conversion)}</td>
       </tr>
-
       {isExpanded && ads.length > 0 && (
         <tr className="border-b border-border/10">
           <td colSpan={8} className="p-0">
@@ -563,30 +748,27 @@ function AdGroupRow({ adGroup: ag, isExpanded, ads, onToggle, formatCurrency, fo
                 <div key={ad.id} className="glass-card p-3 flex flex-col sm:flex-row sm:items-start gap-3">
                   <div className="flex-1 min-w-0 space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <Badge className={cn(
-                        "text-[9px]",
-                        ad.status === 'ENABLED' ? "bg-metric-positive text-white" : "bg-secondary text-muted-foreground"
-                      )}>
+                      <Badge className={cn("text-[9px]", ad.status === 'ENABLED' ? "bg-metric-positive text-white" : "bg-secondary text-muted-foreground")}>
                         {ad.status === 'ENABLED' ? 'Ativo' : ad.status === 'PAUSED' ? 'Pausado' : ad.status}
                       </Badge>
                       <span className="text-xs font-medium truncate">{ad.name}</span>
                       {ad.ad_type && <span className="text-[9px] text-muted-foreground">{ad.ad_type}</span>}
                     </div>
-                    {ad.headlines && ad.headlines.length > 0 && (
+                    {ad.headlines?.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {ad.headlines.map((h: string, i: number) => (
                           <span key={i} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">{h}</span>
                         ))}
                       </div>
                     )}
-                    {ad.descriptions && ad.descriptions.length > 0 && (
+                    {ad.descriptions?.length > 0 && (
                       <div className="space-y-0.5">
                         {ad.descriptions.slice(0, 2).map((d: string, i: number) => (
                           <p key={i} className="text-[10px] text-muted-foreground">{d}</p>
                         ))}
                       </div>
                     )}
-                    {ad.final_urls && ad.final_urls.length > 0 && (
+                    {ad.final_urls?.length > 0 && (
                       <a href={ad.final_urls[0]} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 truncate">
                         <ExternalLink className="w-3 h-3 flex-shrink-0" />
                         <span className="truncate">{ad.final_urls[0]}</span>
@@ -594,22 +776,10 @@ function AdGroupRow({ adGroup: ag, isExpanded, ads, onToggle, formatCurrency, fo
                     )}
                   </div>
                   <div className="grid grid-cols-4 gap-3 text-center flex-shrink-0">
-                    <div>
-                      <p className="text-[9px] text-muted-foreground">Gasto</p>
-                      <p className="text-xs font-medium">{formatCurrency(ad.spend)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-muted-foreground">Cliques</p>
-                      <p className="text-xs font-medium">{formatNumber(ad.clicks)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-muted-foreground">CTR</p>
-                      <p className="text-xs font-medium">{ad.ctr.toFixed(2)}%</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-muted-foreground">Conv</p>
-                      <p className="text-xs font-medium">{formatNumber(ad.conversions)}</p>
-                    </div>
+                    <div><p className="text-[9px] text-muted-foreground">Gasto</p><p className="text-xs font-medium">{formatCurrency(ad.spend)}</p></div>
+                    <div><p className="text-[9px] text-muted-foreground">Cliques</p><p className="text-xs font-medium">{formatNumber(ad.clicks)}</p></div>
+                    <div><p className="text-[9px] text-muted-foreground">CTR</p><p className="text-xs font-medium">{ad.ctr.toFixed(2)}%</p></div>
+                    <div><p className="text-[9px] text-muted-foreground">Conv</p><p className="text-xs font-medium">{formatNumber(ad.conversions)}</p></div>
                   </div>
                 </div>
               ))}
