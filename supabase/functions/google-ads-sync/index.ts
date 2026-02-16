@@ -61,7 +61,7 @@ async function executeGoogleAdsQuery(
   query: string
 ): Promise<any[]> {
   const customerId = credentials.customerId.replace(/-/g, '');
-  const url = `https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:searchStream`;
+  const url = `https://googleads.googleapis.com/v23/customers/${customerId}/googleAds:searchStream`;
   
   console.log('Executing Google Ads query:', query.substring(0, 100) + '...');
   
@@ -135,8 +135,6 @@ async function syncCampaigns(
       campaign.bidding_strategy_type,
       campaign_budget.amount_micros,
       campaign_budget.type,
-      campaign.start_date,
-      campaign.end_date,
       metrics.cost_micros,
       metrics.impressions,
       metrics.clicks,
@@ -181,8 +179,8 @@ async function syncCampaigns(
         bidding_strategy: result.campaign?.biddingStrategyType,
         budget_amount: parseInt(result.campaignBudget?.amountMicros || '0') / 1000000,
         budget_type: result.campaignBudget?.type,
-        start_date: result.campaign?.startDate,
-        end_date: result.campaign?.endDate,
+        start_date: null,
+        end_date: null,
         spend: costMicros / 1000000,
         impressions,
         clicks,
@@ -357,8 +355,7 @@ async function syncDailyMetrics(
       metrics.conversions_value,
       metrics.ctr,
       metrics.average_cpc,
-      metrics.average_cpm,
-      metrics.search_impression_share
+      metrics.average_cpm
     FROM ad_group_ad
     WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
       AND campaign.status != 'REMOVED'
@@ -404,7 +401,7 @@ async function syncDailyMetrics(
       cpm,
       cost_per_conversion: costPerConversion,
       roas,
-      search_impression_share: result.metrics?.searchImpressionShare,
+      search_impression_share: null,
       synced_at: new Date().toISOString(),
     };
   }).filter(m => m.date && m.ad_id);
