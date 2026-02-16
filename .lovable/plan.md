@@ -1,100 +1,73 @@
-# Plano de Melhorias: Home, Meta Ads, WhatsApp e Carregamento
 
-## 1. Home (Dashboard.tsx) - Mais conteudo e espacamento
+# Plano de Melhorias: Carregamento, Home, Meta Ads, WhatsApp e Sidebar
 
-### Espacamento
+## 1. Tela de Carregamento entre abas (Sidebar travando)
 
-- Aumentar `gap-3 sm:gap-4` para `gap-4 sm:gap-5` nos metric cards (ligeiro aumento de tamanho)
-- Manter `space-y-6 sm:space-y-8 lg:space-y-10` entre secoes (ja esta bom)
-- Garantir `mb-4` entre titulo de secao e conteudo
+**Problema**: Ao clicar em outra aba da sidebar, a tela pisca e os botoes da sidebar demoram para responder. O `AnimatePresence mode="wait"` no App.tsx bloqueia a renderizacao da nova pagina ate a animacao de saida terminar.
 
-### Mais conteudo na Home
+**Solucao**:
+- Mudar `AnimatePresence mode="wait"` para `mode="popLayout"` ou remover o `exit` animation no App.tsx, permitindo que a nova pagina comece a renderizar imediatamente
+- Reduzir `duration` de 0.15 para 0.1 na transicao
+- Cada pagina principal (Dashboard, MetaAds, WhatsApp) ja usa `SmoothLoader` - garantir que o skeleton apareca imediatamente enquanto os dados carregam
+- Adicionar `will-change: opacity` no motion.div para otimizar a GPU
 
-- Adicionar secao de **Graficos Comparativos Meta vs Google** usando `CustomizableChart` com dados de `dailyData`
-- Adicionar um grafico de performance combinado (investimento Meta vs Google ao longo do tempo)
-- Colocar + visualizações de conjunto de anúncios...
-- O grafico usa o mesmo componente `CustomizableChart` ja existente
+## 2. Home (Dashboard.tsx) - Mais conteudo
 
-### Botao Novo Projeto menor
+### Top Conjuntos de Anuncios
+- Adicionar secao "Top 5 Conjuntos" logo apos Top Campanhas
+- Listar os ad sets (de `useMetaAdsData`) ordenados por gasto, mostrando nome, gasto e conversoes
 
-- Reduzir o `CreateProjectDialog` trigger para `size="sm"` com icone `Plus` menor e sem texto longo
+### Dados Demograficos separados por canal (Meta vs Google)
+- Na secao de Demographics, adicionar tabs ou labels "Meta" e "Google" para separar visualmente os dados de cada plataforma
+- Como os dados demograficos atuais vem so do Meta, deixar claro com icone/label que sao dados Meta e reservar espaco para Google quando disponivel
 
-### Regra de "visitas ao perfil" nas Top Campanhas
+### Espacamento dos icones Meta/Google nos cards
+- No componente `PlatformBreakdown`, aumentar `gap-0.5` para `gap-1.5` entre o icone e o valor, e `gap-2` para `gap-3` entre Meta e Google
 
-- Aplicar label `visitas` em vez de `conv.` nas campanhas com objetivo Instagram (ja tem logica `isProfileVisit` mas precisa aplicar no label)
+## 3. Meta Ads - Correcoes pendentes
 
-## 2. Meta Ads (MetaAds.tsx) - Cards maiores, criativos em grid
+### Comparacao de periodos - remover porcentagem de investimento
+- No componente `PeriodComparison.tsx`, localizar a exibicao de "% investimento" e remover/ocultar essa metrica especifica (a porcentagem de variacao de investimento mostrada na imagem-429)
 
-### Cards de metricas
+### Cards de Resultado menores
+- Reduzir o tamanho dos `SparklineCard` nos grids de resultado: diminuir padding interno e font sizes
+- Mudar de `gap-2.5 sm:gap-3` para `gap-2 sm:gap-2.5`
 
-- Aumentar padding de `p-2 sm:p-2.5` para `p-2.5 sm:p-3` (ligeiro aumento)
-- Aumentar fonte de `text-[11px] sm:text-xs` para `text-xs sm:text-sm`
-- Aumentar espacamento entre secoes de `space-y-3 sm:space-y-6` para `space-y-5 sm:space-y-8`
+### Criativo abre em modal (nao navega para outra pagina)
+- No grid de criativos dentro do ad set expandido, ao clicar no criativo, abrir um **Dialog/Modal** na mesma pagina em vez de navegar para `/creative/:id`
+- O modal mostrara: imagem grande, nome, ID do criativo, gasto, conversoes, CTR, CPC, CPM e graficos de performance diaria (reutilizar `CustomizableChart`)
+- Remover a barra de frequencia que aparece atualmente no criativo
 
-### Cards de resultado menores
+### Card Saldo da Meta menor
+- Reduzir padding e font sizes no `AccountBalanceCard.tsx` para ficar mais compacto
 
-- Manter os SparklineCards com tamanho atual ou reduzir levemente
+## 4. WhatsApp - Correcao da tela "Selecione um projeto"
 
-### Comparacao de periodos menor
+**Problema**: Ao clicar em WhatsApp sem projeto selecionado, aparece tela vazia com "Selecione um projeto primeiro" (imagem-430).
 
-- Envolver em container com `scale-[0.95] origin-top-left` ou reduzir padding interno
+**Solucao**:
+- Quando nao ha projeto selecionado, usar o primeiro projeto ativo automaticamente (ja tem fallback `projects[0]`, verificar se `projects` ja carregou)
+- Garantir que o `loading` state cubra o periodo ate `projects` estar carregado, evitando o flash da tela vazia
 
-### Criativos em formato GRID (nao lista)
+### Modal WhatsApp - barra de rolagem
+- Adicionar `overflow-y-auto` nas tabs GT e Account dentro do `ProjectReportConfigDialogNew`
+- O container interno ja tem `overflow-y-auto` (linha 98), verificar se esta funcionando corretamente em ambas as tabs
 
-- Dentro da hierarquia expandida (Campaign > AdSet > **Ads**), trocar a lista de anuncios por um **grid 3 colunas** com thumbnail maior (aspect-square) + nome + gasto
-- Cada criativo tera imagem quadrada + metricas abaixo, usando `CreativeImage`
-
-### Espacamento entre secoes
-
-- Adicionar `mt-6 sm:mt-8` entre campanhas e graficos
-- Adicionar `mt-6 sm:mt-8` entre graficos e funil
-- Adicionar `mt-6 sm:mt-8` entre funil e geografico/demografico
-
-## 3. WhatsApp (WhatsApp.tsx) - Modal maior e mais bonito
-
-### Problema atual
-
-- O modal `ProjectReportConfigDialogNew` usa `max-w-2xl` que e pequeno
-- Precisa separar visualmente GT e Planner Monday
-
-### Solucao
-
-- Aumentar `DialogContent` para `max-w-4xl` com `min-h-[70vh]`
-- Adicionar backdrop mais opaco (`bg-black/60`)
-- Melhorar visual das tabs GT vs Account com icones maiores e descricao
-- Adicionar bordas coloridas: GT = verde, Account/Planner = azul
-
-## 4. Carregamento e Animacoes
-
-### Problema
-
-- Ao trocar de aba na sidebar, a tela pisca em vez de ter transicao suave
-- O `AnimatePresence` no App.tsx com `mode="wait"` causa flash
-
-### Solucao
-
-- Usar `SmoothLoader` do PageTransition.tsx em cada pagina ao inves de renderizar skeleton direto
-- Envolver o conteudo principal de cada pagina (Dashboard, MetaAds, WhatsApp) com `SmoothLoader` que faz fade entre skeleton e conteudo
-- Ajustar `AnimatePresence` no App.tsx: mudar transicao para `duration: 0.15` para ser mais rapida
-
-## 5. Scrollbar vermelha
-
-- Ja foi implementada no index.css (verificar se esta funcionando)
-
----
-
-## Detalhes Tecnicos
+## 5. Detalhes Tecnicos
 
 ### Arquivos a modificar:
+1. **`src/App.tsx`** - Remover mode="wait" ou trocar para transicao sem bloqueio
+2. **`src/pages/Dashboard.tsx`** - Adicionar Top Conjuntos, separar demograficos por canal, aumentar gap nos icones Meta/Google
+3. **`src/pages/MetaAds.tsx`** - Modal para criativo (Dialog), remover frequencia, diminuir SparklineCards e AccountBalance
+4. **`src/components/dashboard/PeriodComparison.tsx`** - Remover porcentagem de investimento
+5. **`src/components/dashboard/AccountBalanceCard.tsx`** - Reduzir tamanho
+6. **`src/pages/WhatsApp.tsx`** - Corrigir loading state para evitar tela "Selecione projeto"
+7. **`src/components/whatsapp/ProjectReportConfigDialogNew.tsx`** - Garantir scroll nas tabs
 
-1. `**src/pages/Dashboard.tsx**` - Adicionar graficos comparativos, aumentar cards, botao menor, regra visitas
-2. `**src/pages/MetaAds.tsx**` - Aumentar cards, criativos em grid, espacamento entre secoes
-3. `**src/components/whatsapp/ProjectReportConfigDialogNew.tsx**` - Modal maior e visual melhorado
-4. `**src/App.tsx**` - Transicao mais rapida (duration 0.15)
-
-### Sequencia:
-
-1. Dashboard.tsx - graficos + espacamento + botao menor
-2. MetaAds.tsx - cards + criativos grid + espacamento
-3. ProjectReportConfigDialogNew.tsx - modal maior
-4. App.tsx - transicao mais fluida
+### Sequencia de implementacao:
+1. App.tsx - transicao sem bloqueio (resolve carregamento entre abas)
+2. WhatsApp.tsx - corrigir tela vazia
+3. Dashboard.tsx - top conjuntos + demograficos por canal + gap icones
+4. MetaAds.tsx - modal criativo + cards menores
+5. PeriodComparison.tsx - remover % investimento
+6. AccountBalanceCard.tsx - compactar
