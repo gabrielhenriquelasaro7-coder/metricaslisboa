@@ -72,7 +72,12 @@ serve(async (req) => {
 
     // Buscar ads
     let adsQuery = supabase.from('ads').select('id, name, creative_id').eq('project_id', projectId);
-    if (adId) adsQuery = adsQuery.eq('id', adId);
+    if (adId) {
+      adsQuery = adsQuery.eq('id', adId);
+    } else {
+      // Only fetch ads that still need HD thumbnails
+      adsQuery = adsQuery.is('creative_thumbnail', null);
+    }
     
     const { data: ads, error: adsError } = await adsQuery;
 
