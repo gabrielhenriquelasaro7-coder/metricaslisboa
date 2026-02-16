@@ -327,7 +327,7 @@ export default function Dashboard() {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {topCreatives.map((ad, idx) => (
                           <button key={ad.id} onClick={() => setSelectedCreative(ad)} className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all group text-left">
-                            <div className="aspect-[3/4] relative bg-muted">
+                            <div className="aspect-square relative bg-black">
                               <CreativeImage
                                 projectId={selectedProject?.id}
                                 adId={ad.id}
@@ -335,7 +335,7 @@ export default function Dashboard() {
                                 creativeImageUrl={ad.creative_image_url}
                                 creativeThumbnail={ad.creative_thumbnail}
                                 alt={ad.name}
-                                className="w-full h-full object-contain"
+                                className="w-full h-full object-cover"
                               />
                               <div className="absolute top-1.5 left-1.5 bg-background/80 backdrop-blur-sm text-[10px] font-bold px-1.5 py-0.5 rounded">
                                 #{idx + 1}
@@ -512,7 +512,7 @@ export default function Dashboard() {
                     </div>
                   </DialogHeader>
                   <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-3 flex-1 min-h-0 overflow-hidden">
-                    <div className="rounded-lg overflow-hidden border border-red-500/20 min-h-0 bg-black">
+                    <div className="rounded-lg overflow-hidden border border-border/20 min-h-0 bg-black flex items-center justify-center">
                       <CreativeImage
                         key={`${selectedCreative.id}-${imageKey}`}
                         projectId={selectedProject?.id}
@@ -521,7 +521,7 @@ export default function Dashboard() {
                         creativeImageUrl={selectedCreative.creative_image_url}
                         creativeThumbnail={selectedCreative.creative_thumbnail}
                         alt={selectedCreative.name}
-                        className="w-full h-full object-contain"
+                        className="w-full h-full object-contain max-h-[70vh]"
                       />
                     </div>
                     <div className="overflow-y-auto space-y-2 min-h-0 pr-1">

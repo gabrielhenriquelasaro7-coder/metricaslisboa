@@ -105,7 +105,7 @@ export interface GoogleDailyMetric {
 }
 
 export function useGoogleAdsData() {
-  const { projects } = useProjects();
+  const { projects, loading: projectsLoading } = useProjects();
   const [campaigns, setCampaigns] = useState<GoogleCampaign[]>([]);
   const [adGroups, setAdGroups] = useState<GoogleAdGroup[]>([]);
   const [ads, setAds] = useState<GoogleAd[]>([]);
@@ -302,6 +302,7 @@ export function useGoogleAdsData() {
     ads,
     dailyMetrics,
     loading,
+    projectsLoading,
     syncing,
     selectedProject,
     loadAllData,

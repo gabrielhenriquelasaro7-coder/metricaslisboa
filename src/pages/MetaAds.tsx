@@ -539,7 +539,7 @@ export default function MetaAds() {
                                           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                                             {adSetAds.sort((a, b) => (b.spend || 0) - (a.spend || 0)).map(ad => (
                                               <button key={ad.id} onClick={() => setSelectedCreative(ad)} className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all group text-left">
-                                                <div className="aspect-[3/4] relative bg-muted">
+                                                <div className="aspect-square relative bg-black">
                                                   <CreativeImage
                                                     projectId={selectedProject?.id}
                                                     adId={ad.id}
@@ -547,7 +547,7 @@ export default function MetaAds() {
                                                     creativeImageUrl={ad.creative_image_url}
                                                     creativeThumbnail={ad.creative_thumbnail}
                                                     alt={ad.name}
-                                                    className="w-full h-full object-contain"
+                                                    className="w-full h-full object-cover"
                                                   />
                                                   <div className="absolute bottom-1 right-1 bg-background/80 backdrop-blur-sm text-[9px] font-semibold px-1.5 py-0.5 rounded">
                                                     {formatCurrency(ad.spend || 0)}
@@ -638,7 +638,7 @@ export default function MetaAds() {
                         </DialogHeader>
                         <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-3 flex-1 min-h-0 overflow-hidden">
                           {/* Image - cover sem barras cinzas */}
-                          <div className="rounded-lg overflow-hidden border border-red-500/20 min-h-0 bg-black">
+                          <div className="rounded-lg overflow-hidden border border-border/20 min-h-0 bg-black flex items-center justify-center">
                             <CreativeImage
                               key={`creative-modal-${selectedCreative.id}-${imageKey}`}
                               projectId={selectedProject?.id}
@@ -647,7 +647,7 @@ export default function MetaAds() {
                               creativeImageUrl={selectedCreative.creative_image_url}
                               creativeThumbnail={selectedCreative.creative_thumbnail}
                               alt={selectedCreative.name}
-                              className="w-full h-full object-contain"
+                              className="w-full h-full object-contain max-h-[70vh]"
                             />
                           </div>
                           {/* Metrics */}
