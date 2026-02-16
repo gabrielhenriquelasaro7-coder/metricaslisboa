@@ -13,7 +13,7 @@ import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { DashboardSkeleton } from '@/components/skeletons';
 import { SmoothLoader } from '@/components/layout/PageTransition';
 import { getDateRangeFromPreset } from '@/utils/dateUtils';
-import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, Plus, Crosshair, Zap, BarChart3, Target, Instagram, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, Plus, Crosshair, Zap, BarChart3, Target, Instagram, ArrowUpRight, ArrowDownRight, Layers } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CreativeImage } from '@/components/ui/creative-image';
@@ -32,7 +32,7 @@ export default function Dashboard() {
   const { selectedPreset, dateRange } = usePeriodContext();
   const [creativeSortBy, setCreativeSortBy] = useState<CreativeSortKey>('spend');
 
-  const { campaigns: metaCampaigns, ads: metaAds, loading: metaLoading, selectedProject } = useMetaAdsData();
+  const { campaigns: metaCampaigns, ads: metaAds, adSets: metaAdSets, loading: metaLoading, selectedProject } = useMetaAdsData();
   const { campaigns: googleCampaigns, loading: googleLoading, loadAllData } = useGoogleAdsData();
 
   const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset, selectedPreset === 'custom' ? dateRange : undefined);
@@ -136,9 +136,9 @@ export default function Dashboard() {
 
   // Top ad sets by spend
   const topAdSets = useMemo(() => {
-    // We need ad set data - get it from metaAds hook if available
-    return [];
-  }, []);
+    if (!metaAdSets || metaAdSets.length === 0) return [];
+    return [...metaAdSets].sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 5);
+  }, [metaAdSets]);
 
   const PlatformBreakdown = ({ metaVal, googleVal, format: fmt }: { metaVal: number; googleVal: number; format: (n: number) => string }) => (
     <div className="flex items-center gap-4 mt-1 text-[9px] text-muted-foreground">
@@ -366,6 +366,40 @@ export default function Dashboard() {
                   </StaggerItem>
                 )}
 
+                {/* Top Ad Sets */}
+                {topAdSets.length > 0 && (
+                  <StaggerItem>
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-blue-500/50 rounded-full" />
+                        <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top 5 Conjuntos de Anúncio</h2>
+                        <Badge variant="outline" className="text-[9px] gap-1 border-blue-500/30 text-blue-400 ml-auto">
+                          <img src={metaIcon} className="w-3 h-3" alt="" /> Meta
+                        </Badge>
+                      </div>
+                      <div className="glass-card overflow-hidden">
+                        <div className="divide-y divide-border/50">
+                          {topAdSets.map((as) => (
+                            <div key={as.id} className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 hover:bg-secondary/30 transition-colors">
+                              <Layers className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] sm:text-xs font-medium truncate">{as.name}</p>
+                                <span className={`text-[8px] sm:text-[9px] ${as.status === 'ACTIVE' ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                                  {as.status === 'ACTIVE' ? '● Ativo' : '○ Pausado'}
+                                </span>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-[10px] sm:text-xs font-semibold">{formatCurrency(as.spend || 0)}</p>
+                                <p className="text-[9px] text-muted-foreground">{as.conversions || 0} conv.</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </StaggerItem>
+                )}
+
                 {/* Comparative Charts - Meta vs Google */}
                 <StaggerItem>
                   <div>
@@ -376,21 +410,21 @@ export default function Dashboard() {
                     <div className="space-y-6">
                       <CustomizableChart
                         chartKey="home-chart-1"
-                        data={comparativeData.length > 0 ? comparativeData : dailyData}
-                        defaultTitle="Investimento (Meta vs Google)"
-                        defaultPrimaryMetric="meta_spend"
-                        defaultSecondaryMetric="google_spend"
+                        data={dailyData}
+                        defaultTitle="Performance Geral"
+                        defaultPrimaryMetric="spend"
+                        defaultSecondaryMetric="conversions"
                         defaultChartType="composed"
                         currency={selectedProject?.currency || 'BRL'}
                         className="chart-container-mobile"
                       />
                       <CustomizableChart
                         chartKey="home-chart-2"
-                        data={comparativeData.length > 0 ? comparativeData : dailyData}
-                        defaultTitle="Conversões (Meta vs Google)"
-                        defaultPrimaryMetric="meta_conversions"
-                        defaultSecondaryMetric="google_conversions"
-                        defaultChartType="composed"
+                        data={dailyData}
+                        defaultTitle="Alcance & Engajamento"
+                        defaultPrimaryMetric="impressions"
+                        defaultSecondaryMetric="ctr"
+                        defaultChartType="line"
                         currency={selectedProject?.currency || 'BRL'}
                         className="chart-container-mobile"
                       />

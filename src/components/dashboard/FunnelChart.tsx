@@ -1,10 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DollarSign, Eye, Users, MousePointerClick, Percent, TrendingDown, Target, Coins } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useChartResponsive } from '@/hooks/useChartResponsive';
+
+type FunnelMetricSet = 'default' | 'cost' | 'engagement';
 
 interface FunnelChartProps {
   impressions: number;
@@ -50,6 +53,7 @@ export function FunnelChart({
 }: FunnelChartProps) {
   const { t } = useTranslation();
   const responsive = useChartResponsive();
+  const [metricSet, setMetricSet] = useState<FunnelMetricSet>('default');
   
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -72,42 +76,14 @@ export function FunnelChart({
   };
 
   const steps: FunnelStep[] = useMemo(() => {
-    // Funnel now only shows main flow metrics (Gasto -> Impressões -> Alcance -> Cliques -> Leads)
-    // CTR, CPC, CPL moved to metrics below
     const allSteps = [
-      {
-        label: t('funnel.spend'),
-        value: formatCurrency(spend),
-        icon: <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 100,
-      },
-      {
-        label: t('funnel.impressions'),
-        value: formatNumber(impressions),
-        icon: <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 85,
-      },
-      {
-        label: t('funnel.reach'),
-        value: formatNumber(reach),
-        icon: <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 70,
-      },
-      {
-        label: t('funnel.clicks'),
-        value: formatNumber(clicks),
-        icon: <MousePointerClick className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 55,
-      },
-      {
-        label: t('funnel.leads'),
-        value: formatNumber(conversions),
-        icon: <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
-        widthPercent: 40,
-      },
+      { label: t('funnel.spend'), value: formatCurrency(spend), icon: <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />, widthPercent: 100 },
+      { label: t('funnel.impressions'), value: formatNumber(impressions), icon: <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />, widthPercent: 85 },
+      { label: t('funnel.reach'), value: formatNumber(reach), icon: <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />, widthPercent: 70 },
+      { label: t('funnel.clicks'), value: formatNumber(clicks), icon: <MousePointerClick className="w-3.5 h-3.5 sm:w-4 sm:h-4" />, widthPercent: 55 },
+      { label: t('funnel.leads'), value: formatNumber(conversions), icon: <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4" />, widthPercent: 40 },
     ];
     
-    // On mobile, show only key steps
     if (responsive.isMobile) {
       return allSteps.filter(step => 
         [t('funnel.spend'), t('funnel.impressions'), t('funnel.clicks'), t('funnel.leads')].includes(step.label)
@@ -117,27 +93,77 @@ export function FunnelChart({
     return allSteps;
   }, [spend, impressions, reach, clicks, conversions, currency, responsive.isMobile, t]);
 
+  const bottomMetrics = useMemo(() => {
+    const convRate = clicks > 0 ? ((conversions / clicks) * 100).toFixed(responsive.isMobile ? 1 : 2) : '0.00';
+    
+    if (metricSet === 'cost') {
+      return [
+        { label: t('metrics.cpc'), value: formatCurrency(cpc) },
+        { label: t('metrics.cpl'), value: formatCurrency(cpl) },
+        { label: t('metrics.cpm'), value: formatCurrency(cpm) },
+        { label: 'CPR (Alcance)', value: reach > 0 ? formatCurrency(spend / reach) : formatCurrency(0) },
+        { label: 'Custo/Imp.', value: impressions > 0 ? formatCurrency(spend / impressions) : formatCurrency(0) },
+        { label: t('funnel.totalCost'), value: formatCurrency(spend), highlight: true },
+      ];
+    }
+    
+    if (metricSet === 'engagement') {
+      return [
+        { label: t('metrics.ctr'), value: `${ctr.toFixed(responsive.isMobile ? 1 : 2)}%` },
+        { label: t('funnel.conversionRate'), value: `${convRate}%` },
+        { label: t('funnel.frequency'), value: frequency.toFixed(2) },
+        { label: 'Imp./Alcance', value: reach > 0 ? (impressions / reach).toFixed(2) : '0' },
+        { label: 'Cliques/Conv.', value: conversions > 0 ? (clicks / conversions).toFixed(1) : '0' },
+        { label: 'Eficiência', value: spend > 0 ? `${((conversions / (spend / 1000)) * 100).toFixed(1)}` : '0' },
+      ];
+    }
+    
+    // default
+    return [
+      { label: t('metrics.ctr'), value: `${ctr.toFixed(responsive.isMobile ? 1 : 2)}%` },
+      { label: t('metrics.cpc'), value: formatCurrency(cpc) },
+      { label: t('metrics.cpl'), value: formatCurrency(cpl) },
+      { label: t('metrics.cpm'), value: formatCurrency(cpm) },
+      { label: t('funnel.frequency'), value: frequency.toFixed(2) },
+      { label: t('funnel.conversionRate'), value: `${convRate}%` },
+      { label: t('funnel.totalCost'), value: formatCurrency(spend), highlight: true },
+    ];
+  }, [metricSet, ctr, cpc, cpl, cpm, frequency, spend, clicks, conversions, impressions, reach, responsive.isMobile, currency, t]);
+
   return (
     <Card className={cn("glass-card overflow-hidden", className)}>
       <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-base sm:text-lg font-semibold flex items-center gap-2">
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
               <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
             </div>
             {t('funnel.title')}
           </CardTitle>
-          {onCampaignFilterChange && (
-            <select
-              value={campaignFilter}
-              onChange={(e) => onCampaignFilterChange(e.target.value as 'all' | 'active' | 'paused')}
-              className="text-xs bg-secondary border border-border rounded-md px-2 py-1 text-foreground"
-            >
-              <option value="all">Todas</option>
-              <option value="active">Ativas</option>
-              <option value="paused">Pausadas</option>
-            </select>
-          )}
+          <div className="flex items-center gap-2">
+            <Select value={metricSet} onValueChange={(v) => setMetricSet(v as FunnelMetricSet)}>
+              <SelectTrigger className="h-7 text-[10px] w-[100px] bg-secondary border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default" className="text-xs">Geral</SelectItem>
+                <SelectItem value="cost" className="text-xs">Custos</SelectItem>
+                <SelectItem value="engagement" className="text-xs">Engajamento</SelectItem>
+              </SelectContent>
+            </Select>
+            {onCampaignFilterChange && (
+              <Select value={campaignFilter} onValueChange={(v) => onCampaignFilterChange(v as any)}>
+                <SelectTrigger className="h-7 text-[10px] w-[90px] bg-secondary border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">Todas</SelectItem>
+                  <SelectItem value="active" className="text-xs">Ativas</SelectItem>
+                  <SelectItem value="paused" className="text-xs">Pausadas</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-2 px-3 sm:px-6">
@@ -162,13 +188,10 @@ export function FunnelChart({
                 )}
                 style={{ minWidth: responsive.isMobile ? '160px' : '200px' }}
               >
-                {/* Ícone e Label */}
                 <div className="flex items-center gap-1.5 sm:gap-2 text-primary-foreground">
                   {step.icon}
                   <span className="text-[10px] sm:text-xs font-medium">{step.label}</span>
                 </div>
-                
-                {/* Valor */}
                 <span className="text-xs sm:text-sm font-bold text-primary-foreground">
                   {step.value}
                 </span>
@@ -177,7 +200,6 @@ export function FunnelChart({
           ))}
         </div>
 
-        {/* Métricas adicionais - CTR, CPC, CPL movidas para cá */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -185,36 +207,12 @@ export function FunnelChart({
           className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-border/50"
         >
           <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 sm:gap-3">
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.ctr')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">{ctr.toFixed(responsive.isMobile ? 1 : 2)}%</p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.cpc')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpc)}</p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.cpl')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpl)}</p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('metrics.cpm')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">{formatCurrency(cpm)}</p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('funnel.frequency')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">{frequency.toFixed(2)}</p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('funnel.conversionRate')}</p>
-              <p className="text-xs sm:text-sm font-bold text-foreground">
-                {clicks > 0 ? ((conversions / clicks) * 100).toFixed(responsive.isMobile ? 1 : 2) : '0.00'}%
-              </p>
-            </div>
-            <div className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{t('funnel.totalCost')}</p>
-              <p className="text-xs sm:text-sm font-bold text-primary">{formatCurrency(spend)}</p>
-            </div>
+            {bottomMetrics.map((m) => (
+              <div key={m.label} className="text-center p-2 sm:p-3 rounded-lg bg-card/50 border border-border/30">
+                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{m.label}</p>
+                <p className={cn("text-xs sm:text-sm font-bold", (m as any).highlight ? 'text-primary' : 'text-foreground')}>{m.value}</p>
+              </div>
+            ))}
           </div>
         </motion.div>
       </CardContent>

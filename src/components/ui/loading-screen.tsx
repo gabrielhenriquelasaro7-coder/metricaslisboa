@@ -1,17 +1,14 @@
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import v4LogoFull from '@/assets/v4-logo-full.png';
 
 interface LoadingScreenProps {
   message?: string;
-  showLogo?: boolean;
   fullScreen?: boolean;
   className?: string;
 }
 
 export function LoadingScreen({
   message = 'Carregando...',
-  showLogo = true,
   fullScreen = true,
   className
 }: LoadingScreenProps) {
@@ -20,6 +17,7 @@ export function LoadingScreen({
       className={cn(
         'flex flex-col items-center justify-center bg-background',
         fullScreen && 'min-h-screen fixed inset-0 z-50',
+        !fullScreen && 'min-h-[60vh]',
         className
       )}
       initial={{ opacity: 0 }}
@@ -27,78 +25,83 @@ export function LoadingScreen({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
     >
-      {/* Background Pattern - matches rest of app */}
-      <div className="absolute inset-0 red-texture-bg opacity-20 pointer-events-none" />
-      
-      {/* Decorative blurs */}
-      <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/4 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-      
       <motion.div 
-        className="relative z-10 flex flex-col items-center gap-6"
+        className="relative z-10 flex flex-col items-center gap-4"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.3 }}
       >
-        {showLogo && (
-          <img
-            src={v4LogoFull}
-            alt="V4 Company"
-            className="h-10"
-          />
-        )}
-        
-        {/* Smooth animated dots loader */}
-        <div className="flex items-center gap-1.5">
-          {[0, 1, 2].map((i) => (
-            <motion.div
-              key={i}
-              className="w-2.5 h-2.5 rounded-full bg-primary"
+        {/* Infinity Symbol Loader */}
+        <div className="relative w-16 h-10">
+          <svg viewBox="0 0 80 40" className="w-full h-full">
+            {/* Background track */}
+            <path
+              d="M20 20 C20 10, 35 10, 40 20 C45 30, 60 30, 60 20 C60 10, 45 10, 40 20 C35 30, 20 30, 20 20"
+              fill="none"
+              stroke="hsl(var(--muted-foreground))"
+              strokeWidth="4"
+              strokeLinecap="round"
+              opacity="0.25"
+            />
+            {/* Animated segment */}
+            <motion.path
+              d="M20 20 C20 10, 35 10, 40 20 C45 30, 60 30, 60 20 C60 10, 45 10, 40 20 C35 30, 20 30, 20 20"
+              fill="none"
+              stroke="hsl(221, 83%, 53%)"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeDasharray="40 160"
               animate={{
-                y: [0, -6, 0],
-                opacity: [0.5, 1, 0.5],
+                strokeDashoffset: [0, -200],
               }}
               transition={{
-                duration: 0.6,
+                duration: 1.5,
                 repeat: Infinity,
-                delay: i * 0.1,
-                ease: 'easeInOut',
+                ease: 'linear',
               }}
             />
-          ))}
+          </svg>
         </div>
         
-        <p className="text-sm text-muted-foreground">{message}</p>
+        <p className="text-sm text-muted-foreground tracking-widest">{message}</p>
       </motion.div>
     </motion.div>
   );
 }
 
 export function LoadingSpinner({ className, size = 'md' }: { className?: string; size?: 'sm' | 'md' | 'lg' }) {
-  const sizeClasses = {
-    sm: 'w-2 h-2',
-    md: 'w-2.5 h-2.5',
-    lg: 'w-3 h-3'
-  };
+  const sizeMap = { sm: 'w-10 h-6', md: 'w-14 h-8', lg: 'w-16 h-10' };
 
   return (
-    <div className={cn('flex items-center gap-1', className)}>
-      {[0, 1, 2].map((i) => (
-        <motion.div
-          key={i}
-          className={cn('rounded-full bg-primary', sizeClasses[size])}
-          animate={{
-            y: [0, -4, 0],
-            opacity: [0.5, 1, 0.5],
-          }}
-          transition={{
-            duration: 0.5,
-            repeat: Infinity,
-            delay: i * 0.08,
-            ease: 'easeInOut',
-          }}
-        />
-      ))}
+    <div className={cn('flex flex-col items-center gap-2', className)}>
+      <div className={cn('relative', sizeMap[size])}>
+        <svg viewBox="0 0 80 40" className="w-full h-full">
+          <path
+            d="M20 20 C20 10, 35 10, 40 20 C45 30, 60 30, 60 20 C60 10, 45 10, 40 20 C35 30, 20 30, 20 20"
+            fill="none"
+            stroke="hsl(var(--muted-foreground))"
+            strokeWidth="4"
+            strokeLinecap="round"
+            opacity="0.25"
+          />
+          <motion.path
+            d="M20 20 C20 10, 35 10, 40 20 C45 30, 60 30, 60 20 C60 10, 45 10, 40 20 C35 30, 20 30, 20 20"
+            fill="none"
+            stroke="hsl(221, 83%, 53%)"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray="40 160"
+            animate={{
+              strokeDashoffset: [0, -200],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: 'linear',
+            }}
+          />
+        </svg>
+      </div>
     </div>
   );
 }
