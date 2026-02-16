@@ -581,7 +581,7 @@ export function useMetaAdsData() {
     }
   }, [selectedProject, loadDataFromDatabase, loadMetricsByPeriod]);
 
-  // Sync ONLY creatives in HD - dedicated function for the Creatives page
+  // Sync ONLY creatives in HD - uses sync-ad-copies for text/CTA/HD thumbnails
   const syncCreativesHD = useCallback(async () => {
     if (!selectedProject) {
       toast.error('Nenhum projeto selecionado');
@@ -590,41 +590,24 @@ export function useMetaAdsData() {
 
     setSyncing(true);
     try {
-      console.log('[CREATIVES HD] Starting HD creatives sync...');
+      console.log('[CREATIVES HD] Starting HD creatives sync via sync-ad-copies...');
       
-      // First sync creatives (text, CTA, thumbnail URLs)
-      const { data: creativesData, error: creativesError } = await supabase.functions.invoke('meta-ads-sync', {
+      // Call sync-ad-copies which fetches creative text, CTA, and HD thumbnails (1080x1080)
+      const { data: copiesData, error: copiesError } = await supabase.functions.invoke('sync-ad-copies', {
         body: {
-          project_id: selectedProject.id,
-          ad_account_id: selectedProject.ad_account_id,
-          syncMode: 'creatives',
+          projectId: selectedProject.id,
         },
       });
 
-      if (creativesError) {
-        console.error('Creatives sync error:', creativesError);
-        throw creativesError;
+      if (copiesError) {
+        console.error('sync-ad-copies error:', copiesError);
+        throw copiesError;
       }
 
-      console.log('[CREATIVES HD] Creatives sync response:', creativesData);
-
-      // Then sync HD images (full_picture, story IDs)
-      const { data: hdData, error: hdError } = await supabase.functions.invoke('meta-ads-sync', {
-        body: {
-          project_id: selectedProject.id,
-          ad_account_id: selectedProject.ad_account_id,
-          syncMode: 'hd_images',
-        },
-      });
-
-      if (hdError) {
-        console.error('HD images sync error:', hdError);
-        // Continue even if HD images fail, we already have creatives
-      }
-
-      console.log('[CREATIVES HD] HD images sync response:', hdData);
-
-      toast.success(`Criativos sincronizados em HD! ${creativesData?.images_cached || hdData?.images_cached || 0} imagens.`);
+      console.log('[CREATIVES HD] sync-ad-copies response:', copiesData);
+      
+      const updatedCount = copiesData?.updatedAds || 0;
+      toast.success(`Criativos sincronizados em HD! ${updatedCount} criativos atualizados.`);
       
       // Invalidate image cache to force reload of new HD images
       invalidateCreativeImageCache();
@@ -633,7 +616,7 @@ export function useMetaAdsData() {
       lastLoadedPeriodRef.current = null;
       await loadDataFromDatabase();
       
-      return { success: true, data: { creatives: creativesData, hdImages: hdData } };
+      return { success: true, data: copiesData };
     } catch (error) {
       console.error('Creatives HD sync error:', error);
       toast.error('Erro ao sincronizar criativos em HD');

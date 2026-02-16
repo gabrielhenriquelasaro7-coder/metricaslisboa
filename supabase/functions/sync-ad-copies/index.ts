@@ -117,11 +117,16 @@ serve(async (req) => {
         }
 
         // Atualizar no banco se encontrou algo
-        if (primaryText || headline || cta) {
+        if (primaryText || headline || cta || creative.thumbnail_url) {
           const updateData: any = {};
           if (primaryText) updateData.primary_text = primaryText;
           if (headline) updateData.headline = headline;
           if (cta) updateData.cta = cta;
+          // Also store the HD thumbnail URL (1080x1080)
+          if (creative.thumbnail_url) {
+            updateData.creative_thumbnail = creative.thumbnail_url;
+            updateData.creative_image_url = creative.thumbnail_url;
+          }
 
           const { error: updateError } = await supabase
             .from('ads')
