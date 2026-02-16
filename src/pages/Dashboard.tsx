@@ -4,7 +4,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ClientSelector } from '@/components/layout/ClientSelector';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
 import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
-import { useDemographicInsights } from '@/hooks/useDemographicInsights';
+import { useDemographicInsights, DemographicInsights } from '@/hooks/useDemographicInsights';
 import { useProjects } from '@/hooks/useProjects';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { useDailyMetrics } from '@/hooks/useDailyMetrics';
@@ -15,12 +15,13 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { DashboardSkeleton } from '@/components/skeletons';
 import { SmoothLoader } from '@/components/layout/PageTransition';
 import { getDateRangeFromPreset } from '@/utils/dateUtils';
-import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, Plus, Crosshair, Zap, BarChart3, Target, Instagram, ArrowUpRight, ArrowDownRight, Layers, ImageIcon } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, Plus, Crosshair, Zap, BarChart3, Target, Instagram, ArrowUpRight, ArrowDownRight, Layers, ImageIcon, Key, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CreativeImage } from '@/components/ui/creative-image';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { translateCTA } from '@/utils/ctaTranslations';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,7 @@ import metaIcon from '@/assets/meta-icon.png';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/layout/PageTransition';
+import { supabase } from '@/integrations/supabase/client';
 
 type CreativeSortKey = 'spend' | 'conversions' | 'ctr';
 
@@ -38,22 +40,36 @@ export default function Dashboard() {
   const [creativeSortBy, setCreativeSortBy] = useState<CreativeSortKey>('spend');
   const [imageKey, setImageKey] = useState(0);
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
+  const [campaignPlatformFilter, setCampaignPlatformFilter] = useState<'all' | 'meta' | 'google'>('all');
   const { profile } = useProfile();
 
+  // Google keywords for home
+  const [googleKeywords, setGoogleKeywords] = useState<any[]>([]);
+
   const { campaigns: metaCampaigns, ads: metaAds, adSets: metaAdSets, loading: metaLoading, selectedProject, syncCreativesHD, syncing, loadMetricsByPeriod } = useMetaAdsData();
-  const { campaigns: googleCampaigns, loading: googleLoading, loadAllData } = useGoogleAdsData();
+  const { campaigns: googleCampaigns, keywords: gKeywords, demographics: googleDemographics, loading: googleLoading, loadAllData } = useGoogleAdsData();
 
   const { dailyData, comparison: periodComparison, loading: dailyLoading } = useDailyMetrics(selectedProject?.id, selectedPreset, selectedPreset === 'custom' ? dateRange : undefined);
 
-  // Load data by period when period changes
   useEffect(() => {
     if (!selectedProject) return;
     loadMetricsByPeriod(selectedPreset, false, selectedPreset === 'custom' ? dateRange : undefined);
   }, [selectedProject?.id, selectedPreset, dateRange?.from?.getTime(), dateRange?.to?.getTime()]);
 
-  // Load Google data
   useMemo(() => {
     if (selectedProject?.id) loadAllData(selectedProject.id);
+  }, [selectedProject?.id]);
+
+  // Load Google keywords
+  useEffect(() => {
+    if (!selectedProject?.id) return;
+    supabase
+      .from('google_keywords')
+      .select('*')
+      .eq('project_id', selectedProject.id)
+      .order('clicks', { ascending: false })
+      .limit(10)
+      .then(({ data }) => { if (data) setGoogleKeywords(data); });
   }, [selectedProject?.id]);
 
   const demographicDateRange = useMemo(() => {
@@ -69,6 +85,74 @@ export default function Dashboard() {
     startDate: demographicDateRange.startDate,
     endDate: demographicDateRange.endDate
   });
+
+  // Merge Meta demographic data with Google demographic data
+  const mergedDemographicData = useMemo((): DemographicInsights | null => {
+    // Start with Meta data or empty
+    const base: DemographicInsights = demographicData || {
+      gender: [], age: [], device_platform: [], publisher_platform: [], country: [], region: [],
+    };
+
+    if (!googleDemographics || googleDemographics.length === 0) return base;
+
+    // Merge Google demographics into base
+    const merged = { ...base, gender: [...base.gender], age: [...base.age], device_platform: [...base.device_platform], publisher_platform: [...base.publisher_platform], country: [...base.country], region: [...base.region] };
+
+    // Map Google breakdown types to our structure
+    const typeMap: Record<string, keyof DemographicInsights> = {
+      gender: 'gender', age: 'age', device: 'device_platform',
+    };
+
+    // Label normalization for merging
+    const normalizeGoogleLabel = (type: string, val: string): string => {
+      if (type === 'gender') {
+        if (val === 'MALE') return 'male';
+        if (val === 'FEMALE') return 'female';
+        return 'unknown';
+      }
+      if (type === 'age') {
+        // Convert AGE_RANGE_18_24 -> 18-24
+        return val.replace('AGE_RANGE_', '').replace('_', '-').replace('65-UP', '65+').replace('UNDETERMINED', 'unknown');
+      }
+      if (type === 'device') {
+        return val.toLowerCase();
+      }
+      return val;
+    };
+
+    for (const d of googleDemographics) {
+      const mappedType = typeMap[d.breakdown_type];
+      if (!mappedType) continue;
+      const normalizedLabel = normalizeGoogleLabel(d.breakdown_type, d.breakdown_value);
+
+      // Find existing entry in merged
+      const existing = merged[mappedType].find(e => e.breakdown_value.toLowerCase() === normalizedLabel.toLowerCase());
+      if (existing) {
+        existing.spend += d.spend || 0;
+        existing.impressions += d.impressions || 0;
+        existing.clicks += d.clicks || 0;
+        existing.conversions += d.conversions || 0;
+        existing.conversion_value += d.conversion_value || 0;
+      } else {
+        merged[mappedType].push({
+          breakdown_value: normalizedLabel,
+          spend: d.spend || 0,
+          impressions: d.impressions || 0,
+          clicks: d.clicks || 0,
+          reach: 0,
+          conversions: d.conversions || 0,
+          conversion_value: d.conversion_value || 0,
+        });
+      }
+    }
+
+    // Re-sort by spend
+    Object.keys(merged).forEach(key => {
+      (merged as any)[key] = (merged as any)[key].sort((a: any, b: any) => (b.spend || 0) - (a.spend || 0));
+    });
+
+    return merged;
+  }, [demographicData, googleDemographics]);
 
   // Combined metrics
   const metaTotalSpend = metaCampaigns.reduce((s, c) => s + (c.spend || 0), 0);
@@ -92,7 +176,6 @@ export default function Dashboard() {
   const cpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
   const cpl = totalConversions > 0 ? totalSpend / totalConversions : 0;
 
-  // Profile visit campaigns (Instagram focus)
   const profileVisitCampaigns = useMemo(() => {
     return metaCampaigns.filter(c => {
       const obj = (c as any).objective?.toLowerCase() || '';
@@ -101,7 +184,6 @@ export default function Dashboard() {
   }, [metaCampaigns]);
   const totalProfileVisits = profileVisitCampaigns.reduce((s, c) => s + (c.conversions || 0), 0);
 
-  // Top 3 creatives sorted by selected metric
   const topCreatives = useMemo(() => {
     return [...metaAds]
       .filter(ad => ad.creative_image_url || ad.creative_thumbnail || ad.cached_image_url)
@@ -114,7 +196,7 @@ export default function Dashboard() {
       .slice(0, 3);
   }, [metaAds, creativeSortBy]);
 
-  // Top campaigns combined
+  // Top campaigns with filter
   const allCampaigns = useMemo(() => {
     const meta = metaCampaigns.map(c => {
       const obj = ((c as any).objective || '').toLowerCase();
@@ -122,25 +204,31 @@ export default function Dashboard() {
       return { ...c, platform: 'meta' as const, isProfileVisit };
     });
     const google = googleCampaigns.map(c => ({ ...c, platform: 'google' as const, conversions: c.conversions || 0, isProfileVisit: false }));
-    return [...meta, ...google].sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 5);
-  }, [metaCampaigns, googleCampaigns]);
+    let combined = [...meta, ...google];
+    if (campaignPlatformFilter === 'meta') combined = combined.filter(c => c.platform === 'meta');
+    if (campaignPlatformFilter === 'google') combined = combined.filter(c => c.platform === 'google');
+    return combined.sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 5);
+  }, [metaCampaigns, googleCampaigns, campaignPlatformFilter]);
 
-  // Active campaign count
   const activeCampaignsMeta = metaCampaigns.filter(c => c.status === 'ACTIVE').length;
   const activeCampaignsGoogle = googleCampaigns.filter(c => c.status === 'ENABLED' || c.status === 'ACTIVE').length;
 
-  // Build comparative daily data (Meta vs Google) for charts
-  const comparativeData = useMemo(() => {
-    if (!dailyData.length) return [];
-    // dailyData is Meta only - we can overlay Google totals as a flat reference
-    return dailyData.map(d => ({
-      ...d,
-      meta_spend: d.spend,
-      google_spend: googleTotalSpend > 0 ? googleTotalSpend / dailyData.length : 0,
-      meta_conversions: d.conversions,
-      google_conversions: googleConversions > 0 ? googleConversions / dailyData.length : 0,
-    }));
-  }, [dailyData, googleTotalSpend, googleConversions]);
+  const topAdSets = useMemo(() => {
+    if (!metaAdSets || metaAdSets.length === 0) return [];
+    return [...metaAdSets].sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 5);
+  }, [metaAdSets]);
+
+  // Top keywords
+  const topKeywords = useMemo(() => {
+    return googleKeywords.slice(0, 8);
+  }, [googleKeywords]);
+
+  const PlatformBreakdown = ({ metaVal, googleVal, format: fmt }: { metaVal: number; googleVal: number; format: (n: number) => string }) => (
+    <div className="flex items-center gap-4 mt-1 text-[9px] text-muted-foreground">
+      <span className="flex items-center gap-1.5"><img src={metaIcon} className="w-2.5 h-2.5" alt="Meta" />{fmt(metaVal)}</span>
+      <span className="flex items-center gap-1.5"><img src={googleAdsIcon} className="w-2.5 h-2.5" alt="Google" />{fmt(googleVal)}</span>
+    </div>
+  );
 
   const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: selectedProject?.currency || 'BRL', minimumFractionDigits: 2 }).format(value);
   const formatNumber = (num: number) => { if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'; if (num >= 1000) return (num / 1000).toFixed(1) + 'K'; return num.toLocaleString('pt-BR'); };
@@ -151,19 +239,6 @@ export default function Dashboard() {
 
   const loading = projectsLoading || metaLoading;
   const activeProjects = useMemo(() => projects.filter(p => !p.archived), [projects]);
-
-  // Top ad sets by spend
-  const topAdSets = useMemo(() => {
-    if (!metaAdSets || metaAdSets.length === 0) return [];
-    return [...metaAdSets].sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 5);
-  }, [metaAdSets]);
-
-  const PlatformBreakdown = ({ metaVal, googleVal, format: fmt }: { metaVal: number; googleVal: number; format: (n: number) => string }) => (
-    <div className="flex items-center gap-4 mt-1 text-[9px] text-muted-foreground">
-      <span className="flex items-center gap-1.5"><img src={metaIcon} className="w-2.5 h-2.5" alt="Meta" />{fmt(metaVal)}</span>
-      <span className="flex items-center gap-1.5"><img src={googleAdsIcon} className="w-2.5 h-2.5" alt="Google" />{fmt(googleVal)}</span>
-    </div>
-  );
 
   return (
     <DashboardLayout>
@@ -234,10 +309,9 @@ export default function Dashboard() {
                   </div>
                 </StaggerItem>
 
-                {/* Metric Cards - compact grid with slightly more gap */}
+                {/* Metric Cards */}
                 <StaggerItem>
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 sm:gap-5">
-                    {/* Investimento */}
                     <div className="glass-card p-2.5 sm:p-3 border-l-2 border-l-primary">
                       <div className="flex items-center gap-1 mb-1">
                         <DollarSign className="w-3 h-3 text-primary" />
@@ -246,7 +320,6 @@ export default function Dashboard() {
                       <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(totalSpend)}</p>
                       <PlatformBreakdown metaVal={metaTotalSpend} googleVal={googleTotalSpend} format={formatCurrency} />
                     </div>
-                    {/* Impressões */}
                     <div className="glass-card p-2.5 sm:p-3">
                       <div className="flex items-center gap-1 mb-1">
                         <Eye className="w-3 h-3 text-primary" />
@@ -255,7 +328,6 @@ export default function Dashboard() {
                       <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalImpressions)}</p>
                       <PlatformBreakdown metaVal={metaImpressions} googleVal={googleImpressions} format={formatNumber} />
                     </div>
-                    {/* Cliques */}
                     <div className="glass-card p-2.5 sm:p-3">
                       <div className="flex items-center gap-1 mb-1">
                         <MousePointerClick className="w-3 h-3 text-primary" />
@@ -264,7 +336,6 @@ export default function Dashboard() {
                       <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalClicks)}</p>
                       <PlatformBreakdown metaVal={metaClicks} googleVal={googleClicks} format={formatNumber} />
                     </div>
-                    {/* Conversões */}
                     <div className="glass-card p-2.5 sm:p-3">
                       <div className="flex items-center gap-1 mb-1">
                         <Users className="w-3 h-3 text-primary" />
@@ -273,7 +344,6 @@ export default function Dashboard() {
                       <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalConversions)}</p>
                       <PlatformBreakdown metaVal={metaConversions} googleVal={googleConversions} format={formatNumber} />
                     </div>
-                    {/* CTR */}
                     <div className="glass-card p-2.5 sm:p-3">
                       <div className="flex items-center gap-1 mb-1">
                         <Crosshair className="w-3 h-3 text-primary" />
@@ -281,7 +351,6 @@ export default function Dashboard() {
                       </div>
                       <p className="text-xs sm:text-sm font-bold leading-tight">{ctr.toFixed(2)}%</p>
                     </div>
-                    {/* CPC */}
                     <div className="glass-card p-2.5 sm:p-3">
                       <div className="flex items-center gap-1 mb-1">
                         <Zap className="w-3 h-3 text-primary" />
@@ -289,7 +358,6 @@ export default function Dashboard() {
                       </div>
                       <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(cpc)}</p>
                     </div>
-                    {/* CPM */}
                     <div className="glass-card p-2.5 sm:p-3">
                       <div className="flex items-center gap-1 mb-1">
                         <BarChart3 className="w-3 h-3 text-primary" />
@@ -297,7 +365,6 @@ export default function Dashboard() {
                       </div>
                       <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(cpm)}</p>
                     </div>
-                    {/* CPL */}
                     <div className="glass-card p-2.5 sm:p-3">
                       <div className="flex items-center gap-1 mb-1">
                         <Target className="w-3 h-3 text-primary" />
@@ -356,13 +423,26 @@ export default function Dashboard() {
                   </StaggerItem>
                 )}
 
-                {/* Top Campaigns */}
+                {/* Top Campaigns with Filter */}
                 {allCampaigns.length > 0 && (
                   <StaggerItem>
                     <div>
                       <div className="flex items-center gap-2 mb-4">
                         <div className="w-1 h-4 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
                         <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top 5 Campanhas</h2>
+                        <div className="ml-auto flex items-center gap-1.5">
+                          <Tabs value={campaignPlatformFilter} onValueChange={(v) => setCampaignPlatformFilter(v as any)}>
+                            <TabsList className="h-6 p-0.5">
+                              <TabsTrigger value="all" className="text-[9px] h-5 px-2">Todas</TabsTrigger>
+                              <TabsTrigger value="meta" className="text-[9px] h-5 px-2 gap-1">
+                                <img src={metaIcon} className="w-2.5 h-2.5" alt="" /> Meta
+                              </TabsTrigger>
+                              <TabsTrigger value="google" className="text-[9px] h-5 px-2 gap-1">
+                                <img src={googleAdsIcon} className="w-2.5 h-2.5" alt="" /> Google
+                              </TabsTrigger>
+                            </TabsList>
+                          </Tabs>
+                        </div>
                       </div>
                       <div className="glass-card overflow-hidden">
                         <div className="divide-y divide-border/50">
@@ -431,7 +511,57 @@ export default function Dashboard() {
                   </StaggerItem>
                 )}
 
-                {/* Comparative Charts - Meta vs Google */}
+                {/* Top Keywords */}
+                {topKeywords.length > 0 && (
+                  <StaggerItem>
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-1 h-4 bg-gradient-to-b from-yellow-500 to-yellow-500/50 rounded-full" />
+                        <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top Palavras-chave</h2>
+                        <Badge variant="outline" className="text-[9px] gap-1 border-yellow-500/30 text-yellow-400 ml-auto">
+                          <img src={googleAdsIcon} className="w-3 h-3" alt="" /> Google
+                        </Badge>
+                        <Link to="/google-campaigns" className="text-[10px] text-primary hover:underline">Ver todas →</Link>
+                      </div>
+                      <div className="glass-card overflow-hidden">
+                        <div className="divide-y divide-border/50">
+                          {topKeywords.map((kw: any) => (
+                            <div key={kw.id} className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 hover:bg-secondary/30 transition-colors">
+                              <Key className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] sm:text-xs font-medium">{kw.keyword_text}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[8px] text-muted-foreground">{kw.campaign_name}</span>
+                                  {kw.quality_score && (
+                                    <span className={cn("text-[8px] font-medium", kw.quality_score >= 7 ? 'text-metric-positive' : kw.quality_score >= 4 ? 'text-metric-warning' : 'text-metric-negative')}>
+                                      QS: {kw.quality_score}/10
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right flex-shrink-0 flex items-center gap-3">
+                                <div>
+                                  <p className="text-[10px] sm:text-xs font-semibold">{formatNumber(kw.clicks || 0)}</p>
+                                  <p className="text-[8px] text-muted-foreground">cliques</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] sm:text-xs font-semibold">{formatNumber(kw.conversions || 0)}</p>
+                                  <p className="text-[8px] text-muted-foreground">conv.</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] sm:text-xs font-semibold">{formatCurrency(kw.spend || 0)}</p>
+                                  <p className="text-[8px] text-muted-foreground">gasto</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </StaggerItem>
+                )}
+
+                {/* Comparative Charts */}
                 <StaggerItem>
                   <div>
                     <div className="flex items-center gap-2 mb-4">
@@ -463,24 +593,30 @@ export default function Dashboard() {
                   </div>
                 </StaggerItem>
 
-                {/* Demographics - separated by channel */}
+                {/* Demographics - merged Meta + Google */}
                 <StaggerItem>
                   <div>
                     <div className="flex items-center gap-2 mb-4">
                       <div className="w-1 h-4 bg-gradient-to-b from-purple-500 to-purple-500/50 rounded-full" />
                       <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Dados Demográficos</h2>
-                      <Badge variant="outline" className="text-[9px] gap-1 border-blue-500/30 text-blue-400 ml-auto">
-                        <img src={metaIcon} className="w-3 h-3" alt="" /> Meta Ads
-                      </Badge>
+                      <div className="ml-auto flex items-center gap-1.5">
+                        <Badge variant="outline" className="text-[9px] gap-1 border-blue-500/30 text-blue-400">
+                          <img src={metaIcon} className="w-3 h-3" alt="" /> Meta
+                        </Badge>
+                        <span className="text-[8px] text-muted-foreground">+</span>
+                        <Badge variant="outline" className="text-[9px] gap-1 border-yellow-500/30 text-yellow-400">
+                          <img src={googleAdsIcon} className="w-3 h-3" alt="" /> Google
+                        </Badge>
+                      </div>
                     </div>
-                    <DemographicCharts data={demographicData} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
+                    <DemographicCharts data={mergedDemographicData} isLoading={demographicLoading} currency={selectedProject?.currency || 'BRL'} />
                   </div>
                 </StaggerItem>
               </StaggerContainer>
             )}
           </SmoothLoader>
 
-          {/* Creative Detail Modal - same as MetaAds */}
+          {/* Creative Detail Modal */}
           <Dialog open={!!selectedCreative} onOpenChange={(open) => !open && setSelectedCreative(null)}>
             <DialogContent className="max-w-[95vw] md:max-w-5xl h-[85vh] border-red-500/30 bg-background/95 backdrop-blur-xl p-4 pt-10 flex flex-col overflow-hidden">
               {selectedCreative && (
