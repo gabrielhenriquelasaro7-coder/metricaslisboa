@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { SmoothLoader } from '@/components/layout/PageTransition';
+import { PDFBuilderDialog } from '@/components/pdf/PDFBuilderDialog';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ClientSelector } from '@/components/layout/ClientSelector';
@@ -325,27 +326,38 @@ export default function GoogleCampaigns() {
               <div className="w-full sm:w-auto">
                 <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} timezone={selectedProject?.timezone} onPresetChange={(p: string) => setSelectedPreset(p as DatePresetKey)} selectedPreset={selectedPreset} />
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover border-border z-50">
-                  <DropdownMenuItem onClick={handleSync} disabled={syncing || !selectedProject}>
-                    <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-                    {syncing ? 'Sincronizando...' : 'Sincronizar Tudo (2025)'}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => syncData({ syncType: 'keywords', days: 420 })} disabled={syncing || !selectedProject}>
-                    <Key className="w-4 h-4 mr-2" />
-                    Palavras-chave
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => syncData({ syncType: 'demographics', days: 420 })} disabled={syncing || !selectedProject}>
-                    <Users className="w-4 h-4 mr-2" />
-                    Demográficos
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-2">
+                {selectedProject && (
+                  <PDFBuilderDialog
+                    projectId={selectedProject.id}
+                    projectName={selectedProject.name}
+                    businessModel={selectedProject.business_model as any}
+                    currency={selectedProject.currency || 'BRL'}
+                    currentPeriod={periodBounds || { since: new Date().toISOString().split('T')[0], until: new Date().toISOString().split('T')[0] }}
+                  />
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-9 w-9">
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-popover border-border z-50">
+                    <DropdownMenuItem onClick={handleSync} disabled={syncing || !selectedProject}>
+                      <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+                      {syncing ? 'Sincronizando...' : 'Sincronizar Tudo (2025)'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => syncData({ syncType: 'keywords', days: 420 })} disabled={syncing || !selectedProject}>
+                      <Key className="w-4 h-4 mr-2" />
+                      Palavras-chave
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => syncData({ syncType: 'demographics', days: 420 })} disabled={syncing || !selectedProject}>
+                      <Users className="w-4 h-4 mr-2" />
+                      Demográficos
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
 

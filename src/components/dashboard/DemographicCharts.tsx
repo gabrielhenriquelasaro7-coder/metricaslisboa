@@ -1,18 +1,5 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DemographicInsights, DemographicData } from '@/hooks/useDemographicInsights';
 import { Users, Smartphone, Globe, UserCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,17 +10,6 @@ interface DemographicChartsProps {
   className?: string;
   currency?: string;
 }
-
-const COLORS = [
-  'hsl(220, 70%, 50%)',
-  'hsl(142, 76%, 36%)',
-  'hsl(280, 70%, 50%)',
-  'hsl(30, 70%, 50%)',
-  'hsl(340, 70%, 50%)',
-  'hsl(180, 70%, 45%)',
-  'hsl(0, 70%, 50%)',
-  'hsl(50, 80%, 45%)',
-];
 
 const createFormatCurrency = (currency: string = 'BRL') => (value: number) => {
   const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
@@ -51,9 +27,20 @@ const formatNumber = (value: number) => {
   return value.toLocaleString('pt-BR');
 };
 
-function DemographicPieChart({ 
+const BAR_COLORS = [
+  'bg-primary',
+  'bg-chart-2',
+  'bg-chart-3',
+  'bg-chart-4',
+  'bg-chart-5',
+  'bg-accent',
+  'bg-muted-foreground/50',
+  'bg-secondary-foreground/30',
+];
+
+function DemographicBarList({ 
   data, 
-  type, 
+  type,
   title, 
   icon: Icon,
   currency = 'BRL',
@@ -64,31 +51,22 @@ function DemographicPieChart({
   title: string; 
   icon: React.ElementType;
   currency?: string;
-  translations: {
-    male: string;
-    female: string;
-    unknown: string;
-    noData: string;
-    spend: string;
-    percentage: string;
-    impressions: string;
-    clicks: string;
-  };
+  translations: Record<string, string>;
 }) {
   const formatCurrencyValue = createFormatCurrency(currency);
   const totalSpend = data.reduce((sum, d) => sum + d.spend, 0);
 
   const GENDER_LABELS: Record<string, string> = {
-    male: translations.male,
-    female: translations.female,
-    unknown: translations.unknown,
+    male: translations.male || 'Masculino',
+    female: translations.female || 'Feminino',
+    unknown: translations.unknown || 'N/D',
   };
 
   const DEVICE_LABELS: Record<string, string> = {
     mobile: 'Mobile',
     desktop: 'Desktop',
     tablet: 'Tablet',
-    unknown: translations.unknown,
+    unknown: translations.unknown || 'N/D',
   };
 
   const PLATFORM_LABELS: Record<string, string> = {
@@ -97,222 +75,67 @@ function DemographicPieChart({
     messenger: 'Messenger',
     audience_network: 'Audience Network',
     whatsapp: 'WhatsApp',
-    unknown: translations.unknown,
+    unknown: translations.unknown || 'N/D',
   };
 
   function translateLabel(breakdownType: string, value: string): string {
     switch (breakdownType) {
-      case 'gender':
-        return GENDER_LABELS[value.toLowerCase()] || value;
-      case 'device_platform':
-        return DEVICE_LABELS[value.toLowerCase()] || value;
-      case 'publisher_platform':
-        return PLATFORM_LABELS[value.toLowerCase()] || value;
-      default:
-        return value;
+      case 'gender': return GENDER_LABELS[value.toLowerCase()] || value;
+      case 'device_platform': return DEVICE_LABELS[value.toLowerCase()] || value;
+      case 'publisher_platform': return PLATFORM_LABELS[value.toLowerCase()] || value;
+      default: return value;
     }
   }
-  
-  const chartData = data.map((d, i) => ({
-    name: translateLabel(type, d.breakdown_value),
-    value: d.spend,
-    percent: totalSpend > 0 ? (d.spend / totalSpend * 100).toFixed(1) : 0,
-    impressions: d.impressions,
-    clicks: d.clicks,
-    color: COLORS[i % COLORS.length],
-  }));
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (!active || !payload || !payload.length) return null;
-    const item = payload[0].payload;
-    return (
-      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
-        <p className="font-medium text-sm mb-2">{item.name}</p>
-        <div className="space-y-1 text-sm">
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">{translations.spend}:</span>
-            <span className="font-medium">{formatCurrencyValue(item.value)}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">{translations.percentage}:</span>
-            <span className="font-medium">{item.percent}%</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">{translations.impressions}:</span>
-            <span className="font-medium">{formatNumber(item.impressions)}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">{translations.clicks}:</span>
-            <span className="font-medium">{formatNumber(item.clicks)}</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   if (data.length === 0) {
     return (
-      <div className="premium-card relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-        <div className="p-4">
-          <h4 className="text-base font-medium flex items-center gap-2 mb-4">
-            <div className="w-7 h-7 rounded-md premium-bar flex items-center justify-center">
-              <Icon className="w-3.5 h-3.5 text-primary-foreground" />
-            </div>
-            {title}
-          </h4>
-          <div className="h-[160px] flex items-center justify-center text-muted-foreground text-sm">
-            {translations.noData}
-          </div>
+      <div className="glass-card overflow-hidden">
+        <div className="px-4 py-3 bg-secondary/30 border-b border-border">
+          <h3 className="text-sm font-medium flex items-center gap-2">
+            <Icon className="w-4 h-4" /> {title}
+          </h3>
+        </div>
+        <div className="h-[120px] flex items-center justify-center text-muted-foreground text-sm">
+          {translations.noData || 'Sem dados'}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="premium-card relative overflow-hidden">
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-      <div className="p-3 sm:p-4">
-        <h4 className="text-sm sm:text-base font-medium flex items-center gap-2 mb-3 sm:mb-4">
-          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md premium-bar flex items-center justify-center flex-shrink-0">
-            <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary-foreground" />
-          </div>
-          <span className="truncate">{title}</span>
-        </h4>
-        <div className="flex flex-col xs:flex-row items-center gap-2 sm:gap-4">
-          <div className="h-[100px] w-[100px] sm:h-[140px] sm:w-[140px] md:h-[160px] md:w-[160px] flex-shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={25}
-                  outerRadius={45}
-                  dataKey="value"
-                  strokeWidth={1}
-                  stroke="hsl(var(--background))"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex-1 w-full space-y-0.5 sm:space-y-1.5 min-w-0 overflow-hidden">
-            {chartData.map((item, index) => (
-              <div key={index} className="flex items-center justify-between text-[9px] xs:text-[10px] sm:text-xs md:text-sm gap-1">
-                <div className="flex items-center gap-1 sm:gap-2 min-w-0 overflow-hidden">
-                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 md:w-3 md:h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                  <span className="truncate max-w-[60px] xs:max-w-[80px] sm:max-w-none">{item.name}</span>
-                </div>
-                <span className="text-muted-foreground flex-shrink-0 font-medium">{item.percent}%</span>
+    <div className="glass-card overflow-hidden">
+      <div className="px-4 py-3 bg-secondary/30 border-b border-border">
+        <h3 className="text-sm font-medium flex items-center gap-2">
+          <Icon className="w-4 h-4" /> {title}
+        </h3>
+      </div>
+      <div className="p-3 space-y-2.5">
+        {data.map((d, i) => {
+          const pct = totalSpend > 0 ? (d.spend / totalSpend) * 100 : 0;
+          const label = translateLabel(type, d.breakdown_value);
+          return (
+            <div key={i} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground">{label}</span>
+                <span className="text-[10px] text-muted-foreground font-medium">
+                  {formatCurrencyValue(d.spend)} · {pct.toFixed(0)}%
+                </span>
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                <div 
+                  className={cn("h-full rounded-full transition-all", BAR_COLORS[i % BAR_COLORS.length])} 
+                  style={{ width: `${Math.max(pct, 1)}%` }} 
+                />
+              </div>
+              <div className="flex items-center gap-3 text-[9px] text-muted-foreground">
+                <span>{formatNumber(d.clicks)} cliques</span>
+                <span>{formatNumber(d.conversions)} conv.</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
-  );
-}
-
-function AgeBarChart({ data, currency = 'BRL', translations }: { 
-  data: DemographicData[]; 
-  currency?: string;
-  translations: {
-    ageRange: string;
-    noData: string;
-    spend: string;
-    conversions: string;
-  };
-}) {
-  const formatCurrencyValue = createFormatCurrency(currency);
-  const chartData = data.map((d) => ({
-    name: d.breakdown_value,
-    spend: d.spend,
-    conversions: d.conversions,
-  })).sort((a, b) => {
-    const ageA = parseInt(a.name.split('-')[0]) || 0;
-    const ageB = parseInt(b.name.split('-')[0]) || 0;
-    return ageA - ageB;
-  });
-
-  if (data.length === 0) {
-    return (
-      <Card className="glass-card">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium flex items-center gap-2">
-            <Users className="w-4 h-4 text-muted-foreground" />
-            {translations.ageRange}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-          {translations.noData}
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="glass-card overflow-hidden">
-      <CardHeader className="pb-2 p-3 sm:p-4">
-        <CardTitle className="text-sm sm:text-base font-medium flex items-center gap-2">
-          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-          <span className="truncate">{translations.ageRange}</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-2 sm:p-4 pt-0 sm:pt-0">
-        <div className="h-[160px] sm:h-[180px] md:h-[200px] w-full overflow-hidden">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart 
-              data={chartData} 
-              margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-              <XAxis 
-                dataKey="name" 
-                fontSize={9}
-                tickLine={false} 
-                axisLine={false}
-                stroke="hsl(var(--muted-foreground))"
-                interval={0}
-                angle={-45}
-                textAnchor="end"
-                height={40}
-              />
-              <YAxis 
-                fontSize={9}
-                tickLine={false} 
-                axisLine={false}
-                tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(0)}K` : value.toString()}
-                stroke="hsl(var(--muted-foreground))"
-                width={35}
-              />
-              <Tooltip
-                formatter={(value: number, name: string) => [
-                  name === 'spend' ? formatCurrencyValue(value) : formatNumber(value),
-                  name === 'spend' ? translations.spend : translations.conversions
-                ]}
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                }}
-              />
-              <Bar 
-                dataKey="spend" 
-                name={translations.spend}
-                fill="hsl(220, 70%, 50%)" 
-                radius={[3, 3, 0, 0]} 
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -387,13 +210,16 @@ export function DemographicCharts({ data, isLoading, className, currency = 'BRL'
 
   return (
     <div className={cn('space-y-4 sm:space-y-6 overflow-hidden', className)}>
-      <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
-        <UserCircle2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-        <span className="truncate">{translations.title}</span>
-      </h3>
-      
-      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <DemographicPieChart
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        <DemographicBarList
+          data={data.age}
+          type="age"
+          title={translations.ageRange}
+          icon={Users}
+          currency={currency}
+          translations={translations}
+        />
+        <DemographicBarList
           data={data.gender}
           type="gender"
           title={translations.gender}
@@ -401,10 +227,7 @@ export function DemographicCharts({ data, isLoading, className, currency = 'BRL'
           currency={currency}
           translations={translations}
         />
-        <div className="xs:col-span-2 md:col-span-1">
-          <AgeBarChart data={data.age} currency={currency} translations={translations} />
-        </div>
-        <DemographicPieChart
+        <DemographicBarList
           data={data.device_platform}
           type="device_platform"
           title={translations.device}
@@ -412,7 +235,9 @@ export function DemographicCharts({ data, isLoading, className, currency = 'BRL'
           currency={currency}
           translations={translations}
         />
-        <DemographicPieChart
+      </div>
+      {data.publisher_platform.length > 0 && (
+        <DemographicBarList
           data={data.publisher_platform}
           type="publisher_platform"
           title={translations.platform}
@@ -420,7 +245,7 @@ export function DemographicCharts({ data, isLoading, className, currency = 'BRL'
           currency={currency}
           translations={translations}
         />
-      </div>
+      )}
     </div>
   );
 }
