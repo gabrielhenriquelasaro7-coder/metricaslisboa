@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/drawer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { usePDFMetrics, CampaignData } from '@/hooks/usePDFMetrics';
+import { usePDFMetrics, CampaignData, KeywordData, PDFDataSource } from '@/hooks/usePDFMetrics';
 import { useDemographicInsights, DemographicData } from '@/hooks/useDemographicInsights';
 import { format, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -62,6 +62,7 @@ interface Props {
   businessModel: BusinessModel;
   currency: string;
   currentPeriod: { since: string; until: string };
+  source?: PDFDataSource;
 }
 
 const GENERAL_METRICS: MetricDef[] = [
@@ -304,7 +305,7 @@ function AgeBarChartPreview({ data, id }: { data: DemographicData[]; id: string 
   );
 }
 
-export function PDFBuilderDialog({ projectId, projectName, businessModel, currency, currentPeriod }: Props) {
+export function PDFBuilderDialog({ projectId, projectName, businessModel, currency, currentPeriod, source = 'meta' }: Props) {
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [title, setTitle] = useState(`Relatório - ${projectName}`);
@@ -356,7 +357,10 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
   const [campaignCount, setCampaignCount] = useState<'5' | '10'>('5');
   const [campaignSortBy, setCampaignSortBy] = useState<CampaignSortBy>('spend');
   
-  const { dailyData, totals, loading, campaigns, loadMetrics } = usePDFMetrics(projectId);
+  const { dailyData, totals, loading, campaigns, keywords: pdfKeywords, loadMetrics } = usePDFMetrics(projectId, source);
+  
+  // Keywords section toggle
+  const [includeKeywords, setIncludeKeywords] = useState(source === 'google' || source === 'all');
   const resultDefs = businessModel ? RESULT_METRICS[businessModel] || [] : [];
   
   // Sort and filter campaigns
@@ -732,6 +736,65 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
         
         y += 10;
       }
+
+      // Keywords section (Google)
+      if (includeKeywords && pdfKeywords.length > 0) {
+        if (y > ph - 80) { doc.addPage(); y = 20; }
+        
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(33, 33, 33);
+        doc.text('Top Palavras-chave', m, y);
+        y += 8;
+        
+        const tableWidth = pw - 2 * m;
+        const startX = m;
+        const kwCol1 = tableWidth * 0.35;
+        const kwCol2 = tableWidth * 0.12;
+        const kwCol3 = tableWidth * 0.13;
+        const kwCol4 = tableWidth * 0.10;
+        const kwCol5 = tableWidth * 0.10;
+        const kwCol6 = tableWidth * 0.10;
+        const kwCol7 = tableWidth * 0.10;
+        
+        doc.setFillColor(rgb.r, rgb.g, rgb.b);
+        doc.rect(startX, y, tableWidth, 8, 'F');
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.text('Palavra-chave', startX + 3, y + 5);
+        doc.text('Tipo', startX + kwCol1 + 3, y + 5);
+        doc.text('Gasto', startX + kwCol1 + kwCol2 + kwCol3 - 3, y + 5, { align: 'right' });
+        doc.text('Cliques', startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 - 3, y + 5, { align: 'right' });
+        doc.text('CTR', startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 + kwCol5 - 3, y + 5, { align: 'right' });
+        doc.text('Conv', startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 + kwCol5 + kwCol6 - 3, y + 5, { align: 'right' });
+        doc.text('QS', startX + tableWidth - 3, y + 5, { align: 'right' });
+        y += 8;
+        
+        doc.setFont('helvetica', 'normal');
+        const topKws = pdfKeywords.slice(0, 15);
+        topKws.forEach((kw, idx) => {
+          if (y > ph - 25) { doc.addPage(); y = 20; }
+          doc.setFillColor(idx % 2 === 0 ? 255 : 249, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 251);
+          doc.rect(startX, y, tableWidth, 7, 'F');
+          doc.setFontSize(7);
+          doc.setTextColor(31, 41, 55);
+          
+          const kwText = kw.keyword_text.length > 30 ? kw.keyword_text.substring(0, 28) + '...' : kw.keyword_text;
+          doc.text(kwText, startX + 3, y + 5);
+          const matchLabel = kw.match_type === 'EXACT' ? 'Exata' : kw.match_type === 'PHRASE' ? 'Frase' : 'Ampla';
+          doc.text(matchLabel, startX + kwCol1 + 3, y + 5);
+          doc.text(fmtCurrency(kw.spend, currency), startX + kwCol1 + kwCol2 + kwCol3 - 3, y + 5, { align: 'right' });
+          doc.text(fmtNumber(kw.clicks), startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 - 3, y + 5, { align: 'right' });
+          doc.text(`${kw.ctr.toFixed(1)}%`, startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 + kwCol5 - 3, y + 5, { align: 'right' });
+          doc.text(fmtNumber(kw.conversions), startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 + kwCol5 + kwCol6 - 3, y + 5, { align: 'right' });
+          doc.setTextColor(rgb.r, rgb.g, rgb.b);
+          doc.text(kw.quality_score ? `${kw.quality_score}` : '-', startX + tableWidth - 3, y + 5, { align: 'right' });
+          doc.setTextColor(31, 41, 55);
+          y += 7;
+        });
+        y += 10;
+      }
       
       // Footer
       doc.setFillColor(rgb.r, rgb.g, rgb.b);
@@ -1036,6 +1099,25 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
           </div>
         )}
       </div>
+
+      {/* Keywords (Google) */}
+      {(source === 'google' || source === 'all') && (
+        <div className="space-y-2">
+          <Label className="text-xs font-medium uppercase text-muted-foreground flex items-center gap-1">
+            <Settings className="h-3 w-3" /> Palavras-chave
+          </Label>
+          <div className="flex items-center gap-2">
+            <Switch checked={includeKeywords} onCheckedChange={setIncludeKeywords} id="include-keywords" />
+            <Label htmlFor="include-keywords" className="text-sm font-normal">Incluir top palavras-chave</Label>
+          </div>
+          {includeKeywords && pdfKeywords.length === 0 && !loading && (
+            <p className="text-[10px] text-amber-600">Sem palavras-chave disponíveis</p>
+          )}
+          {includeKeywords && pdfKeywords.length > 0 && (
+            <p className="text-[10px] text-muted-foreground">{pdfKeywords.length} palavras-chave encontradas</p>
+          )}
+        </div>
+      )}
       
       <div className="space-y-2">
         <Label className="text-xs font-medium uppercase text-muted-foreground">Logo</Label>

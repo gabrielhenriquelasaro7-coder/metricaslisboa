@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { AdminAccessRequestModal } from '@/components/admin/AdminAccessRequestModal';
+import { InviteGuestDialog } from '@/components/guests/InviteGuestDialog';
 
 interface TopSideBarProps {
   onNavigate?: () => void;
@@ -64,6 +65,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
   const { theme, toggleTheme } = useTheme();
   const { isTabHidden } = useTabVisibility();
   const [adminAccessModalOpen, setAdminAccessModalOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = useMemo(() => {
@@ -220,7 +222,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => handleNavClick('/settings')}
+                    onClick={() => setShareDialogOpen(true)}
                     className={cn('sidebar-icon-btn')}
                   >
                     <Share2 className="w-5 h-5" />
@@ -234,12 +236,15 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
               {/* Clarity - LP Analysis */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className="sidebar-icon-btn opacity-50 cursor-not-allowed">
+                  <button 
+                    onClick={() => handleNavClick('/clarity')}
+                    className={cn('sidebar-icon-btn', isActive('/clarity') && 'active')}
+                  >
                     <img src={clarityIcon} alt="Clarity" className="w-5 h-5 object-contain" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                  <p>Clarity (Em breve)</p>
+                  <p>Clarity</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -381,6 +386,11 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
         onOpenChange={setAdminAccessModalOpen}
         projectId={selectedProject?.id}
         projectName={selectedProject?.name}
+      />
+
+      <InviteGuestDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
       />
     </>
   );
