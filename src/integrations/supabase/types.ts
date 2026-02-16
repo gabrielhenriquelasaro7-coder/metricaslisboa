@@ -1648,6 +1648,151 @@ export type Database = {
           },
         ]
       }
+      google_demographic_insights: {
+        Row: {
+          breakdown_type: string
+          breakdown_value: string
+          clicks: number | null
+          conversion_value: number | null
+          conversions: number | null
+          created_at: string | null
+          date: string
+          id: string
+          impressions: number | null
+          project_id: string
+          spend: number | null
+          synced_at: string | null
+        }
+        Insert: {
+          breakdown_type: string
+          breakdown_value: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          impressions?: number | null
+          project_id: string
+          spend?: number | null
+          synced_at?: string | null
+        }
+        Update: {
+          breakdown_type?: string
+          breakdown_value?: string
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          impressions?: number | null
+          project_id?: string
+          spend?: number | null
+          synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_demographic_insights_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_keywords: {
+        Row: {
+          ad_group_id: string
+          ad_group_name: string | null
+          ad_relevance: string | null
+          campaign_id: string
+          campaign_name: string | null
+          clicks: number | null
+          conversion_value: number | null
+          conversions: number | null
+          cost_per_conversion: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string | null
+          ctr: number | null
+          expected_ctr: string | null
+          id: string
+          impressions: number | null
+          keyword_text: string
+          landing_page_experience: string | null
+          match_type: string | null
+          project_id: string
+          quality_score: number | null
+          search_impression_share: number | null
+          spend: number | null
+          status: string | null
+          synced_at: string | null
+        }
+        Insert: {
+          ad_group_id: string
+          ad_group_name?: string | null
+          ad_relevance?: string | null
+          campaign_id: string
+          campaign_name?: string | null
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_per_conversion?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          expected_ctr?: string | null
+          id?: string
+          impressions?: number | null
+          keyword_text: string
+          landing_page_experience?: string | null
+          match_type?: string | null
+          project_id: string
+          quality_score?: number | null
+          search_impression_share?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Update: {
+          ad_group_id?: string
+          ad_group_name?: string | null
+          ad_relevance?: string | null
+          campaign_id?: string
+          campaign_name?: string | null
+          clicks?: number | null
+          conversion_value?: number | null
+          conversions?: number | null
+          cost_per_conversion?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          expected_ctr?: string | null
+          id?: string
+          impressions?: number | null
+          keyword_text?: string
+          landing_page_experience?: string | null
+          match_type?: string | null
+          project_id?: string
+          quality_score?: number | null
+          search_impression_share?: number | null
+          spend?: number | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_keywords_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_invitations: {
         Row: {
           accepted_at: string | null
