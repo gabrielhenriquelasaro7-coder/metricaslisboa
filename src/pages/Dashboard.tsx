@@ -133,7 +133,7 @@ export default function Dashboard() {
           <div className="absolute top-0 right-0 w-[200px] sm:w-[400px] lg:w-[600px] h-[200px] sm:h-[400px] lg:h-[600px] bg-primary/3 rounded-full blur-[80px] sm:blur-[150px]" />
         </div>
 
-        <div className="relative z-10 p-3 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 lg:space-y-10 w-full">
+        <div className="relative z-10 p-4 sm:p-6 lg:p-8 pb-12 sm:pb-16 space-y-6 sm:space-y-8 lg:space-y-10 w-full">
           {/* Header */}
           <FadeIn>
             <div className="flex items-center justify-between gap-3">
