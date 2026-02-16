@@ -547,7 +547,7 @@ export default function MetaAds() {
                                                     creativeImageUrl={ad.creative_image_url}
                                                     creativeThumbnail={ad.creative_thumbnail}
                                                     alt={ad.name}
-                                                    className="w-full h-full object-cover"
+                                                    className="w-full h-full object-contain"
                                                   />
                                                   <div className="absolute bottom-1 right-1 bg-background/80 backdrop-blur-sm text-[9px] font-semibold px-1.5 py-0.5 rounded">
                                                     {formatCurrency(ad.spend || 0)}
@@ -647,7 +647,7 @@ export default function MetaAds() {
                               creativeImageUrl={selectedCreative.creative_image_url}
                               creativeThumbnail={selectedCreative.creative_thumbnail}
                               alt={selectedCreative.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain"
                             />
                           </div>
                           {/* Metrics */}

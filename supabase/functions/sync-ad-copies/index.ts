@@ -21,7 +21,8 @@ function cleanMetaImageUrl(url: string | null): string | null {
 }
 
 // Fetch HD thumbnail directly from creative endpoint (the ONLY way that works)
-async function fetchHDThumbnail(creativeId: string, accessToken: string): Promise<string | null> {
+// Returns both the cleaned URL for display and raw URL for downloading
+async function fetchHDThumbnail(creativeId: string, accessToken: string): Promise<{ cleanUrl: string; rawUrl: string } | null> {
   try {
     const url = `https://graph.facebook.com/v22.0/${creativeId}?fields=thumbnail_url&thumbnail_width=1080&thumbnail_height=1080&access_token=${accessToken}`;
     const controller = new AbortController();
@@ -33,8 +34,11 @@ async function fetchHDThumbnail(creativeId: string, accessToken: string): Promis
       console.log(`[SYNC-COPIES] Creative ${creativeId} thumbnail error: ${data.error.message}`);
       return null;
     }
-    // ALWAYS clean the URL to remove resize params
-    return cleanMetaImageUrl(data.thumbnail_url || null);
+    if (!data.thumbnail_url) return null;
+    return {
+      cleanUrl: cleanMetaImageUrl(data.thumbnail_url) || data.thumbnail_url,
+      rawUrl: data.thumbnail_url  // Keep original URL for downloading (has auth tokens)
+    };
   } catch (e) {
     console.log(`[SYNC-COPIES] Failed to fetch HD thumbnail for creative ${creativeId}`);
     return null;
@@ -162,50 +166,56 @@ serve(async (req) => {
           }
 
           // Step 2: Fetch HD thumbnail DIRECTLY from creative endpoint with 1080x1080
-          let hdThumbnailUrl: string | null = null;
+          let hdThumbnailResult: { cleanUrl: string; rawUrl: string } | null = null;
           if (creative.id) {
-            hdThumbnailUrl = await fetchHDThumbnail(creative.id, accessToken);
-            if (hdThumbnailUrl) {
+            hdThumbnailResult = await fetchHDThumbnail(creative.id, accessToken);
+            if (hdThumbnailResult) {
               console.log(`[SYNC-COPIES] ✅ Got TRUE HD 1080px thumbnail for ad ${currentAdId} from creative ${creative.id}`);
             }
           }
 
-          if (primaryText || headline || cta || hdThumbnailUrl) {
+          if (primaryText || headline || cta || hdThumbnailResult) {
             const updateData: any = {};
             if (primaryText) updateData.primary_text = primaryText;
             if (headline) updateData.headline = headline;
             if (cta) updateData.cta = cta;
-            if (hdThumbnailUrl) {
-              updateData.creative_thumbnail = hdThumbnailUrl;
-              updateData.creative_image_url = hdThumbnailUrl;
+            if (hdThumbnailResult) {
+              updateData.creative_thumbnail = hdThumbnailResult.cleanUrl;
+              updateData.creative_image_url = hdThumbnailResult.cleanUrl;
               
-              // CACHE HD image in Storage (replace any low-res version)
+              // CACHE HD image in Storage using RAW URL (has fbcdn auth tokens)
               try {
                 const imgController = new AbortController();
                 const imgTimeout = setTimeout(() => imgController.abort(), 15000);
-                const imgResponse = await fetch(hdThumbnailUrl, { 
-                  headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'image/*', 'Referer': 'https://www.facebook.com/' },
-                  signal: imgController.signal 
+                const imgResponse = await fetch(hdThumbnailResult.rawUrl, { 
+                  signal: imgController.signal,
+                  redirect: 'follow'
                 });
                 clearTimeout(imgTimeout);
                 
                 if (imgResponse.ok) {
                   const imageBuffer = await imgResponse.arrayBuffer();
-                  // Only cache if >= 20KB (reject low-res)
-                  if (imageBuffer.byteLength >= 20000) {
+                  // Only cache if >= 5KB (more lenient threshold)
+                  if (imageBuffer.byteLength >= 5000) {
                     const fileName = `${projectId}/${currentAdId}.jpg`;
-                    await supabase.storage.from('creative-images').upload(fileName, imageBuffer, { 
+                    const { error: uploadError } = await supabase.storage.from('creative-images').upload(fileName, imageBuffer, { 
                       contentType: imgResponse.headers.get('content-type') || 'image/jpeg', 
                       upsert: true 
                     });
-                    const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
-                    if (publicUrlData?.publicUrl) {
-                      updateData.cached_image_url = publicUrlData.publicUrl;
-                      console.log(`[SYNC-COPIES] ✅ Cached HD image (${Math.round(imageBuffer.byteLength/1024)}KB) for ${currentAdId}`);
+                    if (uploadError) {
+                      console.log(`[SYNC-COPIES] ⚠️ Storage upload failed for ${currentAdId}: ${uploadError.message}`);
+                    } else {
+                      const { data: publicUrlData } = supabase.storage.from('creative-images').getPublicUrl(fileName);
+                      if (publicUrlData?.publicUrl) {
+                        updateData.cached_image_url = publicUrlData.publicUrl;
+                        console.log(`[SYNC-COPIES] ✅ Cached HD image (${Math.round(imageBuffer.byteLength/1024)}KB) for ${currentAdId}`);
+                      }
                     }
                   } else {
-                    console.log(`[SYNC-COPIES] ⚠️ Image too small (${Math.round(imageBuffer.byteLength/1024)}KB), not caching for ${currentAdId}`);
+                    console.log(`[SYNC-COPIES] ⚠️ Image too small (${imageBuffer.byteLength}B), not caching for ${currentAdId}`);
                   }
+                } else {
+                  console.log(`[SYNC-COPIES] ⚠️ Image download failed for ${currentAdId}: HTTP ${imgResponse.status} ${imgResponse.statusText}`);
                 }
               } catch (cacheErr) {
                 console.log(`[SYNC-COPIES] Cache image failed for ${currentAdId}: ${cacheErr}`);
@@ -226,10 +236,10 @@ serve(async (req) => {
                 primaryText: primaryText?.substring(0, 50),
                 headline,
                 cta,
-                hdThumbnail: hdThumbnailUrl ? 'YES_1080' : 'NO',
+                hdThumbnail: hdThumbnailResult ? 'YES_1080' : 'NO',
                 cachedImageUrl: updateData.cached_image_url || null
               });
-              console.log(`[SYNC-COPIES] ✅ Updated ad ${currentAdId}: HD=${hdThumbnailUrl ? '1080px' : 'none'}, cached=${!!updateData.cached_image_url}`);
+              console.log(`[SYNC-COPIES] ✅ Updated ad ${currentAdId}: HD=${hdThumbnailResult ? '1080px' : 'none'}, cached=${!!updateData.cached_image_url}`);
             }
           }
         }
