@@ -829,6 +829,44 @@ export type Database = {
         }
         Relationships: []
       }
+      clarity_projects: {
+        Row: {
+          api_token: string
+          clarity_project_id: string
+          created_at: string
+          id: string
+          label: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          api_token: string
+          clarity_project_id: string
+          created_at?: string
+          id?: string
+          label: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          api_token?: string
+          clarity_project_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clarity_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_connections: {
         Row: {
           access_token: string | null
