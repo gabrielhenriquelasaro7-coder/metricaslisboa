@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ClientSelector } from '@/components/layout/ClientSelector';
@@ -11,20 +11,24 @@ import { useGoogleAdsData } from '@/hooks/useGoogleAdsData';
 import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { DashboardSkeleton } from '@/components/skeletons';
 import { getDateRangeFromPreset } from '@/utils/dateUtils';
-import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, ImageIcon, Plus, Crosshair, Zap, BarChart3, Target, Instagram, Layers } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Eye, MousePointerClick, Home, Plus, Crosshair, Zap, BarChart3, Target, Instagram, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CreativeImage } from '@/components/ui/creative-image';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import metaIcon from '@/assets/meta-icon.png';
 import googleAdsIcon from '@/assets/google-ads-icon.png';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/layout/PageTransition';
 
+type CreativeSortKey = 'spend' | 'conversions' | 'ctr';
+
 export default function Dashboard() {
   const { t } = useTranslation();
   const { projects, loading: projectsLoading } = useProjects();
   const { selectedPreset, dateRange } = usePeriodContext();
+  const [creativeSortBy, setCreativeSortBy] = useState<CreativeSortKey>('spend');
 
   const { campaigns: metaCampaigns, ads: metaAds, loading: metaLoading, selectedProject } = useMetaAdsData();
   const { campaigns: googleCampaigns, loading: googleLoading, loadAllData } = useGoogleAdsData();
@@ -67,8 +71,6 @@ export default function Dashboard() {
   const googleConversions = googleCampaigns.reduce((s, c) => s + (c.conversions || 0), 0);
   const totalConversions = metaConversions + googleConversions;
 
-  const metaReach = metaCampaigns.reduce((s, c) => s + (c.reach || 0), 0);
-
   const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
   const cpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
   const cpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
@@ -83,15 +85,20 @@ export default function Dashboard() {
   }, [metaCampaigns]);
   const totalProfileVisits = profileVisitCampaigns.reduce((s, c) => s + (c.conversions || 0), 0);
 
-  // Top 3 creatives by spend
+  // Top 3 creatives sorted by selected metric
   const topCreatives = useMemo(() => {
     return [...metaAds]
       .filter(ad => ad.creative_image_url || ad.creative_thumbnail || ad.cached_image_url)
-      .sort((a, b) => (b.spend || 0) - (a.spend || 0))
+      .sort((a, b) => {
+        if (creativeSortBy === 'spend') return (b.spend || 0) - (a.spend || 0);
+        if (creativeSortBy === 'conversions') return (b.conversions || 0) - (a.conversions || 0);
+        if (creativeSortBy === 'ctr') return (b.ctr || 0) - (a.ctr || 0);
+        return 0;
+      })
       .slice(0, 3);
-  }, [metaAds]);
+  }, [metaAds, creativeSortBy]);
 
-  // Top campaigns combined - with conversion label logic
+  // Top campaigns combined
   const allCampaigns = useMemo(() => {
     const meta = metaCampaigns.map(c => {
       const obj = ((c as any).objective || '').toLowerCase();
@@ -113,9 +120,9 @@ export default function Dashboard() {
   const activeProjects = useMemo(() => projects.filter(p => !p.archived), [projects]);
 
   const PlatformBreakdown = ({ metaVal, googleVal, format: fmt }: { metaVal: number; googleVal: number; format: (n: number) => string }) => (
-    <div className="flex items-center gap-1.5 mt-0.5 text-[8px] sm:text-[9px] text-muted-foreground">
-      <span className="flex items-center gap-0.5"><img src={metaIcon} className="w-2.5 h-2.5" />{fmt(metaVal)}</span>
-      <span className="flex items-center gap-0.5"><img src={googleAdsIcon} className="w-2.5 h-2.5" />{fmt(googleVal)}</span>
+    <div className="flex items-center gap-2 mt-1 text-[9px] text-muted-foreground">
+      <span className="flex items-center gap-0.5"><img src={metaIcon} className="w-2.5 h-2.5" alt="Meta" />{fmt(metaVal)}</span>
+      <span className="flex items-center gap-0.5"><img src={googleAdsIcon} className="w-2.5 h-2.5" alt="Google" />{fmt(googleVal)}</span>
     </div>
   );
 
@@ -126,20 +133,20 @@ export default function Dashboard() {
           <div className="absolute top-0 right-0 w-[200px] sm:w-[400px] lg:w-[600px] h-[200px] sm:h-[400px] lg:h-[600px] bg-primary/3 rounded-full blur-[80px] sm:blur-[150px]" />
         </div>
 
-        <div className="relative z-10 p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 w-full">
+        <div className="relative z-10 p-3 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 lg:space-y-8 w-full">
           {/* Header */}
           <FadeIn>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Home className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Home className="w-4 h-4 text-primary" />
                 </div>
                 <div>
                   <h1 className="text-base sm:text-xl lg:text-2xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Home</h1>
                   <p className="text-muted-foreground text-[10px] sm:text-xs">Visão geral de todas as plataformas</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-2">
                 <CreateProjectDialog />
                 <ClientSelector />
               </div>
@@ -159,12 +166,12 @@ export default function Dashboard() {
             <StaggerContainer staggerDelay={0.04}>
               {/* Quick Stats Bar */}
               <StaggerItem>
-                <div className="flex items-center gap-2 flex-wrap text-[10px] sm:text-xs text-muted-foreground mb-1">
+                <div className="flex items-center gap-2 flex-wrap text-[10px] sm:text-xs text-muted-foreground mb-2">
                   <Badge variant="outline" className="gap-1 text-[10px] border-blue-500/30 text-blue-400">
-                    <img src={metaIcon} className="w-3 h-3" /> {activeCampaignsMeta} ativas
+                    <img src={metaIcon} className="w-3 h-3" alt="" /> {activeCampaignsMeta} ativas
                   </Badge>
                   <Badge variant="outline" className="gap-1 text-[10px] border-yellow-500/30 text-yellow-400">
-                    <img src={googleAdsIcon} className="w-3 h-3" /> {activeCampaignsGoogle} ativas
+                    <img src={googleAdsIcon} className="w-3 h-3" alt="" /> {activeCampaignsGoogle} ativas
                   </Badge>
                   {totalProfileVisits > 0 && (
                     <Badge variant="outline" className="gap-1 text-[10px] border-pink-500/30 text-pink-400">
@@ -174,74 +181,74 @@ export default function Dashboard() {
                 </div>
               </StaggerItem>
 
-              {/* Metric Cards - compact 2 rows of 4 */}
+              {/* Metric Cards - compact grid */}
               <StaggerItem>
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1.5 sm:gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
                   {/* Investimento */}
-                  <div className="glass-card p-2 sm:p-2.5 border-l-3 border-l-primary">
-                    <div className="flex items-center gap-1 mb-0.5">
+                  <div className="glass-card p-2.5 sm:p-3 border-l-2 border-l-primary">
+                    <div className="flex items-center gap-1 mb-1">
                       <DollarSign className="w-3 h-3 text-primary" />
-                      <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">Investimento</span>
+                      <span className="text-[9px] text-muted-foreground font-medium">Investimento</span>
                     </div>
                     <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(totalSpend)}</p>
                     <PlatformBreakdown metaVal={metaTotalSpend} googleVal={googleTotalSpend} format={formatCurrency} />
                   </div>
                   {/* Impressões */}
-                  <div className="glass-card p-2 sm:p-2.5">
-                    <div className="flex items-center gap-1 mb-0.5">
+                  <div className="glass-card p-2.5 sm:p-3">
+                    <div className="flex items-center gap-1 mb-1">
                       <Eye className="w-3 h-3 text-primary" />
-                      <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">Impressões</span>
+                      <span className="text-[9px] text-muted-foreground font-medium">Impressões</span>
                     </div>
                     <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalImpressions)}</p>
                     <PlatformBreakdown metaVal={metaImpressions} googleVal={googleImpressions} format={formatNumber} />
                   </div>
                   {/* Cliques */}
-                  <div className="glass-card p-2 sm:p-2.5">
-                    <div className="flex items-center gap-1 mb-0.5">
+                  <div className="glass-card p-2.5 sm:p-3">
+                    <div className="flex items-center gap-1 mb-1">
                       <MousePointerClick className="w-3 h-3 text-primary" />
-                      <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">Cliques</span>
+                      <span className="text-[9px] text-muted-foreground font-medium">Cliques</span>
                     </div>
                     <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalClicks)}</p>
                     <PlatformBreakdown metaVal={metaClicks} googleVal={googleClicks} format={formatNumber} />
                   </div>
                   {/* Conversões */}
-                  <div className="glass-card p-2 sm:p-2.5">
-                    <div className="flex items-center gap-1 mb-0.5">
+                  <div className="glass-card p-2.5 sm:p-3">
+                    <div className="flex items-center gap-1 mb-1">
                       <Users className="w-3 h-3 text-primary" />
-                      <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">Conversões</span>
+                      <span className="text-[9px] text-muted-foreground font-medium">Conversões</span>
                     </div>
                     <p className="text-xs sm:text-sm font-bold leading-tight">{formatNumber(totalConversions)}</p>
                     <PlatformBreakdown metaVal={metaConversions} googleVal={googleConversions} format={formatNumber} />
                   </div>
                   {/* CTR */}
-                  <div className="glass-card p-2 sm:p-2.5">
-                    <div className="flex items-center gap-1 mb-0.5">
+                  <div className="glass-card p-2.5 sm:p-3">
+                    <div className="flex items-center gap-1 mb-1">
                       <Crosshair className="w-3 h-3 text-primary" />
-                      <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">CTR</span>
+                      <span className="text-[9px] text-muted-foreground font-medium">CTR</span>
                     </div>
                     <p className="text-xs sm:text-sm font-bold leading-tight">{ctr.toFixed(2)}%</p>
                   </div>
                   {/* CPC */}
-                  <div className="glass-card p-2 sm:p-2.5">
-                    <div className="flex items-center gap-1 mb-0.5">
+                  <div className="glass-card p-2.5 sm:p-3">
+                    <div className="flex items-center gap-1 mb-1">
                       <Zap className="w-3 h-3 text-primary" />
-                      <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">CPC</span>
+                      <span className="text-[9px] text-muted-foreground font-medium">CPC</span>
                     </div>
                     <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(cpc)}</p>
                   </div>
                   {/* CPM */}
-                  <div className="glass-card p-2 sm:p-2.5">
-                    <div className="flex items-center gap-1 mb-0.5">
+                  <div className="glass-card p-2.5 sm:p-3">
+                    <div className="flex items-center gap-1 mb-1">
                       <BarChart3 className="w-3 h-3 text-primary" />
-                      <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">CPM</span>
+                      <span className="text-[9px] text-muted-foreground font-medium">CPM</span>
                     </div>
                     <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(cpm)}</p>
                   </div>
                   {/* CPL */}
-                  <div className="glass-card p-2 sm:p-2.5">
-                    <div className="flex items-center gap-1 mb-0.5">
+                  <div className="glass-card p-2.5 sm:p-3">
+                    <div className="flex items-center gap-1 mb-1">
                       <Target className="w-3 h-3 text-primary" />
-                      <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">CPL</span>
+                      <span className="text-[9px] text-muted-foreground font-medium">CPL</span>
                     </div>
                     <p className="text-xs sm:text-sm font-bold leading-tight">{formatCurrency(cpl)}</p>
                   </div>
@@ -252,12 +259,19 @@ export default function Dashboard() {
               {topCreatives.length > 0 && (
                 <StaggerItem>
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                       <div className="w-1 h-4 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
                       <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top 3 Criativos</h2>
-                      <Link to="/creatives" className="ml-auto text-[10px] sm:text-xs text-primary hover:underline">Ver todos →</Link>
+                      <Tabs value={creativeSortBy} onValueChange={(v) => setCreativeSortBy(v as CreativeSortKey)} className="ml-auto">
+                        <TabsList className="h-6 p-0.5">
+                          <TabsTrigger value="spend" className="text-[9px] h-5 px-2">Gasto</TabsTrigger>
+                          <TabsTrigger value="conversions" className="text-[9px] h-5 px-2">Conv.</TabsTrigger>
+                          <TabsTrigger value="ctr" className="text-[9px] h-5 px-2">CTR</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                      <Link to="/creatives" className="text-[10px] sm:text-xs text-primary hover:underline">Ver todos →</Link>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {topCreatives.map((ad, idx) => (
                         <Link key={ad.id} to={`/creative/${ad.id}`} className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all group">
                           <div className="aspect-square relative bg-muted">
@@ -274,7 +288,7 @@ export default function Dashboard() {
                               #{idx + 1}
                             </div>
                           </div>
-                          <div className="p-2 sm:p-2.5">
+                          <div className="p-2.5">
                             <p className="text-[10px] sm:text-xs font-medium truncate mb-1">{ad.name}</p>
                             <div className="flex items-center justify-between text-[9px] sm:text-[10px] text-muted-foreground">
                               <span>{formatCurrency(ad.spend || 0)}</span>
@@ -293,17 +307,17 @@ export default function Dashboard() {
               {allCampaigns.length > 0 && (
                 <StaggerItem>
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                       <div className="w-1 h-4 bg-gradient-to-b from-emerald-500 to-emerald-500/50 rounded-full" />
                       <h2 className="text-xs sm:text-sm font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top 5 Campanhas</h2>
                     </div>
                     <div className="glass-card overflow-hidden">
                       <div className="divide-y divide-border/50">
                         {allCampaigns.map((c) => {
-                          const convLabel = c.isProfileVisit ? 'visitas' : 'conv.';
+                          const convLabel = c.isProfileVisit ? 'visitas ao perfil' : 'conv.';
                           return (
-                            <div key={c.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 hover:bg-secondary/30 transition-colors">
-                              <img src={c.platform === 'meta' ? metaIcon : googleAdsIcon} className="w-4 h-4 flex-shrink-0" />
+                            <div key={c.id} className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 hover:bg-secondary/30 transition-colors">
+                              <img src={c.platform === 'meta' ? metaIcon : googleAdsIcon} className="w-4 h-4 flex-shrink-0" alt="" />
                               <div className="flex-1 min-w-0">
                                 <p className="text-[10px] sm:text-xs font-medium truncate">{c.name}</p>
                                 <div className="flex items-center gap-1.5 mt-0.5">
