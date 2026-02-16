@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { projectId } = await req.json();
+    const { projectId, adId } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -31,11 +31,11 @@ serve(async (req) => {
       throw new Error(`Project not found: ${projectError?.message}`);
     }
 
-    // Buscar todos os ads do projeto
-    const { data: ads, error: adsError } = await supabase
-      .from('ads')
-      .select('id, name')
-      .eq('project_id', projectId);
+    // Buscar ads - single or all
+    let adsQuery = supabase.from('ads').select('id, name').eq('project_id', projectId);
+    if (adId) adsQuery = adsQuery.eq('id', adId);
+    
+    const { data: ads, error: adsError } = await adsQuery;
 
     if (adsError) {
       throw new Error(`Error fetching ads: ${adsError.message}`);
