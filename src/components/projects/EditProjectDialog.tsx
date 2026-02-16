@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectLogoUpload } from './ProjectLogoUpload';
+import { toast } from 'sonner';
 
 interface Investidor {
   user_id: string;
@@ -222,6 +223,9 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
     }
 
     setIsLoading(true);
+    const previousGoogleId = project.google_customer_id || '';
+    const newGoogleId = formData.google_customer_id || '';
+    
     try {
       await updateProject(project.id, formData);
       
@@ -245,6 +249,24 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
         } else {
           await createConfig(project.id, configData);
         }
+      }
+
+      // Auto-trigger Google Ads sync if customer ID was added/changed
+      if (newGoogleId && newGoogleId !== previousGoogleId) {
+        toast.info('Iniciando importação do Google Ads...');
+        supabase.functions.invoke('google-ads-sync', {
+          body: {
+            projectId: project.id,
+            syncType: 'full',
+            days: 90,
+          },
+        }).then(({ data, error }) => {
+          if (error || !data?.success) {
+            toast.error(`Erro na importação Google Ads: ${error?.message || data?.error || 'Erro desconhecido'}`);
+          } else {
+            toast.success(`Google Ads importado! ${data.recordsCount || 0} registros.`);
+          }
+        });
       }
       
       onOpenChange(false);
