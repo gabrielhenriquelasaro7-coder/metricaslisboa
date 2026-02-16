@@ -297,29 +297,16 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="edit-google_customer_id" className="text-muted-foreground">
-                  ID do cliente Google Ads
-                </Label>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Lock className="w-4 h-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Em breve</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+              <Label htmlFor="edit-google_customer_id">
+                ID do cliente Google Ads
+              </Label>
               <Input
                 id="edit-google_customer_id"
                 placeholder="123-456-7890"
                 value={formData.google_customer_id || ''}
-                disabled
-                className="opacity-50 cursor-not-allowed"
+                onChange={(e) => setFormData({ ...formData, google_customer_id: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">Integração com Google Ads em breve</p>
+              <p className="text-xs text-muted-foreground">Encontre na URL do Google Ads (parâmetro ocid) ou em Configurações → Conta</p>
             </div>
 
             {/* Investidor e Squad */}

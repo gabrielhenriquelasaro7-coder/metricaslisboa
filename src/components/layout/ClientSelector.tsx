@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProjects } from '@/hooks/useProjects';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Search, Check, Settings } from 'lucide-react';
+import { ChevronDown, Search, Check, Settings, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
+import EditProjectDialog from '@/components/projects/EditProjectDialog';
 
 interface ClientSelectorProps {
   onSelect?: () => void;
@@ -22,6 +23,7 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [editProject, setEditProject] = useState<any>(null);
 
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = useMemo(() => {
@@ -49,13 +51,13 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
   };
 
   return (
+    <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button className={cn(
           "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/50 bg-card/50",
           "hover:bg-card hover:border-border transition-all duration-200 group max-w-[180px]"
         )}>
-          {/* Project avatar */}
           <div className="w-6 h-6 rounded-md bg-secondary border border-border flex items-center justify-center overflow-hidden flex-shrink-0">
             {selectedProject?.avatar_url ? (
               <img src={selectedProject.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -75,7 +77,6 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-0 bg-popover border-border z-[60]">
-        {/* Search */}
         <div className="p-2.5 border-b border-border">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -88,8 +89,6 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
             />
           </div>
         </div>
-
-        {/* Project list */}
         <div className="max-h-[280px] overflow-y-auto py-1">
           {filteredProjects.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-4">
@@ -97,33 +96,46 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
             </p>
           ) : (
             filteredProjects.map((project) => (
-              <button
+              <div
                 key={project.id}
-                onClick={() => handleSelect(project.id)}
                 className={cn(
-                  'w-full flex items-center gap-2.5 px-2.5 py-2 text-left transition-colors hover:bg-secondary/60',
+                  'w-full flex items-center gap-2.5 px-2.5 py-2 transition-colors hover:bg-secondary/60',
                   project.id === selectedProjectId && 'bg-primary/8'
                 )}
               >
-                <div className="w-7 h-7 rounded-md bg-secondary border border-border flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {project.avatar_url ? (
-                    <img src={project.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-[10px] font-bold text-foreground">
-                      {project.name.charAt(0).toUpperCase()}
-                    </span>
+                <button
+                  onClick={() => handleSelect(project.id)}
+                  className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
+                >
+                  <div className="w-7 h-7 rounded-md bg-secondary border border-border flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {project.avatar_url ? (
+                      <img src={project.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[10px] font-bold text-foreground">
+                        {project.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs font-medium text-foreground truncate flex-1">{project.name}</span>
+                  {project.id === selectedProjectId && (
+                    <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                   )}
-                </div>
-                <span className="text-xs font-medium text-foreground truncate flex-1">{project.name}</span>
-                {project.id === selectedProjectId && (
-                  <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                )}
-              </button>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditProject(project);
+                    setOpen(false);
+                  }}
+                  className="p-1 rounded hover:bg-secondary transition-colors flex-shrink-0"
+                  title="Configurar projeto"
+                >
+                  <Pencil className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                </button>
+              </div>
             ))
           )}
         </div>
-
-        {/* Manage */}
         <div className="border-t border-border">
           {selectedProjectId && (
             <div className="px-2.5 py-1.5 border-b border-border">
@@ -140,5 +152,12 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
         </div>
       </PopoverContent>
     </Popover>
+
+    <EditProjectDialog
+      project={editProject}
+      open={!!editProject}
+      onOpenChange={(open) => { if (!open) setEditProject(null); }}
+    />
+    </>
   );
 }
