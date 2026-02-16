@@ -242,11 +242,11 @@ export function AccountBalanceCard({
     "relative overflow-hidden transition-all",
     isZeroBalance && "border-2 border-destructive bg-destructive/5 shadow-[0_0_20px_rgba(239,68,68,0.3)]"
   )}>
-      <CardContent className="pt-4 pb-4 px-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <CardContent className="pt-3 pb-3 px-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className={cn(
-              "p-2.5 rounded-full",
+              "p-2 rounded-full",
               isZeroBalance && "bg-destructive/30 animate-pulse",
               !isZeroBalance && data?.status === 'critical' && "bg-destructive/20",
               !isZeroBalance && data?.status === 'warning' && "bg-metric-warning/20",
@@ -254,16 +254,16 @@ export function AccountBalanceCard({
               (!data || (!isZeroBalance && data.status === 'unknown')) && "bg-muted"
             )}>
               <Wallet className={cn(
-                "w-5 h-5",
+                "w-4 h-4",
                 isZeroBalance ? "text-destructive" : data ? getStatusColor(data.status) : "text-muted-foreground"
               )} />
             </div>
             <div>
-              <p className={cn("text-xs font-medium", isZeroBalance ? "text-destructive" : "text-muted-foreground")}>
+              <p className={cn("text-[10px] font-medium", isZeroBalance ? "text-destructive" : "text-muted-foreground")}>
                 {isZeroBalance ? "⚠️ Saldo Meta Ads" : "Saldo Meta Ads"}
               </p>
-              {loading ? <div className="h-7 w-24 bg-muted/50 animate-pulse rounded" /> : <p className={cn(
-                "text-xl font-bold",
+              {loading ? <div className="h-5 w-20 bg-muted/50 animate-pulse rounded" /> : <p className={cn(
+                "text-base font-bold",
                 isZeroBalance ? "text-destructive animate-pulse" : data ? getStatusColor(data.status) : "text-foreground"
               )}>
                   {data ? formatCurrency(data.balance) : '—'}
@@ -295,7 +295,7 @@ export function AccountBalanceCard({
                 Recarga automática
               </Badge>}
             
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => fetchBalance(true)} disabled={loading}>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => fetchBalance(true)} disabled={loading}>
               <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
             </Button>
           </div>
