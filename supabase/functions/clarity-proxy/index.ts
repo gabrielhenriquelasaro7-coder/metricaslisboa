@@ -25,7 +25,13 @@ async function fetchClarityData(token: string, numOfDays: number, dimensions: Re
   if (!response.ok) {
     const errorText = await response.text();
     console.error("Clarity API error:", response.status, errorText);
-    return null;
+    if (response.status === 429) {
+      return { _error: "rate_limit", message: "Limite diário de chamadas excedido (10/dia por projeto). Tente novamente amanhã." };
+    }
+    if (response.status === 401 || response.status === 403) {
+      return { _error: "auth", message: "Token de autenticação inválido ou expirado. Verifique o token nas configurações." };
+    }
+    return { _error: "unknown", message: `Erro ${response.status}: ${errorText}` };
   }
 
   return await response.json();
@@ -87,6 +93,16 @@ serve(async (req) => {
       // Call 5: URL + Device (engagement per page per device)
       fetchClarityData(token, days, { dimension1: "URL", dimension2: "Device" }),
     ]);
+
+    // Check for errors in any result
+    const results = [byDevice, bySource, byChannel, byUtm, byEngagement];
+    const firstError = results.find(r => r && r._error);
+    if (firstError) {
+      return new Response(JSON.stringify({ error: firstError.message, errorType: firstError._error }), {
+        status: firstError._error === 'rate_limit' ? 429 : firstError._error === 'auth' ? 401 : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     return new Response(JSON.stringify({ byDevice, bySource, byChannel, byUtm, byEngagement }), {
       status: 200,

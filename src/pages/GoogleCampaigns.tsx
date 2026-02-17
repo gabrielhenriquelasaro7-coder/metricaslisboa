@@ -52,6 +52,32 @@ const formatMatchType = (type: string | null) => {
   return ({ EXACT: 'Exata', PHRASE: 'Frase', BROAD: 'Ampla' } as Record<string, string>)[type] || type;
 };
 
+const formatAdType = (type: string | null) => {
+  if (!type) return 'Anúncio';
+  const types: Record<string, string> = {
+    RESPONSIVE_SEARCH_AD: 'Pesquisa Responsiva',
+    RESPONSIVE_DISPLAY_AD: 'Display Responsivo',
+    EXPANDED_TEXT_AD: 'Texto Expandido',
+    CALL_AD: 'Anúncio de Chamada',
+    EXPANDED_DYNAMIC_SEARCH_AD: 'Pesquisa Dinâmica',
+    HOTEL_AD: 'Hotel',
+    SHOPPING_PRODUCT_AD: 'Produto Shopping',
+    SHOPPING_SMART_AD: 'Shopping Inteligente',
+    VIDEO_AD: 'Vídeo',
+    APP_AD: 'App',
+    APP_ENGAGEMENT_AD: 'Engajamento App',
+    LEGACY_RESPONSIVE_DISPLAY_AD: 'Display (Legado)',
+    IMAGE_AD: 'Imagem',
+    VIDEO_RESPONSIVE_AD: 'Vídeo Responsivo',
+    DEMAND_GEN_MULTI_ASSET_AD: 'Demand Gen',
+    DEMAND_GEN_CAROUSEL_AD: 'Carrossel Demand Gen',
+    DEMAND_GEN_VIDEO_RESPONSIVE_AD: 'Vídeo Demand Gen',
+    DEMAND_GEN_PRODUCT_AD: 'Produto Demand Gen',
+    PERFORMANCE_MAX_AD: 'PMax',
+  };
+  return types[type] || type;
+};
+
 const formatAgeRange = (val: string) => ({
   AGE_RANGE_18_24: '18-24', AGE_RANGE_25_34: '25-34', AGE_RANGE_35_44: '35-44',
   AGE_RANGE_45_54: '45-54', AGE_RANGE_55_64: '55-64', AGE_RANGE_65_UP: '65+', AGE_RANGE_UNDETERMINED: 'N/D',
@@ -362,8 +388,8 @@ export default function GoogleCampaigns() {
             </div>
           </div>
 
-          <SmoothLoader loading={isPageLoading} skeleton={<DashboardSkeleton />}>
-            {!selectedProject?.google_customer_id && !loading ? (
+          <SmoothLoader loading={isPageLoading || (!selectedProject?.google_customer_id && loading)} skeleton={<DashboardSkeleton />}>
+            {!selectedProject?.google_customer_id && !loading && !projectsLoading ? (
               <div className="glass-card p-6 sm:p-8 lg:p-12 text-center">
                 <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Configure o Google Ads</h3>
@@ -805,7 +831,7 @@ function AdGroupRow({ adGroup: ag, isExpanded, ads, onToggle, formatCurrency, fo
                         {ad.status === 'ENABLED' ? 'Ativo' : 'Pausado'}
                       </Badge>
                       <span className="text-xs font-medium truncate">{ad.name}</span>
-                      {ad.ad_type && <span className="text-[9px] text-muted-foreground flex-shrink-0">{ad.ad_type}</span>}
+                      {ad.ad_type && <Badge variant="outline" className="text-[9px] flex-shrink-0">{formatAdType(ad.ad_type)}</Badge>}
                     </div>
                     <div className="grid grid-cols-4 gap-3 text-center flex-shrink-0">
                       <div><p className="text-[9px] text-muted-foreground">Gasto</p><p className="text-xs font-semibold">{formatCurrency(ad.spend)}</p></div>
@@ -814,22 +840,27 @@ function AdGroupRow({ adGroup: ag, isExpanded, ads, onToggle, formatCurrency, fo
                       <div><p className="text-[9px] text-muted-foreground">Conv</p><p className="text-xs font-medium">{formatNumber(ad.conversions)}</p></div>
                     </div>
                   </div>
+                  {/* Headlines as ad preview */}
                   {ad.headlines?.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {ad.headlines.map((h: string, i: number) => (
-                        <span key={i} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">{h}</span>
-                      ))}
+                    <div className="bg-secondary/30 rounded-lg p-2.5 space-y-1.5">
+                      <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Títulos do Anúncio</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {ad.headlines.map((h: string, i: number) => (
+                          <span key={i} className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-md font-medium">{h}</span>
+                        ))}
+                      </div>
                     </div>
                   )}
                   {ad.descriptions?.length > 0 && (
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
+                      <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Descrições</p>
                       {ad.descriptions.slice(0, 2).map((d: string, i: number) => (
-                        <p key={i} className="text-[10px] text-muted-foreground">{d}</p>
+                        <p key={i} className="text-[10px] text-muted-foreground leading-relaxed">{d}</p>
                       ))}
                     </div>
                   )}
                   {ad.final_urls?.length > 0 && (
-                    <a href={ad.final_urls[0]} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 truncate">
+                    <a href={ad.final_urls[0]} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 truncate bg-primary/5 rounded px-2 py-1">
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
                       <span className="truncate">{ad.final_urls[0]}</span>
                     </a>

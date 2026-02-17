@@ -491,12 +491,13 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
       doc.text(title, m, 12);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(fmtDateRange(activePeriod.since, activePeriod.until), m, 20);
+      const sourceLabel = source === 'meta' ? 'Meta Ads' : source === 'google' ? 'Google Ads' : 'Meta Ads + Google Ads';
+      doc.text(`${fmtDateRange(activePeriod.since, activePeriod.until)}  |  ${sourceLabel}`, m, 20);
       
       let y = 35;
       doc.setTextColor(100, 100, 100);
       doc.setFontSize(9);
-      doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`, m, y);
+      doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'as' HH:mm")}`, m, y);
       y += 10;
       
       // Summary
