@@ -91,21 +91,21 @@ function AdminContent() {
   const selectedProject = activeProjects.find(p => p.id === selectedProjectId);
 
   // Definir tabs visíveis baseado no cargo
-  // TECH: sync, import, logs, docs, requests (operacional + solicitações)
-  // GERENTE: users, guests, squads (SOMENTE gestão de pessoas - NÃO vê operacional)
-  // MASTER (admin via useAdminAuth): vê TUDO
+  // TECH: vê TUDO
+  // GERENTE: users, guests, squads (gestão de pessoas)
+  // Outros que passaram a senha: veem tudo (são admin autenticados)
   const techTabs = ['sync', 'import', 'logs', 'docs', 'requests'];
   const gerenteTabs = ['users', 'guests', 'squads'];
   const allTabs = [...techTabs, ...gerenteTabs];
   
   const visibleTabs = isTech 
-    ? allTabs // Tech vê tudo (é master)
+    ? allTabs // Tech vê tudo
     : isGerente 
       ? gerenteTabs // Gerente SOMENTE gestão de pessoas
-      : []; // Outros não veem nada (não deveriam chegar aqui)
+      : allTabs; // Quem passou a senha vê tudo (master admin)
 
   // Determinar tab padrão
-  const defaultTab = isTech ? 'sync' : isGerente ? 'users' : 'users';
+  const defaultTab = isTech ? 'sync' : isGerente ? 'users' : 'sync';
 
   // Cron jobs configuration
   const cronJobs: CronJob[] = [

@@ -302,7 +302,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => needsAdminApproval ? setAdminAccessModalOpen(true) : handleNavClick(selectedProject ? `/project/${selectedProject.id}/admin` : '/admin')}
+                      onClick={() => needsAdminApproval ? setAdminAccessModalOpen(true) : handleNavClick('/admin')}
                       className={cn('sidebar-icon-btn', (isActive('/admin') || location.pathname.includes('/admin')) && 'active')}
                     >
                       <Shield className="w-5 h-5" />

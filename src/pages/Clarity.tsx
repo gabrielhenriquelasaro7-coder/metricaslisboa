@@ -107,10 +107,22 @@ export default function Clarity() {
         body: { clarityProjectId: cp.id, numOfDays: days },
       });
       if (error) throw error;
+      // Check for API-level errors returned from the edge function
+      if (data?.error) {
+        if (data.errorType === 'rate_limit') {
+          toast.error('Limite diário excedido (10 chamadas/dia). Tente amanhã.');
+        } else if (data.errorType === 'auth') {
+          toast.error('Token inválido ou expirado. Verifique nas configurações do Clarity.');
+        } else {
+          toast.error(data.error);
+        }
+        setClarityData(null);
+        return;
+      }
       setClarityData(data as ClarityFullData);
     } catch (err: any) {
       console.error('Clarity fetch error:', err);
-      toast.error('Erro ao buscar dados do Clarity');
+      toast.error('Erro ao buscar dados do Clarity. Verifique a conexão.');
       setClarityData(null);
     } finally {
       setLoadingData(false);

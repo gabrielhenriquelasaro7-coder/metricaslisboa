@@ -42,6 +42,8 @@ export default function WhatsApp() {
   const { user, loading: authLoading } = useAuth();
   const { projects, loading: projectsLoading } = useProjects();
 
+  // WhatsApp works at user level, not project level
+  // Use selectedProject only for instances (connection scope), show ALL projects for reports
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
 
