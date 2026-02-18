@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Plus, Loader2, ExternalLink, Trash2, Eye, BarChart3 } from 'lucide-react';
 import clarityIcon from '@/assets/clarity-icon.png';
@@ -30,6 +31,7 @@ interface ClarityFullData {
 }
 
 export default function Clarity() {
+  // Clarity is ACCOUNT-LEVEL: show ALL user projects, not just selected one
   const { projects } = useProjects();
   const [clarityProjects, setClarityProjects] = useState<ClarityProject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,7 @@ export default function Clarity() {
   const [clarityId, setClarityId] = useState('');
   const [clarityLabel, setClarityLabel] = useState('');
   const [clarityToken, setClarityToken] = useState('');
+  const [selectedAddProjectId, setSelectedAddProjectId] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [dataModalOpen, setDataModalOpen] = useState(false);
   const [selectedClarityProject, setSelectedClarityProject] = useState<ClarityProject | null>(null);
@@ -44,34 +47,44 @@ export default function Clarity() {
   const [loadingData, setLoadingData] = useState(false);
   const [numOfDays, setNumOfDays] = useState(3);
 
+  // Use selected project as default for add dialog, but show ALL projects' clarity configs
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = useMemo(() => {
-    if (!selectedProjectId) return null;
-    return projects.find(p => p.id === selectedProjectId) || null;
+    if (!selectedProjectId) return projects[0] || null;
+    return projects.find(p => p.id === selectedProjectId) || projects[0] || null;
   }, [projects, selectedProjectId]);
 
+  // When dialog opens, default to selected project
+  useEffect(() => {
+    if (addDialogOpen && selectedProject) {
+      setSelectedAddProjectId(selectedProject.id);
+    }
+  }, [addDialogOpen, selectedProject]);
+
+  // Fetch ALL clarity projects for ALL user projects (account-level)
   const fetchClarityProjects = useCallback(async () => {
-    if (!selectedProject?.id) { setLoading(false); return; }
+    if (!projects.length) { setLoading(false); return; }
     setLoading(true);
+    const projectIds = projects.map(p => p.id);
     const { data, error } = await supabase
       .from('clarity_projects')
       .select('id, project_id, clarity_project_id, label, created_at')
-      .eq('project_id', selectedProject.id);
+      .in('project_id', projectIds);
     if (!error && data) setClarityProjects(data);
     setLoading(false);
-  }, [selectedProject?.id]);
+  }, [projects]);
 
   useEffect(() => { fetchClarityProjects(); }, [fetchClarityProjects]);
 
   const handleAddClarity = async () => {
-    if (!clarityId || !clarityLabel || !clarityToken || !selectedProject) {
+    if (!clarityId || !clarityLabel || !clarityToken || !selectedAddProjectId) {
       toast.error('Preencha todos os campos');
       return;
     }
     setSaving(true);
     try {
       const { error } = await supabase.from('clarity_projects').insert({
-        project_id: selectedProject.id,
+        project_id: selectedAddProjectId,
         clarity_project_id: clarityId,
         label: clarityLabel,
         api_token: clarityToken,
@@ -107,7 +120,6 @@ export default function Clarity() {
         body: { clarityProjectId: cp.id, numOfDays: days },
       });
       if (error) throw error;
-      // Check for API-level errors returned from the edge function
       if (data?.error) {
         if (data.errorType === 'rate_limit') {
           toast.error('Limite diário excedido (10 chamadas/dia). Tente amanhã.');
@@ -140,6 +152,11 @@ export default function Clarity() {
     }
   };
 
+  // Get project name for a clarity project
+  const getProjectName = (projectId: string) => {
+    return projects.find(p => p.id === projectId)?.name || 'Projeto';
+  };
+
   return (
     <DashboardLayout>
       <div className="relative min-h-screen overflow-x-hidden w-full max-w-full">
@@ -157,11 +174,11 @@ export default function Clarity() {
                         Microsoft Clarity
                       </h1>
                       <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
-                        Análise completa de comportamento nas Landing Pages
+                        Análise completa de comportamento nas Landing Pages · Todos os projetos
                       </p>
                     </div>
                   </div>
-                  <Button onClick={() => setAddDialogOpen(true)} className="gap-2" disabled={!selectedProject}>
+                  <Button onClick={() => setAddDialogOpen(true)} className="gap-2" disabled={!projects.length}>
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Conectar Projeto</span>
                   </Button>
@@ -170,7 +187,7 @@ export default function Clarity() {
                 <div className="grid grid-cols-2 gap-3 mt-6">
                   <div className="bg-background/60 backdrop-blur-sm rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold">{clarityProjects.length}</p>
-                    <p className="text-[10px] text-muted-foreground">Projetos Conectados</p>
+                    <p className="text-[10px] text-muted-foreground">LPs Conectadas</p>
                   </div>
                   <div className="bg-background/60 backdrop-blur-sm rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold text-primary">10</p>
@@ -185,18 +202,18 @@ export default function Clarity() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : !selectedProject ? (
+          ) : !projects.length ? (
             <div className="glass-card p-8 text-center">
               <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <h3 className="text-lg font-semibold mb-1">Selecione um projeto</h3>
-              <p className="text-muted-foreground text-sm">Escolha um projeto no menu lateral para gerenciar as conexões Clarity.</p>
+              <h3 className="text-lg font-semibold mb-1">Nenhum projeto encontrado</h3>
+              <p className="text-muted-foreground text-sm">Crie um projeto para conectar o Clarity.</p>
             </div>
           ) : clarityProjects.length === 0 ? (
             <div className="glass-card p-8 text-center">
               <img src={clarityIcon} alt="Clarity" className="w-16 h-16 mx-auto mb-4 opacity-30" />
               <h3 className="text-lg font-semibold mb-1">Nenhum projeto Clarity conectado</h3>
               <p className="text-muted-foreground text-sm mb-4">
-                Conecte o Microsoft Clarity para analisar mapas de calor e comportamento dos usuários.
+                Conecte o Microsoft Clarity para analisar mapas de calor e comportamento dos usuários em qualquer projeto.
               </p>
               <Button onClick={() => setAddDialogOpen(true)} className="gap-2">
                 <Plus className="w-4 h-4" /> Conectar Clarity
@@ -208,7 +225,7 @@ export default function Clarity() {
                 <StaggerItem key={cp.id}>
                   <div className="glass-card overflow-hidden hover:ring-2 hover:ring-primary/30 transition-all">
                     <div className="p-4">
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <img src={clarityIcon} alt="" className="w-5 h-5 object-contain" />
                           <h3 className="font-semibold text-sm">{cp.label}</h3>
@@ -217,6 +234,7 @@ export default function Clarity() {
                           Conectado
                         </Badge>
                       </div>
+                      <p className="text-[10px] text-muted-foreground mb-3 pl-7">{getProjectName(cp.project_id)}</p>
                       <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => handleViewData(cp)}>
                           <Eye className="w-3 h-3" /> Ver Dados
@@ -255,6 +273,19 @@ export default function Clarity() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Projeto</Label>
+              <Select value={selectedAddProjectId} onValueChange={setSelectedAddProjectId}>
+                <SelectTrigger className="bg-muted/30">
+                  <SelectValue placeholder="Selecione o projeto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Nome da Landing Page</Label>
               <Input value={clarityLabel} onChange={e => setClarityLabel(e.target.value)} placeholder="Ex: LP Institucional" className="bg-muted/30" />

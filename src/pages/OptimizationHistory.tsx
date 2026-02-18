@@ -617,10 +617,14 @@ export default function OptimizationHistory() {
               <span className="hidden sm:inline">Histórico de Otimizações</span>
               <span className="sm:hidden">Histórico</span>
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              <span className="hidden sm:inline">Acompanhe todas as mudanças realizadas nas suas campanhas, conjuntos e anúncios</span>
-              <span className="sm:hidden">Mudanças em campanhas e anúncios</span>
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge className="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 border-blue-500/30 border">
+                Meta Ads
+              </Badge>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Mudanças detectadas automaticamente nas campanhas Meta
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button 
