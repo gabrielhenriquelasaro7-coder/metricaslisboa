@@ -156,7 +156,7 @@ export default function CreativeDetail() {
           <div className="space-y-6">
             <div className="glass-card p-6">
               <h2 className="text-lg font-semibold mb-4">Preview do Criativo</h2>
-              <div className="relative aspect-square max-w-[500px] mx-auto rounded-xl overflow-hidden bg-secondary/30 border border-border">
+              <div className="relative max-w-[500px] mx-auto rounded-xl overflow-hidden bg-secondary/30 border border-border flex items-center justify-center min-h-[200px]">
                 {/* Loading skeleton */}
                 {!imageLoaded && !imageError && imageUrl && (
                   <div className="absolute inset-0 bg-secondary/50 animate-pulse flex items-center justify-center">
@@ -170,7 +170,7 @@ export default function CreativeDetail() {
                       src={imageUrl}
                       alt={creative.name}
                       className={cn(
-                        "w-full h-full object-contain transition-opacity duration-300",
+                        "w-full h-auto object-contain transition-opacity duration-300",
                         imageLoaded ? "opacity-100" : "opacity-0"
                       )}
                       loading="lazy"
