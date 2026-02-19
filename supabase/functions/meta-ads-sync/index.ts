@@ -380,7 +380,8 @@ async function syncCreatives(
     
     // QUERY HD - thumbnail_url com parâmetros de resolução + object_story_spec para fallbacks
     // NOTA: "picture" e "image_url" NÃO existem no nível AdCreative - usar object_story_spec
-    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,body,title,call_to_action_type,thumbnail_url,object_story_spec,asset_feed_spec,effective_object_story_id}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    // Inclui description/caption dos anúncios
+    const adsUrl = `https://graph.facebook.com/v22.0/?ids=${batchIds}&fields=id,creative{id,body,title,call_to_action_type,thumbnail_url,object_story_spec,asset_feed_spec,effective_object_story_id,url_tags,link_url}&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
     console.log(`[CREATIVE-SYNC] Batch ${batchNumber}: thumbnail_url + object_story_spec (HD 1080x1080)`);
     const adsData = await simpleFetch(adsUrl, undefined, 20000);
     

@@ -15,6 +15,7 @@ import googleAdsIcon from '@/assets/google-ads-icon.png';
 import metaIcon from '@/assets/meta-icon.png';
 import ga4Icon from '@/assets/ga4-icon.png';
 import clarityIcon from '@/assets/clarity-icon.png';
+import instagramIcon from '@/assets/instagram-icon.png';
 import {
   Home,
   ImageIcon,
@@ -161,6 +162,21 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                 </TooltipTrigger>
                 <TooltipContent side="right" className="bg-popover border-border z-[60]">
                   <p>Google Analytics</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Instagram */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleNavClick('/instagram')}
+                    className={cn('sidebar-icon-btn', isActive('/instagram') && 'active')}
+                  >
+                    <img src={instagramIcon} alt="Instagram" className="w-5 h-5 object-contain" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                  <p>Instagram</p>
                 </TooltipContent>
               </Tooltip>
 

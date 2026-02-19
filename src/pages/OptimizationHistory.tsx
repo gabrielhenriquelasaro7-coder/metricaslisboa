@@ -30,6 +30,8 @@ import {
   Type,
   Pencil
 } from 'lucide-react';
+import metaIcon from '@/assets/meta-icon.png';
+import googleAdsIcon from '@/assets/google-ads-icon.png';
 import { useOptimizationHistory, OptimizationRecord } from '@/hooks/useOptimizationHistory';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { cn } from '@/lib/utils';
@@ -449,6 +451,7 @@ export default function OptimizationHistory() {
   const [search, setSearch] = useState('');
   const [entityFilter, setEntityFilter] = useState<string>('all');
   const [changeTypeFilter, setChangeTypeFilter] = useState<string>('all');
+  const [platformFilter, setPlatformFilter] = useState<string>('all');
 
   // All useMemo hooks MUST be called before any conditional returns
   const filteredHistory = useMemo(() => {
@@ -459,10 +462,11 @@ export default function OptimizationHistory() {
       
       const matchesEntity = entityFilter === 'all' || record.entity_type === entityFilter;
       const matchesChangeType = changeTypeFilter === 'all' || record.change_type === changeTypeFilter;
+      const matchesPlatform = platformFilter === 'all' || record.platform === platformFilter;
       
-      return matchesSearch && matchesEntity && matchesChangeType;
+      return matchesSearch && matchesEntity && matchesChangeType && matchesPlatform;
     });
-  }, [history, search, entityFilter, changeTypeFilter]);
+  }, [history, search, entityFilter, changeTypeFilter, platformFilter]);
 
   const groupedByDate = useMemo(() => {
     const groups: Record<string, OptimizationRecord[]> = {};
@@ -617,12 +621,17 @@ export default function OptimizationHistory() {
               <span className="hidden sm:inline">Histórico de Otimizações</span>
               <span className="sm:hidden">Histórico</span>
             </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge className="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 border-blue-500/30 border">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <Badge className="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 border-blue-500/30 border flex items-center gap-1">
+                <img src={metaIcon} alt="Meta" className="w-3 h-3" />
                 Meta Ads
               </Badge>
+              <Badge className="text-[10px] px-2 py-0.5 bg-green-500/10 text-green-400 border-green-500/30 border flex items-center gap-1">
+                <img src={googleAdsIcon} alt="Google" className="w-3 h-3" />
+                Google Ads
+              </Badge>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Mudanças detectadas automaticamente nas campanhas Meta
+                Mudanças detectadas automaticamente
               </p>
             </div>
           </div>
@@ -700,6 +709,28 @@ export default function OptimizationHistory() {
               className="pl-9 sm:pl-10 h-9 sm:h-10 text-sm"
             />
           </div>
+          
+          {/* Platform filter */}
+          <Select value={platformFilter} onValueChange={setPlatformFilter}>
+            <SelectTrigger className="w-full sm:w-[150px] h-9 sm:h-10 text-sm">
+              <SelectValue placeholder="Plataforma" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover">
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="meta">
+                <span className="flex items-center gap-2">
+                  <img src={metaIcon} alt="Meta" className="w-3.5 h-3.5" />
+                  Meta Ads
+                </span>
+              </SelectItem>
+              <SelectItem value="google">
+                <span className="flex items-center gap-2">
+                  <img src={googleAdsIcon} alt="Google" className="w-3.5 h-3.5" />
+                  Google Ads
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
           
           <Select value={changeTypeFilter} onValueChange={setChangeTypeFilter}>
             <SelectTrigger className="w-full sm:w-[180px] h-9 sm:h-10 text-sm">
@@ -810,12 +841,23 @@ export default function OptimizationHistory() {
                                 <p className="text-xs sm:text-sm text-foreground leading-relaxed">
                                   {description}
                                 </p>
-                                {record.changed_by && (
-                                  <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                                    <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                                    {record.changed_by}
+                                <div className="flex items-center gap-2 mt-1">
+                                  {/* Platform badge */}
+                                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                    <img 
+                                      src={record.platform === 'google' ? googleAdsIcon : metaIcon} 
+                                      alt={record.platform === 'google' ? 'Google' : 'Meta'} 
+                                      className="w-3 h-3" 
+                                    />
+                                    {record.platform === 'google' ? 'Google Ads' : 'Meta Ads'}
                                   </span>
-                                )}
+                                  {record.changed_by && (
+                                    <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
+                                      <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                                      {record.changed_by}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>

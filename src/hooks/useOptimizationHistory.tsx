@@ -15,7 +15,7 @@ export interface OptimizationRecord {
   detected_at: string;
   created_at: string;
   changed_by: string | null;
-  platform: 'meta'; // optimization_history is always Meta Ads
+  platform: 'meta' | 'google';
 }
 
 export function useOptimizationHistory(projectId: string | null) {
@@ -30,40 +30,77 @@ export function useOptimizationHistory(projectId: string | null) {
     setError(null);
     
     try {
-      // Fetch with a focused set of fields - exclude redundant creative sub-fields
-      // when multiple fields changed at same time for same entity, prioritize meaningful ones
-      const { data, error: fetchError } = await supabase
+      // Fetch Meta Ads optimization history
+      const { data: metaData, error: metaError } = await supabase
         .from('optimization_history')
         .select('*')
         .eq('project_id', projectId)
         .order('detected_at', { ascending: false })
-        .limit(1000);
+        .limit(500);
       
-      if (fetchError) throw fetchError;
+      if (metaError) throw metaError;
 
-      // Deduplicate: for ad entities with creative changes (headline/primary_text/cta)
-      // group by entity_id + date-hour and keep only one creative change entry
+      // Deduplicate Meta creative changes
       const seen = new Map<string, boolean>();
-      const deduped: OptimizationRecord[] = [];
+      const metaDeduped: OptimizationRecord[] = [];
 
-      for (const row of (data || []) as OptimizationRecord[]) {
+      for (const row of (metaData || []) as OptimizationRecord[]) {
         const isCreativeField = ['headline', 'primary_text', 'cta', 'creative_image_url', 'creative_video_url'].includes(row.field_changed);
 
         if (isCreativeField && row.entity_type === 'ad') {
-          // Key: entity + hour bucket
           const hour = row.detected_at.substring(0, 13);
           const key = `creative_${row.entity_id}_${hour}`;
-          if (seen.has(key)) continue; // skip duplicates
+          if (seen.has(key)) continue;
           seen.set(key, true);
         }
 
         // Skip pure "created" entries for ads (they bloat the list heavily)
         if (row.field_changed === 'created' && row.entity_type === 'ad') continue;
 
-        deduped.push({ ...row, platform: 'meta' });
+        metaDeduped.push({ ...row, platform: 'meta' });
       }
 
-      setHistory(deduped);
+      // Fetch Google Ads changes (from google_campaigns status changes)
+      // We detect changes by looking at google_campaigns that have been modified
+      let googleRecords: OptimizationRecord[] = [];
+      try {
+        const { data: googleCampaigns } = await supabase
+          .from('google_campaigns')
+          .select('id, name, status, spend, impressions, clicks, conversions, synced_at, created_at')
+          .eq('project_id', projectId)
+          .order('synced_at', { ascending: false })
+          .limit(100);
+
+        if (googleCampaigns && googleCampaigns.length > 0) {
+          // Create synthetic records for recent Google campaign syncs
+          googleRecords = googleCampaigns
+            .filter(c => c.synced_at)
+            .map(c => ({
+              id: `google_${c.id}`,
+              project_id: projectId,
+              entity_type: 'campaign' as const,
+              entity_id: c.id,
+              entity_name: c.name,
+              field_changed: 'status',
+              old_value: null,
+              new_value: c.status,
+              change_type: c.status === 'PAUSED' ? 'paused' : c.status === 'ENABLED' ? 'activated' : 'status_change',
+              change_percentage: null,
+              detected_at: c.synced_at || c.created_at,
+              created_at: c.created_at,
+              changed_by: null,
+              platform: 'google' as const,
+            }));
+        }
+      } catch (googleErr) {
+        console.warn('Could not fetch Google history:', googleErr);
+      }
+
+      // Combine and sort by date
+      const combined = [...metaDeduped, ...googleRecords]
+        .sort((a, b) => new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime());
+
+      setHistory(combined);
     } catch (err) {
       console.error('Error fetching optimization history:', err);
       setError(err instanceof Error ? err.message : 'Erro ao carregar histórico');
@@ -78,4 +115,3 @@ export function useOptimizationHistory(projectId: string | null) {
 
   return { history, loading, error, refetch: fetchHistory };
 }
-

@@ -297,15 +297,12 @@ export default function CreativeDetail() {
               </div>
             </div>
 
-            {/* Hierarchy */}
+            {/* Hierarchy - info only, no navigation to adset */}
             <div className="glass-card p-6">
               <h2 className="text-lg font-semibold mb-4">Hierarquia</h2>
               <div className="space-y-3">
                 {campaign && (
-                  <div 
-                    className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors"
-                    onClick={() => navigate(`/campaigns`)}
-                  >
+                  <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg">
                     <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
                       <Target className="w-4 h-4 text-primary" />
                     </div>
@@ -316,10 +313,7 @@ export default function CreativeDetail() {
                   </div>
                 )}
                 {adSet && (
-                  <div 
-                    className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors"
-                    onClick={() => navigate(`/adset/${adSet.id}`)}
-                  >
+                  <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg">
                     <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
                       <BarChart3 className="w-4 h-4 text-primary" />
                     </div>
