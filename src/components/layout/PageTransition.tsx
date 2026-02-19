@@ -144,7 +144,10 @@ export function SmoothLoader({
 }) {
   if (loading) {
     return (
-      <div className={cn("fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background", className)} style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+      <div 
+        className={cn("flex flex-col items-center justify-center bg-background", className)} 
+        style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}
+      >
         <motion.img 
           src={v4LogoIcon} 
           alt="V4" 

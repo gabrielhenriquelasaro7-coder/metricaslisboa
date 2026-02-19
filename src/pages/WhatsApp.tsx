@@ -156,11 +156,22 @@ export default function WhatsApp() {
     return !manager.configs.some(c => c.project_id === p.id) && !plannerHook.configs.some(c => c.project_id === p.id);
   });
 
-  const loading = authLoading || instancesLoading || (projects.length === 0 && projectsLoading);
+  const loading = authLoading || (projects.length === 0 && projectsLoading);
+
+  // Guard: se projetos carregando mas ainda sem projeto, mostre loader
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background">
+          <div className="w-12 h-12 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+          <p className="text-sm text-muted-foreground mt-4">Carregando...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
-      <SmoothLoader loading={loading || !selectedProject}>
       <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 overflow-x-hidden">
         {/* Hero Header */}
         <FadeIn>
@@ -390,7 +401,6 @@ export default function WhatsApp() {
           onCheckStatus={handleCheckStatus}
         />
       </div>
-      </SmoothLoader>
     </DashboardLayout>
   );
 }

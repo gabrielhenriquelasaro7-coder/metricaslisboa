@@ -42,6 +42,7 @@ import Suggestions from "./pages/Suggestions";
 import Financial from "./pages/Financial";
 import NotFound from "./pages/NotFound";
 import Clarity from "./pages/Clarity";
+import Instagram from "./pages/Instagram";
 
 const queryClient = new QueryClient();
 
@@ -93,6 +94,7 @@ function AnimatedRoutes() {
           <Route path="/suggestions" element={<Suggestions />} />
           <Route path="/financeiro" element={<Financial />} />
           <Route path="/clarity" element={<Clarity />} />
+          <Route path="/instagram" element={<Instagram />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </motion.div>
