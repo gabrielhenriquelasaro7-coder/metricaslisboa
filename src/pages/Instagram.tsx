@@ -1,23 +1,81 @@
+import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Instagram } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { RefreshCw, Instagram } from 'lucide-react';
+import { useInstagramData, type InstagramMedia } from '@/hooks/useInstagramData';
+import InstagramProfileHeader from '@/components/instagram/InstagramProfileHeader';
+import InstagramMetricsGrid from '@/components/instagram/InstagramMetricsGrid';
+import InstagramPerformanceChart from '@/components/instagram/InstagramPerformanceChart';
+import InstagramPostsGrid from '@/components/instagram/InstagramPostsGrid';
+import InstagramPostDetailModal from '@/components/instagram/InstagramPostDetailModal';
+import InstagramDemographics from '@/components/instagram/InstagramDemographics';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function InstagramPage() {
+  const { account, media, insights, loading, syncing, syncInstagram, metrics } = useInstagramData();
+  const [selectedPost, setSelectedPost] = useState<InstagramMedia | null>(null);
+
   return (
     <DashboardLayout>
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 p-8">
-        <div className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center bg-secondary">
-          <Instagram className="w-10 h-10 text-primary" />
+      <div className="space-y-6 p-4 md:p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500">
+              <Instagram className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">Instagram</h1>
+              <p className="text-xs text-muted-foreground">Social Media Analytics</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {account?.last_sync_at && (
+              <span className="text-xs text-muted-foreground hidden sm:block">
+                Última sync: {new Date(account.last_sync_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+            <Button onClick={syncInstagram} disabled={syncing} size="sm" className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            </Button>
+          </div>
         </div>
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">Instagram</h1>
-          <p className="text-muted-foreground max-w-md">
-            Em breve: métricas de Social Media do Instagram. Acompanhe alcance, engajamento, crescimento de seguidores e muito mais.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-sm text-muted-foreground">
-          <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-          Em desenvolvimento
-        </div>
+
+        {loading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-28 w-full" />
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {Array.from({ length: 9 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+            </div>
+            <Skeleton className="h-[300px] w-full" />
+          </div>
+        ) : !account ? (
+          <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6">
+            <div className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500">
+              <Instagram className="w-10 h-10 text-white" />
+            </div>
+            <div className="text-center space-y-2">
+              <h2 className="text-xl font-bold">Instagram ainda não sincronizado</h2>
+              <p className="text-muted-foreground max-w-md text-sm">
+                Clique em "Sincronizar" para puxar os dados do Instagram via Meta Graph API. É necessário que o projeto tenha um <strong>Facebook Page ID</strong> configurado.
+              </p>
+            </div>
+            <Button onClick={syncInstagram} disabled={syncing} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar Agora'}
+            </Button>
+          </div>
+        ) : (
+          <>
+            <InstagramProfileHeader account={account} />
+            <InstagramMetricsGrid metrics={metrics} followersCount={account.followers_count} />
+            {insights.length > 0 && <InstagramPerformanceChart insights={insights} />}
+            <InstagramPostsGrid media={media} onSelect={setSelectedPost} />
+            <InstagramDemographics insights={insights} />
+            <InstagramPostDetailModal item={selectedPost} open={!!selectedPost} onClose={() => setSelectedPost(null)} />
+          </>
+        )}
       </div>
     </DashboardLayout>
   );
