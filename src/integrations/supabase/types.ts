@@ -1916,6 +1916,210 @@ export type Database = {
           },
         ]
       }
+      instagram_accounts: {
+        Row: {
+          biography: string | null
+          created_at: string
+          followers_count: number | null
+          follows_count: number | null
+          id: string
+          ig_user_id: string
+          last_sync_at: string | null
+          media_count: number | null
+          name: string | null
+          profile_picture_url: string | null
+          project_id: string
+          username: string | null
+          website: string | null
+        }
+        Insert: {
+          biography?: string | null
+          created_at?: string
+          followers_count?: number | null
+          follows_count?: number | null
+          id?: string
+          ig_user_id: string
+          last_sync_at?: string | null
+          media_count?: number | null
+          name?: string | null
+          profile_picture_url?: string | null
+          project_id: string
+          username?: string | null
+          website?: string | null
+        }
+        Update: {
+          biography?: string | null
+          created_at?: string
+          followers_count?: number | null
+          follows_count?: number | null
+          id?: string
+          ig_user_id?: string
+          last_sync_at?: string | null
+          media_count?: number | null
+          name?: string | null
+          profile_picture_url?: string | null
+          project_id?: string
+          username?: string | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_accounts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instagram_insights_daily: {
+        Row: {
+          accounts_engaged: number | null
+          comments: number | null
+          date: string
+          engaged_demographics: Json | null
+          follower_demographics: Json | null
+          follows: number | null
+          id: string
+          likes: number | null
+          profile_views: number | null
+          project_id: string
+          reach: number | null
+          reached_demographics: Json | null
+          saves: number | null
+          shares: number | null
+          synced_at: string | null
+          total_interactions: number | null
+          unfollows: number | null
+          views: number | null
+          website_clicks: number | null
+        }
+        Insert: {
+          accounts_engaged?: number | null
+          comments?: number | null
+          date: string
+          engaged_demographics?: Json | null
+          follower_demographics?: Json | null
+          follows?: number | null
+          id?: string
+          likes?: number | null
+          profile_views?: number | null
+          project_id: string
+          reach?: number | null
+          reached_demographics?: Json | null
+          saves?: number | null
+          shares?: number | null
+          synced_at?: string | null
+          total_interactions?: number | null
+          unfollows?: number | null
+          views?: number | null
+          website_clicks?: number | null
+        }
+        Update: {
+          accounts_engaged?: number | null
+          comments?: number | null
+          date?: string
+          engaged_demographics?: Json | null
+          follower_demographics?: Json | null
+          follows?: number | null
+          id?: string
+          likes?: number | null
+          profile_views?: number | null
+          project_id?: string
+          reach?: number | null
+          reached_demographics?: Json | null
+          saves?: number | null
+          shares?: number | null
+          synced_at?: string | null
+          total_interactions?: number | null
+          unfollows?: number | null
+          views?: number | null
+          website_clicks?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_insights_daily_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instagram_media: {
+        Row: {
+          avg_watch_time: number | null
+          caption: string | null
+          comments_count: number | null
+          id: string
+          ig_media_id: string
+          like_count: number | null
+          media_type: string
+          media_url: string | null
+          permalink: string | null
+          plays: number | null
+          project_id: string
+          reach: number | null
+          saved: number | null
+          shares: number | null
+          synced_at: string | null
+          thumbnail_url: string | null
+          timestamp: string | null
+          total_interactions: number | null
+          views: number | null
+        }
+        Insert: {
+          avg_watch_time?: number | null
+          caption?: string | null
+          comments_count?: number | null
+          id?: string
+          ig_media_id: string
+          like_count?: number | null
+          media_type?: string
+          media_url?: string | null
+          permalink?: string | null
+          plays?: number | null
+          project_id: string
+          reach?: number | null
+          saved?: number | null
+          shares?: number | null
+          synced_at?: string | null
+          thumbnail_url?: string | null
+          timestamp?: string | null
+          total_interactions?: number | null
+          views?: number | null
+        }
+        Update: {
+          avg_watch_time?: number | null
+          caption?: string | null
+          comments_count?: number | null
+          id?: string
+          ig_media_id?: string
+          like_count?: number | null
+          media_type?: string
+          media_url?: string | null
+          permalink?: string | null
+          plays?: number | null
+          project_id?: string
+          reach?: number | null
+          saved?: number | null
+          shares?: number | null
+          synced_at?: string | null
+          thumbnail_url?: string | null
+          timestamp?: string | null
+          total_interactions?: number | null
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_media_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investor_suggestions: {
         Row: {
           created_at: string

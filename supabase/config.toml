@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.meta-leads-sync]
 verify_jwt = false
+
+[functions.instagram-sync]
+verify_jwt = false
