@@ -39,16 +39,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     initializedRef.current = true;
 
-    // Safety timeout - force loading to false after 1.5 seconds
+    // Safety timeout - force loading to false after 3 seconds (increased from 1.5s)
     const timeoutId = setTimeout(() => {
       console.warn('[useAuth] Auth check timeout - forcing loading to false');
-      // Clear potentially corrupted cache on timeout
-      localStorage.removeItem('sb-chxetrmrupvxqbuyjvph-auth-token');
-      localStorage.removeItem('user-role-cache');
-      setUser(null);
-      setSession(null);
+      // Don't clear cache on timeout - user might have valid session that's slow
       setLoading(false);
-    }, 1500);
+    }, 3000);
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
