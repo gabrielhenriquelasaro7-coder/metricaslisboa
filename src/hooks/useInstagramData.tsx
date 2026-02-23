@@ -97,10 +97,27 @@ export function useInstagramData() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success(`Instagram sincronizado! ${data.media_count} mídias, ${data.insights_days} dias de insights`);
+      toast.success('Instagram sincronizado com sucesso!', {
+        description: `${data.media_count} mídias e ${data.insights_days} dias de insights atualizados.`,
+      });
       await fetchData();
     } catch (e: any) {
-      toast.error(`Erro ao sincronizar: ${e.message}`);
+      const msg = e.message || 'Erro desconhecido';
+      if (msg.includes('facebook_page_id')) {
+        toast.error('Facebook Page ID não configurado', {
+          description: 'Vá em Editar Projeto e preencha o ID da Página Facebook (asset_id da URL do Business Manager).',
+        });
+      } else if (msg.includes('instagram_business_account') || msg.includes('nonexisting field')) {
+        toast.error('Conta Instagram não vinculada', {
+          description: 'Verifique se a página Facebook tem uma conta Instagram Business/Profissional conectada.',
+        });
+      } else if (msg.includes('Edge Function')) {
+        toast.error('Erro na sincronização do Instagram', {
+          description: 'Verifique se o Facebook Page ID está correto. Use o asset_id da URL, não o business_id.',
+        });
+      } else {
+        toast.error('Erro ao sincronizar Instagram', { description: msg });
+      }
     } finally {
       setSyncing(false);
     }
