@@ -3731,6 +3731,7 @@ export type Database = {
         | "bitrix24"
         | "rdstation"
         | "outros"
+        | "helpsys"
       crm_sync_status: "idle" | "syncing" | "completed" | "failed"
       user_cargo:
         | "gestor_trafego"
@@ -3893,6 +3894,7 @@ export const Constants = {
         "bitrix24",
         "rdstation",
         "outros",
+        "helpsys",
       ],
       crm_sync_status: ["idle", "syncing", "completed", "failed"],
       user_cargo: [

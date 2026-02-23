@@ -53,6 +53,17 @@ const CRM_OPTIONS: CRMOption[] = [
     urlPlaceholder: 'suaempresa'
   },
   {
+    id: 'helpsys',
+    name: 'HelpSys',
+    description: 'CRM próprio com API de leads, pipelines e equipes',
+    color: 'bg-emerald-600',
+    badge: 'new',
+    features: ['Leads', 'Pipeline', 'Equipes', 'Carteira'],
+    authType: 'api_key',
+    requiresUrl: true,
+    urlPlaceholder: 'https://suaempresa.v2rdigital.com.br'
+  },
+  {
     id: 'bitrix24',
     name: 'Bitrix24',
     description: 'Suite de colaboração com CRM integrado',
@@ -145,6 +156,15 @@ export function CRMConnectionCard({
       if (selectedCRM.id === 'kommo' && formattedUrl) {
         formattedUrl = formattedUrl.replace(/\.kommo\.com\/?$/i, '');
         formattedUrl = `https://${formattedUrl}.kommo.com`;
+      } else if (selectedCRM.id === 'helpsys' && formattedUrl) {
+        // Ensure URL has protocol and ends with /api/v1
+        if (!formattedUrl.startsWith('http')) {
+          formattedUrl = `https://${formattedUrl}`;
+        }
+        formattedUrl = formattedUrl.replace(/\/+$/, '');
+        if (!formattedUrl.endsWith('/api/v1')) {
+          formattedUrl = `${formattedUrl}/api/v1`;
+        }
       }
 
       await onConnect(selectedCRM.id, {
@@ -258,14 +278,16 @@ export function CRMConnectionCard({
               <Card key={crm.id} className="relative hover:shadow-lg hover:border-primary/40 transition-all">
                 {crm.badge && (
                   <div className="absolute -top-2 -right-2 z-10">
-                    <Badge className={cn(
+                  <Badge className={cn(
                       'gap-1 shadow-sm',
                       crm.badge === 'popular' && 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-                      crm.badge === 'recommended' && 'bg-primary/10 text-primary border-primary/20'
+                      crm.badge === 'recommended' && 'bg-primary/10 text-primary border-primary/20',
+                      crm.badge === 'new' && 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                     )}>
                       {crm.badge === 'popular' && <Star className="w-3 h-3" />}
                       {crm.badge === 'recommended' && <Zap className="w-3 h-3" />}
-                      {crm.badge === 'popular' ? 'Mais usado' : 'Recomendado'}
+                      {crm.badge === 'new' && <Zap className="w-3 h-3" />}
+                      {crm.badge === 'popular' ? 'Mais usado' : crm.badge === 'new' ? 'Novo' : 'Recomendado'}
                     </Badge>
                   </div>
                 )}
@@ -373,6 +395,25 @@ export function CRMConnectionCard({
                   <li>Clique em <strong>Gerar</strong> (1 ano ou mais)</li>
                   <li>Copie o token</li>
                 </ol>
+              </div>
+            )}
+
+            {/* Tutorial HelpSys */}
+            {selectedCRM?.id === 'helpsys' && (
+              <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
+                <div className="flex items-center gap-2 font-medium text-sm">
+                  <HelpCircle className="w-4 h-4 text-primary" />
+                  Como conectar ao HelpSys
+                </div>
+                <ol className="space-y-1.5 text-sm text-muted-foreground list-decimal list-inside pl-1">
+                  <li>Solicite sua <strong>API Key</strong> ao administrador do HelpSys</li>
+                  <li>Informe a <strong>URL base</strong> do sistema (ex: suaempresa.v2rdigital.com.br)</li>
+                  <li>O sistema vai buscar <strong>leads, pipelines e equipes</strong> automaticamente</li>
+                </ol>
+                <a href="https://helpcar.v2rdigital.com.br/api-docs/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+                  <ExternalLink className="w-3 h-3" />
+                  Ver documentação da API
+                </a>
               </div>
             )}
 
