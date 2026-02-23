@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useCargo } from './useCargo';
@@ -49,12 +49,37 @@ export interface CreateProjectData {
   squad_id?: string | null;
 }
 
+// ---- Global singleton to prevent duplicate project fetches ----
+let globalProjectsCache: {
+  userId: string | null;
+  projects: Project[];
+  loaded: boolean;
+  fetchPromise: Promise<void> | null;
+} = {
+  userId: null,
+  projects: [],
+  loaded: false,
+  fetchPromise: null,
+};
+
+let projectListeners: Set<(projects: Project[]) => void> = new Set();
+
+function notifyProjectListeners() {
+  projectListeners.forEach(fn => fn([...globalProjectsCache.projects]));
+}
+
 export function useProjects() {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>(globalProjectsCache.projects);
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading } = useAuth();
   const { cargo, userSquads, loading: cargoLoading, isTech, isGerente, isCoordenador, isInvestidor, isMembro } = useCargo();
-  const fetchedRef = useRef(false);
+
+  // Subscribe to global project changes
+  useEffect(() => {
+    const listener = (p: Project[]) => setProjects(p);
+    projectListeners.add(listener);
+    return () => { projectListeners.delete(listener); };
+  }, []);
 
   const fetchProjects = useCallback(async (force = false) => {
     // Wait for auth and cargo to finish before deciding
@@ -64,18 +89,27 @@ export function useProjects() {
     
     if (!user) {
       setProjects([]);
+      globalProjectsCache = { userId: null, projects: [], loaded: false, fetchPromise: null };
       setLoading(false);
       return;
     }
     
-    // Prevent duplicate fetches during hot reload (unless forced)
-    if (fetchedRef.current && !force) {
+    // Reuse existing fetch if in progress for same user
+    if (globalProjectsCache.fetchPromise && globalProjectsCache.userId === user.id && !force) {
+      await globalProjectsCache.fetchPromise;
+      setProjects([...globalProjectsCache.projects]);
       setLoading(false);
       return;
     }
-    fetchedRef.current = true;
     
-    // Safety timeout to prevent infinite loading - reduced to 5 seconds
+    // Already loaded for this user, skip
+    if (globalProjectsCache.loaded && globalProjectsCache.userId === user.id && !force) {
+      setProjects([...globalProjectsCache.projects]);
+      setLoading(false);
+      return;
+    }
+    
+    // Safety timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       console.warn('[useProjects] Fetch timeout - forcing loading to false');
       setLoading(false);
@@ -135,13 +169,18 @@ export function useProjects() {
         sync_progress: p.sync_progress ? (typeof p.sync_progress === 'string' ? JSON.parse(p.sync_progress) : p.sync_progress) : null,
       })) as Project[];
       
+      globalProjectsCache.projects = parsedProjects;
+      globalProjectsCache.loaded = true;
+      globalProjectsCache.userId = user.id;
       setProjects(parsedProjects);
+      notifyProjectListeners();
     } catch (error) {
       clearTimeout(timeoutId);
       console.error('Error fetching projects:', error);
       toast.error('Erro ao carregar projetos');
       setProjects([]);
     } finally {
+      globalProjectsCache.fetchPromise = null;
       setLoading(false);
     }
   }, [user, authLoading, cargoLoading, cargo, userSquads, isTech, isGerente, isCoordenador, isInvestidor, isMembro]);
@@ -150,9 +189,10 @@ export function useProjects() {
     fetchProjects();
   }, [fetchProjects]);
 
-  // Reset fetch ref when user or cargo changes
+  // Reset cache when user or cargo changes
   useEffect(() => {
-    fetchedRef.current = false;
+    globalProjectsCache.loaded = false;
+    globalProjectsCache.fetchPromise = null;
   }, [user?.id, cargo, userSquads.length]);
 
   // Subscribe to realtime updates for sync progress AND new projects
