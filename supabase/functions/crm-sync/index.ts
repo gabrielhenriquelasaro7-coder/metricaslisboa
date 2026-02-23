@@ -105,31 +105,35 @@ Deno.serve(async (req) => {
       for (let i = 0; i < deals.length; i += BATCH_SIZE) {
         const batch = deals.slice(i, i + BATCH_SIZE);
         
-        const batchData = batch.map(deal => ({
-          connection_id,
-          project_id,
-          external_id: deal.external_id,
-          external_pipeline_id: deal.external_pipeline_id,
-          external_stage_id: deal.external_stage_id,
-          title: deal.title,
-          value: deal.value || 0,
-          currency: deal.currency || 'BRL',
-          status: deal.status || 'open',
-          stage_name: deal.stage_name,
-          created_date: deal.created_date,
-          closed_date: deal.closed_date,
-          owner_name: deal.owner_name,
-          owner_email: deal.owner_email,
-          contact_name: deal.contact_name,
-          contact_email: deal.contact_email,
-          contact_phone: deal.contact_phone,
-          lead_source: deal.lead_source,
-          utm_source: deal.utm_source,
-          utm_medium: deal.utm_medium,
-          utm_campaign: deal.utm_campaign,
-          custom_fields: deal.custom_fields || {},
-          synced_at: new Date().toISOString(),
-        }));
+        const batchData = batch.map(deal => {
+          const dealAny = deal as CRMDeal & { _pipeline_uuid?: string };
+          return {
+            connection_id,
+            project_id,
+            external_id: deal.external_id,
+            external_pipeline_id: deal.external_pipeline_id,
+            external_stage_id: deal.external_stage_id,
+            pipeline_id: dealAny._pipeline_uuid || null,
+            title: deal.title,
+            value: deal.value || 0,
+            currency: deal.currency || 'BRL',
+            status: deal.status || 'open',
+            stage_name: deal.stage_name,
+            created_date: deal.created_date,
+            closed_date: deal.closed_date,
+            owner_name: deal.owner_name,
+            owner_email: deal.owner_email,
+            contact_name: deal.contact_name,
+            contact_email: deal.contact_email,
+            contact_phone: deal.contact_phone,
+            lead_source: deal.lead_source,
+            utm_source: deal.utm_source,
+            utm_medium: deal.utm_medium,
+            utm_campaign: deal.utm_campaign,
+            custom_fields: deal.custom_fields || {},
+            synced_at: new Date().toISOString(),
+          };
+        });
 
         // Batch upsert
         const { error: upsertError } = await supabase
@@ -740,10 +744,18 @@ async function fetchHelpSysDeals(
 ): Promise<CRMDeal[]> {
   const apiKey = connection.api_key as string;
   const apiUrl = connection.api_url as string;
+  const connectionId = connection.id as string;
+  const projectId = connection.project_id as string;
 
   if (!apiKey || !apiUrl) {
     throw new Error('Credenciais do HelpSys não configuradas');
   }
+
+  // Create supabase client to save pipelines
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   const deals: CRMDeal[] = [];
   const headers: Record<string, string> = { 'X-API-KEY': apiKey };
@@ -753,19 +765,51 @@ async function fetchHelpSysDeals(
   const wonStageNames = new Set<string>();
   const lostStageNames = new Set<string>();
   const allPipelineIds: number[] = [];
+  // Map external pipeline id -> internal pipeline id (uuid)
+  const pipelineIdMap: Record<string, string> = {};
 
   try {
     const pipelinesRes = await fetch(`${apiUrl}/pipelines.php`, { headers });
     if (pipelinesRes.ok) {
       const pipelinesData = await pipelinesRes.json();
-      const pipelines = pipelinesData.dados || [];
+      const pipelines = pipelinesData.dados || pipelinesData.data || [];
+      
       for (const pipeline of pipelines) {
         allPipelineIds.push(pipeline.id);
+        
+        // Save pipeline to crm_pipelines table
+        const pipelineName = pipeline.nome || pipeline.name || `Pipeline ${pipeline.id}`;
         const fases = pipeline.fases || [];
+        const stagesJson = fases.map((f: Record<string, unknown>) => ({
+          id: String(f.id),
+          name: f.nome || f.name || '',
+          color: f.cor || '',
+          sort: f.ordem || 0,
+          probabilidade: f.probabilidade,
+        }));
+
+        const { data: savedPipeline } = await supabase
+          .from('crm_pipelines')
+          .upsert({
+            connection_id: connectionId,
+            project_id: projectId,
+            external_id: String(pipeline.id),
+            external_name: pipelineName,
+            is_default: pipeline.padrao === true || pipeline.is_default === true,
+            stages: stagesJson,
+            synced_at: new Date().toISOString(),
+          }, { onConflict: 'connection_id,external_id' })
+          .select('id')
+          .single();
+
+        if (savedPipeline) {
+          pipelineIdMap[String(pipeline.id)] = savedPipeline.id;
+          console.log(`[CRM Sync] Saved pipeline: ${pipelineName} (ext: ${pipeline.id} -> int: ${savedPipeline.id})`);
+        }
+
         for (const fase of fases) {
-          stageNames[fase.id] = fase.nome;
-          const nomeUpper = (fase.nome || '').toUpperCase().trim();
-          // Map stage names to status
+          stageNames[fase.id] = fase.nome || fase.name || '';
+          const nomeUpper = (fase.nome || fase.name || '').toUpperCase().trim();
           if (nomeUpper.includes('FECHADO') || nomeUpper.includes('GANHO') || nomeUpper.includes('VENDA') || fase.probabilidade === 100) {
             wonStageNames.add(nomeUpper);
           }
@@ -785,16 +829,13 @@ async function fetchHelpSysDeals(
   // If no pipelines found, try without
   const pipelinesToQuery = allPipelineIds.length > 0 ? allPipelineIds : [null as number | null];
 
+  const seenIds = new Set<string>();
+
   for (const pipelineId of pipelinesToQuery) {
     try {
       const url = new URL(`${apiUrl}/leads.php`);
       if (pipelineId !== null) {
         url.searchParams.set('pipeline', String(pipelineId));
-      }
-      if (syncType === 'incremental') {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        url.searchParams.set('data_modificacao_inicio', thirtyDaysAgo.toISOString().split('T')[0]);
       }
 
       console.log(`[CRM Sync] Fetching HelpSys leads from: ${url.toString()}`);
@@ -809,10 +850,11 @@ async function fetchHelpSysDeals(
       const data = await response.json();
       const leads = Array.isArray(data) ? data : (data.dados || data.data || []);
 
+      if (leads.length === 0) continue;
+
       // Log first lead structure for debugging
       if (leads.length > 0 && deals.length === 0) {
         console.log(`[CRM Sync] HelpSys sample lead keys:`, JSON.stringify(Object.keys(leads[0])));
-        // Log a sanitized version with key structure
         const sample = leads[0];
         const sampleInfo: Record<string, string> = {};
         for (const key of Object.keys(sample)) {
@@ -821,28 +863,28 @@ async function fetchHelpSysDeals(
             sampleInfo[key] = 'null';
           } else if (Array.isArray(val)) {
             sampleInfo[key] = `array[${val.length}]`;
-            if (val.length > 0 && typeof val[0] === 'object') {
-              sampleInfo[key] += ` keys: ${JSON.stringify(Object.keys(val[0]))}`;
-            }
           } else if (typeof val === 'object') {
             sampleInfo[key] = `object keys: ${JSON.stringify(Object.keys(val))}`;
           } else {
-            sampleInfo[key] = `${typeof val}: ${String(val).substring(0, 50)}`;
+            sampleInfo[key] = `${typeof val}: ${String(val).substring(0, 80)}`;
           }
         }
         console.log(`[CRM Sync] HelpSys sample lead structure:`, JSON.stringify(sampleInfo));
       }
 
       for (const lead of leads) {
-        // Extract contact info from nested 'contato' object
+        const leadId = String(lead.id || lead.id_lead);
+        // Deduplicate - API may return same lead in multiple pipeline queries
+        if (seenIds.has(leadId)) continue;
+        seenIds.add(leadId);
+
         const contato = lead.contato || {};
         const contactName = contato.nome || '';
         const contactEmail = contato.email || '';
         const contactPhone = contato.telefone || '';
-        // Lead title = nome_negocio (deal name), fallback to contact name
         const leadTitle = lead.nome_negocio || contactName || 'Lead sem nome';
 
-        // Extract value: first check direct 'valor' field, then propriedades array
+        // Extract value
         let valor = Number(lead.valor || 0);
         const propriedades = lead.propriedades || [];
         if (valor === 0 && Array.isArray(propriedades)) {
@@ -854,12 +896,10 @@ async function fetchHelpSysDeals(
           }
         }
 
-        // Determine stage: use 'status' (id) and 'status_nome' (name)
         const stageId = lead.status;
         const stageName = lead.status_nome || stageNames[stageId] || '';
         const stageNameUpper = stageName.toUpperCase().trim();
 
-        // Determine status based on stage name
         let status: 'open' | 'won' | 'lost' = 'open';
         if (wonStageNames.has(stageNameUpper) || stageNameUpper.includes('FECHADO') || stageNameUpper.includes('GANHO')) {
           status = 'won';
@@ -867,12 +907,13 @@ async function fetchHelpSysDeals(
           status = 'lost';
         }
 
-        // Extract UTM from nested utm object
         const utm = lead.utm || {};
+        // Use the actual pipeline field from the lead, not the query parameter
+        const extPipelineId = String(lead.pipeline || pipelineId || '');
 
         deals.push({
-          external_id: String(lead.id || lead.id_lead),
-          external_pipeline_id: String(lead.pipeline || pipelineId || ''),
+          external_id: leadId,
+          external_pipeline_id: extPipelineId,
           external_stage_id: String(stageId || ''),
           title: leadTitle,
           value: valor,
@@ -894,10 +935,14 @@ async function fetchHelpSysDeals(
                 return acc;
               }, {})
             : undefined,
-        });
+          _pipeline_uuid: pipelineIdMap[extPipelineId],
+        } as CRMDeal & { _pipeline_uuid?: string });
       }
 
-      console.log(`[CRM Sync] HelpSys pipeline ${pipelineId}: ${leads.length} leads fetched`);
+      console.log(`[CRM Sync] HelpSys pipeline ${pipelineId}: ${leads.length} leads fetched, unique so far: ${seenIds.size}`);
+
+      // Rate limiting between pipelines
+      await new Promise(resolve => setTimeout(resolve, 200));
     } catch (e) {
       console.error(`[CRM Sync] Error fetching HelpSys leads for pipeline ${pipelineId}:`, e);
     }
