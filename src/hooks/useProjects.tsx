@@ -45,6 +45,7 @@ export interface CreateProjectData {
   health_score?: HealthScore;
   avatar_url?: string | null;
   google_customer_id?: string | null;
+  facebook_page_id?: string | null;
   investidor_ids?: string[];
   squad_id?: string | null;
 }

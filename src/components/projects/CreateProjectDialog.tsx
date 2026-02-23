@@ -461,6 +461,17 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="facebook_page_id">ID da Página Facebook (opcional)</Label>
+                <Input
+                  id="facebook_page_id"
+                  placeholder="123456789012345"
+                  value={formData.facebook_page_id || ''}
+                  onChange={(e) => setFormData({ ...formData, facebook_page_id: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">Necessário para Instagram e Leads. Encontre em facebook.com/sua-pagina → Sobre</p>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="google_customer_id">ID do cliente Google Ads (opcional)</Label>
                 <Input
                   id="google_customer_id"

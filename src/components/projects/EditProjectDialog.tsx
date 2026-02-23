@@ -79,6 +79,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
     timezone: 'America/Sao_Paulo',
     currency: 'BRL',
     google_customer_id: '',
+    facebook_page_id: '',
     investidor_id: '' as string | null,
     squad_id: '' as string | null,
     avatar_url: null as string | null,
@@ -175,6 +176,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
         timezone: project.timezone,
         currency: project.currency,
         google_customer_id: project.google_customer_id || '',
+        facebook_page_id: project.facebook_page_id || '',
         investidor_id: project.investidor_id || null,
         squad_id: project.squad_id || null,
         avatar_url: project.avatar_url || null,
@@ -316,6 +318,19 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
               />
               <p className="text-xs text-muted-foreground">Encontre no Gerenciador de Anúncios do Facebook</p>
               {errors.ad_account_id && <p className="text-sm text-destructive">{errors.ad_account_id}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-facebook_page_id">
+                ID da Página Facebook
+              </Label>
+              <Input
+                id="edit-facebook_page_id"
+                placeholder="123456789012345"
+                value={formData.facebook_page_id || ''}
+                onChange={(e) => setFormData({ ...formData, facebook_page_id: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">Necessário para sincronizar Instagram e Leads. Encontre em facebook.com/sua-pagina → Sobre → ID da Página</p>
             </div>
 
             <div className="space-y-2">
