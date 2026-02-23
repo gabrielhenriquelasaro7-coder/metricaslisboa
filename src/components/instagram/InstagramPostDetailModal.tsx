@@ -1,12 +1,15 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Heart, MessageCircle, Share2, Bookmark, Eye, Play, Clock, ExternalLink, BarChart3, Image as ImageIcon } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, Eye, Play, Clock, ExternalLink, BarChart3, Image as ImageIcon, Send } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { InstagramMedia } from '@/hooks/useInstagramData';
 
 interface Props {
   item: InstagramMedia | null;
   open: boolean;
   onClose: () => void;
+  profilePic?: string | null;
+  username?: string | null;
 }
 
 const fmt = (n: number) => {
@@ -15,119 +18,187 @@ const fmt = (n: number) => {
   return n.toLocaleString('pt-BR');
 };
 
-export default function InstagramPostDetailModal({ item, open, onClose }: Props) {
+export default function InstagramPostDetailModal({ item, open, onClose, profilePic, username }: Props) {
   if (!item) return null;
   const isReel = item.media_type === 'REELS' || item.media_type === 'VIDEO';
-  // For videos/reels, always prefer thumbnail_url (media_url is a video file that won't render as img)
   const img = isReel ? (item.thumbnail_url || item.media_url) : (item.media_url || item.thumbnail_url);
   const engRate = item.reach > 0
     ? (((item.like_count || 0) + (item.comments_count || 0) + (item.shares || 0) + (item.saved || 0)) / item.reach * 100).toFixed(2)
     : '0.00';
 
-  const metricItems = [
-    { label: 'Alcance', value: fmt(item.reach), icon: Eye, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-    { label: 'Visualizações', value: fmt(item.views), icon: BarChart3, color: 'text-cyan-500', bg: 'bg-cyan-500/10' },
-    { label: 'Curtidas', value: fmt(item.like_count), icon: Heart, color: 'text-red-500', bg: 'bg-red-500/10' },
-    { label: 'Comentários', value: fmt(item.comments_count), icon: MessageCircle, color: 'text-orange-500', bg: 'bg-orange-500/10' },
-    { label: 'Compartilhamentos', value: fmt(item.shares), icon: Share2, color: 'text-pink-500', bg: 'bg-pink-500/10' },
-    { label: 'Salvos', value: fmt(item.saved), icon: Bookmark, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-    ...(isReel ? [
-      { label: 'Reproduções', value: fmt(item.plays), icon: Play, color: 'text-green-500', bg: 'bg-green-500/10' },
-      { label: 'Tempo Médio', value: `${(item.avg_watch_time || 0).toFixed(1)}s`, icon: Clock, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    ] : []),
-  ];
+  const formattedDate = item.timestamp
+    ? new Date(item.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+    : '';
+
+  const timeAgo = item.timestamp
+    ? (() => {
+        const diff = Date.now() - new Date(item.timestamp).getTime();
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        if (days > 30) return `${Math.floor(days / 30)} meses atrás`;
+        if (days > 0) return `${days} dias atrás`;
+        return 'Hoje';
+      })()
+    : '';
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-[96vw] max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-5 pb-3 border-b border-border shrink-0">
-          <DialogTitle className="flex items-center gap-2 flex-wrap">
-            Detalhes do Post
-            <Badge variant="outline" className="text-xs">{item.media_type}</Badge>
-            <Badge variant="secondary" className="text-xs gap-1">
-              <BarChart3 className="h-3 w-3" />
-              {engRate}% eng.
-            </Badge>
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto">
-          <div className="flex flex-col lg:flex-row min-h-0">
-            {/* Left: Media + Caption */}
-            <div className="lg:w-[55%] flex flex-col border-r border-border">
-              {/* Image / Video thumbnail */}
-              <div className="relative bg-black flex items-center justify-center" style={{ minHeight: 280 }}>
-                {img ? (
-                  <img
-                    src={img}
-                    alt="Post"
-                    className="w-full max-h-[60vh] object-contain"
-                    onError={(e) => {
-                      // If thumbnail also fails, show placeholder
-                      const target = e.currentTarget;
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent) {
-                        const placeholder = document.createElement('div');
-                        placeholder.className = 'flex flex-col items-center justify-center gap-2 text-muted-foreground py-16';
-                        placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><span class="text-sm">Imagem indisponível</span>';
-                        parent.appendChild(placeholder);
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground py-16">
-                    <ImageIcon className="h-12 w-12" />
-                    <span className="text-sm">Sem imagem</span>
-                  </div>
-                )}
-                {isReel && (
-                  <div className="absolute top-3 left-3">
-                    <Badge className="bg-primary text-primary-foreground text-xs gap-1">
-                      <Play className="h-3 w-3" /> REEL
-                    </Badge>
-                  </div>
-                )}
+      <DialogContent className="max-w-[95vw] w-[1100px] h-[90vh] max-h-[800px] p-0 gap-0 overflow-hidden border-none bg-card">
+        <div className="flex h-full">
+          {/* Left: Image - Instagram style dark background */}
+          <div className="w-[55%] bg-black flex items-center justify-center relative shrink-0">
+            {img ? (
+              <img
+                src={img}
+                alt="Post"
+                className="max-w-full max-h-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const parent = e.currentTarget.parentElement;
+                  if (parent) {
+                    const ph = document.createElement('div');
+                    ph.className = 'flex flex-col items-center gap-3 text-muted-foreground';
+                    ph.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><span class="text-sm">Mídia indisponível</span>';
+                    parent.appendChild(ph);
+                  }
+                }}
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                <ImageIcon className="h-16 w-16" />
+                <span className="text-sm">Sem mídia</span>
               </div>
+            )}
+            {isReel && (
+              <Badge className="absolute top-4 left-4 bg-black/60 text-white border-none gap-1">
+                <Play className="h-3 w-3" /> Reels
+              </Badge>
+            )}
+          </div>
 
-              {/* Full Caption - no scroll, show everything */}
+          {/* Right: Info panel - Instagram style */}
+          <div className="w-[45%] flex flex-col h-full overflow-hidden">
+            {/* Header - user info */}
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={profilePic || ''} />
+                <AvatarFallback className="text-xs">IG</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{username || 'Instagram'}</p>
+                <p className="text-[10px] text-muted-foreground">{timeAgo}</p>
+              </div>
+              {item.permalink && (
+                <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 transition-colors">
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
+            </div>
+
+            {/* Caption - scrollable area */}
+            <div className="flex-1 overflow-y-auto px-4 py-3">
               {item.caption && (
-                <div className="p-5 border-t border-border">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Legenda</p>
-                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{item.caption}</p>
+                <div className="space-y-2">
+                  <div className="flex gap-3">
+                    <Avatar className="h-8 w-8 shrink-0 mt-0.5">
+                      <AvatarImage src={profilePic || ''} />
+                      <AvatarFallback className="text-xs">IG</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm">
+                        <span className="font-semibold mr-1.5">{username || 'usuario'}</span>
+                        <span className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{item.caption}</span>
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-1.5">{formattedDate}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Comments placeholder */}
+              {item.comments_count > 0 && (
+                <div className="mt-4 pt-3 border-t border-border/50">
+                  <p className="text-xs text-muted-foreground">
+                    {item.comments_count === 1 ? '1 comentário' : `${item.comments_count} comentários`}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-1">
+                    Os comentários são visíveis diretamente no Instagram.
+                  </p>
                 </div>
               )}
             </div>
 
-            {/* Right: Metrics */}
-            <div className="lg:w-[45%] flex flex-col">
-              <div className="p-5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Métricas</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {metricItems.map((m) => (
-                    <div key={m.label} className="flex items-center gap-3 p-4 rounded-xl bg-secondary/40 border border-border/50 hover:bg-secondary/60 transition-colors">
-                      <div className={`p-2 rounded-lg ${m.bg}`}>
-                        <m.icon className={`h-5 w-5 ${m.color}`} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xl font-bold leading-none">{m.value}</p>
-                        <p className="text-[11px] text-muted-foreground mt-1">{m.label}</p>
-                      </div>
-                    </div>
-                  ))}
+            {/* Interaction buttons - Instagram style */}
+            <div className="border-t border-border shrink-0">
+              <div className="flex items-center justify-between px-4 py-2.5">
+                <div className="flex items-center gap-4">
+                  <button className="hover:opacity-60 transition-opacity">
+                    <Heart className="h-6 w-6 text-red-500" />
+                  </button>
+                  <button className="hover:opacity-60 transition-opacity">
+                    <MessageCircle className="h-6 w-6" />
+                  </button>
+                  <button className="hover:opacity-60 transition-opacity">
+                    <Send className="h-6 w-6" />
+                  </button>
                 </div>
+                <button className="hover:opacity-60 transition-opacity">
+                  <Bookmark className="h-6 w-6" />
+                </button>
               </div>
 
-              {/* Date and link */}
-              <div className="mt-auto p-5 border-t border-border flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">
-                  {item.timestamp ? new Date(item.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}
-                </span>
-                {item.permalink && (
-                  <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium">
-                    <ExternalLink className="h-3.5 w-3.5" /> Abrir no Instagram
-                  </a>
+              {/* Metrics summary */}
+              <div className="px-4 pb-2">
+                <p className="text-sm font-semibold">{fmt(item.like_count)} curtidas</p>
+              </div>
+
+              {/* Detailed metrics */}
+              <div className="px-4 pb-3 grid grid-cols-3 gap-2">
+                <div className="text-center p-2 rounded-lg bg-secondary/40">
+                  <Eye className="h-3.5 w-3.5 text-purple-500 mx-auto mb-1" />
+                  <p className="text-sm font-bold">{fmt(item.reach)}</p>
+                  <p className="text-[9px] text-muted-foreground">Alcance</p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-secondary/40">
+                  <Share2 className="h-3.5 w-3.5 text-pink-500 mx-auto mb-1" />
+                  <p className="text-sm font-bold">{fmt(item.shares)}</p>
+                  <p className="text-[9px] text-muted-foreground">Compartilh.</p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-secondary/40">
+                  <Bookmark className="h-3.5 w-3.5 text-yellow-500 mx-auto mb-1" />
+                  <p className="text-sm font-bold">{fmt(item.saved)}</p>
+                  <p className="text-[9px] text-muted-foreground">Salvos</p>
+                </div>
+                {isReel && (
+                  <>
+                    <div className="text-center p-2 rounded-lg bg-secondary/40">
+                      <Play className="h-3.5 w-3.5 text-green-500 mx-auto mb-1" />
+                      <p className="text-sm font-bold">{fmt(item.plays)}</p>
+                      <p className="text-[9px] text-muted-foreground">Plays</p>
+                    </div>
+                    <div className="text-center p-2 rounded-lg bg-secondary/40">
+                      <Clock className="h-3.5 w-3.5 text-blue-500 mx-auto mb-1" />
+                      <p className="text-sm font-bold">{(item.avg_watch_time || 0).toFixed(1)}s</p>
+                      <p className="text-[9px] text-muted-foreground">Tempo Médio</p>
+                    </div>
+                    <div className="text-center p-2 rounded-lg bg-secondary/40">
+                      <BarChart3 className="h-3.5 w-3.5 text-emerald-500 mx-auto mb-1" />
+                      <p className="text-sm font-bold">{engRate}%</p>
+                      <p className="text-[9px] text-muted-foreground">Engajamento</p>
+                    </div>
+                  </>
                 )}
+                {!isReel && (
+                  <div className="text-center p-2 rounded-lg bg-secondary/40 col-span-3">
+                    <BarChart3 className="h-3.5 w-3.5 text-emerald-500 mx-auto mb-1" />
+                    <p className="text-sm font-bold">{engRate}%</p>
+                    <p className="text-[9px] text-muted-foreground">Taxa de Engajamento</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Date */}
+              <div className="px-4 pb-3">
+                <p className="text-[10px] text-muted-foreground uppercase">{formattedDate}</p>
               </div>
             </div>
           </div>
