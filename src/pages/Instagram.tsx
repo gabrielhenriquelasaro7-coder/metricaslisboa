@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Instagram, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Instagram, AlertTriangle, Plus } from 'lucide-react';
 import { useInstagramData, type InstagramMedia } from '@/hooks/useInstagramData';
 import InstagramProfileHeader from '@/components/instagram/InstagramProfileHeader';
 import InstagramMetricsGrid from '@/components/instagram/InstagramMetricsGrid';
@@ -9,14 +9,15 @@ import InstagramPerformanceChart from '@/components/instagram/InstagramPerforman
 import InstagramPostsGrid from '@/components/instagram/InstagramPostsGrid';
 import InstagramPostDetailModal from '@/components/instagram/InstagramPostDetailModal';
 import InstagramDemographics from '@/components/instagram/InstagramDemographics';
+import InstagramPublishDialog from '@/components/instagram/InstagramPublishDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function InstagramPage() {
   const { account, media, insights, loading, syncing, syncInstagram, metrics } = useInstagramData();
   const [selectedPost, setSelectedPost] = useState<InstagramMedia | null>(null);
+  const [publishOpen, setPublishOpen] = useState(false);
 
   const hasInsights = insights.length > 0;
-  const hasMetrics = metrics.totalReach > 0 || metrics.totalLikes > 0;
 
   return (
     <DashboardLayout>
@@ -35,9 +36,12 @@ export default function InstagramPage() {
           <div className="flex items-center gap-2">
             {account?.last_sync_at && (
               <span className="text-xs text-muted-foreground hidden sm:block">
-                Última sync: {new Date(account.last_sync_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                Sync: {new Date(account.last_sync_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
+            <Button variant="outline" onClick={() => setPublishOpen(true)} size="sm" className="gap-2">
+              <Plus className="h-4 w-4" /> Publicar
+            </Button>
             <Button onClick={syncInstagram} disabled={syncing} size="sm" className="gap-2">
               <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Sincronizando...' : 'Sincronizar'}
@@ -73,14 +77,13 @@ export default function InstagramPage() {
           <>
             <InstagramProfileHeader account={account} engagementRate={metrics.engagementRate} />
 
-            {/* Warning banner if synced but no insights */}
             {!hasInsights && media.length > 0 && (
               <div className="flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
                 <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0" />
                 <div className="text-sm">
                   <p className="font-medium">Insights diários não carregados</p>
                   <p className="text-xs text-muted-foreground">
-                    As métricas diárias podem levar até 48h para ficarem disponíveis na API do Meta. Tente sincronizar novamente mais tarde.
+                    As métricas diárias podem levar até 48h para ficarem disponíveis na API do Meta.
                   </p>
                 </div>
               </div>
@@ -93,6 +96,8 @@ export default function InstagramPage() {
             <InstagramPostDetailModal item={selectedPost} open={!!selectedPost} onClose={() => setSelectedPost(null)} />
           </>
         )}
+
+        <InstagramPublishDialog open={publishOpen} onClose={() => setPublishOpen(false)} />
       </div>
     </DashboardLayout>
   );
