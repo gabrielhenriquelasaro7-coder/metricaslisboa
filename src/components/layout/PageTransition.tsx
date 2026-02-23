@@ -2,6 +2,7 @@ import { motion, AnimatePresence, Transition } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import v4LogoIcon from '@/assets/v4-logo-icon.png';
 
 interface PageTransitionProps {
@@ -143,10 +144,10 @@ export function SmoothLoader({
   className?: string;
 }) {
   if (loading) {
-    return (
+    return createPortal(
       <div 
         className={cn("flex flex-col items-center justify-center bg-background", className)} 
-        style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}
+        style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 }}
       >
         <motion.img 
           src={v4LogoIcon} 
@@ -163,7 +164,8 @@ export function SmoothLoader({
           }}
         />
         <p className="text-sm text-muted-foreground tracking-widest mt-4">Carregando...</p>
-      </div>
+      </div>,
+      document.body
     );
   }
 
