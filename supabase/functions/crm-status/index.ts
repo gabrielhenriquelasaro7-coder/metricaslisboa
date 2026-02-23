@@ -148,13 +148,11 @@ Deno.serve(async (req) => {
 
     // Get deal statistics - filter by pipeline AND period if provided
     // Strategy: get deals created in period + deals CLOSED in period (via closed_date)
-    // Limit to most recent 500 deals for performance
     let dealsQuery = supabase
       .from('crm_deals')
       .select('id, external_id, title, contact_name, contact_phone, contact_email, value, status, stage_name, external_stage_id, external_pipeline_id, created_date, closed_date, utm_source, utm_medium, utm_campaign, utm_content, utm_term, lead_source, owner_name, custom_fields')
       .eq('connection_id', connection.id)
-      .order('created_date', { ascending: false })
-      .limit(500);
+      .order('created_date', { ascending: false });
     
     if (selectedPipelineId) {
       dealsQuery = dealsQuery.eq('external_pipeline_id', selectedPipelineId);
@@ -168,11 +166,14 @@ Deno.serve(async (req) => {
       dealsQuery = dealsQuery.lte('created_date', `${endDate}T23:59:59`);
     }
 
-    const { data: mainDeals } = await dealsQuery;
+    const { data: mainDeals, error: mainDealsError } = await dealsQuery;
+    if (mainDealsError) {
+      console.error('[CRM Status] Error fetching main deals:', mainDealsError);
+    }
     let allDeals = mainDeals || [];
+    console.log(`[CRM Status] Main deals (created in period): ${allDeals.length}`);
 
     // Also get won/lost deals CLOSED in the period but created before it
-    // Use closed_date to find deals that moved to won/lost during the period
     if (startDate || endDate) {
       let closedDealsQuery = supabase
         .from('crm_deals')
@@ -180,8 +181,7 @@ Deno.serve(async (req) => {
         .eq('connection_id', connection.id)
         .in('status', ['won', 'lost'])
         .not('closed_date', 'is', null)
-        .order('closed_date', { ascending: false })
-        .limit(200);
+        .order('closed_date', { ascending: false });
       
       if (selectedPipelineId) {
         closedDealsQuery = closedDealsQuery.eq('external_pipeline_id', selectedPipelineId);
@@ -193,7 +193,10 @@ Deno.serve(async (req) => {
         closedDealsQuery = closedDealsQuery.lte('closed_date', `${endDate}T23:59:59`);
       }
 
-      const { data: closedDeals } = await closedDealsQuery;
+      const { data: closedDeals, error: closedDealsError } = await closedDealsQuery;
+      if (closedDealsError) {
+        console.error('[CRM Status] Error fetching closed deals:', closedDealsError);
+      }
       if (closedDeals && closedDeals.length > 0) {
         const existingIds = new Set(allDeals.map(d => d.id));
         const newDeals = closedDeals.filter(d => !existingIds.has(d.id));

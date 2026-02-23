@@ -7,25 +7,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Calendar, ChevronDown, History } from 'lucide-react';
+import { Calendar, ChevronDown, History, Check } from 'lucide-react';
 import type { DREPeriod } from './CompleteDRE';
 
 interface DREPeriodSelectorProps {
   value: DREPeriod;
   onChange: (period: DREPeriod) => void;
   onOpenHistory?: () => void;
+  periodDescription?: string;
 }
 
-const PERIOD_LABELS: Record<DREPeriod, string> = {
-  last_7d: 'Últimos 7 dias',
-  last_30d: 'Últimos 30 dias',
-  this_month: 'Mês atual',
-  last_month: 'Mês passado',
-  custom: 'Personalizado',
-};
+const PERIOD_OPTIONS: { key: DREPeriod; label: string }[] = [
+  { key: 'this_month', label: 'Mês atual' },
+  { key: 'last_month', label: 'Mês passado' },
+  { key: 'last_7d', label: 'Últimos 7 dias' },
+  { key: 'last_30d', label: 'Últimos 30 dias' },
+];
 
-export function DREPeriodSelector({ value, onChange, onOpenHistory }: DREPeriodSelectorProps) {
+export function DREPeriodSelector({ value, onChange, onOpenHistory, periodDescription }: DREPeriodSelectorProps) {
   const [open, setOpen] = useState(false);
+  const currentLabel = PERIOD_OPTIONS.find(p => p.key === value)?.label || 'Período';
 
   return (
     <div className="flex items-center gap-2">
@@ -33,21 +34,25 @@ export function DREPeriodSelector({ value, onChange, onOpenHistory }: DREPeriodS
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="gap-2">
             <Calendar className="h-4 w-4" />
-            {PERIOD_LABELS[value]}
+            <span className="truncate max-w-[160px]">{currentLabel}</span>
+            {periodDescription && (
+              <span className="text-xs text-muted-foreground hidden sm:inline">({periodDescription})</span>
+            )}
             <ChevronDown className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          {Object.entries(PERIOD_LABELS).map(([key, label]) => (
+        <DropdownMenuContent align="end" className="w-52">
+          {PERIOD_OPTIONS.map(({ key, label }) => (
             <DropdownMenuItem
               key={key}
               onClick={() => {
-                onChange(key as DREPeriod);
+                onChange(key);
                 setOpen(false);
               }}
-              className={value === key ? 'bg-accent' : ''}
+              className="flex items-center justify-between"
             >
               {label}
+              {value === key && <Check className="h-4 w-4 text-primary" />}
             </DropdownMenuItem>
           ))}
           {onOpenHistory && (
