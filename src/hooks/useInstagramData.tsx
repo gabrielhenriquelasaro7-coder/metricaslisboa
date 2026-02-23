@@ -129,7 +129,9 @@ export function useInstagramData() {
   }, [projectId, fetchData]);
 
   // Computed metrics from daily insights, with fallback to media-level data
-  const fromInsights = insights.length > 0;
+  // Only use insights if they have actual non-zero data
+  const insightsHaveData = insights.some(i => (i.reach || 0) + (i.likes || 0) + (i.views || 0) + (i.total_interactions || 0) > 0);
+  const fromInsights = insights.length > 0 && insightsHaveData;
 
   const totalReach = fromInsights
     ? insights.reduce((s, i) => s + (i.reach || 0), 0)

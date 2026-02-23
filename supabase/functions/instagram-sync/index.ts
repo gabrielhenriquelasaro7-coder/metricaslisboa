@@ -86,15 +86,15 @@ Deno.serve(async (req) => {
     const dailyInsights: Record<string, any> = {};
 
     // Fetch each metric individually to avoid batch failures
-    const metricsWithTotalValue = [
+    const metricsTimeSeries = [
       'reach', 'views', 'profile_views', 'website_clicks', 'accounts_engaged',
       'likes', 'comments', 'shares', 'saves', 'total_interactions',
       'follows_and_unfollows',
     ];
 
-    for (const metric of metricsWithTotalValue) {
+    for (const metric of metricsTimeSeries) {
       try {
-        const result = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=total_value`);
+        const result = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=time_series`);
         if (result) {
           for (const m of result) {
             for (const val of m.values || []) {
