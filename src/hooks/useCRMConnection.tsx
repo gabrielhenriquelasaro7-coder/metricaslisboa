@@ -290,12 +290,21 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
     if (!projectId || !status?.connection_id) return;
 
     try {
-      // Update the connection config with selected pipeline
+      // First fetch current config to merge
+      const { data: currentConn } = await supabase
+        .from('crm_connections')
+        .select('config')
+        .eq('id', status.connection_id)
+        .single();
+
+      const existingConfig = (currentConn?.config as Record<string, unknown>) || {};
+
+      // Update the connection config with selected pipeline (merge, don't overwrite)
       const { error } = await supabase
         .from('crm_connections')
         .update({ 
           config: { 
-            ...(typeof status === 'object' ? {} : {}),
+            ...existingConfig,
             selected_pipeline_id: pipelineId 
           } 
         })

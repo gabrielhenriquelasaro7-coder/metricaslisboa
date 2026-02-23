@@ -147,6 +147,7 @@ Deno.serve(async (req) => {
     const hasCustomMapping = (customMqlStages && customMqlStages.length > 0) || (customSqlStages && customSqlStages.length > 0);
 
     // Get deal statistics - filter by pipeline AND period if provided
+    // For period filter: include deals created in period OR deals with status won/lost that may have been closed in the period
     // Limit to most recent 500 deals for performance, ordered by created_date DESC
     let dealsQuery = supabase
       .from('crm_deals')
@@ -159,7 +160,7 @@ Deno.serve(async (req) => {
       dealsQuery = dealsQuery.eq('external_pipeline_id', selectedPipelineId);
     }
 
-    // Apply date filter if provided
+    // Apply date filter using created_date OR synced_at for deals that moved stages in period
     if (startDate) {
       dealsQuery = dealsQuery.gte('created_date', `${startDate}T00:00:00`);
     }
@@ -167,57 +168,58 @@ Deno.serve(async (req) => {
       dealsQuery = dealsQuery.lte('created_date', `${endDate}T23:59:59`);
     }
 
-    const { data: allDeals } = await dealsQuery;
+    // Also get won deals in the period that may have been created earlier
+    let wonDealsInPeriodQuery: typeof dealsQuery | null = null;
+    if (startDate || endDate) {
+      wonDealsInPeriodQuery = supabase
+        .from('crm_deals')
+        .select('id, external_id, title, contact_name, contact_phone, contact_email, value, status, stage_name, external_stage_id, external_pipeline_id, created_date, closed_date, utm_source, utm_medium, utm_campaign, utm_content, utm_term, lead_source, owner_name, custom_fields')
+        .eq('connection_id', connection.id)
+        .eq('status', 'won')
+        .order('created_date', { ascending: false })
+        .limit(200);
+      
+      if (selectedPipelineId) {
+        wonDealsInPeriodQuery = wonDealsInPeriodQuery.eq('external_pipeline_id', selectedPipelineId);
+      }
+      // Won deals synced in the period (updated_at as proxy for close date)
+      if (startDate) {
+        wonDealsInPeriodQuery = wonDealsInPeriodQuery.gte('synced_at', `${startDate}T00:00:00`);
+      }
+    }
 
-    // Get total counts for stats (faster query without all fields) - WITH period filter
-    let totalCountQuery = supabase
-      .from('crm_deals')
-      .select('id', { count: 'exact', head: true })
-      .eq('connection_id', connection.id);
+    const { data: mainDeals } = await dealsQuery;
     
-    if (selectedPipelineId) {
-      totalCountQuery = totalCountQuery.eq('external_pipeline_id', selectedPipelineId);
+    // Merge won deals from period query
+    let allDeals = mainDeals || [];
+    if (wonDealsInPeriodQuery) {
+      const { data: extraWonDeals } = await wonDealsInPeriodQuery;
+      if (extraWonDeals && extraWonDeals.length > 0) {
+        const existingIds = new Set(allDeals.map(d => d.id));
+        const newDeals = extraWonDeals.filter(d => !existingIds.has(d.id));
+        if (newDeals.length > 0) {
+          console.log(`[CRM Status] Added ${newDeals.length} won deals from period that were created earlier`);
+          allDeals = [...allDeals, ...newDeals];
+        }
+      }
     }
-    if (startDate) {
-      totalCountQuery = totalCountQuery.gte('created_date', `${startDate}T00:00:00`);
-    }
-    if (endDate) {
-      totalCountQuery = totalCountQuery.lte('created_date', `${endDate}T23:59:59`);
-    }
-    
-    const { count: totalCount } = await totalCountQuery;
-    
-    // Get counts by status - WITH period filter
-    let statusCountsQuery = supabase
-      .from('crm_deals')
-      .select('status, value')
-      .eq('connection_id', connection.id);
-    
-    if (selectedPipelineId) {
-      statusCountsQuery = statusCountsQuery.eq('external_pipeline_id', selectedPipelineId);
-    }
-    if (startDate) {
-      statusCountsQuery = statusCountsQuery.gte('created_date', `${startDate}T00:00:00`);
-    }
-    if (endDate) {
-      statusCountsQuery = statusCountsQuery.lte('created_date', `${endDate}T23:59:59`);
-    }
-    
-    const { data: statusCounts } = await statusCountsQuery;
 
-    const wonDeals = statusCounts?.filter(d => d.status === 'won') || [];
-    const lostDeals = statusCounts?.filter(d => d.status === 'lost') || [];
-    const openDeals = statusCounts?.filter(d => d.status === 'open') || [];
+    // Compute stats directly from allDeals (already merged with won deals from period)
+    const wonDeals = allDeals.filter(d => d.status === 'won');
+    const lostDeals = allDeals.filter(d => d.status === 'lost');
+    const openDealsAll = allDeals.filter(d => d.status === 'open');
 
     // Basic stats
     const stats = {
-      total_deals: totalCount || 0,
+      total_deals: allDeals.length,
       won_deals: wonDeals.length,
       lost_deals: lostDeals.length,
-      open_deals: openDeals.length,
+      open_deals: openDealsAll.length,
       total_revenue: wonDeals.reduce((sum, d) => sum + (d.value || 0), 0),
-      total_pipeline_value: openDeals.reduce((sum, d) => sum + (d.value || 0), 0),
+      total_pipeline_value: openDealsAll.reduce((sum, d) => sum + (d.value || 0), 0),
     };
+
+    console.log(`[CRM Status] Stats: ${stats.total_deals} total, ${stats.won_deals} won, revenue: ${stats.total_revenue}`);
 
     // Initialize funnel and stages data
     let funnel = {

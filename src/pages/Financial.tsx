@@ -391,7 +391,7 @@ export default function Financial() {
               </TabsList>
               
               {/* Pipeline Selector and Stage Mapping - only show for Kommo with stages */}
-              {crmStatus?.provider === 'kommo' && (
+              {crmStatus?.connected && (
                 <div className="flex flex-col sm:flex-row gap-2 sm:items-center flex-wrap">
                   {(crmStatus?.pipelines?.length || 0) > 0 && (
                     <PipelineSelector
