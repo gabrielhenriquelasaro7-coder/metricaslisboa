@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -47,168 +47,184 @@ interface CargoData {
   isMembro: boolean;
   
   // Visibility helpers
-  canSeeAllProjects: boolean; // Tech e Gerente
-  canManageSquads: boolean;   // Tech e Gerente
-  canManageUsers: boolean;    // Gerente only
-  canAccessFullAdmin: boolean; // Tech only
-  needsAdminApproval: boolean; // Investidor e Coordenador
+  canSeeAllProjects: boolean;
+  canManageSquads: boolean;
+  canManageUsers: boolean;
+  canAccessFullAdmin: boolean;
+  needsAdminApproval: boolean;
   
   // Actions
   refetch: () => Promise<void>;
 }
 
+// ---- Global singleton cache to prevent duplicate fetches across components ----
+let globalCargoCache: {
+  userId: string | null;
+  cargo: UserCargo;
+  squads: Squad[];
+  loaded: boolean;
+  fetchPromise: Promise<void> | null;
+} = {
+  userId: null,
+  cargo: 'membro',
+  squads: [],
+  loaded: false,
+  fetchPromise: null,
+};
+
+let globalListeners: Set<() => void> = new Set();
+
+function notifyListeners() {
+  globalListeners.forEach(fn => fn());
+}
+
+async function fetchCargoGlobal(userId: string) {
+  // If already fetching for same user, reuse the promise
+  if (globalCargoCache.fetchPromise && globalCargoCache.userId === userId) {
+    return globalCargoCache.fetchPromise;
+  }
+
+  // If already loaded for same user, skip
+  if (globalCargoCache.loaded && globalCargoCache.userId === userId) {
+    return;
+  }
+
+  globalCargoCache.userId = userId;
+
+  const promise = (async () => {
+    try {
+      const [roleRes, squadRes] = await Promise.all([
+        supabase
+          .from('user_roles')
+          .select('cargo')
+          .eq('user_id', userId)
+          .maybeSingle(),
+        supabase
+          .from('squad_members')
+          .select(`
+            id, user_id, squad_id, created_at,
+            squads:squad_id (id, name, description, color, created_at, updated_at)
+          `)
+          .eq('user_id', userId),
+      ]);
+
+      if (roleRes.error) {
+        console.error('Error fetching user cargo:', roleRes.error);
+        globalCargoCache.cargo = 'membro';
+      } else if (roleRes.data?.cargo) {
+        globalCargoCache.cargo = roleRes.data.cargo as UserCargo;
+      } else {
+        globalCargoCache.cargo = 'membro';
+      }
+
+      // Cache to localStorage
+      localStorage.setItem('user-cargo-cache', JSON.stringify({
+        userId,
+        cargo: globalCargoCache.cargo,
+      }));
+
+      if (squadRes.error) {
+        console.error('Error fetching user squads:', squadRes.error);
+        globalCargoCache.squads = [];
+      } else {
+        globalCargoCache.squads = (squadRes.data || [])
+          .map((sm: any) => sm.squads)
+          .filter(Boolean) as Squad[];
+      }
+
+      globalCargoCache.loaded = true;
+    } catch (error) {
+      console.error('Error in fetchCargoGlobal:', error);
+      globalCargoCache.cargo = 'membro';
+      globalCargoCache.squads = [];
+      globalCargoCache.loaded = true;
+    } finally {
+      globalCargoCache.fetchPromise = null;
+      notifyListeners();
+    }
+  })();
+
+  globalCargoCache.fetchPromise = promise;
+  return promise;
+}
+
 export function useCargo(): CargoData {
   const { user, loading: authLoading } = useAuth();
-  
-  // Try to get cached cargo to avoid flash
-  const [cargo, setCargo] = useState<UserCargo>(() => {
+  const [, forceUpdate] = useState(0);
+  const mountedRef = useRef(true);
+
+  // Subscribe to global cache changes
+  useEffect(() => {
+    mountedRef.current = true;
+    const listener = () => {
+      if (mountedRef.current) forceUpdate(c => c + 1);
+    };
+    globalListeners.add(listener);
+    return () => {
+      mountedRef.current = false;
+      globalListeners.delete(listener);
+    };
+  }, []);
+
+  // Reset cache when user changes
+  useEffect(() => {
+    if (!authLoading && user && globalCargoCache.userId !== user.id) {
+      globalCargoCache.loaded = false;
+      globalCargoCache.fetchPromise = null;
+    }
+    if (!authLoading && !user) {
+      globalCargoCache = { userId: null, cargo: 'membro', squads: [], loaded: false, fetchPromise: null };
+      localStorage.removeItem('user-cargo-cache');
+      notifyListeners();
+    }
+  }, [user?.id, authLoading]);
+
+  // Trigger fetch
+  useEffect(() => {
+    if (authLoading || !user) return;
+    fetchCargoGlobal(user.id);
+  }, [user?.id, authLoading]);
+
+  const cargo = globalCargoCache.userId === user?.id ? globalCargoCache.cargo : (() => {
     try {
       const cached = localStorage.getItem('user-cargo-cache');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed?.userId === user?.id) {
-          return parsed.cargo as UserCargo;
-        }
+        if (parsed?.userId === user?.id) return parsed.cargo as UserCargo;
       }
-    } catch {
-      // Ignore
-    }
-    return 'membro';
-  });
-  
-  const [loading, setLoading] = useState(true);
-  const [userSquads, setUserSquads] = useState<Squad[]>([]);
-  const fetchedRef = useRef(false);
+    } catch { /* ignore */ }
+    return 'membro' as UserCargo;
+  })();
 
-  const fetchCargoData = useCallback(async () => {
-    if (authLoading) return;
-    
-    if (!user) {
-      localStorage.removeItem('user-cargo-cache');
-      setCargo('membro');
-      setUserSquads([]);
-      setLoading(false);
-      return;
-    }
+  const loading = authLoading || (!!user && !globalCargoCache.loaded && globalCargoCache.userId === user?.id);
+  const userSquads = globalCargoCache.userId === user?.id ? globalCargoCache.squads : [];
 
-    // Prevent duplicate fetches
-    if (fetchedRef.current) {
-      setLoading(false);
-      return;
-    }
-    fetchedRef.current = true;
-
-    try {
-      // Fetch user cargo from user_roles
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('cargo')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (roleError) {
-        console.error('Error fetching user cargo:', roleError);
-        setCargo('membro');
-      } else if (roleData?.cargo) {
-        setCargo(roleData.cargo as UserCargo);
-        localStorage.setItem('user-cargo-cache', JSON.stringify({
-          userId: user.id,
-          cargo: roleData.cargo
-        }));
-      } else {
-        setCargo('membro');
-        localStorage.setItem('user-cargo-cache', JSON.stringify({
-          userId: user.id,
-          cargo: 'membro'
-        }));
-      }
-
-      // Fetch user squads
-      const { data: squadData, error: squadError } = await supabase
-        .from('squad_members')
-        .select(`
-          id,
-          user_id,
-          squad_id,
-          created_at,
-          squads:squad_id (
-            id,
-            name,
-            description,
-            color,
-            created_at,
-            updated_at
-          )
-        `)
-        .eq('user_id', user.id);
-
-      if (squadError) {
-        console.error('Error fetching user squads:', squadError);
-      } else if (squadData) {
-        const squads = squadData
-          .map((sm: any) => sm.squads)
-          .filter(Boolean) as Squad[];
-        setUserSquads(squads);
-      }
-    } catch (error) {
-      console.error('Error in useCargo:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, authLoading]);
-
-  useEffect(() => {
-    // Safety timeout
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.warn('[useCargo] Timeout - forcing loading to false');
-        setLoading(false);
-      }
-    }, 3000);
-
-    fetchCargoData();
-
-    return () => clearTimeout(timeoutId);
-  }, [fetchCargoData]);
-
-  // Reset fetch ref when user changes
-  useEffect(() => {
-    fetchedRef.current = false;
-  }, [user?.id]);
-
-  // Computed permissions based on cargo
+  // Computed permissions
   const isTech = cargo === 'tech';
   const isGerente = cargo === 'gerente';
   const isCoordenador = cargo === 'coordenador';
   const isInvestidor = cargo === 'investidor';
   const isMembro = cargo === 'membro';
 
-  const canSeeAllProjects = isTech || isGerente;
-  const canManageSquads = isTech || isGerente;
-  const canManageUsers = isGerente; // Only Gerente can change user squads and delete investors
-  const canAccessFullAdmin = isTech;
-  const needsAdminApproval = isInvestidor || isCoordenador;
-
   return {
     cargo,
     loading,
     userSquads,
-    
     isTech,
     isGerente,
     isCoordenador,
     isInvestidor,
     isMembro,
-    
-    canSeeAllProjects,
-    canManageSquads,
-    canManageUsers,
-    canAccessFullAdmin,
-    needsAdminApproval,
-    
+    canSeeAllProjects: isTech || isGerente,
+    canManageSquads: isTech || isGerente,
+    canManageUsers: isGerente,
+    canAccessFullAdmin: isTech,
+    needsAdminApproval: isInvestidor || isCoordenador,
     refetch: async () => {
-      fetchedRef.current = false;
-      await fetchCargoData();
+      if (!user) return;
+      globalCargoCache.loaded = false;
+      globalCargoCache.fetchPromise = null;
+      await fetchCargoGlobal(user.id);
     },
   };
 }
