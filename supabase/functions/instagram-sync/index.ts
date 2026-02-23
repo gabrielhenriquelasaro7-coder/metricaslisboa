@@ -12,12 +12,11 @@ async function fetchJSON(url: string) {
   return res.json();
 }
 
-async function fetchInsightsBatch(igUserId: string, metrics: string[], period: string, token: string, extraParams = '') {
-  const url = `${graphUrl}/${igUserId}/insights?metric=${metrics.join(',')}&period=${period}${extraParams}&access_token=${token}`;
-  console.log(`Fetching insights: ${metrics.join(',')}, period=${period}`);
+async function fetchSingleMetric(igUserId: string, metric: string, period: string, token: string, extraParams = '') {
+  const url = `${graphUrl}/${igUserId}/insights?metric=${metric}&period=${period}${extraParams}&access_token=${token}`;
   const data = await fetchJSON(url);
   if (data.error) {
-    console.warn(`Insights batch failed [${metrics.join(',')}]: ${data.error.message}`);
+    console.warn(`Metric ${metric} failed: ${data.error.message}`);
     return null;
   }
   return data.data || [];
@@ -77,6 +76,7 @@ Deno.serve(async (req) => {
     }, { onConflict: 'project_id' });
 
     // Step 3: Daily insights (last 30 days)
+    // Meta API v21+ requires metric_type=total_value for most metrics
     const now = new Date();
     const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sinceUnix = Math.floor(since.getTime() / 1000);
@@ -85,113 +85,94 @@ Deno.serve(async (req) => {
 
     const dailyInsights: Record<string, any> = {};
 
-    // Batch 1: period=day basic metrics
-    const batch1 = await fetchInsightsBatch(igUserId, ['reach', 'profile_views', 'website_clicks', 'follower_count', 'accounts_engaged'], 'day', metaToken, timeParams);
+    // Fetch each metric individually to avoid batch failures
+    const metricsWithTotalValue = [
+      'reach', 'views', 'profile_views', 'website_clicks', 'accounts_engaged',
+      'likes', 'comments', 'shares', 'saves', 'total_interactions',
+      'follows_and_unfollows',
+    ];
 
-    // Batch 2: total_value interaction metrics
-    const interactionMetrics = ['likes', 'comments', 'shares', 'saves', 'total_interactions', 'follows_and_unfollows'];
-    let batch2 = await fetchInsightsBatch(igUserId, interactionMetrics, 'day', metaToken, `${timeParams}&metric_type=total_value`);
-    if (!batch2) {
-      console.log('Batch2 failed, trying individual total_value metrics...');
-      batch2 = [];
-      for (const metric of interactionMetrics) {
-        const result = await fetchInsightsBatch(igUserId, [metric], 'day', metaToken, `${timeParams}&metric_type=total_value`);
-        if (result) batch2.push(...result);
+    for (const metric of metricsWithTotalValue) {
+      try {
+        const result = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=total_value`);
+        if (result) {
+          for (const m of result) {
+            for (const val of m.values || []) {
+              const date = val.end_time?.split('T')[0];
+              if (!date) continue;
+              if (!dailyInsights[date]) dailyInsights[date] = {};
+
+              if (m.name === 'follows_and_unfollows') {
+                if (typeof val.value === 'object' && val.value !== null) {
+                  dailyInsights[date].follows = val.value.follows || 0;
+                  dailyInsights[date].unfollows = val.value.unfollows || 0;
+                }
+              } else {
+                dailyInsights[date][m.name] = val.value || 0;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`Metric ${metric} error:`, e);
       }
     }
 
-    // Batch 3: views
-    const batch3 = await fetchInsightsBatch(igUserId, ['views'], 'day', metaToken, timeParams);
-
-    const allDailyMetrics = [...(batch1 || []), ...(batch2 || []), ...(batch3 || [])];
-
-    for (const metric of allDailyMetrics) {
-      const metricName = metric.name;
-      for (const val of metric.values || []) {
-        const date = val.end_time?.split('T')[0];
-        if (!date) continue;
-        if (!dailyInsights[date]) dailyInsights[date] = {};
-
-        if (metricName === 'follows_and_unfollows') {
-          if (typeof val.value === 'object' && val.value !== null) {
-            dailyInsights[date].follows = val.value.follows || 0;
-            dailyInsights[date].unfollows = val.value.unfollows || 0;
+    // Also try follower_count with period=day (no total_value)
+    try {
+      const fcResult = await fetchSingleMetric(igUserId, 'follower_count', 'day', metaToken, timeParams);
+      if (fcResult) {
+        for (const m of fcResult) {
+          for (const val of m.values || []) {
+            const date = val.end_time?.split('T')[0];
+            if (!date) continue;
+            if (!dailyInsights[date]) dailyInsights[date] = {};
+            dailyInsights[date].follower_count = val.value || 0;
           }
-        } else if (metricName === 'follower_count') {
-          dailyInsights[date].follower_count = val.value || 0;
-        } else {
-          dailyInsights[date][metricName] = val.value || 0;
         }
       }
-    }
+    } catch (_) {}
 
     console.log(`Daily insights parsed: ${Object.keys(dailyInsights).length} days`);
 
-    // Step 4: Demographics (lifetime) - use breakdown param for v21+
+    // Step 4: Demographics (lifetime)
     const demographics: any = {
       follower_demographics: {},
       engaged_audience_demographics: {},
       reached_audience_demographics: {},
     };
 
-    // Follower demographics with breakdowns
-    for (const breakdown of ['age', 'gender', 'city', 'country']) {
-      try {
-        const url = `${graphUrl}/${igUserId}/insights?metric=follower_demographics&period=lifetime&metric_type=total_value&breakdown=${breakdown}&access_token=${metaToken}`;
-        const demoData = await fetchJSON(url);
-        if (demoData.data && demoData.data[0]?.total_value?.breakdowns?.[0]?.results) {
-          const results = demoData.data[0].total_value.breakdowns[0].results;
-          const parsed: Record<string, number> = {};
-          for (const r of results) {
-            const key = r.dimension_values?.join(', ') || 'unknown';
-            parsed[key] = r.value || 0;
+    const demoMetrics = [
+      { metric: 'follower_demographics', key: 'follower_demographics' },
+      { metric: 'engaged_audience_demographics', key: 'engaged_audience_demographics' },
+      { metric: 'reached_audience_demographics', key: 'reached_audience_demographics' },
+    ];
+
+    for (const dm of demoMetrics) {
+      for (const breakdown of ['age', 'gender', 'city', 'country']) {
+        try {
+          const url = `${graphUrl}/${igUserId}/insights?metric=${dm.metric}&period=lifetime&metric_type=total_value&breakdown=${breakdown}&access_token=${metaToken}`;
+          const demoData = await fetchJSON(url);
+          if (demoData.data && demoData.data[0]?.total_value?.breakdowns?.[0]?.results) {
+            const results = demoData.data[0].total_value.breakdowns[0].results;
+            const parsed: Record<string, number> = {};
+            for (const r of results) {
+              const key = r.dimension_values?.join(', ') || 'unknown';
+              parsed[key] = r.value || 0;
+            }
+            demographics[dm.key][breakdown] = parsed;
           }
-          demographics.follower_demographics[breakdown] = parsed;
+        } catch (e) {
+          console.warn(`${dm.metric}/${breakdown} failed:`, e);
         }
-      } catch (e) {
-        console.warn(`follower_demographics/${breakdown} failed:`, e);
       }
     }
 
-    // Engaged audience demographics
-    for (const breakdown of ['age', 'gender', 'city', 'country']) {
-      try {
-        const url = `${graphUrl}/${igUserId}/insights?metric=engaged_audience_demographics&period=lifetime&metric_type=total_value&breakdown=${breakdown}&access_token=${metaToken}`;
-        const demoData = await fetchJSON(url);
-        if (demoData.data && demoData.data[0]?.total_value?.breakdowns?.[0]?.results) {
-          const results = demoData.data[0].total_value.breakdowns[0].results;
-          const parsed: Record<string, number> = {};
-          for (const r of results) {
-            const key = r.dimension_values?.join(', ') || 'unknown';
-            parsed[key] = r.value || 0;
-          }
-          demographics.engaged_audience_demographics[breakdown] = parsed;
-        }
-      } catch (e) {
-        console.warn(`engaged_audience_demographics/${breakdown} failed:`, e);
-      }
-    }
-
-    // Reached audience demographics
-    for (const breakdown of ['age', 'gender', 'city', 'country']) {
-      try {
-        const url = `${graphUrl}/${igUserId}/insights?metric=reached_audience_demographics&period=lifetime&metric_type=total_value&breakdown=${breakdown}&access_token=${metaToken}`;
-        const demoData = await fetchJSON(url);
-        if (demoData.data && demoData.data[0]?.total_value?.breakdowns?.[0]?.results) {
-          const results = demoData.data[0].total_value.breakdowns[0].results;
-          const parsed: Record<string, number> = {};
-          for (const r of results) {
-            const key = r.dimension_values?.join(', ') || 'unknown';
-            parsed[key] = r.value || 0;
-          }
-          demographics.reached_audience_demographics[breakdown] = parsed;
-        }
-      } catch (e) {
-        console.warn(`reached_audience_demographics/${breakdown} failed:`, e);
-      }
-    }
-
-    console.log('Demographics keys:', JSON.stringify(Object.keys(demographics)));
+    console.log('Demographics loaded:', JSON.stringify({
+      follower: Object.keys(demographics.follower_demographics),
+      engaged: Object.keys(demographics.engaged_audience_demographics),
+      reached: Object.keys(demographics.reached_audience_demographics),
+    }));
 
     // Upsert daily insights
     const insightRows = Object.entries(dailyInsights).map(([date, data]: [string, any]) => ({
@@ -221,7 +202,7 @@ Deno.serve(async (req) => {
       else console.log(`Upserted ${insightRows.length} daily insight rows`);
     }
 
-    // Step 5: Get media (last 50) with children for carousels
+    // Step 5: Get media (last 50)
     const mediaRes = await fetchJSON(
       `${graphUrl}/${igUserId}/media?fields=id,caption,media_type,media_url,thumbnail_url,timestamp,permalink,like_count,comments_count,children{id,media_type,media_url,thumbnail_url}&limit=50&access_token=${metaToken}`
     );
@@ -243,7 +224,6 @@ Deno.serve(async (req) => {
         const miData = await fetchJSON(`${graphUrl}/${item.id}/insights?metric=${allMetrics.join(',')}&access_token=${metaToken}`);
 
         if (miData.error) {
-          // Fallback: basic metrics only
           const fallbackData = await fetchJSON(`${graphUrl}/${item.id}/insights?metric=reach,likes,comments,shares,saved&access_token=${metaToken}`);
           if (fallbackData.data) {
             insightsOk++;
@@ -269,12 +249,6 @@ Deno.serve(async (req) => {
       const comments = mediaInsightsData.comments || item.comments_count || 0;
       const shares = mediaInsightsData.shares || 0;
       const saved = mediaInsightsData.saved || 0;
-
-      // Handle carousel children
-      let childrenUrls: string[] | null = null;
-      if (item.media_type === 'CAROUSEL_ALBUM' && item.children?.data) {
-        childrenUrls = item.children.data.map((c: any) => c.media_url || c.thumbnail_url || '').filter(Boolean);
-      }
 
       mediaRows.push({
         project_id,
@@ -303,7 +277,7 @@ Deno.serve(async (req) => {
       if (mediaErr) console.error('Error upserting media:', mediaErr);
     }
 
-    // Step 7: Fetch Stories (last 24h stories are available via API)
+    // Step 7: Fetch Stories
     let storiesCount = 0;
     try {
       const storiesRes = await fetchJSON(
@@ -321,7 +295,7 @@ Deno.serve(async (req) => {
               storyInsights[m.name] = m.values?.[0]?.value || 0;
             }
           }
-        } catch (_) { /* ignore story insight errors */ }
+        } catch (_) {}
 
         storyRows.push({
           project_id,
@@ -344,12 +318,11 @@ Deno.serve(async (req) => {
         await supabase.from('instagram_stories').upsert(storyRows, { onConflict: 'project_id,ig_story_id' });
         storiesCount = storyRows.length;
       }
-      console.log(`Stories synced: ${storiesCount}`);
     } catch (e) {
       console.warn('Stories sync failed:', e);
     }
 
-    console.log(`Sync complete: ${mediaRows.length} media (${insightsOk} ok, ${insightsFail} failed), ${insightRows.length} daily insights, ${storiesCount} stories`);
+    console.log(`Sync complete: ${mediaRows.length} media, ${insightRows.length} daily insights, ${storiesCount} stories`);
 
     return new Response(JSON.stringify({
       success: true,

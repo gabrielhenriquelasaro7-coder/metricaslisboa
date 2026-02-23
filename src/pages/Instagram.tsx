@@ -11,7 +11,6 @@ import InstagramPostDetailModal from '@/components/instagram/InstagramPostDetail
 import InstagramDemographics from '@/components/instagram/InstagramDemographics';
 import InstagramCalendar from '@/components/instagram/InstagramCalendar';
 import InstagramPublishDialog from '@/components/instagram/InstagramPublishDialog';
-import InstagramStoriesGrid from '@/components/instagram/InstagramStoriesGrid';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function InstagramPage() {
@@ -87,11 +86,10 @@ export default function InstagramPage() {
             )}
 
             <InstagramMetricsGrid metrics={metrics} followersCount={account.followers_count} />
-            <InstagramStoriesGrid />
-            <InstagramCalendar media={media} onSelectPost={setSelectedPost} onScheduleDate={setScheduleDate} />
             <InstagramPerformanceChart insights={insights} />
             <InstagramPostsGrid media={media} onSelect={setSelectedPost} />
             <InstagramDemographics insights={insights} />
+            <InstagramCalendar media={media} onSelectPost={setSelectedPost} onScheduleDate={setScheduleDate} />
 
             <InstagramPostDetailModal
               item={selectedPost}
