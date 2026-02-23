@@ -147,8 +147,8 @@ Deno.serve(async (req) => {
     const hasCustomMapping = (customMqlStages && customMqlStages.length > 0) || (customSqlStages && customSqlStages.length > 0);
 
     // Get deal statistics - filter by pipeline AND period if provided
-    // For period filter: include deals created in period OR deals with status won/lost that may have been closed in the period
-    // Limit to most recent 500 deals for performance, ordered by created_date DESC
+    // Strategy: get deals created in period + deals CLOSED in period (via closed_date)
+    // Limit to most recent 500 deals for performance
     let dealsQuery = supabase
       .from('crm_deals')
       .select('id, external_id, title, contact_name, contact_phone, contact_email, value, status, stage_name, external_stage_id, external_pipeline_id, created_date, closed_date, utm_source, utm_medium, utm_campaign, utm_content, utm_term, lead_source, owner_name, custom_fields')
@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
       dealsQuery = dealsQuery.eq('external_pipeline_id', selectedPipelineId);
     }
 
-    // Apply date filter using created_date OR synced_at for deals that moved stages in period
+    // Apply date filter on created_date
     if (startDate) {
       dealsQuery = dealsQuery.gte('created_date', `${startDate}T00:00:00`);
     }
@@ -168,37 +168,37 @@ Deno.serve(async (req) => {
       dealsQuery = dealsQuery.lte('created_date', `${endDate}T23:59:59`);
     }
 
-    // Also get won deals in the period that may have been created earlier
-    let wonDealsInPeriodQuery: typeof dealsQuery | null = null;
+    const { data: mainDeals } = await dealsQuery;
+    let allDeals = mainDeals || [];
+
+    // Also get won/lost deals CLOSED in the period but created before it
+    // Use closed_date to find deals that moved to won/lost during the period
     if (startDate || endDate) {
-      wonDealsInPeriodQuery = supabase
+      let closedDealsQuery = supabase
         .from('crm_deals')
         .select('id, external_id, title, contact_name, contact_phone, contact_email, value, status, stage_name, external_stage_id, external_pipeline_id, created_date, closed_date, utm_source, utm_medium, utm_campaign, utm_content, utm_term, lead_source, owner_name, custom_fields')
         .eq('connection_id', connection.id)
-        .eq('status', 'won')
-        .order('created_date', { ascending: false })
+        .in('status', ['won', 'lost'])
+        .not('closed_date', 'is', null)
+        .order('closed_date', { ascending: false })
         .limit(200);
       
       if (selectedPipelineId) {
-        wonDealsInPeriodQuery = wonDealsInPeriodQuery.eq('external_pipeline_id', selectedPipelineId);
+        closedDealsQuery = closedDealsQuery.eq('external_pipeline_id', selectedPipelineId);
       }
-      // Won deals synced in the period (updated_at as proxy for close date)
       if (startDate) {
-        wonDealsInPeriodQuery = wonDealsInPeriodQuery.gte('synced_at', `${startDate}T00:00:00`);
+        closedDealsQuery = closedDealsQuery.gte('closed_date', `${startDate}T00:00:00`);
       }
-    }
+      if (endDate) {
+        closedDealsQuery = closedDealsQuery.lte('closed_date', `${endDate}T23:59:59`);
+      }
 
-    const { data: mainDeals } = await dealsQuery;
-    
-    // Merge won deals from period query
-    let allDeals = mainDeals || [];
-    if (wonDealsInPeriodQuery) {
-      const { data: extraWonDeals } = await wonDealsInPeriodQuery;
-      if (extraWonDeals && extraWonDeals.length > 0) {
+      const { data: closedDeals } = await closedDealsQuery;
+      if (closedDeals && closedDeals.length > 0) {
         const existingIds = new Set(allDeals.map(d => d.id));
-        const newDeals = extraWonDeals.filter(d => !existingIds.has(d.id));
+        const newDeals = closedDeals.filter(d => !existingIds.has(d.id));
         if (newDeals.length > 0) {
-          console.log(`[CRM Status] Added ${newDeals.length} won deals from period that were created earlier`);
+          console.log(`[CRM Status] Added ${newDeals.length} deals closed in period but created earlier`);
           allDeals = [...allDeals, ...newDeals];
         }
       }

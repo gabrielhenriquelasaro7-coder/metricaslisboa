@@ -856,6 +856,15 @@ async function fetchHelpSysDeals(
       if (leads.length > 0 && deals.length === 0) {
         console.log(`[CRM Sync] HelpSys sample lead keys:`, JSON.stringify(Object.keys(leads[0])));
         const sample = leads[0];
+        // Log all date-related fields specifically
+        const dateFields: Record<string, unknown> = {};
+        for (const key of Object.keys(sample)) {
+          const val = sample[key];
+          if (key.includes('data') || key.includes('date') || key.includes('atualiz') || key.includes('fecha') || key.includes('ganho') || key.includes('criacao') || key.includes('created') || key.includes('updated')) {
+            dateFields[key] = val;
+          }
+        }
+        console.log(`[CRM Sync] HelpSys sample lead DATE fields:`, JSON.stringify(dateFields));
         const sampleInfo: Record<string, string> = {};
         for (const key of Object.keys(sample)) {
           const val = sample[key];
@@ -911,6 +920,13 @@ async function fetchHelpSysDeals(
         // Use the actual pipeline field from the lead, not the query parameter
         const extPipelineId = String(lead.pipeline || pipelineId || '');
 
+        // Determine closed_date: try multiple HelpSys field names
+        // For won deals, use data_modificacao as fallback (when they moved to FECHADO)
+        let closedDate = lead.data_fechamento || lead.data_ganho || lead.data_conclusao;
+        if (!closedDate && status === 'won') {
+          closedDate = lead.data_modificacao || lead.data_atualizacao || lead.atualizado_em || lead.updated_at;
+        }
+
         deals.push({
           external_id: leadId,
           external_pipeline_id: extPipelineId,
@@ -921,7 +937,7 @@ async function fetchHelpSysDeals(
           status,
           stage_name: stageName.trim(),
           created_date: lead.data_criacao || lead.created_at,
-          closed_date: lead.data_fechamento || lead.data_ganho,
+          closed_date: closedDate || undefined,
           owner_name: lead.nome_proprietario || '',
           contact_name: contactName || undefined,
           contact_email: contactEmail || undefined,
