@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Heart, MessageCircle, Share2, Bookmark, Eye, Play, Clock, ExternalLink, BarChart3, Image as ImageIcon, Send, Volume2, VolumeX } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, Eye, Play, Pause, Clock, ExternalLink, BarChart3, Image as ImageIcon, Send, Volume2, VolumeX } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import type { InstagramMedia } from '@/hooks/useInstagramData';
 
 interface Props {
@@ -21,6 +21,8 @@ const fmt = (n: number) => {
 
 export default function InstagramPostDetailModal({ item, open, onClose, profilePic, username }: Props) {
   const [muted, setMuted] = useState(true);
+  const [playing, setPlaying] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   if (!item) return null;
   const isReel = item.media_type === 'REELS' || item.media_type === 'VIDEO';
@@ -41,32 +43,59 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
       })()
     : '';
 
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setPlaying(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-[1100px] h-[90vh] max-h-[800px] p-0 gap-0 overflow-hidden border-none bg-card">
+      <DialogContent className="max-w-[95vw] w-[1100px] h-[90vh] max-h-[800px] p-0 gap-0 overflow-hidden border-none bg-card [&>button]:text-white [&>button]:hover:bg-white/20 [&>button]:top-3 [&>button]:right-3 [&>button]:z-30">
         <div className="flex h-full">
           {/* Left: Media */}
           <div className="w-[55%] bg-black flex items-center justify-center relative shrink-0">
             {isReel && item.media_url ? (
               <>
                 <video
+                  ref={videoRef}
                   src={item.media_url}
                   poster={item.thumbnail_url || undefined}
                   autoPlay
                   loop
                   muted={muted}
                   playsInline
-                  className="max-w-full max-h-full object-contain"
+                  className="max-w-full max-h-full object-contain cursor-pointer"
+                  onClick={togglePlay}
                 />
-                <button
-                  onClick={() => setMuted(!muted)}
-                  className="absolute bottom-4 right-4 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
-                >
-                  {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                </button>
-                <Badge className="absolute top-4 left-4 bg-black/60 text-white border-none gap-1">
+                {/* Play/Pause overlay */}
+                {!playing && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer" onClick={togglePlay}>
+                    <Play className="h-16 w-16 text-white/80" />
+                  </div>
+                )}
+                <div className="absolute bottom-4 right-4 flex gap-2">
+                  <button
+                    onClick={togglePlay}
+                    className="p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                  >
+                    {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  </button>
+                  <button
+                    onClick={() => setMuted(!muted)}
+                    className="p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                  >
+                    {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className="absolute top-4 left-4 bg-black/60 text-white text-[11px] font-semibold px-3 py-1 rounded-full flex items-center gap-1.5">
                   <Play className="h-3 w-3" /> Reels
-                </Badge>
+                </div>
               </>
             ) : item.thumbnail_url || item.media_url ? (
               <img
@@ -74,7 +103,6 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
                 alt="Post"
                 className="max-w-full max-h-full object-contain"
                 onError={(e) => {
-                  // Try thumbnail as fallback
                   if (item.thumbnail_url && e.currentTarget.src !== item.thumbnail_url) {
                     e.currentTarget.src = item.thumbnail_url;
                   }
@@ -101,7 +129,7 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
                 <p className="text-[10px] text-muted-foreground">{timeAgo}</p>
               </div>
               {item.permalink && (
-                <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 transition-colors">
+                <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 transition-colors p-1">
                   <ExternalLink className="h-4 w-4" />
                 </a>
               )}
