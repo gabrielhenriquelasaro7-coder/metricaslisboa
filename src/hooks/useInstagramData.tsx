@@ -97,8 +97,13 @@ export function useInstagramData() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success('Instagram sincronizado com sucesso!', {
-        description: `${data.media_count} mídias e ${data.insights_days} dias de insights atualizados.`,
+
+      const parts = [`${data.media_count} mídias`];
+      if (data.insights_days > 0) parts.push(`${data.insights_days} dias de insights`);
+      if (data.media_insights_ok > 0) parts.push(`${data.media_insights_ok} insights de mídia`);
+
+      toast.success('Instagram sincronizado!', {
+        description: parts.join(', ') + '.',
       });
       await fetchData();
     } catch (e: any) {
@@ -123,14 +128,30 @@ export function useInstagramData() {
     }
   }, [projectId, fetchData]);
 
-  // Computed metrics
-  const totalReach = insights.reduce((s, i) => s + (i.reach || 0), 0);
-  const totalLikes = insights.reduce((s, i) => s + (i.likes || 0), 0);
-  const totalComments = insights.reduce((s, i) => s + (i.comments || 0), 0);
-  const totalShares = insights.reduce((s, i) => s + (i.shares || 0), 0);
-  const totalSaves = insights.reduce((s, i) => s + (i.saves || 0), 0);
-  const totalViews = insights.reduce((s, i) => s + (i.views || 0), 0);
-  const totalInteractions = insights.reduce((s, i) => s + (i.total_interactions || 0), 0);
+  // Computed metrics from daily insights, with fallback to media-level data
+  const fromInsights = insights.length > 0;
+
+  const totalReach = fromInsights
+    ? insights.reduce((s, i) => s + (i.reach || 0), 0)
+    : media.reduce((s, m) => s + (m.reach || 0), 0);
+  const totalLikes = fromInsights
+    ? insights.reduce((s, i) => s + (i.likes || 0), 0)
+    : media.reduce((s, m) => s + (m.like_count || 0), 0);
+  const totalComments = fromInsights
+    ? insights.reduce((s, i) => s + (i.comments || 0), 0)
+    : media.reduce((s, m) => s + (m.comments_count || 0), 0);
+  const totalShares = fromInsights
+    ? insights.reduce((s, i) => s + (i.shares || 0), 0)
+    : media.reduce((s, m) => s + (m.shares || 0), 0);
+  const totalSaves = fromInsights
+    ? insights.reduce((s, i) => s + (i.saves || 0), 0)
+    : media.reduce((s, m) => s + (m.saved || 0), 0);
+  const totalViews = fromInsights
+    ? insights.reduce((s, i) => s + (i.views || 0), 0)
+    : media.reduce((s, m) => s + (m.views || 0), 0);
+  const totalInteractions = fromInsights
+    ? insights.reduce((s, i) => s + (i.total_interactions || 0), 0)
+    : media.reduce((s, m) => s + (m.total_interactions || 0), 0);
   const newFollows = insights.reduce((s, i) => s + (i.follows || 0), 0);
   const engagementRate = totalReach > 0 ? ((totalInteractions / totalReach) * 100) : 0;
 
