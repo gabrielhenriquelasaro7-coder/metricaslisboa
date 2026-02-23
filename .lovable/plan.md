@@ -1,138 +1,81 @@
 
 
-# Plano: Instagram Social Media Dashboard via Meta Graph API
+# Instagram Dashboard: Data Fix and Visual Improvement
 
-## Resumo
+## Problem Summary
 
-Sim, o Meta Graph API fornece dados completos do Instagram para contas Business/Creator. Vamos construir um dashboard completo de Social Media com metricas de conta, postagens individuais, demograficos e graficos de performance — tudo em PT-BR.
+The sync successfully saves account info (12k followers) and 50 media items, but:
+- All per-media metrics (reach, views, shares, saved) are **0** -- the insights API calls fail silently
+- Daily insights table has **0 rows** -- the daily metrics API also fails silently
+- Images show ugly gray bars due to `object-contain` in the grid
+- The overall visualization looks sparse and incomplete
 
----
+## Root Causes
 
-## O que o Meta Graph API fornece do Instagram
+1. **Meta Graph API v21 metric changes**: Some metric names (`accounts_engaged`, `total_interactions`, `follows_and_unfollows`) may not be available or require different parameters in the current API version. Errors are swallowed by try/catch blocks with no user feedback.
+2. **Per-media insights failing**: The metrics `likes`, `comments`, `shares`, `saved`, `total_interactions` for individual media may require different names or the API call format may be wrong. Again, errors are silently caught.
+3. **Image display**: Grid uses `object-contain` (shows full image with gray padding) instead of `object-cover` (fills square, crops edges).
 
-### Dados da Conta (IG User)
-- `followers_count`, `follows_count`, `media_count`, `biography`, `name`, `profile_picture_url`
+## Plan
 
-### Insights da Conta (periodo: day)
-- `reach` — Alcance (contas unicas)
-- `views` — Visualizacoes totais
-- `accounts_engaged` — Contas engajadas
-- `likes` — Curtidas totais
-- `comments` — Comentarios totais
-- `shares` — Compartilhamentos
-- `saves` — Salvamentos
-- `follows_and_unfollows` — Novos seguidores / perdidos
-- `profile_views` — Visitas ao perfil
-- `website_clicks` — Cliques no site
-- `total_interactions` — Total de interacoes
+### 1. Fix Edge Function (`instagram-sync`)
 
-### Demograficos da Audiencia (periodo: lifetime)
-- `engaged_audience_demographics` — por age, city, country, gender
-- `reached_audience_demographics` — por age, city, country, gender
-- `follower_demographics` — por age, city, country, gender
+**Daily Insights (Step 3):**
+- Split the metrics request into smaller batches -- Meta API sometimes rejects when too many metrics are requested at once
+- Use separate calls for basic metrics (`reach`, `impressions`, `profile_views`, `website_clicks`) and interaction metrics (`likes`, `comments`, `shares`, `saves`, `follows_and_unfollows`)
+- Add detailed error logging with metric names so we can see exactly which metrics fail
+- Add fallback: if combined request fails, try metrics individually
 
-### Dados por Midia (cada post/reel/story)
-- Campos: `id`, `caption`, `media_type`, `media_url`, `thumbnail_url`, `timestamp`, `permalink`, `like_count`, `comments_count`
-- Insights por midia: `reach`, `views`, `likes`, `comments`, `shares`, `saved`, `total_interactions`
-- Para Reels: `plays`, `ig_reels_avg_watch_time`
+**Per-Media Insights (Step 6):**
+- Add proper error logging with the specific media ID and error message
+- Use fallback values from the basic media fields (`like_count`, `comments_count`) when insights API fails
+- Handle the case where some metrics simply aren't available for older posts (API returns error for posts older than 2 years)
 
-### Limitacoes da API
-- Token do Meta (Facebook Login for Business) com permissoes `instagram_basic`, `instagram_manage_insights`, `pages_read_engagement`
-- Insights de conta: ultimos 30 dias (period=day)
-- Demograficos: somente `lifetime`
-- Dados podem ter delay de ate 48h
-- Contas com menos de 100 seguidores nao retornam demograficos
+**General improvements:**
+- Log all API responses (not just errors) so we can debug via function logs
+- Return detailed sync report with counts of successful/failed insight fetches
 
----
+### 2. Fix Image Grid (No More Gray Bars)
 
-## Arquitetura
+**`InstagramPostsGrid.tsx`:**
+- Change from `object-contain bg-black/5` to `object-cover` in the grid thumbnails
+- This fills the square completely, cropping edges naturally (standard Instagram behavior)
+- Keep `object-contain` only in the detail modal where full image visibility matters
 
-### Banco de Dados (3 novas tabelas)
+### 3. Improve Visualization
 
-**`instagram_accounts`** — Configuracao por projeto
-- `id`, `project_id`, `ig_user_id` (ID Instagram Business), `username`, `name`, `biography`, `profile_picture_url`, `followers_count`, `follows_count`, `media_count`, `website`, `last_sync_at`, `created_at`
+**`InstagramPage.tsx`:**
+- Add a summary banner showing sync status (last sync date, media count, insights days)
+- Show a warning when insights data is empty (guiding user to re-sync)
 
-**`instagram_media`** — Posts/Reels/Stories
-- `id`, `project_id`, `ig_media_id`, `media_type` (IMAGE/VIDEO/CAROUSEL_ALBUM/REELS), `caption`, `media_url`, `thumbnail_url`, `permalink`, `timestamp`, `like_count`, `comments_count`, `reach`, `views`, `shares`, `saved`, `total_interactions`, `plays`, `avg_watch_time`, `synced_at`
+**`InstagramMetricsGrid.tsx`:**
+- Add subtle animations on metric cards
+- Show "last 30 days" label to clarify the time period
+- Add visual indicator when a metric is 0 (dimmed styling)
 
-**`instagram_insights_daily`** — Metricas diarias da conta
-- `id`, `project_id`, `date`, `reach`, `views`, `accounts_engaged`, `likes`, `comments`, `shares`, `saves`, `follows`, `unfollows`, `profile_views`, `website_clicks`, `total_interactions`, `engaged_demographics` (JSONB), `reached_demographics` (JSONB), `follower_demographics` (JSONB)
+**`InstagramPerformanceChart.tsx`:**
+- Add area fill under lines for better visual appeal
+- Add date range label in header
+- Handle empty data state with a helpful message
 
-### Edge Function: `instagram-sync`
+**`InstagramPostsGrid.tsx`:**
+- Add engagement rate per post (interactions / reach)
+- Show post date overlay on thumbnails
+- Better empty state design
 
-Funcao que recebe `project_id` e executa:
+**`InstagramDemographics.tsx`:**
+- Add a note when demographics aren't available (requires 100+ followers -- this account has 12k so it should work after fixing the sync)
 
-1. **Buscar IG User ID** — via `facebook_page_id` do projeto: `GET /{page_id}?fields=instagram_business_account`
-2. **Dados da Conta** — `GET /{ig_user_id}?fields=biography,followers_count,follows_count,media_count,name,profile_picture_url,username,website`
-3. **Insights Diarios (30 dias)** — `GET /{ig_user_id}/insights?metric=reach,views,accounts_engaged,likes,comments,shares,saves,follows_and_unfollows,profile_views,website_clicks,total_interactions&period=day&since={30d_ago}&until={today}`
-4. **Demograficos** — `GET /{ig_user_id}/insights?metric=engaged_audience_demographics,reached_audience_demographics,follower_demographics&period=lifetime&metric_type=total_value`
-5. **Midias (ultimas 50)** — `GET /{ig_user_id}/media?fields=id,caption,media_type,media_url,thumbnail_url,timestamp,permalink,like_count,comments_count&limit=50`
-6. **Insights por midia** — Para cada midia: `GET /{media_id}/insights?metric=reach,views,likes,comments,shares,saved,total_interactions`
+### 4. Files to Change
 
-### Frontend: Pagina Instagram Completa
-
-**Secao 1 — Cabecalho do Perfil**
-- Foto de perfil, nome, bio, link do site
-- Cards: Seguidores | Publicacoes | Seguindo
-
-**Secao 2 — Cards de Metricas (grid 4x2)**
-- Seguidores | Novos Seguidores | Alcance | Posts
-- Curtidas | Comentarios | Salvos | Compartilhamentos
-- Visualizacoes | Taxa de Engajamento
-
-**Secao 3 — Grafico de Performance**
-- Grafico de linhas (Recharts) com alcance, views, engajamento ao longo do periodo
-- Seletor de metricas no grafico
-
-**Secao 4 — Posts (Grid visual)**
-- Filtros: Todos / Feed / Reels
-- Ordenacao: Mais recentes, Mais alcance, Mais curtidas, Mais comentarios, Mais salvos, Mais compartilhamentos
-- Grid de thumbnails com metricas resumidas (curtidas, comentarios, alcance)
-- Click abre modal com detalhes completos do post
-
-**Secao 5 — Modal Detalhes do Post**
-- Imagem/video do post
-- Legenda completa
-- Metricas: Alcance, Views, Curtidas, Comentarios, Compartilhamentos, Salvos, Interacoes Totais
-- Para Reels: Reproducoes, Tempo medio de visualizacao
-
-**Secao 6 — Dados Demograficos**
-- Graficos Donut: Genero e Idade
-- Ranking: Principais Cidades
-- Ranking: Principais Paises
-
-**Secao 7 — Botao de Sincronizacao**
-- Botao para sincronizar dados manualmente
-- Indicador de ultima sincronizacao
-
----
-
-## Detalhes Tecnicos
-
-### Configuracao por Projeto
-O campo `facebook_page_id` ja existe na tabela `projects`. A partir dele, a Edge Function descobre o `instagram_business_account` vinculado. Nao precisa de campo novo no projeto.
-
-### Permissoes do Token
-O token Meta (`META_ACCESS_TOKEN`) ja configurado no sistema precisa ter as permissoes:
-- `instagram_basic`
-- `instagram_manage_insights`
-- `pages_read_engagement`
-- `pages_show_list`
-
-### Hook: `useInstagramData`
-- Busca dados de `instagram_accounts`, `instagram_media`, `instagram_insights_daily`
-- Calcula metricas derivadas (taxa de engajamento = interacoes / alcance)
-- Agrega dados por periodo selecionado
-
-### Arquivos a Criar/Editar
-1. **Migracoes SQL** — 3 tabelas + RLS policies
-2. `supabase/functions/instagram-sync/index.ts` — Edge Function
-3. `src/hooks/useInstagramData.tsx` — Hook de dados
-4. `src/pages/Instagram.tsx` — Pagina completa (substituir placeholder)
-5. `src/components/instagram/InstagramProfileHeader.tsx` — Cabecalho
-6. `src/components/instagram/InstagramMetricsGrid.tsx` — Grid de metricas
-7. `src/components/instagram/InstagramPerformanceChart.tsx` — Grafico de linhas
-8. `src/components/instagram/InstagramPostsGrid.tsx` — Grid de posts
-9. `src/components/instagram/InstagramPostDetailModal.tsx` — Modal de detalhes
-10. `src/components/instagram/InstagramDemographics.tsx` — Demograficos
+| File | Changes |
+|------|---------|
+| `supabase/functions/instagram-sync/index.ts` | Fix metric fetching with fallbacks, better logging |
+| `src/components/instagram/InstagramPostsGrid.tsx` | `object-cover` for grid, date overlay, engagement rate |
+| `src/components/instagram/InstagramMetricsGrid.tsx` | Period label, zero-state styling, animations |
+| `src/components/instagram/InstagramPerformanceChart.tsx` | Area fill, empty state, date range |
+| `src/components/instagram/InstagramDemographics.tsx` | Better empty state message |
+| `src/pages/Instagram.tsx` | Sync status banner, warning for empty insights |
+| `src/components/instagram/InstagramPostDetailModal.tsx` | Minor visual polish |
+| `src/components/instagram/InstagramProfileHeader.tsx` | Add engagement rate badge |
 
