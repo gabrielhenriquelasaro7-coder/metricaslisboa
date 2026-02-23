@@ -57,7 +57,7 @@ const BUSINESS_MODEL_LABELS: Record<string, { label: string; icon: React.Element
 const ALLOWED_BUSINESS_MODELS = ['inside_sales', 'ecommerce', 'pdv', 'infoproduto', 'custom'];
 
 // Helper function to calculate date range from period
-function getDateRangeFromPeriod(period: DREPeriod): { startDate: string; endDate: string } {
+function getDateRangeFromPeriod(period: DREPeriod): { startDate: string; endDate: string; description: string } {
   const today = new Date();
   let start: Date;
   let end: Date = today;
@@ -73,19 +73,22 @@ function getDateRangeFromPeriod(period: DREPeriod): { startDate: string; endDate
       start = startOfMonth(today);
       end = today;
       break;
-    case 'last_month':
+    case 'last_month': {
       const lastMonth = subMonths(today, 1);
       start = startOfMonth(lastMonth);
       end = endOfMonth(lastMonth);
       break;
+    }
     case 'custom':
     default:
-      start = subDays(today, 30);
+      start = startOfMonth(today);
+      end = today;
   }
   
   return {
     startDate: format(start, 'yyyy-MM-dd'),
     endDate: format(end, 'yyyy-MM-dd'),
+    description: `${format(start, 'dd/MM')} - ${format(end, 'dd/MM')}`,
   };
 }
 
@@ -244,6 +247,7 @@ export default function Financial() {
             value={drePeriod} 
             onChange={setDrePeriod}
             onOpenHistory={() => setShowDREHistory(true)}
+            periodDescription={crmDateRange.description}
           />
         </div>
 
