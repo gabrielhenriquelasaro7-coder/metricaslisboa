@@ -37,8 +37,13 @@ Deno.serve(async (req) => {
     const pageRes = await fetch(`${graphUrl}/${pageId}?fields=instagram_business_account&access_token=${metaToken}`);
     const pageData = await pageRes.json();
     
+    if (pageData.error) {
+      console.error('Meta API page error:', JSON.stringify(pageData.error));
+      throw new Error(`Erro ao consultar página Facebook (ID: ${pageId}): ${pageData.error.message || 'Verifique se o ID está correto e se o token tem permissão pages_show_list'}`);
+    }
+
     if (!pageData.instagram_business_account?.id) {
-      throw new Error('Nenhuma conta Instagram Business vinculada a esta página');
+      throw new Error(`Nenhuma conta Instagram Business vinculada à página ${pageId}. Verifique se a página possui uma conta Instagram Business/Profissional conectada nas configurações do Facebook.`);
     }
 
     const igUserId = pageData.instagram_business_account.id;

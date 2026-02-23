@@ -323,8 +323,8 @@ export default function AdDetail() {
         <div className="p-8 text-center">
           <ImageIcon className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-xl font-semibold">Anúncio não encontrado</h2>
-          <Link to="/campaigns" className="text-primary hover:underline mt-2 inline-block">
-            Voltar para campanhas
+          <Link to="/creatives" className="text-primary hover:underline mt-2 inline-block">
+            Voltar para Criativos
           </Link>
         </div>
       </DashboardLayout>
@@ -338,7 +338,7 @@ export default function AdDetail() {
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link 
-              to={adSet ? `/adset/${adSet.id}` : '/campaigns'} 
+              to="/creatives"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               <ChevronLeft className="w-6 h-6" />
@@ -359,9 +359,9 @@ export default function AdDetail() {
                   {ad.status === 'ACTIVE' ? 'Ativo' : ad.status === 'PAUSED' ? 'Pausado' : ad.status}
                 </Badge>
                 {adSet && (
-                  <Link to={`/adset/${adSet.id}`} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                  <span className="text-sm text-muted-foreground">
                     Conjunto: {adSet.name}
-                  </Link>
+                  </span>
                 )}
                 {campaign && (
                   <span className="text-sm text-muted-foreground">
