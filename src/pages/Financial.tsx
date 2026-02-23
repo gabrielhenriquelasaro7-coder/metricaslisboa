@@ -454,7 +454,11 @@ export default function Financial() {
                   onForceSync={() => triggerSync('incremental')}
                 />
               </div>
-              <FinancialMetricsGrid businessModel={businessModel!} metrics={crmMetrics} />
+              <FinancialMetricsGrid 
+                businessModel={businessModel!} 
+                metrics={crmMetrics} 
+                funnelCardsConfig={crmStatus?.funnel_cards_config as FunnelCard[] | undefined}
+              />
               {businessModel === 'inside_sales' ? (
                 <InsideSalesFunnel 
                   leads={crmMetrics.leads}
