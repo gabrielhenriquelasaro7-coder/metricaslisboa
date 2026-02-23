@@ -69,7 +69,7 @@ export default function InstagramPostsGrid({ media, onSelect }: Props) {
                 onClick={() => onSelect(item)}
               >
                 {img ? (
-                  <img src={img} alt={item.caption?.substring(0, 50) || 'Post'} className="w-full h-full object-cover" />
+                  <img src={img} alt={item.caption?.substring(0, 50) || 'Post'} className="w-full h-full object-contain bg-black/5 dark:bg-white/5" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">Sem imagem</div>
                 )}
