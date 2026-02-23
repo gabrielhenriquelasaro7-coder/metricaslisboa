@@ -56,8 +56,8 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-[1100px] h-[90vh] max-h-[800px] p-0 gap-0 overflow-hidden border-none bg-card [&>button]:text-white [&>button]:hover:bg-white/20 [&>button]:top-3 [&>button]:right-3 [&>button]:z-30">
-        <div className="flex h-full">
+      <DialogContent className="max-w-[95vw] w-[1100px] h-[90vh] max-h-[800px] p-0 gap-0 overflow-hidden border-none bg-card [&>button]:text-white [&>button]:hover:bg-white/20 [&>button]:top-3 [&>button]:right-3 [&>button]:z-30 !grid-rows-[1fr]">
+        <div className="flex h-full min-h-0 overflow-hidden">
           {/* Left: Media */}
           <div className="w-[55%] bg-black flex items-center justify-center relative shrink-0">
             {isReel && item.media_url ? (
