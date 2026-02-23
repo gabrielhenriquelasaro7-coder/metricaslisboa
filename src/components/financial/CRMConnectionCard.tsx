@@ -201,7 +201,7 @@ export function CRMConnectionCard({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <CardTitle className="text-base sm:text-xl">{connectedCRMData.name}</CardTitle>
+                  <CardTitle className="text-base sm:text-xl">CRM</CardTitle>
                   <Badge className="gap-1 bg-green-500/10 text-green-500 border-green-500/20 text-[10px] sm:text-xs">
                     <CheckCircle2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                     Conectado
