@@ -407,6 +407,99 @@ Deno.serve(async (req) => {
           revenue: stats.total_revenue,
         };
       }
+    } else if (connection.provider === 'helpsys' && connection.status === 'connected') {
+      try {
+        const apiKey = connection.api_key as string;
+        const apiUrl = connection.api_url as string;
+
+        if (apiKey && apiUrl) {
+          const pipelinesRes = await fetch(`${apiUrl}/pipelines.php`, {
+            headers: { 'X-API-KEY': apiKey },
+          });
+
+          if (pipelinesRes.ok) {
+            const pipelinesData = await pipelinesRes.json();
+            const helpsysPipelines = pipelinesData.dados || [];
+
+            // Build pipelines list
+            const dealCountByPipeline: Record<string, number> = {};
+            allDeals?.forEach(deal => {
+              const pid = String(deal.external_pipeline_id);
+              dealCountByPipeline[pid] = (dealCountByPipeline[pid] || 0) + 1;
+            });
+
+            pipelines = helpsysPipelines.map((p: { id: number; nome: string }) => ({
+              id: String(p.id),
+              name: p.nome,
+              is_main: false,
+              deals_count: dealCountByPipeline[String(p.id)] || 0,
+            }));
+
+            // Get target pipeline stages
+            const targetPipelineId = selectedPipelineId || String(helpsysPipelines[0]?.id);
+            const targetPipeline = helpsysPipelines.find((p: { id: number }) => String(p.id) === targetPipelineId);
+
+            if (targetPipeline) {
+              const fases = targetPipeline.fases || [];
+              
+              const dealCountByStage: Record<string, { count: number; value: number }> = {};
+              allDeals?.forEach(deal => {
+                const stageId = String(deal.external_stage_id);
+                if (!dealCountByStage[stageId]) {
+                  dealCountByStage[stageId] = { count: 0, value: 0 };
+                }
+                dealCountByStage[stageId].count++;
+                dealCountByStage[stageId].value += (deal.value || 0);
+              });
+
+              stages = fases.map((f: { id: number; nome: string; ordem: number; probabilidade: number }) => ({
+                id: String(f.id),
+                name: f.nome,
+                color: f.probabilidade === 100 ? '#22c55e' : '#6b7280',
+                sort: f.ordem || 0,
+                type: f.probabilidade === 100 ? 1 : 0,
+                leads_count: dealCountByStage[String(f.id)]?.count || 0,
+                total_value: dealCountByStage[String(f.id)]?.value || 0,
+              }));
+
+              // Build deals array
+              deals = (allDeals || []).map(deal => ({
+                id: deal.id,
+                title: deal.title,
+                contact_name: deal.contact_name || undefined,
+                contact_email: deal.contact_email || undefined,
+                contact_phone: deal.contact_phone || undefined,
+                value: deal.value || undefined,
+                stage_id: String(deal.external_stage_id),
+                stage_name: deal.stage_name || undefined,
+                created_date: deal.created_date || undefined,
+                closed_date: deal.closed_date || undefined,
+                utm_source: deal.utm_source || undefined,
+                utm_medium: deal.utm_medium || undefined,
+                utm_campaign: deal.utm_campaign || undefined,
+                owner_name: deal.owner_name || undefined,
+                status: deal.status || undefined,
+              }));
+
+              // Calculate funnel
+              const openStages = fases.filter((f: { probabilidade: number }) => f.probabilidade < 100);
+              const stageCount = openStages.length;
+              if (stageCount > 0) {
+                const openDealsData = allDeals?.filter(d => d.status === 'open') || [];
+                funnel = {
+                  leads: stats.total_deals,
+                  mql: Math.round(stats.total_deals * 0.6),
+                  sql: Math.round(stats.total_deals * 0.3),
+                  sales: stats.won_deals,
+                  revenue: stats.total_revenue,
+                };
+              }
+            }
+          }
+        }
+      } catch (helpsysError) {
+        console.error('Error fetching HelpSys data:', helpsysError);
+      }
     } else {
       funnel = {
         leads: stats.total_deals,

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-export type CRMProvider = 'kommo' | 'hubspot' | 'gohighlevel' | 'bitrix24' | 'rdstation' | 'outros';
+export type CRMProvider = 'kommo' | 'hubspot' | 'gohighlevel' | 'bitrix24' | 'rdstation' | 'helpsys' | 'outros';
 
 export interface CRMPipeline {
   id: string;

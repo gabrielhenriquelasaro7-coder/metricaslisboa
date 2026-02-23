@@ -7,7 +7,7 @@ const corsHeaders = {
 
 interface ConnectRequest {
   project_id: string;
-  provider: 'kommo' | 'hubspot' | 'gohighlevel' | 'bitrix24' | 'rdstation' | 'outros';
+  provider: 'kommo' | 'hubspot' | 'gohighlevel' | 'bitrix24' | 'rdstation' | 'helpsys' | 'outros';
   api_key?: string;
   api_url?: string;
   config?: Record<string, unknown>;
@@ -33,7 +33,7 @@ const OAUTH_CONFIGS: Record<string, { authUrl: string; tokenUrl: string; scopes:
 };
 
 // Providers that use API Key instead of OAuth
-const API_KEY_PROVIDERS = ['kommo', 'bitrix24', 'outros'];
+const API_KEY_PROVIDERS = ['kommo', 'bitrix24', 'helpsys', 'outros'];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -304,6 +304,37 @@ async function validateApiKey(
           return { success: true, api_url: apiUrl };
         } catch {
           return { success: true, api_url: apiUrl }; // Allow even if HEAD fails
+        }
+      }
+
+      case 'helpsys': {
+        if (!apiUrl) {
+          return { success: false, error: 'URL base do HelpSys é obrigatória' };
+        }
+        
+        let baseUrl = apiUrl;
+        if (!baseUrl.startsWith('http')) {
+          baseUrl = `https://${baseUrl}`;
+        }
+        baseUrl = baseUrl.replace(/\/+$/, '');
+        if (!baseUrl.endsWith('/api/v1')) {
+          baseUrl = `${baseUrl}/api/v1`;
+        }
+        
+        try {
+          const response = await fetch(`${baseUrl}/pipelines.php`, {
+            headers: { 'X-API-KEY': apiKey }
+          });
+          
+          if (response.ok) {
+            return { success: true, api_url: baseUrl };
+          }
+          if (response.status === 401 || response.status === 403) {
+            return { success: false, error: 'API Key inválida' };
+          }
+          return { success: false, error: `Erro ao conectar: HTTP ${response.status}` };
+        } catch (e) {
+          return { success: false, error: 'Não foi possível conectar ao servidor HelpSys' };
         }
       }
 
