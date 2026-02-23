@@ -2168,6 +2168,65 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_stories: {
+        Row: {
+          exits: number | null
+          id: string
+          ig_story_id: string
+          impressions: number | null
+          media_type: string
+          media_url: string | null
+          project_id: string
+          reach: number | null
+          replies: number | null
+          synced_at: string | null
+          taps_back: number | null
+          taps_forward: number | null
+          thumbnail_url: string | null
+          timestamp: string | null
+        }
+        Insert: {
+          exits?: number | null
+          id?: string
+          ig_story_id: string
+          impressions?: number | null
+          media_type?: string
+          media_url?: string | null
+          project_id: string
+          reach?: number | null
+          replies?: number | null
+          synced_at?: string | null
+          taps_back?: number | null
+          taps_forward?: number | null
+          thumbnail_url?: string | null
+          timestamp?: string | null
+        }
+        Update: {
+          exits?: number | null
+          id?: string
+          ig_story_id?: string
+          impressions?: number | null
+          media_type?: string
+          media_url?: string | null
+          project_id?: string
+          reach?: number | null
+          replies?: number | null
+          synced_at?: string | null
+          taps_back?: number | null
+          taps_forward?: number | null
+          thumbnail_url?: string | null
+          timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_stories_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investor_suggestions: {
         Row: {
           created_at: string

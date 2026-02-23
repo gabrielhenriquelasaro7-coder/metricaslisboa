@@ -11,6 +11,7 @@ import InstagramPostDetailModal from '@/components/instagram/InstagramPostDetail
 import InstagramDemographics from '@/components/instagram/InstagramDemographics';
 import InstagramCalendar from '@/components/instagram/InstagramCalendar';
 import InstagramPublishDialog from '@/components/instagram/InstagramPublishDialog';
+import InstagramStoriesGrid from '@/components/instagram/InstagramStoriesGrid';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function InstagramPage() {
@@ -80,12 +81,13 @@ export default function InstagramPage() {
                 <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0" />
                 <div className="text-sm">
                   <p className="font-medium">Insights diários não carregados</p>
-                  <p className="text-xs text-muted-foreground">As métricas diárias podem levar até 48h para ficarem disponíveis.</p>
+                  <p className="text-xs text-muted-foreground">Clique em "Sincronizar" novamente. As métricas diárias podem levar até 48h para ficarem disponíveis na API.</p>
                 </div>
               </div>
             )}
 
             <InstagramMetricsGrid metrics={metrics} followersCount={account.followers_count} />
+            <InstagramStoriesGrid />
             <InstagramCalendar media={media} onSelectPost={setSelectedPost} onScheduleDate={setScheduleDate} />
             <InstagramPerformanceChart insights={insights} />
             <InstagramPostsGrid media={media} onSelect={setSelectedPost} />

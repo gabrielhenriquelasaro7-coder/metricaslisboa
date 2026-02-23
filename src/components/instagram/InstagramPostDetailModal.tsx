@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Heart, MessageCircle, Share2, Bookmark, Eye, Play, Clock, ExternalLink, BarChart3, Image as ImageIcon, Send } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, Eye, Play, Clock, ExternalLink, BarChart3, Image as ImageIcon, Send, Volume2, VolumeX } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { InstagramMedia } from '@/hooks/useInstagramData';
 
@@ -19,13 +20,12 @@ const fmt = (n: number) => {
 };
 
 export default function InstagramPostDetailModal({ item, open, onClose, profilePic, username }: Props) {
+  const [muted, setMuted] = useState(true);
+
   if (!item) return null;
   const isReel = item.media_type === 'REELS' || item.media_type === 'VIDEO';
-  const img = isReel ? (item.thumbnail_url || item.media_url) : (item.media_url || item.thumbnail_url);
   const totalEngagement = (item.like_count || 0) + (item.comments_count || 0) + (item.shares || 0) + (item.saved || 0);
-  const engRate = item.reach > 0
-    ? (totalEngagement / item.reach * 100).toFixed(2)
-    : '0.00';
+  const engRate = item.reach > 0 ? (totalEngagement / item.reach * 100).toFixed(2) : '0.00';
 
   const formattedDate = item.timestamp
     ? new Date(item.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -45,21 +45,38 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] w-[1100px] h-[90vh] max-h-[800px] p-0 gap-0 overflow-hidden border-none bg-card">
         <div className="flex h-full">
-          {/* Left: Image - Instagram style dark background */}
+          {/* Left: Media */}
           <div className="w-[55%] bg-black flex items-center justify-center relative shrink-0">
-            {img ? (
+            {isReel && item.media_url ? (
+              <>
+                <video
+                  src={item.media_url}
+                  poster={item.thumbnail_url || undefined}
+                  autoPlay
+                  loop
+                  muted={muted}
+                  playsInline
+                  className="max-w-full max-h-full object-contain"
+                />
+                <button
+                  onClick={() => setMuted(!muted)}
+                  className="absolute bottom-4 right-4 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                >
+                  {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </button>
+                <Badge className="absolute top-4 left-4 bg-black/60 text-white border-none gap-1">
+                  <Play className="h-3 w-3" /> Reels
+                </Badge>
+              </>
+            ) : item.thumbnail_url || item.media_url ? (
               <img
-                src={img}
+                src={item.media_url || item.thumbnail_url || ''}
                 alt="Post"
                 className="max-w-full max-h-full object-contain"
                 onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  const parent = e.currentTarget.parentElement;
-                  if (parent) {
-                    const ph = document.createElement('div');
-                    ph.className = 'flex flex-col items-center gap-3 text-muted-foreground';
-                    ph.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><span class="text-sm">Mídia indisponível</span>';
-                    parent.appendChild(ph);
+                  // Try thumbnail as fallback
+                  if (item.thumbnail_url && e.currentTarget.src !== item.thumbnail_url) {
+                    e.currentTarget.src = item.thumbnail_url;
                   }
                 }}
               />
@@ -69,16 +86,11 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
                 <span className="text-sm">Sem mídia</span>
               </div>
             )}
-            {isReel && (
-              <Badge className="absolute top-4 left-4 bg-black/60 text-white border-none gap-1">
-                <Play className="h-3 w-3" /> Reels
-              </Badge>
-            )}
           </div>
 
-          {/* Right: Info panel - Instagram style */}
+          {/* Right: Info panel */}
           <div className="w-[45%] flex flex-col h-full overflow-hidden">
-            {/* Header - user info */}
+            {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={profilePic || ''} />
@@ -95,31 +107,28 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
               )}
             </div>
 
-            {/* Caption - scrollable area */}
+            {/* Caption */}
             <div className="flex-1 overflow-y-auto px-4 py-3">
               {item.caption && (
-                <div className="space-y-2">
-                  <div className="flex gap-3">
-                    <Avatar className="h-8 w-8 shrink-0 mt-0.5">
-                      <AvatarImage src={profilePic || ''} />
-                      <AvatarFallback className="text-xs">IG</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                        <span className="font-semibold mr-1.5">{username || 'usuario'}</span>
-                        <span className="text-foreground/90">{item.caption}</span>
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-1.5">{formattedDate}</p>
-                    </div>
+                <div className="flex gap-3">
+                  <Avatar className="h-8 w-8 shrink-0 mt-0.5">
+                    <AvatarImage src={profilePic || ''} />
+                    <AvatarFallback className="text-xs">IG</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                      <span className="font-semibold mr-1.5">{username || 'usuario'}</span>
+                      <span className="text-foreground/90">{item.caption}</span>
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">{formattedDate}</p>
                   </div>
                 </div>
               )}
 
-              {/* Comments count */}
               {item.comments_count > 0 && (
                 <div className="mt-4 pt-3 border-t border-border/50">
                   <p className="text-xs text-muted-foreground">
-                    {item.comments_count === 1 ? '1 comentário' : `${item.comments_count} comentários`}
+                    {item.comments_count} comentário{item.comments_count !== 1 ? 's' : ''}
                   </p>
                   <p className="text-[10px] text-muted-foreground/70 mt-1">
                     Os comentários são visíveis diretamente no Instagram.
@@ -128,7 +137,7 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
               )}
             </div>
 
-            {/* Interaction buttons - Instagram style */}
+            {/* Interaction buttons */}
             <div className="border-t border-border shrink-0">
               <div className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-4">
@@ -189,7 +198,6 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
                 )}
               </div>
 
-              {/* Date */}
               <div className="px-4 pb-3">
                 <p className="text-[10px] text-muted-foreground uppercase">{formattedDate}</p>
               </div>
