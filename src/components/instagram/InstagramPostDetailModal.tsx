@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Heart, MessageCircle, Share2, Bookmark, Eye, Play, Pause, Clock, ExternalLink, BarChart3, Image as ImageIcon, Send, Volume2, VolumeX } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, Eye, Play, Pause, Clock, ExternalLink, BarChart3, Image as ImageIcon, Send, Volume2, VolumeX, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import type { InstagramMedia } from '@/hooks/useInstagramData';
@@ -20,7 +20,7 @@ const fmt = (n: number) => {
 };
 
 export default function InstagramPostDetailModal({ item, open, onClose, profilePic, username }: Props) {
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [playing, setPlaying] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -73,23 +73,16 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
                   className="max-w-full max-h-full object-contain cursor-pointer"
                   onClick={togglePlay}
                 />
-                {/* Play/Pause overlay */}
                 {!playing && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer" onClick={togglePlay}>
                     <Play className="h-16 w-16 text-white/80" />
                   </div>
                 )}
                 <div className="absolute bottom-4 right-4 flex gap-2">
-                  <button
-                    onClick={togglePlay}
-                    className="p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
-                  >
+                  <button onClick={togglePlay} className="p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors">
                     {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                   </button>
-                  <button
-                    onClick={() => setMuted(!muted)}
-                    className="p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
-                  >
+                  <button onClick={() => setMuted(!muted)} className="p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors">
                     {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                   </button>
                 </div>
@@ -135,7 +128,7 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
               )}
             </div>
 
-            {/* Caption */}
+            {/* Caption + Comments - scrollable area */}
             <div className="flex-1 overflow-y-auto px-4 py-3">
               {item.caption && (
                 <div className="flex gap-3">
@@ -153,75 +146,70 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
                 </div>
               )}
 
-              {item.comments_count > 0 && (
-                <div className="mt-4 pt-3 border-t border-border/50">
-                  <p className="text-xs text-muted-foreground">
+              {/* Comments section */}
+              <div className="mt-4 pt-3 border-t border-border/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm font-medium">
                     {item.comments_count} comentário{item.comments_count !== 1 ? 's' : ''}
                   </p>
-                  <p className="text-[10px] text-muted-foreground/70 mt-1">
-                    Os comentários são visíveis diretamente no Instagram.
-                  </p>
                 </div>
-              )}
+                {item.comments_count > 0 ? (
+                  <div className="bg-secondary/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">
+                      Os comentários são visíveis diretamente no Instagram.
+                    </p>
+                    {item.permalink && (
+                      <a
+                        href={item.permalink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 mt-2 text-xs text-primary hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Ver comentários no Instagram
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Nenhum comentário nesta publicação.</p>
+                )}
+              </div>
             </div>
 
             {/* Interaction buttons */}
             <div className="border-t border-border shrink-0">
               <div className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1 text-red-500">
-                    <Heart className="h-6 w-6" />
+                  <div className="flex items-center gap-1 text-destructive">
+                    <Heart className="h-5 w-5" />
                     <span className="text-sm font-semibold">{fmt(item.like_count)}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <MessageCircle className="h-6 w-6" />
+                    <MessageCircle className="h-5 w-5" />
                     <span className="text-sm font-semibold">{fmt(item.comments_count)}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Send className="h-6 w-6" />
+                    <Send className="h-5 w-5" />
                     <span className="text-sm font-semibold">{fmt(item.shares)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Bookmark className="h-6 w-6" />
+                  <Bookmark className="h-5 w-5" />
                   <span className="text-sm font-semibold">{fmt(item.saved)}</span>
                 </div>
               </div>
 
-              {/* Detailed metrics */}
+              {/* Detailed metrics grid */}
               <div className="px-4 pb-3 grid grid-cols-3 gap-2">
-                <div className="text-center p-2 rounded-lg bg-secondary/40">
-                  <Eye className="h-3.5 w-3.5 text-purple-500 mx-auto mb-1" />
-                  <p className="text-sm font-bold">{fmt(item.reach)}</p>
-                  <p className="text-[9px] text-muted-foreground">Alcance</p>
-                </div>
-                <div className="text-center p-2 rounded-lg bg-secondary/40">
-                  <Eye className="h-3.5 w-3.5 text-cyan-500 mx-auto mb-1" />
-                  <p className="text-sm font-bold">{fmt(item.views)}</p>
-                  <p className="text-[9px] text-muted-foreground">Visualizações</p>
-                </div>
-                <div className="text-center p-2 rounded-lg bg-secondary/40">
-                  <BarChart3 className="h-3.5 w-3.5 text-emerald-500 mx-auto mb-1" />
-                  <p className="text-sm font-bold">{engRate}%</p>
-                  <p className="text-[9px] text-muted-foreground">Engajamento</p>
-                </div>
+                <MetricBox icon={<Eye className="h-3.5 w-3.5 text-primary" />} value={fmt(item.reach)} label="Alcance" />
+                <MetricBox icon={<Users className="h-3.5 w-3.5 text-primary" />} value={fmt(item.views)} label="Visualizações" />
+                <MetricBox icon={<BarChart3 className="h-3.5 w-3.5 text-primary" />} value={`${engRate}%`} label="Engajamento" />
                 {isReel && (
                   <>
-                    <div className="text-center p-2 rounded-lg bg-secondary/40">
-                      <Play className="h-3.5 w-3.5 text-green-500 mx-auto mb-1" />
-                      <p className="text-sm font-bold">{fmt(item.plays)}</p>
-                      <p className="text-[9px] text-muted-foreground">Plays</p>
-                    </div>
-                    <div className="text-center p-2 rounded-lg bg-secondary/40">
-                      <Clock className="h-3.5 w-3.5 text-blue-500 mx-auto mb-1" />
-                      <p className="text-sm font-bold">{(item.avg_watch_time || 0).toFixed(1)}s</p>
-                      <p className="text-[9px] text-muted-foreground">Tempo Médio</p>
-                    </div>
-                    <div className="text-center p-2 rounded-lg bg-secondary/40">
-                      <Share2 className="h-3.5 w-3.5 text-pink-500 mx-auto mb-1" />
-                      <p className="text-sm font-bold">{fmt(item.total_interactions)}</p>
-                      <p className="text-[9px] text-muted-foreground">Interações</p>
-                    </div>
+                    <MetricBox icon={<Play className="h-3.5 w-3.5 text-primary" />} value={fmt(item.plays)} label="Plays" />
+                    <MetricBox icon={<Clock className="h-3.5 w-3.5 text-primary" />} value={`${(item.avg_watch_time || 0).toFixed(1)}s`} label="Tempo Médio" />
+                    <MetricBox icon={<Share2 className="h-3.5 w-3.5 text-primary" />} value={fmt(item.total_interactions)} label="Interações" />
                   </>
                 )}
               </div>
@@ -234,5 +222,15 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function MetricBox({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
+  return (
+    <div className="text-center p-2 rounded-lg bg-secondary/40">
+      <div className="flex justify-center mb-1">{icon}</div>
+      <p className="text-sm font-bold">{value}</p>
+      <p className="text-[9px] text-muted-foreground">{label}</p>
+    </div>
   );
 }
