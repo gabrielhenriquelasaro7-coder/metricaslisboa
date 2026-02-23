@@ -2120,6 +2120,54 @@ export type Database = {
           },
         ]
       }
+      instagram_scheduled_posts: {
+        Row: {
+          caption: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          ig_media_id: string | null
+          media_type: string
+          media_url: string
+          project_id: string
+          published_at: string | null
+          scheduled_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ig_media_id?: string | null
+          media_type?: string
+          media_url: string
+          project_id: string
+          published_at?: string | null
+          scheduled_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ig_media_id?: string | null
+          media_type?: string
+          media_url?: string
+          project_id?: string
+          published_at?: string | null
+          scheduled_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       investor_suggestions: {
         Row: {
           created_at: string
