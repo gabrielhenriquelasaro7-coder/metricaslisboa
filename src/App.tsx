@@ -2,13 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PeriodProvider } from "@/hooks/usePeriodContext";
 import { AdminAuthProvider } from "@/hooks/useAdminAuth";
 import { GuestAccessGuard } from "@/components/auth/GuestAccessGuard";
 import { PWAProvider } from "@/components/pwa/PWAProvider";
-import { AnimatePresence, motion } from "framer-motion";
+// AnimatePresence removed to fix navigation blocking issues
 import "@/i18n"; // Initialize i18n
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -47,21 +47,7 @@ import Instagram from "./pages/Instagram";
 const queryClient = new QueryClient();
 
 function AnimatedRoutes() {
-  const location = useLocation();
-  
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
-      <motion.div
-        key={location.pathname}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ 
-          duration: 0.1, 
-          ease: [0.25, 0.1, 0.25, 1]
-        }}
-        style={{ willChange: 'opacity' }}
-        className="w-full min-h-screen"
-      >
         <Routes location={location}>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
@@ -97,8 +83,6 @@ function AnimatedRoutes() {
           <Route path="/instagram" element={<Instagram />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </motion.div>
-    </AnimatePresence>
   );
 }
 
