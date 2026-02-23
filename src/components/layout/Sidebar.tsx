@@ -481,6 +481,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             {!roleLoading && !cargoLoading && !isGuest && !isTabHidden('financial') && (
               <Link
                 to="/financeiro"
+                onClick={onNavigate}
                 className={cn(
                   'sidebar-item',
                   location.pathname === '/financeiro' && 'active'
