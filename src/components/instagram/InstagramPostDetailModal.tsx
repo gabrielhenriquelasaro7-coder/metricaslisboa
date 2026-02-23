@@ -22,8 +22,9 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
   if (!item) return null;
   const isReel = item.media_type === 'REELS' || item.media_type === 'VIDEO';
   const img = isReel ? (item.thumbnail_url || item.media_url) : (item.media_url || item.thumbnail_url);
+  const totalEngagement = (item.like_count || 0) + (item.comments_count || 0) + (item.shares || 0) + (item.saved || 0);
   const engRate = item.reach > 0
-    ? (((item.like_count || 0) + (item.comments_count || 0) + (item.shares || 0) + (item.saved || 0)) / item.reach * 100).toFixed(2)
+    ? (totalEngagement / item.reach * 100).toFixed(2)
     : '0.00';
 
   const formattedDate = item.timestamp
@@ -104,9 +105,9 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
                       <AvatarFallback className="text-xs">IG</AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="text-sm">
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">
                         <span className="font-semibold mr-1.5">{username || 'usuario'}</span>
-                        <span className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{item.caption}</span>
+                        <span className="text-foreground/90">{item.caption}</span>
                       </p>
                       <p className="text-[10px] text-muted-foreground mt-1.5">{formattedDate}</p>
                     </div>
@@ -114,7 +115,7 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
                 </div>
               )}
 
-              {/* Comments placeholder */}
+              {/* Comments count */}
               {item.comments_count > 0 && (
                 <div className="mt-4 pt-3 border-t border-border/50">
                   <p className="text-xs text-muted-foreground">
@@ -131,24 +132,23 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
             <div className="border-t border-border shrink-0">
               <div className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-4">
-                  <button className="hover:opacity-60 transition-opacity">
-                    <Heart className="h-6 w-6 text-red-500" />
-                  </button>
-                  <button className="hover:opacity-60 transition-opacity">
+                  <div className="flex items-center gap-1 text-red-500">
+                    <Heart className="h-6 w-6" />
+                    <span className="text-sm font-semibold">{fmt(item.like_count)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
                     <MessageCircle className="h-6 w-6" />
-                  </button>
-                  <button className="hover:opacity-60 transition-opacity">
+                    <span className="text-sm font-semibold">{fmt(item.comments_count)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
                     <Send className="h-6 w-6" />
-                  </button>
+                    <span className="text-sm font-semibold">{fmt(item.shares)}</span>
+                  </div>
                 </div>
-                <button className="hover:opacity-60 transition-opacity">
+                <div className="flex items-center gap-1">
                   <Bookmark className="h-6 w-6" />
-                </button>
-              </div>
-
-              {/* Metrics summary */}
-              <div className="px-4 pb-2">
-                <p className="text-sm font-semibold">{fmt(item.like_count)} curtidas</p>
+                  <span className="text-sm font-semibold">{fmt(item.saved)}</span>
+                </div>
               </div>
 
               {/* Detailed metrics */}
@@ -159,14 +159,14 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
                   <p className="text-[9px] text-muted-foreground">Alcance</p>
                 </div>
                 <div className="text-center p-2 rounded-lg bg-secondary/40">
-                  <Share2 className="h-3.5 w-3.5 text-pink-500 mx-auto mb-1" />
-                  <p className="text-sm font-bold">{fmt(item.shares)}</p>
-                  <p className="text-[9px] text-muted-foreground">Compartilh.</p>
+                  <Eye className="h-3.5 w-3.5 text-cyan-500 mx-auto mb-1" />
+                  <p className="text-sm font-bold">{fmt(item.views)}</p>
+                  <p className="text-[9px] text-muted-foreground">Visualizações</p>
                 </div>
                 <div className="text-center p-2 rounded-lg bg-secondary/40">
-                  <Bookmark className="h-3.5 w-3.5 text-yellow-500 mx-auto mb-1" />
-                  <p className="text-sm font-bold">{fmt(item.saved)}</p>
-                  <p className="text-[9px] text-muted-foreground">Salvos</p>
+                  <BarChart3 className="h-3.5 w-3.5 text-emerald-500 mx-auto mb-1" />
+                  <p className="text-sm font-bold">{engRate}%</p>
+                  <p className="text-[9px] text-muted-foreground">Engajamento</p>
                 </div>
                 {isReel && (
                   <>
@@ -181,18 +181,11 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
                       <p className="text-[9px] text-muted-foreground">Tempo Médio</p>
                     </div>
                     <div className="text-center p-2 rounded-lg bg-secondary/40">
-                      <BarChart3 className="h-3.5 w-3.5 text-emerald-500 mx-auto mb-1" />
-                      <p className="text-sm font-bold">{engRate}%</p>
-                      <p className="text-[9px] text-muted-foreground">Engajamento</p>
+                      <Share2 className="h-3.5 w-3.5 text-pink-500 mx-auto mb-1" />
+                      <p className="text-sm font-bold">{fmt(item.total_interactions)}</p>
+                      <p className="text-[9px] text-muted-foreground">Interações</p>
                     </div>
                   </>
-                )}
-                {!isReel && (
-                  <div className="text-center p-2 rounded-lg bg-secondary/40 col-span-3">
-                    <BarChart3 className="h-3.5 w-3.5 text-emerald-500 mx-auto mb-1" />
-                    <p className="text-sm font-bold">{engRate}%</p>
-                    <p className="text-[9px] text-muted-foreground">Taxa de Engajamento</p>
-                  </div>
                 )}
               </div>
 
