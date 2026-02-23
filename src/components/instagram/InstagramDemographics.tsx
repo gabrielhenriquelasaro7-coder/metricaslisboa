@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Info } from 'lucide-react';
 import type { InstagramInsightsDaily } from '@/hooks/useInstagramData';
 
 interface Props {
@@ -17,13 +18,19 @@ function parseDemoData(demographics: any, key: string) {
 }
 
 export default function InstagramDemographics({ insights }: Props) {
-  // Use the latest demographic data available
   const latest = insights.find(i => i.follower_demographics || i.engaged_demographics);
   if (!latest) {
     return (
       <Card>
-        <CardContent className="p-6 text-center text-muted-foreground">
-          Dados demográficos não disponíveis. Sincronize os dados do Instagram.
+        <CardContent className="p-6 flex flex-col items-center gap-3 text-center">
+          <Info className="h-8 w-8 text-muted-foreground/50" />
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Dados demográficos não disponíveis</p>
+            <p className="text-xs text-muted-foreground/70 mt-1 max-w-sm">
+              Os dados demográficos só são retornados pela Meta API para contas com mais de 100 seguidores.
+              Sincronize novamente para tentar carregar esses dados.
+            </p>
+          </div>
         </CardContent>
       </Card>
     );
@@ -40,7 +47,6 @@ export default function InstagramDemographics({ insights }: Props) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Gender donut */}
       {genderData.length > 0 && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Gênero</CardTitle></CardHeader>
@@ -57,7 +63,6 @@ export default function InstagramDemographics({ insights }: Props) {
         </Card>
       )}
 
-      {/* Age bar chart */}
       {ageData.length > 0 && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Faixa Etária</CardTitle></CardHeader>
@@ -75,7 +80,6 @@ export default function InstagramDemographics({ insights }: Props) {
         </Card>
       )}
 
-      {/* Top cities */}
       {cityData.length > 0 && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Principais Cidades</CardTitle></CardHeader>
@@ -103,7 +107,6 @@ export default function InstagramDemographics({ insights }: Props) {
         </Card>
       )}
 
-      {/* Top countries */}
       {countryData.length > 0 && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Principais Países</CardTitle></CardHeader>
