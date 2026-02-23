@@ -746,7 +746,8 @@ async function fetchHelpSysDeals(
   }
 
   const deals: CRMDeal[] = [];
-  const headers = { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' };
+  // Don't send Content-Type on GET requests - it can cause 500 errors on some servers
+  const headers: Record<string, string> = { 'X-API-KEY': apiKey };
 
   // First, fetch pipelines to get stage info
   const stageNames: Record<number, string> = {};
@@ -772,63 +773,98 @@ async function fetchHelpSysDeals(
     console.error('[CRM Sync] Error fetching HelpSys pipelines:', e);
   }
 
-  // Fetch leads with date filters for incremental sync
-  const url = new URL(`${apiUrl}/leads.php`);
-  if (syncType === 'incremental') {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    url.searchParams.set('data_modificacao_inicio', thirtyDaysAgo.toISOString().split('T')[0]);
-  }
+  // Fetch leads per pipeline (the API may require a pipeline parameter)
+  const pipelineIds = Object.keys(stageNames).length > 0 
+    ? [...new Set(Array.from(wonPhaseIds).map(id => id))] // Get unique pipeline IDs
+    : [];
 
+  // Collect all pipeline IDs from the pipeline data
+  const allPipelineIds: number[] = [];
   try {
-    const response = await fetch(url.toString(), { headers });
-    
-    if (!response.ok) {
-      throw new Error(`HelpSys API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const leads = Array.isArray(data) ? data : (data.dados || data.data || []);
-
-    for (const lead of leads) {
-      // Determine status based on pipeline phase
-      let status: 'open' | 'won' | 'lost' = 'open';
-      const statusId = lead.status || lead.id_fase || lead.fase_id;
-      if (wonPhaseIds.has(statusId)) {
-        status = 'won';
+    const pipelinesRes2 = await fetch(`${apiUrl}/pipelines.php`, { headers });
+    if (pipelinesRes2.ok) {
+      const pData = await pipelinesRes2.json();
+      const pipes = pData.dados || [];
+      for (const p of pipes) {
+        allPipelineIds.push(p.id);
       }
-      // Check for lost indicators
-      if (lead.perdido || lead.status_texto?.toLowerCase().includes('perd')) {
-        status = 'lost';
-      }
-
-      deals.push({
-        external_id: String(lead.id || lead.id_lead),
-        external_pipeline_id: String(lead.pipeline || lead.id_pipeline || ''),
-        external_stage_id: String(statusId || ''),
-        title: lead.nome || lead.titulo || 'Lead sem nome',
-        value: Number(lead.valor || 0),
-        currency: 'BRL',
-        status,
-        stage_name: stageNames[statusId] || lead.fase_nome || lead.status_texto,
-        created_date: lead.data_criacao || lead.created_at,
-        closed_date: lead.data_fechamento || lead.closed_at,
-        owner_name: lead.proprietario_nome || lead.responsavel,
-        contact_name: lead.nome || lead.contato_nome,
-        contact_email: lead.email || lead.contato_email,
-        contact_phone: lead.telefone || lead.contato_telefone,
-        utm_source: lead.utm_source,
-        utm_medium: lead.utm_medium,
-        utm_campaign: lead.utm_campaign,
-        custom_fields: lead.propriedades || undefined,
-      });
     }
-
-    console.log(`[CRM Sync] HelpSys: ${deals.length} leads fetched. Won: ${deals.filter(d => d.status === 'won').length}, Lost: ${deals.filter(d => d.status === 'lost').length}`);
   } catch (e) {
-    console.error('[CRM Sync] Error fetching HelpSys leads:', e);
-    throw e;
+    console.error('[CRM Sync] Error re-fetching pipelines:', e);
   }
 
+  // If we have pipeline IDs, query per pipeline; otherwise try without
+  const pipelinesToQuery = allPipelineIds.length > 0 ? allPipelineIds : [null];
+
+  for (const pipelineId of pipelinesToQuery) {
+    try {
+      const url = new URL(`${apiUrl}/leads.php`);
+      if (pipelineId !== null) {
+        url.searchParams.set('pipeline', String(pipelineId));
+      }
+      if (syncType === 'incremental') {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        url.searchParams.set('data_modificacao_inicio', thirtyDaysAgo.toISOString().split('T')[0]);
+      }
+
+      console.log(`[CRM Sync] Fetching HelpSys leads from: ${url.toString()}`);
+      const response = await fetch(url.toString(), { 
+        method: 'GET',
+        headers 
+      });
+      
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`[CRM Sync] HelpSys API error ${response.status} for pipeline ${pipelineId}:`, errorBody);
+        continue; // Try next pipeline instead of failing entirely
+      }
+
+      const data = await response.json();
+      console.log(`[CRM Sync] HelpSys leads response keys:`, Object.keys(data));
+      const leads = Array.isArray(data) ? data : (data.dados || data.data || []);
+
+      for (const lead of leads) {
+        // Determine status based on pipeline phase
+        let status: 'open' | 'won' | 'lost' = 'open';
+        const statusId = lead.status || lead.id_fase || lead.fase_id;
+        if (wonPhaseIds.has(statusId)) {
+          status = 'won';
+        }
+        // Check for lost indicators
+        if (lead.perdido || lead.status_texto?.toLowerCase().includes('perd')) {
+          status = 'lost';
+        }
+
+        deals.push({
+          external_id: String(lead.id || lead.id_lead),
+          external_pipeline_id: String(lead.pipeline || lead.id_pipeline || pipelineId || ''),
+          external_stage_id: String(statusId || ''),
+          title: lead.nome || lead.titulo || 'Lead sem nome',
+          value: Number(lead.valor || 0),
+          currency: 'BRL',
+          status,
+          stage_name: stageNames[statusId] || lead.fase_nome || lead.status_texto,
+          created_date: lead.data_criacao || lead.created_at,
+          closed_date: lead.data_fechamento || lead.closed_at,
+          owner_name: lead.proprietario_nome || lead.responsavel,
+          contact_name: lead.nome || lead.contato_nome,
+          contact_email: lead.email || lead.contato_email,
+          contact_phone: lead.telefone || lead.contato_telefone,
+          utm_source: lead.utm_source,
+          utm_medium: lead.utm_medium,
+          utm_campaign: lead.utm_campaign,
+          custom_fields: lead.propriedades || undefined,
+        });
+      }
+
+      console.log(`[CRM Sync] HelpSys pipeline ${pipelineId}: ${leads.length} leads fetched`);
+    } catch (e) {
+      console.error(`[CRM Sync] Error fetching HelpSys leads for pipeline ${pipelineId}:`, e);
+      // Continue with next pipeline
+    }
+  }
+
+  console.log(`[CRM Sync] HelpSys total: ${deals.length} leads. Won: ${deals.filter(d => d.status === 'won').length}, Lost: ${deals.filter(d => d.status === 'lost').length}`);
   return deals;
 }
