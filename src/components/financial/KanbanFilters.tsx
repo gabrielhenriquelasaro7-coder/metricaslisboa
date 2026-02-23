@@ -1,7 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { 
-  Filter, 
-  Calendar, 
   User, 
   Tag, 
   DollarSign, 
@@ -25,9 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import type { FunnelDeal } from './KanbanFunnel';
 
@@ -51,14 +46,8 @@ interface KanbanFiltersProps {
   onFiltersChange: (filters: KanbanFiltersState) => void;
 }
 
-const QUICK_DATE_OPTIONS = [
-  { label: 'Hoje', getDates: () => ({ from: new Date(), to: new Date() }) },
-  { label: 'Últimos 7 dias', getDates: () => ({ from: subDays(new Date(), 7), to: new Date() }) },
-  { label: 'Últimos 30 dias', getDates: () => ({ from: subDays(new Date(), 30), to: new Date() }) },
-  { label: 'Este mês', getDates: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
-  { label: 'Mês passado', getDates: () => ({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) }) },
-  { label: 'Últimos 90 dias', getDates: () => ({ from: subDays(new Date(), 90), to: new Date() }) },
-];
+// Date filtering is handled by the main DREPeriodSelector at API level
+// KanbanFilters only handles local filters (search, status, owner, utm, value)
 
 export const defaultFilters: KanbanFiltersState = {
   dateRange: { from: undefined, to: undefined },
@@ -72,7 +61,6 @@ export const defaultFilters: KanbanFiltersState = {
 };
 
 export function KanbanFilters({ deals, filters, onFiltersChange }: KanbanFiltersProps) {
-  const [isDateOpen, setIsDateOpen] = useState(false);
 
   // Extract unique values for filter options
   const filterOptions = useMemo(() => {
@@ -99,7 +87,6 @@ export function KanbanFilters({ deals, filters, onFiltersChange }: KanbanFilters
   // Count active filters
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (filters.dateRange.from || filters.dateRange.to) count++;
     if (filters.status !== 'all') count++;
     if (filters.owner) count++;
     if (filters.utmCampaign) count++;
@@ -109,24 +96,8 @@ export function KanbanFilters({ deals, filters, onFiltersChange }: KanbanFilters
     return count;
   }, [filters]);
 
-  const handleQuickDate = (option: typeof QUICK_DATE_OPTIONS[0]) => {
-    const { from, to } = option.getDates();
-    onFiltersChange({ ...filters, dateRange: { from, to } });
-    setIsDateOpen(false);
-  };
-
   const clearAllFilters = () => {
     onFiltersChange(defaultFilters);
-  };
-
-  const formatDateRange = () => {
-    if (filters.dateRange.from && filters.dateRange.to) {
-      return `${format(filters.dateRange.from, 'dd/MM', { locale: ptBR })} - ${format(filters.dateRange.to, 'dd/MM', { locale: ptBR })}`;
-    }
-    if (filters.dateRange.from) {
-      return `A partir de ${format(filters.dateRange.from, 'dd/MM', { locale: ptBR })}`;
-    }
-    return 'Período';
   };
 
   return (
@@ -154,63 +125,6 @@ export function KanbanFilters({ deals, filters, onFiltersChange }: KanbanFilters
         {/* Filter buttons - horizontal scroll on mobile */}
         <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-max">
-            {/* Date Range Filter */}
-            <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant={filters.dateRange.from ? "secondary" : "outline"} 
-                  size="sm" 
-                  className="h-7 sm:h-9 gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3"
-                >
-                  <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span className="hidden sm:inline">{filters.dateRange.from ? formatDateRange() : 'Período'}</span>
-                  <span className="sm:hidden">{filters.dateRange.from ? formatDateRange() : 'Data'}</span>
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[280px] sm:w-auto p-0" align="start" side="bottom" sideOffset={4}>
-                <div className="flex flex-col">
-                  {/* Quick Options */}
-                  <div className="border-b p-2 space-y-0.5">
-                    <p className="text-xs font-medium text-muted-foreground px-2 py-1">Atalhos</p>
-                    {QUICK_DATE_OPTIONS.map((option) => (
-                      <button
-                        key={option.label}
-                        onClick={() => handleQuickDate(option)}
-                        className="w-full text-left px-2 py-1.5 text-sm hover:bg-muted rounded-md transition-colors"
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => {
-                        onFiltersChange({ ...filters, dateRange: { from: undefined, to: undefined } });
-                        setIsDateOpen(false);
-                      }}
-                      className="w-full text-left px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted rounded-md transition-colors"
-                    >
-                      Limpar período
-                    </button>
-                  </div>
-                  {/* Calendar */}
-                  <div className="p-2">
-                    <CalendarComponent
-                      mode="range"
-                      selected={{ from: filters.dateRange.from, to: filters.dateRange.to }}
-                      onSelect={(range) => {
-                        onFiltersChange({ 
-                          ...filters, 
-                          dateRange: { from: range?.from, to: range?.to } 
-                        });
-                      }}
-                      locale={ptBR}
-                      numberOfMonths={1}
-                      className="text-sm"
-                    />
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
 
             {/* Status Filter */}
             <Select
@@ -365,15 +279,6 @@ export function KanbanFilters({ deals, filters, onFiltersChange }: KanbanFilters
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-max">
             <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">Filtros:</span>
             
-            {filters.dateRange.from && (
-              <Badge variant="secondary" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
-                <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                {formatDateRange()}
-                <button onClick={() => onFiltersChange({ ...filters, dateRange: { from: undefined, to: undefined } })}>
-                  <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-0.5" />
-                </button>
-              </Badge>
-            )}
 
             {filters.status !== 'all' && (
               <Badge variant="secondary" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
@@ -446,17 +351,7 @@ export function filterDeals(deals: FunnelDeal[], filters: KanbanFiltersState): F
       if (!matchesSearch) return false;
     }
 
-    // Date range filter
-    if (filters.dateRange.from || filters.dateRange.to) {
-      if (!deal.created_date) return false;
-      const dealDate = new Date(deal.created_date);
-      if (filters.dateRange.from && dealDate < filters.dateRange.from) return false;
-      if (filters.dateRange.to) {
-        const endOfDay = new Date(filters.dateRange.to);
-        endOfDay.setHours(23, 59, 59, 999);
-        if (dealDate > endOfDay) return false;
-      }
-    }
+    // Date filtering removed - handled by main DREPeriodSelector at API level
 
     // Status filter
     if (filters.status !== 'all') {
