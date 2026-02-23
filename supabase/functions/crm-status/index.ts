@@ -416,6 +416,7 @@ Deno.serve(async (req) => {
           const pipelinesRes = await fetch(`${apiUrl}/pipelines.php`, {
             headers: { 'X-API-KEY': apiKey },
           });
+          console.log('[CRM Status] HelpSys pipelines response status:', pipelinesRes.status);
 
           if (pipelinesRes.ok) {
             const pipelinesData = await pipelinesRes.json();

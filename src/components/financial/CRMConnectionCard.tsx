@@ -217,7 +217,14 @@ export function CRMConnectionCard({
                 variant="outline" 
                 size="sm" 
                 className="gap-1.5 h-8 sm:h-9 text-xs sm:text-sm px-2 sm:px-3"
-                onClick={() => crmUrl && window.open(crmUrl, '_blank')}
+                onClick={() => {
+                  let url = crmUrl || '';
+                  // Strip /api/v1 for HelpSys to get the base CRM URL
+                  if (connectedCRM === 'helpsys') {
+                    url = url.replace(/\/api\/v1\/?$/, '');
+                  }
+                  if (url) window.open(url, '_blank');
+                }}
               >
                 <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Abrir CRM</span>
