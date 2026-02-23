@@ -128,32 +128,16 @@ export function useInstagramData() {
     }
   }, [projectId, fetchData]);
 
-  // Computed metrics from daily insights, with fallback to media-level data
-  // Only use insights if they have actual non-zero data
-  const insightsHaveData = insights.some(i => (i.reach || 0) + (i.likes || 0) + (i.views || 0) + (i.total_interactions || 0) > 0);
-  const fromInsights = insights.length > 0 && insightsHaveData;
+  // Reach comes from daily insights (has daily granularity), everything else from media
+  const totalReach = insights.reduce((s, i) => s + (i.reach || 0), 0) || media.reduce((s, m) => s + (m.reach || 0), 0);
+  const totalViews = insights.reduce((s, i) => s + (i.views || 0), 0) || media.reduce((s, m) => s + (m.views || 0), 0);
 
-  const totalReach = fromInsights
-    ? insights.reduce((s, i) => s + (i.reach || 0), 0)
-    : media.reduce((s, m) => s + (m.reach || 0), 0);
-  const totalLikes = fromInsights
-    ? insights.reduce((s, i) => s + (i.likes || 0), 0)
-    : media.reduce((s, m) => s + (m.like_count || 0), 0);
-  const totalComments = fromInsights
-    ? insights.reduce((s, i) => s + (i.comments || 0), 0)
-    : media.reduce((s, m) => s + (m.comments_count || 0), 0);
-  const totalShares = fromInsights
-    ? insights.reduce((s, i) => s + (i.shares || 0), 0)
-    : media.reduce((s, m) => s + (m.shares || 0), 0);
-  const totalSaves = fromInsights
-    ? insights.reduce((s, i) => s + (i.saves || 0), 0)
-    : media.reduce((s, m) => s + (m.saved || 0), 0);
-  const totalViews = fromInsights
-    ? insights.reduce((s, i) => s + (i.views || 0), 0)
-    : media.reduce((s, m) => s + (m.views || 0), 0);
-  const totalInteractions = fromInsights
-    ? insights.reduce((s, i) => s + (i.total_interactions || 0), 0)
-    : media.reduce((s, m) => s + (m.total_interactions || 0), 0);
+  // Engagement metrics: always from media (Meta API v21 doesn't return daily breakdown for these)
+  const totalLikes = media.reduce((s, m) => s + (m.like_count || 0), 0);
+  const totalComments = media.reduce((s, m) => s + (m.comments_count || 0), 0);
+  const totalShares = media.reduce((s, m) => s + (m.shares || 0), 0);
+  const totalSaves = media.reduce((s, m) => s + (m.saved || 0), 0);
+  const totalInteractions = media.reduce((s, m) => s + (m.total_interactions || 0), 0);
   const newFollows = insights.reduce((s, i) => s + (i.follows || 0), 0);
   const engagementRate = totalReach > 0 ? ((totalInteractions / totalReach) * 100) : 0;
 
