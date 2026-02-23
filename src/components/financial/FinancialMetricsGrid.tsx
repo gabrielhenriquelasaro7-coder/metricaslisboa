@@ -162,7 +162,7 @@ export function FinancialMetricsGrid({
     'contacted': 'leadsContacted',
     'meeting': 'meetings',
     'proposal': 'proposals',
-    'sales': 'deals',
+    'sales': 'dealsClosed',
   };
 
   // Filter insideSalesMetrics based on funnelCardsConfig
