@@ -41,7 +41,7 @@ export function DREPeriodSelector({
   customDateRange, onCustomDateRangeChange
 }: DREPeriodSelectorProps) {
   const [open, setOpen] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const currentLabel = value === 'custom' && customDateRange?.from
     ? `${format(customDateRange.from, 'dd/MM')}${customDateRange.to ? ` - ${format(customDateRange.to, 'dd/MM')}` : ''}`
@@ -51,81 +51,85 @@ export function DREPeriodSelector({
     onCustomDateRangeChange?.(range);
     if (range?.from && range?.to) {
       onChange('custom');
-      setCalendarOpen(false);
+      setShowCalendar(false);
     }
   };
 
   return (
     <div className="flex items-center gap-2">
-      <DropdownMenu open={open} onOpenChange={setOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="gap-2">
-            <CalendarIcon className="h-4 w-4" />
-            <span className="truncate max-w-[160px]">{currentLabel}</span>
-            {periodDescription && value !== 'custom' && (
-              <span className="text-xs text-muted-foreground hidden sm:inline">({periodDescription})</span>
-            )}
-            <ChevronDown className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
-          {PERIOD_OPTIONS.map(({ key, label }) => (
+      {!showCalendar ? (
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <CalendarIcon className="h-4 w-4" />
+              <span className="truncate max-w-[160px]">{currentLabel}</span>
+              {periodDescription && value !== 'custom' && (
+                <span className="text-xs text-muted-foreground hidden sm:inline">({periodDescription})</span>
+              )}
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            {PERIOD_OPTIONS.map(({ key, label }) => (
+              <DropdownMenuItem
+                key={key}
+                onClick={() => {
+                  onChange(key);
+                  setOpen(false);
+                }}
+                className="flex items-center justify-between"
+              >
+                {label}
+                {value === key && <Check className="h-4 w-4 text-primary" />}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
             <DropdownMenuItem
-              key={key}
-              onClick={() => {
-                onChange(key);
+              onClick={(e) => {
+                e.preventDefault();
                 setOpen(false);
+                setShowCalendar(true);
               }}
               className="flex items-center justify-between"
             >
-              {label}
-              {value === key && <Check className="h-4 w-4 text-primary" />}
+              <span className="flex items-center gap-2">
+                <CalendarRange className="h-4 w-4" />
+                Personalizado
+              </span>
+              {value === 'custom' && <Check className="h-4 w-4 text-primary" />}
             </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={(e) => {
-              e.preventDefault();
-              setOpen(false);
-              setTimeout(() => setCalendarOpen(true), 100);
-            }}
-            className="flex items-center justify-between"
-          >
-            <span className="flex items-center gap-2">
+            {onOpenHistory && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onOpenHistory} className="gap-2">
+                  <History className="h-4 w-4" />
+                  Histórico de DRE
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <Popover open={showCalendar} onOpenChange={setShowCalendar}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2">
               <CalendarRange className="h-4 w-4" />
-              Personalizado
-            </span>
-            {value === 'custom' && <Check className="h-4 w-4 text-primary" />}
-          </DropdownMenuItem>
-          {onOpenHistory && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onOpenHistory} className="gap-2">
-                <History className="h-4 w-4" />
-                Histórico de DRE
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Custom Date Range Popover */}
-      <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-        <PopoverTrigger asChild>
-          <span className="hidden" />
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="end">
-          <Calendar
-            mode="range"
-            selected={customDateRange}
-            onSelect={handleCustomSelect}
-            numberOfMonths={2}
-            locale={ptBR}
-            className={cn("p-3 pointer-events-auto")}
-            disabled={(date) => date > new Date()}
-          />
-        </PopoverContent>
-      </Popover>
+              <span>Selecione o período</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <Calendar
+              mode="range"
+              selected={customDateRange}
+              onSelect={handleCustomSelect}
+              numberOfMonths={2}
+              locale={ptBR}
+              className={cn("p-3 pointer-events-auto")}
+              disabled={(date) => date > new Date()}
+            />
+          </PopoverContent>
+        </Popover>
+      )}
     </div>
   );
 }
