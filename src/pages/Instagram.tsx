@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Instagram } from 'lucide-react';
+import { RefreshCw, Instagram, AlertTriangle } from 'lucide-react';
 import { useInstagramData, type InstagramMedia } from '@/hooks/useInstagramData';
 import InstagramProfileHeader from '@/components/instagram/InstagramProfileHeader';
 import InstagramMetricsGrid from '@/components/instagram/InstagramMetricsGrid';
@@ -14,6 +14,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function InstagramPage() {
   const { account, media, insights, loading, syncing, syncInstagram, metrics } = useInstagramData();
   const [selectedPost, setSelectedPost] = useState<InstagramMedia | null>(null);
+
+  const hasInsights = insights.length > 0;
+  const hasMetrics = metrics.totalReach > 0 || metrics.totalLikes > 0;
 
   return (
     <DashboardLayout>
@@ -68,9 +71,23 @@ export default function InstagramPage() {
           </div>
         ) : (
           <>
-            <InstagramProfileHeader account={account} />
+            <InstagramProfileHeader account={account} engagementRate={metrics.engagementRate} />
+
+            {/* Warning banner if synced but no insights */}
+            {!hasInsights && media.length > 0 && (
+              <div className="flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium">Insights diários não carregados</p>
+                  <p className="text-xs text-muted-foreground">
+                    As métricas diárias podem levar até 48h para ficarem disponíveis na API do Meta. Tente sincronizar novamente mais tarde.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <InstagramMetricsGrid metrics={metrics} followersCount={account.followers_count} />
-            {insights.length > 0 && <InstagramPerformanceChart insights={insights} />}
+            <InstagramPerformanceChart insights={insights} />
             <InstagramPostsGrid media={media} onSelect={setSelectedPost} />
             <InstagramDemographics insights={insights} />
             <InstagramPostDetailModal item={selectedPost} open={!!selectedPost} onClose={() => setSelectedPost(null)} />

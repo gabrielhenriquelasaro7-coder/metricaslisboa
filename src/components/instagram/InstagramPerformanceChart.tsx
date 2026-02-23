@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { InstagramInsightsDaily } from '@/hooks/useInstagramData';
 
 interface Props {
@@ -33,10 +33,28 @@ export default function InstagramPerformanceChart({ insights }: Props) {
     [metric2]: (i as any)[metric2] || 0,
   }));
 
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+          <p className="text-sm">Sem dados de insights diários.</p>
+          <p className="text-xs">Clique em "Sincronizar" para puxar os dados.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const dateRange = insights.length > 0
+    ? `${new Date(insights[insights.length - 1].date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${new Date(insights[0].date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+    : '';
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-base">Performance Instagram</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between pb-2 flex-wrap gap-2">
+        <div>
+          <CardTitle className="text-base">Performance Instagram</CardTitle>
+          {dateRange && <p className="text-xs text-muted-foreground mt-0.5">{dateRange}</p>}
+        </div>
         <div className="flex gap-2">
           <Select value={metric1} onValueChange={setMetric1}>
             <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -50,15 +68,25 @@ export default function InstagramPerformanceChart({ insights }: Props) {
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData}>
+          <AreaChart data={chartData}>
+            <defs>
+              <linearGradient id={`grad-${metric1}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={m1.color} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={m1.color} stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id={`grad-${metric2}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={m2.color} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={m2.color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
             <XAxis dataKey="date" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
             <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
             <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 }} />
             <Legend />
-            <Line type="monotone" dataKey={metric1} stroke={m1.color} name={m1.label} strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey={metric2} stroke={m2.color} name={m2.label} strokeWidth={2} dot={false} />
-          </LineChart>
+            <Area type="monotone" dataKey={metric1} stroke={m1.color} fill={`url(#grad-${metric1})`} name={m1.label} strokeWidth={2} dot={false} />
+            <Area type="monotone" dataKey={metric2} stroke={m2.color} fill={`url(#grad-${metric2})`} name={m2.label} strokeWidth={2} dot={false} />
+          </AreaChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>

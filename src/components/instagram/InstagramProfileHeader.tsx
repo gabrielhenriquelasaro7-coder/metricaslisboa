@@ -1,13 +1,15 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ExternalLink, Instagram } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ExternalLink, Instagram, TrendingUp } from 'lucide-react';
 import type { InstagramAccount } from '@/hooks/useInstagramData';
 
 interface Props {
   account: InstagramAccount;
+  engagementRate?: number;
 }
 
-export default function InstagramProfileHeader({ account }: Props) {
+export default function InstagramProfileHeader({ account, engagementRate }: Props) {
   return (
     <Card>
       <CardContent className="flex flex-col sm:flex-row items-center gap-6 p-6">
@@ -16,9 +18,15 @@ export default function InstagramProfileHeader({ account }: Props) {
           <AvatarFallback><Instagram className="h-8 w-8" /></AvatarFallback>
         </Avatar>
         <div className="flex-1 text-center sm:text-left space-y-1">
-          <div className="flex items-center gap-2 justify-center sm:justify-start">
+          <div className="flex items-center gap-2 justify-center sm:justify-start flex-wrap">
             <h2 className="text-xl font-bold">{account.name || account.username}</h2>
             {account.username && <span className="text-muted-foreground text-sm">@{account.username}</span>}
+            {engagementRate !== undefined && engagementRate > 0 && (
+              <Badge variant="secondary" className="gap-1 text-xs">
+                <TrendingUp className="h-3 w-3" />
+                {engagementRate.toFixed(2)}% eng.
+              </Badge>
+            )}
           </div>
           {account.biography && <p className="text-sm text-muted-foreground max-w-lg">{account.biography}</p>}
           {account.website && (
