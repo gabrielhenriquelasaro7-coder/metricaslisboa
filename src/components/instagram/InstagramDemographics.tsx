@@ -107,11 +107,11 @@ export default function InstagramDemographics({ insights }: Props) {
                   </ResponsiveContainer>
                 </div>
               )}
-              <div className="flex items-center justify-center gap-4 text-xs">
+              <div className="flex items-center justify-center gap-4 text-xs text-foreground">
                 {genderData.map((d, i) => (
                   <div key={d.name} className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span>{d.name} {genderTotal > 0 ? `${((d.value / genderTotal) * 100).toFixed(0)}%` : ''}</span>
+                    <span className="text-foreground">{d.name} {genderTotal > 0 ? `${((d.value / genderTotal) * 100).toFixed(0)}%` : ''}</span>
                   </div>
                 ))}
               </div>
@@ -151,13 +151,13 @@ export default function InstagramDemographics({ insights }: Props) {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] mb-3">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] mb-3 text-foreground">
                 {cityData.slice(0, 5).map((c, i) => {
                   const total = cityData.reduce((s, d) => s + d.value, 0);
                   return (
                     <div key={c.name} className="flex items-center gap-1">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[(i + 2) % COLORS.length] }} />
-                      <span>{c.name}</span>
+                      <span className="text-foreground">{c.name}</span>
                     </div>
                   );
                 })}
@@ -192,11 +192,11 @@ export default function InstagramDemographics({ insights }: Props) {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] mb-3">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] mb-3 text-foreground">
                 {countryData.slice(0, 5).map((c, i) => (
                   <div key={c.name} className="flex items-center gap-1">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[(i + 4) % COLORS.length] }} />
-                    <span>{c.name}</span>
+                    <span className="text-foreground">{c.name}</span>
                   </div>
                 ))}
               </div>
