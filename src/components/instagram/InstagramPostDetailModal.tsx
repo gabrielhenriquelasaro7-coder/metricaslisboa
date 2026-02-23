@@ -110,7 +110,7 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
           </div>
 
           {/* Right: Info panel */}
-          <div className="w-[45%] flex flex-col h-full overflow-hidden">
+          <div className="w-[45%] flex flex-col h-full overflow-hidden min-h-0">
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
               <Avatar className="h-8 w-8">
@@ -129,7 +129,7 @@ export default function InstagramPostDetailModal({ item, open, onClose, profileP
             </div>
 
             {/* Caption + Comments - scrollable area */}
-            <div className="flex-1 overflow-y-auto px-4 py-3">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
               {item.caption && (
                 <div className="flex gap-3">
                   <Avatar className="h-8 w-8 shrink-0 mt-0.5">
