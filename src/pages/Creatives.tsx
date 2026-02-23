@@ -435,7 +435,7 @@ export default function Creatives() {
                           <div className="flex items-center gap-3 min-w-0">
                             {/* Creative Thumbnail */}
                             <div className="w-12 h-12 rounded-lg bg-secondary/50 flex-shrink-0 overflow-hidden border border-border/50">
-                              <CreativeImage projectId={selectedProject?.id} adId={ad.id} cachedImageUrl={ad.cached_image_url} creativeImageUrl={ad.creative_image_url} creativeThumbnail={ad.creative_thumbnail} alt={ad.name} className="w-full h-full object-cover" fallbackClassName="bg-secondary/50" />
+                              <CreativeImage projectId={selectedProject?.id} adId={ad.id} cachedImageUrl={ad.cached_image_url} creativeImageUrl={ad.creative_image_url} creativeThumbnail={ad.creative_thumbnail} alt={ad.name} className="w-full h-full object-contain bg-black/5 dark:bg-white/5" fallbackClassName="bg-secondary/50" />
                             </div>
                             <div className="min-w-0">
                               <p className="font-medium truncate max-w-[200px]">{ad.name}</p>
