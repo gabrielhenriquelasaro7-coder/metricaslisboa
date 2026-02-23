@@ -9,6 +9,14 @@ interface Props {
 
 const COLORS = ['#8b5cf6', '#06b6d4', '#ef4444', '#f97316', '#10b981', '#eab308', '#ec4899', '#3b82f6', '#14b8a6', '#a855f7'];
 
+const TOOLTIP_STYLE = {
+  backgroundColor: 'hsl(var(--popover))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: '8px',
+  fontSize: 12,
+  color: 'hsl(var(--popover-foreground))',
+};
+
 function parseDemoData(demographics: any, key: string) {
   if (!demographics || !demographics[key]) return [];
   const data = demographics[key];
@@ -73,12 +81,7 @@ export default function InstagramDemographics({ insights }: Props) {
     );
   }
 
-  const tooltipStyle = {
-    backgroundColor: 'hsl(var(--card))',
-    border: '1px solid hsl(var(--border))',
-    borderRadius: '8px',
-    fontSize: 12,
-  };
+  const tooltipStyle = TOOLTIP_STYLE;
 
   // Calculate gender percentages
   const genderTotal = genderData.reduce((s, d) => s + d.value, 0);
@@ -102,7 +105,7 @@ export default function InstagramDemographics({ insights }: Props) {
                       <Pie data={genderData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={70}>
                         {genderData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip contentStyle={tooltipStyle} />
+                      <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'hsl(var(--popover-foreground))' }} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -147,7 +150,7 @@ export default function InstagramDemographics({ insights }: Props) {
                     <Pie data={cityData.slice(0, 5)} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={70}>
                       {cityData.slice(0, 5).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}
                     </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'hsl(var(--popover-foreground))' }} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -188,7 +191,7 @@ export default function InstagramDemographics({ insights }: Props) {
                     <Pie data={countryData.slice(0, 5)} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={70}>
                       {countryData.slice(0, 5).map((_, i) => <Cell key={i} fill={COLORS[(i + 4) % COLORS.length]} />)}
                     </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'hsl(var(--popover-foreground))' }} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
