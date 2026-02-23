@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import type { FunnelCard } from './FunnelCardsConfig';
 
 interface FinancialMetric {
   id: string;
@@ -41,12 +42,14 @@ interface FinancialMetricsGridProps {
     dealsClosed?: number;
   };
   isLoading?: boolean;
+  funnelCardsConfig?: FunnelCard[];
 }
 
 export function FinancialMetricsGrid({ 
   businessModel, 
   metrics = {},
-  isLoading = false 
+  isLoading = false,
+  funnelCardsConfig
 }: FinancialMetricsGridProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -153,9 +156,31 @@ export function FinancialMetricsGrid({
     },
   ];
 
+  // Map funnel config card IDs to metric IDs for filtering
+  const cardIdToMetricId: Record<string, string> = {
+    'leads': 'leadsReceived',
+    'contacted': 'leadsContacted',
+    'meeting': 'meetings',
+    'proposal': 'proposals',
+    'sales': 'deals',
+  };
+
+  // Filter insideSalesMetrics based on funnelCardsConfig
+  const filteredInsideSalesMetrics = funnelCardsConfig 
+    ? insideSalesMetrics.filter(metric => {
+        // Find if this metric has a corresponding funnel card
+        const configEntry = Object.entries(cardIdToMetricId).find(([, metricId]) => metricId === metric.id);
+        if (!configEntry) return true; // No mapping = always show
+        const [cardId] = configEntry;
+        const card = funnelCardsConfig.find(c => c.id === cardId);
+        if (!card) return true; // Card not in config = show by default
+        return card.enabled;
+      })
+    : insideSalesMetrics;
+
   // Seleciona as métricas baseado no modelo de negócio
   const displayMetrics = businessModel === 'inside_sales' 
-    ? [...baseMetrics, ...insideSalesMetrics]
+    ? [...baseMetrics, ...filteredInsideSalesMetrics]
     : baseMetrics;
 
   if (isLoading) {
