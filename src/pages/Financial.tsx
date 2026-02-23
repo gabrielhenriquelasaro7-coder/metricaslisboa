@@ -166,6 +166,9 @@ export default function Financial() {
     leads: crmStatus?.funnel?.leads || crmStatus?.stats?.total_deals || 0,
     mql: crmStatus?.funnel?.mql || 0,
     sql: crmStatus?.funnel?.sql || 0,
+    // Metrics grid data
+    leadsReceived: crmStatus?.funnel?.leads || crmStatus?.stats?.total_deals || 0,
+    dealsClosed: crmStatus?.funnel?.sales || crmStatus?.stats?.won_deals || 0,
   }), [crmStatus]);
 
   const dreData = useMemo(() => ({
