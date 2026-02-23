@@ -746,55 +746,44 @@ async function fetchHelpSysDeals(
   }
 
   const deals: CRMDeal[] = [];
-  // Don't send Content-Type on GET requests - it can cause 500 errors on some servers
   const headers: Record<string, string> = { 'X-API-KEY': apiKey };
 
-  // First, fetch pipelines to get stage info
+  // Fetch pipelines to get stage info and identify won/lost stages
   const stageNames: Record<number, string> = {};
-  const wonPhaseIds = new Set<number>();
-  
+  const wonStageNames = new Set<string>();
+  const lostStageNames = new Set<string>();
+  const allPipelineIds: number[] = [];
+
   try {
     const pipelinesRes = await fetch(`${apiUrl}/pipelines.php`, { headers });
     if (pipelinesRes.ok) {
       const pipelinesData = await pipelinesRes.json();
       const pipelines = pipelinesData.dados || [];
       for (const pipeline of pipelines) {
+        allPipelineIds.push(pipeline.id);
         const fases = pipeline.fases || [];
         for (const fase of fases) {
           stageNames[fase.id] = fase.nome;
-          // Probabilidade 100 = won stage
-          if (fase.probabilidade === 100) {
-            wonPhaseIds.add(fase.id);
+          const nomeUpper = (fase.nome || '').toUpperCase().trim();
+          // Map stage names to status
+          if (nomeUpper.includes('FECHADO') || nomeUpper.includes('GANHO') || nomeUpper.includes('VENDA') || fase.probabilidade === 100) {
+            wonStageNames.add(nomeUpper);
+          }
+          if (nomeUpper.includes('PERDIDO') || nomeUpper.includes('PERDA') || nomeUpper.includes('DESCARTADO') || fase.probabilidade === 0) {
+            lostStageNames.add(nomeUpper);
           }
         }
       }
+      console.log(`[CRM Sync] HelpSys pipelines: ${allPipelineIds.length}, stages: ${Object.keys(stageNames).length}`);
+      console.log(`[CRM Sync] HelpSys won stages: ${JSON.stringify([...wonStageNames])}`);
+      console.log(`[CRM Sync] HelpSys lost stages: ${JSON.stringify([...lostStageNames])}`);
     }
   } catch (e) {
     console.error('[CRM Sync] Error fetching HelpSys pipelines:', e);
   }
 
-  // Fetch leads per pipeline (the API may require a pipeline parameter)
-  const pipelineIds = Object.keys(stageNames).length > 0 
-    ? [...new Set(Array.from(wonPhaseIds).map(id => id))] // Get unique pipeline IDs
-    : [];
-
-  // Collect all pipeline IDs from the pipeline data
-  const allPipelineIds: number[] = [];
-  try {
-    const pipelinesRes2 = await fetch(`${apiUrl}/pipelines.php`, { headers });
-    if (pipelinesRes2.ok) {
-      const pData = await pipelinesRes2.json();
-      const pipes = pData.dados || [];
-      for (const p of pipes) {
-        allPipelineIds.push(p.id);
-      }
-    }
-  } catch (e) {
-    console.error('[CRM Sync] Error re-fetching pipelines:', e);
-  }
-
-  // If we have pipeline IDs, query per pipeline; otherwise try without
-  const pipelinesToQuery = allPipelineIds.length > 0 ? allPipelineIds : [null];
+  // If no pipelines found, try without
+  const pipelinesToQuery = allPipelineIds.length > 0 ? allPipelineIds : [null as number | null];
 
   for (const pipelineId of pipelinesToQuery) {
     try {
@@ -809,59 +798,108 @@ async function fetchHelpSysDeals(
       }
 
       console.log(`[CRM Sync] Fetching HelpSys leads from: ${url.toString()}`);
-      const response = await fetch(url.toString(), { 
-        method: 'GET',
-        headers 
-      });
-      
+      const response = await fetch(url.toString(), { method: 'GET', headers });
+
       if (!response.ok) {
         const errorBody = await response.text();
         console.error(`[CRM Sync] HelpSys API error ${response.status} for pipeline ${pipelineId}:`, errorBody);
-        continue; // Try next pipeline instead of failing entirely
+        continue;
       }
 
       const data = await response.json();
-      console.log(`[CRM Sync] HelpSys leads response keys:`, Object.keys(data));
       const leads = Array.isArray(data) ? data : (data.dados || data.data || []);
 
-      for (const lead of leads) {
-        // Determine status based on pipeline phase
-        let status: 'open' | 'won' | 'lost' = 'open';
-        const statusId = lead.status || lead.id_fase || lead.fase_id;
-        if (wonPhaseIds.has(statusId)) {
-          status = 'won';
+      // Log first lead structure for debugging
+      if (leads.length > 0 && deals.length === 0) {
+        console.log(`[CRM Sync] HelpSys sample lead keys:`, JSON.stringify(Object.keys(leads[0])));
+        // Log a sanitized version with key structure
+        const sample = leads[0];
+        const sampleInfo: Record<string, string> = {};
+        for (const key of Object.keys(sample)) {
+          const val = sample[key];
+          if (val === null || val === undefined) {
+            sampleInfo[key] = 'null';
+          } else if (Array.isArray(val)) {
+            sampleInfo[key] = `array[${val.length}]`;
+            if (val.length > 0 && typeof val[0] === 'object') {
+              sampleInfo[key] += ` keys: ${JSON.stringify(Object.keys(val[0]))}`;
+            }
+          } else if (typeof val === 'object') {
+            sampleInfo[key] = `object keys: ${JSON.stringify(Object.keys(val))}`;
+          } else {
+            sampleInfo[key] = `${typeof val}: ${String(val).substring(0, 50)}`;
+          }
         }
-        // Check for lost indicators
-        if (lead.perdido || lead.status_texto?.toLowerCase().includes('perd')) {
+        console.log(`[CRM Sync] HelpSys sample lead structure:`, JSON.stringify(sampleInfo));
+      }
+
+      for (const lead of leads) {
+        // Extract contact info from nested 'contato' object
+        const contato = lead.contato || {};
+        const contactName = contato.nome || '';
+        const contactEmail = contato.email || '';
+        const contactPhone = contato.telefone || '';
+        // Lead title = nome_negocio (deal name), fallback to contact name
+        const leadTitle = lead.nome_negocio || contactName || 'Lead sem nome';
+
+        // Extract value: first check direct 'valor' field, then propriedades array
+        let valor = Number(lead.valor || 0);
+        const propriedades = lead.propriedades || [];
+        if (valor === 0 && Array.isArray(propriedades)) {
+          for (const prop of propriedades) {
+            if (prop.id_interno === 'valor') {
+              valor = Number(prop.valor) || 0;
+              break;
+            }
+          }
+        }
+
+        // Determine stage: use 'status' (id) and 'status_nome' (name)
+        const stageId = lead.status;
+        const stageName = lead.status_nome || stageNames[stageId] || '';
+        const stageNameUpper = stageName.toUpperCase().trim();
+
+        // Determine status based on stage name
+        let status: 'open' | 'won' | 'lost' = 'open';
+        if (wonStageNames.has(stageNameUpper) || stageNameUpper.includes('FECHADO') || stageNameUpper.includes('GANHO')) {
+          status = 'won';
+        } else if (lostStageNames.has(stageNameUpper) || stageNameUpper.includes('PERDIDO') || stageNameUpper.includes('PERDA')) {
           status = 'lost';
         }
 
+        // Extract UTM from nested utm object
+        const utm = lead.utm || {};
+
         deals.push({
           external_id: String(lead.id || lead.id_lead),
-          external_pipeline_id: String(lead.pipeline || lead.id_pipeline || pipelineId || ''),
-          external_stage_id: String(statusId || ''),
-          title: lead.nome || lead.titulo || 'Lead sem nome',
-          value: Number(lead.valor || 0),
+          external_pipeline_id: String(lead.pipeline || pipelineId || ''),
+          external_stage_id: String(stageId || ''),
+          title: leadTitle,
+          value: valor,
           currency: 'BRL',
           status,
-          stage_name: stageNames[statusId] || lead.fase_nome || lead.status_texto,
+          stage_name: stageName.trim(),
           created_date: lead.data_criacao || lead.created_at,
-          closed_date: lead.data_fechamento || lead.closed_at,
-          owner_name: lead.proprietario_nome || lead.responsavel,
-          contact_name: lead.nome || lead.contato_nome,
-          contact_email: lead.email || lead.contato_email,
-          contact_phone: lead.telefone || lead.contato_telefone,
-          utm_source: lead.utm_source,
-          utm_medium: lead.utm_medium,
-          utm_campaign: lead.utm_campaign,
-          custom_fields: lead.propriedades || undefined,
+          closed_date: lead.data_fechamento || lead.data_ganho,
+          owner_name: lead.nome_proprietario || '',
+          contact_name: contactName || undefined,
+          contact_email: contactEmail || undefined,
+          contact_phone: contactPhone || undefined,
+          utm_source: utm.source || undefined,
+          utm_medium: utm.medium || undefined,
+          utm_campaign: utm.campaign || undefined,
+          custom_fields: Array.isArray(propriedades) 
+            ? propriedades.reduce((acc: Record<string, string>, p: Record<string, unknown>) => {
+                acc[String(p.id_interno || '')] = String(p.valor || '');
+                return acc;
+              }, {})
+            : undefined,
         });
       }
 
       console.log(`[CRM Sync] HelpSys pipeline ${pipelineId}: ${leads.length} leads fetched`);
     } catch (e) {
       console.error(`[CRM Sync] Error fetching HelpSys leads for pipeline ${pipelineId}:`, e);
-      // Continue with next pipeline
     }
   }
 
