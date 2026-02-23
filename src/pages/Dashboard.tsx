@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ClientSelector } from '@/components/layout/ClientSelector';
@@ -254,7 +254,23 @@ export default function Dashboard() {
   const isEcommerce = businessModel === 'ecommerce';
   const isInfoproduto = businessModel === 'infoproduto';
 
-  const loading = projectsLoading || metaLoading;
+  // Safety timeout to prevent infinite loading
+  const [forceLoaded, setForceLoaded] = useState(false);
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  
+  useEffect(() => {
+    if (projectsLoading || metaLoading) {
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.warn('[Dashboard] Loading timeout - forcing loaded state');
+        setForceLoaded(true);
+      }, 8000);
+    } else {
+      setForceLoaded(false);
+    }
+    return () => { if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); };
+  }, [projectsLoading, metaLoading]);
+
+  const loading = (projectsLoading || metaLoading) && !forceLoaded;
   const activeProjects = useMemo(() => projects.filter(p => !p.archived), [projects]);
 
   return (
