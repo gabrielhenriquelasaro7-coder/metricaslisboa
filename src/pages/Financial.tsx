@@ -45,6 +45,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 
 const BUSINESS_MODEL_LABELS: Record<string, { label: string; icon: React.ElementType; description: string }> = {
   inside_sales: { label: 'Inside Sales', icon: Users, description: 'Vendas consultivas B2B ou B2C' },
@@ -57,7 +58,7 @@ const BUSINESS_MODEL_LABELS: Record<string, { label: string; icon: React.Element
 const ALLOWED_BUSINESS_MODELS = ['inside_sales', 'ecommerce', 'pdv', 'infoproduto', 'custom'];
 
 // Helper function to calculate date range from period
-function getDateRangeFromPeriod(period: DREPeriod): { startDate: string; endDate: string; description: string } {
+function getDateRangeFromPeriod(period: DREPeriod, customRange?: { from?: Date; to?: Date }): { startDate: string; endDate: string; description: string } {
   const today = new Date();
   let start: Date;
   let end: Date = today;
@@ -80,6 +81,12 @@ function getDateRangeFromPeriod(period: DREPeriod): { startDate: string; endDate
       break;
     }
     case 'custom':
+      if (customRange?.from && customRange?.to) {
+        start = customRange.from;
+        end = customRange.to;
+        break;
+      }
+      // fallthrough
     default:
       start = startOfMonth(today);
       end = today;
@@ -104,9 +111,10 @@ export default function Financial() {
 
   const [drePeriod, setDrePeriod] = useState<DREPeriod>('last_30d');
   const [showDREHistory, setShowDREHistory] = useState(false);
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
   
   // Calculate date range from period for CRM filtering
-  const crmDateRange = useMemo(() => getDateRangeFromPeriod(drePeriod), [drePeriod]);
+  const crmDateRange = useMemo(() => getDateRangeFromPeriod(drePeriod, customDateRange), [drePeriod, customDateRange]);
 
   const { 
     status: crmStatus, 
@@ -251,6 +259,8 @@ export default function Financial() {
             onChange={setDrePeriod}
             onOpenHistory={() => setShowDREHistory(true)}
             periodDescription={crmDateRange.description}
+            customDateRange={customDateRange}
+            onCustomDateRangeChange={setCustomDateRange}
           />
         </div>
 
