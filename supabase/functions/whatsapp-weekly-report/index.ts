@@ -308,18 +308,19 @@ Deno.serve(async (req) => {
     console.log(`[WEEKLY-REPORT] Starting report generation at ${now.toISOString()}`);
     console.log(`[WEEKLY-REPORT] Current day of week: ${currentDayOfWeek}`);
 
-    // Fetch configs from whatsapp_report_configs (NEW TABLE)
-    // Use explicit FK hint to resolve ambiguity between instance_id and balance_alert_instance_id
+    // Fetch configs from whatsapp_report_configs
+    // NOTE: We cannot rely on instance FK joins because configs may reference
+    // records from either whatsapp_manager_instances or whatsapp_instances.
     let configsQuery = supabase
       .from('whatsapp_report_configs')
-      .select('*, whatsapp_manager_instances!whatsapp_report_configs_instance_id_fkey(instance_name, instance_status, token), projects(id, name, business_model, timezone)')
+      .select('*, projects(id, name, business_model, timezone)')
       .eq('report_enabled', true)
       .not('project_id', 'is', null);
 
     if (targetConfigId) {
       configsQuery = supabase
         .from('whatsapp_report_configs')
-        .select('*, whatsapp_manager_instances!whatsapp_report_configs_instance_id_fkey(instance_name, instance_status, token), projects(id, name, business_model, timezone)')
+        .select('*, projects(id, name, business_model, timezone)')
         .eq('id', targetConfigId);
     } else {
       configsQuery = configsQuery.eq('report_day_of_week', currentDayOfWeek);
@@ -414,10 +415,27 @@ Deno.serve(async (req) => {
           console.log(`[WEEKLY-REPORT] Lock acquired for ${config.id} at ${lockTime}`);
         }
 
-        // Check instance status
-        const instanceData = config.whatsapp_manager_instances;
-        if (config.instance_id && instanceData) {
-          if (instanceData.instance_status !== 'connected') {
+        // Check instance status from manager table first, fallback to legacy table
+        if (config.instance_id) {
+          const { data: managerInstance } = await supabase
+            .from('whatsapp_manager_instances')
+            .select('instance_status')
+            .eq('id', config.instance_id)
+            .maybeSingle();
+
+          let instanceStatus = managerInstance?.instance_status;
+
+          if (!instanceStatus) {
+            const { data: legacyInstance } = await supabase
+              .from('whatsapp_instances')
+              .select('instance_status')
+              .eq('id', config.instance_id)
+              .maybeSingle();
+
+            instanceStatus = legacyInstance?.instance_status;
+          }
+
+          if (instanceStatus && instanceStatus !== 'connected') {
             console.log(`[WEEKLY-REPORT] Instance not connected for ${config.id}`);
             results.push({
               configId: config.id,

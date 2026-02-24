@@ -110,6 +110,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    const sendTextMessage = async (target: string, key: string) => {
+      const response = await fetch(
+        `${evolutionUrl}/message/sendText/${instanceName}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': key,
+          },
+          body: JSON.stringify({
+            number: target,
+            text: message,
+          }),
+        }
+      );
+
+      const data = await response.json();
+      return { response, data };
+    };
+
     let evolutionResponse;
     let evolutionData;
 
@@ -118,23 +138,19 @@ Deno.serve(async (req) => {
       console.log(`[WHATSAPP-SEND] Sending to group ${groupId} via instance ${instanceName}`);
       console.log(`[WHATSAPP-SEND] Message length: ${message.length} chars`);
 
-      // Send to group via Evolution API
-      evolutionResponse = await fetch(
-        `${evolutionUrl}/message/sendText/${instanceName}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': evolutionKey,
-          },
-          body: JSON.stringify({
-            number: groupId,
-            text: message,
-          }),
-        }
-      );
+      ({ response: evolutionResponse, data: evolutionData } = await sendTextMessage(groupId, evolutionKey));
 
-      evolutionData = await evolutionResponse.json();
+      // Fallback: instance token can expire; retry once with default API key
+      if (
+        !evolutionResponse.ok &&
+        evolutionResponse.status === 401 &&
+        DEFAULT_EVOLUTION_KEY &&
+        evolutionKey !== DEFAULT_EVOLUTION_KEY
+      ) {
+        console.warn('[WHATSAPP-SEND] Instance token unauthorized. Retrying with default Evolution key...');
+        ({ response: evolutionResponse, data: evolutionData } = await sendTextMessage(groupId, DEFAULT_EVOLUTION_KEY));
+      }
+
       console.log(`[WHATSAPP-SEND] Evolution group response:`, JSON.stringify(evolutionData));
 
     } else {
@@ -155,23 +171,19 @@ Deno.serve(async (req) => {
       console.log(`[WHATSAPP-SEND] Sending to phone ${formattedPhone} via instance ${instanceName}`);
       console.log(`[WHATSAPP-SEND] Message length: ${message.length} chars`);
 
-      // Send via Evolution API
-      evolutionResponse = await fetch(
-        `${evolutionUrl}/message/sendText/${instanceName}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': evolutionKey,
-          },
-          body: JSON.stringify({
-            number: formattedPhone,
-            text: message,
-          }),
-        }
-      );
+      ({ response: evolutionResponse, data: evolutionData } = await sendTextMessage(formattedPhone, evolutionKey));
 
-      evolutionData = await evolutionResponse.json();
+      // Fallback: instance token can expire; retry once with default API key
+      if (
+        !evolutionResponse.ok &&
+        evolutionResponse.status === 401 &&
+        DEFAULT_EVOLUTION_KEY &&
+        evolutionKey !== DEFAULT_EVOLUTION_KEY
+      ) {
+        console.warn('[WHATSAPP-SEND] Instance token unauthorized. Retrying with default Evolution key...');
+        ({ response: evolutionResponse, data: evolutionData } = await sendTextMessage(formattedPhone, DEFAULT_EVOLUTION_KEY));
+      }
+
       console.log(`[WHATSAPP-SEND] Evolution phone response:`, JSON.stringify(evolutionData));
     }
 

@@ -308,15 +308,21 @@ export function GTReportTab({
 
     setTestingReport(true);
     try {
-      const { error } = await supabase.functions.invoke('whatsapp-send', {
+      const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
-          instanceId, targetType,
+          instanceId,
+          targetType,
           phone: targetType === 'phone' ? target : undefined,
           groupId: targetType === 'group' ? target : undefined,
           message: `🧪 *TESTE DE RELATÓRIO*\n\n${currentMessage}`,
         }
       });
+
       if (error) throw error;
+      if (data && !data.success) {
+        throw new Error(data.error || 'Falha ao enviar mensagem de teste');
+      }
+
       toast.success('Mensagem de teste enviada!');
     } catch (error: any) {
       toast.error('Erro ao enviar: ' + (error.message || 'Erro desconhecido'));
@@ -336,14 +342,20 @@ export function GTReportTab({
 
       const alertMessage = `⚠️ *TESTE DE ALERTA DE SALDO*\n\n🚨 *Atenção: Saldo Baixo!*\n\n📊 Projeto: ${project.name}\n💰 Saldo atual: ${formatCurrency(currentBalance)}\n📅 Duração estimada: ${estimatedDays} dias`;
 
-      const { error } = await supabase.functions.invoke('whatsapp-send', {
+      const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
-          instanceId, targetType: 'phone',
+          instanceId,
+          targetType: 'phone',
           phone: balanceAlertPhoneNumber.replace(/\D/g, ''),
           message: alertMessage,
         }
       });
+
       if (error) throw error;
+      if (data && !data.success) {
+        throw new Error(data.error || 'Falha ao enviar alerta de teste');
+      }
+
       toast.success('Alerta de teste enviado!');
     } catch (error: any) {
       toast.error('Erro ao enviar: ' + (error.message || 'Erro desconhecido'));
