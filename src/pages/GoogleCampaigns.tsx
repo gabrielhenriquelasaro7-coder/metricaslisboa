@@ -590,26 +590,6 @@ export default function GoogleCampaigns() {
                   </div>
                 </div>
 
-                {/* 3 Gráficos */}
-                {chartData.length > 0 && (
-                  <div className="space-y-4 sm:space-y-6">
-                    <CustomizableChart chartKey="google_invest_clicks" data={chartData} defaultTitle="Investimento vs Cliques" defaultPrimaryMetric="spend" defaultSecondaryMetric="clicks" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} />
-                    <CustomizableChart chartKey="google_conv_cpa" data={chartData} defaultTitle="Conversões vs CPA" defaultPrimaryMetric="conversions" defaultSecondaryMetric="cpa" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} />
-                    <CustomizableChart chartKey="google_ctr_cpc" data={chartData} defaultTitle="CTR vs CPC" defaultPrimaryMetric="ctr" defaultSecondaryMetric="cpc" defaultChartType="line" currency={selectedProject?.currency || 'BRL'} />
-                  </div>
-                )}
-
-                {/* Funil */}
-                <FunnelChart
-                  impressions={funnelTotals.impressions} clicks={funnelTotals.clicks} conversions={funnelTotals.conversions} spend={funnelTotals.spend}
-                  ctr={funnelTotals.impressions > 0 ? (funnelTotals.clicks / funnelTotals.impressions) * 100 : 0}
-                  cpc={funnelTotals.clicks > 0 ? funnelTotals.spend / funnelTotals.clicks : 0}
-                  cpl={funnelTotals.conversions > 0 ? funnelTotals.spend / funnelTotals.conversions : 0}
-                  cpm={funnelTotals.impressions > 0 ? (funnelTotals.spend / funnelTotals.impressions) * 1000 : 0}
-                  conversionRate={funnelTotals.clicks > 0 ? (funnelTotals.conversions / funnelTotals.clicks) * 100 : 0}
-                  currency={selectedProject?.currency || 'BRL'} campaignFilter={funnelFilter} onCampaignFilterChange={setFunnelFilter}
-                />
-
                 {/* === PALAVRAS-CHAVE === */}
                 <div className="glass-card overflow-hidden border-t-2 border-t-primary/30">
                   <div className="px-4 py-3 bg-secondary/30 border-b border-border">
@@ -711,6 +691,26 @@ export default function GoogleCampaigns() {
                     </div>
                   )}
                 </div>
+
+                {/* 3 Gráficos */}
+                {chartData.length > 0 && (
+                  <div className="space-y-4 sm:space-y-6">
+                    <CustomizableChart chartKey="google_invest_clicks" data={chartData} defaultTitle="Investimento vs Cliques" defaultPrimaryMetric="spend" defaultSecondaryMetric="clicks" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} />
+                    <CustomizableChart chartKey="google_conv_cpa" data={chartData} defaultTitle="Conversões vs CPA" defaultPrimaryMetric="conversions" defaultSecondaryMetric="cpa" defaultChartType="composed" currency={selectedProject?.currency || 'BRL'} />
+                    <CustomizableChart chartKey="google_ctr_cpc" data={chartData} defaultTitle="CTR vs CPC" defaultPrimaryMetric="ctr" defaultSecondaryMetric="cpc" defaultChartType="line" currency={selectedProject?.currency || 'BRL'} />
+                  </div>
+                )}
+
+                {/* Funil */}
+                <FunnelChart
+                  impressions={funnelTotals.impressions} clicks={funnelTotals.clicks} conversions={funnelTotals.conversions} spend={funnelTotals.spend}
+                  ctr={funnelTotals.impressions > 0 ? (funnelTotals.clicks / funnelTotals.impressions) * 100 : 0}
+                  cpc={funnelTotals.clicks > 0 ? funnelTotals.spend / funnelTotals.clicks : 0}
+                  cpl={funnelTotals.conversions > 0 ? funnelTotals.spend / funnelTotals.conversions : 0}
+                  cpm={funnelTotals.impressions > 0 ? (funnelTotals.spend / funnelTotals.impressions) * 1000 : 0}
+                  conversionRate={funnelTotals.clicks > 0 ? (funnelTotals.conversions / funnelTotals.clicks) * 100 : 0}
+                  currency={selectedProject?.currency || 'BRL'} campaignFilter={funnelFilter} onCampaignFilterChange={setFunnelFilter}
+                />
 
                 {/* === DEMOGRÁFICOS === */}
                 {demographics.length > 0 && (
