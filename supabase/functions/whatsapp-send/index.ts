@@ -197,9 +197,12 @@ Deno.serve(async (req) => {
       
       // Check for specific Evolution API errors
       let errorMessage = 'Failed to send message';
-      const responseMessages = evolutionData?.response?.message || [];
+      const rawMessages = evolutionData?.response?.message;
+      const responseMessages = Array.isArray(rawMessages) ? rawMessages : (typeof rawMessages === 'string' ? [rawMessages] : []);
       
-      if (responseMessages.some((m: string) => m.includes('sendMessage') || m.includes('undefined'))) {
+      if (evolutionData?.error === 'Unauthorized' || evolutionData?.response?.message === 'Unauthorized') {
+        errorMessage = 'Token de autenticação inválido. Reconecte a instância WhatsApp.';
+      } else if (responseMessages.some((m: string) => m.includes('sendMessage') || m.includes('undefined'))) {
         errorMessage = 'Instância WhatsApp desconectada. Reconecte escaneando o QR Code.';
       } else if (evolutionData?.error === 'Bad Request') {
         errorMessage = 'Erro de conexão com WhatsApp. Verifique se a instância está conectada.';

@@ -78,14 +78,42 @@ export function useWhatsAppManager() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      // Fetch from manager instances table
+      const { data: managerData, error: managerError } = await supabase
         .from('whatsapp_manager_instances')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
-      setInstances((data || []) as ManagerInstance[]);
+      if (managerError) throw managerError;
+
+      // Also fetch from old whatsapp_instances table
+      const { data: oldData } = await supabase
+        .from('whatsapp_instances')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+
+      const managerInstances = (managerData || []) as ManagerInstance[];
+      const managerIds = new Set(managerInstances.map(i => i.id));
+
+      // Merge old instances that aren't already in manager table
+      const oldInstances = (oldData || [])
+        .filter((i: any) => !managerIds.has(i.id))
+        .map((i: any) => ({
+          id: i.id,
+          user_id: i.user_id,
+          instance_name: i.instance_name,
+          display_name: i.display_name || i.instance_name,
+          instance_status: i.instance_status || 'disconnected',
+          phone_connected: i.phone_connected || null,
+          qr_code: null,
+          qr_code_expires_at: null,
+          created_at: i.created_at,
+          updated_at: i.updated_at || i.created_at,
+        } as ManagerInstance));
+
+      setInstances([...managerInstances, ...oldInstances]);
     } catch (error) {
       console.error('Erro ao buscar instâncias:', error);
     }
