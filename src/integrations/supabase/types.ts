@@ -3525,20 +3525,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "whatsapp_report_configs_balance_alert_instance_id_fkey"
-            columns: ["balance_alert_instance_id"]
-            isOneToOne: false
-            referencedRelation: "whatsapp_manager_instances"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "whatsapp_report_configs_instance_id_fkey"
-            columns: ["instance_id"]
-            isOneToOne: false
-            referencedRelation: "whatsapp_manager_instances"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "whatsapp_report_configs_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
