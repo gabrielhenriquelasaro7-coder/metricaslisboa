@@ -205,6 +205,7 @@ export default function GoogleCampaigns() {
       conversions: d.conversions, conversion_value: d.conversion_value, messaging_replies: 0, profile_visits: 0,
       leads_conversions: 0, sales_conversions: 0, initiate_checkout_conversions: 0,
       ctr: d.ctr, cpm: d.cpm, cpc: d.cpc, roas: d.roas, cpa: d.cpa,
+      cvr_leads: 0, cvr_sales: 0,
     }));
   }, [dailyMetrics, aggregateDailyMetrics, periodBounds]);
 

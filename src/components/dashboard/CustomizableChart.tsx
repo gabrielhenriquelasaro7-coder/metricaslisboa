@@ -90,6 +90,8 @@ const aggregateByMonth = (data: DailyMetric[]): DailyMetric[] => {
         cpc: 0,
         roas: 0,
         cpa: 0,
+        cvr_leads: 0,
+        cvr_sales: 0,
       });
     }
   });

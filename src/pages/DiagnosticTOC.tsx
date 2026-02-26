@@ -167,7 +167,6 @@ export default function DiagnosticTOC() {
   };
 
   const deleteProject = async (id: string) => {
-    // 1. Remover do LocalStorage
     const localData = localStorage.getItem(PROJECTS_STORAGE_KEY);
     if (localData) {
       const localProjects: DiagnosticProject[] = JSON.parse(localData);
@@ -175,20 +174,16 @@ export default function DiagnosticTOC() {
       localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(filtered));
     }
 
-    // 2. Tentar remover do Supabase
     try {
-      const { error } = await supabase
+      await supabase
         .from('diagnostic_reports')
         .delete()
-        .eq('id', id);
+        .eq('id', id as any);
 
-      // Não dar erro se o registro só existir localmente
-      if (!error) {
-        toast.success('Diagnóstico removido.');
-      }
+      toast.success('Diagnóstico removido.');
       fetchReports();
     } catch (error) {
-      console.error('Erro ao excluir do Supabase:', error);
+      console.error('Erro ao excluir:', error);
       toast.success('Diagnóstico removido localmente.');
       fetchReports();
     }
