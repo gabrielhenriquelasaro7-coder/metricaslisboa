@@ -712,8 +712,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                                         type="number"
                                         placeholder="12"
                                         className="h-11 rounded-xl bg-zinc-950 border-white/10 text-white placeholder:text-zinc-600"
-                                        value={(project.economics as any).meetingsPerWeek || ''}
-                                        onChange={e => updateProject({ economics: { ...project.economics, commercialCapacity: String(e.target.value) + ' reuniões/sem' } })}
+                                        value={project.economics.meetingsPerWeek || ''}
+                                        onChange={e => updateProject({ economics: { ...project.economics, meetingsPerWeek: Number(e.target.value) } })}
                                     />
                                 </div>
 
@@ -723,8 +723,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                                         type="number"
                                         placeholder="8"
                                         className="h-11 rounded-xl bg-zinc-950 border-white/10 text-white placeholder:text-zinc-600"
-                                        value={''}
-                                        onChange={() => { }}
+                                        value={project.economics.proposalsPerWeek || ''}
+                                        onChange={e => updateProject({ economics: { ...project.economics, proposalsPerWeek: Number(e.target.value) } })}
                                     />
                                 </div>
                             </div>

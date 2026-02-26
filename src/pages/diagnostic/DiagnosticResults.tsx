@@ -75,7 +75,7 @@ const TravaGauge = ({ id, idx, analysis, onValueChange }: {
         percentage = Math.max(0, Math.min(100, ((val - minVal) / (maxVal - minVal)) * 100));
     }
 
-    const statusText = score?.status === 'ruim' ? 'Crítico' : score?.status === 'na_media' ? 'Na Média' : 'Bom';
+    const statusText = cegueiraLabel || (score?.status === 'ruim' ? 'Crítico' : score?.status === 'na_media' ? 'Na Média' : 'Bom');
 
     // Cores: Para cegueira, valor alto = ruim (vermelho), valor baixo = bom (verde)
     let statusColor = "";

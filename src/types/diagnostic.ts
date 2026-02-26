@@ -63,6 +63,8 @@ export interface DiagnosticProject {
         ltv?: number;
         cycleTime: number;
         commercialCapacity: string;
+        meetingsPerWeek?: number;
+        proposalsPerWeek?: number;
     };
     market: MarketMetrics;
     bowtie: BowtieData;
