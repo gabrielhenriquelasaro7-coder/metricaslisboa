@@ -125,7 +125,7 @@ export default function DiagnosticTOC() {
   }, [selectedMonth, selectedYear]);
 
   const saveProject = async (p: DiagnosticProject) => {
-    // 1. Sempre salvar no LocalStorage primeiro como backup (segurança)
+    // 1. Sempre salvar no LocalStorage primeiro como backup
     const localData = localStorage.getItem(PROJECTS_STORAGE_KEY);
     let localProjects: DiagnosticProject[] = localData ? JSON.parse(localData) : [];
     const index = localProjects.findIndex(lp => lp.id === p.id);
@@ -136,29 +136,27 @@ export default function DiagnosticTOC() {
     }
     localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(localProjects));
 
-    // 2. Tentar salvar no Supabase
+    // 2. Salvar no banco
     try {
       const systemProjectId = (p as any).systemProjectId || (p as any).projectId || p.id;
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('diagnostic_reports')
         .upsert({
           project_id: systemProjectId,
           month: selectedMonth,
           year: selectedYear,
-          data: p,
+          data: p as any,
           updated_at: new Date().toISOString()
-        }, {
+        } as any, {
           onConflict: 'project_id, month, year'
-        })
-        .select()
-        .single();
+        });
 
       if (error) throw error;
       toast.success('Diagnóstico salvo na nuvem!');
       fetchReports();
     } catch (error: any) {
-      console.error('Erro ao salvar no Supabase:', error);
+      console.error('Erro ao salvar:', error);
       if (error?.code === '42P01') {
         toast.success('Diagnóstico salvo localmente!');
       } else {
