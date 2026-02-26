@@ -48,12 +48,15 @@ const TravaGauge = ({ id, idx, analysis, onValueChange }: {
     const score = analysis.stageScores.find((item: any) => item.id === id);
     const isBottleneck = (analysis.bottleneck as any).id === id;
 
-    // Configurações específicas para Cegueira (lógica invertida)
+    // Configurações específicas para Cegueira
     const isCegueira = id === 'cegueira';
 
-    // Fallback para cegueira (não tem benchmark definido no config padrão)
+    // Fallback para cegueira
     const bench = score?.benchmark || { mid: 1, min: 0, max: 100, direction: isCegueira ? 'lower_better' : 'higher_better', unit: 'percent', label: isCegueira ? 'Cegueira' : '' };
     const val = score?.value || 0;
+    
+    // Para cegueira, sobrescrever statusText com base na reliability
+    const cegueiraLabel = isCegueira ? (score?.status === 'ruim' ? 'Cego' : score?.status === 'na_media' ? 'Semi-Manual' : 'Data-Driven') : null;
     const mid = bench?.mid || 1;
     const barRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
