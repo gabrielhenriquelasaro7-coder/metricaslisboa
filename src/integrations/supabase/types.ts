@@ -1235,6 +1235,39 @@ export type Database = {
           },
         ]
       }
+      diagnostic_reports: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          month: number
+          project_id: string
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          month: number
+          project_id: string
+          updated_at?: string
+          user_id?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          month?: number
+          project_id?: string
+          updated_at?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
       dre_history: {
         Row: {
           ad_spend_google: number | null
