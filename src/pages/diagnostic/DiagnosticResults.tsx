@@ -388,13 +388,26 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         });
 
         // Score da Cegueira (Lógica Invertida: quanto maior, pior)
+        // IMPORTANTE: Se o valor é 0 e reliability é 'media' (default), significa que o usuário não preencheu
         const cegueiraVal = localBowtie.cegueira.value || 0;
-        const cegueiraStatus = cegueiraVal > 50 ? 'ruim' : cegueiraVal > 20 ? 'na_media' : 'bom';
+        const cegueiraReliability = localBowtie.cegueira.reliability;
+        
+        // Se cegueira = 0 e reliability ainda é o default 'media', trata como "sem dados" → na_media
+        // Se o usuário escolheu 'baixa' (Operação Cega), a cegueira é automaticamente alta (ruim)
+        // Se escolheu 'alta' (Data-Driven) E valor é 0, considerar bom
+        let cegueiraStatus: string;
+        if (cegueiraReliability === 'baixa') {
+            cegueiraStatus = 'ruim'; // Operação Cega = cegueira máxima
+            
+        } else if (cegueiraReliability === 'alta') {
+            cegueiraStatus = 'bom'; // Data-Driven = sem cegueira
+        } else {
+            // 'media' (Semi-Manual) → na_media
+            cegueiraStatus = 'na_media';
+        }
 
-        // Gap de cegueira: 100% = penalty máxima, 0% = penalty mínima
-        // Se cegueira for 0, gap deve ser 0.
-        // Penalty base 100 para cegueira crítica para vencer empates
-        const cegueiraPenalty = (cegueiraVal / 100) * 100;
+        // Penalty baseada no status de cegueira
+        const cegueiraPenalty = cegueiraStatus === 'ruim' ? 100 : cegueiraStatus === 'na_media' ? 50 : 5;
 
         const cegueiraScore = {
             id: 'cegueira' as any,
