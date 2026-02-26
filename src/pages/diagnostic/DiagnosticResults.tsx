@@ -361,13 +361,25 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         const stageScores = stageOrder.map(stageId => {
             const stageMetrics = benchmarks.stages[stageId] || [];
             const userBowtieData = localBowtie[stageId];
+            const userValue = userBowtieData.value;
+
+            // Se o valor é 0 ou não preenchido, considerar como "sem dados" → penalidade alta
+            if (!userValue || userValue === 0) {
+                return {
+                    id: stageId,
+                    status: 'ruim' as BenchmarkStatus,
+                    penalty: 80, // Alta penalidade para dados não preenchidos
+                    value: 0,
+                    benchmark: stageMetrics[0]
+                };
+            }
 
             let stagePenalty = 0;
             let totalWeights = 0;
 
             stageMetrics.forEach((m, idx) => {
                 const weight = idx === 0 ? 1.0 : 0.5;
-                const status = classifyMetricValue(userBowtieData.value, m);
+                const status = classifyMetricValue(userValue, m);
 
                 let metricPenalty = 0;
                 if (status === 'ruim') metricPenalty = 100;
@@ -385,7 +397,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 id: stageId,
                 status: status as BenchmarkStatus,
                 penalty: finalPenalty,
-                value: userBowtieData.value,
+                value: userValue,
                 benchmark: stageMetrics[0]
             };
         });
