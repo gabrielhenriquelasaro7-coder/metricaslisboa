@@ -88,29 +88,30 @@ export default function DiagnosticTOC() {
 
       if (error) throw error;
 
-      const mapped = data.map(r => ({
-        ...r.data,
-        id: r.id,
-        dbId: r.id,
-        projectId: r.project_id,
-        month: r.month,
-        year: r.year,
-        updatedAt: r.updated_at
-      }));
+      const mapped: DiagnosticProject[] = (data || []).map((r: any) => {
+        const reportData = (typeof r.data === 'object' && r.data !== null) ? r.data : {};
+        return {
+          ...reportData,
+          id: r.id,
+          dbId: r.id,
+          projectId: r.project_id,
+          month: r.month,
+          year: r.year,
+          updatedAt: r.updated_at
+        } as DiagnosticProject;
+      });
       setProjects(mapped);
     } catch (error: any) {
       console.error('Erro ao buscar relatórios:', error);
 
-      // Fallback para LocalStorage se a tabela não existir ou outro erro ocorrer
       const localData = localStorage.getItem(PROJECTS_STORAGE_KEY);
       if (localData) {
         const localProjects: DiagnosticProject[] = JSON.parse(localData);
-        // Filtrar por período se estivermos em modo local (pode ser simplificado)
-        setProjects(localProjects.filter(p => !p.archived));
+        setProjects(localProjects);
       }
 
       if (error?.code === '42P01') {
-        toast.info('Modo Local Ativo: Tabela diagnostic_reports não encontrada. Dados sendo salvos localmente.', {
+        toast.info('Modo Local Ativo: Tabela não encontrada. Dados sendo salvos localmente.', {
           duration: 4000
         });
       }
