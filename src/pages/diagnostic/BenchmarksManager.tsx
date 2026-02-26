@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
