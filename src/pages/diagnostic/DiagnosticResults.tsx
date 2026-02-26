@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react';
+import { jsPDF } from 'jspdf';
 import { DiagnosticProject } from '@/types/diagnostic';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,12 +50,15 @@ const TravaGauge = ({ id, idx, analysis, onValueChange }: {
     const score = analysis.stageScores.find((item: any) => item.id === id);
     const isBottleneck = (analysis.bottleneck as any).id === id;
 
-    // Configurações específicas para Cegueira (lógica invertida)
+    // Configurações específicas para Cegueira
     const isCegueira = id === 'cegueira';
 
-    // Fallback para cegueira (não tem benchmark definido no config padrão)
+    // Fallback para cegueira
     const bench = score?.benchmark || { mid: 1, min: 0, max: 100, direction: isCegueira ? 'lower_better' : 'higher_better', unit: 'percent', label: isCegueira ? 'Cegueira' : '' };
     const val = score?.value || 0;
+    
+    // Para cegueira, sobrescrever statusText com base na reliability
+    const cegueiraLabel = isCegueira ? (score?.status === 'ruim' ? 'Cego' : score?.status === 'na_media' ? 'Semi-Manual' : 'Data-Driven') : null;
     const mid = bench?.mid || 1;
     const barRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -72,12 +77,12 @@ const TravaGauge = ({ id, idx, analysis, onValueChange }: {
         percentage = Math.max(0, Math.min(100, ((val - minVal) / (maxVal - minVal)) * 100));
     }
 
-    const statusText = score?.status === 'ruim' ? 'Crítico' : score?.status === 'na_media' ? 'Na Média' : 'Bom';
+    const statusText = cegueiraLabel || (score?.status === 'ruim' ? 'Crítico' : score?.status === 'na_media' ? 'Na Média' : 'Bom');
 
-    // Cores: Para cegueira, valor alto = ruim (vermelho), valor baixo = bom (verde)
+    // Cores baseadas no status do score
     let statusColor = "";
     if (isCegueira) {
-        statusColor = val > 50 ? 'text-red-500' : val > 20 ? 'text-amber-500' : 'text-emerald-500';
+        statusColor = score?.status === 'ruim' ? 'text-red-500' : score?.status === 'na_media' ? 'text-amber-500' : 'text-emerald-500';
     } else {
         statusColor = score?.status === 'ruim' ? 'text-red-500' : score?.status === 'na_media' ? 'text-amber-500' : 'text-emerald-500';
     }
@@ -335,6 +340,99 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
     // Estado local do bowtie para permitir alterações via drag nos sliders
     const [localBowtie, setLocalBowtie] = useState(project.bowtie);
 
+    // ─── EXPORTAR PDF ─────────────────────────────────────────────────────────
+    const handleExportPDF = useCallback((proj: typeof project, anal: any) => {
+        try {
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const w = doc.internal.pageSize.getWidth();
+            let y = 20;
+
+            // Header
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Relatório de Restrição — TOC', w / 2, y, { align: 'center' });
+            y += 10;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Projeto: ${proj.name} · Segmento: ${proj.segment}`, w / 2, y, { align: 'center' });
+            y += 6;
+            doc.text(`Meta: R$ ${proj.goal.value.toLocaleString('pt-BR')} · Ticket: R$ ${proj.economics.averageTicket.toLocaleString('pt-BR')}`, w / 2, y, { align: 'center' });
+            y += 12;
+
+            // Restrição ativa
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(220, 38, 38);
+            doc.text(`RESTRIÇÃO ATIVA: ${getStageName(anal.bottleneck.id).toUpperCase()}`, 20, y);
+            doc.setTextColor(0, 0, 0);
+            y += 8;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Valor Real: ${anal.bottleneck.value.toFixed(2)} · Penalidade: ${anal.bottleneck.penalty.toFixed(0)} pts`, 20, y);
+            y += 10;
+
+            // Tabela de travas
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Painel de Travas', 20, y);
+            y += 8;
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Trava', 20, y);
+            doc.text('Valor Real', 80, y);
+            doc.text('Status', 130, y);
+            y += 6;
+            doc.setDrawColor(200);
+            doc.line(20, y - 2, w - 20, y - 2);
+
+            doc.setFont('helvetica', 'normal');
+            anal.stageScores.forEach((s: any) => {
+                const statusLabel = s.status === 'bom' ? 'Bom' : s.status === 'na_media' ? 'Na Média' : 'Crítico';
+                const isBottleneck = anal.bottleneck.id === s.id;
+                doc.text(`${isBottleneck ? '► ' : '  '}${getStageName(s.id)}`, 20, y);
+                doc.text(`${s.value.toFixed(2)}${s.benchmark?.unit === 'percent' || s.id === 'cegueira' ? '%' : ''}`, 80, y);
+                doc.text(statusLabel, 130, y);
+                y += 6;
+                if (y > 270) { doc.addPage(); y = 20; }
+            });
+
+            y += 6;
+            // Razão e injeção
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Core Problem:', 20, y);
+            y += 6;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            const reason = getStageReason(anal.bottleneck.id);
+            const reasonLines = doc.splitTextToSize(reason, w - 40);
+            doc.text(reasonLines, 20, y);
+            y += reasonLines.length * 5 + 4;
+
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Injeção Recomendada:', 20, y);
+            y += 6;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            const injection = getStageInjection(anal.bottleneck.id);
+            const injectionLines = doc.splitTextToSize(injection, w - 40);
+            doc.text(injectionLines, 20, y);
+
+            // Footer
+            doc.setFontSize(7);
+            doc.setTextColor(150);
+            doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} · Destrava Receita V4`, w / 2, 290, { align: 'center' });
+
+            doc.save(`diagnostico-${proj.name.replace(/\s+/g, '-').toLowerCase()}.pdf`);
+            toast.success('PDF exportado com sucesso!');
+        } catch (err) {
+            console.error('Erro ao exportar PDF:', err);
+            toast.error('Erro ao gerar PDF');
+        }
+    }, []);
+
     // Callback chamado quando o slider é arrastado
     const handleValueChange = useCallback((stageId: string, newValue: number) => {
         setLocalBowtie(prev => ({
@@ -358,13 +456,25 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         const stageScores = stageOrder.map(stageId => {
             const stageMetrics = benchmarks.stages[stageId] || [];
             const userBowtieData = localBowtie[stageId];
+            const userValue = userBowtieData.value;
+
+            // Se o valor é 0 ou não preenchido, considerar como "sem dados" → penalidade alta
+            if (!userValue || userValue === 0) {
+                return {
+                    id: stageId,
+                    status: 'ruim' as BenchmarkStatus,
+                    penalty: 80, // Alta penalidade para dados não preenchidos
+                    value: 0,
+                    benchmark: stageMetrics[0]
+                };
+            }
 
             let stagePenalty = 0;
             let totalWeights = 0;
 
             stageMetrics.forEach((m, idx) => {
                 const weight = idx === 0 ? 1.0 : 0.5;
-                const status = classifyMetricValue(userBowtieData.value, m);
+                const status = classifyMetricValue(userValue, m);
 
                 let metricPenalty = 0;
                 if (status === 'ruim') metricPenalty = 100;
@@ -382,19 +492,32 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 id: stageId,
                 status: status as BenchmarkStatus,
                 penalty: finalPenalty,
-                value: userBowtieData.value,
+                value: userValue,
                 benchmark: stageMetrics[0]
             };
         });
 
         // Score da Cegueira (Lógica Invertida: quanto maior, pior)
+        // IMPORTANTE: Se o valor é 0 e reliability é 'media' (default), significa que o usuário não preencheu
         const cegueiraVal = localBowtie.cegueira.value || 0;
-        const cegueiraStatus = cegueiraVal > 50 ? 'ruim' : cegueiraVal > 20 ? 'na_media' : 'bom';
+        const cegueiraReliability = localBowtie.cegueira.reliability;
+        
+        // Se cegueira = 0 e reliability ainda é o default 'media', trata como "sem dados" → na_media
+        // Se o usuário escolheu 'baixa' (Operação Cega), a cegueira é automaticamente alta (ruim)
+        // Se escolheu 'alta' (Data-Driven) E valor é 0, considerar bom
+        let cegueiraStatus: string;
+        if (cegueiraReliability === 'baixa') {
+            cegueiraStatus = 'ruim'; // Operação Cega = cegueira máxima
+            
+        } else if (cegueiraReliability === 'alta') {
+            cegueiraStatus = 'bom'; // Data-Driven = sem cegueira
+        } else {
+            // 'media' (Semi-Manual) → na_media
+            cegueiraStatus = 'na_media';
+        }
 
-        // Gap de cegueira: 100% = penalty máxima, 0% = penalty mínima
-        // Se cegueira for 0, gap deve ser 0.
-        // Penalty base 100 para cegueira crítica para vencer empates
-        const cegueiraPenalty = (cegueiraVal / 100) * 100;
+        // Penalty baseada no status de cegueira
+        const cegueiraPenalty = cegueiraStatus === 'ruim' ? 100 : cegueiraStatus === 'na_media' ? 50 : 5;
 
         const cegueiraScore = {
             id: 'cegueira' as any,
@@ -452,9 +575,13 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                         <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10">
                             <Globe className="w-3.5 h-3.5" /> Benchmarks Mundial
                         </Button>
-                        <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10"><Download className="w-3.5 h-3.5" /> Exportar</Button>
-                        <Button size="sm" className="rounded-xl h-8 bg-[#EA3829] hover:bg-[#D32F2F] text-white gap-2 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-red-600/10">
-                            <Share2 className="w-3.5 h-3.5" /> Compartilhar
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10"
+                            onClick={() => handleExportPDF(project, analysis)}
+                        >
+                            <Download className="w-3.5 h-3.5" /> Exportar
                         </Button>
                     </div>
                 </div>
