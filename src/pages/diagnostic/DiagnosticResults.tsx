@@ -339,6 +339,99 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
     // Estado local do bowtie para permitir alterações via drag nos sliders
     const [localBowtie, setLocalBowtie] = useState(project.bowtie);
 
+    // ─── EXPORTAR PDF ─────────────────────────────────────────────────────────
+    const handleExportPDF = useCallback((proj: typeof project, anal: any) => {
+        try {
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const w = doc.internal.pageSize.getWidth();
+            let y = 20;
+
+            // Header
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Relatório de Restrição — TOC', w / 2, y, { align: 'center' });
+            y += 10;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Projeto: ${proj.name} · Segmento: ${proj.segment}`, w / 2, y, { align: 'center' });
+            y += 6;
+            doc.text(`Meta: R$ ${proj.goal.value.toLocaleString('pt-BR')} · Ticket: R$ ${proj.economics.averageTicket.toLocaleString('pt-BR')}`, w / 2, y, { align: 'center' });
+            y += 12;
+
+            // Restrição ativa
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(220, 38, 38);
+            doc.text(`RESTRIÇÃO ATIVA: ${getStageName(anal.bottleneck.id).toUpperCase()}`, 20, y);
+            doc.setTextColor(0, 0, 0);
+            y += 8;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Valor Real: ${anal.bottleneck.value.toFixed(2)} · Penalidade: ${anal.bottleneck.penalty.toFixed(0)} pts`, 20, y);
+            y += 10;
+
+            // Tabela de travas
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Painel de Travas', 20, y);
+            y += 8;
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Trava', 20, y);
+            doc.text('Valor Real', 80, y);
+            doc.text('Status', 130, y);
+            y += 6;
+            doc.setDrawColor(200);
+            doc.line(20, y - 2, w - 20, y - 2);
+
+            doc.setFont('helvetica', 'normal');
+            anal.stageScores.forEach((s: any) => {
+                const statusLabel = s.status === 'bom' ? 'Bom' : s.status === 'na_media' ? 'Na Média' : 'Crítico';
+                const isBottleneck = anal.bottleneck.id === s.id;
+                doc.text(`${isBottleneck ? '► ' : '  '}${getStageName(s.id)}`, 20, y);
+                doc.text(`${s.value.toFixed(2)}${s.benchmark?.unit === 'percent' || s.id === 'cegueira' ? '%' : ''}`, 80, y);
+                doc.text(statusLabel, 130, y);
+                y += 6;
+                if (y > 270) { doc.addPage(); y = 20; }
+            });
+
+            y += 6;
+            // Razão e injeção
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Core Problem:', 20, y);
+            y += 6;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            const reason = getStageReason(anal.bottleneck.id);
+            const reasonLines = doc.splitTextToSize(reason, w - 40);
+            doc.text(reasonLines, 20, y);
+            y += reasonLines.length * 5 + 4;
+
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Injeção Recomendada:', 20, y);
+            y += 6;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            const injection = getStageInjection(anal.bottleneck.id);
+            const injectionLines = doc.splitTextToSize(injection, w - 40);
+            doc.text(injectionLines, 20, y);
+
+            // Footer
+            doc.setFontSize(7);
+            doc.setTextColor(150);
+            doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} · Destrava Receita V4`, w / 2, 290, { align: 'center' });
+
+            doc.save(`diagnostico-${proj.name.replace(/\s+/g, '-').toLowerCase()}.pdf`);
+            toast.success('PDF exportado com sucesso!');
+        } catch (err) {
+            console.error('Erro ao exportar PDF:', err);
+            toast.error('Erro ao gerar PDF');
+        }
+    }, []);
+
     // Callback chamado quando o slider é arrastado
     const handleValueChange = useCallback((stageId: string, newValue: number) => {
         setLocalBowtie(prev => ({
