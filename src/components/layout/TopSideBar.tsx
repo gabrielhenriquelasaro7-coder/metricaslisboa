@@ -31,6 +31,7 @@ import {
   Share2,
   FileText,
   Search,
+  Activity,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -105,6 +106,21 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
         <div className="flex-1 py-3 w-full overflow-y-auto">
           <div className="flex flex-col items-center gap-1.5 px-2">
             <TooltipProvider delayDuration={0}>
+              {/* Diagnóstico TOC + LTP */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleNavClick('/diagnostico')}
+                    className={cn('sidebar-icon-btn', isActive('/diagnostico') && 'active')}
+                  >
+                    <Activity className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                  <p>Diagnóstico</p>
+                </TooltipContent>
+              </Tooltip>
+
               {/* Home */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -252,7 +268,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
               {/* Clarity - LP Analysis */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button 
+                  <button
                     onClick={() => handleNavClick('/clarity')}
                     className={cn('sidebar-icon-btn', isActive('/clarity') && 'active')}
                   >

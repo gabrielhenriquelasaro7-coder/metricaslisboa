@@ -31,6 +31,7 @@ import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/layout/PageTransition';
 import { supabase } from '@/integrations/supabase/client';
 import { PDFBuilderDialog } from '@/components/pdf/PDFBuilderDialog';
+import { RevenueFlow } from '@/components/dashboard/RevenueFlow';
 
 type CreativeSortKey = 'spend' | 'conversions' | 'ctr';
 
@@ -160,7 +161,7 @@ export default function Dashboard() {
 
   // Combined metrics - use dailyData (period-filtered) for Meta, Google daily metrics filtered by period
   const metaTotalSpend = useMemo(() => dailyData.reduce((s, d) => s + (d.spend || 0), 0), [dailyData]);
-  
+
   const googlePeriodMetrics = useMemo(() => {
     if (!googleDailyMetrics.length) return { spend: 0, clicks: 0, impressions: 0, conversions: 0 };
     const period = getDateRangeFromPreset(selectedPreset, selectedProject?.timezone || 'America/Sao_Paulo');
@@ -257,7 +258,7 @@ export default function Dashboard() {
   // Safety timeout to prevent infinite loading
   const [forceLoaded, setForceLoaded] = useState(false);
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-  
+
   useEffect(() => {
     if (projectsLoading || metaLoading) {
       loadingTimeoutRef.current = setTimeout(() => {

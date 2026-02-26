@@ -25,11 +25,11 @@ import { TabVisibilityManager } from '@/components/admin/TabVisibilityManager';
 import { GuestsManagement } from '@/components/admin/GuestsManagement';
 import { InvestorSuggestionsManagement } from '@/components/admin/InvestorSuggestionsManagement';
 import { RequestsManagement } from '@/components/admin/RequestsManagement';
-import { 
-  Database, 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
+import {
+  Database,
+  CheckCircle2,
+  XCircle,
+  Clock,
   Loader2,
   AlertTriangle,
   RefreshCw,
@@ -47,9 +47,9 @@ import {
   Users,
   Building2,
   MessageSquare,
-    UserPlus,
-    Bell
-  } from 'lucide-react';
+  UserPlus,
+  Bell
+} from 'lucide-react';
 import { downloadDocumentationAsTxt, downloadDocumentationAsPdf, downloadDatabaseSchemaJSON } from '@/utils/generateSystemDocumentation';
 
 interface SyncLog {
@@ -83,12 +83,71 @@ function AdminContent() {
   const [logsLoading, setLogsLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ isRunning: false, type: null });
   const [isRunningGapDetection, setIsRunningGapDetection] = useState(false);
-  
+  const [syncProgress, setSyncProgress] = useState<any | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [syncStartTime, setSyncStartTime] = useState<Date | null>(null);
+
   // Refs para manter sync/import rodando em segundo plano
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const activeProjects = projects.filter(p => !p.archived);
   const selectedProject = activeProjects.find(p => p.id === selectedProjectId);
+
+  // Poll for sync progress
+  const pollSyncProgress = async () => {
+    if (!selectedProjectId) return;
+
+    const { data } = await supabase
+      .from('projects')
+      .select('sync_progress')
+      .eq('id', selectedProjectId)
+      .single();
+
+    if (data?.sync_progress && typeof data.sync_progress === 'object' && !Array.isArray(data.sync_progress)) {
+      const rawProgress = data.sync_progress as Record<string, any>;
+      if ('step' in rawProgress || 'status' in rawProgress) {
+        const progress = {
+          status: rawProgress.step === 'complete' ? 'success'
+            : rawProgress.step === 'error' ? 'error'
+              : rawProgress.status || 'syncing',
+          message: rawProgress.message || '',
+          current: rawProgress.current,
+          total: rawProgress.total,
+          step: rawProgress.step,
+          progress: rawProgress.current,
+          updated_at: rawProgress.updated_at
+        };
+        setSyncProgress(progress);
+
+        if (progress.status === 'success' || progress.status === 'error' || progress.status === 'partial') {
+          setSyncStatus({ isRunning: false, type: null });
+        }
+      }
+    }
+  };
+
+  // Timer effect for sync
+  useEffect(() => {
+    let interval: any;
+    if (syncStatus.isRunning) {
+      setSyncStartTime(new Date());
+      setElapsedTime(0);
+      interval = setInterval(() => {
+        setElapsedTime(prev => prev + 1);
+        pollSyncProgress();
+      }, 1500);
+    } else {
+      if (syncProgress?.status === 'success' || syncProgress?.status === 'error') {
+        const timeout = setTimeout(() => {
+          setSyncProgress(null);
+          setElapsedTime(0);
+          setSyncStartTime(null);
+        }, 8000);
+        return () => clearTimeout(timeout);
+      }
+    }
+    return () => clearInterval(interval);
+  }, [syncStatus.isRunning, selectedProjectId]);
 
   // Definir tabs visíveis baseado no cargo
   // TECH: vê TUDO
@@ -97,10 +156,10 @@ function AdminContent() {
   const techTabs = ['sync', 'import', 'logs', 'docs', 'requests'];
   const gerenteTabs = ['users', 'guests', 'squads'];
   const allTabs = [...techTabs, ...gerenteTabs];
-  
-  const visibleTabs = isTech 
+
+  const visibleTabs = isTech
     ? allTabs // Tech vê tudo
-    : isGerente 
+    : isGerente
       ? gerenteTabs // Gerente SOMENTE gestão de pessoas
       : allTabs; // Quem passou a senha vê tudo (master admin)
 
@@ -210,7 +269,8 @@ function AdminContent() {
     };
 
     setSyncStatus({ isRunning: true, type: syncType });
-    toast.info(`Sincronizando ${typeLabels[syncType]} de ${selectedProject.name}... (continuará em segundo plano)`);
+    setSyncProgress({ status: 'syncing', message: 'Iniciando...', progress: 5 });
+    toast.info(`Sincronizando ${typeLabels[syncType]} de ${selectedProject.name}...`);
 
     try {
       const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
@@ -223,22 +283,10 @@ function AdminContent() {
       });
 
       if (error) throw error;
+      if (!data.success) throw new Error(data.error || 'Erro desconhecido');
 
-      if (data.success) {
-        // Edge function returns summary.records, not data.daily_records_count
-        const recordCount = data.summary?.records || 
-                           data.data?.daily_records_count || 
-                           data.data?.campaigns_count || 
-                           data.data?.adsets_count || 
-                           data.data?.ads_count || 
-                           data.data?.creatives_count || 0;
-        toast.success(`${typeLabels[syncType]} sincronizados! ${recordCount} registros`);
-      } else {
-        throw new Error(data.error || 'Erro desconhecido');
-      }
     } catch (error) {
       toast.error(`Erro ao sincronizar: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-    } finally {
       setSyncStatus({ isRunning: false, type: null });
     }
   };
@@ -251,7 +299,8 @@ function AdminContent() {
     }
 
     setSyncStatus({ isRunning: true, type: 'campaigns' });
-    toast.info(`Sincronização completa de ${selectedProject.name}... (continuará em segundo plano)`);
+    setSyncProgress({ status: 'syncing', message: 'Iniciando Full Sync...', progress: 5 });
+    toast.info(`Sincronização completa de ${selectedProject.name}...`);
 
     try {
       // FASE 1: Sync de métricas (base)
@@ -264,33 +313,12 @@ function AdminContent() {
       });
 
       if (error) throw error;
+      if (!data.success) throw new Error(data.error || 'Erro desconhecido');
 
-      if (data.success) {
-        toast.success(`Métricas importadas! ${data.summary?.records || data.data?.daily_records_count || 0} registros`);
-        
-        // FASE 2: Sync de criativos HD (com cache automático)
-        toast.info('Buscando criativos em HD...');
-        
-        const { data: creativeData, error: creativeError } = await supabase.functions.invoke('meta-ads-sync', {
-          body: {
-            project_id: selectedProject.id,
-            ad_account_id: selectedProject.ad_account_id,
-            syncMode: 'creatives', // Usa queries HD: thumbnail_width=1080, thumbnail_height=1080
-          }
-        });
-        
-        if (creativeError) {
-          console.error('Erro ao buscar criativos:', creativeError);
-          toast.warning('Métricas OK, mas erro ao buscar criativos HD');
-        } else if (creativeData?.success) {
-          toast.success(`Sync completo! Criativos HD: ${creativeData.creatives?.updated || 0} atualizados`);
-        }
-      } else {
-        throw new Error(data.error || 'Erro desconhecido');
-      }
+      // Phase 2 is usually handled by the edge function or triggered sequentially
+      // but showing success here if the first phase finishes and updates progress
     } catch (error) {
       toast.error(`Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-    } finally {
       setSyncStatus({ isRunning: false, type: null });
     }
   };
@@ -312,10 +340,10 @@ function AdminContent() {
       gap_detection: { label: 'Detecção de Gaps', variant: 'secondary' },
       sync: { label: 'Sincronização', variant: 'outline' },
     };
-    
+
     const config = typeConfig[type] || { label: type, variant: 'outline' };
     const finalVariant = status === 'error' ? 'destructive' : config.variant;
-    
+
     return <Badge variant={finalVariant}>{config.label}</Badge>;
   };
 
@@ -340,9 +368,9 @@ function AdminContent() {
               Administração Global
             </h1>
             <p className="text-muted-foreground">
-              {isTech ? 'Gerenciamento de sincronizações, importações e usuários' : 
-               isGerente ? 'Gerenciamento de usuários, convidados e squads' : 
-               'Painel administrativo'}
+              {isTech ? 'Gerenciamento de sincronizações, importações e usuários' :
+                isGerente ? 'Gerenciamento de usuários, convidados e squads' :
+                  'Painel administrativo'}
             </p>
           </div>
           <div className="flex gap-2">
@@ -394,7 +422,7 @@ function AdminContent() {
                 Docs
               </TabsTrigger>
             )}
-            
+
             {/* GERENTE tabs - Gestão de Pessoas */}
             {visibleTabs.includes('users') && (
               <TabsTrigger value="users" className="gap-2">
@@ -554,6 +582,50 @@ function AdminContent() {
                       <span className="text-xs text-muted-foreground">Imagens/Vídeos</span>
                     </Button>
                   </div>
+
+                  {/* Progress Indicator - show if syncing OR if there's recent progress */}
+                  {(syncStatus.isRunning || syncProgress) && (
+                    <div className="mt-4 p-4 rounded-lg bg-secondary/30 border border-primary/10 space-y-3 animate-in fade-in slide-in-from-top-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {syncProgress?.status === 'success' ? (
+                            <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                              <CheckCircle2 className="w-3 h-3 text-white" />
+                            </div>
+                          ) : syncProgress?.status === 'error' ? (
+                            <div className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                              <XCircle className="w-3 h-3 text-white" />
+                            </div>
+                          ) : (
+                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                          )}
+                          <span className="font-semibold text-sm">
+                            {syncProgress?.message || 'Iniciando sincronização...'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1 font-mono">
+                            <Timer className="w-3.5 h-3.5" />
+                            <span>{Math.floor(elapsedTime / 60)}m {elapsedTime % 60}s</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Progress
+                        value={syncProgress?.status === 'success' ? 100 : (syncProgress?.progress || 5)}
+                        className="h-2 bg-primary/10"
+                      />
+
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <span>
+                          {syncProgress?.step && syncProgress.step !== 'complete' && syncProgress.step !== 'error' && `Etapa: ${syncProgress.step}`}
+                          {syncProgress?.status === 'success' && <span className="text-green-600">Sincronização concluída com sucesso!</span>}
+                          {syncProgress?.status === 'error' && <span className="text-red-600">Erro na sincronização</span>}
+                        </span>
+                        <span className="bg-primary/10 px-2 py-0.5 rounded text-primary">{syncProgress?.status === 'success' ? 100 : (syncProgress?.progress || 0)}%</span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Info */}
                   <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
@@ -763,8 +835,8 @@ function AdminContent() {
                         }
 
                         return (
-                          <div 
-                            key={log.id} 
+                          <div
+                            key={log.id}
                             className="flex items-start gap-3 p-3 rounded-lg bg-card/50 border border-border/50"
                           >
                             <div className="mt-0.5">

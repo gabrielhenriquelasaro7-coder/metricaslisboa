@@ -12,7 +12,7 @@ import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
 import { GeographicHeatMap } from '@/components/dashboard/GeographicHeatMap';
 import { DynamicResultMetrics } from '@/components/dashboard/DynamicResultMetrics';
-import { FunnelChart } from '@/components/dashboard/FunnelChart';
+import { RevenueFlow } from '@/components/dashboard/RevenueFlow';
 import { LeadsSyncCard } from '@/components/leads/LeadsSyncCard';
 import { AccountBalanceCard } from '@/components/dashboard/AccountBalanceCard';
 import { useDemographicInsights } from '@/hooks/useDemographicInsights';
@@ -591,7 +591,7 @@ export default function MetaAds() {
                   {hasSelectedProject && (() => {
                     const filteredCampaigns = funnelFilter === 'all' ? campaigns : campaigns.filter(c => funnelFilter === 'active' ? c.status === 'ACTIVE' : c.status !== 'ACTIVE');
                     const fm = calculateMetrics(filteredCampaigns);
-                    return <FunnelChart impressions={fm.totalImpressions} reach={fm.totalReach} clicks={fm.totalClicks} conversions={fm.totalConversions} spend={fm.totalSpend} ctr={fm.ctr} cpc={fm.cpc} cpl={fm.cpa} cpm={fm.cpm} frequency={fm.avgFrequency} currency={selectedProject?.currency || 'BRL'} campaignFilter={funnelFilter} onCampaignFilterChange={setFunnelFilter} />;
+                    return <RevenueFlow impressions={fm.totalImpressions} reach={fm.totalReach} clicks={fm.totalClicks} conversions={fm.totalConversions} currency={selectedProject?.currency || 'BRL'} campaignFilter={funnelFilter} onCampaignFilterChange={setFunnelFilter} />;
                   })()}
                 </div>
 
@@ -607,7 +607,7 @@ export default function MetaAds() {
 
                 {/* Creative Detail Modal */}
                 <Dialog open={!!selectedCreative} onOpenChange={(open) => !open && setSelectedCreative(null)}>
-                   <DialogContent className="max-w-[95vw] md:max-w-5xl h-[85vh] border-red-500/30 bg-background/95 backdrop-blur-xl p-4 pt-10 flex flex-col overflow-hidden">
+                  <DialogContent className="max-w-[95vw] md:max-w-5xl h-[85vh] border-red-500/30 bg-background/95 backdrop-blur-xl p-4 pt-10 flex flex-col overflow-hidden">
                     {selectedCreative && (
                       <>
                         <DialogHeader className="flex-shrink-0 pb-2">

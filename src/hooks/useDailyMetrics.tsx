@@ -23,6 +23,8 @@ export interface DailyMetric {
   cpc: number;
   roas: number;
   cpa: number;
+  cvr_leads: number;
+  cvr_sales: number;
 }
 
 export interface PeriodComparison {
@@ -42,6 +44,8 @@ export interface PeriodComparison {
     cpm: number;
     cpc: number;
     revenue: number;
+    cvr_leads: number;
+    cvr_sales: number;
   };
 }
 
@@ -52,39 +56,39 @@ function getDateRangeFromPeriod(preset: DatePresetKey, customRange?: DateRange) 
     const since = format(customRange.from, 'yyyy-MM-dd');
     const until = format(customRange.to, 'yyyy-MM-dd');
     const days = Math.ceil((customRange.to.getTime() - customRange.from.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-    
+
     console.log(`[DailyMetrics] Custom range: ${since} to ${until} (${days} days)`);
-    
-    return { 
-      since, 
-      until, 
-      days, 
-      previousType: 'same_length' as const 
+
+    return {
+      since,
+      until,
+      days,
+      previousType: 'same_length' as const
     };
   }
-  
+
   console.log(`[DailyMetrics] Getting date range for preset: ${preset}`);
   const period = getDateRangeFromPreset(preset, 'America/Sao_Paulo');
-  
+
   if (!period) {
     console.log(`[DailyMetrics] No period found for preset ${preset}, using fallback`);
     // Fallback for custom - last 30 days
     const now = new Date();
     const today = now.toISOString().split('T')[0];
-    return { 
-      since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
-      until: today, 
-      days: 30, 
-      previousType: 'same_length' as const 
+    return {
+      since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      until: today,
+      days: 30,
+      previousType: 'same_length' as const
     };
   }
-  
+
   const since = period.since;
   const until = period.until;
   const days = Math.ceil((new Date(until).getTime() - new Date(since).getTime()) / (24 * 60 * 60 * 1000)) + 1;
-  
+
   console.log(`[DailyMetrics] Preset ${preset} -> since: ${since}, until: ${until}, days: ${days}`);
-  
+
   // Determine previous type based on preset
   let previousType: 'same_length' | 'previous_month' | 'previous_year' | 'two_months_ago' | 'none' = 'same_length';
   if (preset === 'this_month') {
@@ -98,7 +102,7 @@ function getDateRangeFromPeriod(preset: DatePresetKey, customRange?: DateRange) 
     // For last_year, skip comparison as previous year data likely doesn't exist
     previousType = 'none';
   }
-  
+
   return { since, until, days, previousType };
 }
 
@@ -108,7 +112,7 @@ function getPreviousPeriodDates(since: string, until: string, days: number, prev
   if (previousType === 'none') {
     return null;
   }
-  
+
   // For 'two_months_ago' (used by last_month), get the month directly before the current period
   // Since current period is "last month" (e.g., December), we want "month before last" (e.g., November)
   if (previousType === 'two_months_ago') {
@@ -116,78 +120,78 @@ function getPreviousPeriodDates(since: string, until: string, days: number, prev
     // Get month before current period's month (e.g., if since is Dec 1, we want Nov)
     const prevMonth = currentSince.getMonth() === 0 ? 11 : currentSince.getMonth() - 1;
     const prevYear = currentSince.getMonth() === 0 ? currentSince.getFullYear() - 1 : currentSince.getFullYear();
-    
+
     const prevMonthFirstDay = new Date(prevYear, prevMonth, 1);
     const prevMonthLastDay = new Date(prevYear, prevMonth + 1, 0);
-    
+
     console.log(`[DailyMetrics] two_months_ago: since=${since}, prevMonth=${prevMonth}, prevYear=${prevYear}, result=${prevMonthFirstDay.toISOString().split('T')[0]} to ${prevMonthLastDay.toISOString().split('T')[0]}`);
-    
+
     return {
       since: prevMonthFirstDay.toISOString().split('T')[0],
       until: prevMonthLastDay.toISOString().split('T')[0],
     };
   }
-  
+
   const now = new Date();
-  
+
   if (previousType === 'previous_month') {
     // For "this month", compare with "last month" - same date range but previous month
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    
+
     // Previous month
     const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-    
+
     // First and last day of previous month
     const prevMonthFirstDay = new Date(prevYear, prevMonth, 1);
     const prevMonthLastDay = new Date(prevYear, prevMonth + 1, 0); // Last day of prev month
-    
+
     // Calculate which day we are in current month
     const currentDayOfMonth = now.getDate();
-    
+
     // Previous month until = min(same day as today, last day of prev month)
     const prevUntilDay = Math.min(currentDayOfMonth, prevMonthLastDay.getDate());
     const prevUntil = new Date(prevYear, prevMonth, prevUntilDay);
-    
+
     return {
       since: prevMonthFirstDay.toISOString().split('T')[0],
       until: prevUntil.toISOString().split('T')[0],
     };
   }
-  
+
   if (previousType === 'previous_year') {
     // For "this year", compare with same period last year
     const currentSince = new Date(since);
     const currentUntil = new Date(until);
-    
+
     const prevYearSince = new Date(currentSince);
     prevYearSince.setFullYear(prevYearSince.getFullYear() - 1);
-    
+
     const prevYearUntil = new Date(currentUntil);
     prevYearUntil.setFullYear(prevYearUntil.getFullYear() - 1);
-    
+
     return {
       since: prevYearSince.toISOString().split('T')[0],
       until: prevYearUntil.toISOString().split('T')[0],
     };
   }
-  
+
   // Default: same_length - Previous period of equal length before current starts
   const currentSince = new Date(since);
   const currentUntil = new Date(until);
-  
+
   // Calculate actual days in current period (inclusive)
   const actualDays = Math.round((currentUntil.getTime() - currentSince.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-  
+
   // Previous period ends 1 day before current starts
   const previousUntil = new Date(currentSince);
   previousUntil.setDate(previousUntil.getDate() - 1);
-  
+
   // Previous period starts (actualDays - 1) days before previousUntil
   const previousSince = new Date(previousUntil);
   previousSince.setDate(previousSince.getDate() - actualDays + 1);
-  
+
   return {
     since: previousSince.toISOString().split('T')[0],
     until: previousUntil.toISOString().split('T')[0],
@@ -199,7 +203,7 @@ function getPreviousPeriodDates(since: string, until: string, days: number, prev
 // O campo conversions já inclui todos os tipos de conversão configurados (leads, messaging, etc.)
 function aggregateDaily(rows: any[]): DailyMetric[] {
   const dailyMap = new Map<string, DailyMetric>();
-  
+
   for (const row of rows) {
     const date = row.date;
     if (!dailyMap.has(date)) {
@@ -221,28 +225,30 @@ function aggregateDaily(rows: any[]): DailyMetric[] {
         cpc: 0,
         roas: 0,
         cpa: 0,
+        cvr_leads: 0,
+        cvr_sales: 0,
       });
     }
-    
+
     const agg = dailyMap.get(date)!;
     agg.spend += Number(row.spend) || 0;
     agg.impressions += Number(row.impressions) || 0;
     agg.clicks += Number(row.clicks) || 0;
     agg.reach += Number(row.reach) || 0;
-    
+
     // CONVERSÕES: Total (leads + purchases)
     agg.conversions += Number(row.conversions) || 0;
-    
+
     agg.conversion_value += Number(row.conversion_value) || 0;
     agg.messaging_replies += Number(row.messaging_replies) || 0;
     agg.profile_visits += Number(row.profile_visits) || 0;
-    
+
     // SEPARAÇÃO: leads_count, purchases_count e initiate_checkout_count
     agg.leads_conversions += Number(row.leads_count) || 0;
     agg.sales_conversions += Number(row.purchases_count) || 0;
     agg.initiate_checkout_conversions += Number(row.initiate_checkout_count) || 0;
   }
-  
+
   // Calculate derived metrics
   const result = Array.from(dailyMap.values()).map(d => ({
     ...d,
@@ -251,8 +257,10 @@ function aggregateDaily(rows: any[]): DailyMetric[] {
     cpc: d.clicks > 0 ? d.spend / d.clicks : 0,
     roas: d.spend > 0 ? d.conversion_value / d.spend : 0,
     cpa: d.conversions > 0 ? d.spend / d.conversions : 0,
+    cvr_leads: d.clicks > 0 ? (d.leads_conversions / d.clicks) * 100 : 0,
+    cvr_sales: d.clicks > 0 ? (d.sales_conversions / d.clicks) * 100 : 0,
   }));
-  
+
   return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -277,17 +285,21 @@ function calculateTotals(data: DailyMetric[]): DailyMetric {
       cpc: 0,
       roas: 0,
       cpa: 0,
+      cvr_leads: 0,
+      cvr_sales: 0,
     }),
-    { date: '', spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, messaging_replies: 0, profile_visits: 0, leads_conversions: 0, sales_conversions: 0, initiate_checkout_conversions: 0, ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0 }
+    { date: '', spend: 0, impressions: 0, clicks: 0, reach: 0, conversions: 0, conversion_value: 0, messaging_replies: 0, profile_visits: 0, leads_conversions: 0, sales_conversions: 0, initiate_checkout_conversions: 0, ctr: 0, cpm: 0, cpc: 0, roas: 0, cpa: 0, cvr_leads: 0, cvr_sales: 0 }
   );
-  
+
   // Calculate derived
   totals.ctr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
   totals.cpm = totals.impressions > 0 ? (totals.spend / totals.impressions) * 1000 : 0;
   totals.cpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0;
   totals.roas = totals.spend > 0 ? totals.conversion_value / totals.spend : 0;
   totals.cpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
-  
+  totals.cvr_leads = totals.clicks > 0 ? (totals.leads_conversions / totals.clicks) * 100 : 0;
+  totals.cvr_sales = totals.clicks > 0 ? (totals.sales_conversions / totals.clicks) * 100 : 0;
+
   return totals;
 }
 
@@ -298,7 +310,7 @@ function calculateChange(current: number, previous: number): number {
 }
 
 export function useDailyMetrics(
-  projectId: string | undefined, 
+  projectId: string | undefined,
   preset: DatePresetKey,
   customDateRange?: DateRange
 ) {
@@ -317,7 +329,7 @@ export function useDailyMetrics(
 
   const loadDailyMetrics = useCallback(async () => {
     if (!projectId) return;
-    
+
     setLoading(true);
     try {
       // Convert stable date range back to DateRange format for getDateRangeFromPeriod
@@ -325,19 +337,19 @@ export function useDailyMetrics(
         from: new Date(stableDateRange.from),
         to: new Date(stableDateRange.to),
       } : undefined;
-      
+
       const { since, until, days, previousType } = getDateRangeFromPeriod(preset, rangeForPeriod);
       const previousDates = getPreviousPeriodDates(since, until, days, previousType);
-      
+
       console.log(`[DailyMetrics] Loading: ${since} to ${until} (${days} days)`);
       console.log(`[DailyMetrics] Previous dates: ${previousDates ? `${previousDates.since} to ${previousDates.until}` : 'none (skipped)'}`);
-      
+
       // Always fetch current period - use pagination to get ALL records
       // Supabase max is 1000 per request regardless of range
       let allCurrentRows: any[] = [];
       let currentPage = 0;
       const pageSize = 1000; // Supabase hard limit
-      
+
       while (true) {
         const { data, error } = await supabase
           .from('ads_daily_metrics')
@@ -347,33 +359,33 @@ export function useDailyMetrics(
           .lte('date', until)
           .order('date', { ascending: true })
           .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1);
-        
+
         if (error) {
           console.error('[DailyMetrics] Current period error:', error);
           break;
         }
-        
+
         if (!data || data.length === 0) break;
         allCurrentRows = [...allCurrentRows, ...data];
-        
+
         // If we got exactly 1000, there might be more
         if (data.length < pageSize) break;
         currentPage++;
       }
-      
+
       console.log(`[DailyMetrics] Raw current rows: ${allCurrentRows.length} (${currentPage + 1} pages)`);
-      
+
       const currentData = aggregateDaily(allCurrentRows);
       const currentTotals = calculateTotals(currentData);
-      
+
       // Only fetch previous period if we have dates
       let previousData: DailyMetric[] = [];
       let previousTotals = calculateTotals([]);
-      
+
       if (previousDates) {
         let allPreviousRows: any[] = [];
         let prevPage = 0;
-        
+
         while (true) {
           const { data, error } = await supabase
             .from('ads_daily_metrics')
@@ -383,25 +395,25 @@ export function useDailyMetrics(
             .lte('date', previousDates.until)
             .order('date', { ascending: true })
             .range(prevPage * pageSize, (prevPage + 1) * pageSize - 1);
-          
+
           if (error) {
             console.error('[DailyMetrics] Previous period error:', error);
             break;
           }
-          
+
           if (!data || data.length === 0) break;
           allPreviousRows = [...allPreviousRows, ...data];
-          
+
           if (data.length < pageSize) break;
           prevPage++;
         }
-        
+
         console.log(`[DailyMetrics] Raw previous rows: ${allPreviousRows.length} (${prevPage + 1} pages)`);
-        
+
         previousData = aggregateDaily(allPreviousRows);
         previousTotals = calculateTotals(previousData);
       }
-      
+
       setDailyData(currentData);
       setComparison({
         current: currentData,
@@ -420,9 +432,11 @@ export function useDailyMetrics(
           cpm: calculateChange(currentTotals.cpm, previousTotals.cpm),
           cpc: calculateChange(currentTotals.cpc, previousTotals.cpc),
           revenue: calculateChange(currentTotals.conversion_value, previousTotals.conversion_value),
+          cvr_leads: calculateChange(currentTotals.cvr_leads, previousTotals.cvr_leads),
+          cvr_sales: calculateChange(currentTotals.cvr_sales, previousTotals.cvr_sales),
         },
       });
-      
+
       console.log(`[DailyMetrics] Loaded ${currentData.length} days current, ${previousData.length} days previous`);
       console.log(`[DailyMetrics] Current totals: spend=${currentTotals.spend}, conversions=${currentTotals.conversions}`);
     } catch (error) {

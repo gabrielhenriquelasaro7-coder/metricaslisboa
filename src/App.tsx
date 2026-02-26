@@ -43,6 +43,7 @@ import Financial from "./pages/Financial";
 import NotFound from "./pages/NotFound";
 import Clarity from "./pages/Clarity";
 import Instagram from "./pages/Instagram";
+import DiagnosticTOC from "./pages/DiagnosticTOC";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +82,7 @@ function AnimatedRoutes() {
           <Route path="/financeiro" element={<Financial />} />
           <Route path="/clarity" element={<Clarity />} />
           <Route path="/instagram" element={<Instagram />} />
+          <Route path="/diagnostico" element={<DiagnosticTOC />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
   );

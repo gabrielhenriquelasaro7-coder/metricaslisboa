@@ -7,7 +7,7 @@ import { ClientSelector } from '@/components/layout/ClientSelector';
 import SparklineCard from '@/components/dashboard/SparklineCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
-import { FunnelChart } from '@/components/dashboard/FunnelChart';
+import { RevenueFlow } from '@/components/dashboard/RevenueFlow';
 import PeriodComparison from '@/components/dashboard/PeriodComparison';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
 import { useDemographicInsights } from '@/hooks/useDemographicInsights';
@@ -702,14 +702,14 @@ export default function GoogleCampaigns() {
                 )}
 
                 {/* Funil */}
-                <FunnelChart
-                  impressions={funnelTotals.impressions} clicks={funnelTotals.clicks} conversions={funnelTotals.conversions} spend={funnelTotals.spend}
-                  ctr={funnelTotals.impressions > 0 ? (funnelTotals.clicks / funnelTotals.impressions) * 100 : 0}
-                  cpc={funnelTotals.clicks > 0 ? funnelTotals.spend / funnelTotals.clicks : 0}
-                  cpl={funnelTotals.conversions > 0 ? funnelTotals.spend / funnelTotals.conversions : 0}
-                  cpm={funnelTotals.impressions > 0 ? (funnelTotals.spend / funnelTotals.impressions) * 1000 : 0}
-                  conversionRate={funnelTotals.clicks > 0 ? (funnelTotals.conversions / funnelTotals.clicks) * 100 : 0}
-                  currency={selectedProject?.currency || 'BRL'} campaignFilter={funnelFilter} onCampaignFilterChange={setFunnelFilter}
+                <RevenueFlow
+                  impressions={funnelTotals.impressions}
+                  reach={funnelTotals.impressions * 0.8} // Estimativa para Google reach se não disponível
+                  clicks={funnelTotals.clicks}
+                  conversions={funnelTotals.conversions}
+                  currency={selectedProject?.currency || 'BRL'}
+                  campaignFilter={funnelFilter}
+                  onCampaignFilterChange={setFunnelFilter}
                 />
 
                 {/* === DEMOGRÁFICOS === */}
