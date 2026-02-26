@@ -79,10 +79,10 @@ const TravaGauge = ({ id, idx, analysis, onValueChange }: {
 
     const statusText = cegueiraLabel || (score?.status === 'ruim' ? 'Crítico' : score?.status === 'na_media' ? 'Na Média' : 'Bom');
 
-    // Cores: Para cegueira, valor alto = ruim (vermelho), valor baixo = bom (verde)
+    // Cores baseadas no status do score
     let statusColor = "";
     if (isCegueira) {
-        statusColor = val > 50 ? 'text-red-500' : val > 20 ? 'text-amber-500' : 'text-emerald-500';
+        statusColor = score?.status === 'ruim' ? 'text-red-500' : score?.status === 'na_media' ? 'text-amber-500' : 'text-emerald-500';
     } else {
         statusColor = score?.status === 'ruim' ? 'text-red-500' : score?.status === 'na_media' ? 'text-amber-500' : 'text-emerald-500';
     }
