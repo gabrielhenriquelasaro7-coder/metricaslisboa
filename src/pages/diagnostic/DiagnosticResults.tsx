@@ -480,9 +480,13 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                         <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10">
                             <Globe className="w-3.5 h-3.5" /> Benchmarks Mundial
                         </Button>
-                        <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10"><Download className="w-3.5 h-3.5" /> Exportar</Button>
-                        <Button size="sm" className="rounded-xl h-8 bg-[#EA3829] hover:bg-[#D32F2F] text-white gap-2 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-red-600/10">
-                            <Share2 className="w-3.5 h-3.5" /> Compartilhar
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10"
+                            onClick={() => handleExportPDF(project, analysis)}
+                        >
+                            <Download className="w-3.5 h-3.5" /> Exportar
                         </Button>
                     </div>
                 </div>
