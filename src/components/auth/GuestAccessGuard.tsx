@@ -50,6 +50,7 @@ const REQUIRES_PASSWORD_CHANGE = [
 export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
   const { user, loading: authLoading } = useAuth();
   const { isGuest, needsPasswordChange, loading: roleLoading } = useUserRole();
+  const { isTech, isMaster, loading: cargoLoading } = useCargo();
   const navigate = useNavigate();
   const location = useLocation();
   const hasNavigatedRef = useRef(false);
