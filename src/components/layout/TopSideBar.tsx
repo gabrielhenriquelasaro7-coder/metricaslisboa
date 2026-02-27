@@ -110,6 +110,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
           <div className="flex flex-col items-center gap-1.5 px-2">
             <TooltipProvider delayDuration={0}>
               {/* Diagnóstico TOC + LTP */}
+              {showDiagnostico && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -123,6 +124,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                   <p>Diagnóstico</p>
                 </TooltipContent>
               </Tooltip>
+              )}
 
               {/* Home */}
               <Tooltip>
