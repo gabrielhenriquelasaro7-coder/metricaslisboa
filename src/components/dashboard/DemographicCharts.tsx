@@ -25,13 +25,13 @@ interface DemographicChartsProps {
 }
 
 const CHART_COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(var(--primary))',
-  'hsl(var(--accent))',
+  '#ef4444', // Red
+  '#3b82f6', // Blue
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#8b5cf6', // Violet
+  '#14b8a6', // Teal
+  '#ec4899', // Pink
 ];
 
 const createFormatCurrency = (currency: string = 'BRL') => (value: number) => {
@@ -237,37 +237,44 @@ export function DemographicCharts({ data, isLoading, className, currency = 'BRL'
 
   return (
     <div className={cn('space-y-4 sm:space-y-6 overflow-hidden', className)}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Age - bar chart */}
         {data.age.length > 0 && (
-          <AgeBarChart data={data.age} currency={currency} />
+          <div className="md:col-span-2 lg:col-span-1">
+            <AgeBarChart data={data.age} currency={currency} />
+          </div>
         )}
         {/* Gender - pie chart */}
-        <DemoPieChart
-          data={data.gender}
-          type="gender"
-          title="Gênero"
-          icon={UserCircle2}
-          currency={currency}
-        />
+        {data.gender.length > 0 && (
+          <DemoPieChart
+            data={data.gender}
+            type="gender"
+            title="Gênero"
+            icon={UserCircle2}
+            currency={currency}
+          />
+        )}
         {/* Device - pie chart */}
-        <DemoPieChart
-          data={data.device_platform}
-          type="device_platform"
-          title="Dispositivo"
-          icon={Smartphone}
-          currency={currency}
-        />
+        {data.device_platform.length > 0 && (
+          <DemoPieChart
+            data={data.device_platform}
+            type="device_platform"
+            title="Dispositivo"
+            icon={Smartphone}
+            currency={currency}
+          />
+        )}
+        {/* Platform - pie chart */}
+        {data.publisher_platform.length > 0 && (
+          <DemoPieChart
+            data={data.publisher_platform}
+            type="publisher_platform"
+            title="Plataforma"
+            icon={Globe}
+            currency={currency}
+          />
+        )}
       </div>
-      {data.publisher_platform.length > 0 && (
-        <DemoPieChart
-          data={data.publisher_platform}
-          type="publisher_platform"
-          title="Plataforma"
-          icon={Globe}
-          currency={currency}
-        />
-      )}
     </div>
   );
 }
