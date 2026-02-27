@@ -99,7 +99,7 @@ async function fetchCargoGlobal(userId: string) {
       const [roleRes, squadRes] = await Promise.all([
         supabase
           .from('user_roles')
-          .select('cargo')
+          .select('cargo, is_master')
           .eq('user_id', userId)
           .maybeSingle(),
         supabase
