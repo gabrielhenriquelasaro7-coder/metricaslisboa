@@ -212,10 +212,13 @@ export function useCargo(): CargoData {
   const isInvestidor = cargo === 'investidor';
   const isMembro = cargo === 'membro';
 
+  const isMaster = globalCargoCache.userId === user?.id ? globalCargoCache.isMaster : false;
+
   return {
     cargo,
     loading,
     userSquads,
+    isMaster,
     isTech,
     isGerente,
     isCoordenador,
