@@ -100,11 +100,12 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
   // Fetch investidores and squads
   useEffect(() => {
     const fetchOptions = async () => {
-      // Fetch investidores (users with cargo = 'investidor') along with their squad
+      // Fetch investidores (users with cargo = 'investidor' AND role = 'gestor', excluding guests)
       const { data: investidoresData } = await supabase
         .from('user_roles')
-        .select('user_id, cargo')
-        .eq('cargo', 'investidor');
+        .select('user_id, cargo, role')
+        .eq('cargo', 'investidor')
+        .eq('role', 'gestor');
       
       if (investidoresData && investidoresData.length > 0) {
         const userIds = investidoresData.map(i => i.user_id);
