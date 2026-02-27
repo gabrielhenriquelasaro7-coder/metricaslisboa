@@ -90,11 +90,31 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
       }
     }
 
+    // Tech/master only routes
+    const isTechMasterOnly = TECH_MASTER_ONLY_ROUTES.some(route => 
+      currentPath === route || currentPath.startsWith(route + '/')
+    );
+    if (isTechMasterOnly && !isTech && !isMaster) {
+      hasNavigatedRef.current = true;
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
     // Guest-specific restrictions below
     if (!isGuest) return;
 
     // If guest tries to access /projects, redirect to dashboard
     if (currentPath === '/projects') {
+      hasNavigatedRef.current = true;
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    // Block guests from specific routes
+    const isBlocked = GUEST_BLOCKED_ROUTES.some(route =>
+      currentPath === route || currentPath.startsWith(route + '/')
+    );
+    if (isBlocked) {
       hasNavigatedRef.current = true;
       navigate('/dashboard', { replace: true });
       return;
