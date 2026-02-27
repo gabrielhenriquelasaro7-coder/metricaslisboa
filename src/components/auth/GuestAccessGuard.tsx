@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useCargo } from '@/hooks/useCargo';
 import { useAuth } from '@/hooks/useAuth';
 
 interface GuestAccessGuardProps {
@@ -21,6 +22,18 @@ const GUEST_ALLOWED_ROUTES = [
   '/auth',
   '/optimization-history',
   '/settings',
+];
+
+// Pages blocked for guests explicitly
+const GUEST_BLOCKED_ROUTES = [
+  '/whatsapp',
+  '/clarity',
+  '/diagnostico',
+];
+
+// Pages that only tech/master can access
+const TECH_MASTER_ONLY_ROUTES = [
+  '/diagnostico',
 ];
 
 // Pages that require password change before access
