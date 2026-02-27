@@ -68,8 +68,8 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
     // Prevent multiple navigations
     if (hasNavigatedRef.current) return;
     
-    // Wait for both auth and role to load
-    if (authLoading || roleLoading) return;
+    // Wait for all loading to finish
+    if (authLoading || roleLoading || cargoLoading) return;
     
     // Not logged in - let normal auth flow handle it
     if (!user) return;
