@@ -132,7 +132,7 @@ export default function GoogleCampaigns() {
   useEffect(() => {
     if (selectedProject?.id) {
       loadAllData(selectedProject.id);
-      loadDailyMetrics(selectedProject.id, '2025-01-01');
+      loadDailyMetrics(selectedProject.id, '2024-01-01');
     }
   }, [selectedProject?.id, loadAllData, loadDailyMetrics]);
 

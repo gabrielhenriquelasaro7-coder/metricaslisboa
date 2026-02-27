@@ -38,21 +38,25 @@ interface CargoData {
   cargo: UserCargo;
   loading: boolean;
   userSquads: Squad[];
-  
+
   // Computed permissions
   isTech: boolean;
   isGerente: boolean;
   isCoordenador: boolean;
   isInvestidor: boolean;
   isMembro: boolean;
-  
+  isMaster: boolean;
+
   // Visibility helpers
   canSeeAllProjects: boolean;
   canManageSquads: boolean;
   canManageUsers: boolean;
   canAccessFullAdmin: boolean;
+  canImportProject: boolean;
+  canSeeAnalytics: boolean;
+  canSeeDiagnostics: boolean;
   needsAdminApproval: boolean;
-  
+
   // Actions
   refetch: () => Promise<void>;
 }
@@ -205,6 +209,7 @@ export function useCargo(): CargoData {
   const isCoordenador = cargo === 'coordenador';
   const isInvestidor = cargo === 'investidor';
   const isMembro = cargo === 'membro';
+  const isMaster = user?.email === 'gabrielhenriquelasaro7@gmail.com';
 
   return {
     cargo,
@@ -215,10 +220,14 @@ export function useCargo(): CargoData {
     isCoordenador,
     isInvestidor,
     isMembro,
+    isMaster,
     canSeeAllProjects: isTech || isGerente,
     canManageSquads: isTech || isGerente,
     canManageUsers: isGerente,
     canAccessFullAdmin: isTech,
+    canImportProject: isTech || isGerente || isCoordenador,
+    canSeeAnalytics: isTech || isMaster,
+    canSeeDiagnostics: isTech || isMaster,
     needsAdminApproval: isInvestidor || isCoordenador,
     refetch: async () => {
       if (!user) return;

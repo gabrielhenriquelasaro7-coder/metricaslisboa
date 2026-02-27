@@ -16,7 +16,7 @@ import { translateCTA } from '@/utils/ctaTranslations';
 import { CatalogImagesCarousel } from '@/components/catalog/CatalogImagesCarousel';
 import { toast } from 'sonner';
 import { invalidateCreativeImageCache } from '@/components/ui/creative-image';
-import { 
+import {
   ChevronLeft,
   Image as ImageIcon,
   DollarSign,
@@ -105,7 +105,7 @@ export default function AdDetail() {
   const [imageError, setImageError] = useState(false);
   const [imageKey, setImageKey] = useState(Date.now()); // Key to force image remount
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
-  
+
   // Use shared period context - persists across pages
   const { dateRange, selectedPreset, setDateRange, setSelectedPreset } = usePeriodContext();
 
@@ -129,18 +129,18 @@ export default function AdDetail() {
         .order('date', { ascending: false })
         .limit(1)
         .maybeSingle();
-      
+
       // Get main ad data from ads table
       const { data: adData } = await supabase
         .from('ads')
         .select('*')
         .eq('id', adId)
         .maybeSingle();
-      
+
       if (adData) {
         // Set project_id FIRST so charts can start loading
         setProjectId(adData.project_id);
-        
+
         // Merge freshest thumbnail from daily metrics if available
         const freshThumbnail = latestMetric?.cached_creative_thumbnail || latestMetric?.creative_thumbnail;
         setAd({
@@ -150,7 +150,7 @@ export default function AdDetail() {
           creative_thumbnail: freshThumbnail || adData.creative_thumbnail,
           creative_image_url: adData.creative_image_url || freshThumbnail || null,
         } as Ad);
-        
+
         const { data: adSetData } = await supabase
           .from('ad_sets')
           .select('id, name')
@@ -173,7 +173,7 @@ export default function AdDetail() {
           .order('date', { ascending: false })
           .limit(1)
           .maybeSingle();
-        
+
         if (metricsData) {
           setProjectId(metricsData.project_id);
           const thumbnail = metricsData.cached_creative_thumbnail || metricsData.creative_thumbnail || null;
@@ -226,11 +226,11 @@ export default function AdDetail() {
   // Sync ONLY this specific creative in HD - FORCE recache for quality issues
   const syncThisCreativeHD = useCallback(async () => {
     if (!ad || !selectedProject) return;
-    
+
     setSyncing(true);
     try {
       console.log(`[AdDetail] FORCE syncing HD for ad: ${ad.id}`);
-      
+
       // Use story_hd mode which forces recache using full_picture (always HD)
       const { data, error } = await supabase.functions.invoke('meta-ads-sync', {
         body: {
@@ -241,7 +241,7 @@ export default function AdDetail() {
           force_recache: true, // Force re-download even if cached
         },
       });
-      
+
       if (error) {
         console.error('HD sync error:', error);
         toast.error('Erro ao sincronizar imagem HD');
@@ -251,12 +251,12 @@ export default function AdDetail() {
         invalidateCreativeImageCache();
         toast.success('Imagem HD sincronizada com sucesso!');
       }
-      
+
       // Reset image error and refetch ad data with fresh timestamp
       setImageError(false);
       setImageKey(Date.now()); // Force image component to remount
       await fetchAd();
-      
+
     } catch (error) {
       console.error('Sync error:', error);
       toast.error('Erro ao sincronizar');
@@ -280,28 +280,28 @@ export default function AdDetail() {
     setSelectedPreset(preset);
   }, [setSelectedPreset]);
 
-  const formatNumber = (n: number) => 
-    n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString('pt-BR');
-  
+  const formatNumber = (n: number) =>
+    n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(1) + 'K' : n.toLocaleString('pt-BR');
+
   const currency = selectedProject?.currency || 'BRL';
   const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
-  const formatCurrency = (n: number) => 
+  const formatCurrency = (n: number) =>
     new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
   const hasVideo = ad?.creative_video_url;
   const hasImage = ad?.cached_image_url || ad?.creative_image_url || ad?.creative_thumbnail;
-  
+
   // Detectar se é anúncio de catálogo dinâmico (nome contém "catálogo" ou campaign objetivo)
-  const isCatalogAd = ad?.name?.toLowerCase().includes('catálogo') || 
-                      ad?.name?.toLowerCase().includes('catalogo') ||
-                      campaign?.name?.toLowerCase().includes('catálogo') ||
-                      campaign?.name?.toLowerCase().includes('catalogo');
-  
+  const isCatalogAd = ad?.name?.toLowerCase().includes('catálogo') ||
+    ad?.name?.toLowerCase().includes('catalogo') ||
+    campaign?.name?.toLowerCase().includes('catálogo') ||
+    campaign?.name?.toLowerCase().includes('catalogo');
+
   // Priorizar imagem do storage com cache-busting (nunca expira, sempre fresca)
   // imageKey changes after HD sync to force fresh image load
   const storageUrl = getStorageImageUrl(projectId, ad?.id || '', imageKey);
   const creativeUrl = storageUrl || ad?.cached_image_url || ad?.creative_image_url || ad?.creative_thumbnail || '';
-  
+
   const handleImageError = () => {
     console.log('[AdDetail] Image failed to load, catalog ad:', isCatalogAd);
     setImageError(true);
@@ -337,7 +337,7 @@ export default function AdDetail() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link 
+            <Link
               to="/creatives"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -349,8 +349,8 @@ export default function AdDetail() {
             <div>
               <h1 className="text-2xl font-bold">{ad.name}</h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <Badge 
-                  variant="secondary" 
+                <Badge
+                  variant="secondary"
                   className={cn(
                     ad.status === 'ACTIVE' && 'bg-metric-positive/20 text-metric-positive',
                     ad.status === 'PAUSED' && 'bg-metric-warning/20 text-metric-warning'
@@ -372,8 +372,8 @@ export default function AdDetail() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3">
-            <Button 
-              onClick={syncThisCreativeHD} 
+            <Button
+              onClick={syncThisCreativeHD}
               disabled={syncing || !selectedProject}
               variant="outline"
               size="sm"
@@ -383,8 +383,8 @@ export default function AdDetail() {
               <span className="hidden sm:inline ml-2">{syncing ? 'Sincronizando...' : 'Sincronizar HD'}</span>
               <span className="sm:hidden ml-1">{syncing ? '...' : 'Sync HD'}</span>
             </Button>
-            <DateRangePicker 
-              dateRange={dateRange} 
+            <DateRangePicker
+              dateRange={dateRange}
               onDateRangeChange={handleDateRangeChange}
               timezone={selectedProject?.timezone}
               onPresetChange={handlePresetChange}
@@ -401,12 +401,12 @@ export default function AdDetail() {
                 {hasVideo ? <Play className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />}
                 Criativo
               </h3>
-              
+
               {hasVideo ? (
                 <div className="aspect-square rounded-lg overflow-hidden bg-muted">
-                  <video 
-                    src={ad.creative_video_url || ''} 
-                    controls 
+                  <video
+                    src={ad.creative_video_url || ''}
+                    controls
                     className="w-full h-full object-contain"
                     poster={ad.creative_thumbnail || undefined}
                   />
@@ -416,9 +416,9 @@ export default function AdDetail() {
                   <DialogTrigger asChild>
                     <div className="aspect-square rounded-lg overflow-hidden bg-muted cursor-zoom-in hover:opacity-90 transition-opacity relative">
                       {!imageError && creativeUrl && !isCatalogAd && (
-                        <img 
+                        <img
                           key={imageKey} // Force remount after HD sync
-                          src={creativeUrl} 
+                          src={creativeUrl}
                           alt={ad.name}
                           className="w-full h-full object-contain"
                           onError={handleImageError}
@@ -455,10 +455,10 @@ export default function AdDetail() {
                     <VisuallyHidden>
                       <DialogTitle>Visualização do Criativo</DialogTitle>
                     </VisuallyHidden>
-                    <img 
-                      src={creativeUrl} 
+                    <img
+                      src={creativeUrl}
                       alt={ad.name}
-                      className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
+                      className="w-full h-auto max-h-[85vh] object-cover rounded-md"
                     />
                   </DialogContent>
                 </Dialog>
@@ -469,9 +469,9 @@ export default function AdDetail() {
               )}
 
               {(hasVideo || hasImage) && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="w-full mt-3"
                   onClick={() => window.open(hasVideo ? ad.creative_video_url! : creativeUrl, '_blank')}
                 >
@@ -602,53 +602,53 @@ export default function AdDetail() {
 
             {/* Secondary Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <MetricCard 
-                title="CTR" 
-                value={`${adMetricsTotals.ctr.toFixed(2)}%`} 
-                icon={Percent} 
+              <MetricCard
+                title="CTR"
+                value={`${adMetricsTotals.ctr.toFixed(2)}%`}
+                icon={Percent}
                 tooltip="Click-Through Rate: Taxa de cliques"
               />
-              <MetricCard 
-                title="Impressões" 
-                value={formatNumber(adMetricsTotals.impressions)} 
-                icon={Eye} 
+              <MetricCard
+                title="Impressões"
+                value={formatNumber(adMetricsTotals.impressions)}
+                icon={Eye}
                 tooltip="Número total de vezes que este anúncio foi exibido"
               />
-              <MetricCard 
-                title="Gasto" 
-                value={formatCurrency(adMetricsTotals.spend)} 
-                icon={DollarSign} 
+              <MetricCard
+                title="Gasto"
+                value={formatCurrency(adMetricsTotals.spend)}
+                icon={DollarSign}
                 tooltip="Total investido neste anúncio"
               />
-              <MetricCard 
-                title="CPM" 
-                value={formatCurrency(adMetricsTotals.cpm)} 
-                icon={BarChart3} 
+              <MetricCard
+                title="CPM"
+                value={formatCurrency(adMetricsTotals.cpm)}
+                icon={BarChart3}
                 tooltip="Custo por Mil: Custo para cada 1.000 impressões"
               />
-              <MetricCard 
-                title="Alcance" 
-                value={formatNumber(adMetricsTotals.reach)} 
-                icon={Users} 
+              <MetricCard
+                title="Alcance"
+                value={formatNumber(adMetricsTotals.reach)}
+                icon={Users}
                 tooltip="Número de pessoas únicas que viram este anúncio"
               />
-              <MetricCard 
-                title="Cliques" 
-                value={formatNumber(adMetricsTotals.clicks)} 
-                icon={MousePointerClick} 
+              <MetricCard
+                title="Cliques"
+                value={formatNumber(adMetricsTotals.clicks)}
+                icon={MousePointerClick}
                 tooltip="Total de cliques neste anúncio"
               />
-              <MetricCard 
-                title="CPC" 
-                value={formatCurrency(adMetricsTotals.cpc)} 
-                icon={Target} 
+              <MetricCard
+                title="CPC"
+                value={formatCurrency(adMetricsTotals.cpc)}
+                icon={Target}
                 tooltip="Custo Por Clique: Valor médio pago por cada clique"
               />
               {isEcommerce && (
-                <MetricCard 
-                  title="Receita" 
-                  value={formatCurrency(adMetricsTotals.conversion_value)} 
-                  icon={TrendingUp} 
+                <MetricCard
+                  title="Receita"
+                  value={formatCurrency(adMetricsTotals.conversion_value)}
+                  icon={TrendingUp}
                   tooltip="Receita gerada por este anúncio"
                 />
               )}

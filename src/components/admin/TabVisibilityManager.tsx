@@ -22,6 +22,10 @@ const ALL_TABS: TabKey[] = [
   'financial',
   'settings',
   'admin',
+  'analytics',
+  'instagram',
+  'clarity',
+  'diagnostico',
 ];
 
 interface GuestUser {
@@ -37,7 +41,7 @@ export function TabVisibilityManager() {
   const { isTech } = useCargo();
   const { users, loading: usersLoading } = useUserManagement();
   const { getHiddenTabs, getEnabledTabs, toggleTab, loading: visibilityLoading } = useTabVisibilityManagement();
-  
+
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [selectedGuestId, setSelectedGuestId] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
@@ -97,7 +101,7 @@ export function TabVisibilityManager() {
 
   const selectedUser = users.find(u => u.user_id === selectedUserId);
   const selectedGuest = guests.find(g => g.guest_user_id === selectedGuestId);
-  
+
   const currentUserId = activeTab === 'users' ? selectedUserId : selectedGuestId;
   const hiddenTabs = currentUserId ? getHiddenTabs(currentUserId) : [];
   const enabledTabs = currentUserId ? getEnabledTabs(currentUserId) : [];
@@ -115,11 +119,11 @@ export function TabVisibilityManager() {
 
   const handleToggleTab = async (tab: TabKey) => {
     if (!currentUserId) return;
-    
+
     setIsSaving(true);
     try {
       await toggleTab(currentUserId, tab);
-      
+
       const isHiddenByDefault = HIDDEN_BY_DEFAULT_TABS.includes(tab);
       if (isHiddenByDefault) {
         const isNowEnabled = !enabledTabs.includes(tab);
@@ -171,13 +175,12 @@ export function TabVisibilityManager() {
             {ALL_TABS.map(tab => {
               const visible = isTabVisible(tab);
               const isHiddenByDefault = HIDDEN_BY_DEFAULT_TABS.includes(tab);
-              
+
               return (
-                <div 
+                <div
                   key={tab}
-                  className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                    !visible ? 'bg-destructive/10 border-destructive/30' : 'bg-card border-border'
-                  } ${isHiddenByDefault ? 'ring-1 ring-amber-500/30' : ''}`}
+                  className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${!visible ? 'bg-destructive/10 border-destructive/30' : 'bg-card border-border'
+                    } ${isHiddenByDefault ? 'ring-1 ring-amber-500/30' : ''}`}
                 >
                   <Checkbox
                     id={`tab-${tab}`}
@@ -185,7 +188,7 @@ export function TabVisibilityManager() {
                     disabled={isSaving}
                     onCheckedChange={() => handleToggleTab(tab)}
                   />
-                  <Label 
+                  <Label
                     htmlFor={`tab-${tab}`}
                     className={`flex items-center gap-2 cursor-pointer ${!visible ? 'line-through text-muted-foreground' : ''}`}
                   >

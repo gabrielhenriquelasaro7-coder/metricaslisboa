@@ -13,7 +13,11 @@ export type TabKey =
   | 'whatsapp' 
   | 'financial' 
   | 'settings'
-  | 'admin';
+  | 'admin'
+  | 'analytics'
+  | 'instagram'
+  | 'clarity'
+  | 'diagnostico';
 
 export interface TabVisibility {
   user_id: string;
@@ -31,6 +35,10 @@ export const TAB_LABELS: Record<TabKey, string> = {
   'financial': 'Financeiro',
   'settings': 'Configurações',
   'admin': 'Administração',
+  'analytics': 'Google Analytics',
+  'instagram': 'Instagram',
+  'clarity': 'Clarity',
+  'diagnostico': 'Diagnóstico',
 };
 
 // Tabs that are hidden by default and need to be explicitly enabled

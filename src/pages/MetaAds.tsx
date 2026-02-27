@@ -12,7 +12,7 @@ import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
 import { GeographicHeatMap } from '@/components/dashboard/GeographicHeatMap';
 import { DynamicResultMetrics } from '@/components/dashboard/DynamicResultMetrics';
-import { RevenueFlow } from '@/components/dashboard/RevenueFlow';
+
 import { LeadsSyncCard } from '@/components/leads/LeadsSyncCard';
 import { AccountBalanceCard } from '@/components/dashboard/AccountBalanceCard';
 import { useDemographicInsights } from '@/hooks/useDemographicInsights';
@@ -52,7 +52,7 @@ export default function MetaAds() {
   const [expandedAdSets, setExpandedAdSets] = useState<Set<string>>(new Set());
   const [selectedCreative, setSelectedCreative] = useState<any>(null);
   const [imageKey, setImageKey] = useState(0);
-  const [funnelFilter, setFunnelFilter] = useState<'all' | 'active' | 'paused'>('all');
+
   const chartRef = useRef<HTMLDivElement>(null);
 
   const { isGuest } = useUserRole();
@@ -587,13 +587,7 @@ export default function MetaAds() {
                 </div>
 
                 {/* Funnel */}
-                <div className="mt-8 sm:mt-10">
-                  {hasSelectedProject && (() => {
-                    const filteredCampaigns = funnelFilter === 'all' ? campaigns : campaigns.filter(c => funnelFilter === 'active' ? c.status === 'ACTIVE' : c.status !== 'ACTIVE');
-                    const fm = calculateMetrics(filteredCampaigns);
-                    return <RevenueFlow impressions={fm.totalImpressions} reach={fm.totalReach} clicks={fm.totalClicks} conversions={fm.totalConversions} currency={selectedProject?.currency || 'BRL'} campaignFilter={funnelFilter} onCampaignFilterChange={setFunnelFilter} />;
-                  })()}
-                </div>
+
 
                 {/* Geographic */}
                 <div className="mt-8 sm:mt-10">

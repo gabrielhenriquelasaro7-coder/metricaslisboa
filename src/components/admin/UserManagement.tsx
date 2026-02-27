@@ -52,6 +52,10 @@ const ALL_TABS: TabKey[] = [
   'financial',
   'settings',
   'admin',
+  'analytics',
+  'instagram',
+  'clarity',
+  'diagnostico',
 ];
 
 interface UserProjectAccess {
@@ -68,7 +72,7 @@ export function UserManagement() {
   const { projects } = useProjects();
   const { isTech, isGerente } = useCargo();
   const { getHiddenTabs, setHiddenTabs, toggleTab, loading: visibilityLoading, fetchAllVisibilities } = useTabVisibilityManagement();
-  
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -81,7 +85,7 @@ export function UserManagement() {
   const [localHiddenTabs, setLocalHiddenTabs] = useState<TabKey[]>([]);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  
+
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCargo, setFilterCargo] = useState<UserCargo | 'all'>('all');
@@ -89,7 +93,7 @@ export function UserManagement() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'pending'>('all');
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     email: '',
@@ -100,13 +104,13 @@ export function UserManagement() {
   });
 
   const canManage = isTech || isGerente;
-  
+
   // Check if a user is the master user (cannot be modified by others)
   const isMasterUser = (email: string) => email === MASTER_EMAIL;
-  
+
   // Check if current user is the master (can edit themselves)
   const isCurrentUserMaster = currentUserEmail === MASTER_EMAIL;
-  
+
   // Can edit this user? Master can only be edited by themselves
   const canEditUser = (userEmail: string) => {
     if (isMasterUser(userEmail)) {
@@ -114,7 +118,7 @@ export function UserManagement() {
     }
     return canManage; // Others can be edited by managers
   };
-  
+
   const configUser = users.find(u => u.user_id === configUserId);
   const profileUser = users.find(u => u.user_id === profileUserId);
 
@@ -153,7 +157,7 @@ export function UserManagement() {
         .eq('user_id', userId);
 
       if (error) throw error;
-      
+
       setUserProjectAccess(prev => ({
         ...prev,
         [userId]: (data || []).map(d => d.project_id),
@@ -167,7 +171,7 @@ export function UserManagement() {
   // Also updates investidor_id and squad_id on project when user is an investidor
   const handleToggleProjectAccess = async (userId: string, projectId: string, checked: boolean) => {
     const currentAccess = userProjectAccess[userId] || [];
-    
+
     // Find the user to check their cargo
     const targetUser = users.find(u => u.user_id === userId);
     const isInvestidor = targetUser?.cargo === 'investidor';
@@ -223,7 +227,7 @@ export function UserManagement() {
           // Add to project_investidores (upsert to avoid duplicates)
           await supabase
             .from('project_investidores')
-            .upsert({ 
+            .upsert({
               project_id: projectId,
               investidor_id: userId
             }, { onConflict: 'project_id,investidor_id' });
@@ -231,7 +235,7 @@ export function UserManagement() {
           // Update project's squad_id if not set
           await supabase
             .from('projects')
-            .update({ 
+            .update({
               squad_id: squadMembership?.squad_id || null
             })
             .eq('id', projectId)
@@ -253,15 +257,15 @@ export function UserManagement() {
   // Handle tab visibility toggle - atualiza localmente primeiro, depois salva
   const handleToggleTab = async (tab: TabKey) => {
     if (!configUserId) return;
-    
+
     const isCurrentlyHidden = localHiddenTabs.includes(tab);
-    const newHiddenTabs = isCurrentlyHidden 
+    const newHiddenTabs = isCurrentlyHidden
       ? localHiddenTabs.filter(t => t !== tab)
       : [...localHiddenTabs, tab];
-    
+
     // Atualiza UI imediatamente
     setLocalHiddenTabs(newHiddenTabs);
-    
+
     setIsSavingVisibility(true);
     try {
       await setHiddenTabs(configUserId, newHiddenTabs);
@@ -290,7 +294,7 @@ export function UserManagement() {
         cargo: formData.cargo,
         squad_id: formData.squad_id || undefined,
       });
-      
+
       if (result.success && result.password) {
         setCreatedPassword(result.password);
         toast.success('Usuário criado com sucesso!');
@@ -331,13 +335,13 @@ export function UserManagement() {
       const text = await file.text();
       const lines = text.split('\n');
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      
+
       const csvUsers: CSVUserData[] = [];
-      
+
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        
+
         const values = line.split(',').map(v => v.trim());
         const user: CSVUserData = {
           name: values[headers.indexOf('nome')] || '',
@@ -346,7 +350,7 @@ export function UserManagement() {
           squad: values[headers.indexOf('squad')] || '',
           cargo: values[headers.indexOf('cargo')] || '',
         };
-        
+
         if (user.email) {
           csvUsers.push(user);
         }
@@ -413,7 +417,7 @@ export function UserManagement() {
         if (results.failed?.length > 0) {
           messages.push(`${results.failed.length} falhas`);
         }
-        
+
         if (messages.length > 0) {
           toast.success(`Concluído: ${messages.join(', ')}. Senha padrão: 12345678`);
         } else {
@@ -472,13 +476,13 @@ export function UserManagement() {
     if (!confirm(`Tem certeza que deseja inativar a conta de ${email}? O usuário não poderá acessar o sistema e será removido de todas as funções.`)) {
       return;
     }
-    
+
     setDeactivatingUserId(userId);
     try {
       // Clear the user_id, cargo and squad in user_management to mark as inactive
       const { error } = await supabase
         .from('user_management')
-        .update({ 
+        .update({
           user_id: null,
           cargo: 'membro', // Reset to basic role
           squad_id: null   // Remove from squad
@@ -496,7 +500,7 @@ export function UserManagement() {
       // Update user_roles to reset cargo and mark password as not changed
       await supabase
         .from('user_roles')
-        .update({ 
+        .update({
           password_changed: false,
           cargo: 'membro' // Reset to basic role
         })
@@ -509,7 +513,7 @@ export function UserManagement() {
         .eq('user_id', userId);
 
       toast.success(`Conta de ${email} inativada com sucesso. Cargo e squad removidos.`);
-      
+
       // Refresh users list
       window.location.reload();
     } catch (error) {
@@ -540,23 +544,23 @@ export function UserManagement() {
   const filteredUsers = users.filter(user => {
     // Search filter
     const searchLower = searchQuery.toLowerCase();
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       user.email.toLowerCase().includes(searchLower) ||
       (user.full_name?.toLowerCase().includes(searchLower)) ||
       (user.phone?.toLowerCase().includes(searchLower));
-    
+
     // Cargo filter
     const matchesCargo = filterCargo === 'all' || user.cargo === filterCargo;
-    
+
     // Squad filter
     const matchesSquad = filterSquad === 'all' || user.squad_id === filterSquad;
-    
+
     // Status filter
     const isActive = !!user.user_id;
-    const matchesStatus = filterStatus === 'all' || 
+    const matchesStatus = filterStatus === 'all' ||
       (filterStatus === 'active' && isActive) ||
       (filterStatus === 'pending' && !isActive);
-    
+
     return matchesSearch && matchesCargo && matchesSquad && matchesStatus;
   });
 
@@ -582,13 +586,13 @@ export function UserManagement() {
               Gerencie usuários, cargos, squads, projetos e visibilidade de abas
             </CardDescription>
           </div>
-          
+
           {canManage && (
             <div className="flex gap-2">
               {/* Only show bulk activate if there are pending users */}
               {users.filter(u => !u.user_id).length > 0 && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="gap-2"
                   onClick={handleCreateAuthUsers}
                   disabled={isCreatingAuthUsers}
@@ -617,9 +621,9 @@ export function UserManagement() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="py-4">
-                    <Input 
-                      type="file" 
-                      accept=".csv" 
+                    <Input
+                      type="file"
+                      accept=".csv"
                       onChange={handleImportCSV}
                       disabled={isImporting}
                     />
@@ -646,13 +650,13 @@ export function UserManagement() {
                       {createdPassword ? 'Usuário Criado com Sucesso!' : 'Criar Novo Usuário'}
                     </DialogTitle>
                     <DialogDescription>
-                      {createdPassword 
+                      {createdPassword
                         ? 'Copie a senha temporária abaixo e envie para o usuário'
                         : 'Adicione um novo usuário ao sistema'
                       }
                     </DialogDescription>
                   </DialogHeader>
-                  
+
                   {createdPassword ? (
                     <div className="space-y-4 py-4">
                       <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg space-y-4">
@@ -660,14 +664,14 @@ export function UserManagement() {
                           <Check className="w-5 h-5" />
                           <span className="font-semibold">Usuário criado com sucesso!</span>
                         </div>
-                        
+
                         <div className="space-y-3">
                           <div className="flex items-center gap-2 text-sm">
                             <Mail className="w-4 h-4 text-muted-foreground" />
                             <span className="text-muted-foreground">Email:</span>
                             <span className="font-medium">{formData.email}</span>
                           </div>
-                          
+
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 text-sm">
                               <KeyRound className="w-4 h-4 text-muted-foreground" />
@@ -691,7 +695,7 @@ export function UserManagement() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <p className="text-sm text-muted-foreground text-center">
                         ⚠️ O usuário deverá trocar a senha no primeiro acesso.
                       </p>
@@ -700,7 +704,7 @@ export function UserManagement() {
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
                         <Label>Email *</Label>
-                        <Input 
+                        <Input
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           placeholder="email@exemplo.com"
@@ -709,7 +713,7 @@ export function UserManagement() {
                       </div>
                       <div className="space-y-2">
                         <Label>Nome Completo</Label>
-                        <Input 
+                        <Input
                           value={formData.full_name}
                           onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                           placeholder="Nome completo"
@@ -718,7 +722,7 @@ export function UserManagement() {
                       </div>
                       <div className="space-y-2">
                         <Label>Telefone</Label>
-                        <Input 
+                        <Input
                           value={formData.phone}
                           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                           placeholder="(00) 00000-0000"
@@ -727,8 +731,8 @@ export function UserManagement() {
                       </div>
                       <div className="space-y-2">
                         <Label>Cargo</Label>
-                        <Select 
-                          value={formData.cargo} 
+                        <Select
+                          value={formData.cargo}
                           onValueChange={(v) => setFormData({ ...formData, cargo: v as UserCargo })}
                           disabled={isCreating}
                         >
@@ -746,8 +750,8 @@ export function UserManagement() {
                       </div>
                       <div className="space-y-2">
                         <Label>Squad</Label>
-                        <Select 
-                          value={formData.squad_id} 
+                        <Select
+                          value={formData.squad_id}
                           onValueChange={(v) => setFormData({ ...formData, squad_id: v })}
                           disabled={isCreating}
                         >
@@ -765,7 +769,7 @@ export function UserManagement() {
                       </div>
                     </div>
                   )}
-                  
+
                   <DialogFooter>
                     {createdPassword ? (
                       <Button onClick={closeCreateDialog}>
@@ -808,7 +812,7 @@ export function UserManagement() {
               className="pl-9"
             />
           </div>
-          
+
           {/* Filters */}
           <div className="flex gap-2 flex-wrap">
             {/* Cargo Filter */}
@@ -826,7 +830,7 @@ export function UserManagement() {
                 <SelectItem value="membro">Membro</SelectItem>
               </SelectContent>
             </Select>
-            
+
             {/* Squad Filter */}
             <Select value={filterSquad} onValueChange={setFilterSquad}>
               <SelectTrigger className="w-[140px]">
@@ -842,7 +846,7 @@ export function UserManagement() {
                 ))}
               </SelectContent>
             </Select>
-            
+
             {/* Status Filter */}
             <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as 'all' | 'active' | 'pending')}>
               <SelectTrigger className="w-[130px]">
@@ -854,7 +858,7 @@ export function UserManagement() {
                 <SelectItem value="pending">Pendentes</SelectItem>
               </SelectContent>
             </Select>
-            
+
             {/* Clear Filters */}
             {hasActiveFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
@@ -864,7 +868,7 @@ export function UserManagement() {
             )}
           </div>
         </div>
-        
+
         {/* Results count */}
         {hasActiveFilters && (
           <div className="text-sm text-muted-foreground">
@@ -901,171 +905,171 @@ export function UserManagement() {
                     const isActivating = activatingUserId === user.email;
                     const isDeactivating = deactivatingUserId === user.user_id;
                     return (
-                    <TableRow key={user.id} className={`${isMaster ? 'bg-primary/5' : userNeedsActivation ? 'bg-yellow-500/5' : ''} hover:bg-muted/30 transition-colors`}>
-                      <TableCell 
-                        className="font-medium cursor-pointer hover:text-primary transition-colors py-4"
-                        onClick={() => user.user_id && setProfileUserId(user.user_id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10 border-2 border-background shadow-sm">
-                            {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.full_name || user.email} />}
-                            <AvatarFallback className={`text-sm font-medium ${CARGO_COLORS[user.cargo]} text-white`}>
-                              {getInitials(user.full_name, user.email)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold hover:underline">{user.full_name || 'Sem nome'}</span>
-                              {isMaster && (
-                                <Badge variant="outline" className="border-primary text-primary text-xs">
-                                  Master
-                                </Badge>
-                              )}
+                      <TableRow key={user.id} className={`${isMaster ? 'bg-primary/5' : userNeedsActivation ? 'bg-yellow-500/5' : ''} hover:bg-muted/30 transition-colors`}>
+                        <TableCell
+                          className="font-medium cursor-pointer hover:text-primary transition-colors py-4"
+                          onClick={() => user.user_id && setProfileUserId(user.user_id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-10 h-10 border-2 border-background shadow-sm">
+                              {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.full_name || user.email} />}
+                              <AvatarFallback className={`text-sm font-medium ${CARGO_COLORS[user.cargo]} text-white`}>
+                                {getInitials(user.full_name, user.email)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold hover:underline">{user.full_name || 'Sem nome'}</span>
+                                {isMaster && (
+                                  <Badge variant="outline" className="border-primary text-primary text-xs">
+                                    Master
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-sm">{user.email}</span>
-                          {user.phone && (
-                            <span className="text-xs text-muted-foreground">{user.phone}</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        {userNeedsActivation ? (
-                          <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30">
-                            Pendente
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
-                            <Check className="w-3 h-3 mr-1" />
-                            Ativo
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-4">
-                        {canEditUser(user.email) ? (
-                          <Select 
-                            value={user.cargo} 
-                            onValueChange={(v) => updateUserCargo(user.user_id, v as UserCargo)}
-                          >
-                            <SelectTrigger className="w-[130px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="tech">Tech</SelectItem>
-                              <SelectItem value="gerente">Gerente</SelectItem>
-                              <SelectItem value="coordenador">Coordenador</SelectItem>
-                              <SelectItem value="investidor">Investidor</SelectItem>
-                              <SelectItem value="membro">Membro</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge className={CARGO_COLORS[user.cargo]}>
-                            {CARGO_LABELS[user.cargo]}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-4">
-                        {canEditUser(user.email) ? (
-                          <Select 
-                            value={user.squad_id || ''} 
-                            onValueChange={(v) => updateUserSquad(user.user_id, v || null)}
-                          >
-                            <SelectTrigger className="w-[130px]">
-                              <SelectValue placeholder="Sem squad" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {squads.filter(s => s.name !== 'S/SQUAD').map(squad => (
-                                <SelectItem key={squad.id} value={squad.id}>
-                                  {squad.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                            <Building2 className="w-3 h-3" />
-                            {user.squad_name || 'Sem squad'}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      {canManage && (
-                        <TableCell className="text-right py-4">
-                          <div className="flex items-center justify-end gap-1">
-                            {/* Activate button - only for users without account */}
-                            {userNeedsActivation && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1.5 text-xs h-8 bg-green-500/10 border-green-500/30 text-green-600 hover:bg-green-500/20"
-                                onClick={() => handleActivateSingleUser(user.email)}
-                                disabled={isActivating}
-                                title="Ativar conta deste usuário"
-                              >
-                                {isActivating ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <UserPlus className="w-3.5 h-3.5" />
-                                )}
-                                Ativar
-                              </Button>
-                            )}
-                            {/* Deactivate button - only for active users */}
-                            {!userNeedsActivation && canEditUser(user.email) && !isMaster && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1.5 text-xs h-8 bg-orange-500/10 border-orange-500/30 text-orange-600 hover:bg-orange-500/20"
-                                onClick={() => handleDeactivateUser(user.user_id, user.email)}
-                                disabled={isDeactivating}
-                                title="Inativar conta deste usuário"
-                              >
-                                {isDeactivating ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <UserMinus className="w-3.5 h-3.5" />
-                                )}
-                                Inativar
-                              </Button>
-                            )}
-                            {isTech && canEditUser(user.email) && !userNeedsActivation && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => openConfigDialog(user.user_id)}
-                                title="Configurar visibilidade e projetos"
-                              >
-                                <Settings2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {(isGerente || isTech) && !isMaster && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => {
-                                  if (confirm('Tem certeza que deseja excluir este usuário permanentemente?')) {
-                                    deleteUser(user.user_id, user.id);
-                                  }
-                                }}
-                                title="Excluir usuário"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {isMaster && !isCurrentUserMaster && (
-                              <span className="text-xs text-muted-foreground italic px-2">
-                                Protegido
-                              </span>
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-sm">{user.email}</span>
+                            {user.phone && (
+                              <span className="text-xs text-muted-foreground">{user.phone}</span>
                             )}
                           </div>
                         </TableCell>
-                      )}
-                    </TableRow>
+                        <TableCell className="py-4">
+                          {userNeedsActivation ? (
+                            <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30">
+                              Pendente
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                              <Check className="w-3 h-3 mr-1" />
+                              Ativo
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-4">
+                          {canEditUser(user.email) ? (
+                            <Select
+                              value={user.cargo}
+                              onValueChange={(v) => updateUserCargo(user.user_id, v as UserCargo)}
+                            >
+                              <SelectTrigger className="w-[130px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="tech">Tech</SelectItem>
+                                <SelectItem value="gerente">Gerente</SelectItem>
+                                <SelectItem value="coordenador">Coordenador</SelectItem>
+                                <SelectItem value="investidor">Investidor</SelectItem>
+                                <SelectItem value="membro">Membro</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge className={CARGO_COLORS[user.cargo]}>
+                              {CARGO_LABELS[user.cargo]}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-4">
+                          {canEditUser(user.email) ? (
+                            <Select
+                              value={user.squad_id || ''}
+                              onValueChange={(v) => updateUserSquad(user.user_id, v || null)}
+                            >
+                              <SelectTrigger className="w-[130px]">
+                                <SelectValue placeholder="Sem squad" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {squads.filter(s => s.name !== 'S/SQUAD').map(squad => (
+                                  <SelectItem key={squad.id} value={squad.id}>
+                                    {squad.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                              <Building2 className="w-3 h-3" />
+                              {user.squad_name || 'Sem squad'}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        {canManage && (
+                          <TableCell className="text-right py-4">
+                            <div className="flex items-center justify-end gap-1">
+                              {/* Activate button - only for users without account */}
+                              {userNeedsActivation && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1.5 text-xs h-8 bg-green-500/10 border-green-500/30 text-green-600 hover:bg-green-500/20"
+                                  onClick={() => handleActivateSingleUser(user.email)}
+                                  disabled={isActivating}
+                                  title="Ativar conta deste usuário"
+                                >
+                                  {isActivating ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <UserPlus className="w-3.5 h-3.5" />
+                                  )}
+                                  Ativar
+                                </Button>
+                              )}
+                              {/* Deactivate button - only for active users */}
+                              {!userNeedsActivation && canEditUser(user.email) && !isMaster && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1.5 text-xs h-8 bg-orange-500/10 border-orange-500/30 text-orange-600 hover:bg-orange-500/20"
+                                  onClick={() => handleDeactivateUser(user.user_id, user.email)}
+                                  disabled={isDeactivating}
+                                  title="Inativar conta deste usuário"
+                                >
+                                  {isDeactivating ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <UserMinus className="w-3.5 h-3.5" />
+                                  )}
+                                  Inativar
+                                </Button>
+                              )}
+                              {isTech && canEditUser(user.email) && !userNeedsActivation && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => openConfigDialog(user.user_id)}
+                                  title="Configurar visibilidade e projetos"
+                                >
+                                  <Settings2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {(isGerente || isTech) && !isMaster && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => {
+                                    if (confirm('Tem certeza que deseja excluir este usuário permanentemente?')) {
+                                      deleteUser(user.user_id, user.id);
+                                    }
+                                  }}
+                                  title="Excluir usuário"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {isMaster && !isCurrentUserMaster && (
+                                <span className="text-xs text-muted-foreground italic px-2">
+                                  Protegido
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
                     );
                   })
                 )}
@@ -1120,13 +1124,12 @@ export function UserManagement() {
                     const isHidden = localHiddenTabs.includes(tab);
                     const isVisible = !isHidden;
                     return (
-                      <div 
+                      <div
                         key={tab}
-                        className={`flex items-center gap-2 p-2 rounded-lg border transition-colors cursor-pointer ${
-                          isVisible 
-                            ? 'bg-metric-positive/10 border-metric-positive/30' 
+                        className={`flex items-center gap-2 p-2 rounded-lg border transition-colors cursor-pointer ${isVisible
+                            ? 'bg-metric-positive/10 border-metric-positive/30'
                             : 'bg-destructive/10 border-destructive/30'
-                        }`}
+                          }`}
                         onClick={() => !isSavingVisibility && !visibilityLoading && handleToggleTab(tab)}
                       >
                         <Checkbox
@@ -1135,7 +1138,7 @@ export function UserManagement() {
                           disabled={isSavingVisibility || visibilityLoading}
                           onCheckedChange={() => handleToggleTab(tab)}
                         />
-                        <Label 
+                        <Label
                           htmlFor={`tab-${tab}`}
                           className={`flex items-center gap-1.5 cursor-pointer text-sm flex-1 ${!isVisible ? 'line-through text-muted-foreground' : ''}`}
                         >
@@ -1167,15 +1170,15 @@ export function UserManagement() {
                 <p className="text-sm text-muted-foreground">
                   Selecione os projetos que este usuário pode acessar
                 </p>
-                
+
                 {/* Dropdown Multi-Select para Projetos */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="w-full justify-between">
                       <span className="flex items-center gap-2">
                         <FolderOpen className="w-4 h-4" />
-                        {configUserProjects.length === 0 
-                          ? 'Selecionar projetos...' 
+                        {configUserProjects.length === 0
+                          ? 'Selecionar projetos...'
                           : `${configUserProjects.length} projeto${configUserProjects.length > 1 ? 's' : ''} selecionado${configUserProjects.length > 1 ? 's' : ''}`
                         }
                       </span>
@@ -1193,7 +1196,7 @@ export function UserManagement() {
                           <DropdownMenuCheckboxItem
                             key={project.id}
                             checked={hasAccess}
-                            onCheckedChange={(checked) => 
+                            onCheckedChange={(checked) =>
                               handleToggleProjectAccess(configUserId!, project.id, checked)
                             }
                           >
@@ -1215,8 +1218,8 @@ export function UserManagement() {
                       const project = activeProjects.find(p => p.id === projectId);
                       if (!project) return null;
                       return (
-                        <Badge 
-                          key={projectId} 
+                        <Badge
+                          key={projectId}
                           variant="secondary"
                           className="flex items-center gap-1 pl-2"
                         >
@@ -1306,7 +1309,7 @@ export function UserManagement() {
               {/* Contact Info */}
               <div className="space-y-4 border-t pt-6">
                 <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Contato</h4>
-                
+
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                     <Mail className="w-5 h-5 text-primary" />
@@ -1329,7 +1332,7 @@ export function UserManagement() {
               {/* Squad Info */}
               <div className="space-y-4 border-t pt-6">
                 <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Organização</h4>
-                
+
                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                   <Building2 className="w-5 h-5 text-primary" />
                   <div className="flex-1">
@@ -1342,18 +1345,18 @@ export function UserManagement() {
               {/* Timestamps */}
               <div className="space-y-4 border-t pt-6">
                 <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Datas</h4>
-                
+
                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                   <Calendar className="w-5 h-5 text-primary" />
                   <div className="flex-1">
                     <p className="text-xs text-muted-foreground">Criado em</p>
                     <p className="font-medium">
-                      {profileUser.created_at 
+                      {profileUser.created_at
                         ? new Date(profileUser.created_at).toLocaleDateString('pt-BR', {
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric'
-                          })
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric'
+                        })
                         : 'Data não disponível'}
                     </p>
                   </div>
@@ -1364,7 +1367,7 @@ export function UserManagement() {
               {canManage && canEditUser(profileUser.email) && (
                 <div className="border-t pt-6 space-y-2">
                   {needsActivation(profileUser) && (
-                    <Button 
+                    <Button
                       className="w-full gap-2"
                       onClick={() => {
                         handleActivateSingleUser(profileUser.email);
@@ -1376,8 +1379,8 @@ export function UserManagement() {
                     </Button>
                   )}
                   {isTech && !needsActivation(profileUser) && (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="w-full gap-2"
                       onClick={() => {
                         openConfigDialog(profileUser.user_id);
