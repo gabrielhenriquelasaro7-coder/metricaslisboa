@@ -89,6 +89,9 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
   const isActiveExact = (match: string) => location.pathname === match;
 
   const showWhatsApp = !roleLoading && !isGuest;
+  const showShare = !roleLoading && !isGuest;
+  const showClarity = !roleLoading && !isGuest;
+  const showDiagnostico = !roleLoading && !cargoLoading && (isTech || isMaster);
 
   return (
     <>
