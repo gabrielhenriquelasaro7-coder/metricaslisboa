@@ -7,11 +7,12 @@ import { ClientSelector } from '@/components/layout/ClientSelector';
 import SparklineCard from '@/components/dashboard/SparklineCard';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { CustomizableChart } from '@/components/dashboard/CustomizableChart';
-import { RevenueFlow } from '@/components/dashboard/RevenueFlow';
+
 import PeriodComparison from '@/components/dashboard/PeriodComparison';
 import { DemographicCharts } from '@/components/dashboard/DemographicCharts';
 import { useDemographicInsights } from '@/hooks/useDemographicInsights';
 import { useGoogleAdsData } from '@/hooks/useGoogleAdsData';
+import { usePeriodContext } from '@/hooks/usePeriodContext';
 import { DailyMetric } from '@/hooks/useDailyMetrics';
 import { DateRange } from 'react-day-picker';
 import { DatePresetKey, getDateRangeFromPreset, datePeriodToDateRange } from '@/utils/dateUtils';
@@ -115,11 +116,7 @@ function getPreviousPeriod(since: string, until: string, preset: DatePresetKey) 
 
 export default function GoogleCampaigns() {
   const navigate = useNavigate();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const period = getDateRangeFromPreset('this_month', 'America/Sao_Paulo');
-    return period ? datePeriodToDateRange(period) : undefined;
-  });
-  const [selectedPreset, setSelectedPreset] = useState<DatePresetKey>('this_month');
+  const { selectedPreset, dateRange, setSelectedPreset, setDateRange } = usePeriodContext();
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
   const [expandedAdGroups, setExpandedAdGroups] = useState<Set<string>>(new Set());
   const [showComparison, setShowComparison] = useState(true);
@@ -128,7 +125,7 @@ export default function GoogleCampaigns() {
   const [kwSearch, setKwSearch] = useState('');
   const [kwMatchFilter, setKwMatchFilter] = useState<string>('all');
   const [kwCampaignFilter, setKwCampaignFilter] = useState<string>('all');
-  const [funnelFilter, setFunnelFilter] = useState<'all' | 'active' | 'paused'>('all');
+
 
   const { campaigns, adGroups, ads, keywords, demographics, dailyMetrics, loading, syncing, selectedProject, loadAllData, loadDailyMetrics, syncData, aggregateDailyMetrics, projectsLoading } = useGoogleAdsData();
 
@@ -139,7 +136,7 @@ export default function GoogleCampaigns() {
     }
   }, [selectedProject?.id, loadAllData, loadDailyMetrics]);
 
-  const handleSync = useCallback(() => syncData({ days: 420 }), [syncData]);
+  const handleSync = useCallback(() => syncData({ days: 730 }), [syncData]);
 
   const isEcommerce = selectedProject?.business_model === 'ecommerce';
   const isInsideSales = selectedProject?.business_model === 'inside_sales';
@@ -205,6 +202,7 @@ export default function GoogleCampaigns() {
       conversions: d.conversions, conversion_value: d.conversion_value, messaging_replies: 0, profile_visits: 0,
       leads_conversions: 0, sales_conversions: 0, initiate_checkout_conversions: 0,
       ctr: d.ctr, cpm: d.cpm, cpc: d.cpc, roas: d.roas, cpa: d.cpa,
+      cvr_leads: 0, cvr_sales: 0,
     }));
   }, [dailyMetrics, aggregateDailyMetrics, periodBounds]);
 
@@ -291,6 +289,89 @@ export default function GoogleCampaigns() {
   const genderData = useMemo(() => demoAggregated.filter(d => d.type === 'gender').sort((a, b) => b.spend - a.spend), [demoAggregated]);
   const deviceData = useMemo(() => demoAggregated.filter(d => d.type === 'device').sort((a, b) => b.spend - a.spend), [demoAggregated]);
 
+  // Agrega dados de campanhas do período filtrado
+  const fCampaigns = useMemo(() => {
+    if (!dailyMetrics.length || !periodBounds) return campaigns;
+    const filtered = dailyMetrics.filter(d => d.date >= periodBounds.since && d.date <= periodBounds.until);
+    const agg = new Map<string, any>();
+
+    // Iniciar com todas as campanhas para manter os nomes/metadados
+    campaigns.forEach(c => agg.set(c.id, { ...c, spend: 0, impressions: 0, clicks: 0, conversions: 0, conversion_value: 0 }));
+
+    filtered.forEach(d => {
+      const c = agg.get(d.campaign_id) || { id: d.campaign_id, name: d.campaign_name, project_id: selectedProject?.id, status: d.campaign_status, campaign_type: d.campaign_type, spend: 0, impressions: 0, clicks: 0, conversions: 0, conversion_value: 0 };
+      c.spend += d.spend;
+      c.impressions += d.impressions;
+      c.clicks += d.clicks;
+      c.conversions += d.conversions;
+      c.conversion_value += d.conversion_value || 0;
+      agg.set(d.campaign_id, c);
+    });
+
+    return Array.from(agg.values())
+      .map(c => ({
+        ...c,
+        ctr: c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
+        cpc: c.clicks > 0 ? c.spend / c.clicks : 0,
+        roas: c.spend > 0 ? (c.conversion_value || 0) / c.spend : 0,
+        cost_per_conversion: c.conversions > 0 ? c.spend / c.conversions : 0
+      }))
+      .filter(c => c.spend > 0 || c.impressions > 0 || c.status === 'ENABLED')
+      .sort((a, b) => b.spend - a.spend);
+  }, [dailyMetrics, periodBounds, campaigns, selectedProject?.id]);
+
+  // Agrega dados de grupos de anúncios do período filtrado
+  const fAdGroups = useMemo(() => {
+    if (!dailyMetrics.length || !periodBounds) return adGroups;
+    const filtered = dailyMetrics.filter(d => d.date >= periodBounds.since && d.date <= periodBounds.until);
+    const agg = new Map<string, any>();
+
+    adGroups.forEach(ag => agg.set(ag.id, { ...ag, spend: 0, impressions: 0, clicks: 0, conversions: 0, conversion_value: 0 }));
+
+    filtered.forEach(d => {
+      if (!d.ad_group_id) return;
+      const ag = agg.get(d.ad_group_id) || { id: d.ad_group_id, campaign_id: d.campaign_id, name: d.ad_group_name, status: d.ad_group_status, spend: 0, impressions: 0, clicks: 0, conversions: 0, conversion_value: 0 };
+      ag.spend += d.spend;
+      ag.impressions += d.impressions;
+      ag.clicks += d.clicks;
+      ag.conversions += d.conversions;
+      ag.conversion_value += d.conversion_value || 0;
+      agg.set(d.ad_group_id, ag);
+    });
+
+    return Array.from(agg.values()).map(ag => ({
+      ...ag,
+      ctr: ag.impressions > 0 ? (ag.clicks / ag.impressions) * 100 : 0,
+      cpc: ag.clicks > 0 ? ag.spend / ag.clicks : 0,
+    }));
+  }, [dailyMetrics, periodBounds, adGroups]);
+
+  // Agrega dados de anúncios do período filtrado
+  const fAds = useMemo(() => {
+    if (!dailyMetrics.length || !periodBounds) return ads;
+    const filtered = dailyMetrics.filter(d => d.date >= periodBounds.since && d.date <= periodBounds.until);
+    const agg = new Map<string, any>();
+
+    ads.forEach(ad => agg.set(ad.id, { ...ad, spend: 0, impressions: 0, clicks: 0, conversions: 0, conversion_value: 0 }));
+
+    filtered.forEach(d => {
+      if (!d.ad_id) return;
+      const ad = agg.get(d.ad_id) || { id: d.ad_id, ad_group_id: d.ad_group_id, campaign_id: d.campaign_id, name: d.ad_name, status: d.ad_status, spend: 0, impressions: 0, clicks: 0, conversions: 0, conversion_value: 0 };
+      ad.spend += d.spend;
+      ad.impressions += d.impressions;
+      ad.clicks += d.clicks;
+      ad.conversions += d.conversions;
+      ad.conversion_value += d.conversion_value || 0;
+      agg.set(d.ad_id, ad);
+    });
+
+    return Array.from(agg.values()).map(ad => ({
+      ...ad,
+      ctr: ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0,
+      cpc: ad.clicks > 0 ? ad.spend / ad.clicks : 0,
+    }));
+  }, [dailyMetrics, periodBounds, ads]);
+
   const filteredKeywords = useMemo(() => {
     let kws = [...keywords];
     if (kwSearch) {
@@ -307,13 +388,7 @@ export default function GoogleCampaigns() {
 
   useEffect(() => { setKwPage(0); }, [kwSearch, kwMatchFilter, kwCampaignFilter]);
 
-  const funnelTotals = useMemo(() => {
-    const filtered = funnelFilter === 'all' ? campaigns : campaigns.filter(c => funnelFilter === 'active' ? c.status === 'ENABLED' : c.status === 'PAUSED');
-    return filtered.reduce((acc, c) => ({
-      spend: acc.spend + c.spend, impressions: acc.impressions + c.impressions, clicks: acc.clicks + c.clicks,
-      conversions: acc.conversions + c.conversions, revenue: acc.revenue + c.conversion_value,
-    }), { spend: 0, impressions: 0, clicks: 0, conversions: 0, revenue: 0 });
-  }, [campaigns, funnelFilter]);
+
 
   if (!loading && !projectsLoading && !selectedProject) {
     navigate('/dashboard');
@@ -372,13 +447,13 @@ export default function GoogleCampaigns() {
                   <DropdownMenuContent align="end" className="bg-popover border-border z-50">
                     <DropdownMenuItem onClick={handleSync} disabled={syncing || !selectedProject}>
                       <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-                      {syncing ? 'Sincronizando...' : 'Sincronizar Tudo (2025)'}
+                      {syncing ? 'Sincronizando...' : 'Sincronizar Tudo (2025/2026)'}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => syncData({ syncType: 'keywords', days: 420 })} disabled={syncing || !selectedProject}>
+                    <DropdownMenuItem onClick={() => syncData({ syncType: 'keywords', days: 730 })} disabled={syncing || !selectedProject}>
                       <Key className="w-4 h-4 mr-2" />
                       Palavras-chave
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => syncData({ syncType: 'demographics', days: 420 })} disabled={syncing || !selectedProject}>
+                    <DropdownMenuItem onClick={() => syncData({ syncType: 'demographics', days: 730 })} disabled={syncing || !selectedProject}>
                       <Users className="w-4 h-4 mr-2" />
                       Demográficos
                     </DropdownMenuItem>
@@ -400,7 +475,7 @@ export default function GoogleCampaigns() {
               <div className="glass-card p-6 sm:p-8 lg:p-12 text-center">
                 <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Nenhuma campanha</h3>
-                <p className="text-muted-foreground mb-6">Clique em sincronizar para importar dados de 2025.</p>
+                <p className="text-muted-foreground mb-6">Clique em sincronizar para importar dados de 2025/2026.</p>
                 <Button onClick={handleSync} disabled={syncing} variant="gradient">
                   <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
                   {syncing ? 'Sincronizando...' : 'Sincronizar Agora'}
@@ -572,12 +647,12 @@ export default function GoogleCampaigns() {
                         </tr>
                       </thead>
                       <tbody>
-                        {campaigns.map(campaign => {
+                        {fCampaigns.map(campaign => {
                           const CIcon = campaignTypeIcons[campaign.campaign_type || ''] || Megaphone;
                           const isExp = expandedCampaigns.has(campaign.id);
-                          const cAdGroups = adGroups.filter(ag => ag.campaign_id === campaign.id);
+                          const cAdGroups = fAdGroups.filter(ag => ag.campaign_id === campaign.id);
                           return (
-                            <CampaignRow key={campaign.id} campaign={campaign} icon={CIcon} isExpanded={isExp} adGroups={cAdGroups} ads={ads}
+                            <CampaignRow key={campaign.id} campaign={campaign} icon={CIcon} isExpanded={isExp} adGroups={cAdGroups} ads={fAds}
                               expandedAdGroups={expandedAdGroups} onToggleCampaign={toggleCampaign} onToggleAdGroup={toggleAdGroup}
                               formatCurrency={formatCurrency} formatNumber={formatNumber} isEcommerce={isEcommerce} />
                           );
@@ -702,15 +777,7 @@ export default function GoogleCampaigns() {
                 )}
 
                 {/* Funil */}
-                <RevenueFlow
-                  impressions={funnelTotals.impressions}
-                  reach={funnelTotals.impressions * 0.8} // Estimativa para Google reach se não disponível
-                  clicks={funnelTotals.clicks}
-                  conversions={funnelTotals.conversions}
-                  currency={selectedProject?.currency || 'BRL'}
-                  campaignFilter={funnelFilter}
-                  onCampaignFilterChange={setFunnelFilter}
-                />
+
 
                 {/* === DEMOGRÁFICOS === */}
                 {demographics.length > 0 && (
