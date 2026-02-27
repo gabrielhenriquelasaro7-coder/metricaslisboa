@@ -62,12 +62,14 @@ interface CargoData {
 let globalCargoCache: {
   userId: string | null;
   cargo: UserCargo;
+  isMaster: boolean;
   squads: Squad[];
   loaded: boolean;
   fetchPromise: Promise<void> | null;
 } = {
   userId: null,
   cargo: 'membro',
+  isMaster: false,
   squads: [],
   loaded: false,
   fetchPromise: null,
