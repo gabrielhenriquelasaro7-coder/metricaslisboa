@@ -129,7 +129,7 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
       hasNavigatedRef.current = true;
       navigate('/dashboard', { replace: true });
     }
-  }, [user, isGuest, needsPasswordChange, authLoading, roleLoading, location.pathname, navigate]);
+  }, [user, isGuest, isTech, isMaster, needsPasswordChange, authLoading, roleLoading, cargoLoading, location.pathname, navigate]);
 
   // Always render children immediately - never block
   return <>{children}</>;

@@ -256,6 +256,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
               </div>
 
               {/* Share - Compartilhamento */}
+              {showShare && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -269,8 +270,10 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                   <p>Compartilhar</p>
                 </TooltipContent>
               </Tooltip>
+              )}
 
               {/* Clarity - LP Analysis */}
+              {showClarity && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -284,6 +287,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                   <p>Clarity</p>
                 </TooltipContent>
               </Tooltip>
+              )}
 
               {/* Separator before WhatsApp */}
               {showWhatsApp && (
