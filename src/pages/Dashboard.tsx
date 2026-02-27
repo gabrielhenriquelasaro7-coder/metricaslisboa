@@ -61,7 +61,7 @@ export default function Dashboard() {
   useMemo(() => {
     if (selectedProject?.id) {
       loadAllData(selectedProject.id);
-      loadGoogleDailyMetrics(selectedProject.id, '2025-01-01');
+      loadGoogleDailyMetrics(selectedProject.id, '2024-01-01');
     }
   }, [selectedProject?.id]);
 

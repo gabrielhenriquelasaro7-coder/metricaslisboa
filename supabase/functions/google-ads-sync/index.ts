@@ -102,9 +102,9 @@ function getDateRange(days: number = 30): { startDate: string; endDate: string }
 }
 
 // ==================== SYNC CAMPAIGNS ====================
-async function syncCampaigns(supabase: any, accessToken: string, credentials: GoogleAdsCredentials, projectId: string): Promise<void> {
-  console.log('Syncing campaigns...');
-  const { startDate, endDate } = getDateRange(30);
+async function syncCampaigns(supabase: any, accessToken: string, credentials: GoogleAdsCredentials, projectId: string, days: number = 30): Promise<void> {
+  console.log(`Syncing campaigns for last ${days} days...`);
+  const { startDate, endDate } = getDateRange(days);
 
   const query = `
     SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type,
@@ -157,9 +157,9 @@ async function syncCampaigns(supabase: any, accessToken: string, credentials: Go
 }
 
 // ==================== SYNC AD GROUPS ====================
-async function syncAdGroups(supabase: any, accessToken: string, credentials: GoogleAdsCredentials, projectId: string): Promise<void> {
-  console.log('Syncing ad groups...');
-  const { startDate, endDate } = getDateRange(30);
+async function syncAdGroups(supabase: any, accessToken: string, credentials: GoogleAdsCredentials, projectId: string, days: number = 30): Promise<void> {
+  console.log(`Syncing ad groups for last ${days} days...`);
+  const { startDate, endDate } = getDateRange(days);
 
   const query = `
     SELECT ad_group.id, ad_group.name, ad_group.status, ad_group.campaign, ad_group.cpc_bid_micros,
@@ -210,9 +210,9 @@ async function syncAdGroups(supabase: any, accessToken: string, credentials: Goo
 }
 
 // ==================== SYNC ADS ====================
-async function syncAds(supabase: any, accessToken: string, credentials: GoogleAdsCredentials, projectId: string): Promise<void> {
-  console.log('Syncing individual ads...');
-  const { startDate, endDate } = getDateRange(30);
+async function syncAds(supabase: any, accessToken: string, credentials: GoogleAdsCredentials, projectId: string, days: number = 30): Promise<void> {
+  console.log(`Syncing individual ads for last ${days} days...`);
+  const { startDate, endDate } = getDateRange(days);
 
   const query = `
     SELECT ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.ad.type, ad_group_ad.status,
@@ -292,9 +292,9 @@ async function syncAds(supabase: any, accessToken: string, credentials: GoogleAd
 }
 
 // ==================== SYNC KEYWORDS ====================
-async function syncKeywords(supabase: any, accessToken: string, credentials: GoogleAdsCredentials, projectId: string): Promise<void> {
-  console.log('Syncing keywords...');
-  const { startDate, endDate } = getDateRange(30);
+async function syncKeywords(supabase: any, accessToken: string, credentials: GoogleAdsCredentials, projectId: string, days: number = 30): Promise<void> {
+  console.log(`Syncing keywords for last ${days} days...`);
+  const { startDate, endDate } = getDateRange(days);
 
   const query = `
     SELECT keyword_view.resource_name,
@@ -357,8 +357,8 @@ async function syncKeywords(supabase: any, accessToken: string, credentials: Goo
     const batchSize = 500;
     for (let i = 0; i < keywords.length; i += batchSize) {
       const batch = keywords.slice(i, i + batchSize);
-      const { error } = await supabase.from('google_keywords').upsert(batch, { 
-        onConflict: 'project_id,ad_group_id,keyword_text,match_type' 
+      const { error } = await supabase.from('google_keywords').upsert(batch, {
+        onConflict: 'project_id,ad_group_id,keyword_text,match_type'
       });
       if (error) { console.error('Error upserting keywords:', error); throw error; }
     }
@@ -367,9 +367,9 @@ async function syncKeywords(supabase: any, accessToken: string, credentials: Goo
 }
 
 // ==================== SYNC DEMOGRAPHICS ====================
-async function syncDemographics(supabase: any, accessToken: string, credentials: GoogleAdsCredentials, projectId: string): Promise<void> {
-  console.log('Syncing demographics...');
-  const { startDate, endDate } = getDateRange(30);
+async function syncDemographics(supabase: any, accessToken: string, credentials: GoogleAdsCredentials, projectId: string, days: number = 30): Promise<void> {
+  console.log(`Syncing demographics for last ${days} days...`);
+  const { startDate, endDate } = getDateRange(days);
   const allDemos: any[] = [];
 
   // Age
@@ -575,19 +575,19 @@ serve(async (req) => {
     let recordsCount = 0;
 
     if (syncType === 'full' || syncType === 'campaigns') {
-      await syncCampaigns(supabase, accessToken, credentials, projectId);
+      await syncCampaigns(supabase, accessToken, credentials, projectId, days);
     }
     if (syncType === 'full' || syncType === 'ad_groups') {
-      await syncAdGroups(supabase, accessToken, credentials, projectId);
+      await syncAdGroups(supabase, accessToken, credentials, projectId, days);
     }
     if (syncType === 'full' || syncType === 'ads') {
-      await syncAds(supabase, accessToken, credentials, projectId);
+      await syncAds(supabase, accessToken, credentials, projectId, days);
     }
     if (syncType === 'full' || syncType === 'keywords') {
-      await syncKeywords(supabase, accessToken, credentials, projectId);
+      await syncKeywords(supabase, accessToken, credentials, projectId, days);
     }
     if (syncType === 'full' || syncType === 'demographics') {
-      await syncDemographics(supabase, accessToken, credentials, projectId);
+      await syncDemographics(supabase, accessToken, credentials, projectId, days);
     }
     if (syncType === 'full' || syncType === 'metrics') {
       recordsCount = await syncDailyMetrics(supabase, accessToken, credentials, projectId, days);
