@@ -190,11 +190,34 @@ export function useGoogleAdsData() {
 
     setLoading(true);
     try {
-      let query = supabase.from('google_ads_daily_metrics').select('*').eq('project_id', pid).order('date', { ascending: true });
-      if (startDate) query = query.gte('date', startDate);
-      if (endDate) query = query.lte('date', endDate);
-      const { data } = await query;
-      setDailyMetrics((data || []) as GoogleDailyMetric[]);
+      let allMetrics: any[] = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+
+      while (true) {
+        let query = supabase.from('google_ads_daily_metrics')
+          .select('*')
+          .eq('project_id', pid)
+          .order('date', { ascending: true })
+          .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1);
+
+        if (startDate) query = query.gte('date', startDate);
+        if (endDate) query = query.lte('date', endDate);
+
+        const { data, error } = await query;
+        if (error) {
+          console.error('Error loading Google daily metrics:', error);
+          break;
+        }
+
+        if (!data || data.length === 0) break;
+        allMetrics = [...allMetrics, ...data];
+
+        if (data.length < pageSize) break;
+        currentPage++;
+      }
+
+      setDailyMetrics(allMetrics as GoogleDailyMetric[]);
     } finally {
       setLoading(false);
     }
@@ -220,6 +243,7 @@ export function useGoogleAdsData() {
       if (data?.success) {
         toast.success(`Google Ads sincronizado! ${data.recordsCount} registros.`);
         await loadAllData();
+        await loadDailyMetrics(selectedProject.id, '2024-01-01');
       } else {
         throw new Error(data?.error || 'Erro desconhecido');
       }
@@ -229,7 +253,7 @@ export function useGoogleAdsData() {
     } finally {
       setSyncing(false);
     }
-  }, [selectedProject?.id, loadAllData]);
+  }, [selectedProject?.id, loadAllData, loadDailyMetrics]);
 
   const aggregateDailyMetrics = useCallback((metrics: GoogleDailyMetric[]) => {
     const aggregated = new Map<string, { date: string; spend: number; impressions: number; clicks: number; conversions: number; conversion_value: number }>();

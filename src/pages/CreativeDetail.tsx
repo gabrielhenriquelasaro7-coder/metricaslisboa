@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useMetaAdsData } from '@/hooks/useMetaAdsData';
 import { translateCTA } from '@/utils/ctaTranslations';
-import { 
+import {
   ArrowLeft,
   Loader2,
   ImageOff,
@@ -32,15 +32,15 @@ import {
 // Helper to clean image URLs - ONLY removes stp resize parameter, keeps auth params
 const cleanImageUrl = (url: string | null): string | null => {
   if (!url) return null;
-  
+
   let clean = url.replace(/[&?]stp=[^&]*/g, '');
-  
+
   if (clean.includes('&') && !clean.includes('?')) {
     clean = clean.replace('&', '?');
   }
-  
+
   clean = clean.replace(/[&?]$/g, '');
-  
+
   return clean;
 };
 
@@ -122,8 +122,8 @@ export default function CreativeDetail() {
   const videoUrl = (creative as any).creative_video_url;
   const hasVideo = !!videoUrl;
   const imageUrl = cleanImageUrl(creative.creative_image_url) || cleanImageUrl(creative.creative_thumbnail);
-  const ticket = creative.conversions && creative.conversions > 0 
-    ? (creative.conversion_value || 0) / creative.conversions 
+  const ticket = creative.conversions && creative.conversions > 0
+    ? (creative.conversion_value || 0) / creative.conversions
     : 0;
 
   return (
@@ -156,21 +156,21 @@ export default function CreativeDetail() {
           <div className="space-y-6">
             <div className="glass-card p-6">
               <h2 className="text-lg font-semibold mb-4">Preview do Criativo</h2>
-              <div className="relative max-w-[500px] mx-auto rounded-xl overflow-hidden bg-secondary/30 border border-border flex items-center justify-center min-h-[200px]">
+              <div className="relative max-w-[500px] mx-auto rounded-xl overflow-hidden bg-transparent border border-border flex flex-col items-center">
                 {/* Loading skeleton */}
                 {!imageLoaded && !imageError && imageUrl && (
-                  <div className="absolute inset-0 bg-secondary/50 animate-pulse flex items-center justify-center">
+                  <div className="absolute inset-0 bg-secondary/50 animate-pulse flex items-center justify-center min-h-[400px]">
                     <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
                   </div>
                 )}
-                
+
                 {imageUrl && !imageError ? (
                   <>
                     <img
                       src={imageUrl}
                       alt={creative.name}
                       className={cn(
-                        "w-full h-auto object-contain transition-opacity duration-300",
+                        "w-full h-auto object-cover transition-opacity duration-300",
                         imageLoaded ? "opacity-100" : "opacity-0"
                       )}
                       loading="lazy"
@@ -207,7 +207,7 @@ export default function CreativeDetail() {
                   </div>
                 )}
               </div>
-              
+
               {/* Video Player Modal */}
               <Dialog open={videoOpen} onOpenChange={setVideoOpen}>
                 <DialogContent className="max-w-4xl p-0 bg-black border-none">
@@ -255,7 +255,7 @@ export default function CreativeDetail() {
                   </div>
                 </DialogContent>
               </Dialog>
-              
+
               {hasVideo && videoUrl && (
                 <div className="mt-4 flex items-center justify-center gap-3">
                   <Button onClick={() => setVideoOpen(true)}>
@@ -340,7 +340,7 @@ export default function CreativeDetail() {
                   </div>
                   <p className="text-2xl font-bold text-primary">{formatCurrency(creative.spend || 0)}</p>
                 </div>
-                
+
                 <div className="p-4 bg-secondary/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <ShoppingCart className="w-4 h-4 text-metric-positive" />
@@ -348,7 +348,7 @@ export default function CreativeDetail() {
                   </div>
                   <p className="text-2xl font-bold text-metric-positive">{formatNumber(creative.conversions || 0)}</p>
                 </div>
-                
+
                 <div className="p-4 bg-secondary/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <DollarSign className="w-4 h-4 text-metric-positive" />
@@ -356,7 +356,7 @@ export default function CreativeDetail() {
                   </div>
                   <p className="text-2xl font-bold">{formatCurrency(creative.conversion_value || 0)}</p>
                 </div>
-                
+
                 <div className="p-4 bg-secondary/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <ShoppingCart className="w-4 h-4 text-primary" />
@@ -364,7 +364,7 @@ export default function CreativeDetail() {
                   </div>
                   <p className="text-2xl font-bold">{formatCurrency(ticket)}</p>
                 </div>
-                
+
                 <div className="p-4 bg-secondary/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Target className="w-4 h-4 text-muted-foreground" />
@@ -372,7 +372,7 @@ export default function CreativeDetail() {
                   </div>
                   <p className="text-2xl font-bold">{formatCurrency(creative.cpa || 0)}</p>
                 </div>
-                
+
                 <div className="p-4 bg-secondary/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <TrendingUp className="w-4 h-4 text-metric-positive" />
@@ -399,7 +399,7 @@ export default function CreativeDetail() {
                   </div>
                   <p className="text-xl font-bold">{formatNumber(creative.impressions || 0)}</p>
                 </div>
-                
+
                 <div className="p-4 bg-secondary/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <MousePointer className="w-4 h-4 text-muted-foreground" />
@@ -407,7 +407,7 @@ export default function CreativeDetail() {
                   </div>
                   <p className="text-xl font-bold">{formatNumber(creative.clicks || 0)}</p>
                 </div>
-                
+
                 <div className="p-4 bg-secondary/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <TrendingUp className="w-4 h-4 text-muted-foreground" />
@@ -415,7 +415,7 @@ export default function CreativeDetail() {
                   </div>
                   <p className="text-xl font-bold">{formatPercent(creative.ctr || 0)}</p>
                 </div>
-                
+
                 <div className="p-4 bg-secondary/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <DollarSign className="w-4 h-4 text-muted-foreground" />
@@ -423,7 +423,7 @@ export default function CreativeDetail() {
                   </div>
                   <p className="text-xl font-bold">{formatCurrency(creative.cpc || 0)}</p>
                 </div>
-                
+
                 <div className="p-4 bg-secondary/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <DollarSign className="w-4 h-4 text-muted-foreground" />
@@ -431,7 +431,7 @@ export default function CreativeDetail() {
                   </div>
                   <p className="text-xl font-bold">{formatCurrency(creative.cpm || 0)}</p>
                 </div>
-                
+
                 <div className="p-4 bg-secondary/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="w-4 h-4 text-muted-foreground" />
@@ -448,11 +448,11 @@ export default function CreativeDetail() {
               <div className="flex items-center gap-4">
                 <div className="flex-1">
                   <div className="h-3 bg-secondary/50 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className={cn(
                         "h-full rounded-full transition-all",
-                        (creative.frequency || 0) <= 2 ? "bg-metric-positive" : 
-                        (creative.frequency || 0) <= 4 ? "bg-metric-warning" : "bg-metric-negative"
+                        (creative.frequency || 0) <= 2 ? "bg-metric-positive" :
+                          (creative.frequency || 0) <= 4 ? "bg-metric-warning" : "bg-metric-negative"
                       )}
                       style={{ width: `${Math.min(100, ((creative.frequency || 0) / 6) * 100)}%` }}
                     />
@@ -460,18 +460,18 @@ export default function CreativeDetail() {
                 </div>
                 <p className={cn(
                   "text-2xl font-bold min-w-[60px] text-right",
-                  (creative.frequency || 0) <= 2 ? "text-metric-positive" : 
-                  (creative.frequency || 0) <= 4 ? "text-metric-warning" : "text-metric-negative"
+                  (creative.frequency || 0) <= 2 ? "text-metric-positive" :
+                    (creative.frequency || 0) <= 4 ? "text-metric-warning" : "text-metric-negative"
                 )}>
                   {(creative.frequency || 0).toFixed(2)}
                 </p>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                {(creative.frequency || 0) <= 2 
-                  ? "Frequência saudável - Público ainda não saturado" 
-                  : (creative.frequency || 0) <= 4 
-                  ? "Frequência moderada - Monitore a performance"
-                  : "Frequência alta - Considere renovar o criativo"}
+                {(creative.frequency || 0) <= 2
+                  ? "Frequência saudável - Público ainda não saturado"
+                  : (creative.frequency || 0) <= 4
+                    ? "Frequência moderada - Monitore a performance"
+                    : "Frequência alta - Considere renovar o criativo"}
               </p>
             </div>
           </div>

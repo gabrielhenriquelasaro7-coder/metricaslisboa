@@ -16,6 +16,7 @@ import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useSquads } from '@/hooks/useSquads';
+import { useCargo } from '@/hooks/useCargo';
 
 interface Coordinator {
   id: string;
@@ -73,6 +74,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { createProject } = useProjects();
   const { squads } = useSquads();
+  const { isTech, isGerente, isCoordenador } = useCargo();
   const [customConfigOpen, setCustomConfigOpen] = useState(false);
 
   // Coordenador, Squad e Investidor
@@ -108,10 +110,10 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     const { data, error } = await supabase
       .from('user_management')
       .select('id, user_id, full_name, email, squad_id')
-      .eq('cargo', 'coordenador')
+      .in('cargo', ['coordenador', 'gerente'])
       .not('user_id', 'is', null) // Only active users
       .order('full_name');
-    
+
     if (!error && data) {
       setCoordinators(data);
     }
@@ -125,7 +127,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       .eq('squad_id', squadId)
       .not('user_id', 'is', null) // Only active users
       .order('full_name');
-    
+
     if (!error && data) {
       setInvestors(data);
       setSelectedInvestorId(''); // Reset investor selection
@@ -170,7 +172,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       projectSchema.parse(formData);
       setErrors({});
@@ -190,7 +192,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
     setIsLoading(true);
     try {
       const project = await createProject(formData);
-      
+
       // Atualizar projeto com squad_id e investidor_id
       if (selectedSquadId || selectedInvestorId) {
         await supabase.from('projects').update({
@@ -198,12 +200,12 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
           investidor_id: selectedInvestorId || null,
         }).eq('id', project.id);
       }
-      
+
       // Adicionar investidor na tabela project_investidores e guest_project_access
       if (selectedInvestorId) {
         // Find the user_management.id for this investor (selectedInvestorId is user_id/auth id)
         const selectedInvestor = investors.find(inv => inv.user_id === selectedInvestorId);
-        
+
         if (selectedInvestor) {
           // Insert into project_investidores using user_management.id
           await supabase.from('project_investidores').insert({
@@ -211,7 +213,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
             investidor_id: selectedInvestor.id,
           });
         }
-        
+
         // CRITICAL: Add investor to guest_project_access so they can see the project
         const { data: { user: currentUser } } = await supabase.auth.getUser();
         await supabase.from('guest_project_access').upsert({
@@ -220,7 +222,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
           granted_by: currentUser?.id || '',
         }, { onConflict: 'user_id,project_id' });
       }
-      
+
       if (formData.business_model === 'custom') {
         const template = METRIC_TEMPLATES.custom;
         await supabase.from('project_metric_config').insert({
@@ -237,13 +239,13 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
           chart_secondary_metric: metricConfig.result_metrics[0] || metricConfig.result_metric,
         });
       }
-      
+
       // Close the create dialog and show import mode selection
       setOpen(false);
       setPendingProjectId(project.id);
       setPendingProjectName(formData.name);
       setShowImportModeDialog(true);
-      
+
       // Reset form
       setFormData({
         name: '',
@@ -278,11 +280,11 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
 
     // Update project sync status
     await supabase.from('projects').update({
-      sync_progress: { 
-        status: 'importing', 
-        progress: 0, 
-        message: lightSync ? 'Iniciando Light Sync Inteligente...' : 'Iniciando Importação HD Inteligente...', 
-        started_at: new Date().toISOString() 
+      sync_progress: {
+        status: 'importing',
+        progress: 0,
+        message: lightSync ? 'Iniciando Light Sync Inteligente...' : 'Iniciando Importação HD Inteligente...',
+        started_at: new Date().toISOString()
       },
     }).eq('id', pendingProjectId);
 
@@ -319,7 +321,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
       }
 
       const results = await Promise.all(syncPromises);
-      
+
       const metaResult = results[0];
       if (metaResult.error) {
         console.error('Error starting Meta import:', metaResult.error);
@@ -362,34 +364,42 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
-            <Plus className="w-3.5 h-3.5 mr-1" />
-            Novo
-          </Button>
-        </DialogTrigger>
+        {(isTech || isGerente || isCoordenador) && (
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Novo
+            </Button>
+          </DialogTrigger>
+        )}
         <DialogContent className="sm:max-w-lg max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xl">Criar novo projeto</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh] pr-4">
             <form onSubmit={handleSubmit} className="space-y-5 mt-4">
-              {/* Coordenador -> Squad (auto) -> Investidor */}
+              {/* Coordenador/Gerente -> Squad (auto) -> Investidor */}
               <div className="space-y-2">
-                <Label>Coordenador</Label>
+                <Label>Coordenador ou Gerente Responsável</Label>
                 <Select
                   value={selectedCoordinatorId}
                   onValueChange={setSelectedCoordinatorId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione o coordenador..." />
+                    <SelectValue placeholder="Selecione o responsável..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {coordinators.map((coord) => (
-                      <SelectItem key={coord.user_id} value={coord.user_id}>
-                        {coord.full_name}
-                      </SelectItem>
-                    ))}
+                    {coordinators.map((coord) => {
+                      const squadName = squads.find(s => s.id === coord.squad_id)?.name;
+                      return (
+                        <SelectItem key={coord.user_id} value={coord.user_id}>
+                          <div className="flex flex-col">
+                            <span>{coord.full_name}</span>
+                            {squadName && <span className="text-[10px] text-muted-foreground">Squad: {squadName}</span>}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -400,7 +410,7 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
                   <div className="px-3 py-2 rounded-md border bg-muted/50 text-sm font-medium">
                     {selectedSquadName}
                   </div>
-                  <p className="text-xs text-muted-foreground">Atribuída automaticamente pelo coordenador</p>
+                  <p className="text-xs text-muted-foreground">Atribuída automaticamente pelo responsável</p>
                 </div>
               )}
 
@@ -490,11 +500,10 @@ export default function CreateProjectDialog({ onSuccess }: CreateProjectDialogPr
                       key={model.value}
                       type="button"
                       onClick={() => handleBusinessModelChange(model.value)}
-                      className={`p-3 rounded-lg border text-left transition-all ${
-                        formData.business_model === model.value
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:border-primary/50'
-                      }`}
+                      className={`p-3 rounded-lg border text-left transition-all ${formData.business_model === model.value
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-primary/50'
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         {model.icon}
