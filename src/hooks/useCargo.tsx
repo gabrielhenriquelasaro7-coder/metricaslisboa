@@ -179,7 +179,7 @@ export function useCargo(): CargoData {
       globalCargoCache.fetchPromise = null;
     }
     if (!authLoading && !user) {
-      globalCargoCache = { userId: null, cargo: 'membro', squads: [], loaded: false, fetchPromise: null };
+      globalCargoCache = { userId: null, cargo: 'membro', isMaster: false, squads: [], loaded: false, fetchPromise: null };
       localStorage.removeItem('user-cargo-cache');
       notifyListeners();
     }
