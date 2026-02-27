@@ -38,6 +38,7 @@ interface CargoData {
   cargo: UserCargo;
   loading: boolean;
   userSquads: Squad[];
+  isMaster: boolean;
   
   // Computed permissions
   isTech: boolean;
