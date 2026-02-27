@@ -114,10 +114,13 @@ async function fetchCargoGlobal(userId: string) {
       if (roleRes.error) {
         console.error('Error fetching user cargo:', roleRes.error);
         globalCargoCache.cargo = 'membro';
+        globalCargoCache.isMaster = false;
       } else if (roleRes.data?.cargo) {
         globalCargoCache.cargo = roleRes.data.cargo as UserCargo;
+        globalCargoCache.isMaster = roleRes.data.is_master === true;
       } else {
         globalCargoCache.cargo = 'membro';
+        globalCargoCache.isMaster = false;
       }
 
       // Cache to localStorage
