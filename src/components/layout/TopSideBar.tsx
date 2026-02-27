@@ -63,7 +63,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
   const { projects } = useProjects();
   const { profile } = useProfile();
   const { isGuest, loading: roleLoading } = useUserRole();
-  const { needsAdminApproval, loading: cargoLoading } = useCargo();
+  const { needsAdminApproval, isTech, isMaster, loading: cargoLoading } = useCargo();
   const { theme, toggleTheme } = useTheme();
   const { isTabHidden } = useTabVisibility();
   const [adminAccessModalOpen, setAdminAccessModalOpen] = useState(false);
@@ -89,6 +89,9 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
   const isActiveExact = (match: string) => location.pathname === match;
 
   const showWhatsApp = !roleLoading && !isGuest;
+  const showShare = !roleLoading && !isGuest;
+  const showClarity = !roleLoading && !isGuest;
+  const showDiagnostico = !roleLoading && !cargoLoading && (isTech || isMaster);
 
   return (
     <>
@@ -107,6 +110,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
           <div className="flex flex-col items-center gap-1.5 px-2">
             <TooltipProvider delayDuration={0}>
               {/* Diagnóstico TOC + LTP */}
+              {showDiagnostico && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -120,6 +124,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                   <p>Diagnóstico</p>
                 </TooltipContent>
               </Tooltip>
+              )}
 
               {/* Home */}
               <Tooltip>
@@ -251,6 +256,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
               </div>
 
               {/* Share - Compartilhamento */}
+              {showShare && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -264,8 +270,10 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                   <p>Compartilhar</p>
                 </TooltipContent>
               </Tooltip>
+              )}
 
               {/* Clarity - LP Analysis */}
+              {showClarity && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -279,6 +287,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                   <p>Clarity</p>
                 </TooltipContent>
               </Tooltip>
+              )}
 
               {/* Separator before WhatsApp */}
               {showWhatsApp && (

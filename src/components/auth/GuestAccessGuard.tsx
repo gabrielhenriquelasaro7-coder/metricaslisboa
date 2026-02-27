@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useCargo } from '@/hooks/useCargo';
 import { useAuth } from '@/hooks/useAuth';
 
 interface GuestAccessGuardProps {
@@ -23,6 +24,18 @@ const GUEST_ALLOWED_ROUTES = [
   '/settings',
 ];
 
+// Pages blocked for guests explicitly
+const GUEST_BLOCKED_ROUTES = [
+  '/whatsapp',
+  '/clarity',
+  '/diagnostico',
+];
+
+// Pages that only tech/master can access
+const TECH_MASTER_ONLY_ROUTES = [
+  '/diagnostico',
+];
+
 // Pages that require password change before access
 const REQUIRES_PASSWORD_CHANGE = [
   '/dashboard',
@@ -37,6 +50,7 @@ const REQUIRES_PASSWORD_CHANGE = [
 export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
   const { user, loading: authLoading } = useAuth();
   const { isGuest, needsPasswordChange, loading: roleLoading } = useUserRole();
+  const { isTech, isMaster, loading: cargoLoading } = useCargo();
   const navigate = useNavigate();
   const location = useLocation();
   const hasNavigatedRef = useRef(false);
@@ -54,8 +68,8 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
     // Prevent multiple navigations
     if (hasNavigatedRef.current) return;
     
-    // Wait for both auth and role to load
-    if (authLoading || roleLoading) return;
+    // Wait for all loading to finish
+    if (authLoading || roleLoading || cargoLoading) return;
     
     // Not logged in - let normal auth flow handle it
     if (!user) return;
@@ -76,11 +90,31 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
       }
     }
 
+    // Tech/master only routes
+    const isTechMasterOnly = TECH_MASTER_ONLY_ROUTES.some(route => 
+      currentPath === route || currentPath.startsWith(route + '/')
+    );
+    if (isTechMasterOnly && !isTech && !isMaster) {
+      hasNavigatedRef.current = true;
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
     // Guest-specific restrictions below
     if (!isGuest) return;
 
     // If guest tries to access /projects, redirect to dashboard
     if (currentPath === '/projects') {
+      hasNavigatedRef.current = true;
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    // Block guests from specific routes
+    const isBlocked = GUEST_BLOCKED_ROUTES.some(route =>
+      currentPath === route || currentPath.startsWith(route + '/')
+    );
+    if (isBlocked) {
       hasNavigatedRef.current = true;
       navigate('/dashboard', { replace: true });
       return;
@@ -95,7 +129,7 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
       hasNavigatedRef.current = true;
       navigate('/dashboard', { replace: true });
     }
-  }, [user, isGuest, needsPasswordChange, authLoading, roleLoading, location.pathname, navigate]);
+  }, [user, isGuest, isTech, isMaster, needsPasswordChange, authLoading, roleLoading, cargoLoading, location.pathname, navigate]);
 
   // Always render children immediately - never block
   return <>{children}</>;

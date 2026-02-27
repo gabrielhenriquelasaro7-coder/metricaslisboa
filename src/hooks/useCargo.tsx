@@ -38,6 +38,7 @@ interface CargoData {
   cargo: UserCargo;
   loading: boolean;
   userSquads: Squad[];
+  isMaster: boolean;
   
   // Computed permissions
   isTech: boolean;
@@ -61,12 +62,14 @@ interface CargoData {
 let globalCargoCache: {
   userId: string | null;
   cargo: UserCargo;
+  isMaster: boolean;
   squads: Squad[];
   loaded: boolean;
   fetchPromise: Promise<void> | null;
 } = {
   userId: null,
   cargo: 'membro',
+  isMaster: false,
   squads: [],
   loaded: false,
   fetchPromise: null,
@@ -96,7 +99,7 @@ async function fetchCargoGlobal(userId: string) {
       const [roleRes, squadRes] = await Promise.all([
         supabase
           .from('user_roles')
-          .select('cargo')
+          .select('cargo, is_master')
           .eq('user_id', userId)
           .maybeSingle(),
         supabase
@@ -111,10 +114,13 @@ async function fetchCargoGlobal(userId: string) {
       if (roleRes.error) {
         console.error('Error fetching user cargo:', roleRes.error);
         globalCargoCache.cargo = 'membro';
+        globalCargoCache.isMaster = false;
       } else if (roleRes.data?.cargo) {
         globalCargoCache.cargo = roleRes.data.cargo as UserCargo;
+        globalCargoCache.isMaster = roleRes.data.is_master === true;
       } else {
         globalCargoCache.cargo = 'membro';
+        globalCargoCache.isMaster = false;
       }
 
       // Cache to localStorage
@@ -173,7 +179,7 @@ export function useCargo(): CargoData {
       globalCargoCache.fetchPromise = null;
     }
     if (!authLoading && !user) {
-      globalCargoCache = { userId: null, cargo: 'membro', squads: [], loaded: false, fetchPromise: null };
+      globalCargoCache = { userId: null, cargo: 'membro', isMaster: false, squads: [], loaded: false, fetchPromise: null };
       localStorage.removeItem('user-cargo-cache');
       notifyListeners();
     }
@@ -206,10 +212,13 @@ export function useCargo(): CargoData {
   const isInvestidor = cargo === 'investidor';
   const isMembro = cargo === 'membro';
 
+  const isMaster = globalCargoCache.userId === user?.id ? globalCargoCache.isMaster : false;
+
   return {
     cargo,
     loading,
     userSquads,
+    isMaster,
     isTech,
     isGerente,
     isCoordenador,
