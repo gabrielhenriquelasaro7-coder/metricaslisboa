@@ -832,8 +832,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
             }), {});
 
             const { data, error } = await supabase.functions.invoke('diagnostic-ai', {
-                body: { 
-                    project, 
+                body: {
+                    project,
                     bottleneck,
                     performanceScores
                 }
@@ -983,8 +983,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                 const response = await fetch('https://skneplgqejrokoewnyhx.supabase.co/functions/v1/diagnostic-ai', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        project, 
+                    body: JSON.stringify({
+                        project,
                         bottleneck,
                         performanceScores
                     })
@@ -1223,8 +1223,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-3">
                                     <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Time Responsável (Squad)</Label>
-                                    <Select 
-                                        value={project.team || ''} 
+                                    <Select
+                                        value={project.team || ''}
                                         onValueChange={(val) => updateProject({ team: val })}
                                     >
                                         <SelectTrigger className="h-12 rounded-2xl bg-black border-white/10 focus:border-red-600/50 text-white text-xs font-bold px-4">
@@ -1376,7 +1376,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                                         placeholder="12"
                                         className="h-11 rounded-xl bg-zinc-950 border-white/10 text-white placeholder:text-zinc-600"
                                         value={(project.economics as any).meetingsPerWeek || ''}
-                                        onChange={e => updateProject({ economics: { ...project.economics, meetingsPerWeek: Number(e.target.value) } })}
+                                        onChange={e => updateProject({ economics: { ...project.economics, commercialCapacity: String(e.target.value) + ' reuniões/sem' } })}
                                     />
                                 </div>
 
@@ -1386,8 +1386,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                                         type="number"
                                         placeholder="15"
                                         className="h-11 rounded-xl bg-zinc-950 border-white/10 text-white placeholder:text-zinc-600"
-                                        value={''}
-                                        onChange={() => { }}
+                                        value={project.economics.proposalsPerWeek || ''}
+                                        onChange={e => updateProject({ economics: { ...project.economics, proposalsPerWeek: Number(e.target.value) } })}
                                     />
                                 </div>
                             </div>
@@ -1586,9 +1586,9 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                             onClick={handleNext}
                             disabled={isProcessingAI}
                         >
-                            {currentStepIdx === STEPS.length - 1 
-                              ? 'Gerar Diagnóstico' 
-                              : 'Avançar'} 
+                            {currentStepIdx === STEPS.length - 1
+                                ? 'Gerar Diagnóstico'
+                                : 'Avançar'}
                             <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>
                     )}

@@ -63,7 +63,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
   const { projects } = useProjects();
   const { profile } = useProfile();
   const { isGuest, loading: roleLoading } = useUserRole();
-  const { needsAdminApproval, canSeeAnalytics, canSeeDiagnostics, loading: cargoLoading } = useCargo();
+  const { needsAdminApproval, loading: cargoLoading } = useCargo();
   const { theme, toggleTheme } = useTheme();
   const { isTabHidden } = useTabVisibility();
   const [adminAccessModalOpen, setAdminAccessModalOpen] = useState(false);
@@ -89,6 +89,9 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
   const isActiveExact = (match: string) => location.pathname === match;
 
   const showWhatsApp = !roleLoading && !isGuest;
+  const showShare = !roleLoading && !isGuest;
+  const showClarity = !roleLoading && !isGuest;
+  const showDiagnostico = !roleLoading && !cargoLoading && (isTech || isMaster);
 
   return (
     <>
@@ -107,21 +110,19 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
           <div className="flex flex-col items-center gap-1.5 px-2">
             <TooltipProvider delayDuration={0}>
               {/* Diagnóstico TOC + LTP */}
-              {!isTabHidden('diagnostico') && canSeeDiagnostics && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleNavClick('/diagnostico')}
-                      className={cn('sidebar-icon-btn', isActive('/diagnostico') && 'active')}
-                    >
-                      <Activity className="w-5 h-5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                    <p>Diagnóstico</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleNavClick('/diagnostico')}
+                    className={cn('sidebar-icon-btn', isActive('/diagnostico') && 'active')}
+                  >
+                    <Activity className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                  <p>Diagnóstico</p>
+                </TooltipContent>
+              </Tooltip>
 
               {/* Home */}
               <Tooltip>
@@ -257,36 +258,36 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
               </div>
 
               {/* Share - Compartilhamento */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setShareDialogOpen(true)}
-                    className={cn('sidebar-icon-btn')}
-                  >
-                    <Share2 className="w-5 h-5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                  <p>Compartilhar</p>
-                </TooltipContent>
-              </Tooltip>
-
-              {/* Clarity - LP Analysis */}
-              {!isTabHidden('clarity') && (
+              {showShare && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => handleNavClick('/clarity')}
-                      className={cn('sidebar-icon-btn', isActive('/clarity') && 'active')}
+                      onClick={() => setShareDialogOpen(true)}
+                      className={cn('sidebar-icon-btn')}
                     >
-                      <img src={clarityIcon} alt="Clarity" className="w-5 h-5 object-contain" />
+                      <Share2 className="w-5 h-5" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                    <p>Clarity</p>
+                    <p>Compartilhar</p>
                   </TooltipContent>
                 </Tooltip>
               )}
+
+              {/* Clarity - LP Analysis */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleNavClick('/clarity')}
+                    className={cn('sidebar-icon-btn', isActive('/clarity') && 'active')}
+                  >
+                    <img src={clarityIcon} alt="Clarity" className="w-5 h-5 object-contain" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover border-border z-[60]">
+                  <p>Clarity</p>
+                </TooltipContent>
+              </Tooltip>
 
               {/* Separator before WhatsApp */}
               {showWhatsApp && (

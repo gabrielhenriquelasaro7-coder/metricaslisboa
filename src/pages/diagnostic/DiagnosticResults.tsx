@@ -1,5 +1,6 @@
-import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { DiagnosticProject } from '@/types/diagnostic';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,12 +59,15 @@ const TravaGauge = ({ id, idx, analysis, project, onValueChange }: {
     const score = analysis.stageScores.find((item: any) => item.id === id);
     const isBottleneck = (analysis.bottleneck as any).id === id;
 
-    // Configurações específicas para Cegueira (lógica invertida)
+    // Configurações específicas para Cegueira
     const isCegueira = id === 'cegueira';
 
-    // Fallback para cegueira (não tem benchmark definido no config padrão)
+    // Fallback para cegueira
     const bench = score?.benchmark || { mid: 1, min: 0, max: 100, direction: isCegueira ? 'lower_better' : 'higher_better', unit: 'percent', label: isCegueira ? 'Cegueira' : '' };
     const val = score?.value || 0;
+
+    // Para cegueira, sobrescrever statusText com base na reliability
+    const cegueiraLabel = isCegueira ? (score?.status === 'ruim' ? 'Cego' : score?.status === 'na_media' ? 'Semi-Manual' : 'Data-Driven') : null;
     const mid = bench?.mid || 1;
 
     // Estado Local para garantir arraste Manteiga (sem engasgar render global)
@@ -91,26 +95,15 @@ const TravaGauge = ({ id, idx, analysis, project, onValueChange }: {
     if (isCegueira) {
         dynamicStatus = localVal > 50 ? 'ruim' : localVal > 20 ? 'na_media' : 'bom';
     } else {
-        // Logica simplificada parecida com classifyMetricValue para reatividade instantanea baseada na regra do benchmark
-        if (localVal == null || Number.isNaN(localVal) || localVal === 0) {
-            dynamicStatus = 'sem_dados';
-        } else if (bench?.direction === 'higher_better') {
-            if (localVal <= (bench.min || 0)) dynamicStatus = 'ruim';
-            else if (localVal < (bench.mid || 1)) dynamicStatus = 'na_media';
-            else dynamicStatus = 'bom';
-        } else {
-            // lower_better
-            if (localVal >= (bench.max || 100)) dynamicStatus = 'ruim';
-            else if (localVal > (bench.mid || 1)) dynamicStatus = 'na_media';
-            else dynamicStatus = 'bom';
-        }
+        percentage = Math.max(0, Math.min(100, ((val - minVal) / (maxVal - minVal)) * 100));
     }
 
-    const statusText = dynamicStatus === 'ruim' ? 'Crítico' : dynamicStatus === 'na_media' ? 'Na Média' : 'Bom';
+    const statusText = score?.status === 'ruim' ? 'Crítico' : score?.status === 'na_media' ? 'Na Média' : 'Bom';
 
+    // Cores: Para cegueira, valor alto = ruim (vermelho), valor baixo = bom (verde)
     let statusColor = "";
     if (isCegueira) {
-        statusColor = localVal > 50 ? 'text-red-500' : localVal > 20 ? 'text-amber-500' : 'text-emerald-500';
+        statusColor = val > 50 ? 'text-red-500' : val > 20 ? 'text-amber-500' : 'text-emerald-500';
     } else {
         statusColor = dynamicStatus === 'ruim' ? 'text-red-500' : dynamicStatus === 'na_media' ? 'text-amber-500' : 'text-emerald-500';
     }
@@ -151,25 +144,25 @@ const TravaGauge = ({ id, idx, analysis, project, onValueChange }: {
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
                 {/* Barra arrastável Nativa Restuarada ao Visual Antigo */}
-                <div 
+                <div
                     className={cn(
                         "relative h-3 flex-1 rounded-full flex items-center shadow-inner group",
                         isInverse ? "bg-gradient-to-r from-emerald-600 via-amber-500 to-red-600" : "bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600",
                         isDragging && "ring-2 ring-blue-500/40"
                     )}
-                >                    
-                    <div 
+                >
+                    <div
                         className={cn(
                             "absolute w-5 h-5 bg-blue-500 rounded-full border-2 border-white shadow-[0_0_12px_rgba(59,130,246,0.8)] z-10 -translate-x-1/2 cursor-grab pointer-events-none transition-transform",
                             isDragging && "scale-150"
                         )}
-                        style={{ left: `${percentage}%` }} 
+                        style={{ left: `${percentage}%` }}
                     />
 
-                    <input 
-                        type="range" 
-                        min="0" 
-                        max="100" 
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
                         step="0.1"
                         value={percentage}
                         onChange={handleInputChange}
@@ -356,6 +349,99 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
     // Estado local do bowtie para permitir alterações via drag nos sliders
     const [localBowtie, setLocalBowtie] = useState(project.bowtie);
 
+    // ─── EXPORTAR PDF ─────────────────────────────────────────────────────────
+    const handleExportPDF = useCallback((proj: typeof project, anal: any) => {
+        try {
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const w = doc.internal.pageSize.getWidth();
+            let y = 20;
+
+            // Header
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Relatório de Restrição — TOC', w / 2, y, { align: 'center' });
+            y += 10;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Projeto: ${proj.name} · Segmento: ${proj.segment}`, w / 2, y, { align: 'center' });
+            y += 6;
+            doc.text(`Meta: R$ ${proj.goal.value.toLocaleString('pt-BR')} · Ticket: R$ ${proj.economics.averageTicket.toLocaleString('pt-BR')}`, w / 2, y, { align: 'center' });
+            y += 12;
+
+            // Restrição ativa
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(220, 38, 38);
+            doc.text(`RESTRIÇÃO ATIVA: ${getStageName(anal.bottleneck.id).toUpperCase()}`, 20, y);
+            doc.setTextColor(0, 0, 0);
+            y += 8;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Valor Real: ${anal.bottleneck.value.toFixed(2)} · Penalidade: ${anal.bottleneck.penalty.toFixed(0)} pts`, 20, y);
+            y += 10;
+
+            // Tabela de travas
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Painel de Travas', 20, y);
+            y += 8;
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Trava', 20, y);
+            doc.text('Valor Real', 80, y);
+            doc.text('Status', 130, y);
+            y += 6;
+            doc.setDrawColor(200);
+            doc.line(20, y - 2, w - 20, y - 2);
+
+            doc.setFont('helvetica', 'normal');
+            anal.stageScores.forEach((s: any) => {
+                const statusLabel = s.status === 'bom' ? 'Bom' : s.status === 'na_media' ? 'Na Média' : 'Crítico';
+                const isBottleneck = anal.bottleneck.id === s.id;
+                doc.text(`${isBottleneck ? '► ' : '  '}${getStageName(s.id)}`, 20, y);
+                doc.text(`${s.value.toFixed(2)}${s.benchmark?.unit === 'percent' || s.id === 'cegueira' ? '%' : ''}`, 80, y);
+                doc.text(statusLabel, 130, y);
+                y += 6;
+                if (y > 270) { doc.addPage(); y = 20; }
+            });
+
+            y += 6;
+            // Razão e injeção
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Core Problem:', 20, y);
+            y += 6;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            const reason = getStageReason(anal.bottleneck.id);
+            const reasonLines = doc.splitTextToSize(reason, w - 40);
+            doc.text(reasonLines, 20, y);
+            y += reasonLines.length * 5 + 4;
+
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Injeção Recomendada:', 20, y);
+            y += 6;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            const injection = getStageInjection(anal.bottleneck.id);
+            const injectionLines = doc.splitTextToSize(injection, w - 40);
+            doc.text(injectionLines, 20, y);
+
+            // Footer
+            doc.setFontSize(7);
+            doc.setTextColor(150);
+            doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} · Destrava Receita V4`, w / 2, 290, { align: 'center' });
+
+            doc.save(`diagnostico-${proj.name.replace(/\s+/g, '-').toLowerCase()}.pdf`);
+            toast.success('PDF exportado com sucesso!');
+        } catch (err) {
+            console.error('Erro ao exportar PDF:', err);
+            toast.error('Erro ao gerar PDF');
+        }
+    }, []);
+
     // Callback chamado quando o slider é arrastado
     const handleValueChange = useCallback((stageId: string, newValue: number) => {
         setLocalBowtie(prev => ({
@@ -364,53 +450,90 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
         }));
     }, []);
 
-    // Motor de Inferência reativo via Hook TOC
-    const { stageScores, bottleneck } = useDiagnosticAnalysis(project, localBowtie);
+    // Load benchmarks for comparison
+    const benchmarks = useMemo(() => {
+        const config = createDefaultBenchmarkConfigFromSeed();
+        return config.segments.find(s => s.segmentKey === project.segment) || config.segments[0];
+    }, [project.segment]);
 
-    const analysis = useMemo(() => ({
-        stageScores,
-        bottleneck
-    }), [stageScores, bottleneck]);
+    // Motor de Inferência reativo ao localBowtie (linkado com os sliders)
+    const analysis = useMemo(() => {
+        // ORDEM FÍSICA PARA TOC: Cegueira -> Topo -> Fim do Funil
+        const stageOrder: BenchmarkStageId[] = ['exposicao', 'atencao', 'interesse', 'qualificacao', 'compromisso', 'decisao', 'retencao'];
 
-    const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+        // Calcula scores das etapas do funil
+        const stageScores = stageOrder.map(stageId => {
+            const stageMetrics = benchmarks.stages[stageId] || [];
+            const userBowtieData = localBowtie[stageId];
 
-    const handleGenerateAI = async () => {
-        setIsGeneratingAI(true);
-        try {
-            const performanceScores = analysis.stageScores.reduce((acc: any, s: any) => ({ ...acc, [s.id]: s.score }), {});
+            let stagePenalty = 0;
+            let totalWeights = 0;
 
-            const response = await fetch('https://skneplgqejrokoewnyhx.supabase.co/functions/v1/diagnostic-ai', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ project, bottleneck: analysis.bottleneck, performanceScores })
+            stageMetrics.forEach((m, idx) => {
+                const weight = idx === 0 ? 1.0 : 0.5;
+                const status = classifyMetricValue(userBowtieData.value, m);
+
+                let metricPenalty = 0;
+                if (status === 'ruim') metricPenalty = 100;
+                else if (status === 'na_media') metricPenalty = 40;
+                else if (status === 'bom') metricPenalty = 10;
+
+                stagePenalty += metricPenalty * weight;
+                totalWeights += weight;
             });
 
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(errText || 'Erro da IA (401/500)');
+            const finalPenalty = stagePenalty / (totalWeights || 1);
+            const status = finalPenalty > 60 ? 'ruim' : finalPenalty > 25 ? 'na_media' : 'bom';
+
+            return {
+                id: stageId,
+                status: status as BenchmarkStatus,
+                penalty: finalPenalty,
+                value: userBowtieData.value,
+                benchmark: stageMetrics[0]
+            };
+        });
+
+        // Score da Cegueira (Lógica Invertida: quanto maior, pior)
+        const cegueiraVal = localBowtie.cegueira.value || 0;
+        const cegueiraStatus = cegueiraVal > 50 ? 'ruim' : cegueiraVal > 20 ? 'na_media' : 'bom';
+
+        // Gap de cegueira: 100% = penalty máxima, 0% = penalty mínima
+        // Se cegueira for 0, gap deve ser 0.
+        // Penalty base 100 para cegueira crítica para vencer empates
+        const cegueiraPenalty = (cegueiraVal / 100) * 100;
+
+        const cegueiraScore = {
+            id: 'cegueira' as any,
+            status: cegueiraStatus as BenchmarkStatus,
+            penalty: cegueiraPenalty,
+            value: cegueiraVal,
+            benchmark: { mid: 1, min: 0, max: 100, direction: 'lower_better', unit: 'percent', label: 'Cegueira' } as any
+        };
+
+        // LÓGICA DE TOC: Prioridade Absoluta para Cegueira se Ruim, depois segue a ordem física.
+        const allScoresOrdered = [cegueiraScore, ...stageScores];
+
+        // 1. Prioridade Absoluta: Se a Cegueira for 'ruim', ela É o gargalo.
+        if (cegueiraStatus === 'ruim') {
+            return { stageScores: allScoresOrdered, bottleneck: cegueiraScore };
+        }
+
+        // 2. Se não for cegueira, procura o primeiro "ruim" na ordem física (Exposição -> ...)
+        let bottleneck = stageScores.find(s => s.status === 'ruim');
+
+        // 3. Se ninguém estiver "ruim", procura por alguém "na_media" (priorizando cegueira antes do resto)
+        if (!bottleneck) {
+            if (cegueiraStatus === 'na_media') {
+                bottleneck = cegueiraScore;
+            } else {
+                bottleneck = stageScores.find(s => s.status === 'na_media');
             }
+        }
 
-            const data = await response.json();
-            const error = null;
-
-            if (error) throw error;
-
-            if (data && onSave) {
-                const updatedProject: DiagnosticProject = {
-                    ...project,
-                    ai_analysis: {
-                        ...data,
-                        generatedAt: new Date().toISOString()
-                    }
-                };
-                onSave(updatedProject);
-                toast.success('Análise estratégica gerada com sucesso pela IA!');
-            }
-        } catch (error: any) {
-            console.error('Erro ao gerar análise IA:', error);
-            toast.error('Erro ao conectar com a IA: ' + (error.message || 'Verifique sua chave OpenRouter'));
-        } finally {
-            setIsGeneratingAI(false);
+        // 4. Se todo mundo estiver "bom", pega o que tiver maior penalty (o menos "bom")
+        if (!bottleneck) {
+            bottleneck = [...allScoresOrdered].sort((a, b) => b.penalty - a.penalty)[0];
         }
     };
 
@@ -430,21 +553,20 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
                         <p className="text-[9px] text-zinc-600 uppercase font-black tracking-widest">Benchmark: {project.segment} · Meta: R$ {(project.goal?.value || 0).toLocaleString('pt-BR')}</p>
                     </div>
                     <div className="flex gap-1.5 flex-wrap md:flex-nowrap">
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
+                        <Button
+                            variant="outline"
+                            size="sm"
                             className={cn(
                                 "rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-indigo-600/10 border-indigo-600/30 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all",
                                 isGeneratingAI && "animate-pulse"
-                            )} 
+                            )}
                             onClick={handleGenerateAI}
                             disabled={isGeneratingAI}
                         >
                             <Zap className={cn("w-3.5 h-3.5", isGeneratingAI && "animate-spin")} />
                             {isGeneratingAI ? 'Gerando Inteligência...' : 'Gerar Análise IA'}
                         </Button>
-                        <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/10 text-white hover:bg-white/10" onClick={onEdit}>Editar</Button>
-                        <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/10 text-white hover:bg-white/10"><Download className="w-3.5 h-3.5" /> Exportar</Button>
+                        <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10"><Download className="w-3.5 h-3.5" /> Exportar</Button>
                         <Button size="sm" className="rounded-xl h-8 bg-[#EA3829] hover:bg-[#D32F2F] text-white gap-2 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-red-600/10">
                             <Share2 className="w-3.5 h-3.5" /> Compartilhar
                         </Button>
@@ -554,7 +676,7 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
                                             </ul>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="lg:col-span-2 flex flex-col gap-6">
                                         {/* PROBLEMA RAIZ */}
                                         <div className="bg-[#120505] border border-red-900/30 p-8 rounded-3xl flex-1">
@@ -566,7 +688,7 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
                                                 {project.ai_analysis.coreProblem}
                                             </p>
                                         </div>
-                                        
+
                                         {/* INJEÇÃO ESTRATÉGICA */}
                                         <div className="bg-[#03170e] border border-emerald-900/40 p-8 rounded-3xl flex-1">
                                             <div className="flex items-center gap-2 mb-4 text-emerald-500">
@@ -712,15 +834,15 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
                                                     <span className={cn(
                                                         "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
                                                         s.status === 'proximo_do_ideal' ? "text-cyan-400 bg-cyan-400/10" :
-                                                        s.status === 'bom' ? "text-emerald-500 bg-emerald-500/10" :
-                                                        s.status === 'na_media' ? "text-amber-500 bg-amber-500/10" :
-                                                        s.status === 'sem_dados' ? "text-zinc-500 bg-zinc-500/10" :
-                                                        "text-red-500 bg-red-500/10"
+                                                            s.status === 'bom' ? "text-emerald-500 bg-emerald-500/10" :
+                                                                s.status === 'na_media' ? "text-amber-500 bg-amber-500/10" :
+                                                                    s.status === 'sem_dados' ? "text-zinc-500 bg-zinc-500/10" :
+                                                                        "text-red-500 bg-red-500/10"
                                                     )}>
-                                                        {s.status === 'proximo_do_ideal' ? 'Excelente' : 
-                                                         s.status === 'bom' ? 'Bom' : 
-                                                         s.status === 'na_media' ? 'Médio' : 
-                                                         s.status === 'sem_dados' ? 'Sem Dados' : 'Gargalo'}
+                                                        {s.status === 'proximo_do_ideal' ? 'Excelente' :
+                                                            s.status === 'bom' ? 'Bom' :
+                                                                s.status === 'na_media' ? 'Médio' :
+                                                                    s.status === 'sem_dados' ? 'Sem Dados' : 'Gargalo'}
                                                     </span>
                                                 </td>
                                             </tr>
@@ -795,20 +917,20 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                             {[
-                                { 
-                                    phase: "Mês 01", 
-                                    title: project.ai_analysis?.plan90Days?.phase1?.title || "Fundação e Estabilização", 
-                                    items: project.ai_analysis?.plan90Days?.phase1?.actions || ["Setup de analytics e tracking real", "Auditoria de processos na trava", "Correção de vazamentos críticos"] 
+                                {
+                                    phase: "Mês 01",
+                                    title: project.ai_analysis?.plan90Days?.phase1?.title || "Fundação e Estabilização",
+                                    items: project.ai_analysis?.plan90Days?.phase1?.actions || ["Setup de analytics e tracking real", "Auditoria de processos na trava", "Correção de vazamentos críticos"]
                                 },
-                                { 
-                                    phase: "Mês 02", 
-                                    title: project.ai_analysis?.plan90Days?.phase2?.title || "Otimização e Alavancagem", 
-                                    items: project.ai_analysis?.plan90Days?.phase2?.actions || [`Implementação da Injeção: ${getStageInjection(analysis.bottleneck.id, project.briefing?.business_model_desc)}`, "Testes A/B e refinamento de script", "Treinamento intensivo de equipe"] 
+                                {
+                                    phase: "Mês 02",
+                                    title: project.ai_analysis?.plan90Days?.phase2?.title || "Otimização e Alavancagem",
+                                    items: project.ai_analysis?.plan90Days?.phase2?.actions || [`Implementação da Injeção: ${getStageInjection(analysis.bottleneck.id, project.briefing?.business_model_desc)}`, "Testes A/B e refinamento de script", "Treinamento intensivo de equipe"]
                                 },
-                                { 
-                                    phase: "Mês 03", 
-                                    title: project.ai_analysis?.plan90Days?.phase3?.title || "Sustentação e Escala", 
-                                    items: project.ai_analysis?.plan90Days?.phase3?.actions || ["Monitoramento de throughput 24/7", "Expansão de canais satélites", "Preparação para próxima restrição"] 
+                                {
+                                    phase: "Mês 03",
+                                    title: project.ai_analysis?.plan90Days?.phase3?.title || "Sustentação e Escala",
+                                    items: project.ai_analysis?.plan90Days?.phase3?.actions || ["Monitoramento de throughput 24/7", "Expansão de canais satélites", "Preparação para próxima restrição"]
                                 }
                             ].map((p, i) => (
                                 <div key={i} className="bg-black/30 border border-white/5 p-8 rounded-[2.5rem] space-y-6 relative overflow-hidden group hover:border-red-600/20 transition-all">

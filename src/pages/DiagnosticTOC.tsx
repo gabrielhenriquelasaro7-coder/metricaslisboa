@@ -88,29 +88,30 @@ export default function DiagnosticTOC() {
 
       if (error) throw error;
 
-      const mapped = data.map(r => ({
-        ...r.data,
-        id: r.id,
-        dbId: r.id,
-        projectId: r.project_id,
-        month: r.month,
-        year: r.year,
-        updatedAt: r.updated_at
-      }));
+      const mapped: DiagnosticProject[] = (data || []).map((r: any) => {
+        const reportData = (typeof r.data === 'object' && r.data !== null) ? r.data : {};
+        return {
+          ...reportData,
+          id: r.id,
+          dbId: r.id,
+          projectId: r.project_id,
+          month: r.month,
+          year: r.year,
+          updatedAt: r.updated_at
+        } as DiagnosticProject;
+      });
       setProjects(mapped);
     } catch (error: any) {
       console.error('Erro ao buscar relatórios:', error);
 
-      // Fallback para LocalStorage se a tabela não existir ou outro erro ocorrer
       const localData = localStorage.getItem(PROJECTS_STORAGE_KEY);
       if (localData) {
         const localProjects: DiagnosticProject[] = JSON.parse(localData);
-        // Filtrar por período se estivermos em modo local (pode ser simplificado)
-        setProjects(localProjects.filter(p => !p.archived));
+        setProjects(localProjects);
       }
 
       if (error?.code === '42P01') {
-        toast.info('Modo Local Ativo: Tabela diagnostic_reports não encontrada. Dados sendo salvos localmente.', {
+        toast.info('Modo Local Ativo: Tabela não encontrada. Dados sendo salvos localmente.', {
           duration: 4000
         });
       }
@@ -124,7 +125,7 @@ export default function DiagnosticTOC() {
   }, [selectedMonth, selectedYear]);
 
   const saveProject = async (p: DiagnosticProject) => {
-    // 1. Sempre salvar no LocalStorage primeiro como backup (segurança)
+    // 1. Sempre salvar no LocalStorage primeiro como backup
     const localData = localStorage.getItem(PROJECTS_STORAGE_KEY);
     let localProjects: DiagnosticProject[] = localData ? JSON.parse(localData) : [];
     const index = localProjects.findIndex(lp => lp.id === p.id);
@@ -135,29 +136,27 @@ export default function DiagnosticTOC() {
     }
     localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(localProjects));
 
-    // 2. Tentar salvar no Supabase
+    // 2. Salvar no banco
     try {
       const systemProjectId = (p as any).systemProjectId || (p as any).projectId || p.id;
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('diagnostic_reports')
         .upsert({
           project_id: systemProjectId,
           month: selectedMonth,
           year: selectedYear,
-          data: p,
+          data: p as any,
           updated_at: new Date().toISOString()
-        }, {
+        } as any, {
           onConflict: 'project_id, month, year'
-        })
-        .select()
-        .single();
+        });
 
       if (error) throw error;
       toast.success('Diagnóstico salvo na nuvem!');
       fetchReports();
     } catch (error: any) {
-      console.error('Erro ao salvar no Supabase:', error);
+      console.error('Erro ao salvar:', error);
       if (error?.code === '42P01') {
         toast.success('Diagnóstico salvo localmente!');
       } else {
@@ -168,7 +167,6 @@ export default function DiagnosticTOC() {
   };
 
   const deleteProject = async (id: string) => {
-    // 1. Remover do LocalStorage
     const localData = localStorage.getItem(PROJECTS_STORAGE_KEY);
     if (localData) {
       const localProjects: DiagnosticProject[] = JSON.parse(localData);
@@ -176,20 +174,16 @@ export default function DiagnosticTOC() {
       localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(filtered));
     }
 
-    // 2. Tentar remover do Supabase
     try {
-      const { error } = await supabase
+      await supabase
         .from('diagnostic_reports')
         .delete()
-        .eq('id', id);
+        .eq('id', id as any);
 
-      // Não dar erro se o registro só existir localmente
-      if (!error) {
-        toast.success('Diagnóstico removido.');
-      }
+      toast.success('Diagnóstico removido.');
       fetchReports();
     } catch (error) {
-      console.error('Erro ao excluir do Supabase:', error);
+      console.error('Erro ao excluir:', error);
       toast.success('Diagnóstico removido localmente.');
       fetchReports();
     }

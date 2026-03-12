@@ -69,7 +69,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { updateProject } = useProjects();
   const [customConfigOpen, setCustomConfigOpen] = useState(false);
-  
+
   const { config, createConfig, updateConfig } = useProjectMetricConfig(project?.id);
 
   const [formData, setFormData] = useState({
@@ -100,14 +100,12 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
   // Fetch investidores and squads
   useEffect(() => {
     const fetchOptions = async () => {
-      // Fetch only investidores from user_management (this inherently excludes guests/convidados)
+      // Fetch investidores (users with cargo = 'investidor') along with their squad
       const { data: investidoresData } = await supabase
-        .from('user_management')
-        .select('user_id, full_name, squad_id')
-        .eq('cargo', 'investidor')
-        .not('user_id', 'is', null) // Must be active
-        .order('full_name');
-      
+        .from('user_roles')
+        .select('user_id, cargo')
+        .eq('cargo', 'investidor');
+
       if (investidoresData && investidoresData.length > 0) {
         setInvestidores(investidoresData as Investidor[]);
       }
@@ -117,7 +115,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
         .from('squads')
         .select('id, name')
         .order('name');
-      
+
       if (squadsData) {
         setSquads(squadsData);
       }
@@ -131,15 +129,15 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
   // Auto-select squad when investidor changes
   const handleInvestidorChange = (userId: string) => {
     const selectedInvestidor = investidores.find(i => i.user_id === userId);
-    
+
     if (userId === 'none') {
       setFormData({ ...formData, investidor_id: null });
     } else if (selectedInvestidor?.squad_id) {
       // Auto-fill squad from investidor
-      setFormData({ 
-        ...formData, 
+      setFormData({
+        ...formData,
         investidor_id: userId,
-        squad_id: selectedInvestidor.squad_id 
+        squad_id: selectedInvestidor.squad_id
       });
     } else {
       setFormData({ ...formData, investidor_id: userId });
@@ -184,7 +182,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!project) return;
 
     try {
@@ -206,11 +204,11 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
     setIsLoading(true);
     const previousGoogleId = project.google_customer_id || '';
     const newGoogleId = formData.google_customer_id || '';
-    
+
     try {
       // Ensure empty strings for UUIDs/nullable fields are converted back to nulls.
       // E converte o singelo investidor_id em investidor_ids[] como esperado pelo back
-      const updatePayload = { 
+      const updatePayload = {
         ...formData,
         facebook_page_id: formData.facebook_page_id || null,
         google_customer_id: formData.google_customer_id || null,
@@ -220,7 +218,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
       };
 
       await updateProject(project.id, updatePayload);
-      
+
       // Handle custom metric config
       if (formData.business_model === 'custom') {
         const configData = {
@@ -235,7 +233,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
           chart_primary_metric: METRIC_TEMPLATES.custom.chart_primary_metric,
           chart_secondary_metric: metricConfig.result_metrics[0] || metricConfig.result_metric,
         };
-        
+
         if (config) {
           await updateConfig(configData);
         } else {
@@ -260,7 +258,7 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
           }
         });
       }
-      
+
       onOpenChange(false);
     } finally {
       setIsLoading(false);
@@ -394,11 +392,10 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
                     key={model.value}
                     type="button"
                     onClick={() => handleBusinessModelChange(model.value)}
-                    className={`p-3 rounded-lg border text-left transition-all ${
-                      formData.business_model === model.value
+                    className={`p-3 rounded-lg border text-left transition-all ${formData.business_model === model.value
                         ? 'border-primary bg-primary/10'
                         : 'border-border hover:border-primary/50'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2">
                       {model.icon}
