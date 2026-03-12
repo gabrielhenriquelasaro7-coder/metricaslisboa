@@ -227,7 +227,7 @@ export function useCargo(): CargoData {
     canAccessFullAdmin: isTech,
     canImportProject: isTech || isGerente || isCoordenador,
     canSeeAnalytics: isTech || isMaster,
-    canSeeDiagnostics: isTech || isMaster,
+    canSeeDiagnostics: isMaster,
     needsAdminApproval: isInvestidor || isCoordenador,
     refetch: async () => {
       if (!user) return;

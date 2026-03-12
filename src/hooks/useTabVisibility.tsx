@@ -3,15 +3,15 @@ import { useAuth } from './useAuth';
 import { useCargo } from './useCargo';
 import { supabase } from '@/integrations/supabase/client';
 
-export type TabKey = 
-  | 'dashboard' 
-  | 'campaigns' 
-  | 'creatives' 
-  | 'ai-assistant' 
-  | 'predictive' 
-  | 'suggestions' 
-  | 'whatsapp' 
-  | 'financial' 
+export type TabKey =
+  | 'dashboard'
+  | 'campaigns'
+  | 'creatives'
+  | 'ai-assistant'
+  | 'predictive'
+  | 'suggestions'
+  | 'whatsapp'
+  | 'financial'
   | 'settings'
   | 'admin'
   | 'analytics'
@@ -42,7 +42,7 @@ export const TAB_LABELS: Record<TabKey, string> = {
 };
 
 // Tabs that are hidden by default and need to be explicitly enabled
-const HIDDEN_BY_DEFAULT_TABS: TabKey[] = ['admin'];
+const HIDDEN_BY_DEFAULT_TABS: TabKey[] = ['admin', 'analytics'];
 
 interface UseTabVisibilityReturn {
   hiddenTabs: TabKey[];
@@ -127,6 +127,7 @@ export function useTabVisibility(): UseTabVisibilityReturn {
     refetch: fetchVisibility,
   };
 }
+
 
 // Hook for Tech to manage user tab visibility
 export function useTabVisibilityManagement(): UseTabVisibilityManagementReturn {

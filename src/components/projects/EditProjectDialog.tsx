@@ -100,37 +100,16 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
   // Fetch investidores and squads
   useEffect(() => {
     const fetchOptions = async () => {
-      // Fetch investidores (users with cargo = 'investidor') along with their squad
+      // Fetch only investidores from user_management (this inherently excludes guests/convidados)
       const { data: investidoresData } = await supabase
-        .from('user_roles')
-        .select('user_id, cargo')
-        .eq('cargo', 'investidor');
+        .from('user_management')
+        .select('user_id, full_name, squad_id')
+        .eq('cargo', 'investidor')
+        .not('user_id', 'is', null) // Must be active
+        .order('full_name');
       
       if (investidoresData && investidoresData.length > 0) {
-        const userIds = investidoresData.map(i => i.user_id);
-        
-        // Fetch profiles
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', userIds);
-        
-        // Fetch squad memberships for these users
-        const { data: squadMemberships } = await supabase
-          .from('squad_members')
-          .select('user_id, squad_id')
-          .in('user_id', userIds);
-        
-        if (profiles) {
-          const investidoresWithSquad = profiles
-            .filter(p => p.full_name)
-            .map(p => ({
-              user_id: p.user_id,
-              full_name: p.full_name,
-              squad_id: squadMemberships?.find(sm => sm.user_id === p.user_id)?.squad_id || null
-            }));
-          setInvestidores(investidoresWithSquad as Investidor[]);
-        }
+        setInvestidores(investidoresData as Investidor[]);
       }
 
       // Fetch squads
@@ -229,7 +208,18 @@ export default function EditProjectDialog({ project, open, onOpenChange }: EditP
     const newGoogleId = formData.google_customer_id || '';
     
     try {
-      await updateProject(project.id, formData);
+      // Ensure empty strings for UUIDs/nullable fields are converted back to nulls.
+      // E converte o singelo investidor_id em investidor_ids[] como esperado pelo back
+      const updatePayload = { 
+        ...formData,
+        facebook_page_id: formData.facebook_page_id || null,
+        google_customer_id: formData.google_customer_id || null,
+        investidor_id: formData.investidor_id || null,
+        squad_id: formData.squad_id || null,
+        investidor_ids: formData.investidor_id ? [formData.investidor_id] : []
+      };
+
+      await updateProject(project.id, updatePayload);
       
       // Handle custom metric config
       if (formData.business_model === 'custom') {

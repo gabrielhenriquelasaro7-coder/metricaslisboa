@@ -14,7 +14,7 @@ export function LoadingScreen({
   className
 }: LoadingScreenProps) {
   return (
-    <motion.div 
+    <motion.div
       className={cn(
         'flex flex-col items-center justify-center bg-background',
         fullScreen && 'min-h-screen fixed inset-0 z-[100]',
@@ -24,31 +24,38 @@ export function LoadingScreen({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
     >
-      <motion.div 
-        className="relative z-10 flex flex-col items-center gap-4"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.3 }}
+      <motion.div
+        className="relative z-10 flex flex-col items-center gap-8"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.1, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
       >
-        {/* V4 Logo Loader - White full logo */}
-        <motion.img 
-          src={v4LogoFull} 
-          alt="V4" 
-          className="h-10 w-auto object-contain brightness-0 invert"
-          animate={{ 
-            opacity: [0.4, 1, 0.4],
-            scale: [0.95, 1.05, 0.95],
-          }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-        
-        <p className="text-sm text-muted-foreground tracking-widest">{message}</p>
+        <div className="relative w-24 h-24 flex items-center justify-center">
+          {/* Main Ring */}
+          <motion.div
+            className="absolute inset-0 border-[3px] border-transparent border-t-white/80 rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{
+              duration: 1,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          />
+
+          {/* Subtle Outer Track */}
+          <div className="absolute inset-0 border-[3px] border-white/10 rounded-full" />
+
+          {/* Logo */}
+          <motion.img
+            src={v4LogoFull}
+            alt="V4"
+            className="h-10 w-auto object-contain brightness-0 invert opacity-90"
+          />
+        </div>
+
+        <p className="text-[10px] text-white/50 uppercase tracking-[0.3em] font-medium">{message}</p>
       </motion.div>
     </motion.div>
   );
@@ -59,11 +66,11 @@ export function LoadingSpinner({ className, size = 'md' }: { className?: string;
 
   return (
     <div className={cn('flex flex-col items-center gap-2', className)}>
-      <motion.img 
-        src={v4LogoFull} 
-        alt="V4" 
+      <motion.img
+        src={v4LogoFull}
+        alt="V4"
         className={cn('w-auto object-contain brightness-0 invert', sizeMap[size])}
-        animate={{ 
+        animate={{
           opacity: [0.4, 1, 0.4],
           scale: [0.95, 1.05, 0.95],
         }}
@@ -79,7 +86,7 @@ export function LoadingSpinner({ className, size = 'md' }: { className?: string;
 
 export function LoadingCard({ message = 'Carregando...' }: { message?: string }) {
   return (
-    <motion.div 
+    <motion.div
       className="glass-card p-6 flex flex-col items-center justify-center gap-3"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}

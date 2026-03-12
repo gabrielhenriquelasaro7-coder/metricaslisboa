@@ -13,6 +13,7 @@ import {
   AlertCircle,
   HelpCircle
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -136,15 +137,18 @@ export function CRMConnectionCard({
   };
 
   const handleSubmit = async () => {
+    console.log("Submit clicked", { selectedCRM: selectedCRM?.id, apiUrl, hasKey: !!apiKey });
     if (!selectedCRM) return;
 
     if (!apiKey.trim()) {
       setLocalError('Token de acesso é obrigatório');
+      toast.error('Token de acesso é obrigatório');
       return;
     }
 
     if (selectedCRM.requiresUrl && !apiUrl.trim()) {
       setLocalError('Subdomínio é obrigatório');
+      toast.error('Subdomínio é obrigatório');
       return;
     }
 
@@ -167,14 +171,19 @@ export function CRMConnectionCard({
         }
       }
 
+      console.log("Calling onConnect com url formatada:", formattedUrl);
       await onConnect(selectedCRM.id, {
         api_key: apiKey.trim(),
         api_url: formattedUrl || undefined
       });
       
+      console.log("Sucesso, fechando a modal");
       handleCloseModal();
     } catch (error) {
-      console.error('Connection error:', error);
+      console.error('Connection error form fallback:', error);
+      const msg = error instanceof Error ? error.message : "Erro desconhecido ao conectar";
+      setLocalError(msg);
+      toast.error("Erro no formulário: " + msg);
     } finally {
       setIsSubmitting(false);
     }

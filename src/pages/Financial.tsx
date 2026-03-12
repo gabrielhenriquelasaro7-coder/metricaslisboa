@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
+import {
   FinancialMetricsGrid,
   CRMConnectionCard,
   SyncStatusCard,
@@ -29,8 +29,8 @@ import {
 } from '@/components/financial';
 import type { FunnelCard } from '@/components/financial';
 import type { DREPeriod } from '@/components/financial/CompleteDRE';
-import { 
-  Users, 
+import {
+  Users,
   AlertCircle,
   ShoppingCart,
   Store,
@@ -62,7 +62,7 @@ function getDateRangeFromPeriod(period: DREPeriod, customRange?: { from?: Date; 
   const today = new Date();
   let start: Date;
   let end: Date = today;
-  
+
   switch (period) {
     case 'last_7d':
       start = subDays(today, 7);
@@ -86,12 +86,12 @@ function getDateRangeFromPeriod(period: DREPeriod, customRange?: { from?: Date; 
         end = customRange.to;
         break;
       }
-      // fallthrough
+    // fallthrough
     default:
       start = startOfMonth(today);
       end = today;
   }
-  
+
   return {
     startDate: format(start, 'yyyy-MM-dd'),
     endDate: format(end, 'yyyy-MM-dd'),
@@ -103,8 +103,8 @@ export default function Financial() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { projects, loading: projectsLoading } = useProjects();
-  const { isInvestidor, loading: cargoLoading } = useCargo();
-  
+  const { loading: cargoLoading } = useCargo();
+
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
   const businessModel = selectedProject?.business_model as 'inside_sales' | 'ecommerce' | 'pdv' | 'infoproduto' | 'custom' | undefined;
@@ -112,30 +112,30 @@ export default function Financial() {
   const [drePeriod, setDrePeriod] = useState<DREPeriod>('last_30d');
   const [showDREHistory, setShowDREHistory] = useState(false);
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
-  
+
   // Calculate date range from period for CRM filtering
   const crmDateRange = useMemo(() => getDateRangeFromPeriod(drePeriod, customDateRange), [drePeriod, customDateRange]);
 
-  const { 
-    status: crmStatus, 
-    isLoading: crmLoading, 
-    isConnecting, 
+  const {
+    status: crmStatus,
+    isLoading: crmLoading,
+    isConnecting,
     connectionError,
-    connect: connectCRM, 
+    connect: connectCRM,
     disconnect: disconnectCRM,
     triggerSync,
     selectPipeline,
     fetchStatus
-  } = useCRMConnection(selectedProjectId || undefined, crmDateRange);
-  
-  // Map DRE period to daily metrics period
-  const metricsTimePeriod = drePeriod === 'last_7d' ? 'last_7d' : 
-                            drePeriod === 'last_30d' ? 'last_30d' : 
-                            drePeriod === 'this_month' ? 'this_month' : 
-                            drePeriod === 'last_month' ? 'last_month' : 'last_30d';
+  } = useCRMConnection(selectedProject?.id || undefined, crmDateRange);
 
-  const { dailyData } = useDailyMetrics(selectedProjectId || undefined, metricsTimePeriod);
-  
+  // Map DRE period to daily metrics period
+  const metricsTimePeriod = drePeriod === 'last_7d' ? 'last_7d' :
+    drePeriod === 'last_30d' ? 'last_30d' :
+      drePeriod === 'this_month' ? 'this_month' :
+        drePeriod === 'last_month' ? 'last_month' : 'last_30d';
+
+  const { dailyData } = useDailyMetrics(selectedProject?.id || undefined, metricsTimePeriod);
+
   // Calculate totals from ads data
   const adsMetrics = useMemo(() => {
     if (!dailyData?.length) return { spend: 0, revenue: 0, conversions: 0 };
@@ -149,21 +149,12 @@ export default function Financial() {
   const totalAdSpend = adsMetrics.spend;
 
   const connectedCRM = crmStatus?.connected ? crmStatus.provider : null;
-  const syncStatus = crmStatus?.sync?.status === 'syncing' ? 'syncing' : 
-                     crmStatus?.sync?.status === 'completed' ? 'synced' : 
-                     crmStatus?.sync?.status === 'failed' ? 'error' : 'pending';
+  const syncStatus = crmStatus?.sync?.status === 'syncing' ? 'syncing' :
+    crmStatus?.sync?.status === 'completed' ? 'synced' :
+      crmStatus?.sync?.status === 'failed' ? 'error' : 'pending';
 
-  const ALLOWED_EMAIL = 'gabrielhenriquelasaro7@gmail.com';
-  // Authorized: admin email OR investidor
-  const isAuthorized = user?.email === ALLOWED_EMAIL || isInvestidor;
   const isBusinessModelAllowed = businessModel && ALLOWED_BUSINESS_MODELS.includes(businessModel);
   const businessModelInfo = businessModel ? BUSINESS_MODEL_LABELS[businessModel] : null;
-
-  useEffect(() => {
-    if (!authLoading && !cargoLoading && !isAuthorized) {
-      navigate('/dashboard');
-    }
-  }, [authLoading, cargoLoading, isAuthorized, navigate]);
 
   const crmMetrics = useMemo(() => ({
     revenue: crmStatus?.funnel?.revenue || crmStatus?.stats?.total_revenue || 0,
@@ -190,8 +181,6 @@ export default function Financial() {
   }), [crmMetrics, totalAdSpend]);
 
   const isPageLoading = authLoading || projectsLoading || crmLoading || cargoLoading;
-
-  if (!isAuthorized) return null;
 
   if (!selectedProject) {
     return (
@@ -229,54 +218,54 @@ export default function Financial() {
   return (
     <DashboardLayout>
       <SmoothLoader loading={isPageLoading} skeleton={<div className="p-6"><DashboardSkeleton /></div>}>
-      <div className="space-y-8 pb-8 pt-4 sm:pt-0">
-        {/* Hero Header - Clean & Minimal */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-2 sm:mt-0">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
-              <Wallet className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight">Central Financeira</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className="gap-1.5 text-xs">
-                  <BusinessModelIcon className="w-3 h-3" />
-                  {businessModelInfo?.label}
-                </Badge>
-                {connectedCRM && (
-                  <Badge variant="outline" className="gap-1.5 text-xs text-metric-positive border-metric-positive/30">
-                    <Sparkles className="w-3 h-3" />
-                    CRM
+        <div className="space-y-8 pb-8 pt-4 sm:pt-0">
+          {/* Hero Header - Clean & Minimal */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-2 sm:mt-0">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+                <Wallet className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold tracking-tight">Central Financeira</h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="gap-1.5 text-xs">
+                    <BusinessModelIcon className="w-3 h-3" />
+                    {businessModelInfo?.label}
                   </Badge>
-                )}
+                  {connectedCRM && (
+                    <Badge variant="outline" className="gap-1.5 text-xs text-metric-positive border-metric-positive/30">
+                      <Sparkles className="w-3 h-3" />
+                      CRM
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Period Selector */}
+            <DREPeriodSelector
+              value={drePeriod}
+              onChange={setDrePeriod}
+              onOpenHistory={() => setShowDREHistory(true)}
+              periodDescription={crmDateRange.description}
+              customDateRange={customDateRange}
+              onCustomDateRangeChange={setCustomDateRange}
+            />
           </div>
-          
-          {/* Period Selector */}
-          <DREPeriodSelector 
-            value={drePeriod} 
-            onChange={setDrePeriod}
-            onOpenHistory={() => setShowDREHistory(true)}
-            periodDescription={crmDateRange.description}
-            customDateRange={customDateRange}
-            onCustomDateRangeChange={setCustomDateRange}
-          />
-        </div>
 
-        {/* DRE History Dialog */}
-        {selectedProjectId && (
-          <DREHistoryDialog
-            open={showDREHistory}
-            onOpenChange={setShowDREHistory}
-            projectId={selectedProjectId}
-          />
-        )}
+          {/* DRE History Dialog */}
+          {selectedProjectId && (
+            <DREHistoryDialog
+              open={showDREHistory}
+              onOpenChange={setShowDREHistory}
+              projectId={selectedProjectId}
+            />
+          )}
 
-        {/* Content based on business model */}
-        {/* For infoproduto/ecommerce - show DRE without CRM requirement */}
-        {(businessModel === 'infoproduto' || businessModel === 'ecommerce' || businessModel === 'custom') && !connectedCRM ? (
-          <div className="space-y-6">
+          {/* Content based on business model */}
+          {/* For infoproduto/ecommerce - show DRE without CRM requirement */}
+          {(businessModel === 'infoproduto' || businessModel === 'ecommerce') && !connectedCRM ? (
+            <div className="space-y-6">
               {/* Overview metrics from ads - responsive grid */}
               <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-4">
                 <Card className="bg-gradient-to-br from-blue-600/20 to-blue-900/30 border-blue-500/30">
@@ -350,7 +339,7 @@ export default function Financial() {
                     <div>
                       <h3 className="font-semibold text-lg">DRE em Manutenção</h3>
                       <p className="text-muted-foreground mt-1">
-                        O módulo de Demonstração de Resultado (DRE) está temporariamente em manutenção. 
+                        O módulo de Demonstração de Resultado (DRE) está temporariamente em manutenção.
                         Em breve estará disponível com melhorias.
                       </p>
                     </div>
@@ -368,177 +357,177 @@ export default function Financial() {
                     <div>
                       <h3 className="font-semibold text-lg">Dados em tempo real via Ads</h3>
                       <p className="text-muted-foreground mt-1">
-                        Estamos usando os dados de <strong>conversion_value</strong> das suas campanhas Meta/Google Ads. 
+                        Estamos usando os dados de <strong>conversion_value</strong> das suas campanhas Meta/Google Ads.
                         Para dados mais precisos, você pode integrar sua plataforma de pagamentos (Hotmart, Kiwify, Stripe, etc.) no futuro.
                       </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-          </div>
-        ) : !connectedCRM ? (
-          /* For inside_sales/pdv without CRM - show connection prompt */
-          <CRMConnectionCard
-            projectName={selectedProject.name}
-            onConnect={handleConnectCRM}
-            connectedCRM={connectedCRM}
-            onDisconnect={disconnectCRM}
-            isConnecting={!!isConnecting}
-            connectionError={connectionError}
-          />
-        ) : (
-          /* With CRM connected - full experience */
-          <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
-            {/* Header with tabs and pipeline selector */}
-            <div className="flex flex-col gap-2">
-              {/* Tabs - fixed grid, no scroll needed */}
-              <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted/50">
-                <TabsTrigger value="overview" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
-                  <LayoutDashboard className="w-4 h-4" />
-                  <span>Geral</span>
-                </TabsTrigger>
-                <TabsTrigger value="funnel" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
-                  <BarChart3 className="w-4 h-4" />
-                  <span>Funil</span>
-                </TabsTrigger>
-                <TabsTrigger value="attribution" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
-                  <Target className="w-4 h-4" />
-                  <span>Atrib.</span>
-                </TabsTrigger>
-              </TabsList>
-              
-              {/* Pipeline Selector and Stage Mapping - only show for Kommo with stages */}
-              {crmStatus?.connected && (
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-center flex-wrap">
-                  {(crmStatus?.pipelines?.length || 0) > 0 && (
-                    <PipelineSelector
-                      pipelines={crmStatus.pipelines || []}
-                      selectedPipelineId={crmStatus.selected_pipeline_id || null}
-                      onSelect={selectPipeline}
-                      isLoading={crmLoading}
-                    />
-                  )}
-                  {crmStatus?.stages && crmStatus.stages.length > 0 && crmStatus.connection_id && (
-                    <>
-                      <StagesMappingConfig
-                        connectionId={crmStatus.connection_id}
-                        stages={crmStatus.stages}
-                        currentMqlStages={crmStatus.mql_stage_ids || []}
-                        currentSqlStages={crmStatus.sql_stage_ids || []}
-                        onSave={() => {
-                          setTimeout(() => fetchStatus(), 500);
-                        }}
-                      />
-                      <FunnelCardsConfig
-                        connectionId={crmStatus.connection_id}
-                        stages={crmStatus.stages}
-                        currentConfig={crmStatus.funnel_cards_config as FunnelCard[] | undefined}
-                        totalDeals={crmStatus?.stats?.total_deals}
-                        onSave={() => {
-                          setTimeout(() => fetchStatus(), 500);
-                        }}
-                      />
-                    </>
-                  )}
-                </div>
-              )}
             </div>
+          ) : !connectedCRM ? (
+            /* For inside_sales/pdv without CRM - show connection prompt */
+            <CRMConnectionCard
+              projectName={selectedProject.name}
+              onConnect={handleConnectCRM}
+              connectedCRM={connectedCRM}
+              onDisconnect={disconnectCRM}
+              isConnecting={!!isConnecting}
+              connectionError={connectionError}
+            />
+          ) : (
+            /* With CRM connected - full experience */
+            <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+              {/* Header with tabs and pipeline selector */}
+              <div className="flex flex-col gap-2">
+                {/* Tabs - fixed grid, no scroll needed */}
+                <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted/50">
+                  <TabsTrigger value="overview" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span>Geral</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="funnel" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Funil</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="attribution" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-sm data-[state=active]:bg-background">
+                    <Target className="w-4 h-4" />
+                    <span>Atrib.</span>
+                  </TabsTrigger>
+                </TabsList>
 
-            <TabsContent value="overview" className="space-y-4 sm:space-y-6">
-              <div className="grid gap-3 sm:gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-2">
-                  <CRMConnectionCard
-                    projectName={selectedProject.name}
-                    onConnect={handleConnectCRM}
-                    connectedCRM={connectedCRM}
-                    onDisconnect={disconnectCRM}
-                    isConnecting={!!isConnecting}
-                    connectionError={connectionError}
-                    crmStats={crmStatus?.stats}
-                    crmUrl={crmStatus?.api_url}
+                {/* Pipeline Selector and Stage Mapping - only show for Kommo with stages */}
+                {crmStatus?.connected && (
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center flex-wrap">
+                    {(crmStatus?.pipelines?.length || 0) > 0 && (
+                      <PipelineSelector
+                        pipelines={crmStatus.pipelines || []}
+                        selectedPipelineId={crmStatus.selected_pipeline_id || null}
+                        onSelect={selectPipeline}
+                        isLoading={crmLoading}
+                      />
+                    )}
+                    {crmStatus?.stages && crmStatus.stages.length > 0 && crmStatus.connection_id && (
+                      <>
+                        <StagesMappingConfig
+                          connectionId={crmStatus.connection_id}
+                          stages={crmStatus.stages}
+                          currentMqlStages={crmStatus.mql_stage_ids || []}
+                          currentSqlStages={crmStatus.sql_stage_ids || []}
+                          onSave={() => {
+                            setTimeout(() => fetchStatus(), 500);
+                          }}
+                        />
+                        <FunnelCardsConfig
+                          connectionId={crmStatus.connection_id}
+                          stages={crmStatus.stages}
+                          currentConfig={crmStatus.funnel_cards_config as FunnelCard[] | undefined}
+                          totalDeals={crmStatus?.stats?.total_deals}
+                          onSave={() => {
+                            setTimeout(() => fetchStatus(), 500);
+                          }}
+                        />
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <TabsContent value="overview" className="space-y-4 sm:space-y-6">
+                <div className="grid gap-3 sm:gap-6 lg:grid-cols-3">
+                  <div className="lg:col-span-2">
+                    <CRMConnectionCard
+                      projectName={selectedProject.name}
+                      onConnect={handleConnectCRM}
+                      connectedCRM={connectedCRM}
+                      onDisconnect={disconnectCRM}
+                      isConnecting={!!isConnecting}
+                      connectionError={connectionError}
+                      crmStats={crmStatus?.stats}
+                      crmUrl={crmStatus?.api_url}
+                    />
+                  </div>
+                  <SyncStatusCard
+                    status={syncStatus as 'pending' | 'syncing' | 'synced' | 'error'}
+                    lastSyncAt={crmStatus?.sync?.completed_at ? new Date(crmStatus.sync.completed_at) : new Date()}
+                    nextSyncAt={new Date(Date.now() + 5 * 60 * 1000)}
+                    progress={100}
+                    recordsSynced={crmStatus?.sync?.records_processed || 0}
+                    onForceSync={() => triggerSync('incremental')}
                   />
                 </div>
-                <SyncStatusCard
-                  status={syncStatus as 'pending' | 'syncing' | 'synced' | 'error'}
-                  lastSyncAt={crmStatus?.sync?.completed_at ? new Date(crmStatus.sync.completed_at) : new Date()}
-                  nextSyncAt={new Date(Date.now() + 5 * 60 * 1000)}
-                  progress={100}
-                  recordsSynced={crmStatus?.sync?.records_processed || 0}
-                  onForceSync={() => triggerSync('incremental')}
+                <FinancialMetricsGrid
+                  businessModel={businessModel!}
+                  metrics={crmMetrics}
+                  funnelCardsConfig={crmStatus?.funnel_cards_config as FunnelCard[] | undefined}
                 />
-              </div>
-              <FinancialMetricsGrid 
-                businessModel={businessModel!} 
-                metrics={crmMetrics} 
-                funnelCardsConfig={crmStatus?.funnel_cards_config as FunnelCard[] | undefined}
-              />
-              {businessModel === 'inside_sales' ? (
-                <InsideSalesFunnel 
-                  leads={crmMetrics.leads}
-                  mql={crmMetrics.mql}
-                  sql={crmMetrics.sql}
-                  sales={crmMetrics.sales}
-                  revenue={crmMetrics.revenue}
-                  hasCRMData={crmStatus?.connected && (crmMetrics.mql > 0 || crmMetrics.sql > 0 || crmMetrics.sales > 0)}
-                  funnelConfig={crmStatus?.funnel_cards_config as FunnelCard[] | undefined}
-                  crmStages={crmStatus?.stages}
-                  totalDeals={crmStatus?.stats?.total_deals}
-                  onRefresh={() => fetchStatus()}
-                  isRefreshing={crmLoading}
-                />
-              ) : (
-                /* DRE Maintenance Card */
-                <Card className="border-yellow-500/30 bg-yellow-500/5">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-xl bg-yellow-500/10">
-                        <AlertCircle className="h-6 w-6 text-yellow-500" />
+                {(businessModel === 'inside_sales' || businessModel === 'custom') ? (
+                  <InsideSalesFunnel
+                    leads={crmMetrics.leads}
+                    mql={crmMetrics.mql}
+                    sql={crmMetrics.sql}
+                    sales={crmMetrics.sales}
+                    revenue={crmMetrics.revenue}
+                    hasCRMData={crmStatus?.connected && (crmMetrics.mql > 0 || crmMetrics.sql > 0 || crmMetrics.sales > 0)}
+                    funnelConfig={crmStatus?.funnel_cards_config as FunnelCard[] | undefined}
+                    crmStages={crmStatus?.stages}
+                    totalDeals={crmStatus?.stats?.total_deals}
+                    onRefresh={() => fetchStatus()}
+                    isRefreshing={crmLoading}
+                  />
+                ) : (
+                  /* DRE Maintenance Card */
+                  <Card className="border-yellow-500/30 bg-yellow-500/5">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-xl bg-yellow-500/10">
+                          <AlertCircle className="h-6 w-6 text-yellow-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-lg">DRE em Manutenção</h3>
+                          <p className="text-muted-foreground mt-1">
+                            O módulo de Demonstração de Resultado (DRE) está temporariamente em manutenção.
+                            Em breve estará disponível com melhorias.
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-lg">DRE em Manutenção</h3>
-                        <p className="text-muted-foreground mt-1">
-                          O módulo de Demonstração de Resultado (DRE) está temporariamente em manutenção. 
-                          Em breve estará disponível com melhorias.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
 
-            <TabsContent value="funnel" className="space-y-6">
-              {/* Kanban Funnel with real stages */}
-              {crmStatus?.stages && crmStatus.stages.length > 0 ? (
-                <KanbanFunnel
-                  stages={crmStatus.stages}
-                  deals={crmStatus.deals || []}
+              <TabsContent value="funnel" className="space-y-6">
+                {/* Kanban Funnel with real stages */}
+                {crmStatus?.stages && crmStatus.stages.length > 0 ? (
+                  <KanbanFunnel
+                    stages={crmStatus.stages}
+                    deals={crmStatus.deals || []}
+                    isLoading={crmLoading}
+                    crmUrl={crmStatus.api_url || undefined}
+                  />
+                ) : (
+                  <InsideSalesFunnel
+                    leads={crmMetrics.leads}
+                    mql={crmMetrics.mql}
+                    sql={crmMetrics.sql}
+                    sales={crmMetrics.sales}
+                    revenue={crmMetrics.revenue}
+                    hasCRMData={crmStatus?.connected && (crmMetrics.mql > 0 || crmMetrics.sql > 0 || crmMetrics.sales > 0)}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="attribution" className="space-y-6">
+                <AttributionAnalysis
+                  deals={crmStatus?.deals || []}
+                  stages={crmStatus?.stages || []}
+                  adSpend={totalAdSpend}
                   isLoading={crmLoading}
-                  crmUrl={crmStatus.api_url || undefined}
                 />
-              ) : (
-                <InsideSalesFunnel 
-                  leads={crmMetrics.leads}
-                  mql={crmMetrics.mql}
-                  sql={crmMetrics.sql}
-                  sales={crmMetrics.sales}
-                  revenue={crmMetrics.revenue}
-                  hasCRMData={crmStatus?.connected && (crmMetrics.mql > 0 || crmMetrics.sql > 0 || crmMetrics.sales > 0)}
-                />
-              )}
-            </TabsContent>
-
-            <TabsContent value="attribution" className="space-y-6">
-              <AttributionAnalysis
-                deals={crmStatus?.deals || []}
-                stages={crmStatus?.stages || []}
-                adSpend={totalAdSpend}
-                isLoading={crmLoading}
-              />
-            </TabsContent>
-          </Tabs>
-        )}
-      </div>
+              </TabsContent>
+            </Tabs>
+          )}
+        </div>
       </SmoothLoader>
     </DashboardLayout>
   );

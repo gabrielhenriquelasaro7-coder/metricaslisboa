@@ -101,6 +101,88 @@ function getDateRange(days: number = 30): { startDate: string; endDate: string }
   return { startDate: formatDate(startDate), endDate: formatDate(endDate) };
 }
 
+// ==================== DETECT CHANGES ====================
+async function detectAndRecordChangesGoogle(
+  supabase: any,
+  projectId: string,
+  entityType: 'campaign' | 'ad_set' | 'ad',
+  tableName: string,
+  newRecords: any[],
+  trackedFields: string[]
+): Promise<void> {
+  const changes: any[] = [];
+  if (newRecords.length === 0) return;
+
+  const ids = newRecords.map(r => r.id);
+
+  const { data: existingRecords } = await supabase.from(tableName).select('*').in('id', ids).eq('project_id', projectId);
+  const existingMap = new Map((existingRecords || []).map((r: any) => [r.id, r]));
+
+  const oneDayAgo = new Date();
+  oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+  const { data: recentChanges } = await supabase
+    .from('optimization_history')
+    .select('entity_id, field_changed, new_value')
+    .eq('project_id', projectId)
+    .eq('entity_type', entityType)
+    .in('entity_id', ids)
+    .gte('detected_at', oneDayAgo.toISOString())
+    .eq('platform', 'google');
+
+  const recentChangeKeys = new Set(
+    (recentChanges || []).map((c: any) => `${c.entity_id}:${c.field_changed}:${c.new_value}`)
+  );
+
+  for (const newRecord of newRecords) {
+    const existing = existingMap.get(newRecord.id) as Record<string, any> | undefined;
+    if (!existing) continue;
+
+    for (const field of trackedFields) {
+      const oldVal = existing[field];
+      const newVal = newRecord[field];
+
+      if (oldVal === newVal || (oldVal == null && newVal == null)) continue;
+      
+      if (Array.isArray(oldVal) && Array.isArray(newVal)) {
+        if (JSON.stringify(oldVal) === JSON.stringify(newVal)) continue;
+      }
+
+      const newValStr = newVal != null ? (typeof newVal === 'object' ? JSON.stringify(newVal) : String(newVal)) : null;
+      const oldValStr = oldVal != null ? (typeof oldVal === 'object' ? JSON.stringify(oldVal) : String(oldVal)) : null;
+
+      const changeKey = `${newRecord.id}:${field}:${newValStr}`;
+      if (recentChangeKeys.has(changeKey)) continue;
+
+      let changeType = 'modified';
+      if (field === 'status' || field === 'campaign_status' || field === 'ad_group_status' || field === 'ad_status') {
+        const oV = oldValStr?.toUpperCase() || '';
+        const nV = newValStr?.toUpperCase() || '';
+        changeType = oV === 'ENABLED' && nV !== 'ENABLED' ? 'paused' : oV !== 'ENABLED' && nV === 'ENABLED' ? 'activated' : 'status_change';
+      }
+
+      changes.push({
+        project_id: projectId,
+        entity_type: entityType,
+        entity_id: newRecord.id,
+        entity_name: newRecord.name || existing.name || 'Unknown',
+        field_changed: field,
+        old_value: oldValStr,
+        new_value: newValStr,
+        change_type: changeType,
+        change_percentage: null,
+        platform: 'google'
+      });
+    }
+  }
+
+  if (changes.length > 0) {
+    await supabase.from('optimization_history').insert(changes);
+    console.log(`Saved ${changes.length} optimization history records for Google ${entityType}`);
+  }
+}
+
+
 // ==================== SYNC CAMPAIGNS ====================
 async function syncCampaigns(supabase: any, accessToken: string, credentials: GoogleAdsCredentials, projectId: string, days: number = 30): Promise<void> {
   console.log(`Syncing campaigns for last ${days} days...`);
@@ -150,6 +232,7 @@ async function syncCampaigns(supabase: any, accessToken: string, credentials: Go
   }));
 
   if (campaigns.length > 0) {
+    await detectAndRecordChangesGoogle(supabase, projectId, 'campaign', 'google_campaigns', campaigns, ['status', 'budget_amount', 'bidding_strategy']);
     const { error } = await supabase.from('google_campaigns').upsert(campaigns, { onConflict: 'id' });
     if (error) { console.error('Error upserting campaigns:', error); throw error; }
     console.log(`Synced ${campaigns.length} campaigns`);
@@ -203,6 +286,7 @@ async function syncAdGroups(supabase: any, accessToken: string, credentials: Goo
   }));
 
   if (adGroups.length > 0) {
+    await detectAndRecordChangesGoogle(supabase, projectId, 'ad_set', 'google_ad_groups', adGroups, ['status', 'cpc_bid']);
     const { error } = await supabase.from('google_ad_groups').upsert(adGroups, { onConflict: 'id' });
     if (error) { console.error('Error upserting ad groups:', error); throw error; }
     console.log(`Synced ${adGroups.length} ad groups`);
@@ -285,6 +369,7 @@ async function syncAds(supabase: any, accessToken: string, credentials: GoogleAd
   }));
 
   if (ads.length > 0) {
+    await detectAndRecordChangesGoogle(supabase, projectId, 'ad', 'google_ads', ads, ['status', 'headlines', 'descriptions', 'final_urls']);
     const { error } = await supabase.from('google_ads').upsert(ads, { onConflict: 'id' });
     if (error) { console.error('Error upserting ads:', error); throw error; }
     console.log(`Synced ${ads.length} ads`);

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { DiagnosticProject } from '@/types/diagnostic';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,23 +27,33 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-    classifyMetricValue,
-    BenchmarkStageId,
     createDefaultBenchmarkConfigFromSeed,
-    BenchmarkStatus
+    BenchmarkStatus,
+    calculateRatio,
+    getStageName,
+    getStageReason,
+    getStageNum,
+    getStageInjection,
+    getStageLabel,
+    getMetricLabel
 } from '@/lib/diagnosticBenchmarks';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RevenueFlow } from '@/components/dashboard/RevenueFlow';
+import { useDiagnosticAnalysis } from '@/hooks/useDiagnosticAnalysis';
 
 interface ResultsProps {
     project: DiagnosticProject;
     onBack: () => void;
     onEdit: () => void;
+    onSave?: (p: DiagnosticProject) => void;
 }
 
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
 // ─── TRAVA GAUGE COM DRAG INTERATIVO ──────────────────────────────────────────
-const TravaGauge = ({ id, idx, analysis, onValueChange }: {
-    id: string, idx: number, analysis: any, onValueChange?: (stageId: string, newValue: number) => void
+const TravaGauge = ({ id, idx, analysis, project, onValueChange }: {
+    id: string, idx: number, analysis: any, project: any, onValueChange?: (stageId: string, newValue: number) => void
 }) => {
     const score = analysis.stageScores.find((item: any) => item.id === id);
     const isBottleneck = (analysis.bottleneck as any).id === id;
@@ -55,67 +65,67 @@ const TravaGauge = ({ id, idx, analysis, onValueChange }: {
     const bench = score?.benchmark || { mid: 1, min: 0, max: 100, direction: isCegueira ? 'lower_better' : 'higher_better', unit: 'percent', label: isCegueira ? 'Cegueira' : '' };
     const val = score?.value || 0;
     const mid = bench?.mid || 1;
-    const barRef = useRef<HTMLDivElement>(null);
+
+    // Estado Local para garantir arraste Manteiga (sem engasgar render global)
+    const [localVal, setLocalVal] = useState(val);
     const [isDragging, setIsDragging] = useState(false);
 
-    // Porcentagem visual na barra
+    // Sincronizar com prop quando não estiver arrastando
+    useEffect(() => {
+        if (!isDragging) {
+            setLocalVal(val);
+        }
+    }, [val, isDragging]);
+
     const isInverse = bench?.direction === 'lower_better';
     // Ajuste de range dinâmico para permitir arraste total
     const maxVal = isCegueira ? 100 : (bench.max || mid * 2);
     const minVal = bench.min || 0;
 
-    // Porcentagem visual na barra (Linear agora)
-    let percentage = 0;
-    if (isInverse) {
-        percentage = Math.max(0, Math.min(100, ((maxVal - val) / (maxVal - minVal)) * 100));
+    // A Porcentagem visual SEMPRE preencherá do MENOR (esquerda) para o MAIOR (direita) quantitativamente.
+    // O que inverte é a COR DO GRADIENTE no CSS (Verde <- se -> Vermelho)
+    const percentage = Math.max(0, Math.min(100, ((localVal - minVal) / (maxVal - minVal)) * 100));
+
+    // Determinar o status dinâmico em tempo real para feedback visual instântaneo do slider!
+    let dynamicStatus = score?.status;
+    if (isCegueira) {
+        dynamicStatus = localVal > 50 ? 'ruim' : localVal > 20 ? 'na_media' : 'bom';
     } else {
-        percentage = Math.max(0, Math.min(100, ((val - minVal) / (maxVal - minVal)) * 100));
+        // Logica simplificada parecida com classifyMetricValue para reatividade instantanea baseada na regra do benchmark
+        if (localVal == null || Number.isNaN(localVal) || localVal === 0) {
+            dynamicStatus = 'sem_dados';
+        } else if (bench?.direction === 'higher_better') {
+            if (localVal <= (bench.min || 0)) dynamicStatus = 'ruim';
+            else if (localVal < (bench.mid || 1)) dynamicStatus = 'na_media';
+            else dynamicStatus = 'bom';
+        } else {
+            // lower_better
+            if (localVal >= (bench.max || 100)) dynamicStatus = 'ruim';
+            else if (localVal > (bench.mid || 1)) dynamicStatus = 'na_media';
+            else dynamicStatus = 'bom';
+        }
     }
 
-    const statusText = score?.status === 'ruim' ? 'Crítico' : score?.status === 'na_media' ? 'Na Média' : 'Bom';
+    const statusText = dynamicStatus === 'ruim' ? 'Crítico' : dynamicStatus === 'na_media' ? 'Na Média' : 'Bom';
 
-    // Cores: Para cegueira, valor alto = ruim (vermelho), valor baixo = bom (verde)
     let statusColor = "";
     if (isCegueira) {
-        statusColor = val > 50 ? 'text-red-500' : val > 20 ? 'text-amber-500' : 'text-emerald-500';
+        statusColor = localVal > 50 ? 'text-red-500' : localVal > 20 ? 'text-amber-500' : 'text-emerald-500';
     } else {
-        statusColor = score?.status === 'ruim' ? 'text-red-500' : score?.status === 'na_media' ? 'text-amber-500' : 'text-emerald-500';
+        statusColor = dynamicStatus === 'ruim' ? 'text-red-500' : dynamicStatus === 'na_media' ? 'text-amber-500' : 'text-emerald-500';
     }
 
-    // Converte posição do mouse/touch em valor real
-    const positionToValue = useCallback((clientX: number) => {
-        if (!barRef.current || !bench) return val;
-        const rect = barRef.current.getBoundingClientRect();
-        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-
-        // Mapeia 0-100% da barra para o range real
-        let newVal: number;
-        if (isInverse) {
-            newVal = maxVal - (pct * (maxVal - minVal));
-        } else {
-            newVal = minVal + (pct * (maxVal - minVal));
-        }
-        return Math.max(0, Number(newVal.toFixed(2)));
-    }, [bench, isInverse, val, maxVal, minVal]);
-
-    const handlePointerDown = useCallback((e: React.PointerEvent) => {
-        e.preventDefault();
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const pct = parseFloat(e.target.value) / 100;
+        const newVal = minVal + (pct * (maxVal - minVal));
+        setLocalVal(newVal);
         setIsDragging(true);
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-        const newVal = positionToValue(e.clientX);
-        onValueChange?.(id, newVal);
-    }, [id, onValueChange, positionToValue]);
+    };
 
-    const handlePointerMove = useCallback((e: React.PointerEvent) => {
-        if (!isDragging) return;
-        const newVal = positionToValue(e.clientX);
-        onValueChange?.(id, newVal);
-    }, [isDragging, id, onValueChange, positionToValue]);
-
-    const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    const handleInputEnd = () => {
         setIsDragging(false);
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    }, []);
+        onValueChange?.(id, Math.max(0, Number(localVal.toFixed(2))));
+    };
 
     return (
         <div className={cn(
@@ -125,9 +135,12 @@ const TravaGauge = ({ id, idx, analysis, onValueChange }: {
             <div className="flex justify-between items-start">
                 <div className="space-y-1">
                     <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">TRAVA {idx.toString().padStart(2, '0')}</span>
-                    <div className="flex items-center gap-2">
-                        <span className="text-xl font-black text-white tracking-tight">{getStageName(id)}</span>
-                        {isBottleneck && <AlertTriangle className="w-4 h-4 text-red-500 ml-1" />}
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xl font-black text-white tracking-tight">{getStageLabel(id, project.segment)}</span>
+                            {isBottleneck && <AlertTriangle className="w-4 h-4 text-red-500 ml-1" />}
+                        </div>
+                        <span className="text-[10px] text-zinc-500 font-medium">{getMetricLabel(id, project.segment)}</span>
                     </div>
                     {isBottleneck && <p className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-1"><AlertTriangle className="w-3 h-3" /> Esta é sua restrição ativa</p>}
                 </div>
@@ -137,29 +150,37 @@ const TravaGauge = ({ id, idx, analysis, onValueChange }: {
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
-                {/* Barra arrastável */}
-                <div
-                    ref={barRef}
+                {/* Barra arrastável Nativa Restuarada ao Visual Antigo */}
+                <div 
                     className={cn(
-                        "relative h-3 flex-1 rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner cursor-pointer",
+                        "relative h-3 flex-1 rounded-full flex items-center shadow-inner group",
+                        isInverse ? "bg-gradient-to-r from-emerald-600 via-amber-500 to-red-600" : "bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600",
                         isDragging && "ring-2 ring-blue-500/40"
                     )}
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    style={{ touchAction: 'none' }}
-                >
-                    <div
+                >                    
+                    <div 
                         className={cn(
                             "absolute w-5 h-5 bg-blue-500 rounded-full border-2 border-white shadow-[0_0_12px_rgba(59,130,246,0.8)] z-10 -translate-x-1/2 cursor-grab pointer-events-none transition-transform",
                             isDragging && "scale-150"
                         )}
-                        style={{ left: `${percentage}%` }}
+                        style={{ left: `${percentage}%` }} 
+                    />
+
+                    <input 
+                        type="range" 
+                        min="0" 
+                        max="100" 
+                        step="0.1"
+                        value={percentage}
+                        onChange={handleInputChange}
+                        onMouseUp={handleInputEnd}
+                        onTouchEnd={handleInputEnd}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                     />
                 </div>
                 <div className="flex flex-col items-end min-w-[100px]">
                     <span className="text-white font-black whitespace-nowrap text-sm text-right">
-                        {val.toFixed(2)}{bench?.unit === 'percent' || id === 'cegueira' ? '%' : ''} Real
+                        {localVal.toFixed(2)}{bench?.unit === 'percent' || id === 'cegueira' ? '%' : ''} Real
                     </span>
                     <span className="text-zinc-500 font-bold whitespace-nowrap text-xs text-right mt-0.5">
                         {mid.toFixed(2)}{bench?.unit === 'percent' || id === 'cegueira' ? '%' : ''} Bench
@@ -331,7 +352,7 @@ const DiagnosticFlow = ({ analysis }: { analysis: any }) => {
     );
 };
 
-export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
+export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsProps) {
     // Estado local do bowtie para permitir alterações via drag nos sliders
     const [localBowtie, setLocalBowtie] = useState(project.bowtie);
 
@@ -343,94 +364,55 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         }));
     }, []);
 
-    // Load benchmarks for comparison
-    const benchmarks = useMemo(() => {
-        const config = createDefaultBenchmarkConfigFromSeed();
-        return config.segments.find(s => s.segmentKey === project.segment) || config.segments[0];
-    }, [project.segment]);
+    // Motor de Inferência reativo via Hook TOC
+    const { stageScores, bottleneck } = useDiagnosticAnalysis(project, localBowtie);
 
-    // Motor de Inferência reativo ao localBowtie (linkado com os sliders)
-    const analysis = useMemo(() => {
-        // ORDEM FÍSICA PARA TOC: Cegueira -> Topo -> Fim do Funil
-        const stageOrder: BenchmarkStageId[] = ['exposicao', 'atencao', 'interesse', 'qualificacao', 'compromisso', 'decisao', 'retencao'];
+    const analysis = useMemo(() => ({
+        stageScores,
+        bottleneck
+    }), [stageScores, bottleneck]);
 
-        // Calcula scores das etapas do funil
-        const stageScores = stageOrder.map(stageId => {
-            const stageMetrics = benchmarks.stages[stageId] || [];
-            const userBowtieData = localBowtie[stageId];
+    const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
-            let stagePenalty = 0;
-            let totalWeights = 0;
+    const handleGenerateAI = async () => {
+        setIsGeneratingAI(true);
+        try {
+            const performanceScores = analysis.stageScores.reduce((acc: any, s: any) => ({ ...acc, [s.id]: s.score }), {});
 
-            stageMetrics.forEach((m, idx) => {
-                const weight = idx === 0 ? 1.0 : 0.5;
-                const status = classifyMetricValue(userBowtieData.value, m);
-
-                let metricPenalty = 0;
-                if (status === 'ruim') metricPenalty = 100;
-                else if (status === 'na_media') metricPenalty = 40;
-                else if (status === 'bom') metricPenalty = 10;
-
-                stagePenalty += metricPenalty * weight;
-                totalWeights += weight;
+            const response = await fetch('https://skneplgqejrokoewnyhx.supabase.co/functions/v1/diagnostic-ai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ project, bottleneck: analysis.bottleneck, performanceScores })
             });
 
-            const finalPenalty = stagePenalty / (totalWeights || 1);
-            const status = finalPenalty > 60 ? 'ruim' : finalPenalty > 25 ? 'na_media' : 'bom';
-
-            return {
-                id: stageId,
-                status: status as BenchmarkStatus,
-                penalty: finalPenalty,
-                value: userBowtieData.value,
-                benchmark: stageMetrics[0]
-            };
-        });
-
-        // Score da Cegueira (Lógica Invertida: quanto maior, pior)
-        const cegueiraVal = localBowtie.cegueira.value || 0;
-        const cegueiraStatus = cegueiraVal > 50 ? 'ruim' : cegueiraVal > 20 ? 'na_media' : 'bom';
-
-        // Gap de cegueira: 100% = penalty máxima, 0% = penalty mínima
-        // Se cegueira for 0, gap deve ser 0.
-        // Penalty base 100 para cegueira crítica para vencer empates
-        const cegueiraPenalty = (cegueiraVal / 100) * 100;
-
-        const cegueiraScore = {
-            id: 'cegueira' as any,
-            status: cegueiraStatus as BenchmarkStatus,
-            penalty: cegueiraPenalty,
-            value: cegueiraVal,
-            benchmark: { mid: 1, min: 0, max: 100, direction: 'lower_better', unit: 'percent', label: 'Cegueira' } as any
-        };
-
-        // LÓGICA DE TOC: Prioridade Absoluta para Cegueira se Ruim, depois segue a ordem física.
-        const allScoresOrdered = [cegueiraScore, ...stageScores];
-
-        // 1. Prioridade Absoluta: Se a Cegueira for 'ruim', ela É o gargalo.
-        if (cegueiraStatus === 'ruim') {
-            return { stageScores: allScoresOrdered, bottleneck: cegueiraScore };
-        }
-
-        // 2. Se não for cegueira, procura o primeiro "ruim" na ordem física (Exposição -> ...)
-        let bottleneck = stageScores.find(s => s.status === 'ruim');
-
-        // 3. Se ninguém estiver "ruim", procura por alguém "na_media" (priorizando cegueira antes do resto)
-        if (!bottleneck) {
-            if (cegueiraStatus === 'na_media') {
-                bottleneck = cegueiraScore;
-            } else {
-                bottleneck = stageScores.find(s => s.status === 'na_media');
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(errText || 'Erro da IA (401/500)');
             }
-        }
 
-        // 4. Se todo mundo estiver "bom", pega o que tiver maior penalty (o menos "bom")
-        if (!bottleneck) {
-            bottleneck = [...allScoresOrdered].sort((a, b) => b.penalty - a.penalty)[0];
-        }
+            const data = await response.json();
+            const error = null;
 
-        return { stageScores: allScoresOrdered, bottleneck };
-    }, [localBowtie, benchmarks]);
+            if (error) throw error;
+
+            if (data && onSave) {
+                const updatedProject: DiagnosticProject = {
+                    ...project,
+                    ai_analysis: {
+                        ...data,
+                        generatedAt: new Date().toISOString()
+                    }
+                };
+                onSave(updatedProject);
+                toast.success('Análise estratégica gerada com sucesso pela IA!');
+            }
+        } catch (error: any) {
+            console.error('Erro ao gerar análise IA:', error);
+            toast.error('Erro ao conectar com a IA: ' + (error.message || 'Verifique sua chave OpenRouter'));
+        } finally {
+            setIsGeneratingAI(false);
+        }
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in zoom-in-95 duration-700 bg-zinc-950 rounded-[2rem] p-3 sm:p-5 lg:p-6 border border-white/5 overflow-hidden relative shadow-2xl w-full">
@@ -445,14 +427,24 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                         <h2 className="text-xl font-black text-white uppercase tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                             Relatório de <span className="text-red-600">Restrição</span>
                         </h2>
-                        <p className="text-[9px] text-zinc-600 uppercase font-black tracking-widest">Benchmark: {project.segment} · Meta: R$ {project.goal.value.toLocaleString('pt-BR')}</p>
+                        <p className="text-[9px] text-zinc-600 uppercase font-black tracking-widest">Benchmark: {project.segment} · Meta: R$ {(project.goal?.value || 0).toLocaleString('pt-BR')}</p>
                     </div>
-                    <div className="flex gap-1.5">
-                        <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10" onClick={onEdit}>Editar</Button>
-                        <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10">
-                            <Globe className="w-3.5 h-3.5" /> Benchmarks Mundial
+                    <div className="flex gap-1.5 flex-wrap md:flex-nowrap">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className={cn(
+                                "rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-indigo-600/10 border-indigo-600/30 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all",
+                                isGeneratingAI && "animate-pulse"
+                            )} 
+                            onClick={handleGenerateAI}
+                            disabled={isGeneratingAI}
+                        >
+                            <Zap className={cn("w-3.5 h-3.5", isGeneratingAI && "animate-spin")} />
+                            {isGeneratingAI ? 'Gerando Inteligência...' : 'Gerar Análise IA'}
                         </Button>
-                        <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10"><Download className="w-3.5 h-3.5" /> Exportar</Button>
+                        <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/10 text-white hover:bg-white/10" onClick={onEdit}>Editar</Button>
+                        <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/10 text-white hover:bg-white/10"><Download className="w-3.5 h-3.5" /> Exportar</Button>
                         <Button size="sm" className="rounded-xl h-8 bg-[#EA3829] hover:bg-[#D32F2F] text-white gap-2 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-red-600/10">
                             <Share2 className="w-3.5 h-3.5" /> Compartilhar
                         </Button>
@@ -460,8 +452,30 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 </div>
 
                 <div className="w-full">
-                    <div className="space-y-10">
-                        {/* 1. RESTRIÇÃO ATIVA IDENTIFICADA — MOVIDO PARA O TOPO */}
+                    <div className="space-y-4">
+                        {/* 0. BRIEFING DO CLIENTE */}
+                        {project.briefing && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+                                <Card className="bg-zinc-950/50 border border-white/5 p-5 rounded-[2rem] space-y-1 hover:bg-white/[0.02] transition-colors">
+                                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Nicho / Setor</p>
+                                    <p className="text-[11px] font-black text-white uppercase italic tracking-tight">{project.briefing.niche}</p>
+                                </Card>
+                                <Card className="bg-zinc-950/50 border border-white/5 p-5 rounded-[2rem] space-y-1 hover:bg-white/[0.02] transition-colors">
+                                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Situação Atual</p>
+                                    <p className="text-[10px] font-medium text-zinc-400 line-clamp-2 leading-relaxed">{project.briefing.current_situation}</p>
+                                </Card>
+                                <Card className="bg-zinc-950/50 border border-white/5 p-5 rounded-[2rem] space-y-1 hover:bg-white/[0.02] transition-colors">
+                                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Principais Dores</p>
+                                    <p className="text-[10px] font-medium text-zinc-400 line-clamp-2 leading-relaxed">{project.briefing.main_pains}</p>
+                                </Card>
+                                <Card className="bg-zinc-950/50 border border-white/5 p-5 rounded-[2rem] space-y-1 hover:bg-white/[0.02] transition-colors">
+                                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Modelo Negócio</p>
+                                    <p className="text-[11px] font-black text-red-500 uppercase italic tracking-tight">{project.briefing.business_model_desc}</p>
+                                </Card>
+                            </div>
+                        )}
+
+                        {/* 1. RESTRIÇÃO ATIVA IDENTIFICADA */}
                         <div id="restricao-ativa">
                             <Card className="relative overflow-hidden border border-red-600/30 shadow-[0_0_50px_rgba(220,38,38,0.15)] bg-zinc-950 p-10 flex flex-col justify-center rounded-[2.5rem] group mt-6 w-full">
                                 <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/5 blur-[120px] pointer-events-none group-hover:bg-red-600/10 transition-all duration-700" />
@@ -483,6 +497,18 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                                         <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-2xl font-medium">
                                             Baseado nos benchmarks de <span className="text-white font-bold">{project.segment}</span>, identificamos que sua maior perda de throughput ocorre na trava de {getStageName((analysis.bottleneck as any).id)}. Isso significa que qualquer investimento em outras áreas terá <span className="text-red-500 font-bold italic">retorno decrescente</span> até que este ponto seja resolvido.
                                         </p>
+
+                                        {project.ai_analysis && (
+                                            <div className="bg-indigo-600/10 border border-indigo-600/30 p-5 rounded-3xl mt-4 space-y-2 animate-in fade-in slide-in-from-left-4 duration-700">
+                                                <div className="flex items-center gap-2">
+                                                    <Zap className="w-4 h-4 text-indigo-500" />
+                                                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Parecer do Consultor (IA)</span>
+                                                </div>
+                                                <p className="text-white text-sm font-medium italic leading-relaxed">
+                                                    "{project.ai_analysis.executiveSummary}"
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="flex flex-col gap-4 min-w-[300px]">
@@ -490,21 +516,71 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Eficiência Atual Real</p>
                                             <div className="flex items-end gap-2">
                                                 <span className="text-5xl font-black text-white tracking-tighter">
-                                                    {(analysis.bottleneck as any).value.toFixed(2)}
-                                                    {(analysis.bottleneck as any).id === 'exposicao' ? '' : '%'}
+                                                    {(analysis.bottleneck as any)?.id === 'cegueira' ? '0.00' : ((analysis.bottleneck as any)?.value || 0).toFixed(2)}
+                                                    {(analysis.bottleneck as any)?.id === 'exposicao' ? '' : '%'}
                                                 </span>
                                             </div>
                                         </div>
                                         <div className="bg-red-950/20 border border-red-900/30 p-6 rounded-3xl space-y-1">
                                             <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">Gap vs Benchmark</p>
                                             <span className="text-3xl font-black text-red-500 tracking-tighter">
-                                                {(analysis.bottleneck as any).value >= 100 && (analysis.bottleneck as any).id !== 'cegueira' ? 0 : -Math.abs((analysis.bottleneck as any).penalty).toFixed(0)} pts
+                                                {((analysis.bottleneck as any)?.value || 0) >= 100 && (analysis.bottleneck as any)?.id !== 'cegueira' ? 0 : -Math.abs((analysis.bottleneck as any)?.penalty || 0).toFixed(0)} pts
                                             </span>
                                         </div>
                                     </div>
                                 </div>
                             </Card>
                         </div>
+
+                        {/* 1.5. DETALHAMENTO DO CONSULTOR (IA) */}
+                        {project.ai_analysis && project.ai_analysis.coreProblem && (
+                            <div className="animate-in slide-in-from-bottom-8 duration-700 mt-6 space-y-6">
+                                {/* Core Problem & Injection - MATCH FIGMA PRINT */}
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    {/* SINTOMAS (UDEs) */}
+                                    <div className="lg:col-span-1 h-full">
+                                        <div className="bg-[#120505] border border-red-900/30 p-8 rounded-3xl h-full">
+                                            <div className="flex items-center gap-2 mb-6 text-red-500">
+                                                <AlertTriangle className="w-4 h-4" />
+                                                <h4 className="font-black uppercase tracking-widest text-[11px]">Sintomas (UDEs)</h4>
+                                            </div>
+                                            <ul className="space-y-4">
+                                                {project.ai_analysis.ude?.map((u: string, i: number) => (
+                                                    <li key={i} className="text-[#a1a1aa] text-xs font-medium flex gap-3 items-start">
+                                                        <span className="text-red-500 mt-0.5">•</span>
+                                                        <span className="leading-relaxed">{u}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="lg:col-span-2 flex flex-col gap-6">
+                                        {/* PROBLEMA RAIZ */}
+                                        <div className="bg-[#120505] border border-red-900/30 p-8 rounded-3xl flex-1">
+                                            <div className="flex items-center gap-2 mb-4 text-red-500">
+                                                <Target className="w-4 h-4" />
+                                                <h4 className="font-black uppercase tracking-widest text-[11px]">Problema Raiz (Core Problem)</h4>
+                                            </div>
+                                            <p className="text-white text-sm md:text-[15px] font-bold leading-relaxed">
+                                                {project.ai_analysis.coreProblem}
+                                            </p>
+                                        </div>
+                                        
+                                        {/* INJEÇÃO ESTRATÉGICA */}
+                                        <div className="bg-[#03170e] border border-emerald-900/40 p-8 rounded-3xl flex-1">
+                                            <div className="flex items-center gap-2 mb-4 text-emerald-500">
+                                                <ShieldCheck className="w-4 h-4" />
+                                                <h4 className="font-black uppercase tracking-widest text-[11px]">Injeção Estratégica (A Solução)</h4>
+                                            </div>
+                                            <p className="text-emerald-50 text-sm md:text-[15px] font-bold leading-relaxed italic">
+                                                "{project.ai_analysis.injection}"
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* 2. PAINEL DE TRAVAS — COM SLIDERS ARRASTÁVEIS */}
                         <Card className="p-4 sm:p-5 lg:p-6 border border-white/5 bg-zinc-950 rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-2xl w-full">
@@ -534,7 +610,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                                         <span className="text-[11px] font-black uppercase tracking-[0.25em]">Vendas / CS</span>
                                     </div>
                                     {['retencao', 'decisao', 'compromisso'].map((s, idx) => (
-                                        <TravaGauge key={s} id={s} idx={7 - idx} analysis={analysis} onValueChange={handleValueChange} />
+                                        <TravaGauge key={s} id={s} idx={7 - idx} analysis={analysis} project={project} onValueChange={handleValueChange} />
                                     ))}
                                 </div>
 
@@ -545,7 +621,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                                         <span className="text-[11px] font-black uppercase tracking-[0.25em]">Marketing</span>
                                     </div>
                                     {['qualificacao', 'interesse', 'atencao'].map((s, idx) => (
-                                        <TravaGauge key={s} id={s} idx={4 - idx} analysis={analysis} onValueChange={handleValueChange} />
+                                        <TravaGauge key={s} id={s} idx={4 - idx} analysis={analysis} project={project} onValueChange={handleValueChange} />
                                     ))}
                                 </div>
                             </div>
@@ -555,8 +631,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                                 <div className="flex items-center gap-2 text-white mb-2 px-1">
                                     <span className="text-[11px] font-black uppercase tracking-[0.25em] text-white">Topo de Funil</span>
                                 </div>
-                                <TravaGauge id="exposicao" idx={1} analysis={analysis} onValueChange={handleValueChange} />
-                                <TravaGauge id="cegueira" idx={0} analysis={analysis} onValueChange={handleValueChange} />
+                                <TravaGauge id="exposicao" idx={1} analysis={analysis} project={project} onValueChange={handleValueChange} />
+                                <TravaGauge id="cegueira" idx={0} analysis={analysis} project={project} onValueChange={handleValueChange} />
                             </div>
                         </Card>
 
@@ -566,7 +642,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 </div>
             </div>
             {/* 5. TABS DE ANÁLISE PROFUNDA */}
-            <Tabs defaultValue="dashboard" className="w-full mt-12 bg-zinc-950 p-6 rounded-[2.5rem] border border-white/5">
+            <Tabs defaultValue="dashboard" className="w-full mt-12 bg-zinc-950 p-6 rounded-[2.5rem] border border-white/5" >
                 <TabsList className="bg-black/40 border border-white/5 p-1 rounded-2xl mb-8 flex flex-wrap h-auto gap-1">
                     <TabsTrigger value="dashboard" className="rounded-xl px-6 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white transition-all">Sintese Base</TabsTrigger>
                     <TabsTrigger value="ltp" className="rounded-xl px-6 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-red-600 data-[state=active]:text-white transition-all">LTP (Árvores)</TabsTrigger>
@@ -583,7 +659,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                                         <Target className="w-3.5 h-3.5" />
                                         <span className="text-[9px] font-black uppercase tracking-widest">Ticket Médio</span>
                                     </div>
-                                    <p className="text-xl font-black text-white">R$ {project.economics.averageTicket.toLocaleString('pt-BR')}</p>
+                                    <p className="text-xl font-black text-white">R$ {(project.economics?.averageTicket || 0).toLocaleString('pt-BR')}</p>
                                     <p className="text-[8px] text-zinc-600 font-bold uppercase">Benchmark Ideal: +/- R$ 1.5k</p>
                                 </div>
                                 <div className="bg-black/30 border border-white/5 p-6 rounded-[2rem] space-y-1 hover:bg-black/50 transition-colors group">
@@ -591,15 +667,15 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                                         <TrendingUp className="w-3.5 h-3.5" />
                                         <span className="text-[9px] font-black uppercase tracking-widest">ROI Mínimo</span>
                                     </div>
-                                    <p className="text-xl font-black text-white">{project.economics.contributionMargin.toFixed(2)}x</p>
-                                    <p className="text-[8px] text-zinc-600 font-bold uppercase">Base Margem: {(100 / project.economics.contributionMargin).toFixed(2)}%</p>
+                                    <p className="text-xl font-black text-white">{(project.economics?.contributionMargin || 0).toFixed(2)}x</p>
+                                    <p className="text-[8px] text-zinc-600 font-bold uppercase">Base Margem: {(100 / (project.economics?.contributionMargin || 1)).toFixed(2)}%</p>
                                 </div>
                                 <div className="bg-black/30 border border-white/5 p-6 rounded-[2rem] space-y-1 hover:bg-black/50 transition-colors group">
                                     <div className="flex items-center gap-1.5 text-zinc-600 mb-1 group-hover:text-red-500">
                                         <Target className="w-3.5 h-3.5" />
                                         <span className="text-[9px] font-black uppercase tracking-widest">Meta Vendas</span>
                                     </div>
-                                    <p className="text-xl font-black text-white">{Math.ceil(project.goal.value / (project.economics.averageTicket || 1))}</p>
+                                    <p className="text-xl font-black text-white">{Math.ceil((project.goal?.value || 0) / (project.economics?.averageTicket || 1))}</p>
                                     <p className="text-[8px] text-zinc-600 font-bold uppercase">Novos Contratos/Mês</p>
                                 </div>
                                 <div className="bg-black/30 border border-white/5 p-6 rounded-[2rem] space-y-1 hover:bg-black/50 transition-colors group">
@@ -627,19 +703,24 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                                     <tbody className="divide-y divide-white/5">
                                         {analysis.stageScores.slice().reverse().map(s => (
                                             <tr key={s.id} className={cn("hover:bg-white/5 transition-colors", (analysis.bottleneck as any).id === s.id && "bg-red-600/5")}>
-                                                <td className="px-5 py-4 font-black text-white uppercase">{getStageName(s.id as string)}</td>
+                                                <td className="px-5 py-4 font-black text-white uppercase">{getStageLabel(s.id as string, project.segment)}</td>
                                                 <td className="px-5 py-4 font-mono text-white text-center">
-                                                    {s.value.toFixed(2)}
+                                                    {(s.value || 0).toFixed(2)}
                                                     {s.benchmark?.unit === 'percent' || s.id === 'cegueira' ? '%' : ''}
                                                 </td>
                                                 <td className="px-5 py-4 text-right">
                                                     <span className={cn(
                                                         "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
+                                                        s.status === 'proximo_do_ideal' ? "text-cyan-400 bg-cyan-400/10" :
                                                         s.status === 'bom' ? "text-emerald-500 bg-emerald-500/10" :
-                                                            s.status === 'na_media' ? "text-amber-500 bg-amber-500/10" :
-                                                                "text-red-500 bg-red-500/10"
+                                                        s.status === 'na_media' ? "text-amber-500 bg-amber-500/10" :
+                                                        s.status === 'sem_dados' ? "text-zinc-500 bg-zinc-500/10" :
+                                                        "text-red-500 bg-red-500/10"
                                                     )}>
-                                                        {s.status === 'bom' ? 'Bom' : s.status === 'na_media' ? 'Médio' : 'Gargalo'}
+                                                        {s.status === 'proximo_do_ideal' ? 'Excelente' : 
+                                                         s.status === 'bom' ? 'Bom' : 
+                                                         s.status === 'na_media' ? 'Médio' : 
+                                                         s.status === 'sem_dados' ? 'Sem Dados' : 'Gargalo'}
                                                     </span>
                                                 </td>
                                             </tr>
@@ -663,21 +744,36 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <Card className="bg-black/40 border border-white/5 p-6 rounded-[2rem] space-y-4 hover:border-red-600/30 transition-all group">
-                                <Badge className="bg-red-600/10 text-red-600 border-red-600/20 text-[8px] font-black uppercase">UDE 01</Badge>
-                                <p className="text-[11px] font-bold text-white uppercase tracking-tight italic">Baixa vazão de receita na etapa de {getStageName((analysis.bottleneck as any).id)}</p>
-                                <div className="h-px w-full bg-white/5" />
-                                <p className="text-[10px] text-zinc-500 font-medium">Impacto: Imunização do throughput total do sistema.</p>
-                            </Card>
+                            {(project.ai_analysis?.ude || []).length > 0 ? (
+                                project.ai_analysis?.ude.map((udeText, i) => (
+                                    <Card key={i} className="bg-black/40 border border-white/5 p-6 rounded-[2rem] space-y-4 hover:border-red-600/30 transition-all group">
+                                        <Badge className="bg-red-600/10 text-red-600 border-red-600/20 text-[8px] font-black uppercase">UDE {String(i + 1).padStart(2, '0')}</Badge>
+                                        <p className="text-[11px] font-bold text-white uppercase tracking-tight italic leading-relaxed">{udeText}</p>
+                                        <div className="h-px w-full bg-white/5" />
+                                        <p className="text-[10px] text-zinc-500 font-medium italic">Sinalizador de perda de Throughput.</p>
+                                    </Card>
+                                ))
+                            ) : (
+                                <Card className="bg-black/40 border border-white/5 p-6 rounded-[2rem] space-y-4 hover:border-red-600/30 transition-all group">
+                                    <Badge className="bg-red-600/10 text-red-600 border-red-600/20 text-[8px] font-black uppercase">UDE 01</Badge>
+                                    <p className="text-[11px] font-bold text-white uppercase tracking-tight italic">Baixa vazão de receita na etapa de {getStageLabel((analysis.bottleneck as any).id, project.segment)}</p>
+                                    <div className="h-px w-full bg-white/5" />
+                                    <p className="text-[10px] text-zinc-500 font-medium">Impacto: Imunização do throughput total do sistema.</p>
+                                </Card>
+                            )}
                             <Card className="bg-red-600 border-red-600 p-6 rounded-[2rem] space-y-4 shadow-xl shadow-red-600/20">
                                 <Badge className="bg-white text-red-600 text-[8px] font-black uppercase">CORE PROBLEM</Badge>
-                                <p className="text-[13px] font-black text-white uppercase tracking-tighter italic leading-tight">{getStageReason((analysis.bottleneck as any).id)}</p>
+                                <p className="text-[13px] font-black text-white uppercase tracking-tighter italic leading-tight">
+                                    {project.ai_analysis?.coreProblem || getStageReason((analysis.bottleneck as any).id, project.briefing?.business_model_desc)}
+                                </p>
                                 <div className="h-px w-full bg-white/20" />
                                 <p className="text-[10px] text-white/80 font-bold uppercase">Causa-Raiz Sistêmica Identificada.</p>
                             </Card>
                             <Card className="bg-black/40 border border-white/5 p-6 rounded-[2rem] space-y-4 hover:border-emerald-600/30 transition-all group">
                                 <Badge className="bg-emerald-600/10 text-emerald-600 border-emerald-600/20 text-[8px] font-black uppercase">INJEÇÃO (EC)</Badge>
-                                <p className="text-[11px] font-bold text-white uppercase tracking-tight italic">{getStageInjection((analysis.bottleneck as any).id)}</p>
+                                <p className="text-[11px] font-bold text-white uppercase tracking-tight italic">
+                                    {project.ai_analysis?.injection || getStageInjection((analysis.bottleneck as any).id, project.briefing?.business_model_desc)}
+                                </p>
                                 <div className="h-px w-full bg-white/5" />
                                 <p className="text-[10px] text-zinc-500 font-medium">Solução estratégica para "evaporar" o conflito.</p>
                             </Card>
@@ -693,22 +789,34 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                             </div>
                             <div className="space-y-2">
                                 <h4 className="text-2xl font-black text-white uppercase tracking-tight italic">Plano Estratégico de 90 Dias</h4>
-                                <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">Foco exclusivo em quebrar a restrição de {getStageName((analysis.bottleneck as any).id)} para liberar o faturamento represado.</p>
+                                <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">Foco exclusivo em quebrar a restrição de {getStageLabel((analysis.bottleneck as any).id, project.segment)} para liberar o faturamento represado.</p>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                             {[
-                                { phase: "Mês 01", title: "Fundação e Estabilização", items: ["Setup de analytics e tracking real", "Auditoria de processos na trava", "Correção de vazamentos críticos"] },
-                                { phase: "Mês 02", title: "Otimização e Alavancagem", items: [`Implementação da Injeção: ${getStageInjection(analysis.bottleneck.id)}`, "Testes A/B e refinamento de script", "Treinamento intensivo de equipe"] },
-                                { phase: "Mês 03", title: "Sustentação e Escala", items: ["Monitoramento de throughput 24/7", "Expansão de canais satélites", "Preparação para próxima restrição"] }
+                                { 
+                                    phase: "Mês 01", 
+                                    title: project.ai_analysis?.plan90Days?.phase1?.title || "Fundação e Estabilização", 
+                                    items: project.ai_analysis?.plan90Days?.phase1?.actions || ["Setup de analytics e tracking real", "Auditoria de processos na trava", "Correção de vazamentos críticos"] 
+                                },
+                                { 
+                                    phase: "Mês 02", 
+                                    title: project.ai_analysis?.plan90Days?.phase2?.title || "Otimização e Alavancagem", 
+                                    items: project.ai_analysis?.plan90Days?.phase2?.actions || [`Implementação da Injeção: ${getStageInjection(analysis.bottleneck.id, project.briefing?.business_model_desc)}`, "Testes A/B e refinamento de script", "Treinamento intensivo de equipe"] 
+                                },
+                                { 
+                                    phase: "Mês 03", 
+                                    title: project.ai_analysis?.plan90Days?.phase3?.title || "Sustentação e Escala", 
+                                    items: project.ai_analysis?.plan90Days?.phase3?.actions || ["Monitoramento de throughput 24/7", "Expansão de canais satélites", "Preparação para próxima restrição"] 
+                                }
                             ].map((p, i) => (
                                 <div key={i} className="bg-black/30 border border-white/5 p-8 rounded-[2.5rem] space-y-6 relative overflow-hidden group hover:border-red-600/20 transition-all">
                                     <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-600/5 rounded-full blur-3xl group-hover:bg-red-600/10 transition-all" />
                                     <Badge className="bg-zinc-900 border-white/5 text-zinc-400 text-[9px] font-black uppercase tracking-widest">{p.phase}</Badge>
                                     <h5 className="text-lg font-black text-white uppercase tracking-tighter italic">{p.title}</h5>
                                     <ul className="space-y-3">
-                                        {p.items.map((item, idx) => (
+                                        {(p.items).map((item, idx) => (
                                             <li key={idx} className="flex items-start gap-2 text-zinc-500 text-xs font-medium">
                                                 <div className="w-1 h-1 rounded-full bg-red-600 mt-1.5 shrink-0" />
                                                 {item}
@@ -731,63 +839,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
     );
 }
 
-// ─── HELPERS DE DIAGNÓSTICO ──────────────────────────────────────────────────
-
-function getStageName(id: string): string {
-    const map: Record<string, string> = {
-        exposicao: 'Exposição',
-        atencao: 'Atenção',
-        interesse: 'Interesse',
-        qualificacao: 'Qualificação',
-        compromisso: 'Compromisso',
-        decisao: 'Decisão',
-        retencao: 'Retenção',
-        cegueira: 'Cegueira'
-    };
-    return map[id] || id;
-}
-
-function getStageNum(id: string): string {
-    const map: Record<string, string> = {
-        exposicao: '07',
-        atencao: '06',
-        interesse: '05',
-        qualificacao: '04',
-        compromisso: '03',
-        decisao: '02',
-        retencao: '01',
-        cegueira: '00'
-    };
-    return map[id] || 'XX';
-}
-
-function getStageReason(id: string): string {
-    const map: Record<string, string> = {
-        exposicao: 'Falta de alcance massivo ou segmentação extremamente nichada que impede o volume de topo.',
-        atencao: 'Criativos saturados ou mensagem que não conecta com o ICP, gerando um CTR abaixo da média.',
-        interesse: 'Landing Page com fricção alta ou promessa de valor fraca que não retém a curiosidade inicial.',
-        qualificacao: 'Processo de triage ineficiente ou SDRs sem critérios claros de MQL para SQL.',
-        compromisso: 'Baixa taxa de show-up ou falha em converter a intenção em agendamento firme.',
-        decisao: 'Script de vendas focado em features e não em ROI, ou falta de prova social relevante.',
-        retencao: 'Pós-venda reativo que não entrega o "sucesso do cliente", gerando churn precoce.',
-        cegueira: 'Falta de mensuração no funil, tornando qualquer otimização uma aposta às cegas.'
-    };
-    return map[id] || 'Performance limitada por ineficiência estrutural na etapa.';
-}
-
-function getStageInjection(id: string): string {
-    const map: Record<string, string> = {
-        exposicao: 'Expandir canais de aquisição e implementar Lookalike de 1% baseado em LTV.',
-        atencao: 'Refresh total de criativos focados em ganchos emocionais e prova social imediata.',
-        interesse: 'Redesign de LP com foco em CRO e implementação de micro-conversões rastreáveis.',
-        qualificacao: 'Implementar Lead Scoring automatizado e script de qualificação via IA/SDR.',
-        compromisso: 'Implementar fluxo de lembretes multicanal e pré-call de confirmação.',
-        decisao: 'Implementar Playbook de Fechamento Baseado em Desafios e Garantia de Performance.',
-        retencao: 'Estabelecer Roadmap de Sucesso do Cliente e monitoramento de NPS trimestral.',
-        cegueira: 'Setup imediato de GA4, API de Conversão e Dashboard de Métricas em Tempo Real.'
-    };
-    return map[id] || 'Consultoria de Processo e Infraestrutura de Dados.';
-}
+// ─── HELPERS LOCAL ──────────────────────────────────────────────────────────
 
 function getStatusColor(status: BenchmarkStatus): string {
     switch (status) {

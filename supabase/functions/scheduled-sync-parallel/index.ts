@@ -31,6 +31,7 @@ interface Project {
   ad_account_id: string;
   name: string;
   google_customer_id?: string | null;
+  access_token?: string | null;
 }
 
 interface SyncResult {
@@ -66,7 +67,7 @@ async function syncProject(
     const now = new Date();
     const until = formatDate(now);
     const since = formatDate(subDays(now, 3));
-    
+
     const syncPromises: Promise<any>[] = [];
 
     // Meta Ads sync (only if ad_account_id starts with 'act_')
@@ -82,6 +83,8 @@ async function syncProject(
           body: JSON.stringify({
             project_id: project.id,
             ad_account_id: project.ad_account_id,
+            // Passa o token do projeto específico — fallback para META_ACCESS_TOKEN global se não houver
+            ...(project.access_token ? { access_token: project.access_token } : {}),
             time_range: { since, until },
             period_key: 'last_3d',
             retry_count: retryCount,
@@ -116,7 +119,7 @@ async function syncProject(
       console.log(`[${project.name}] ⚠ No Meta or Google configured, skipping`);
     } else {
       const results = await Promise.all(syncPromises);
-      
+
       let allSuccess = true;
       let needsRetry = false;
 
@@ -140,6 +143,34 @@ async function syncProject(
         result.error = 'Scheduled for retry';
       } else if (!allSuccess) {
         result.error = results.filter(r => !r.data.success).map(r => `${r.type}: ${r.data.error}`).join('; ');
+      }
+
+      // CRM sync (only if connected)
+      try {
+        const { data: crmConn } = await supabase
+          .from('crm_connections')
+          .select('id')
+          .eq('project_id', project.id)
+          .eq('status', 'connected')
+          .single();
+
+        if (crmConn) {
+          console.log(`[${project.name}] ⏳ Triggering CRM sync...`);
+          fetch(`${supabaseUrl}/functions/v1/crm-sync`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              connection_id: crmConn.id,
+              project_id: project.id,
+              sync_type: 'incremental'
+            })
+          }).catch(err => console.error(`[${project.name}] CRM sync failed:`, err));
+        }
+      } catch (crmErr) {
+        // Not connected or error, ignore
       }
     }
   } catch (error) {
@@ -194,14 +225,8 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const metaAccessToken = Deno.env.get('META_ACCESS_TOKEN');
-
-    if (!metaAccessToken) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'META_ACCESS_TOKEN not configured' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // META_ACCESS_TOKEN é fallback global (opcional) — projetos com token próprio o usam diretamente
+    // Não bloqueamos a execução se não existir, pois cada projeto pode ter seu token no banco
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -213,7 +238,7 @@ Deno.serve(async (req) => {
       // Use defaults
     }
 
-    const { 
+    const {
       project_ids,
       concurrent = CONCURRENT_PROJECTS,
       retry_failed = false
@@ -221,16 +246,16 @@ Deno.serve(async (req) => {
 
     const concurrentLimit = Math.min(concurrent, 10); // Max 10 concurrent
 
-    // Fetch ALL projects (Meta and/or Google)
+    // Busca projetos com Meta e/ou Google configurado (incluindo token por projeto)
     let projectsQuery = supabase
       .from('projects')
-      .select('id, ad_account_id, name, google_customer_id')
+      .select('id, ad_account_id, name, google_customer_id, access_token')
       .eq('archived', false);
 
     if (project_ids && project_ids.length > 0) {
       projectsQuery = projectsQuery.in('id', project_ids);
     }
-    
+
     // If retrying failed, filter by status
     if (retry_failed) {
       projectsQuery = projectsQuery.eq('webhook_status', 'retry_pending');
@@ -243,16 +268,16 @@ Deno.serve(async (req) => {
     const { data: allProjects, error: projectsError } = await projectsQuery;
 
     // Filter: must have at least Meta OR Google configured
-    const projects = (allProjects || []).filter(p => 
+    const projects = (allProjects || []).filter(p =>
       p.ad_account_id?.startsWith('act_') || !!p.google_customer_id?.trim()
     );
 
     if (projectsError || projects.length === 0) {
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           message: 'No projects to sync',
-          projects_count: 0 
+          projects_count: 0
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -279,7 +304,7 @@ Deno.serve(async (req) => {
 
       const batchResults = await Promise.all(batchPromises);
       results.push(...batchResults);
-      
+
       // Track projects that need retry
       for (let i = 0; i < batchResults.length; i++) {
         if (batchResults[i].needs_retry) {
@@ -320,7 +345,7 @@ Deno.serve(async (req) => {
           auto_fix: true,
         }),
       });
-      
+
       const gapData = await gapResponse.json().catch(() => ({}));
       console.log(`[GAPS] Found: ${gapData.gaps_found || 0}, Fixed: ${gapData.gaps_fixed || 0}, Records: ${gapData.records_imported || 0}`);
     } catch (gapError) {

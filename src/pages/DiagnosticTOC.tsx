@@ -205,8 +205,15 @@ export default function DiagnosticTOC() {
       status: 'rascunho',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      goal: { type: 'mensal', value: 0, restrictions: [] },
-      economics: { averageTicket: 0, contributionMargin: 0, cycleTime: 0, commercialCapacity: '' },
+      goal: { type: 'mensal', value: 0, mrr_atual: 0, restrictions: [] },
+      economics: {
+        averageTicket: 0,
+        contributionMargin: 0,
+        cycleTime: 0,
+        commercialCapacity: '',
+        meetingsPerWeek: 0,
+        monthlySalesMktCost: 0
+      },
       market: { tam: 0, sam: 0, som: 0, currentShare: 0, targetShare: 0, confidence: 'media', justification: '' },
       bowtie: {
         exposicao: { value: 0, reliability: 'media' },
@@ -217,6 +224,12 @@ export default function DiagnosticTOC() {
         decisao: { value: 0, reliability: 'media' },
         retencao: { value: 0, reliability: 'media' },
         cegueira: { value: 0, reliability: 'media' },
+      },
+      tracking: {
+        utms_implementadas: false,
+        crm_com_origem: false,
+        funil_padronizado_crm: false,
+        conf_crm: 'baixa'
       },
       ltp: {
         ioMap: [],
@@ -430,6 +443,7 @@ export default function DiagnosticTOC() {
                   <DiagnosticWizard
                     project={currentProject}
                     onSave={(p) => {
+                      setCurrentProject(p);
                       saveProject(p);
                       setMode('results');
                     }}
@@ -444,6 +458,10 @@ export default function DiagnosticTOC() {
                     project={currentProject}
                     onBack={() => setMode('list')}
                     onEdit={() => setMode('wizard')}
+                    onSave={(p) => {
+                      setCurrentProject(p);
+                      saveProject(p);
+                    }}
                   />
                 </div>
               )}

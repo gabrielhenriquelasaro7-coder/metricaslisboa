@@ -37,6 +37,7 @@ export default function Campaigns() {
   const { selectedPreset, dateRange, setSelectedPreset, setDateRange } = usePeriodContext();
   const [filters, setFilters] = useState<FilterConfig>({});
   const [sort, setSort] = useState<SortConfig>({ field: 'spend', direction: 'desc' });
+  const [currentPage, setCurrentPage] = useState(1);
   const { campaigns, adSets, ads, loading, selectedProject, projectsLoading, loadMetricsByPeriod, usingFallbackData } = useMetaAdsData();
   
   // Hidden metrics for guests
@@ -169,6 +170,14 @@ export default function Campaigns() {
           return 0;
       }
     });
+
+  // Pagination logic
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(filteredCampaigns.length / ITEMS_PER_PAGE);
+  const paginatedCampaigns = filteredCampaigns.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const totals = filteredCampaigns.reduce(
     (acc, campaign) => ({
@@ -403,9 +412,15 @@ export default function Campaigns() {
             {/* Filters */}
             <AdvancedFilters
               filters={filters}
-              onFiltersChange={setFilters}
+              onFiltersChange={(newFilters) => {
+                setFilters(newFilters);
+                setCurrentPage(1);
+              }}
               sort={sort}
-              onSortChange={setSort}
+              onSortChange={(newSort) => {
+                setSort(newSort);
+                setCurrentPage(1);
+              }}
               sortOptions={sortOptions}
             />
 
@@ -413,7 +428,7 @@ export default function Campaigns() {
             <div className="vibrant-table overflow-hidden min-h-[200px]">
               {/* Mobile: Card View */}
               <div className="block lg:hidden divide-y divide-border/50">
-                {filteredCampaigns.map((campaign, index) => {
+                {paginatedCampaigns.map((campaign, index) => {
                   const budget = campaign.daily_budget || campaign.lifetime_budget || 0;
                   const budgetType = campaign.daily_budget ? '/dia' : campaign.lifetime_budget ? 'vitalício' : '';
                   
@@ -529,7 +544,7 @@ export default function Campaigns() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCampaigns.map((campaign, index) => {
+                    {paginatedCampaigns.map((campaign, index) => {
                       const budget = campaign.daily_budget || campaign.lifetime_budget || 0;
                       const budgetType = campaign.daily_budget ? '/dia' : campaign.lifetime_budget ? 'vitalício' : '';
                       const adSetsCount = adSetsCountByCampaign[campaign.id] || 0;
@@ -578,7 +593,7 @@ export default function Campaigns() {
                               {formatCurrency(campaign.spend)}
                             </td>
                             <td className="py-3 px-3 text-right text-sm text-muted-foreground">
-                              {formatNumber(campaign.reach)}
+                               {formatNumber(campaign.reach)}
                             </td>
                             <td className="py-3 px-3 text-right text-sm text-muted-foreground">
                               {formatNumber(campaign.impressions)}
@@ -632,6 +647,35 @@ export default function Campaigns() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border/30 bg-muted/20">
+                  <div className="text-xs text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8"
+                    >
+                      Anterior
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8"
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Summary Footer */}

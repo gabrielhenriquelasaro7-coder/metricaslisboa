@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     try {
       // Fetch deals based on provider
       const deals = await fetchDealsFromCRM(connection, sync_type);
-      
+
       console.log(`[CRM Sync] Fetched ${deals.length} deals from ${connection.provider}`);
 
       // Process deals in batches for performance
@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
 
       for (let i = 0; i < deals.length; i += BATCH_SIZE) {
         const batch = deals.slice(i, i + BATCH_SIZE);
-        
+
         const batchData = batch.map(deal => {
           const dealAny = deal as CRMDeal & { _pipeline_uuid?: string };
           return {
@@ -138,13 +138,13 @@ Deno.serve(async (req) => {
         // Batch upsert
         const { error: upsertError } = await supabase
           .from('crm_deals')
-          .upsert(batchData, { 
+          .upsert(batchData, {
             onConflict: 'connection_id,external_id',
-            ignoreDuplicates: false 
+            ignoreDuplicates: false
           });
 
         if (upsertError) {
-          console.error(`[CRM Sync] Batch ${Math.floor(i/BATCH_SIZE)+1} failed:`, upsertError);
+          console.error(`[CRM Sync] Batch ${Math.floor(i / BATCH_SIZE) + 1} failed:`, upsertError);
           totalFailed += batch.length;
         } else {
           totalProcessed += batch.length;
@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
     } catch (syncError: unknown) {
       const errorMessage = syncError instanceof Error ? syncError.message : 'Erro desconhecido';
       const errorStack = syncError instanceof Error ? syncError.stack : undefined;
-      
+
       // Update sync log with error
       await supabase
         .from('crm_sync_logs')
@@ -230,7 +230,7 @@ async function fetchDealsFromCRM(
   syncType: 'full' | 'incremental'
 ): Promise<CRMDeal[]> {
   const provider = connection.provider as string;
-  
+
   switch (provider) {
     case 'kommo':
       return fetchKommoDeals(connection, syncType);
@@ -257,7 +257,7 @@ async function fetchKommoDeals(
 ): Promise<CRMDeal[]> {
   const apiKey = connection.access_token || connection.api_key;
   const apiUrl = connection.api_url as string;
-  
+
   if (!apiKey || !apiUrl) {
     throw new Error('Credenciais do Kommo não configuradas');
   }
@@ -266,22 +266,22 @@ async function fetchKommoDeals(
   const wonStatusIds = new Set<number>();
   const lostStatusIds = new Set<number>();
   const stageNames: Record<number, string> = {};
-  
+
   try {
     const pipelinesUrl = `${apiUrl}/api/v4/leads/pipelines`;
     const pipelinesResponse = await fetch(pipelinesUrl, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
-    
+
     if (pipelinesResponse.ok) {
       const pipelinesData = await pipelinesResponse.json();
       const pipelines = pipelinesData._embedded?.pipelines || [];
-      
+
       for (const pipeline of pipelines) {
         const statuses = pipeline._embedded?.statuses || [];
         for (const status of statuses) {
           stageNames[status.id] = status.name;
-          
+
           // Kommo uses type to indicate special statuses
           // type 0 = regular, type 1 = unsorted, type 2 = won, type 3 = lost
           if (status.type === 2 || status.is_editable === false && status.name?.toLowerCase().includes('gan')) {
@@ -312,9 +312,9 @@ async function fetchKommoDeals(
   const limit = 250;
 
   // Cache for contact details
-  const contactCache: Record<string, { 
-    email?: string; 
-    phone?: string; 
+  const contactCache: Record<string, {
+    email?: string;
+    phone?: string;
     name?: string;
     custom_fields?: Record<string, string>;
   }> = {};
@@ -364,11 +364,11 @@ async function fetchKommoDeals(
         if (contactResponse.ok) {
           const contactData = await contactResponse.json();
           const contacts = contactData._embedded?.contacts || [];
-          
+
           for (const contact of contacts) {
             const email = contact.custom_fields_values?.find((cf: { field_code?: string }) => cf.field_code === 'EMAIL')?.values?.[0]?.value;
             const phone = contact.custom_fields_values?.find((cf: { field_code?: string }) => cf.field_code === 'PHONE')?.values?.[0]?.value;
-            
+
             // Extract ALL custom fields from contact (including form questions)
             const contactCustomFields: Record<string, string> = {};
             if (contact.custom_fields_values) {
@@ -380,7 +380,7 @@ async function fetchKommoDeals(
                 }
               }
             }
-            
+
             contactCache[String(contact.id)] = {
               name: contact.name,
               email,
@@ -398,22 +398,22 @@ async function fetchKommoDeals(
       const contact = lead._embedded?.contacts?.[0];
       const contactId = contact?.id ? String(contact.id) : null;
       const contactDetails = contactId ? contactCache[contactId] : null;
-      
+
       // Extract ALL custom fields including UTMs and form questions
       const customFields: Record<string, string> = {};
       let utmSource: string | undefined;
       let utmMedium: string | undefined;
       let utmCampaign: string | undefined;
-      
+
       if (lead.custom_fields_values) {
         for (const cf of lead.custom_fields_values) {
           const fieldName = cf.field_name || cf.field_code;
           const value = cf.values?.[0]?.value;
-          
+
           if (fieldName && value !== undefined && value !== null) {
             // Store in custom_fields
             customFields[fieldName] = String(value);
-            
+
             // Also extract UTMs to dedicated columns
             const lowerName = fieldName.toLowerCase();
             if (lowerName === 'utm_source' || lowerName.includes('utm_source')) {
@@ -426,16 +426,16 @@ async function fetchKommoDeals(
           }
         }
       }
-      
+
       // Calculate value - Kommo API returns price in REAIS (not centavos)
       // The lead.price field is already the actual value in the main currency unit
       const dealValue = Number(lead.price || 0);
-      
+
       // Determine status based on pipeline stages AND value
       // IMPORTANT: Only consider as "won" if value >= 0.01
       let status: 'open' | 'won' | 'lost' = 'open';
       const statusId = lead.status_id;
-      
+
       if (lostStatusIds.has(statusId)) {
         status = 'lost';
       } else if (wonStatusIds.has(statusId)) {
@@ -448,7 +448,7 @@ async function fetchKommoDeals(
           console.log(`[CRM Sync] Lead ${lead.id} in won status but value ${dealValue} < 0.01, marking as open`);
         }
       }
-      
+
       deals.push({
         external_id: String(lead.id),
         external_pipeline_id: String(lead.pipeline_id),
@@ -477,13 +477,13 @@ async function fetchKommoDeals(
 
     if (leads.length < limit) break;
     page++;
-    
+
     // Rate limiting
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   console.log(`[CRM Sync] Processed ${deals.length} deals. Won: ${deals.filter(d => d.status === 'won').length}, Lost: ${deals.filter(d => d.status === 'lost').length}, Open: ${deals.filter(d => d.status === 'open').length}`);
-  
+
   return deals;
 }
 
@@ -493,7 +493,7 @@ async function fetchHubSpotDeals(
   syncType: 'full' | 'incremental'
 ): Promise<CRMDeal[]> {
   const accessToken = connection.access_token as string;
-  
+
   if (!accessToken) {
     throw new Error('Token de acesso do HubSpot não encontrado');
   }
@@ -506,7 +506,7 @@ async function fetchHubSpotDeals(
     url.searchParams.set('limit', '100');
     url.searchParams.set('properties', 'dealname,amount,dealstage,closedate,createdate,pipeline,hubspot_owner_id');
     url.searchParams.set('associations', 'contacts');
-    
+
     if (after) {
       url.searchParams.set('after', after);
     }
@@ -529,7 +529,7 @@ async function fetchHubSpotDeals(
 
     for (const deal of results) {
       const props = deal.properties;
-      
+
       deals.push({
         external_id: deal.id,
         external_pipeline_id: props.pipeline,
@@ -568,7 +568,7 @@ async function fetchBitrixDeals(
 ): Promise<CRMDeal[]> {
   const apiKey = connection.api_key as string;
   const apiUrl = connection.api_url as string;
-  
+
   if (!apiKey || !apiUrl) {
     throw new Error('Credenciais do Bitrix24 não configuradas');
   }
@@ -578,7 +578,7 @@ async function fetchBitrixDeals(
 
   while (true) {
     const webhookUrl = `${apiUrl}/rest/${apiKey}/crm.deal.list?start=${start}`;
-    
+
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -633,7 +633,7 @@ async function fetchRDStationDeals(
   syncType: 'full' | 'incremental'
 ): Promise<CRMDeal[]> {
   const accessToken = connection.access_token as string;
-  
+
   if (!accessToken) {
     throw new Error('Token de acesso do RD Station não encontrado');
   }
@@ -641,7 +641,7 @@ async function fetchRDStationDeals(
   // RD Station CRM has a different API structure
   // This is a simplified implementation
   const deals: CRMDeal[] = [];
-  
+
   const response = await fetch('https://crm.rdstation.com/api/v1/deals', {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -689,13 +689,13 @@ async function fetchGoHighLevelDeals(
 ): Promise<CRMDeal[]> {
   const accessToken = connection.access_token as string;
   const locationId = (connection.config as Record<string, unknown>)?.location_id as string;
-  
+
   if (!accessToken || !locationId) {
     throw new Error('Credenciais do GoHighLevel não configuradas');
   }
 
   const deals: CRMDeal[] = [];
-  
+
   const response = await fetch(`https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -773,10 +773,10 @@ async function fetchHelpSysDeals(
     if (pipelinesRes.ok) {
       const pipelinesData = await pipelinesRes.json();
       const pipelines = pipelinesData.dados || pipelinesData.data || [];
-      
+
       for (const pipeline of pipelines) {
         allPipelineIds.push(pipeline.id);
-        
+
         // Save pipeline to crm_pipelines table
         const pipelineName = pipeline.nome || pipeline.name || `Pipeline ${pipeline.id}`;
         const fases = pipeline.fases || [];
@@ -833,132 +833,160 @@ async function fetchHelpSysDeals(
 
   for (const pipelineId of pipelinesToQuery) {
     try {
-      const url = new URL(`${apiUrl}/leads.php`);
-      if (pipelineId !== null) {
-        url.searchParams.set('pipeline', String(pipelineId));
-      }
-
-      console.log(`[CRM Sync] Fetching HelpSys leads from: ${url.toString()}`);
-      const response = await fetch(url.toString(), { method: 'GET', headers });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error(`[CRM Sync] HelpSys API error ${response.status} for pipeline ${pipelineId}:`, errorBody);
-        continue;
-      }
-
-      const data = await response.json();
-      const leads = Array.isArray(data) ? data : (data.dados || data.data || []);
-
-      if (leads.length === 0) continue;
-
-      // Log first lead structure for debugging
-      if (leads.length > 0 && deals.length === 0) {
-        console.log(`[CRM Sync] HelpSys sample lead keys:`, JSON.stringify(Object.keys(leads[0])));
-        const sample = leads[0];
-        // Log all date-related fields specifically
-        const dateFields: Record<string, unknown> = {};
-        for (const key of Object.keys(sample)) {
-          const val = sample[key];
-          if (key.includes('data') || key.includes('date') || key.includes('atualiz') || key.includes('fecha') || key.includes('ganho') || key.includes('criacao') || key.includes('created') || key.includes('updated')) {
-            dateFields[key] = val;
-          }
+      while (true) {
+        const url = new URL(`${apiUrl}/leads.php`);
+        if (pipelineId !== null) {
+          url.searchParams.set('pipeline', String(pipelineId));
         }
-        console.log(`[CRM Sync] HelpSys sample lead DATE fields:`, JSON.stringify(dateFields));
-        const sampleInfo: Record<string, string> = {};
-        for (const key of Object.keys(sample)) {
-          const val = sample[key];
-          if (val === null || val === undefined) {
-            sampleInfo[key] = 'null';
-          } else if (Array.isArray(val)) {
-            sampleInfo[key] = `array[${val.length}]`;
-          } else if (typeof val === 'object') {
-            sampleInfo[key] = `object keys: ${JSON.stringify(Object.keys(val))}`;
-          } else {
-            sampleInfo[key] = `${typeof val}: ${String(val).substring(0, 80)}`;
-          }
+
+        // Since pagination isn't officially documented for GET /leads.php, 
+        // but the user reports 690k (partial), we'll try to fetch without limit first.
+        // If the API returns a 'total' field, we can use it to determine if we got everything.
+
+        console.log(`[CRM Sync] Fetching HelpSys leads from: ${url.toString()}`);
+        const response = await fetch(url.toString(), { method: 'GET', headers });
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`[CRM Sync] HelpSys API error ${response.status} for pipeline ${pipelineId}:`, errorBody);
+          break;
         }
-        console.log(`[CRM Sync] HelpSys sample lead structure:`, JSON.stringify(sampleInfo));
-      }
 
-      for (const lead of leads) {
-        const leadId = String(lead.id || lead.id_lead);
-        // Deduplicate - API may return same lead in multiple pipeline queries
-        if (seenIds.has(leadId)) continue;
-        seenIds.add(leadId);
+        const data = await response.json();
+        const leads = Array.isArray(data) ? data : (data.dados || data.data || []);
 
-        const contato = lead.contato || {};
-        const contactName = contato.nome || '';
-        const contactEmail = contato.email || '';
-        const contactPhone = contato.telefone || '';
-        const leadTitle = lead.nome_negocio || contactName || 'Lead sem nome';
+        if (leads.length === 0) break;
 
-        // Extract value
-        let valor = Number(lead.valor || 0);
-        const propriedades = lead.propriedades || [];
-        if (valor === 0 && Array.isArray(propriedades)) {
-          for (const prop of propriedades) {
-            if (prop.id_interno === 'valor') {
-              valor = Number(prop.valor) || 0;
-              break;
+        // Log API response structure if it has metadata
+        if (data.total !== undefined) {
+          console.log(`[CRM Sync] HelpSys API reported total: ${data.total}, received in this call: ${leads.length}`);
+        }
+
+        // Log first lead structure for debugging
+        if (leads.length > 0 && deals.length === 0) {
+          console.log(`[CRM Sync] HelpSys sample lead keys:`, JSON.stringify(Object.keys(leads[0])));
+          const sample = leads[0];
+          // Log all date-related fields specifically
+          const dateFields: Record<string, unknown> = {};
+          for (const key of Object.keys(sample)) {
+            const val = sample[key];
+            if (key.includes('data') || key.includes('date') || key.includes('atualiz') || key.includes('fecha') || key.includes('ganho') || key.includes('criacao') || key.includes('created') || key.includes('updated')) {
+              dateFields[key] = val;
             }
           }
+          console.log(`[CRM Sync] HelpSys sample lead DATE fields:`, JSON.stringify(dateFields));
         }
 
-        const stageId = lead.status;
-        const stageName = lead.status_nome || stageNames[stageId] || '';
-        const stageNameUpper = stageName.toUpperCase().trim();
+        for (const lead of leads) {
+          const leadId = String(lead.id || lead.id_lead);
+          if (seenIds.has(leadId)) continue;
+          seenIds.add(leadId);
 
-        let status: 'open' | 'won' | 'lost' = 'open';
-        if (wonStageNames.has(stageNameUpper) || stageNameUpper.includes('FECHADO') || stageNameUpper.includes('GANHO')) {
-          status = 'won';
-        } else if (lostStageNames.has(stageNameUpper) || stageNameUpper.includes('PERDIDO') || stageNameUpper.includes('PERDA')) {
-          status = 'lost';
-        }
+          const contato = lead.contato || {};
+          const contactName = contato.nome || '';
+          const contactEmail = contato.email || '';
+          const contactPhone = contato.telefone || '';
+          const leadTitle = lead.nome_negocio || contactName || 'Lead sem nome';
 
-        const utm = lead.utm || {};
-        // Use the actual pipeline field from the lead, not the query parameter
-        const extPipelineId = String(lead.pipeline || pipelineId || '');
+          // Extract value - checking multiple possible fields including properties_internas
+          let valor = Number(lead.valor || lead.valor_venda || lead.valor_negocio || 0);
+          const propriedades = Array.isArray(lead.propriedades) ? lead.propriedades : [];
+          const propriedadesInternas = lead.propriedades_internas || {};
 
-        // Determine closed_date: try multiple HelpSys field names
-        // For won deals, use data_modificacao as fallback (when they moved to FECHADO)
-        let closedDate = lead.data_fechamento || lead.data_ganho || lead.data_conclusao;
-        if (!closedDate && status === 'won') {
-          closedDate = lead.data_modificacao || lead.data_atualizacao || lead.atualizado_em || lead.updated_at;
-        }
+          // Check propriedades array
+          for (const prop of propriedades) {
+            const idInterno = String(prop.id_interno || '').toLowerCase();
+            if (idInterno === 'valor' || idInterno === 'valor_venda' || idInterno === 'faturamento' || idInterno === 'valor_negocio') {
+              const propValor = Number(prop.valor) || 0;
+              if (propValor > valor) valor = propValor;
+            }
+          }
 
-        deals.push({
-          external_id: leadId,
-          external_pipeline_id: extPipelineId,
-          external_stage_id: String(stageId || ''),
-          title: leadTitle,
-          value: valor,
-          currency: 'BRL',
-          status,
-          stage_name: stageName.trim(),
-          created_date: lead.data_criacao || lead.created_at,
-          closed_date: closedDate || undefined,
-          owner_name: lead.nome_proprietario || '',
-          contact_name: contactName || undefined,
-          contact_email: contactEmail || undefined,
-          contact_phone: contactPhone || undefined,
-          utm_source: utm.source || undefined,
-          utm_medium: utm.medium || undefined,
-          utm_campaign: utm.campaign || undefined,
-          custom_fields: Array.isArray(propriedades) 
-            ? propriedades.reduce((acc: Record<string, string>, p: Record<string, unknown>) => {
+          // Check propriedades_internas object (documented in swagger/openapi)
+          if (propriedadesInternas.valor) valor = Math.max(valor, Number(propriedadesInternas.valor) || 0);
+          if (propriedadesInternas.valor_venda) valor = Math.max(valor, Number(propriedadesInternas.valor_venda) || 0);
+
+          const stageId = lead.status;
+          const stageName = lead.status_nome || stageNames[stageId] || '';
+          const stageNameUpper = stageName.toUpperCase().trim();
+
+          let status: 'open' | 'won' | 'lost' = 'open';
+          const stageNameTrimmed = stageName.trim();
+          if (wonStageNames.has(stageNameUpper) ||
+            stageNameUpper.includes('FECHADO') ||
+            stageNameUpper.includes('GANHO') ||
+            stageNameUpper.includes('VENDA') ||
+            stageNameUpper.includes('VENDIDO') ||
+            stageNameUpper.includes('PAGO') ||
+            stageNameUpper.includes('ASSINADO') ||
+            stageNameUpper.includes('FINALIZADO') ||
+            stageNameUpper.includes('CONFIRMADO') ||
+            stageNameUpper.includes('CONCLUÍDO')) {
+            status = 'won';
+          } else if (lostStageNames.has(stageNameUpper) ||
+            stageNameUpper.includes('PERDIDO') ||
+            stageNameUpper.includes('PERDA') ||
+            stageNameUpper.includes('DESCARTADO') ||
+            stageNameUpper.includes('CANCELADO')) {
+            status = 'lost';
+          }
+
+          // DEBUG LOG for potential won deals with value
+          if (status === 'won' || stageNameUpper.includes('VENDA') || stageNameUpper.includes('PAGO')) {
+            console.log(`[CRM Sync DEBUG] Lead ${leadId}: Status=${status}, Stage=${stageName}, Value=${valor}`);
+          }
+
+          const utm = lead.utm || {};
+          const extPipelineId = String(lead.pipeline || pipelineId || '');
+
+          // Use Creation Date as Closed Date for 2M faturamento (per user request)
+          let closedDate = lead.data_criacao || lead.created_at;
+          if (!closedDate && status === 'won') {
+            closedDate = lead.data_fechamento || lead.data_ganho || lead.data_modificacao || lead.data_atualizacao;
+          }
+
+          deals.push({
+            external_id: leadId,
+            external_pipeline_id: extPipelineId,
+            external_stage_id: String(stageId || ''),
+            title: leadTitle,
+            value: valor,
+            currency: 'BRL',
+            status,
+            stage_name: stageName.trim(),
+            created_date: lead.data_criacao || lead.created_at,
+            closed_date: closedDate || undefined,
+            owner_name: lead.nome_proprietario || '',
+            contact_name: contactName || undefined,
+            contact_email: contactEmail || undefined,
+            contact_phone: contactPhone || undefined,
+            utm_source: utm.source || undefined,
+            utm_medium: utm.medium || undefined,
+            utm_campaign: utm.campaign || undefined,
+            custom_fields: {
+              ...propriedadesInternas,
+              ...(Array.isArray(propriedades) ? propriedades.reduce((acc: any, p: any) => {
                 acc[String(p.id_interno || '')] = String(p.valor || '');
                 return acc;
-              }, {})
-            : undefined,
-          _pipeline_uuid: pipelineIdMap[extPipelineId],
-        } as CRMDeal & { _pipeline_uuid?: string });
+              }, {}) : {})
+            },
+            _pipeline_uuid: pipelineIdMap[extPipelineId],
+          } as CRMDeal & { _pipeline_uuid?: string });
+        }
+
+        // If we don't have pagination params, we assume we got all data or the API doesn't support it.
+        // We break the loop to avoid infinite calls if page++ is ignored.
+        break;
       }
 
-      console.log(`[CRM Sync] HelpSys pipeline ${pipelineId}: ${leads.length} leads fetched, unique so far: ${seenIds.size}`);
+      const stageStats = deals.reduce((acc: Record<string, number>, d) => {
+        const name = d.stage_name || 'Sem Nome';
+        acc[name] = (acc[name] || 0) + 1;
+        return acc;
+      }, {});
+      console.log(`[CRM Sync] HelpSys Stage Distribution:`, JSON.stringify(stageStats));
 
-      // Rate limiting between pipelines
-      await new Promise(resolve => setTimeout(resolve, 200));
+      console.log(`[CRM Sync] HelpSys pipeline ${pipelineId} complete. Unique leads so far: ${seenIds.size}`);
     } catch (e) {
       console.error(`[CRM Sync] Error fetching HelpSys leads for pipeline ${pipelineId}:`, e);
     }

@@ -146,6 +146,8 @@ export default function Auth() {
           }
           
           toast.success('Login realizado com sucesso!');
+          // Guarantee that no specific project is selected when logging in
+          localStorage.removeItem('selectedProjectId');
           // Force navigation with replace to avoid back button issues
           window.location.href = '/dashboard';
         }

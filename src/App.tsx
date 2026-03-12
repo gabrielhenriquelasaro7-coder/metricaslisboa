@@ -49,42 +49,42 @@ const queryClient = new QueryClient();
 
 function AnimatedRoutes() {
   return (
-        <Routes location={location}>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/projects" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/project-setup/:projectId" element={<ProjectSetup />} />
-          <Route path="/project/:id" element={<ProjectDetail />} />
-          <Route path="/project/:id/admin" element={<ProjectAdmin />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/meta-ads" element={<MetaAds />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/campaigns" element={<Navigate to="/meta-ads" replace />} />
-          <Route path="/campaign/:campaignId/adsets" element={<AdSets />} />
-          <Route path="/adset/:adSetId" element={<AdSetDetail />} />
-          <Route path="/ad/:adId" element={<AdDetail />} />
-          <Route path="/adset/:adSetId/ads" element={<Ads />} />
-          <Route path="/creatives" element={<Creatives />} />
-          <Route path="/creative/:id" element={<CreativeDetail />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/sync-history" element={<SyncHistory />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/ai-assistant" element={<AIAssistant />} />
-          <Route path="/whatsapp" element={<WhatsApp />} />
-          <Route path="/whatsapp-manager" element={<WhatsAppManager />} />
-          <Route path="/change-password" element={<ChangePassword />} />
-          <Route path="/guest-onboarding" element={<GuestOnboarding />} />
-          <Route path="/google-campaigns" element={<GoogleCampaigns />} />
-          <Route path="/predictive-analysis" element={<PredictiveAnalysis />} />
-          <Route path="/optimization-history" element={<OptimizationHistory />} />
-          <Route path="/suggestions" element={<Suggestions />} />
-          <Route path="/financeiro" element={<Financial />} />
-          <Route path="/clarity" element={<Clarity />} />
-          <Route path="/instagram" element={<Instagram />} />
-          <Route path="/diagnostico" element={<DiagnosticTOC />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+    <Routes>
+      <Route path="/" element={<Index />} />
+      <Route path="/auth" element={<Auth />} />
+      <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/projects" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/project-setup/:projectId" element={<ProjectSetup />} />
+      <Route path="/project/:id" element={<ProjectDetail />} />
+      <Route path="/project/:id/admin" element={<ProjectAdmin />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/meta-ads" element={<MetaAds />} />
+      <Route path="/analytics" element={<Analytics />} />
+      <Route path="/campaigns" element={<Navigate to="/meta-ads" replace />} />
+      <Route path="/campaign/:campaignId/adsets" element={<AdSets />} />
+      <Route path="/adset/:adSetId" element={<AdSetDetail />} />
+      <Route path="/ad/:adId" element={<AdDetail />} />
+      <Route path="/adset/:adSetId/ads" element={<Ads />} />
+      <Route path="/creatives" element={<Creatives />} />
+      <Route path="/creative/:id" element={<CreativeDetail />} />
+      <Route path="/settings" element={<Settings />} />
+      <Route path="/sync-history" element={<SyncHistory />} />
+      <Route path="/admin" element={<Admin />} />
+      <Route path="/ai-assistant" element={<AIAssistant />} />
+      <Route path="/whatsapp" element={<WhatsApp />} />
+      <Route path="/whatsapp-manager" element={<WhatsAppManager />} />
+      <Route path="/change-password" element={<ChangePassword />} />
+      <Route path="/guest-onboarding" element={<GuestOnboarding />} />
+      <Route path="/google-campaigns" element={<GoogleCampaigns />} />
+      <Route path="/predictive-analysis" element={<PredictiveAnalysis />} />
+      <Route path="/optimization-history" element={<OptimizationHistory />} />
+      <Route path="/suggestions" element={<Suggestions />} />
+      <Route path="/financeiro" element={<Financial />} />
+      <Route path="/clarity" element={<Clarity />} />
+      <Route path="/instagram" element={<Instagram />} />
+      <Route path="/diagnostico" element={<DiagnosticTOC />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 

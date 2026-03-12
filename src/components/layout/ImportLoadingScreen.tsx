@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -64,13 +65,13 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setMonths(prev => [...prev, payload.new as MonthImportRecord].sort((a, b) => 
+            setMonths(prev => [...prev, payload.new as MonthImportRecord].sort((a, b) =>
               a.year === b.year ? a.month - b.month : a.year - b.year
             ));
           } else if (payload.eventType === 'UPDATE') {
-            setMonths(prev => prev.map(m => 
-              m.id === (payload.new as MonthImportRecord).id 
-                ? payload.new as MonthImportRecord 
+            setMonths(prev => prev.map(m =>
+              m.id === (payload.new as MonthImportRecord).id
+                ? payload.new as MonthImportRecord
                 : m
             ));
           }
@@ -88,7 +89,7 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
     if (months.length === 0) return;
 
     const hasImporting = months.some(m => m.status === 'importing' || m.status === 'pending');
-    
+
     if (!hasImporting) {
       // All done - set dismissed flag FIRST to prevent reappearing, then call onComplete
       localStorage.setItem(`import_dismissed_${projectId}`, 'true');
@@ -110,8 +111,8 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
     totalRecords: months.reduce((sum, m) => sum + (m.records_count || 0), 0),
   };
 
-  const progress = stats.total > 0 
-    ? ((stats.success + stats.skipped + stats.error) / stats.total) * 100 
+  const progress = stats.total > 0
+    ? ((stats.success + stats.skipped + stats.error) / stats.total) * 100
     : 0;
 
   const currentlyImporting = months.find(m => m.status === 'importing');
@@ -124,15 +125,15 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
     const firstToImport = months
       .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
       .find(m => m.status === 'error' || m.status === 'pending');
-    
+
     if (!firstToImport) {
       toast.info('Não há meses para importar');
       return;
     }
-    
+
     try {
       toast.info(`Iniciando importação de ${MONTH_NAMES[firstToImport.month - 1]} ${firstToImport.year}...`);
-      
+
       await supabase.functions.invoke('import-month-by-month', {
         body: {
           project_id: projectId,
@@ -180,8 +181,17 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+        <div className="relative w-20 h-20 flex items-center justify-center">
+          <div className="absolute inset-0 border-[3px] border-white/10 rounded-full" />
+          <motion.div
+            className="absolute inset-0 border-[3px] border-transparent border-t-white/80 rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
+          <img src="https://storage.googleapis.com/gpt-engineer-file-uploads/nhtEAca6m1WvYLxj21XNZ7dwaa42/uploads/1768843484749-simbolo.webp" alt="V4" className="w-8 h-8 brightness-0 invert opacity-90" />
+        </div>
+        <p className="text-[10px] text-white/40 uppercase tracking-[0.3em] mt-8 font-medium">Iniciando...</p>
       </div>
     );
   }
@@ -220,7 +230,7 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
             <span className="font-medium">{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="h-3" />
-          
+
           {currentlyImporting && (
             <p className="text-center text-sm text-primary animate-pulse">
               Importando {MONTH_NAMES[currentlyImporting.month - 1]} {currentlyImporting.year}...
@@ -256,7 +266,7 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
               <div className="grid grid-cols-12 gap-2">
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((monthNum) => {
                   const month = getMonthForYear(year, monthNum);
-                  
+
                   if (!month) {
                     return (
                       <div
@@ -271,7 +281,7 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
                       </div>
                     );
                   }
-                  
+
                   return (
                     <div
                       key={month.id}
@@ -321,8 +331,8 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
               )}
             </div>
             <div className="flex justify-center gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="lg"
                 onClick={() => continueImport(true)}
                 className="gap-2 h-11 px-5 font-semibold"
@@ -330,8 +340,8 @@ export function ImportLoadingScreen({ projectId, projectName, onComplete }: Impo
                 <Zap className="w-4 h-4 text-yellow-500" />
                 Continuar Light
               </Button>
-              <Button 
-                variant="default" 
+              <Button
+                variant="default"
                 size="lg"
                 onClick={() => continueImport(false)}
                 className="gap-2 h-11 px-5 font-semibold shadow-lg shadow-primary/25"

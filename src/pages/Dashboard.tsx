@@ -334,7 +334,22 @@ export default function Dashboard() {
           </FadeIn>
 
           <SmoothLoader loading={loading} skeleton={<DashboardSkeleton />}>
-            {activeProjects.length === 0 ? (
+            {!selectedProject && activeProjects.length > 0 ? (
+              <div className="glass-card p-12 md:p-24 text-center mt-4 sm:mt-10 flex flex-col items-center justify-center min-h-[50vh]">
+                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+                  <BarChart3 className="w-10 h-10 text-primary" />
+                </div>
+                <h2 className="text-2xl sm:text-4xl font-bold mb-4" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  Bem-vindo ao Sistema de Métricas
+                </h2>
+                <p className="text-muted-foreground text-sm sm:text-base max-w-xl mx-auto mb-8">
+                  Para começar, selecione um cliente no menu superior. Você terá acesso aos dashboards de performance, inteligência artificial e visão analítica de negócio.
+                </p>
+                <div className="flex items-center gap-2 text-primary font-medium text-sm bg-primary/10 px-4 py-2 rounded-full cursor-default mx-auto">
+                  <ArrowUpRight className="w-4 h-4 animate-bounce" /> Escolha o seu cliente para continuarmos.
+                </div>
+              </div>
+            ) : activeProjects.length === 0 ? (
               <div className="glass-card p-12 text-center">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                   <Target className="w-8 h-8 text-primary" />
@@ -344,7 +359,7 @@ export default function Dashboard() {
                 <CreateProjectDialog />
               </div>
             ) : (
-              <StaggerContainer staggerDelay={0.04} className="space-y-8 sm:space-y-10">
+              <StaggerContainer staggerDelay={0.08} className="space-y-8 sm:space-y-10">
                 {/* Quick Stats Bar */}
                 <StaggerItem>
                   <div className="flex items-center gap-2 flex-wrap text-[10px] sm:text-xs text-muted-foreground">

@@ -114,21 +114,14 @@ export function useMetaAdsData() {
     // Try to find the stored project
     if (selectedProjectId) {
       const found = projects.find(p => p.id === selectedProjectId);
-      if (found) return found;
+      if (found && !found.archived) return found;
       
-      // Project not found (guest without access) - clear and use first available
-      console.log('[META] Stored project not accessible, clearing localStorage');
+      // Project not found (guest without access) or archived - clear
+      console.log('[META] Stored project not accessible or archived, clearing localStorage');
       localStorage.removeItem('selectedProjectId');
     }
     
-    // Default to first available project and save it
-    const defaultProject = projects[0] || null;
-    if (defaultProject && !selectedProjectId) {
-      // Auto-save the first project for guests who only have one project
-      localStorage.setItem('selectedProjectId', defaultProject.id);
-      console.log('[META] Auto-selected project:', defaultProject.id);
-    }
-    return defaultProject;
+    return null; // Return null to enforce the global Welcome page pattern
   }, [projects, projectsLoading, selectedProjectId]);
 
   const fetchCampaigns = useCallback(async () => {

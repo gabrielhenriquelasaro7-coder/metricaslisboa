@@ -87,14 +87,14 @@ export function useProjects() {
     if (authLoading || cargoLoading) {
       return;
     }
-    
+
     if (!user) {
       setProjects([]);
       globalProjectsCache = { userId: null, projects: [], loaded: false, fetchPromise: null };
       setLoading(false);
       return;
     }
-    
+
     // Reuse existing fetch if in progress for same user
     if (globalProjectsCache.fetchPromise && globalProjectsCache.userId === user.id && !force) {
       await globalProjectsCache.fetchPromise;
@@ -102,23 +102,23 @@ export function useProjects() {
       setLoading(false);
       return;
     }
-    
+
     // Already loaded for this user, skip
     if (globalProjectsCache.loaded && globalProjectsCache.userId === user.id && !force) {
       setProjects([...globalProjectsCache.projects]);
       setLoading(false);
       return;
     }
-    
+
     // Safety timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       console.warn('[useProjects] Fetch timeout - forcing loading to false');
       setLoading(false);
     }, 5000);
-    
+
     try {
       setLoading(true);
-      
+
       let query = supabase
         .from('projects')
         .select('*')
@@ -139,7 +139,7 @@ export function useProjects() {
           .from('guest_project_access')
           .select('project_id')
           .eq('user_id', user.id);
-        
+
         if (accessData && accessData.length > 0) {
           const projectIds = accessData.map(a => a.project_id);
           query = query.in('id', projectIds);
@@ -152,7 +152,7 @@ export function useProjects() {
         }
       }
       // Tech and Gerente: no filter, see all
-      
+
       const { data, error } = await query;
 
       clearTimeout(timeoutId);
@@ -163,13 +163,13 @@ export function useProjects() {
         setProjects([]);
         return;
       }
-      
+
       // Parse sync_progress from JSON
       const parsedProjects = (data || []).map((p: any) => ({
         ...p,
         sync_progress: p.sync_progress ? (typeof p.sync_progress === 'string' ? JSON.parse(p.sync_progress) : p.sync_progress) : null,
       })) as Project[];
-      
+
       globalProjectsCache.projects = parsedProjects;
       globalProjectsCache.loaded = true;
       globalProjectsCache.userId = user.id;
@@ -219,11 +219,11 @@ export function useProjects() {
             }
             const parsedProject = {
               ...newProject,
-              sync_progress: newProject.sync_progress 
-                ? (typeof newProject.sync_progress === 'string' 
-                    ? JSON.parse(newProject.sync_progress) 
-                    : newProject.sync_progress) 
-                : null 
+              sync_progress: newProject.sync_progress
+                ? (typeof newProject.sync_progress === 'string'
+                  ? JSON.parse(newProject.sync_progress)
+                  : newProject.sync_progress)
+                : null
             } as Project;
             // Add at the beginning (newest first)
             return [parsedProject, ...prev];
@@ -239,17 +239,17 @@ export function useProjects() {
         },
         (payload) => {
           const updated = payload.new as any;
-          setProjects(prev => prev.map(p => 
-            p.id === updated.id 
-              ? { 
-                  ...p, 
-                  ...updated,
-                  sync_progress: updated.sync_progress 
-                    ? (typeof updated.sync_progress === 'string' 
-                        ? JSON.parse(updated.sync_progress) 
-                        : updated.sync_progress) 
-                    : null 
-                }
+          setProjects(prev => prev.map(p =>
+            p.id === updated.id
+              ? {
+                ...p,
+                ...updated,
+                sync_progress: updated.sync_progress
+                  ? (typeof updated.sync_progress === 'string'
+                    ? JSON.parse(updated.sync_progress)
+                    : updated.sync_progress)
+                  : null
+              }
               : p
           ));
         }
@@ -279,7 +279,7 @@ export function useProjects() {
     try {
       // Extract investidor_ids before creating project
       const { investidor_ids, ...projectData } = data;
-      
+
       const { data: project, error } = await supabase
         .from('projects')
         .insert({
@@ -295,13 +295,13 @@ export function useProjects() {
       // Atualização otimista imediata - adiciona projeto à lista sem esperar realtime
       const newProject = {
         ...project,
-        sync_progress: project.sync_progress 
-          ? (typeof project.sync_progress === 'string' 
-              ? JSON.parse(project.sync_progress) 
-              : project.sync_progress) 
+        sync_progress: project.sync_progress
+          ? (typeof project.sync_progress === 'string'
+            ? JSON.parse(project.sync_progress)
+            : project.sync_progress)
           : null
       } as Project;
-      
+
       setProjects(prev => {
         // Verifica se já existe para evitar duplicatas
         if (prev.some(p => p.id === newProject.id)) {
@@ -316,11 +316,11 @@ export function useProjects() {
           project_id: project.id,
           investidor_id,
         }));
-        
+
         await supabase
           .from('project_investidores')
           .insert(investidorRecords);
-        
+
         // CRITICAL: Also insert into guest_project_access so investors can see the project
         // Get user_ids from user_management for these investidores
         const { data: investidorUsers } = await supabase
@@ -328,14 +328,14 @@ export function useProjects() {
           .select('id, user_id')
           .in('id', investidor_ids)
           .not('user_id', 'is', null);
-        
+
         if (investidorUsers && investidorUsers.length > 0) {
           const accessRecords = investidorUsers.map(inv => ({
             project_id: project.id,
             user_id: inv.user_id,
             granted_by: user.id,
           }));
-          
+
           await supabase
             .from('guest_project_access')
             .upsert(accessRecords, { onConflict: 'user_id,project_id' });
@@ -359,14 +359,14 @@ export function useProjects() {
       // Create month records but DO NOT start import - wait for user to choose import mode
       try {
         console.log('[PROJECT] Setting up month records for new project:', project.id);
-        
+
         const currentYear = new Date().getFullYear();
         const currentMonth = new Date().getMonth() + 1;
         const startYear = 2025; // Start from 2025
-        
+
         // Create month records for all months from start to current
         const monthRecords: Array<{ project_id: string; year: number; month: number; status: string }> = [];
-        
+
         for (let year = startYear; year <= currentYear; year++) {
           const endMonth = year === currentYear ? currentMonth : 12;
           for (let month = 1; month <= endMonth; month++) {
@@ -378,20 +378,20 @@ export function useProjects() {
             });
           }
         }
-        
+
         // Insert all month records
         if (monthRecords.length > 0) {
           const { error: monthsError } = await supabase
             .from('project_import_months')
             .insert(monthRecords);
-          
+
           if (monthsError) {
             console.error('[PROJECT] Error creating month records:', monthsError);
           } else {
             console.log(`[PROJECT] Created ${monthRecords.length} month records - waiting for import mode selection`);
           }
         }
-        
+
         // Trigger demographic sync
         supabase.functions.invoke('sync-demographics', {
           body: {
@@ -418,7 +418,7 @@ export function useProjects() {
     try {
       // Extract investidor_ids before updating
       const { investidor_ids, ...projectData } = data;
-      
+
       const { error } = await supabase
         .from('projects')
         .update(projectData)
@@ -430,57 +430,57 @@ export function useProjects() {
       if (investidor_ids !== undefined) {
         // Get current user for granted_by
         const { data: { user: currentUser } } = await supabase.auth.getUser();
-        
+
         // Delete existing investidores
         await supabase
           .from('project_investidores')
           .delete()
           .eq('project_id', id);
-        
+
         // Delete existing guest_project_access for investors of this project
         // First get all investor user_ids that had access
         const { data: oldInvestors } = await supabase
           .from('guest_project_access')
           .select('user_id')
           .eq('project_id', id);
-        
+
         // Insert new investidores
         if (investidor_ids.length > 0) {
           const investidorRecords = investidor_ids.map(investidor_id => ({
             project_id: id,
             investidor_id,
           }));
-          
+
           await supabase
             .from('project_investidores')
             .insert(investidorRecords);
-          
+
           // Also update guest_project_access for new investors
           const { data: investidorUsers } = await supabase
             .from('user_management')
             .select('id, user_id')
             .in('id', investidor_ids)
             .not('user_id', 'is', null);
-          
+
           if (investidorUsers && investidorUsers.length > 0) {
             const accessRecords = investidorUsers.map(inv => ({
               project_id: id,
               user_id: inv.user_id,
               granted_by: currentUser?.id || '',
             }));
-            
+
             await supabase
               .from('guest_project_access')
               .upsert(accessRecords, { onConflict: 'user_id,project_id' });
           }
-          
+
           // Remove access for investors that were removed
           if (oldInvestors && investidorUsers) {
             const newUserIds = investidorUsers.map(u => u.user_id);
             const toRemove = oldInvestors
               .filter(old => !newUserIds.includes(old.user_id))
               .map(old => old.user_id);
-            
+
             if (toRemove.length > 0) {
               await supabase
                 .from('guest_project_access')
@@ -502,7 +502,7 @@ export function useProjects() {
       }
 
       // Atualização otimista - atualiza estado local sem refetch
-      setProjects(prev => prev.map(p => 
+      setProjects(prev => prev.map(p =>
         p.id === id ? { ...p, ...projectData } as Project : p
       ));
       toast.success('Projeto atualizado!');
@@ -523,7 +523,7 @@ export function useProjects() {
       await supabase.from('ads').delete().eq('project_id', id);
       await supabase.from('ad_sets').delete().eq('project_id', id);
       await supabase.from('campaigns').delete().eq('project_id', id);
-      
+
       // Then delete the project
       const { error } = await supabase
         .from('projects')
@@ -532,7 +532,7 @@ export function useProjects() {
 
       if (error) throw error;
 
-      await fetchProjects();
+      await fetchProjects(true);
       toast.success('Projeto excluído!');
     } catch (error) {
       toast.error('Erro ao excluir projeto');
@@ -544,15 +544,20 @@ export function useProjects() {
     try {
       const { error } = await supabase
         .from('projects')
-        .update({ 
-          archived: true, 
-          archived_at: new Date().toISOString() 
+        .update({
+          archived: true,
+          archived_at: new Date().toISOString()
         })
         .eq('id', id);
 
       if (error) throw error;
 
-      await fetchProjects();
+      // Atualização otimista
+      setProjects(prev => prev.map(p =>
+        p.id === id ? { ...p, archived: true, archived_at: new Date().toISOString() } : p
+      ));
+
+      await fetchProjects(true);
       toast.success('Projeto arquivado!');
     } catch (error) {
       toast.error('Erro ao arquivar projeto');
@@ -564,15 +569,20 @@ export function useProjects() {
     try {
       const { error } = await supabase
         .from('projects')
-        .update({ 
-          archived: false, 
-          archived_at: null 
+        .update({
+          archived: false,
+          archived_at: null
         })
         .eq('id', id);
 
       if (error) throw error;
 
-      await fetchProjects();
+      // Atualização otimista
+      setProjects(prev => prev.map(p =>
+        p.id === id ? { ...p, archived: false, archived_at: null } : p
+      ));
+
+      await fetchProjects(true);
       toast.success('Projeto restaurado!');
     } catch (error) {
       toast.error('Erro ao restaurar projeto');
@@ -585,7 +595,7 @@ export function useProjects() {
       // Update status to syncing
       await supabase
         .from('projects')
-        .update({ 
+        .update({
           sync_progress: { status: 'syncing', progress: 0, message: 'Iniciando sincronização...', started_at: new Date().toISOString() },
           webhook_status: 'syncing'
         })

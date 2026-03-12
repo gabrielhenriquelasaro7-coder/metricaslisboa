@@ -59,14 +59,14 @@ function getPeriodDates(periodKey: string): { since: string; until: string } | n
   const now = new Date();
   const today = formatDate(now);
   const yesterday = subDays(now, 1);
-  
+
   const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
   const firstDayThisYear = new Date(now.getFullYear(), 0, 1);
   const firstDayLastYear = new Date(now.getFullYear() - 1, 0, 1);
   const lastDayLastYear = new Date(now.getFullYear() - 1, 11, 31);
-  
+
   const periodMap: Record<string, { since: string; until: string }> = {
     'yesterday': { since: formatDate(yesterday), until: formatDate(yesterday) },
     'last_7d': { since: formatDate(subDays(now, 7)), until: formatDate(yesterday) },
@@ -79,7 +79,7 @@ function getPeriodDates(periodKey: string): { since: string; until: string } | n
     'this_year': { since: formatDate(firstDayThisYear), until: today },
     'last_year': { since: formatDate(firstDayLastYear), until: formatDate(lastDayLastYear) },
   };
-  
+
   return periodMap[periodKey] || null;
 }
 
@@ -88,7 +88,7 @@ async function isPeriodCached(supabase: any, projectId: string, periodKey: strin
   const cacheTtlHours = CACHE_TTL_HOURS[periodKey] || 12;
   const cacheExpiry = new Date();
   cacheExpiry.setHours(cacheExpiry.getHours() - cacheTtlHours);
-  
+
   const { data, error } = await supabase
     .from('period_metrics')
     .select('synced_at')
@@ -96,12 +96,12 @@ async function isPeriodCached(supabase: any, projectId: string, periodKey: strin
     .eq('period_key', periodKey)
     .gt('synced_at', cacheExpiry.toISOString())
     .limit(1);
-  
+
   if (error) {
     console.log(`[CACHE] Error checking cache for ${periodKey}: ${error.message}`);
     return false;
   }
-  
+
   return data && data.length > 0;
 }
 
@@ -123,15 +123,8 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const metaAccessToken = Deno.env.get('META_ACCESS_TOKEN');
-
-    if (!metaAccessToken) {
-      console.error('META_ACCESS_TOKEN not configured');
-      return new Response(
-        JSON.stringify({ success: false, error: 'META_ACCESS_TOKEN not configured' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // META_ACCESS_TOKEN é fallback global (opcional)
+    // Projetos com token próprio no banco usam diretamente — não bloqueamos se não existir
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -144,11 +137,11 @@ Deno.serve(async (req) => {
     }
 
     // Default: daily_cron (últimos 7 dias, só métricas) com light_sync ativado
-    const { 
-      periods, 
-      group = 'daily_cron', 
-      skip_cache = false, 
-      project_ids, 
+    const {
+      periods,
+      group = 'daily_cron',
+      skip_cache = false,
+      project_ids,
       light_sync = true  // Por padrão, não busca criativos (já estão armazenados)
     } = requestBody;
 
@@ -158,7 +151,7 @@ Deno.serve(async (req) => {
     // Fetch projects (optionally filtered by IDs)
     let projectsQuery = supabase
       .from('projects')
-      .select('id, ad_account_id, name')
+      .select('id, ad_account_id, name, access_token')
       .eq('archived', false)
       .not('ad_account_id', 'is', null);
 
@@ -188,7 +181,7 @@ Deno.serve(async (req) => {
     // Process each project
     for (const project of (projects || [])) {
       console.log(`\n========== PROJECT: ${project.name} ==========`);
-      
+
       const projectResult = {
         project_id: project.id,
         project_name: project.name,
@@ -201,7 +194,7 @@ Deno.serve(async (req) => {
       for (let i = 0; i < periodsToSync.length; i++) {
         const periodKey = periodsToSync[i];
         const periodDates = getPeriodDates(periodKey);
-        
+
         if (!periodDates) {
           console.log(`[${project.name}] ${periodKey}: Invalid period, skipping`);
           continue;
@@ -219,7 +212,7 @@ Deno.serve(async (req) => {
         }
 
         console.log(`[${project.name}] Syncing ${periodKey} (${periodDates.since} to ${periodDates.until})...`);
-        
+
         try {
           const response = await fetch(`${supabaseUrl}/functions/v1/meta-ads-sync`, {
             method: 'POST',
@@ -230,14 +223,17 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               project_id: project.id,
               ad_account_id: project.ad_account_id,
+              // Passa o token do projeto específico (cada cliente tem o seu)
+              // Se o projeto não tiver token próprio, a meta-ads-sync usa a env META_ACCESS_TOKEN como fallback
+              ...(project.access_token ? { access_token: project.access_token } : {}),
               time_range: { since: periodDates.since, until: periodDates.until },
               period_key: periodKey,
               syncMode: light_sync ? 'base' : undefined, // 'base' = só métricas, sem criativos
             }),
           });
-          
+
           const result = await response.json().catch(() => ({ success: false }));
-          
+
           if (result.success) {
             projectResult.periods_synced.push(periodKey);
             totalSynced++;
@@ -261,7 +257,7 @@ Deno.serve(async (req) => {
       // Update project status
       const success = projectResult.periods_failed.length === 0;
       const partial = projectResult.periods_synced.length > 0 && projectResult.periods_failed.length > 0;
-      
+
       await supabase.from('projects').update({
         last_sync_at: new Date().toISOString(),
         webhook_status: success ? 'success' : (partial ? 'partial' : 'error'),
@@ -281,7 +277,7 @@ Deno.serve(async (req) => {
       });
 
       results.push(projectResult);
-      
+
       // Delay between projects (5 minutes) to avoid rate limits
       if (results.length < (projects?.length || 0)) {
         console.log(`\n[SCHEDULED SYNC] Waiting 5 minutes before next project...`);
@@ -293,13 +289,42 @@ Deno.serve(async (req) => {
     console.log(`\n[SCHEDULED SYNC] Complete in ${elapsed} minutes`);
     console.log(`[SCHEDULED SYNC] Total synced: ${totalSynced}, skipped: ${totalSkipped}`);
 
+    // Trigger CRM sync for projects with connected CRMs
+    try {
+      const { data: crmConnections } = await supabase
+        .from('crm_connections')
+        .select('id, project_id')
+        .eq('status', 'connected');
+
+      if (crmConnections && crmConnections.length > 0) {
+        console.log(`[Scheduled Sync] Triggering CRM sync for ${crmConnections.length} connections`);
+        for (const conn of crmConnections) {
+          // Trigger async, don't wait for each one
+          fetch(`${supabaseUrl}/functions/v1/crm-sync`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              connection_id: conn.id,
+              project_id: conn.project_id,
+              sync_type: 'incremental'
+            })
+          }).catch(err => console.error(`[Scheduled Sync] CRM sync failed for ${conn.id}:`, err));
+        }
+      }
+    } catch (crmErr) {
+      console.error('[Scheduled Sync] Error fetching CRM connections:', crmErr);
+    }
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        elapsed_minutes: parseFloat(elapsed), 
+      JSON.stringify({
+        success: true,
+        elapsed_minutes: parseFloat(elapsed),
         total_synced: totalSynced,
         total_skipped: totalSkipped,
-        results 
+        results
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

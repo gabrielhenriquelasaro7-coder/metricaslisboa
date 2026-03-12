@@ -72,27 +72,33 @@ const FIELD_LABELS: Record<string, string> = {
   // Status
   status: 'Status',
   
-  // Campanha
+  // Campanha e Orcamento (Meta e Google)
   objective: 'Objetivo da Campanha',
   daily_budget: 'Orçamento Diário',
   lifetime_budget: 'Orçamento Total',
+  budget_amount: 'Orçamento (Google)',
+  bidding_strategy: 'Estratégia de Lance (Google)',
   
-  // Conjunto de Anúncios
+  // Conjunto de Anúncios / Ad Group
   targeting: 'Público-Alvo',
   update_ad_set_target_spec: 'Segmentação',
   update_ad_set_optimization_goal: 'Meta de Otimização',
-  update_ad_set_bid_strategy: 'Estratégia de Lance',
+  update_ad_set_bid_strategy: 'Estratégia de Lance (Meta)',
   update_ad_set_bid_amount: 'Valor do Lance',
+  cpc_bid: 'Lance Máx. CPC (Google)',
   
-  // Anúncio
+  // Anúncio (Meta e Google)
   creative_image_url: 'Imagem do Criativo',
   creative_video_url: 'Vídeo do Criativo',
-  headline: 'Título',
+  headline: 'Título (Meta)',
+  headlines: 'Títulos (Google)',
   primary_text: 'Texto Principal',
+  descriptions: 'Descrições (Google)',
   cta: 'Botão de Ação (CTA)',
   creative: 'Criativo',
   name: 'Nome',
   created: 'Criação',
+  final_urls: 'URLs Finais (Google)'
 };
 
 const CHANGE_TYPE_CONFIG: Record<string, { label: string; color: string; icon: typeof Settings; description: string }> = {
@@ -460,7 +466,12 @@ export default function OptimizationHistory() {
         record.entity_name.toLowerCase().includes(search.toLowerCase()) ||
         getChangeDescription(record).toLowerCase().includes(search.toLowerCase());
       
-      const matchesEntity = entityFilter === 'all' || record.entity_type === entityFilter;
+      let matchesEntity = true;
+      if (entityFilter !== 'all') {
+        const _entityType = (record as any).entity_type === 'adset' ? 'ad_set' : record.entity_type; // Normaliza a string que as vezes vem erroneamente do DB
+        matchesEntity = _entityType === entityFilter;
+      }
+
       const matchesChangeType = changeTypeFilter === 'all' || record.change_type === changeTypeFilter;
       const matchesPlatform = platformFilter === 'all' || record.platform === platformFilter;
       
@@ -487,7 +498,7 @@ export default function OptimizationHistory() {
 
   const stats = useMemo(() => {
     const campaigns = history.filter(h => h.entity_type === 'campaign').length;
-    const adSets = history.filter(h => h.entity_type === 'ad_set').length;
+    const adSets = history.filter(h => h.entity_type === 'ad_set' || (h as any).entity_type === 'adset').length;
     const ads = history.filter(h => h.entity_type === 'ad').length;
     
     // Contagem por tipo de mudança

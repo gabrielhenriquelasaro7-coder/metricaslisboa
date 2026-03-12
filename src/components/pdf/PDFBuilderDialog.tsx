@@ -750,13 +750,12 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
         
         const tableWidth = pw - 2 * m;
         const startX = m;
-        const kwCol1 = tableWidth * 0.35;
+        const kwCol1 = tableWidth * 0.45;
         const kwCol2 = tableWidth * 0.12;
         const kwCol3 = tableWidth * 0.13;
         const kwCol4 = tableWidth * 0.10;
         const kwCol5 = tableWidth * 0.10;
         const kwCol6 = tableWidth * 0.10;
-        const kwCol7 = tableWidth * 0.10;
         
         doc.setFillColor(rgb.r, rgb.g, rgb.b);
         doc.rect(startX, y, tableWidth, 8, 'F');
@@ -768,12 +767,11 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
         doc.text('Gasto', startX + kwCol1 + kwCol2 + kwCol3 - 3, y + 5, { align: 'right' });
         doc.text('Cliques', startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 - 3, y + 5, { align: 'right' });
         doc.text('CTR', startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 + kwCol5 - 3, y + 5, { align: 'right' });
-        doc.text('Conv', startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 + kwCol5 + kwCol6 - 3, y + 5, { align: 'right' });
-        doc.text('QS', startX + tableWidth - 3, y + 5, { align: 'right' });
+        doc.text('Conv', startX + tableWidth - 3, y + 5, { align: 'right' });
         y += 8;
         
         doc.setFont('helvetica', 'normal');
-        const topKws = pdfKeywords.slice(0, 15);
+        const topKws = (pdfKeywords || []).slice(0, 15);
         topKws.forEach((kw, idx) => {
           if (y > ph - 25) { doc.addPage(); y = 20; }
           doc.setFillColor(idx % 2 === 0 ? 255 : 249, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 251);
@@ -781,17 +779,16 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
           doc.setFontSize(7);
           doc.setTextColor(31, 41, 55);
           
-          const kwText = kw.keyword_text.length > 30 ? kw.keyword_text.substring(0, 28) + '...' : kw.keyword_text;
+          const rawText = kw.keyword_text || 'Sem texto';
+          const kwText = rawText.length > 30 ? rawText.substring(0, 28) + '...' : rawText;
           doc.text(kwText, startX + 3, y + 5);
+          
           const matchLabel = kw.match_type === 'EXACT' ? 'Exata' : kw.match_type === 'PHRASE' ? 'Frase' : 'Ampla';
           doc.text(matchLabel, startX + kwCol1 + 3, y + 5);
-          doc.text(fmtCurrency(kw.spend, currency), startX + kwCol1 + kwCol2 + kwCol3 - 3, y + 5, { align: 'right' });
-          doc.text(fmtNumber(kw.clicks), startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 - 3, y + 5, { align: 'right' });
-          doc.text(`${kw.ctr.toFixed(1)}%`, startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 + kwCol5 - 3, y + 5, { align: 'right' });
-          doc.text(fmtNumber(kw.conversions), startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 + kwCol5 + kwCol6 - 3, y + 5, { align: 'right' });
-          doc.setTextColor(rgb.r, rgb.g, rgb.b);
-          doc.text(kw.quality_score ? `${kw.quality_score}` : '-', startX + tableWidth - 3, y + 5, { align: 'right' });
-          doc.setTextColor(31, 41, 55);
+          doc.text(fmtCurrency(kw.spend || 0, currency), startX + kwCol1 + kwCol2 + kwCol3 - 3, y + 5, { align: 'right' });
+          doc.text(fmtNumber(kw.clicks || 0), startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 - 3, y + 5, { align: 'right' });
+          doc.text(`${(kw.ctr || 0).toFixed(1)}%`, startX + kwCol1 + kwCol2 + kwCol3 + kwCol4 + kwCol5 - 3, y + 5, { align: 'right' });
+          doc.text(fmtNumber(kw.conversions || 0), startX + tableWidth - 3, y + 5, { align: 'right' });
           y += 7;
         });
         y += 10;
@@ -1469,6 +1466,40 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Keywords Preview */}
+        {includeKeywords && pdfKeywords.length > 0 && (
+          <div>
+            <h2 className="text-[10px] md:text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
+              <Settings className="w-3 h-3" /> Top Palavras-chave
+            </h2>
+            <div id="pdf-keywords-table" className="bg-white rounded-lg border overflow-hidden shadow-sm overflow-x-auto">
+              <table className="w-full text-[8px] md:text-[9px]">
+                <thead>
+                  <tr style={{ backgroundColor: primaryColor }}>
+                    <th className="text-left px-1.5 md:px-2 py-1.5 md:py-2 font-bold text-white">Palavra-chave</th>
+                    <th className="text-left px-1.5 md:px-2 py-1.5 md:py-2 font-bold text-white">Tipo</th>
+                    <th className="text-right px-1.5 md:px-2 py-1.5 md:py-2 font-bold text-white">Gasto</th>
+                    <th className="text-right px-1.5 md:px-2 py-1.5 md:py-2 font-bold text-white">Cliques</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pdfKeywords.slice(0, 10).map((kw, idx) => {
+                    const matchLabel = kw.match_type === 'EXACT' ? 'Exata' : kw.match_type === 'PHRASE' ? 'Frase' : 'Ampla';
+                    return (
+                      <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'}>
+                        <td className="px-1.5 md:px-2 py-1.5 md:py-2 text-gray-800 truncate max-w-[120px] font-medium" title={kw.keyword_text}>{kw.keyword_text}</td>
+                        <td className="px-1.5 md:px-2 py-1.5 md:py-2 text-gray-800 font-medium">{matchLabel}</td>
+                        <td className="text-right px-1.5 md:px-2 py-1.5 md:py-2 text-gray-800 font-semibold">{fmtCurrency(kw.spend, currency)}</td>
+                        <td className="text-right px-1.5 md:px-2 py-1.5 md:py-2 text-gray-800">{fmtNumber(kw.clicks)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

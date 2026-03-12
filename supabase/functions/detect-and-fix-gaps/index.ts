@@ -121,7 +121,8 @@ async function fixGap(
   supabaseUrl: string,
   supabaseServiceKey: string,
   gap: Gap,
-  adAccountId: string
+  adAccountId: string,
+  accessToken?: string | null
 ): Promise<FixResult> {
   console.log(`[FIX] ${gap.project_name}: ${gap.gap_start} to ${gap.gap_end} (${gap.gap_days} days)`);
   
@@ -135,6 +136,8 @@ async function fixGap(
       body: JSON.stringify({
         project_id: gap.project_id,
         ad_account_id: adAccountId,
+        // Passa o token do projeto específico para garantir credenciais corretas
+        ...(accessToken ? { access_token: accessToken } : {}),
         time_range: { since: gap.gap_start, until: gap.gap_end },
         period_key: `gap_fix_${gap.gap_start}_${gap.gap_end}`,
       }),
@@ -216,10 +219,10 @@ Deno.serve(async (req) => {
     console.log(`[GAPS] Range: ${since} to ${until}`);
     console.log(`[GAPS] Auto-fix: ${auto_fix}`);
 
-    // Fetch projects
+    // Busca projetos incluindo access_token para usar nas chamadas ao meta-ads-sync
     let projectsQuery = supabase
       .from('projects')
-      .select('id, ad_account_id, name')
+      .select('id, ad_account_id, name, access_token')
       .eq('archived', false)
       .not('ad_account_id', 'is', null);
 
@@ -270,7 +273,7 @@ Deno.serve(async (req) => {
         let fixSuccess = false;
         
         while (retryCount < MAX_FIX_RETRIES && !fixSuccess) {
-          const result = await fixGap(supabaseUrl, supabaseServiceKey, gap, project.ad_account_id);
+          const result = await fixGap(supabaseUrl, supabaseServiceKey, gap, project.ad_account_id, project.access_token);
           
           // Check if rate limit error
           const isRateLimit = result.error?.includes('rate') || result.error?.includes('limit') || result.error?.includes('429');

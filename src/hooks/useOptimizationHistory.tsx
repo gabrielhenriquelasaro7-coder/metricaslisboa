@@ -30,22 +30,22 @@ export function useOptimizationHistory(projectId: string | null) {
     setError(null);
     
     try {
-      // Fetch Meta Ads optimization history
-      const { data: metaData, error: metaError } = await supabase
+      // Fetch optimization history
+      const { data, error: fetchError } = await supabase
         .from('optimization_history')
         .select('*')
         .eq('project_id', projectId)
         .order('detected_at', { ascending: false })
-        .limit(500);
+        .limit(1000);
       
-      if (metaError) throw metaError;
+      if (fetchError) throw fetchError;
 
-      // Deduplicate Meta creative changes
+      // Deduplicate creative changes and map platforms
       const seen = new Map<string, boolean>();
-      const metaDeduped: OptimizationRecord[] = [];
+      const processedHistory: OptimizationRecord[] = [];
 
-      for (const row of (metaData || []) as OptimizationRecord[]) {
-        const isCreativeField = ['headline', 'primary_text', 'cta', 'creative_image_url', 'creative_video_url'].includes(row.field_changed);
+      for (const row of (data || []) as OptimizationRecord[]) {
+        const isCreativeField = ['headline', 'primary_text', 'cta', 'creative_image_url', 'creative_video_url', 'descriptions', 'final_urls'].includes(row.field_changed);
 
         if (isCreativeField && row.entity_type === 'ad') {
           const hour = row.detected_at.substring(0, 13);
@@ -57,50 +57,13 @@ export function useOptimizationHistory(projectId: string | null) {
         // Skip pure "created" entries for ads (they bloat the list heavily)
         if (row.field_changed === 'created' && row.entity_type === 'ad') continue;
 
-        metaDeduped.push({ ...row, platform: 'meta' });
+        processedHistory.push({ 
+          ...row, 
+          platform: row.platform || 'meta' // fallback para dados antigos que nao tinham 'platform' 
+        });
       }
 
-      // Fetch Google Ads changes (from google_campaigns status changes)
-      // We detect changes by looking at google_campaigns that have been modified
-      let googleRecords: OptimizationRecord[] = [];
-      try {
-        const { data: googleCampaigns } = await supabase
-          .from('google_campaigns')
-          .select('id, name, status, spend, impressions, clicks, conversions, synced_at, created_at')
-          .eq('project_id', projectId)
-          .order('synced_at', { ascending: false })
-          .limit(100);
-
-        if (googleCampaigns && googleCampaigns.length > 0) {
-          // Create synthetic records for recent Google campaign syncs
-          googleRecords = googleCampaigns
-            .filter(c => c.synced_at)
-            .map(c => ({
-              id: `google_${c.id}`,
-              project_id: projectId,
-              entity_type: 'campaign' as const,
-              entity_id: c.id,
-              entity_name: c.name,
-              field_changed: 'status',
-              old_value: null,
-              new_value: c.status,
-              change_type: c.status === 'PAUSED' ? 'paused' : c.status === 'ENABLED' ? 'activated' : 'status_change',
-              change_percentage: null,
-              detected_at: c.synced_at || c.created_at,
-              created_at: c.created_at,
-              changed_by: null,
-              platform: 'google' as const,
-            }));
-        }
-      } catch (googleErr) {
-        console.warn('Could not fetch Google history:', googleErr);
-      }
-
-      // Combine and sort by date
-      const combined = [...metaDeduped, ...googleRecords]
-        .sort((a, b) => new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime());
-
-      setHistory(combined);
+      setHistory(processedHistory);
     } catch (err) {
       console.error('Error fetching optimization history:', err);
       setError(err instanceof Error ? err.message : 'Erro ao carregar histórico');
