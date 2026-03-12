@@ -50,7 +50,7 @@ const REQUIRES_PASSWORD_CHANGE = [
 export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
   const { user, loading: authLoading } = useAuth();
   const { isGuest, needsPasswordChange, loading: roleLoading } = useUserRole();
-  const { isTech, isMaster, loading: cargoLoading } = useCargo();
+  const { isTech, loading: cargoLoading } = useCargo();
   const navigate = useNavigate();
   const location = useLocation();
   const hasNavigatedRef = useRef(false);
@@ -90,11 +90,11 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
       }
     }
 
-    // Tech/master only routes
+    // Tech only routes
     const isTechMasterOnly = TECH_MASTER_ONLY_ROUTES.some(route => 
       currentPath === route || currentPath.startsWith(route + '/')
     );
-    if (isTechMasterOnly && !isTech && !isMaster) {
+    if (isTechMasterOnly && !isTech) {
       hasNavigatedRef.current = true;
       navigate('/dashboard', { replace: true });
       return;
@@ -129,7 +129,7 @@ export function GuestAccessGuard({ children }: GuestAccessGuardProps) {
       hasNavigatedRef.current = true;
       navigate('/dashboard', { replace: true });
     }
-  }, [user, isGuest, isTech, isMaster, needsPasswordChange, authLoading, roleLoading, cargoLoading, location.pathname, navigate]);
+  }, [user, isGuest, isTech, needsPasswordChange, authLoading, roleLoading, cargoLoading, location.pathname, navigate]);
 
   // Always render children immediately - never block
   return <>{children}</>;

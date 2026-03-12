@@ -471,4 +471,3 @@ export function calculateScore1to10(ratio: number): number {
     return Math.max(7, Math.min(10, val));
   }
 }
-

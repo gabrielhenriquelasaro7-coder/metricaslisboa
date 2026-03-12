@@ -214,6 +214,7 @@ export function useCargo(): CargoData {
   const isCoordenador = cargo === 'coordenador';
   const isInvestidor = cargo === 'investidor';
   const isMembro = cargo === 'membro';
+  const isMaster = globalCargoCache.userId === user?.id ? globalCargoCache.isMaster : false;
 
   return {
     cargo,
@@ -225,11 +226,13 @@ export function useCargo(): CargoData {
     isCoordenador,
     isInvestidor,
     isMembro,
-    isMaster,
     canSeeAllProjects: isTech || isGerente,
     canManageSquads: isTech || isGerente,
     canManageUsers: isGerente,
     canAccessFullAdmin: isTech,
+    canImportProject: isTech || isGerente || isCoordenador,
+    canSeeAnalytics: isTech || isMaster,
+    canSeeDiagnostics: isTech || isMaster,
     needsAdminApproval: isInvestidor || isCoordenador,
     refetch: async () => {
       if (!user) return;

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { DiagnosticProject } from '@/types/diagnostic';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
@@ -36,11 +36,12 @@ import {
     getStageNum,
     getStageInjection,
     getStageLabel,
-    getMetricLabel
+    getMetricLabel,
+    classifyMetricValue,
+    BenchmarkStageId
 } from '@/lib/diagnosticBenchmarks';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RevenueFlow } from '@/components/dashboard/RevenueFlow';
-import { useDiagnosticAnalysis } from '@/hooks/useDiagnosticAnalysis';
 
 interface ResultsProps {
     project: DiagnosticProject;
@@ -49,8 +50,6 @@ interface ResultsProps {
     onSave?: (p: DiagnosticProject) => void;
 }
 
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 // ─── TRAVA GAUGE COM DRAG INTERATIVO ──────────────────────────────────────────
 const TravaGauge = ({ id, idx, analysis, project, onValueChange }: {
@@ -88,7 +87,7 @@ const TravaGauge = ({ id, idx, analysis, project, onValueChange }: {
 
     // A Porcentagem visual SEMPRE preencherá do MENOR (esquerda) para o MAIOR (direita) quantitativamente.
     // O que inverte é a COR DO GRADIENTE no CSS (Verde <- se -> Vermelho)
-    const percentage = Math.max(0, Math.min(100, ((localVal - minVal) / (maxVal - minVal)) * 100));
+    let percentage = Math.max(0, Math.min(100, ((localVal - minVal) / (maxVal - minVal)) * 100));
 
     // Determinar o status dinâmico em tempo real para feedback visual instântaneo do slider!
     let dynamicStatus = score?.status;
@@ -534,6 +533,47 @@ export function DiagnosticResults({ project, onBack, onEdit, onSave }: ResultsPr
         // 4. Se todo mundo estiver "bom", pega o que tiver maior penalty (o menos "bom")
         if (!bottleneck) {
             bottleneck = [...allScoresOrdered].sort((a, b) => b.penalty - a.penalty)[0];
+        }
+
+        return { stageScores: allScoresOrdered, bottleneck };
+    }, [benchmarks, project, localBowtie]);
+
+    const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+
+    const handleGenerateAI = async () => {
+        setIsGeneratingAI(true);
+        try {
+            const performanceScores = analysis.stageScores.reduce((acc: any, s: any) => ({ ...acc, [s.id]: s.value }), {});
+
+            const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/diagnostic-ai`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ project, bottleneck: analysis.bottleneck, performanceScores })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(errText || 'Erro da IA (401/500)');
+            }
+
+            const data = await response.json();
+
+            if (data && onSave) {
+                const updatedProject: DiagnosticProject = {
+                    ...project,
+                    ai_analysis: {
+                        ...data,
+                        generatedAt: new Date().toISOString()
+                    }
+                };
+                onSave(updatedProject);
+                toast.success('Análise estratégica gerada com sucesso pela IA!');
+            }
+        } catch (error: any) {
+            console.error('Erro ao gerar análise IA:', error);
+            toast.error('Erro ao conectar com a IA: ' + (error.message || 'Verifique sua configuração'));
+        } finally {
+            setIsGeneratingAI(false);
         }
     };
 
