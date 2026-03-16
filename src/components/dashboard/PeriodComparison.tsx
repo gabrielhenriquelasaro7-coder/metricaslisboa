@@ -374,7 +374,7 @@ export default function PeriodComparison({
       const currentLeads = getMetricValue(currentMetrics, 'leads');
       const previousLeads = getMetricValue(previousMetrics, 'leads');
       
-      if (shouldShowMetric('cpa') && (currentLeads > 0 || previousLeads > 0)) {
+      if (shouldShowCostMetric('cpl') && shouldShowMetric('cpa') && (currentLeads > 0 || previousLeads > 0)) {
         const currentCpl = currentLeads > 0 ? currentMetrics.totalSpend / currentLeads : 0;
         const previousCpl = previousLeads > 0 ? previousMetrics.totalSpend / previousLeads : 0;
 
@@ -390,7 +390,7 @@ export default function PeriodComparison({
       const currentProfileVisits = getMetricValue(currentMetrics, 'profile_visits');
       const previousProfileVisits = getMetricValue(previousMetrics, 'profile_visits');
       
-      if (shouldShowMetric('profile_visits') && (currentProfileVisits > 0 || previousProfileVisits > 0)) {
+      if (shouldShowCostMetric('cpv') && shouldShowMetric('profile_visits') && (currentProfileVisits > 0 || previousProfileVisits > 0)) {
         const currentCpv = currentProfileVisits > 0 ? currentMetrics.totalSpend / currentProfileVisits : 0;
         const previousCpv = previousProfileVisits > 0 ? previousMetrics.totalSpend / previousProfileVisits : 0;
 
@@ -407,7 +407,7 @@ export default function PeriodComparison({
       const currentIC = getMetricValue(currentMetrics, 'initiate_checkout');
       const previousIC = getMetricValue(previousMetrics, 'initiate_checkout');
       
-      if (shouldShowMetric('initiate_checkout') && (currentIC > 0 || previousIC > 0)) {
+      if (shouldShowCostMetric('cpic') && shouldShowMetric('initiate_checkout') && (currentIC > 0 || previousIC > 0)) {
         const currentCpic = currentIC > 0 ? currentMetrics.totalSpend / currentIC : 0;
         const previousCpic = previousIC > 0 ? previousMetrics.totalSpend / previousIC : 0;
 
@@ -423,7 +423,7 @@ export default function PeriodComparison({
       const currentPurchases = getMetricValue(currentMetrics, 'purchases');
       const previousPurchases = getMetricValue(previousMetrics, 'purchases');
       
-      if (shouldShowMetric('purchases') && (currentPurchases > 0 || previousPurchases > 0)) {
+      if (shouldShowCostMetric('cpp') && shouldShowMetric('purchases') && (currentPurchases > 0 || previousPurchases > 0)) {
         const currentCpp = currentPurchases > 0 ? currentMetrics.totalSpend / currentPurchases : 0;
         const previousCpp = previousPurchases > 0 ? previousMetrics.totalSpend / previousPurchases : 0;
 
