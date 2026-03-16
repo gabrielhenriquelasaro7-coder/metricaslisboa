@@ -311,9 +311,12 @@ Deno.serve(async (req) => {
       if (mediaErr) console.error('Error upserting media:', mediaErr);
     }
 
-    // Step 7: Fetch Stories
+    // Step 7: Fetch Stories (only active/recent ones from API - stories are 24h)
     let storiesCount = 0;
     try {
+      // First, delete ALL old stories for this project (they're expired anyway)
+      await supabase.from('instagram_stories').delete().eq('project_id', project_id);
+
       const storiesRes = await fetchJSON(
         `${graphUrl}/${igUserId}/stories?fields=id,media_type,media_url,thumbnail_url,timestamp&access_token=${metaToken}`
       );
@@ -352,6 +355,7 @@ Deno.serve(async (req) => {
         await supabase.from('instagram_stories').upsert(storyRows, { onConflict: 'project_id,ig_story_id' });
         storiesCount = storyRows.length;
       }
+      console.log(`Stories: deleted old, inserted ${storiesCount} active`);
     } catch (e) {
       console.warn('Stories sync failed:', e);
     }
