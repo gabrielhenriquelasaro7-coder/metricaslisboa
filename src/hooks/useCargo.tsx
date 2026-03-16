@@ -220,7 +220,6 @@ export function useCargo(): CargoData {
     cargo,
     loading,
     userSquads,
-    isMaster,
     isTech,
     isGerente,
     isCoordenador,
