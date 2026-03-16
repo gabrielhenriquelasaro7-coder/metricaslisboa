@@ -146,24 +146,11 @@ export function SmoothLoader({
   if (loading) {
     return createPortal(
       <div 
-        className={cn("flex flex-col items-center justify-center bg-background", className)} 
+        className={cn("flex flex-col items-center justify-center bg-[#0a0a0a]", className)} 
         style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 }}
       >
-        <motion.img 
-          src={v4LogoIcon} 
-          alt="V4" 
-          className="w-12 h-12 object-contain brightness-0 invert"
-          animate={{ 
-            opacity: [0.4, 1, 0.4],
-            scale: [0.95, 1.05, 0.95],
-          }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-        <p className="text-sm text-muted-foreground tracking-widest mt-4">Carregando...</p>
+        <CircularLoader size={90} />
+        <p className="text-xs text-muted-foreground tracking-[0.3em] uppercase mt-6">CARREGANDO...</p>
       </div>,
       document.body
     );
