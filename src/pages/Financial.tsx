@@ -461,8 +461,8 @@ export default function Financial() {
                 </div>
                 <SyncStatusCard
                   status={syncStatus as 'pending' | 'syncing' | 'synced' | 'error'}
-                  lastSyncAt={crmStatus?.sync?.completed_at ? new Date(crmStatus.sync.completed_at) : new Date()}
-                  nextSyncAt={new Date(Date.now() + 5 * 60 * 1000)}
+                  lastSyncAt={crmStatus?.sync?.completed_at ? new Date(crmStatus.sync.completed_at) : undefined}
+                  nextSyncAt={nextSyncAt ?? undefined}
                   progress={100}
                   recordsSynced={crmStatus?.sync?.records_processed || 0}
                   onForceSync={() => triggerSync('incremental')}
