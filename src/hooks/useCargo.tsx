@@ -38,12 +38,7 @@ interface CargoData {
   cargo: UserCargo;
   loading: boolean;
   userSquads: Squad[];
-<<<<<<< HEAD
-  isMaster: boolean;
-  
-=======
 
->>>>>>> e31e31f (fix(google-ads): paginacao nas dailymetrics para evitar limite supabase de 1000 items)
   // Computed permissions
   isTech: boolean;
   isGerente: boolean;
