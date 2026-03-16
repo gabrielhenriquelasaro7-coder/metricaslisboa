@@ -268,7 +268,10 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
     }
   }, [projectId, status?.connection_id]);
 
-  const triggerSync = useCallback(async (syncType: 'full' | 'incremental' = 'incremental') => {
+  const triggerSync = useCallback(async (
+    syncType: 'full' | 'incremental' = 'incremental',
+    options?: { silent?: boolean }
+  ) => {
     if (!projectId || !status?.connection_id) return;
 
     try {
@@ -299,7 +302,11 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
         throw new Error(data.error || 'Erro ao sincronizar');
       }
 
-      toast.success('Sincronização iniciada');
+      setNextSyncAt(new Date(Date.now() + AUTO_SYNC_INTERVAL_MS));
+
+      if (!options?.silent) {
+        toast.success('Sincronização iniciada');
+      }
       
       // Refresh status after a delay to get updated sync info
       setTimeout(() => fetchStatus(), 2000);
@@ -307,7 +314,9 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
       return data;
     } catch (error) {
       console.error('Failed to trigger sync:', error);
-      toast.error('Erro ao sincronizar');
+      if (!options?.silent) {
+        toast.error('Erro ao sincronizar');
+      }
       throw error;
     }
   }, [projectId, status?.connection_id, fetchStatus]);
