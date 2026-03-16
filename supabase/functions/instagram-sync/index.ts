@@ -157,6 +157,10 @@ Deno.serve(async (req) => {
       try {
         const result = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=total_value`);
         if (result) {
+          // Log raw structure for follows debugging
+          if (metric === 'follows_and_unfollows') {
+            console.log(`follows_and_unfollows RAW response: ${JSON.stringify(result)}`);
+          }
           parseDailyValues(result, dailyInsights);
           console.log(`Metric ${metric} fetched OK, data entries: ${result.length}`);
         } else {
@@ -170,8 +174,16 @@ Deno.serve(async (req) => {
     // Also try follower_count with period=day (legacy metric, no metric_type needed)
     try {
       const fcResult = await fetchSingleMetric(igUserId, 'follower_count', 'day', metaToken, timeParams);
-      if (fcResult) parseDailyValues(fcResult, dailyInsights);
+      if (fcResult) {
+        console.log(`follower_count RAW: ${JSON.stringify(fcResult).slice(0, 500)}`);
+        parseDailyValues(fcResult, dailyInsights);
+      }
     } catch (_) {}
+
+    // Log what we got for follows
+    const followsDays = Object.entries(dailyInsights).filter(([_, d]: any) => d.follows > 0);
+    console.log(`Days with follows > 0: ${followsDays.length}, sample: ${JSON.stringify(followsDays.slice(0, 3))}`);
+    console.log(`Total follows across days: ${Object.values(dailyInsights).reduce((s: number, d: any) => s + (d.follows || 0), 0)}`);
 
     console.log(`Daily insights parsed: ${Object.keys(dailyInsights).length} days`);
 

@@ -1,38 +1,27 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, BarChart, Bar } from 'recharts';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { InstagramInsightsDaily } from '@/hooks/useInstagramData';
 
 interface Props {
   insights: InstagramInsightsDaily[];
 }
 
-type MetricKey = 'reach' | 'followers';
-
-const METRIC_CONFIG: Record<MetricKey, { label: string; lines: { key: string; color: string; name: string }[] }> = {
-  reach: {
-    label: 'Alcance',
-    lines: [
-      { key: 'reach', color: '#8b5cf6', name: 'Alcance' },
-      { key: 'views', color: '#06b6d4', name: 'Visualizações' },
-    ],
-  },
-  followers: {
-    label: 'Novos Seguidores',
-    lines: [
-      { key: 'net_followers', color: '#10b981', name: 'Novos Seguidores' },
-    ],
-  },
-};
+type ViewMode = 'reach' | 'followers';
 
 export default function InstagramPerformanceChart({ insights }: Props) {
-  const [activeMetrics, setActiveMetrics] = useState<Set<MetricKey>>(new Set(['reach', 'followers']));
+  const [viewMode, setViewMode] = useState<ViewMode>('reach');
 
-  const chartData = [...insights].reverse().map((i) => ({
+  const sortedInsights = [...insights].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const chartData = sortedInsights.map((i) => ({
     date: new Date(i.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
     reach: i.reach || 0,
     views: i.views || 0,
     net_followers: (i.follows || 0) - (i.unfollows || 0),
+    follows: i.follows || 0,
+    unfollows: i.unfollows || 0,
   }));
 
   if (chartData.length === 0) {
@@ -54,69 +43,63 @@ export default function InstagramPerformanceChart({ insights }: Props) {
     fontSize: 12,
   };
 
-  const toggleMetric = (key: MetricKey) => {
-    setActiveMetrics(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  const fmtNumber = (value: number) => {
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+    return String(value);
   };
-
-  // Gather all active lines
-  const activeLines: { key: string; color: string; name: string }[] = [];
-  for (const mk of Object.keys(METRIC_CONFIG) as MetricKey[]) {
-    if (activeMetrics.has(mk)) {
-      activeLines.push(...METRIC_CONFIG[mk].lines);
-    }
-  }
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Performance</CardTitle>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <CardTitle className="text-base">Performance</CardTitle>
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+            <TabsList className="h-8">
+              <TabsTrigger value="reach" className="text-xs px-3 h-7">Alcance & Visualizações</TabsTrigger>
+              <TabsTrigger value="followers" className="text-xs px-3 h-7">Novos Seguidores</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
-            <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend />
-            {activeLines.map(line => (
-              <Line
-                key={line.key}
-                type="monotone"
-                dataKey={line.key}
-                stroke={line.color}
-                name={line.name}
-                strokeWidth={2}
-                dot={{ r: 2 }}
-                activeDot={{ r: 5 }}
+        {viewMode === 'reach' ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+              <XAxis 
+                dataKey="date" 
+                tick={{ fontSize: 10 }} 
+                className="fill-muted-foreground"
+                interval={Math.max(0, Math.floor(chartData.length / 8))}
               />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+              <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" tickFormatter={fmtNumber} />
+              <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [fmtNumber(value), '']} />
+              <Line type="monotone" dataKey="reach" stroke="#8b5cf6" name="Alcance" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 5 }} />
+              <Line type="monotone" dataKey="views" stroke="#06b6d4" name="Visualizações" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 5 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+              <XAxis 
+                dataKey="date" 
+                tick={{ fontSize: 10 }} 
+                className="fill-muted-foreground"
+                interval={Math.max(0, Math.floor(chartData.length / 8))}
+              />
+              <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="follows" fill="#10b981" name="Novos seguidores" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="unfollows" fill="#ef4444" name="Unfollows" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
 
-        {/* Metric toggles */}
-        <div className="flex items-center justify-center gap-3 mt-3 pt-2 border-t border-border/30">
-          {(Object.keys(METRIC_CONFIG) as MetricKey[]).map(mk => (
-            <button
-              key={mk}
-              onClick={() => toggleMetric(mk)}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                activeMetrics.has(mk)
-                  ? 'border-primary/50 bg-primary/10 text-foreground'
-                  : 'border-border text-muted-foreground hover:border-primary/30'
-              }`}
-            >
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: METRIC_CONFIG[mk].lines[0].color }} />
-              {METRIC_CONFIG[mk].label}
-            </button>
-          ))}
-        </div>
-        <p className="text-[10px] text-muted-foreground text-center mt-2">Clique nas métricas acima para alterar a visualização</p>
+        <p className="text-[10px] text-muted-foreground text-center mt-3">
+          Últimos 30 dias · Use as abas acima para alternar entre métricas
+        </p>
       </CardContent>
     </Card>
   );
