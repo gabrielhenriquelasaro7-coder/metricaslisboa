@@ -147,7 +147,7 @@ export function SmoothLoader({
   if (loading) {
     return createPortal(
       <div 
-        className={cn("flex flex-col items-center justify-center bg-[#0a0a0a]", className)} 
+        className={cn("flex flex-col items-center justify-center bg-background", className)} 
         style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 }}
       >
         <CircularLoader size={90} />

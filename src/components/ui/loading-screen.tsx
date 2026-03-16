@@ -22,9 +22,8 @@ function CircularLoader({ size = 80 }: { size?: number }) {
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="hsl(var(--muted))"
+          className="stroke-muted-foreground/20"
           strokeWidth={strokeWidth}
-          opacity={0.3}
         />
       </svg>
       {/* Animated arc */}
@@ -41,7 +40,7 @@ function CircularLoader({ size = 80 }: { size?: number }) {
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="hsl(var(--muted-foreground))"
+          className="stroke-muted-foreground/60"
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -56,7 +55,7 @@ function CircularLoader({ size = 80 }: { size?: number }) {
         <img
           src={v4LogoIcon}
           alt="V4"
-          className="w-[45%] h-[45%] object-contain brightness-0 invert"
+          className="w-[45%] h-[45%] object-contain dark:brightness-0 dark:invert"
         />
       </div>
     </div>
@@ -71,7 +70,7 @@ export function LoadingScreen({
   return (
     <motion.div
       className={cn(
-        'flex flex-col items-center justify-center bg-[#0a0a0a]',
+        'flex flex-col items-center justify-center bg-background',
         fullScreen && 'min-h-screen fixed inset-0 z-[100]',
         !fullScreen && 'min-h-[60vh]',
         className
