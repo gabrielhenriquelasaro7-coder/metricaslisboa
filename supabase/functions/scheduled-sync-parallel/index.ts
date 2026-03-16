@@ -233,7 +233,8 @@ Deno.serve(async (req) => {
     const { 
       project_ids,
       concurrent = CONCURRENT_PROJECTS,
-      retry_failed = false
+      retry_failed = false,
+      run_gap_detection = false,
     } = requestBody;
 
     const concurrentLimit = Math.min(concurrent, 10); // Max 10 concurrent
