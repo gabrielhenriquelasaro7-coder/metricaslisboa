@@ -122,40 +122,44 @@ Deno.serve(async (req) => {
       }
     };
 
-    // Try each metric with time_series first, fallback to total_value
-    const allDailyMetrics = [
-      'reach', 'views', 'follows_and_unfollows',
+    // Metrics that ONLY support time_series
+    const timeSeriesOnly = ['reach'];
+    // Metrics that ONLY support total_value
+    const totalValueOnly = [
+      'views', 'follows_and_unfollows',
       'profile_views', 'website_clicks', 'accounts_engaged',
       'likes', 'comments', 'shares', 'saves', 'total_interactions',
     ];
 
-    for (const metric of allDailyMetrics) {
+    // Fetch time_series metrics
+    for (const metric of timeSeriesOnly) {
       try {
-        // Try time_series first (gives daily breakdown)
-        const tsResult = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=time_series`);
-        if (tsResult && tsResult.length > 0 && !tsResult[0]?.error) {
-          parseDailyValues(tsResult, dailyInsights);
-          continue;
-        }
-      } catch (_) {}
+        const result = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=time_series`);
+        if (result) parseDailyValues(result, dailyInsights);
+      } catch (e) {
+        console.warn(`time_series metric ${metric} error:`, e);
+      }
+    }
 
+    // Fetch total_value metrics
+    for (const metric of totalValueOnly) {
       try {
-        // Fallback to total_value
-        const tvResult = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=total_value`);
-        if (tvResult) {
-          parseDailyValues(tvResult, dailyInsights);
+        const result = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=total_value`);
+        if (result) {
+          parseDailyValues(result, dailyInsights);
+          console.log(`Metric ${metric} fetched OK, data entries: ${result.length}`);
+        } else {
+          console.warn(`Metric ${metric} returned null from total_value`);
         }
       } catch (e) {
-        console.warn(`Metric ${metric} failed both modes:`, e);
+        console.warn(`total_value metric ${metric} error:`, e);
       }
     }
 
     // Also try follower_count with period=day (legacy metric, no metric_type needed)
     try {
       const fcResult = await fetchSingleMetric(igUserId, 'follower_count', 'day', metaToken, timeParams);
-      if (fcResult) {
-        parseDailyValues(fcResult, dailyInsights);
-      }
+      if (fcResult) parseDailyValues(fcResult, dailyInsights);
     } catch (_) {}
 
     console.log(`Daily insights parsed: ${Object.keys(dailyInsights).length} days`);
