@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { X, Eye, MessageCircle, ArrowRight, ArrowLeft, LogOut, Play, Pause, ImageOff } from 'lucide-react';
+import { X, Play, Pause, ImageOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Story {
@@ -18,11 +18,6 @@ interface Story {
   taps_back: number;
   exits: number;
 }
-
-const fmt = (n: number) => {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
-};
 
 interface Props {
   open: boolean;
@@ -68,14 +63,12 @@ export default function InstagramStoriesViewer({ open, onClose, profilePic, user
     setCurrent(prev => Math.max(0, prev - 1));
   }, []);
 
-  // Auto-advance timer
   useEffect(() => {
     if (!open || stories.length === 0 || paused) return;
     const timer = setInterval(goNext, 5000);
     return () => clearInterval(timer);
   }, [open, stories.length, paused, goNext]);
 
-  // Reset media error when story changes
   useEffect(() => {
     setMediaError({});
   }, [current]);
@@ -138,7 +131,7 @@ export default function InstagramStoriesViewer({ open, onClose, profilePic, user
               </div>
             </div>
 
-            {/* Media */}
+            {/* Media - full screen, no metrics */}
             <div className="flex-1 flex items-center justify-center overflow-hidden bg-black">
               {!hasMedia ? (
                 <div className="flex flex-col items-center gap-3 text-white/60">
@@ -172,44 +165,6 @@ export default function InstagramStoriesViewer({ open, onClose, profilePic, user
               <div className="w-1/3 cursor-pointer" onClick={goPrev} />
               <div className="w-1/3" />
               <div className="w-1/3 cursor-pointer" onClick={goNext} />
-            </div>
-
-            {/* Bottom metrics */}
-            <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/80 to-transparent p-4 pt-8">
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="flex flex-col items-center gap-0.5">
-                  <Eye className="h-4 w-4 text-white/80" />
-                  <span className="text-white text-sm font-bold">{fmt(story.reach)}</span>
-                  <span className="text-white/50 text-[9px]">Alcance</span>
-                </div>
-                <div className="flex flex-col items-center gap-0.5">
-                  <Eye className="h-4 w-4 text-white/80" />
-                  <span className="text-white text-sm font-bold">{fmt(story.impressions)}</span>
-                  <span className="text-white/50 text-[9px]">Impressões</span>
-                </div>
-                <div className="flex flex-col items-center gap-0.5">
-                  <MessageCircle className="h-4 w-4 text-white/80" />
-                  <span className="text-white text-sm font-bold">{fmt(story.replies)}</span>
-                  <span className="text-white/50 text-[9px]">Respostas</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3 text-center mt-2">
-                <div className="flex flex-col items-center gap-0.5">
-                  <ArrowRight className="h-3.5 w-3.5 text-white/60" />
-                  <span className="text-white/80 text-xs">{fmt(story.taps_forward)}</span>
-                  <span className="text-white/40 text-[8px]">Avançar</span>
-                </div>
-                <div className="flex flex-col items-center gap-0.5">
-                  <ArrowLeft className="h-3.5 w-3.5 text-white/60" />
-                  <span className="text-white/80 text-xs">{fmt(story.taps_back)}</span>
-                  <span className="text-white/40 text-[8px]">Voltar</span>
-                </div>
-                <div className="flex flex-col items-center gap-0.5">
-                  <LogOut className="h-3.5 w-3.5 text-white/60" />
-                  <span className="text-white/80 text-xs">{fmt(story.exits)}</span>
-                  <span className="text-white/40 text-[8px]">Saídas</span>
-                </div>
-              </div>
             </div>
           </div>
         )}
