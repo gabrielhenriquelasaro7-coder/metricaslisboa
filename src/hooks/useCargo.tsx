@@ -38,12 +38,7 @@ interface CargoData {
   cargo: UserCargo;
   loading: boolean;
   userSquads: Squad[];
-<<<<<<< HEAD
-  isMaster: boolean;
-  
-=======
 
->>>>>>> e31e31f (fix(google-ads): paginacao nas dailymetrics para evitar limite supabase de 1000 items)
   // Computed permissions
   isTech: boolean;
   isGerente: boolean;
@@ -219,15 +214,12 @@ export function useCargo(): CargoData {
   const isCoordenador = cargo === 'coordenador';
   const isInvestidor = cargo === 'investidor';
   const isMembro = cargo === 'membro';
-  const isMaster = user?.email === 'gabrielhenriquelasaro7@gmail.com';
-
   const isMaster = globalCargoCache.userId === user?.id ? globalCargoCache.isMaster : false;
 
   return {
     cargo,
     loading,
     userSquads,
-    isMaster,
     isTech,
     isGerente,
     isCoordenador,

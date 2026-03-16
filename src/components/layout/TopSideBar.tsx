@@ -63,11 +63,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
   const { projects } = useProjects();
   const { profile } = useProfile();
   const { isGuest, loading: roleLoading } = useUserRole();
-<<<<<<< HEAD
-  const { needsAdminApproval, isTech, isMaster, loading: cargoLoading } = useCargo();
-=======
-  const { needsAdminApproval, canSeeAnalytics, canSeeDiagnostics, loading: cargoLoading } = useCargo();
->>>>>>> e31e31f (fix(google-ads): paginacao nas dailymetrics para evitar limite supabase de 1000 items)
+  const { needsAdminApproval, isTech, isMaster, canSeeAnalytics, canSeeDiagnostics, loading: cargoLoading } = useCargo();
   const { theme, toggleTheme } = useTheme();
   const { isTabHidden } = useTabVisibility();
   const [adminAccessModalOpen, setAdminAccessModalOpen] = useState(false);
@@ -114,23 +110,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
           <div className="flex flex-col items-center gap-1.5 px-2">
             <TooltipProvider delayDuration={0}>
               {/* Diagnóstico TOC + LTP */}
-<<<<<<< HEAD
-              {showDiagnostico && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => handleNavClick('/diagnostico')}
-                    className={cn('sidebar-icon-btn', isActive('/diagnostico') && 'active')}
-                  >
-                    <Activity className="w-5 h-5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                  <p>Diagnóstico</p>
-                </TooltipContent>
-              </Tooltip>
-=======
-              {!isTabHidden('diagnostico') && canSeeDiagnostics && (
+              {showDiagnostico && !isTabHidden('diagnostico') && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
@@ -144,7 +124,6 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                     <p>Diagnóstico</p>
                   </TooltipContent>
                 </Tooltip>
->>>>>>> e31e31f (fix(google-ads): paginacao nas dailymetrics para evitar limite supabase de 1000 items)
               )}
 
               {/* Home */}
@@ -298,23 +277,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
               )}
 
               {/* Clarity - LP Analysis */}
-<<<<<<< HEAD
-              {showClarity && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => handleNavClick('/clarity')}
-                    className={cn('sidebar-icon-btn', isActive('/clarity') && 'active')}
-                  >
-                    <img src={clarityIcon} alt="Clarity" className="w-5 h-5 object-contain" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                  <p>Clarity</p>
-                </TooltipContent>
-              </Tooltip>
-=======
-              {!isTabHidden('clarity') && (
+              {showClarity && !isTabHidden('clarity') && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
@@ -328,7 +291,6 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                     <p>Clarity</p>
                   </TooltipContent>
                 </Tooltip>
->>>>>>> e31e31f (fix(google-ads): paginacao nas dailymetrics para evitar limite supabase de 1000 items)
               )}
 
               {/* Separator before WhatsApp */}
