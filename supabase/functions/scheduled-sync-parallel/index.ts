@@ -183,6 +183,7 @@ interface SyncRequest {
   project_ids?: string[];
   concurrent?: number;
   retry_failed?: boolean; // Retry projects that need retry
+  run_gap_detection?: boolean;
 }
 
 Deno.serve(async (req) => {
