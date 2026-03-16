@@ -54,7 +54,7 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
     <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className={cn(
+        <button data-client-selector className={cn(
           "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/50 bg-card/50",
           "hover:bg-card hover:border-border transition-all duration-200 group max-w-[180px]"
         )}>
