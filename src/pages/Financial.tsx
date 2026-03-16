@@ -121,6 +121,7 @@ export default function Financial() {
     isLoading: crmLoading, 
     isConnecting, 
     connectionError,
+    nextSyncAt,
     connect: connectCRM, 
     disconnect: disconnectCRM,
     triggerSync,
