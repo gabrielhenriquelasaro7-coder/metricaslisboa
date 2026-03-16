@@ -1474,6 +1474,41 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
             </div>
           </div>
         )}
+
+        {/* Keywords Preview (Google) */}
+        {includeKeywords && pdfKeywords.length > 0 && (
+          <div>
+            <h2 className="text-[10px] md:text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
+              <Settings className="w-3 h-3" /> Top Palavras-chave
+            </h2>
+            <div className="bg-white rounded-lg border overflow-hidden shadow-sm overflow-x-auto">
+              <table className="w-full text-[8px] md:text-[9px]">
+                <thead>
+                  <tr style={{ backgroundColor: primaryColor }}>
+                    <th className="text-left px-1.5 md:px-2 py-1.5 md:py-2 font-bold text-white">Palavra-chave</th>
+                    <th className="text-left px-1.5 md:px-2 py-1.5 md:py-2 font-bold text-white">Tipo</th>
+                    <th className="text-right px-1.5 md:px-2 py-1.5 md:py-2 font-bold text-white">Gasto</th>
+                    <th className="text-right px-1.5 md:px-2 py-1.5 md:py-2 font-bold text-white hidden sm:table-cell">Cliques</th>
+                    <th className="text-right px-1.5 md:px-2 py-1.5 md:py-2 font-bold text-white hidden sm:table-cell">CTR</th>
+                    <th className="text-right px-1.5 md:px-2 py-1.5 md:py-2 font-bold text-white">QS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pdfKeywords.slice(0, 15).map((kw, idx) => (
+                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'}>
+                      <td className="px-1.5 md:px-2 py-1.5 md:py-2 text-gray-800 truncate max-w-[80px] md:max-w-[120px] font-medium" title={kw.keyword_text}>{kw.keyword_text}</td>
+                      <td className="px-1.5 md:px-2 py-1.5 md:py-2 text-gray-600">{kw.match_type === 'EXACT' ? 'Exata' : kw.match_type === 'PHRASE' ? 'Frase' : 'Ampla'}</td>
+                      <td className="text-right px-1.5 md:px-2 py-1.5 md:py-2 text-gray-800 font-semibold">{fmtCurrency(kw.spend, currency)}</td>
+                      <td className="text-right px-1.5 md:px-2 py-1.5 md:py-2 text-gray-800 hidden sm:table-cell">{fmtNumber(kw.clicks)}</td>
+                      <td className="text-right px-1.5 md:px-2 py-1.5 md:py-2 text-gray-800 hidden sm:table-cell">{kw.ctr.toFixed(1)}%</td>
+                      <td className="text-right px-1.5 md:px-2 py-1.5 md:py-2 font-bold" style={{ color: primaryColor }}>{kw.quality_score || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Footer with Period */}
