@@ -290,7 +290,7 @@ export default function MetaAds() {
                 {/* Period Comparison - slightly compact */}
                 {showComparison && hasSelectedProject && (
                   <div className="origin-top">
-                    <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? 'Últimos 7 Dias' : selectedPreset === 'last_30d' ? 'Últimos 30 Dias' : selectedPreset === 'last_month' ? 'Mês Passado' : 'Período Atual'} previousPeriodLabel="Período Anterior" currency={selectedProject?.currency || 'BRL'} resultMetrics={metricConfig?.result_metrics} resultMetricsLabels={metricConfig?.result_metrics_labels} hiddenMetrics={hiddenMetrics} />
+                    <PeriodComparison currentMetrics={metrics} previousMetrics={previousMetrics} businessModel={businessModel || null} currentPeriodLabel={selectedPreset === 'this_month' ? 'Este Mês' : selectedPreset === 'last_7d' ? 'Últimos 7 Dias' : selectedPreset === 'last_30d' ? 'Últimos 30 Dias' : selectedPreset === 'last_month' ? 'Mês Passado' : 'Período Atual'} previousPeriodLabel="Período Anterior" currency={selectedProject?.currency || 'BRL'} resultMetrics={metricConfig?.result_metrics} resultMetricsLabels={metricConfig?.result_metrics_labels} hiddenMetrics={hiddenMetrics} costMetrics={metricConfig?.cost_metrics} efficiencyMetrics={metricConfig?.efficiency_metrics} />
                   </div>
                 )}
 
