@@ -273,6 +273,9 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
     options?: { silent?: boolean }
   ) => {
     if (!projectId || !status?.connection_id) return;
+    if (isSyncInFlightRef.current) return;
+
+    isSyncInFlightRef.current = true;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -318,6 +321,8 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
         toast.error('Erro ao sincronizar');
       }
       throw error;
+    } finally {
+      isSyncInFlightRef.current = false;
     }
   }, [projectId, status?.connection_id, fetchStatus]);
 
