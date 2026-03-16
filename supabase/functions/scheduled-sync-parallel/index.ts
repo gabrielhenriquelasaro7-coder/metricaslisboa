@@ -6,11 +6,12 @@ const corsHeaders = {
 };
 
 // Configuration
-const CONCURRENT_PROJECTS = 10; // Sync 10 projects at the same time (increased for full coverage)
-const DELAY_BETWEEN_BATCHES = 30000; // 30 seconds between batches (reduced)
+const CONCURRENT_PROJECTS = 10; // Sync 10 projects at the same time
+const DELAY_BETWEEN_BATCHES = 3000; // 3 seconds between batches
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 15 * 60 * 1000; // 15 minutes
-const FUNCTION_TIMEOUT_BUFFER = 50000; // Leave 50s buffer before function timeout
+const MAX_EXECUTION_TIME_MS = 4 * 60 * 1000; // 4 minutes safety window
+const FUNCTION_TIMEOUT_BUFFER = 45000; // leave 45s before timeout
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -178,10 +179,26 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
+async function scheduleContinuation(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  payload: SyncRequest
+): Promise<void> {
+  await fetch(`${supabaseUrl}/functions/v1/scheduled-sync-parallel`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${supabaseServiceKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 interface SyncRequest {
   project_ids?: string[];
   concurrent?: number;
   retry_failed?: boolean; // Retry projects that need retry
+  run_gap_detection?: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -216,7 +233,8 @@ Deno.serve(async (req) => {
     const { 
       project_ids,
       concurrent = CONCURRENT_PROJECTS,
-      retry_failed = false
+      retry_failed = false,
+      run_gap_detection = false,
     } = requestBody;
 
     const concurrentLimit = Math.min(concurrent, 10); // Max 10 concurrent
@@ -267,8 +285,31 @@ Deno.serve(async (req) => {
     const results: SyncResult[] = [];
     const projectBatches = chunk(projects, concurrentLimit);
     const projectsNeedingRetry: Project[] = [];
+    let continuationScheduled = false;
+    let remainingProjectsCount = 0;
 
     for (let batchIndex = 0; batchIndex < projectBatches.length; batchIndex++) {
+      const elapsedMs = Date.now() - startTime;
+      if (elapsedMs >= (MAX_EXECUTION_TIME_MS - FUNCTION_TIMEOUT_BUFFER)) {
+        const remainingProjects = projectBatches
+          .slice(batchIndex)
+          .flat()
+          .map(project => project.id);
+
+        if (remainingProjects.length > 0) {
+          continuationScheduled = true;
+          remainingProjectsCount = remainingProjects.length;
+          console.log(`[SYNC] Timeout guard reached. Scheduling continuation for ${remainingProjects.length} projects...`);
+          await scheduleContinuation(supabaseUrl, supabaseServiceKey, {
+            project_ids: remainingProjects,
+            concurrent: concurrentLimit,
+            retry_failed,
+            run_gap_detection,
+          });
+        }
+        break;
+      }
+
       const batch = projectBatches[batchIndex];
       console.log(`\n----- BATCH ${batchIndex + 1}/${projectBatches.length} (${batch.length} projects) -----`);
 
@@ -305,26 +346,27 @@ Deno.serve(async (req) => {
     console.log(`[SYNC] Projects: ${results.length} (${totalSuccess} success, ${totalFailed} failed, ${totalRetry} retry)`);
     console.log(`[SYNC] Total daily records: ${totalDailyRecords}`);
 
-    // AUTOMATIC GAP DETECTION AND FIX
-    // After daily sync, check for gaps in the last 30 days and fix them automatically
-    console.log(`\n========== RUNNING GAP DETECTION ==========`);
-    try {
-      const gapResponse = await fetch(`${supabaseUrl}/functions/v1/detect-and-fix-gaps`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({
-          since: formatDate(subDays(new Date(), 30)), // Check last 30 days
-          auto_fix: true,
-        }),
-      });
-      
-      const gapData = await gapResponse.json().catch(() => ({}));
-      console.log(`[GAPS] Found: ${gapData.gaps_found || 0}, Fixed: ${gapData.gaps_fixed || 0}, Records: ${gapData.records_imported || 0}`);
-    } catch (gapError) {
-      console.error('[GAPS] Error running gap detection:', gapError);
+    // OPTIONAL GAP DETECTION (disabled by default on daily runs)
+    if (!continuationScheduled && run_gap_detection) {
+      console.log(`\n========== RUNNING GAP DETECTION ==========`);
+      try {
+        const gapResponse = await fetch(`${supabaseUrl}/functions/v1/detect-and-fix-gaps`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            since: formatDate(subDays(new Date(), 30)), // Check last 30 days
+            auto_fix: true,
+          }),
+        });
+        
+        const gapData = await gapResponse.json().catch(() => ({}));
+        console.log(`[GAPS] Found: ${gapData.gaps_found || 0}, Fixed: ${gapData.gaps_fixed || 0}, Records: ${gapData.records_imported || 0}`);
+      } catch (gapError) {
+        console.error('[GAPS] Error running gap detection:', gapError);
+      }
     }
 
     return new Response(
@@ -336,6 +378,9 @@ Deno.serve(async (req) => {
         total_success: totalSuccess,
         total_failed: totalFailed,
         total_retry: totalRetry,
+        retry_queue_count: projectsNeedingRetry.length,
+        continuation_scheduled: continuationScheduled,
+        remaining_projects_count: remainingProjectsCount,
         total_daily_records: totalDailyRecords,
         results,
       }),
