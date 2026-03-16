@@ -85,77 +85,76 @@ Deno.serve(async (req) => {
 
     const dailyInsights: Record<string, any> = {};
 
-    // Group 1: Metrics that support time_series (return daily values array)
-    const timeSeriesMetrics = ['reach'];
-
-    for (const metric of timeSeriesMetrics) {
-      try {
-        const result = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=time_series`);
-        if (result) {
-          for (const m of result) {
-            for (const val of m.values || []) {
-              const date = val.end_time?.split('T')[0];
-              if (!date) continue;
-              if (!dailyInsights[date]) dailyInsights[date] = {};
-              dailyInsights[date][m.name] = val.value || 0;
+    // Helper to parse daily values from API response
+    const parseDailyValues = (result: any[], target: Record<string, any>) => {
+      for (const m of result) {
+        if (m.values && m.values.length > 0) {
+          for (const val of m.values) {
+            const date = val.end_time?.split('T')[0];
+            if (!date) continue;
+            if (!target[date]) target[date] = {};
+            if (m.name === 'follows_and_unfollows') {
+              if (typeof val.value === 'object' && val.value !== null) {
+                target[date].follows = val.value.follows || 0;
+                target[date].unfollows = val.value.unfollows || 0;
+              } else {
+                // Sometimes returns number directly
+                target[date].follows = val.value || 0;
+              }
+            } else {
+              target[date][m.name] = val.value || 0;
             }
           }
+        } else if (m.total_value !== undefined) {
+          // If only total_value returned, put it on today's date so it's not lost
+          const today = new Date().toISOString().split('T')[0];
+          if (!target[today]) target[today] = {};
+          if (m.name === 'follows_and_unfollows') {
+            if (typeof m.total_value === 'object' && m.total_value !== null) {
+              target[today].follows = (target[today].follows || 0) + (m.total_value.follows || 0);
+              target[today].unfollows = (target[today].unfollows || 0) + (m.total_value.unfollows || 0);
+            }
+          } else {
+            target[today][m.name] = (target[today][m.name] || 0) + (typeof m.total_value === 'number' ? m.total_value : (m.total_value?.value || 0));
+          }
+          console.log(`Metric ${m.name} returned total_value only: ${JSON.stringify(m.total_value)}, assigned to ${today}`);
         }
-      } catch (e) {
-        console.warn(`time_series metric ${metric} error:`, e);
       }
-    }
+    };
 
-    // Group 2: Metrics that only support total_value (return total_value with daily breakdown via values)
-    const totalValueMetrics = [
-      'views', 'profile_views', 'website_clicks', 'accounts_engaged',
+    // Try each metric with time_series first, fallback to total_value
+    const allDailyMetrics = [
+      'reach', 'views', 'follows_and_unfollows',
+      'profile_views', 'website_clicks', 'accounts_engaged',
       'likes', 'comments', 'shares', 'saves', 'total_interactions',
-      'follows_and_unfollows',
     ];
 
-    for (const metric of totalValueMetrics) {
+    for (const metric of allDailyMetrics) {
       try {
-        const result = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=total_value`);
-        if (result) {
-          for (const m of result) {
-            // total_value mode may still have values[] array with daily data
-            if (m.values && m.values.length > 0) {
-              for (const val of m.values) {
-                const date = val.end_time?.split('T')[0];
-                if (!date) continue;
-                if (!dailyInsights[date]) dailyInsights[date] = {};
-                if (m.name === 'follows_and_unfollows') {
-                  if (typeof val.value === 'object' && val.value !== null) {
-                    dailyInsights[date].follows = val.value.follows || 0;
-                    dailyInsights[date].unfollows = val.value.unfollows || 0;
-                  }
-                } else {
-                  dailyInsights[date][m.name] = val.value || 0;
-                }
-              }
-            } else if (m.total_value !== undefined) {
-              // If no daily breakdown, log it but we can't distribute per day
-              console.log(`Metric ${m.name} returned total_value only: ${JSON.stringify(m.total_value)}`);
-            }
-          }
+        // Try time_series first (gives daily breakdown)
+        const tsResult = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=time_series`);
+        if (tsResult && tsResult.length > 0 && !tsResult[0]?.error) {
+          parseDailyValues(tsResult, dailyInsights);
+          continue;
+        }
+      } catch (_) {}
+
+      try {
+        // Fallback to total_value
+        const tvResult = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=total_value`);
+        if (tvResult) {
+          parseDailyValues(tvResult, dailyInsights);
         }
       } catch (e) {
-        console.warn(`total_value metric ${metric} error:`, e);
+        console.warn(`Metric ${metric} failed both modes:`, e);
       }
     }
 
-    // Also try follower_count with period=day (no total_value)
+    // Also try follower_count with period=day (legacy metric, no metric_type needed)
     try {
       const fcResult = await fetchSingleMetric(igUserId, 'follower_count', 'day', metaToken, timeParams);
       if (fcResult) {
-        for (const m of fcResult) {
-          for (const val of m.values || []) {
-            const date = val.end_time?.split('T')[0];
-            if (!date) continue;
-            if (!dailyInsights[date]) dailyInsights[date] = {};
-            dailyInsights[date].follower_count = val.value || 0;
-          }
-        }
+        parseDailyValues(fcResult, dailyInsights);
       }
     } catch (_) {}
 
