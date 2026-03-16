@@ -285,6 +285,8 @@ Deno.serve(async (req) => {
     const results: SyncResult[] = [];
     const projectBatches = chunk(projects, concurrentLimit);
     const projectsNeedingRetry: Project[] = [];
+    let continuationScheduled = false;
+    let remainingProjectsCount = 0;
 
     for (let batchIndex = 0; batchIndex < projectBatches.length; batchIndex++) {
       const batch = projectBatches[batchIndex];
