@@ -174,6 +174,15 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
     }
   }, [projectId, fetchStatus]);
 
+  useEffect(() => {
+    if (!status?.connected || !status?.connection_id) {
+      setNextSyncAt(null);
+      return;
+    }
+
+    setNextSyncAt(getNextSyncDate(status.sync?.completed_at));
+  }, [status?.connected, status?.connection_id, status?.sync?.completed_at]);
+
   const connect = useCallback(async (
     provider: CRMProvider,
     options?: { api_key?: string; api_url?: string; config?: Record<string, unknown> }
