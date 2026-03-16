@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -98,11 +98,28 @@ export interface CRMConnectionStatus {
   };
 }
 
+const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+
+const getNextSyncDate = (completedAt?: string): Date => {
+  if (!completedAt) {
+    return new Date(Date.now() + AUTO_SYNC_INTERVAL_MS);
+  }
+
+  const parsedDate = new Date(completedAt);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return new Date(Date.now() + AUTO_SYNC_INTERVAL_MS);
+  }
+
+  return new Date(parsedDate.getTime() + AUTO_SYNC_INTERVAL_MS);
+};
+
 export function useCRMConnection(projectId: string | undefined, dateRange?: { startDate?: string; endDate?: string }) {
   const [status, setStatus] = useState<CRMConnectionStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isConnecting, setIsConnecting] = useState<CRMProvider | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [nextSyncAt, setNextSyncAt] = useState<Date | null>(null);
+  const isSyncInFlightRef = useRef(false);
 
   const fetchStatus = useCallback(async () => {
     if (!projectId) return;
@@ -156,6 +173,15 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
       fetchStatus();
     }
   }, [projectId, fetchStatus]);
+
+  useEffect(() => {
+    if (!status?.connected || !status?.connection_id) {
+      setNextSyncAt(null);
+      return;
+    }
+
+    setNextSyncAt(getNextSyncDate(status.sync?.completed_at));
+  }, [status?.connected, status?.connection_id, status?.sync?.completed_at]);
 
   const connect = useCallback(async (
     provider: CRMProvider,
@@ -242,8 +268,14 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
     }
   }, [projectId, status?.connection_id]);
 
-  const triggerSync = useCallback(async (syncType: 'full' | 'incremental' = 'incremental') => {
+  const triggerSync = useCallback(async (
+    syncType: 'full' | 'incremental' = 'incremental',
+    options?: { silent?: boolean }
+  ) => {
     if (!projectId || !status?.connection_id) return;
+    if (isSyncInFlightRef.current) return;
+
+    isSyncInFlightRef.current = true;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -273,7 +305,11 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
         throw new Error(data.error || 'Erro ao sincronizar');
       }
 
-      toast.success('Sincronização iniciada');
+      setNextSyncAt(new Date(Date.now() + AUTO_SYNC_INTERVAL_MS));
+
+      if (!options?.silent) {
+        toast.success('Sincronização iniciada');
+      }
       
       // Refresh status after a delay to get updated sync info
       setTimeout(() => fetchStatus(), 2000);
@@ -281,10 +317,54 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
       return data;
     } catch (error) {
       console.error('Failed to trigger sync:', error);
-      toast.error('Erro ao sincronizar');
+      if (!options?.silent) {
+        toast.error('Erro ao sincronizar');
+      }
       throw error;
+    } finally {
+      isSyncInFlightRef.current = false;
     }
   }, [projectId, status?.connection_id, fetchStatus]);
+
+  useEffect(() => {
+    if (!projectId || !status?.connected || !status?.connection_id) return;
+
+    const intervalId = window.setInterval(() => {
+      if (document.hidden) return;
+      fetchStatus();
+    }, 60 * 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [projectId, status?.connected, status?.connection_id, fetchStatus]);
+
+  useEffect(() => {
+    if (!projectId || !status?.connected || !status?.connection_id) return;
+
+    const checkAndSync = async () => {
+      if (document.hidden || isSyncInFlightRef.current) return;
+      if (status?.sync?.status === 'syncing') return;
+      if (nextSyncAt && Date.now() < nextSyncAt.getTime()) return;
+
+      try {
+        await triggerSync('incremental', { silent: true });
+      } catch (error) {
+        console.error('Auto sync failed:', error);
+        setNextSyncAt(new Date(Date.now() + AUTO_SYNC_INTERVAL_MS));
+      }
+    };
+
+    const intervalId = window.setInterval(checkAndSync, 30 * 1000);
+    checkAndSync();
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    projectId,
+    status?.connected,
+    status?.connection_id,
+    status?.sync?.status,
+    nextSyncAt,
+    triggerSync,
+  ]);
 
   const selectPipeline = useCallback(async (pipelineId: string) => {
     if (!projectId || !status?.connection_id) return;
@@ -326,6 +406,7 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
     isLoading,
     isConnecting,
     connectionError,
+    nextSyncAt,
     fetchStatus,
     connect,
     disconnect,
