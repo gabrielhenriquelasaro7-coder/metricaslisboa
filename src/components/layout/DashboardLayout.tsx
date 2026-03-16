@@ -48,14 +48,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
     const init = async () => {
       try {
-        let selectedProjectId = localStorage.getItem("selectedProjectId");
-        if (!selectedProjectId) {
-          const { data: projects } = await supabase.from("projects").select("id, name").limit(1);
-          if (projects && projects.length > 0) {
-            selectedProjectId = projects[0].id;
-            localStorage.setItem("selectedProjectId", selectedProjectId!);
-          }
-        }
+        const selectedProjectId = localStorage.getItem("selectedProjectId");
+        if (!selectedProjectId) return;
 
         if (selectedProjectId) {
           const { data: project } = await supabase

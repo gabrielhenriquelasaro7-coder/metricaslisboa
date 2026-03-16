@@ -50,8 +50,8 @@ export default function Clarity() {
   // Use selected project as default for add dialog, but show ALL projects' clarity configs
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = useMemo(() => {
-    if (!selectedProjectId) return projects[0] || null;
-    return projects.find(p => p.id === selectedProjectId) || projects[0] || null;
+    if (!selectedProjectId) return null;
+    return projects.find(p => p.id === selectedProjectId) || null;
   }, [projects, selectedProjectId]);
 
   // When dialog opens, default to selected project
