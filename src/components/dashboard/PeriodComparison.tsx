@@ -30,6 +30,8 @@ interface PeriodComparisonProps {
   resultMetrics?: string[]; // For custom business model
   resultMetricsLabels?: Record<string, string>; // Labels for custom metrics
   hiddenMetrics?: string[]; // Array of hidden metric keys (triggers re-render on change)
+  costMetrics?: string[]; // Cost metrics enabled in project config (e.g. ['cpl', 'cpa'])
+  efficiencyMetrics?: string[]; // Efficiency metrics enabled in project config
 }
 interface ComparisonItemProps {
   label: string;
@@ -106,11 +108,22 @@ export default function PeriodComparison({
   currency = 'BRL',
   resultMetrics,
   resultMetricsLabels,
-  hiddenMetrics = []
+  hiddenMetrics = [],
+  costMetrics,
+  efficiencyMetrics
 }: PeriodComparisonProps) {
   const { t } = useTranslation();
   // Helper to check if a metric should be shown (local function based on hiddenMetrics array)
   const shouldShowMetric = (metricKey: string) => !hiddenMetrics.includes(metricKey);
+  // For custom model, check if a cost/efficiency metric is enabled in project config
+  const shouldShowCostMetric = (costKey: string) => {
+    if (!costMetrics) return true; // No config = show all
+    return costMetrics.includes(costKey);
+  };
+  const shouldShowEfficiencyMetric = (effKey: string) => {
+    if (!efficiencyMetrics) return true;
+    return efficiencyMetrics.includes(effKey);
+  };
   const formatCurrencyValue = (value: number) => {
     const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
     return new Intl.NumberFormat(locale, {
@@ -361,7 +374,7 @@ export default function PeriodComparison({
       const currentLeads = getMetricValue(currentMetrics, 'leads');
       const previousLeads = getMetricValue(previousMetrics, 'leads');
       
-      if (shouldShowMetric('cpa') && (currentLeads > 0 || previousLeads > 0)) {
+      if (shouldShowCostMetric('cpl') && shouldShowMetric('cpa') && (currentLeads > 0 || previousLeads > 0)) {
         const currentCpl = currentLeads > 0 ? currentMetrics.totalSpend / currentLeads : 0;
         const previousCpl = previousLeads > 0 ? previousMetrics.totalSpend / previousLeads : 0;
 
@@ -377,7 +390,7 @@ export default function PeriodComparison({
       const currentProfileVisits = getMetricValue(currentMetrics, 'profile_visits');
       const previousProfileVisits = getMetricValue(previousMetrics, 'profile_visits');
       
-      if (shouldShowMetric('profile_visits') && (currentProfileVisits > 0 || previousProfileVisits > 0)) {
+      if (shouldShowCostMetric('cpv') && shouldShowMetric('profile_visits') && (currentProfileVisits > 0 || previousProfileVisits > 0)) {
         const currentCpv = currentProfileVisits > 0 ? currentMetrics.totalSpend / currentProfileVisits : 0;
         const previousCpv = previousProfileVisits > 0 ? previousMetrics.totalSpend / previousProfileVisits : 0;
 
@@ -394,7 +407,7 @@ export default function PeriodComparison({
       const currentIC = getMetricValue(currentMetrics, 'initiate_checkout');
       const previousIC = getMetricValue(previousMetrics, 'initiate_checkout');
       
-      if (shouldShowMetric('initiate_checkout') && (currentIC > 0 || previousIC > 0)) {
+      if (shouldShowCostMetric('cpic') && shouldShowMetric('initiate_checkout') && (currentIC > 0 || previousIC > 0)) {
         const currentCpic = currentIC > 0 ? currentMetrics.totalSpend / currentIC : 0;
         const previousCpic = previousIC > 0 ? previousMetrics.totalSpend / previousIC : 0;
 
@@ -410,7 +423,7 @@ export default function PeriodComparison({
       const currentPurchases = getMetricValue(currentMetrics, 'purchases');
       const previousPurchases = getMetricValue(previousMetrics, 'purchases');
       
-      if (shouldShowMetric('purchases') && (currentPurchases > 0 || previousPurchases > 0)) {
+      if (shouldShowCostMetric('cpp') && shouldShowMetric('purchases') && (currentPurchases > 0 || previousPurchases > 0)) {
         const currentCpp = currentPurchases > 0 ? currentMetrics.totalSpend / currentPurchases : 0;
         const previousCpp = previousPurchases > 0 ? previousMetrics.totalSpend / previousPurchases : 0;
 
@@ -424,7 +437,7 @@ export default function PeriodComparison({
       }
     }
     return items;
-  }, [currentMetrics, previousMetrics, businessModel, resultMetrics, resultMetricsLabels, hiddenMetrics, t]);
+  }, [currentMetrics, previousMetrics, businessModel, resultMetrics, resultMetricsLabels, hiddenMetrics, costMetrics, efficiencyMetrics, t]);
 
   // Check if previous period has no data (all zeros)
   const hasPreviousData = previousMetrics && (previousMetrics.totalSpend > 0 || previousMetrics.totalImpressions > 0 || previousMetrics.totalClicks > 0);
@@ -508,28 +521,28 @@ export default function PeriodComparison({
 
       // CPL based on leads - only if leads > 0
       const leads = getMetricValue('leads');
-      if (leads > 0 && shouldShowMetric('cpa')) {
+      if (leads > 0 && shouldShowCostMetric('cpl') && shouldShowMetric('cpa')) {
         const cpl = currentMetrics.totalSpend / leads;
         currentOnlyItems.push({ label: 'CPL', value: formatCurrencyValue(cpl) });
       }
 
       // CPV based on profile visits - only if profile_visits > 0
       const profileVisits = getMetricValue('profile_visits');
-      if (profileVisits > 0 && shouldShowMetric('profile_visits')) {
+      if (profileVisits > 0 && shouldShowCostMetric('cpv') && shouldShowMetric('profile_visits')) {
         const cpv = currentMetrics.totalSpend / profileVisits;
         currentOnlyItems.push({ label: 'CPV', value: formatCurrencyValue(cpv) });
       }
 
       // Cost per Initiate Checkout - only if IC > 0
       const ic = getMetricValue('initiate_checkout');
-      if (ic > 0 && shouldShowMetric('initiate_checkout')) {
+      if (ic > 0 && shouldShowCostMetric('cpic') && shouldShowMetric('initiate_checkout')) {
         const cpic = currentMetrics.totalSpend / ic;
         currentOnlyItems.push({ label: 'Custo/Init. Checkout', value: formatCurrencyValue(cpic) });
       }
 
       // CPP only if there are purchases
       const purchases = getMetricValue('purchases');
-      if (purchases > 0 && shouldShowMetric('purchases')) {
+      if (purchases > 0 && shouldShowCostMetric('cpp') && shouldShowMetric('purchases')) {
         const cpp = currentMetrics.totalSpend / purchases;
         currentOnlyItems.push({ label: 'CPP', value: formatCurrencyValue(cpp) });
       }
