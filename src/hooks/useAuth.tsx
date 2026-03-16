@@ -147,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear all cached data
     localStorage.removeItem('user-role-cache');
     localStorage.removeItem('sb-chxetrmrupvxqbuyjvph-auth-token');
+    localStorage.removeItem('selectedProjectId');
     
     await supabase.auth.signOut();
     
