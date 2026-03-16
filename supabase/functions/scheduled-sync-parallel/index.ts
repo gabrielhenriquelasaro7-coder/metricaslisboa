@@ -289,6 +289,27 @@ Deno.serve(async (req) => {
     let remainingProjectsCount = 0;
 
     for (let batchIndex = 0; batchIndex < projectBatches.length; batchIndex++) {
+      const elapsedMs = Date.now() - startTime;
+      if (elapsedMs >= (MAX_EXECUTION_TIME_MS - FUNCTION_TIMEOUT_BUFFER)) {
+        const remainingProjects = projectBatches
+          .slice(batchIndex)
+          .flat()
+          .map(project => project.id);
+
+        if (remainingProjects.length > 0) {
+          continuationScheduled = true;
+          remainingProjectsCount = remainingProjects.length;
+          console.log(`[SYNC] Timeout guard reached. Scheduling continuation for ${remainingProjects.length} projects...`);
+          await scheduleContinuation(supabaseUrl, supabaseServiceKey, {
+            project_ids: remainingProjects,
+            concurrent: concurrentLimit,
+            retry_failed,
+            run_gap_detection,
+          });
+        }
+        break;
+      }
+
       const batch = projectBatches[batchIndex];
       console.log(`\n----- BATCH ${batchIndex + 1}/${projectBatches.length} (${batch.length} projects) -----`);
 
