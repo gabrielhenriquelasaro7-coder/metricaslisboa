@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -97,6 +97,21 @@ export interface CRMConnectionStatus {
     revenue: number;
   };
 }
+
+const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+
+const getNextSyncDate = (completedAt?: string): Date => {
+  if (!completedAt) {
+    return new Date(Date.now() + AUTO_SYNC_INTERVAL_MS);
+  }
+
+  const parsedDate = new Date(completedAt);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return new Date(Date.now() + AUTO_SYNC_INTERVAL_MS);
+  }
+
+  return new Date(parsedDate.getTime() + AUTO_SYNC_INTERVAL_MS);
+};
 
 export function useCRMConnection(projectId: string | undefined, dateRange?: { startDate?: string; endDate?: string }) {
   const [status, setStatus] = useState<CRMConnectionStatus | null>(null);
