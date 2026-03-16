@@ -382,6 +382,7 @@ export default function Dashboard() {
                             <h3 className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
                               {project.name}
                             </h3>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
                               {project.business_model === 'ecommerce' ? 'E-commerce' : 
                                project.business_model === 'infoproduto' ? 'Infoproduto' : 'Lead Gen'}
                             </p>
