@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import v4LogoIcon from '@/assets/v4-logo-icon.png';
+import { CircularLoader } from '@/components/ui/loading-screen';
 
 interface PageTransitionProps {
   children: ReactNode;
