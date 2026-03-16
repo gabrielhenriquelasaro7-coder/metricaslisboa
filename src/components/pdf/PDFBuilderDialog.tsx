@@ -1509,6 +1509,7 @@ export function PDFBuilderDialog({ projectId, projectName, businessModel, curren
             </div>
           </div>
         )}
+      </div>
       
       {/* Footer with Period */}
       <div className="px-3 md:px-4 py-1.5 md:py-2 text-center" style={{ backgroundColor: primaryColor }}>
