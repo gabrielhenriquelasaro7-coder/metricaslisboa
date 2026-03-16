@@ -66,10 +66,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_OUT') {
           localStorage.removeItem('sb-chxetrmrupvxqbuyjvph-auth-token');
           localStorage.removeItem('user-role-cache');
+          localStorage.removeItem('selectedProjectId');
           setUser(null);
           setSession(null);
           setLoading(false);
           return;
+        }
+
+        // On fresh sign-in, force project selection on Home screen
+        if (event === 'SIGNED_IN') {
+          localStorage.removeItem('selectedProjectId');
         }
         
         setSession(currentSession);
@@ -141,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear all cached data
     localStorage.removeItem('user-role-cache');
     localStorage.removeItem('sb-chxetrmrupvxqbuyjvph-auth-token');
+    localStorage.removeItem('selectedProjectId');
     
     await supabase.auth.signOut();
     

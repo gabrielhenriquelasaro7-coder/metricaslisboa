@@ -146,6 +146,8 @@ export default function Auth() {
           }
           
           toast.success('Login realizado com sucesso!');
+          // Always start at Home welcome state after a fresh login
+          localStorage.removeItem('selectedProjectId');
           // Force navigation with replace to avoid back button issues
           window.location.href = '/dashboard';
         }
