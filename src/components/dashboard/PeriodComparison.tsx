@@ -108,7 +108,9 @@ export default function PeriodComparison({
   currency = 'BRL',
   resultMetrics,
   resultMetricsLabels,
-  hiddenMetrics = []
+  hiddenMetrics = [],
+  costMetrics,
+  efficiencyMetrics
 }: PeriodComparisonProps) {
   const { t } = useTranslation();
   // Helper to check if a metric should be shown (local function based on hiddenMetrics array)
