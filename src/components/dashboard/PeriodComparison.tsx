@@ -30,6 +30,8 @@ interface PeriodComparisonProps {
   resultMetrics?: string[]; // For custom business model
   resultMetricsLabels?: Record<string, string>; // Labels for custom metrics
   hiddenMetrics?: string[]; // Array of hidden metric keys (triggers re-render on change)
+  costMetrics?: string[]; // Cost metrics enabled in project config (e.g. ['cpl', 'cpa'])
+  efficiencyMetrics?: string[]; // Efficiency metrics enabled in project config
 }
 interface ComparisonItemProps {
   label: string;
