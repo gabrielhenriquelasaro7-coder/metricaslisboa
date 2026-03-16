@@ -437,7 +437,7 @@ export default function PeriodComparison({
       }
     }
     return items;
-  }, [currentMetrics, previousMetrics, businessModel, resultMetrics, resultMetricsLabels, hiddenMetrics, t]);
+  }, [currentMetrics, previousMetrics, businessModel, resultMetrics, resultMetricsLabels, hiddenMetrics, costMetrics, efficiencyMetrics, t]);
 
   // Check if previous period has no data (all zeros)
   const hasPreviousData = previousMetrics && (previousMetrics.totalSpend > 0 || previousMetrics.totalImpressions > 0 || previousMetrics.totalClicks > 0);
