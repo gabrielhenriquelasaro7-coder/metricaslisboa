@@ -179,6 +179,21 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
+async function scheduleContinuation(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  payload: SyncRequest
+): Promise<void> {
+  await fetch(`${supabaseUrl}/functions/v1/scheduled-sync-parallel`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${supabaseServiceKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 interface SyncRequest {
   project_ids?: string[];
   concurrent?: number;
