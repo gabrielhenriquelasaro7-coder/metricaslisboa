@@ -341,17 +341,14 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
     if (!projectId || !status?.connected || !status?.connection_id) return;
 
     const checkAndSync = async () => {
-      if (document.hidden || isAutoSyncingRef.current) return;
+      if (document.hidden || isSyncInFlightRef.current) return;
       if (status?.sync?.status === 'syncing') return;
       if (nextSyncAt && Date.now() < nextSyncAt.getTime()) return;
 
-      isAutoSyncingRef.current = true;
       try {
         await triggerSync('incremental', { silent: true });
       } catch (error) {
         console.error('Auto sync failed:', error);
-      } finally {
-        isAutoSyncingRef.current = false;
         setNextSyncAt(new Date(Date.now() + AUTO_SYNC_INTERVAL_MS));
       }
     };
