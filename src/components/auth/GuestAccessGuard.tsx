@@ -34,6 +34,7 @@ const GUEST_BLOCKED_ROUTES = [
 // Pages that only tech/master can access
 const TECH_MASTER_ONLY_ROUTES = [
   '/diagnostico',
+  '/analytics',
 ];
 
 // Pages that require password change before access
