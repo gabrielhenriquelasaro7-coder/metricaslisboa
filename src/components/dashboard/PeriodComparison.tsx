@@ -115,6 +115,15 @@ export default function PeriodComparison({
   const { t } = useTranslation();
   // Helper to check if a metric should be shown (local function based on hiddenMetrics array)
   const shouldShowMetric = (metricKey: string) => !hiddenMetrics.includes(metricKey);
+  // For custom model, check if a cost/efficiency metric is enabled in project config
+  const shouldShowCostMetric = (costKey: string) => {
+    if (!costMetrics) return true; // No config = show all
+    return costMetrics.includes(costKey);
+  };
+  const shouldShowEfficiencyMetric = (effKey: string) => {
+    if (!efficiencyMetrics) return true;
+    return efficiencyMetrics.includes(effKey);
+  };
   const formatCurrencyValue = (value: number) => {
     const locale = currency === 'USD' ? 'en-US' : 'pt-BR';
     return new Intl.NumberFormat(locale, {
