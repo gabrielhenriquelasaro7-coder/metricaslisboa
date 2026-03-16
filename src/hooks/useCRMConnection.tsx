@@ -404,6 +404,7 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
     isLoading,
     isConnecting,
     connectionError,
+    nextSyncAt,
     fetchStatus,
     connect,
     disconnect,
