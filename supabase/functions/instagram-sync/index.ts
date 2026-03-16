@@ -14,12 +14,17 @@ async function fetchJSON(url: string) {
 
 async function fetchSingleMetric(igUserId: string, metric: string, period: string, token: string, extraParams = '') {
   const url = `${graphUrl}/${igUserId}/insights?metric=${metric}&period=${period}${extraParams}&access_token=${token}`;
-  const data = await fetchJSON(url);
-  if (data.error) {
-    console.warn(`Metric ${metric} failed: ${data.error.message}`);
+  try {
+    const data = await fetchJSON(url);
+    if (data.error) {
+      console.warn(`Metric ${metric} API error: ${data.error.message}`);
+      return null;
+    }
+    return data.data || [];
+  } catch (e) {
+    console.warn(`Metric ${metric} fetch error:`, e);
     return null;
   }
-  return data.data || [];
 }
 
 Deno.serve(async (req) => {
