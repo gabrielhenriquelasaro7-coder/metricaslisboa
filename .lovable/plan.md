@@ -1,81 +1,53 @@
 
 
-# Instagram Dashboard: Data Fix and Visual Improvement
+## Plan: Fix Auto-Selection of Project - Force Welcome Screen
 
-## Problem Summary
+### Problem
+Multiple places in the code auto-select `projects[0]` as fallback when no project is selected, which defeats the Welcome screen. The main culprits:
 
-The sync successfully saves account info (12k followers) and 50 media items, but:
-- All per-media metrics (reach, views, shares, saved) are **0** -- the insights API calls fail silently
-- Daily insights table has **0 rows** -- the daily metrics API also fails silently
-- Images show ugly gray bars due to `object-contain` in the grid
-- The overall visualization looks sparse and incomplete
+1. **`DashboardLayout.tsx`** (lines 52-57) - Queries DB for first project and sets it in localStorage
+2. **`useGoogleAdsData.tsx`** (line 159) - Falls back to `projects[0]`
+3. **`Financial.tsx`** (line 109) - Falls back to `projects[0]`
+4. **`WhatsApp.tsx`** (line 48) - Falls back to `projects[0]`
+5. **`Clarity.tsx`** (lines 53-54) - Falls back to `projects[0]`
 
-## Root Causes
+Additionally, the session persistence (`sessionStorage` vs `localStorage`) needs to change so projects are forgotten on new login but remembered during page refreshes within the same session.
 
-1. **Meta Graph API v21 metric changes**: Some metric names (`accounts_engaged`, `total_interactions`, `follows_and_unfollows`) may not be available or require different parameters in the current API version. Errors are swallowed by try/catch blocks with no user feedback.
-2. **Per-media insights failing**: The metrics `likes`, `comments`, `shares`, `saved`, `total_interactions` for individual media may require different names or the API call format may be wrong. Again, errors are silently caught.
-3. **Image display**: Grid uses `object-contain` (shows full image with gray padding) instead of `object-cover` (fills square, crops edges).
+### Changes
 
-## Plan
+**1. `DashboardLayout.tsx`** - Remove auto-select logic (lines 52-57)
+- Remove the block that queries projects and sets `selectedProjectId` when none exists
+- If no project selected, just skip the import check
 
-### 1. Fix Edge Function (`instagram-sync`)
+**2. `useGoogleAdsData.tsx`** (line 159) - Remove `|| projects[0]` fallback
+- Change to: `projects.find(p => p.id === selectedProjectId) || null`
 
-**Daily Insights (Step 3):**
-- Split the metrics request into smaller batches -- Meta API sometimes rejects when too many metrics are requested at once
-- Use separate calls for basic metrics (`reach`, `impressions`, `profile_views`, `website_clicks`) and interaction metrics (`likes`, `comments`, `shares`, `saves`, `follows_and_unfollows`)
-- Add detailed error logging with metric names so we can see exactly which metrics fail
-- Add fallback: if combined request fails, try metrics individually
+**3. `Financial.tsx`** (line 109) - Remove `|| projects[0]` fallback
 
-**Per-Media Insights (Step 6):**
-- Add proper error logging with the specific media ID and error message
-- Use fallback values from the basic media fields (`like_count`, `comments_count`) when insights API fails
-- Handle the case where some metrics simply aren't available for older posts (API returns error for posts older than 2 years)
+**4. `WhatsApp.tsx`** (line 48) - Remove `|| projects[0]` fallback
 
-**General improvements:**
-- Log all API responses (not just errors) so we can debug via function logs
-- Return detailed sync report with counts of successful/failed insight fetches
+**5. `Clarity.tsx`** (lines 53-54) - Remove `|| projects[0]` fallback
 
-### 2. Fix Image Grid (No More Gray Bars)
+**6. Session-based persistence** - Use `sessionStorage` instead of `localStorage` for `selectedProjectId`
+- This way: refreshing the page keeps the project, but closing browser/new login starts fresh
+- Create a small utility to centralize `get/set/removeSelectedProjectId` using `sessionStorage`
+- Update all 18+ files that reference `localStorage.getItem('selectedProjectId')` to use the utility
 
-**`InstagramPostsGrid.tsx`:**
-- Change from `object-contain bg-black/5` to `object-cover` in the grid thumbnails
-- This fills the square completely, cropping edges naturally (standard Instagram behavior)
-- Keep `object-contain` only in the detail modal where full image visibility matters
+Wait -- actually using sessionStorage across all files is a large refactor. A simpler approach:
 
-### 3. Improve Visualization
+**Simpler approach**: Keep `localStorage` but ensure it's cleared on every fresh login (already done in `Auth.tsx` and `useAuth.tsx`). The real problem is the **auto-select fallbacks** that re-set it immediately after clearing.
 
-**`InstagramPage.tsx`:**
-- Add a summary banner showing sync status (last sync date, media count, insights days)
-- Show a warning when insights data is empty (guiding user to re-sync)
+### Final Plan (5 file edits)
 
-**`InstagramMetricsGrid.tsx`:**
-- Add subtle animations on metric cards
-- Show "last 30 days" label to clarify the time period
-- Add visual indicator when a metric is 0 (dimmed styling)
+1. **`DashboardLayout.tsx`** - Remove lines 52-57 (the auto-select block that queries projects and sets localStorage)
 
-**`InstagramPerformanceChart.tsx`:**
-- Add area fill under lines for better visual appeal
-- Add date range label in header
-- Handle empty data state with a helpful message
+2. **`useGoogleAdsData.tsx`** line 159 - Change `|| projects[0]` to `|| null`
 
-**`InstagramPostsGrid.tsx`:**
-- Add engagement rate per post (interactions / reach)
-- Show post date overlay on thumbnails
-- Better empty state design
+3. **`Financial.tsx`** line 109 - Change `|| projects[0]` to `|| null`
 
-**`InstagramDemographics.tsx`:**
-- Add a note when demographics aren't available (requires 100+ followers -- this account has 12k so it should work after fixing the sync)
+4. **`WhatsApp.tsx`** line 48 - Change `|| projects[0]` to `|| null`
 
-### 4. Files to Change
+5. **`Clarity.tsx`** lines 53-54 - Change `projects[0]` fallbacks to `null`
 
-| File | Changes |
-|------|---------|
-| `supabase/functions/instagram-sync/index.ts` | Fix metric fetching with fallbacks, better logging |
-| `src/components/instagram/InstagramPostsGrid.tsx` | `object-cover` for grid, date overlay, engagement rate |
-| `src/components/instagram/InstagramMetricsGrid.tsx` | Period label, zero-state styling, animations |
-| `src/components/instagram/InstagramPerformanceChart.tsx` | Area fill, empty state, date range |
-| `src/components/instagram/InstagramDemographics.tsx` | Better empty state message |
-| `src/pages/Instagram.tsx` | Sync status banner, warning for empty insights |
-| `src/components/instagram/InstagramPostDetailModal.tsx` | Minor visual polish |
-| `src/components/instagram/InstagramProfileHeader.tsx` | Add engagement rate badge |
+These changes ensure that when `selectedProjectId` is cleared on login, no code re-selects a project automatically, and the Dashboard Welcome screen will appear.
 
