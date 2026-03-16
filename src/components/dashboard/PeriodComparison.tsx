@@ -521,28 +521,28 @@ export default function PeriodComparison({
 
       // CPL based on leads - only if leads > 0
       const leads = getMetricValue('leads');
-      if (leads > 0 && shouldShowMetric('cpa')) {
+      if (leads > 0 && shouldShowCostMetric('cpl') && shouldShowMetric('cpa')) {
         const cpl = currentMetrics.totalSpend / leads;
         currentOnlyItems.push({ label: 'CPL', value: formatCurrencyValue(cpl) });
       }
 
       // CPV based on profile visits - only if profile_visits > 0
       const profileVisits = getMetricValue('profile_visits');
-      if (profileVisits > 0 && shouldShowMetric('profile_visits')) {
+      if (profileVisits > 0 && shouldShowCostMetric('cpv') && shouldShowMetric('profile_visits')) {
         const cpv = currentMetrics.totalSpend / profileVisits;
         currentOnlyItems.push({ label: 'CPV', value: formatCurrencyValue(cpv) });
       }
 
       // Cost per Initiate Checkout - only if IC > 0
       const ic = getMetricValue('initiate_checkout');
-      if (ic > 0 && shouldShowMetric('initiate_checkout')) {
+      if (ic > 0 && shouldShowCostMetric('cpic') && shouldShowMetric('initiate_checkout')) {
         const cpic = currentMetrics.totalSpend / ic;
         currentOnlyItems.push({ label: 'Custo/Init. Checkout', value: formatCurrencyValue(cpic) });
       }
 
       // CPP only if there are purchases
       const purchases = getMetricValue('purchases');
-      if (purchases > 0 && shouldShowMetric('purchases')) {
+      if (purchases > 0 && shouldShowCostMetric('cpp') && shouldShowMetric('purchases')) {
         const cpp = currentMetrics.totalSpend / purchases;
         currentOnlyItems.push({ label: 'CPP', value: formatCurrencyValue(cpp) });
       }
