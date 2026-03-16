@@ -382,10 +382,8 @@ export default function Dashboard() {
                             <h3 className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
                               {project.name}
                             </h3>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
                               {project.business_model === 'ecommerce' ? 'E-commerce' : 
-                               project.business_model === 'infoproduto' ? 'Infoproduto' : 
-                               project.business_model === 'saas' ? 'SaaS' : 'Lead Gen'}
+                               project.business_model === 'infoproduto' ? 'Infoproduto' : 'Lead Gen'}
                             </p>
                           </div>
                           <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
