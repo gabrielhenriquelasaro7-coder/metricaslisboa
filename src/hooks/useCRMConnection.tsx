@@ -321,6 +321,49 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
     }
   }, [projectId, status?.connection_id, fetchStatus]);
 
+  useEffect(() => {
+    if (!projectId || !status?.connected || !status?.connection_id) return;
+
+    const intervalId = window.setInterval(() => {
+      if (document.hidden) return;
+      fetchStatus();
+    }, 60 * 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [projectId, status?.connected, status?.connection_id, fetchStatus]);
+
+  useEffect(() => {
+    if (!projectId || !status?.connected || !status?.connection_id) return;
+
+    const checkAndSync = async () => {
+      if (document.hidden || isAutoSyncingRef.current) return;
+      if (status?.sync?.status === 'syncing') return;
+      if (nextSyncAt && Date.now() < nextSyncAt.getTime()) return;
+
+      isAutoSyncingRef.current = true;
+      try {
+        await triggerSync('incremental', { silent: true });
+      } catch (error) {
+        console.error('Auto sync failed:', error);
+      } finally {
+        isAutoSyncingRef.current = false;
+        setNextSyncAt(new Date(Date.now() + AUTO_SYNC_INTERVAL_MS));
+      }
+    };
+
+    const intervalId = window.setInterval(checkAndSync, 30 * 1000);
+    checkAndSync();
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    projectId,
+    status?.connected,
+    status?.connection_id,
+    status?.sync?.status,
+    nextSyncAt,
+    triggerSync,
+  ]);
+
   const selectPipeline = useCallback(async (pipelineId: string) => {
     if (!projectId || !status?.connection_id) return;
 
