@@ -343,6 +343,62 @@ export default function Dashboard() {
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">Crie seu primeiro projeto para começar a acompanhar suas campanhas.</p>
                 <CreateProjectDialog />
               </div>
+            ) : !selectedProject ? (
+              <FadeIn>
+                <div className="space-y-8">
+                  <div className="text-center space-y-3">
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto border border-primary/10">
+                      <Layers className="w-10 h-10 text-primary" />
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                      Selecione um projeto
+                    </h2>
+                    <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                      Escolha um projeto abaixo para visualizar o dashboard com métricas e relatórios.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                    {activeProjects.map((project) => (
+                      <button
+                        key={project.id}
+                        onClick={() => {
+                          localStorage.setItem('selectedProjectId', project.id);
+                          window.location.reload();
+                        }}
+                        className="glass-card p-5 text-left hover:ring-2 hover:ring-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 group"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-secondary border border-border flex items-center justify-center overflow-hidden flex-shrink-0 group-hover:border-primary/30 transition-colors">
+                            {project.avatar_url ? (
+                              <img src={project.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-lg font-bold text-foreground">
+                                {project.name.charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
+                              {project.name}
+                            </h3>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {project.business_model === 'ecommerce' ? 'E-commerce' : 
+                               project.business_model === 'infoproduto' ? 'Infoproduto' : 
+                               project.business_model === 'saas' ? 'SaaS' : 'Lead Gen'}
+                            </p>
+                          </div>
+                          <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="text-center">
+                    <CreateProjectDialog />
+                  </div>
+                </div>
+              </FadeIn>
             ) : (
               <StaggerContainer staggerDelay={0.04} className="space-y-8 sm:space-y-10">
                 {/* Quick Stats Bar */}
