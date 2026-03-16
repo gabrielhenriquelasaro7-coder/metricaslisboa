@@ -121,14 +121,8 @@ export function useMetaAdsData() {
       localStorage.removeItem('selectedProjectId');
     }
     
-    // Default to first available project and save it
-    const defaultProject = projects[0] || null;
-    if (defaultProject && !selectedProjectId) {
-      // Auto-save the first project for guests who only have one project
-      localStorage.setItem('selectedProjectId', defaultProject.id);
-      console.log('[META] Auto-selected project:', defaultProject.id);
-    }
-    return defaultProject;
+    // Don't auto-select - let the user choose from the Home screen
+    return null;
   }, [projects, projectsLoading, selectedProjectId]);
 
   const fetchCampaigns = useCallback(async () => {
