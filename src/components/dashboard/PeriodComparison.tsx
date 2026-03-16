@@ -202,97 +202,127 @@ export default function PeriodComparison({
 
     // Add business-model specific metrics
     if (businessModel === 'ecommerce') {
-      // Para ecommerce, "Compras" = purchases (totalSalesConversions)
       const currentPurchases = currentMetrics.totalSalesConversions ?? currentMetrics.totalConversions;
       const previousPurchases = previousMetrics.totalSalesConversions ?? previousMetrics.totalConversions;
-
-      // CPA de compras = spend / purchases
       const currentCpaPurchases = currentPurchases > 0 ? currentMetrics.totalSpend / currentPurchases : 0;
       const previousCpaPurchases = previousPurchases > 0 ? previousMetrics.totalSpend / previousPurchases : 0;
-      items.push({
-        label: t('metrics.roas'),
-        current: `${currentMetrics.roas.toFixed(2)}x`,
-        previous: `${previousMetrics.roas.toFixed(2)}x`,
-        change: calculateChange(currentMetrics.roas, previousMetrics.roas),
-        isInverse: false
-      }, {
-        label: t('comparison.purchases'),
-        current: formatNumber(currentPurchases),
-        previous: formatNumber(previousPurchases),
-        change: calculateChange(currentPurchases, previousPurchases),
-        isInverse: false
-      }, {
-        label: t('comparison.revenue'),
-        current: formatCurrencyValue(currentMetrics.totalConversionValue),
-        previous: formatCurrencyValue(previousMetrics.totalConversionValue),
-        change: calculateChange(currentMetrics.totalConversionValue, previousMetrics.totalConversionValue),
-        isInverse: false
-      }, {
-        label: t('comparison.cpa'),
-        current: formatCurrencyValue(currentCpaPurchases),
-        previous: formatCurrencyValue(previousCpaPurchases),
-        change: calculateChange(currentCpaPurchases, previousCpaPurchases),
-        isInverse: true
-      });
+
+      if (shouldShowMetric('roas')) {
+        items.push({
+          label: t('metrics.roas'),
+          current: `${currentMetrics.roas.toFixed(2)}x`,
+          previous: `${previousMetrics.roas.toFixed(2)}x`,
+          change: calculateChange(currentMetrics.roas, previousMetrics.roas),
+          isInverse: false
+        });
+      }
+      if (shouldShowMetric('purchases')) {
+        items.push({
+          label: t('comparison.purchases'),
+          current: formatNumber(currentPurchases),
+          previous: formatNumber(previousPurchases),
+          change: calculateChange(currentPurchases, previousPurchases),
+          isInverse: false
+        });
+      }
+      if (shouldShowMetric('conversion_value')) {
+        items.push({
+          label: t('comparison.revenue'),
+          current: formatCurrencyValue(currentMetrics.totalConversionValue),
+          previous: formatCurrencyValue(previousMetrics.totalConversionValue),
+          change: calculateChange(currentMetrics.totalConversionValue, previousMetrics.totalConversionValue),
+          isInverse: false
+        });
+      }
+      if (shouldShowMetric('cpa')) {
+        items.push({
+          label: t('comparison.cpa'),
+          current: formatCurrencyValue(currentCpaPurchases),
+          previous: formatCurrencyValue(previousCpaPurchases),
+          change: calculateChange(currentCpaPurchases, previousCpaPurchases),
+          isInverse: true
+        });
+      }
     } else if (businessModel === 'inside_sales') {
-      items.push({
-        label: t('comparison.leads'),
-        current: formatNumber(currentMetrics.totalConversions),
-        previous: formatNumber(previousMetrics.totalConversions),
-        change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
-        isInverse: false
-      }, {
-        label: t('metrics.cpl'),
-        current: formatCurrencyValue(currentMetrics.cpa),
-        previous: formatCurrencyValue(previousMetrics.cpa),
-        change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
-        isInverse: true
-      });
+      if (shouldShowMetric('conversions')) {
+        items.push({
+          label: t('comparison.leads'),
+          current: formatNumber(currentMetrics.totalConversions),
+          previous: formatNumber(previousMetrics.totalConversions),
+          change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
+          isInverse: false
+        });
+      }
+      if (shouldShowMetric('cpa')) {
+        items.push({
+          label: t('metrics.cpl'),
+          current: formatCurrencyValue(currentMetrics.cpa),
+          previous: formatCurrencyValue(previousMetrics.cpa),
+          change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
+          isInverse: true
+        });
+      }
     } else if (businessModel === 'pdv') {
-      items.push({
-        label: t('comparison.visits'),
-        current: formatNumber(currentMetrics.totalConversions),
-        previous: formatNumber(previousMetrics.totalConversions),
-        change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
-        isInverse: false
-      }, {
-        label: t('comparison.costPerVisit'),
-        current: formatCurrencyValue(currentMetrics.cpa),
-        previous: formatCurrencyValue(previousMetrics.cpa),
-        change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
-        isInverse: true
-      });
+      if (shouldShowMetric('conversions')) {
+        items.push({
+          label: t('comparison.visits'),
+          current: formatNumber(currentMetrics.totalConversions),
+          previous: formatNumber(previousMetrics.totalConversions),
+          change: calculateChange(currentMetrics.totalConversions, previousMetrics.totalConversions),
+          isInverse: false
+        });
+      }
+      if (shouldShowMetric('cpa')) {
+        items.push({
+          label: t('comparison.costPerVisit'),
+          current: formatCurrencyValue(currentMetrics.cpa),
+          previous: formatCurrencyValue(previousMetrics.cpa),
+          change: calculateChange(currentMetrics.cpa, previousMetrics.cpa),
+          isInverse: true
+        });
+      }
     } else if (businessModel === 'infoproduto') {
       const currentSales = currentMetrics.totalSalesConversions ?? currentMetrics.totalConversions;
       const previousSales = previousMetrics.totalSalesConversions ?? previousMetrics.totalConversions;
-
       const currentCpaSales = currentSales > 0 ? currentMetrics.totalSpend / currentSales : 0;
       const previousCpaSales = previousSales > 0 ? previousMetrics.totalSpend / previousSales : 0;
-      items.push({
-        label: t('comparison.sales'),
-        current: formatNumber(currentSales),
-        previous: formatNumber(previousSales),
-        change: calculateChange(currentSales, previousSales),
-        isInverse: false
-      }, {
-        label: t('comparison.revenue'),
-        current: formatCurrencyValue(currentMetrics.totalConversionValue),
-        previous: formatCurrencyValue(previousMetrics.totalConversionValue),
-        change: calculateChange(currentMetrics.totalConversionValue, previousMetrics.totalConversionValue),
-        isInverse: false
-      }, {
-        label: t('metrics.roas'),
-        current: `${currentMetrics.roas.toFixed(2)}x`,
-        previous: `${previousMetrics.roas.toFixed(2)}x`,
-        change: calculateChange(currentMetrics.roas, previousMetrics.roas),
-        isInverse: false
-      }, {
-        label: t('comparison.cpa'),
-        current: formatCurrencyValue(currentCpaSales),
-        previous: formatCurrencyValue(previousCpaSales),
-        change: calculateChange(currentCpaSales, previousCpaSales),
-        isInverse: true
-      });
+
+      if (shouldShowMetric('conversions')) {
+        items.push({
+          label: t('comparison.sales'),
+          current: formatNumber(currentSales),
+          previous: formatNumber(previousSales),
+          change: calculateChange(currentSales, previousSales),
+          isInverse: false
+        });
+      }
+      if (shouldShowMetric('conversion_value')) {
+        items.push({
+          label: t('comparison.revenue'),
+          current: formatCurrencyValue(currentMetrics.totalConversionValue),
+          previous: formatCurrencyValue(previousMetrics.totalConversionValue),
+          change: calculateChange(currentMetrics.totalConversionValue, previousMetrics.totalConversionValue),
+          isInverse: false
+        });
+      }
+      if (shouldShowMetric('roas')) {
+        items.push({
+          label: t('metrics.roas'),
+          current: `${currentMetrics.roas.toFixed(2)}x`,
+          previous: `${previousMetrics.roas.toFixed(2)}x`,
+          change: calculateChange(currentMetrics.roas, previousMetrics.roas),
+          isInverse: false
+        });
+      }
+      if (shouldShowMetric('cpa')) {
+        items.push({
+          label: t('comparison.cpa'),
+          current: formatCurrencyValue(currentCpaSales),
+          previous: formatCurrencyValue(previousCpaSales),
+          change: calculateChange(currentCpaSales, previousCpaSales),
+          isInverse: true
+        });
+      }
     } else if (businessModel === 'custom') {
       const metricsToShow = resultMetrics || ['leads', 'initiate_checkout', 'purchases', 'profile_visits'];
       const labels: Record<string, string> = resultMetricsLabels || {
@@ -313,6 +343,7 @@ export default function PeriodComparison({
       };
 
       for (const metric of metricsToShow) {
+        if (!shouldShowMetric(metric)) continue;
         const currentValue = getMetricValue(currentMetrics, metric);
         const previousValue = getMetricValue(previousMetrics, metric);
         
@@ -330,7 +361,7 @@ export default function PeriodComparison({
       const currentLeads = getMetricValue(currentMetrics, 'leads');
       const previousLeads = getMetricValue(previousMetrics, 'leads');
       
-      if (currentLeads > 0 || previousLeads > 0) {
+      if (shouldShowMetric('cpa') && (currentLeads > 0 || previousLeads > 0)) {
         const currentCpl = currentLeads > 0 ? currentMetrics.totalSpend / currentLeads : 0;
         const previousCpl = previousLeads > 0 ? previousMetrics.totalSpend / previousLeads : 0;
 
@@ -346,7 +377,7 @@ export default function PeriodComparison({
       const currentProfileVisits = getMetricValue(currentMetrics, 'profile_visits');
       const previousProfileVisits = getMetricValue(previousMetrics, 'profile_visits');
       
-      if (currentProfileVisits > 0 || previousProfileVisits > 0) {
+      if (shouldShowMetric('profile_visits') && (currentProfileVisits > 0 || previousProfileVisits > 0)) {
         const currentCpv = currentProfileVisits > 0 ? currentMetrics.totalSpend / currentProfileVisits : 0;
         const previousCpv = previousProfileVisits > 0 ? previousMetrics.totalSpend / previousProfileVisits : 0;
 
@@ -363,7 +394,7 @@ export default function PeriodComparison({
       const currentIC = getMetricValue(currentMetrics, 'initiate_checkout');
       const previousIC = getMetricValue(previousMetrics, 'initiate_checkout');
       
-      if (currentIC > 0 || previousIC > 0) {
+      if (shouldShowMetric('initiate_checkout') && (currentIC > 0 || previousIC > 0)) {
         const currentCpic = currentIC > 0 ? currentMetrics.totalSpend / currentIC : 0;
         const previousCpic = previousIC > 0 ? previousMetrics.totalSpend / previousIC : 0;
 
@@ -379,7 +410,7 @@ export default function PeriodComparison({
       const currentPurchases = getMetricValue(currentMetrics, 'purchases');
       const previousPurchases = getMetricValue(previousMetrics, 'purchases');
       
-      if (currentPurchases > 0 || previousPurchases > 0) {
+      if (shouldShowMetric('purchases') && (currentPurchases > 0 || previousPurchases > 0)) {
         const currentCpp = currentPurchases > 0 ? currentMetrics.totalSpend / currentPurchases : 0;
         const previousCpp = previousPurchases > 0 ? previousMetrics.totalSpend / previousPurchases : 0;
 
