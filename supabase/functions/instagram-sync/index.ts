@@ -115,12 +115,18 @@ Deno.serve(async (req) => {
           const today = new Date().toISOString().split('T')[0];
           if (!target[today]) target[today] = {};
           if (m.name === 'follows_and_unfollows') {
-            if (typeof m.total_value === 'object' && m.total_value !== null) {
-              target[today].follows = (target[today].follows || 0) + (m.total_value.follows || 0);
-              target[today].unfollows = (target[today].unfollows || 0) + (m.total_value.unfollows || 0);
+            // total_value can be {value: {follows: N, unfollows: N}} or {follows: N, unfollows: N}
+            const tv = m.total_value;
+            const inner = tv?.value || tv;
+            if (typeof inner === 'object' && inner !== null) {
+              target[today].follows = (target[today].follows || 0) + (inner.follows || 0);
+              target[today].unfollows = (target[today].unfollows || 0) + (inner.unfollows || 0);
             }
+            console.log(`follows_and_unfollows total_value raw: ${JSON.stringify(tv)}, parsed follows=${inner?.follows}, unfollows=${inner?.unfollows}`);
           } else {
-            target[today][m.name] = (target[today][m.name] || 0) + (typeof m.total_value === 'number' ? m.total_value : (m.total_value?.value || 0));
+            // total_value can be {value: N} or just N
+            const val = typeof m.total_value === 'object' ? (m.total_value?.value ?? 0) : m.total_value;
+            target[today][m.name] = (target[today][m.name] || 0) + val;
           }
           console.log(`Metric ${m.name} returned total_value only: ${JSON.stringify(m.total_value)}, assigned to ${today}`);
         }
