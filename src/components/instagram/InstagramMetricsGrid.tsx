@@ -25,7 +25,7 @@ const fmt = (n: number) => {
 export default function InstagramMetricsGrid({ metrics, followersCount }: Props) {
   const items = [
     { label: 'Seguidores', sublabel: 'Total atual', value: fmt(followersCount), icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { label: 'Novos Seguidores', sublabel: 'No período', value: fmt(metrics.newFollows), icon: UserPlus, color: 'text-green-500', bg: 'bg-green-500/10' },
+    
     { label: 'Alcance', sublabel: 'Contas alcançadas', value: fmt(metrics.totalReach), icon: Eye, color: 'text-purple-500', bg: 'bg-purple-500/10' },
     { label: 'Visualizações', sublabel: 'No período', value: fmt(metrics.totalViews), icon: MousePointer, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
     { label: 'Curtidas', sublabel: 'No período', value: fmt(metrics.totalLikes), icon: Heart, color: 'text-red-500', bg: 'bg-red-500/10' },
