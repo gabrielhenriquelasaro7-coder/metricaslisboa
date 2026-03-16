@@ -106,7 +106,7 @@ export default function Financial() {
   const { isInvestidor, loading: cargoLoading } = useCargo();
   
   const selectedProjectId = localStorage.getItem('selectedProjectId');
-  const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
+  const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
   const businessModel = selectedProject?.business_model as 'inside_sales' | 'ecommerce' | 'pdv' | 'infoproduto' | 'custom' | undefined;
 
   const [drePeriod, setDrePeriod] = useState<DREPeriod>('last_30d');

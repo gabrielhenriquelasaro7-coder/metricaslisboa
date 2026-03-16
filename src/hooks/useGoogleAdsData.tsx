@@ -156,7 +156,7 @@ export function useGoogleAdsData() {
   const [syncing, setSyncing] = useState(false);
 
   const selectedProjectId = localStorage.getItem('selectedProjectId');
-  const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
+  const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
 
   const loadAllData = useCallback(async (projectId?: string) => {
     const pid = projectId || selectedProject?.id;
