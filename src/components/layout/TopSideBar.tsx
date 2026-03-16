@@ -277,23 +277,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
               )}
 
               {/* Clarity - LP Analysis */}
-<<<<<<< HEAD
-              {showClarity && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => handleNavClick('/clarity')}
-                    className={cn('sidebar-icon-btn', isActive('/clarity') && 'active')}
-                  >
-                    <img src={clarityIcon} alt="Clarity" className="w-5 h-5 object-contain" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="bg-popover border-border z-[60]">
-                  <p>Clarity</p>
-                </TooltipContent>
-              </Tooltip>
-=======
-              {!isTabHidden('clarity') && (
+              {showClarity && !isTabHidden('clarity') && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
@@ -307,7 +291,6 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
                     <p>Clarity</p>
                   </TooltipContent>
                 </Tooltip>
->>>>>>> e31e31f (fix(google-ads): paginacao nas dailymetrics para evitar limite supabase de 1000 items)
               )}
 
               {/* Separator before WhatsApp */}

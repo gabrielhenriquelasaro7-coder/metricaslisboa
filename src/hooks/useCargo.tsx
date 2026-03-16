@@ -219,8 +219,6 @@ export function useCargo(): CargoData {
   const isCoordenador = cargo === 'coordenador';
   const isInvestidor = cargo === 'investidor';
   const isMembro = cargo === 'membro';
-  const isMaster = user?.email === 'gabrielhenriquelasaro7@gmail.com';
-
   const isMaster = globalCargoCache.userId === user?.id ? globalCargoCache.isMaster : false;
 
   return {
