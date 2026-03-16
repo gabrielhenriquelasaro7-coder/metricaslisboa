@@ -119,7 +119,7 @@ export function useCRMConnection(projectId: string | undefined, dateRange?: { st
   const [isConnecting, setIsConnecting] = useState<CRMProvider | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [nextSyncAt, setNextSyncAt] = useState<Date | null>(null);
-  const isAutoSyncingRef = useRef(false);
+  const isSyncInFlightRef = useRef(false);
 
   const fetchStatus = useCallback(async () => {
     if (!projectId) return;
