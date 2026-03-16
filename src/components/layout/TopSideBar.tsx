@@ -63,11 +63,7 @@ export default function TopSideBar({ onNavigate }: TopSideBarProps) {
   const { projects } = useProjects();
   const { profile } = useProfile();
   const { isGuest, loading: roleLoading } = useUserRole();
-<<<<<<< HEAD
-  const { needsAdminApproval, isTech, isMaster, loading: cargoLoading } = useCargo();
-=======
-  const { needsAdminApproval, canSeeAnalytics, canSeeDiagnostics, loading: cargoLoading } = useCargo();
->>>>>>> e31e31f (fix(google-ads): paginacao nas dailymetrics para evitar limite supabase de 1000 items)
+  const { needsAdminApproval, isTech, isMaster, canSeeAnalytics, canSeeDiagnostics, loading: cargoLoading } = useCargo();
   const { theme, toggleTheme } = useTheme();
   const { isTabHidden } = useTabVisibility();
   const [adminAccessModalOpen, setAdminAccessModalOpen] = useState(false);
