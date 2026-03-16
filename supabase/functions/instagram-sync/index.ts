@@ -14,12 +14,17 @@ async function fetchJSON(url: string) {
 
 async function fetchSingleMetric(igUserId: string, metric: string, period: string, token: string, extraParams = '') {
   const url = `${graphUrl}/${igUserId}/insights?metric=${metric}&period=${period}${extraParams}&access_token=${token}`;
-  const data = await fetchJSON(url);
-  if (data.error) {
-    console.warn(`Metric ${metric} failed: ${data.error.message}`);
+  try {
+    const data = await fetchJSON(url);
+    if (data.error) {
+      console.warn(`Metric ${metric} API error: ${data.error.message}`);
+      return null;
+    }
+    return data.data || [];
+  } catch (e) {
+    console.warn(`Metric ${metric} fetch error:`, e);
     return null;
   }
-  return data.data || [];
 }
 
 Deno.serve(async (req) => {
@@ -110,52 +115,62 @@ Deno.serve(async (req) => {
           const today = new Date().toISOString().split('T')[0];
           if (!target[today]) target[today] = {};
           if (m.name === 'follows_and_unfollows') {
-            if (typeof m.total_value === 'object' && m.total_value !== null) {
-              target[today].follows = (target[today].follows || 0) + (m.total_value.follows || 0);
-              target[today].unfollows = (target[today].unfollows || 0) + (m.total_value.unfollows || 0);
+            // total_value can be {value: {follows: N, unfollows: N}} or {follows: N, unfollows: N}
+            const tv = m.total_value;
+            const inner = tv?.value || tv;
+            if (typeof inner === 'object' && inner !== null) {
+              target[today].follows = (target[today].follows || 0) + (inner.follows || 0);
+              target[today].unfollows = (target[today].unfollows || 0) + (inner.unfollows || 0);
             }
+            console.log(`follows_and_unfollows total_value raw: ${JSON.stringify(tv)}, parsed follows=${inner?.follows}, unfollows=${inner?.unfollows}`);
           } else {
-            target[today][m.name] = (target[today][m.name] || 0) + (typeof m.total_value === 'number' ? m.total_value : (m.total_value?.value || 0));
+            // total_value can be {value: N} or just N
+            const val = typeof m.total_value === 'object' ? (m.total_value?.value ?? 0) : m.total_value;
+            target[today][m.name] = (target[today][m.name] || 0) + val;
           }
           console.log(`Metric ${m.name} returned total_value only: ${JSON.stringify(m.total_value)}, assigned to ${today}`);
         }
       }
     };
 
-    // Try each metric with time_series first, fallback to total_value
-    const allDailyMetrics = [
-      'reach', 'views', 'follows_and_unfollows',
+    // Metrics that ONLY support time_series
+    const timeSeriesOnly = ['reach'];
+    // Metrics that ONLY support total_value
+    const totalValueOnly = [
+      'views', 'follows_and_unfollows',
       'profile_views', 'website_clicks', 'accounts_engaged',
       'likes', 'comments', 'shares', 'saves', 'total_interactions',
     ];
 
-    for (const metric of allDailyMetrics) {
+    // Fetch time_series metrics
+    for (const metric of timeSeriesOnly) {
       try {
-        // Try time_series first (gives daily breakdown)
-        const tsResult = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=time_series`);
-        if (tsResult && tsResult.length > 0 && !tsResult[0]?.error) {
-          parseDailyValues(tsResult, dailyInsights);
-          continue;
-        }
-      } catch (_) {}
+        const result = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=time_series`);
+        if (result) parseDailyValues(result, dailyInsights);
+      } catch (e) {
+        console.warn(`time_series metric ${metric} error:`, e);
+      }
+    }
 
+    // Fetch total_value metrics
+    for (const metric of totalValueOnly) {
       try {
-        // Fallback to total_value
-        const tvResult = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=total_value`);
-        if (tvResult) {
-          parseDailyValues(tvResult, dailyInsights);
+        const result = await fetchSingleMetric(igUserId, metric, 'day', metaToken, `${timeParams}&metric_type=total_value`);
+        if (result) {
+          parseDailyValues(result, dailyInsights);
+          console.log(`Metric ${metric} fetched OK, data entries: ${result.length}`);
+        } else {
+          console.warn(`Metric ${metric} returned null from total_value`);
         }
       } catch (e) {
-        console.warn(`Metric ${metric} failed both modes:`, e);
+        console.warn(`total_value metric ${metric} error:`, e);
       }
     }
 
     // Also try follower_count with period=day (legacy metric, no metric_type needed)
     try {
       const fcResult = await fetchSingleMetric(igUserId, 'follower_count', 'day', metaToken, timeParams);
-      if (fcResult) {
-        parseDailyValues(fcResult, dailyInsights);
-      }
+      if (fcResult) parseDailyValues(fcResult, dailyInsights);
     } catch (_) {}
 
     console.log(`Daily insights parsed: ${Object.keys(dailyInsights).length} days`);
@@ -302,9 +317,12 @@ Deno.serve(async (req) => {
       if (mediaErr) console.error('Error upserting media:', mediaErr);
     }
 
-    // Step 7: Fetch Stories
+    // Step 7: Fetch Stories (only active/recent ones from API - stories are 24h)
     let storiesCount = 0;
     try {
+      // First, delete ALL old stories for this project (they're expired anyway)
+      await supabase.from('instagram_stories').delete().eq('project_id', project_id);
+
       const storiesRes = await fetchJSON(
         `${graphUrl}/${igUserId}/stories?fields=id,media_type,media_url,thumbnail_url,timestamp&access_token=${metaToken}`
       );
@@ -343,6 +361,7 @@ Deno.serve(async (req) => {
         await supabase.from('instagram_stories').upsert(storyRows, { onConflict: 'project_id,ig_story_id' });
         storiesCount = storyRows.length;
       }
+      console.log(`Stories: deleted old, inserted ${storiesCount} active`);
     } catch (e) {
       console.warn('Stories sync failed:', e);
     }
