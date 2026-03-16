@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProjects } from '@/hooks/useProjects';
+import { useCargo } from '@/hooks/useCargo';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Search, Check, Settings, Pencil } from 'lucide-react';
+import { ChevronDown, Search, Check, Settings, Pencil, Archive, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Popover,
@@ -12,6 +13,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { SyncStatusBadge } from '@/components/sync/SyncStatusBadge';
 import EditProjectDialog from '@/components/projects/EditProjectDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 interface ClientSelectorProps {
   onSelect?: () => void;
@@ -19,11 +31,15 @@ interface ClientSelectorProps {
 
 export function ClientSelector({ onSelect }: ClientSelectorProps) {
   const { t } = useTranslation();
-  const { projects } = useProjects();
+  const { projects, archiveProject, deleteProject } = useProjects();
+  const { isTech, isGerente, isCoordenador } = useCargo();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [editProject, setEditProject] = useState<any>(null);
+  const [confirmDelete, setConfirmDelete] = useState<any>(null);
+
+  const canManageProjects = isTech || isGerente || isCoordenador;
 
   const selectedProjectId = localStorage.getItem('selectedProjectId');
   const selectedProject = useMemo(() => {
@@ -48,6 +64,35 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
     setSearch('');
     window.location.reload();
     onSelect?.();
+  };
+
+  const handleArchive = async (project: any) => {
+    try {
+      await archiveProject(project.id);
+      toast.success(`"${project.name}" arquivado`);
+      if (project.id === selectedProjectId) {
+        localStorage.removeItem('selectedProjectId');
+        window.location.reload();
+      }
+    } catch {
+      toast.error('Erro ao arquivar projeto');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      await deleteProject(confirmDelete.id);
+      toast.success(`"${confirmDelete.name}" excluído`);
+      if (confirmDelete.id === selectedProjectId) {
+        localStorage.removeItem('selectedProjectId');
+        window.location.reload();
+      }
+    } catch {
+      toast.error('Erro ao excluir projeto');
+    } finally {
+      setConfirmDelete(null);
+    }
   };
 
   return (
@@ -99,7 +144,7 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
               <div
                 key={project.id}
                 className={cn(
-                  'w-full flex items-center gap-2.5 px-2.5 py-2 transition-colors hover:bg-secondary/60',
+                  'w-full flex items-center gap-1.5 px-2.5 py-2 transition-colors hover:bg-secondary/60',
                   project.id === selectedProjectId && 'bg-primary/8'
                 )}
               >
@@ -121,17 +166,45 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
                     <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                   )}
                 </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditProject(project);
-                    setOpen(false);
-                  }}
-                  className="p-1 rounded hover:bg-secondary transition-colors flex-shrink-0"
-                  title="Configurar projeto"
-                >
-                  <Pencil className="w-3 h-3 text-muted-foreground hover:text-foreground" />
-                </button>
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditProject(project);
+                      setOpen(false);
+                    }}
+                    className="p-1 rounded hover:bg-secondary transition-colors"
+                    title="Configurar projeto"
+                  >
+                    <Pencil className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                  </button>
+                  {canManageProjects && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleArchive(project);
+                          setOpen(false);
+                        }}
+                        className="p-1 rounded hover:bg-secondary transition-colors"
+                        title="Arquivar projeto"
+                      >
+                        <Archive className="w-3 h-3 text-muted-foreground hover:text-yellow-500" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDelete(project);
+                          setOpen(false);
+                        }}
+                        className="p-1 rounded hover:bg-secondary transition-colors"
+                        title="Excluir projeto"
+                      >
+                        <Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             ))
           )}
@@ -158,6 +231,23 @@ export function ClientSelector({ onSelect }: ClientSelectorProps) {
       open={!!editProject}
       onOpenChange={(open) => { if (!open) setEditProject(null); }}
     />
+
+    <AlertDialog open={!!confirmDelete} onOpenChange={(open) => { if (!open) setConfirmDelete(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir projeto</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir <strong>"{confirmDelete?.name}"</strong>? Esta ação não pode ser desfeita e todos os dados serão removidos permanentemente.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
