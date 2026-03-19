@@ -74,9 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // On fresh sign-in, force project selection on Home screen
-        if (event === 'SIGNED_IN') {
-          localStorage.removeItem('selectedProjectId');
-        }
+        // Note: SIGNED_IN also fires on session restore (page reload),
+        // so we only clear if there was no previous session (fresh login).
+        // Auth.tsx already handles clearing selectedProjectId on login.
         
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
