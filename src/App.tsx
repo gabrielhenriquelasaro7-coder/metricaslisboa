@@ -49,7 +49,7 @@ const queryClient = new QueryClient();
 
 function AnimatedRoutes() {
   return (
-        <Routes location={location}>
+        <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/onboarding" element={<Onboarding />} />
