@@ -668,7 +668,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             const status = score?.status || 'sem_dados';
             const isBottleneck = stage.trava === activeTrava;
             const colors = getStageColor(status, isBottleneck);
-            const pct = score ? getStatusPercent(score.status) : getStatusPercent('sem_dados');
+            const pct = score ? getDisplayPercent(score) : getStatusPercent('sem_dados');
             const mainValue = pct.toFixed(2);
             const label = getTravaName(stage.trava);
 
