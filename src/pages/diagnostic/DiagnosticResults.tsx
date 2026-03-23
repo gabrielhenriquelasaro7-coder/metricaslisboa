@@ -441,99 +441,115 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </div>
 
       {/* ═══ SECTION 4: SÍNTESE + ECONOMICS ═══ */}
-      <Card className="p-6 dark:bg-zinc-950 bg-white rounded-[2.5rem] space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center border border-red-600/20">
-            <Target className="w-5 h-5 text-red-600" />
-          </div>
-          <div>
-            <h4 className="text-lg font-black text-foreground uppercase tracking-tight italic">Síntese Executiva</h4>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Visão geral do diagnóstico</p>
-          </div>
-        </div>
-
-        <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{ai.sintese}</div>
-
-        {/* Economics Grid — simplified: only Ticket + Margem */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4 border-t border-border">
-          <div className="space-y-4">
-            <h4 className="text-sm font-black text-foreground uppercase tracking-widest italic ml-2">Economics</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-muted/30 border border-border p-6 rounded-[2rem] space-y-1 hover:bg-muted/50 transition-colors group">
-                <div className="flex items-center gap-1.5 text-muted-foreground mb-1 group-hover:text-red-500">
-                  <Target className="w-3.5 h-3.5" />
-                  <span className="text-[9px] font-black uppercase tracking-widest">Ticket Médio</span>
-                </div>
-                <p className="text-xl font-black text-foreground">R$ {project.economics?.averageTicket?.toLocaleString('pt-BR') || '—'}</p>
-              </div>
-              <div className="bg-muted/30 border border-border p-6 rounded-[2rem] space-y-1 hover:bg-muted/50 transition-colors group">
-                <div className="flex items-center gap-1.5 text-muted-foreground mb-1 group-hover:text-red-500">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span className="text-[9px] font-black uppercase tracking-widest">Margem</span>
-                </div>
-                <p className="text-xl font-black text-foreground">{project.economics?.contributionMargin || '—'}%</p>
-              </div>
+      <Card className="p-0 dark:bg-zinc-950 bg-white rounded-[2.5rem] overflow-hidden">
+        {/* Header band */}
+        <div className="bg-gradient-to-r from-red-600/10 via-transparent to-transparent p-6 pb-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center border border-red-600/20">
+              <Target className="w-5 h-5 text-red-600" />
             </div>
-          </div>
-
-          {/* Benchmarks vs Real Table */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-black text-foreground uppercase tracking-widest italic ml-2">Benchmarks vs Real</h4>
-            <div className="bg-muted/30 border border-border rounded-[2rem] overflow-hidden">
-              <table className="w-full text-left text-[10px]">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest">Trava</th>
-                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-center">Status</th>
-                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-right">Bench</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {ai.stage_scores.map(score => {
-                    const isGargalo = normalizeTravaId(score.trava) === activeTrava;
-                    return (
-                      <tr key={score.trava} className={cn("hover:bg-muted/30 transition-colors", isGargalo && "bg-red-600/5")}>
-                        <td className="px-5 py-4 font-black text-foreground uppercase">{getTravaName(score.trava)}</td>
-                        <td className="px-5 py-4 text-center">
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
-                            score.status === 'critico' ? "text-red-500 bg-red-500/10" :
-                            score.status === 'bom' ? "text-emerald-500 bg-emerald-500/10" :
-                            score.status === 'na_media' ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground bg-muted"
-                          )}>
-                            {isGargalo ? 'Gargalo' : STATUS_LABELS[score.status] || 'Sem Dados'}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 font-mono text-muted-foreground text-right">{BENCHMARK_DEFAULTS[score.trava] || '—'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div>
+              <h4 className="text-lg font-black text-foreground uppercase tracking-tight italic">Síntese Executiva</h4>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Visão geral do diagnóstico</p>
             </div>
           </div>
         </div>
 
-        {/* UDEs */}
-        <div className="space-y-3 pt-4 border-t border-border">
-          <h5 className="text-xs font-black text-muted-foreground uppercase tracking-widest">UDEs — Efeitos Indesejáveis Identificados</h5>
-          <div className="space-y-2">
-            {ai.udes.map((ude, idx) => (
-              <div key={idx} className="flex items-start gap-3 p-3 bg-red-600/5 border border-red-600/10 rounded-xl">
-                <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
-                <p className="text-[11px] text-foreground/80 font-medium">{ude}</p>
-              </div>
+        <div className="p-6 space-y-6">
+          {/* Síntese text — formatted paragraphs */}
+          <div className="bg-muted/20 border border-border rounded-2xl p-6">
+            {ai.sintese.split('\n\n').filter(Boolean).map((paragraph, idx) => (
+              <p key={idx} className={cn(
+                "text-sm leading-relaxed",
+                idx === 0 ? "text-foreground font-semibold" : "text-muted-foreground mt-4"
+              )}>
+                {paragraph.trim()}
+              </p>
             ))}
           </div>
-        </div>
 
-        {/* Métricas Foco */}
-        <div className="space-y-3 pt-4 border-t border-border">
-          <h5 className="text-xs font-black text-muted-foreground uppercase tracking-widest">Métricas Prioritárias</h5>
-          <div className="flex flex-wrap gap-2">
-            {ai.metricas_foco.map((m, idx) => (
-              <Badge key={idx} variant="outline" className="text-[9px] text-foreground/70 font-bold px-3 py-1 rounded-full">{m}</Badge>
-            ))}
+          {/* Economics + Benchmarks side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Economics */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-black text-foreground uppercase tracking-widest italic ml-2">Economics</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-muted/30 border border-border p-5 rounded-2xl space-y-1 hover:bg-muted/50 transition-colors group">
+                  <div className="flex items-center gap-1.5 text-muted-foreground mb-1 group-hover:text-red-500 transition-colors">
+                    <Target className="w-3.5 h-3.5" />
+                    <span className="text-[9px] font-black uppercase tracking-widest">Ticket Médio</span>
+                  </div>
+                  <p className="text-xl font-black text-foreground">R$ {project.economics?.averageTicket?.toLocaleString('pt-BR') || '—'}</p>
+                </div>
+                <div className="bg-muted/30 border border-border p-5 rounded-2xl space-y-1 hover:bg-muted/50 transition-colors group">
+                  <div className="flex items-center gap-1.5 text-muted-foreground mb-1 group-hover:text-red-500 transition-colors">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span className="text-[9px] font-black uppercase tracking-widest">Margem</span>
+                  </div>
+                  <p className="text-xl font-black text-foreground">{project.economics?.contributionMargin || '—'}%</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Benchmarks vs Real Table */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-black text-foreground uppercase tracking-widest italic ml-2">Benchmarks vs Real</h4>
+              <div className="bg-muted/30 border border-border rounded-2xl overflow-hidden">
+                <table className="w-full text-left text-[10px]">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-4 py-2.5 font-black text-muted-foreground uppercase tracking-widest">Trava</th>
+                      <th className="px-4 py-2.5 font-black text-muted-foreground uppercase tracking-widest text-center">Status</th>
+                      <th className="px-4 py-2.5 font-black text-muted-foreground uppercase tracking-widest text-right">Bench</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {ai.stage_scores.map(score => {
+                      const isGargalo = normalizeTravaId(score.trava) === activeTrava;
+                      return (
+                        <tr key={score.trava} className={cn("hover:bg-muted/30 transition-colors", isGargalo && "bg-red-600/5")}>
+                          <td className="px-4 py-3 font-black text-foreground uppercase">{getTravaName(score.trava)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
+                              score.status === 'critico' ? "text-red-500 bg-red-500/10" :
+                              score.status === 'bom' ? "text-emerald-500 bg-emerald-500/10" :
+                              score.status === 'na_media' ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground bg-muted"
+                            )}>
+                              {isGargalo ? 'Gargalo' : STATUS_LABELS[score.status] || 'Sem Dados'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-muted-foreground text-right">{BENCHMARK_DEFAULTS[normalizeTravaId(score.trava)] || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* UDEs */}
+          <div className="space-y-3 pt-4 border-t border-border">
+            <h5 className="text-xs font-black text-muted-foreground uppercase tracking-widest">UDEs — Efeitos Indesejáveis Identificados</h5>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {ai.udes.map((ude, idx) => (
+                <div key={idx} className="flex items-start gap-3 p-3 bg-red-600/5 border border-red-600/10 rounded-xl">
+                  <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-foreground/80 font-medium">{ude}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Métricas Foco */}
+          <div className="space-y-3 pt-4 border-t border-border">
+            <h5 className="text-xs font-black text-muted-foreground uppercase tracking-widest">Métricas Prioritárias</h5>
+            <div className="flex flex-wrap gap-2">
+              {ai.metricas_foco.map((m, idx) => (
+                <Badge key={idx} variant="outline" className="text-[9px] text-foreground/70 font-bold px-3 py-1 rounded-full">{m}</Badge>
+              ))}
+            </div>
           </div>
         </div>
       </Card>
