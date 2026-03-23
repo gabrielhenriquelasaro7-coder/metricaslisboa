@@ -318,7 +318,7 @@ export default function DiagnosticTOC() {
             </div>
 
             {/* Nav Tabs */}
-            <div className="flex items-center gap-1 border-t border-white/5 pt-4">
+            <div className="flex items-center gap-1 border-t border-border pt-4">
               <button
                 onClick={() => { setActiveTab('diagnostico'); setMode('list'); }}
                 className={cn(
