@@ -320,7 +320,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
   // Auto-fetch on mount if project has systemProjectId
   useEffect(() => {
     const systemProjectId = (initialProject as any).systemProjectId || (initialProject as any).projectId;
-    if (systemProjectId && !initialProject.funnelData?.trava07?.impressions) {
+    if (systemProjectId && !initialProject.funnelData?.trava01?.impressions) {
       fetchProjectMetrics();
     }
   }, []);
