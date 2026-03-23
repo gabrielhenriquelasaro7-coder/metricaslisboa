@@ -664,10 +664,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 status={score.status}
                 isBottleneck={false}
                 pct={getDisplayPercent(score, false)}
-                benchVal="Cobertura: 80%+"
                 isRestriction={false}
                 isSemiManual
-                marketBench={MARKET_BENCHMARKS['00']}
+                realValue={score.valor_informado || undefined}
               />
             ))}
         </div>
