@@ -294,8 +294,8 @@ export default function DiagnosticTOC() {
                 <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Total Analisado</span>
                 <span className="text-2xl font-black text-foreground tracking-tighter">{projects.length} <span className="text-xs text-muted-foreground font-bold uppercase">Projetos</span></span>
               </div>
-              <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
-                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Restrição Principal</span>
+              <div className="p-4 bg-muted/40 dark:bg-black/60 border border-border rounded-xl flex flex-col gap-1">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Restrição Principal</span>
                 <span className="text-sm font-black text-red-500 uppercase italic">
                   {projects.length > 0 ? 'Exposição (07)' : '—'}
                 </span>
