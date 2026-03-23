@@ -67,10 +67,10 @@ const ROTINA_STEPS = [
 // ─── Label de seção ──────────────────────────────────────────────────────────
 function SectionLabel({ tag, title, subtitle }: { tag: string; title: string; subtitle?: string }) {
     return (
-        <div className="space-y-2 pb-6 border-b border-white/5 flex flex-col items-center text-center">
+        <div className="space-y-2 pb-6 border-b border-border flex flex-col items-center text-center">
             <span className="text-[9px] font-black text-red-600 uppercase tracking-[0.3em]">{tag}</span>
-            <h3 className="text-2xl lg:text-3xl font-black text-white uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{title}</h3>
-            {subtitle && <p className="text-[11px] text-zinc-500 font-bold uppercase leading-relaxed tracking-widest w-full text-center">{subtitle}</p>}
+            <h3 className="text-2xl lg:text-3xl font-black text-foreground uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{title}</h3>
+            {subtitle && <p className="text-[11px] text-muted-foreground font-bold uppercase leading-relaxed tracking-widest w-full text-center">{subtitle}</p>}
         </div>
     );
 }
@@ -88,22 +88,22 @@ export function DiagnosticModel() {
                         DESTRAVA RECEITA · ENGINE V4
                     </Badge>
 
-                    <h2 className="text-4xl lg:text-7xl font-black text-white leading-[0.85] uppercase tracking-tighter" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    <h2 className="text-4xl lg:text-7xl font-black text-foreground leading-[0.85] uppercase tracking-tighter" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                         Toda empresa é uma <br /><span className="text-red-500 italic">Fábrica de Receita</span>
                     </h2>
 
                     <div className="space-y-4 w-full">
-                        <p className="text-sm text-zinc-400 leading-relaxed font-medium">
-                            Seu produto final não é o que você vende — é a receita que você gera. Empresas com produtos piores vencem por dominarem melhor seu <strong className="text-white">sistema de geração de receita</strong>. Produtos e serviços são apenas os meios para esse fim.
+                        <p className="text-sm text-muted-foreground leading-relaxed font-medium">
+                            Seu produto final não é o que você vende — é a receita que você gera. Empresas com produtos piores vencem por dominarem melhor seu <strong className="text-foreground">sistema de geração de receita</strong>. Produtos e serviços são apenas os meios para esse fim.
                         </p>
-                        <p className="text-sm text-zinc-500 leading-relaxed font-medium">
-                            A maioria das empresas faz "várias coisas certas" sem um fluxo orientado ao output global. Agências melhoram anúncios, posts, CRM... mas o faturamento não sobe proporcionalmente. <span className="text-zinc-300 italic">Execução, sem a direção correta, é apenas velocidade no caminho errado.</span>
+                        <p className="text-sm text-muted-foreground/70 leading-relaxed font-medium">
+                            A maioria das empresas faz "várias coisas certas" sem um fluxo orientado ao output global. Agências melhoram anúncios, posts, CRM... mas o faturamento não sobe proporcionalmente. <span className="text-foreground/70 italic">Execução, sem a direção correta, é apenas velocidade no caminho errado.</span>
                         </p>
                     </div>
 
                     <div className="p-5 bg-red-600/5 border border-red-600/20 rounded-xl w-full text-center">
-                        <p className="text-[11px] font-black text-white uppercase tracking-widest mb-1">A Restrição Dominante</p>
-                        <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        <p className="text-[11px] font-black text-foreground uppercase tracking-widest mb-1">A Restrição Dominante</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
                             Sempre existe uma única restrição que limita o sistema inteiro. Identificá-la é o primeiro passo. O Destrava Receita faz exatamente isso: encontra a trava e cria um plano causal para resolvê-la.
                         </p>
                     </div>
@@ -118,7 +118,7 @@ export function DiagnosticModel() {
                     {TRAVAS.map((trava) => (
                         <div key={trava.id} className={cn("p-5 rounded-xl border flex flex-col gap-3 group transition-all hover:scale-[1.02] duration-300", trava.color)}>
                             <div className="flex items-center justify-between">
-                                <div className={cn("text-white/80 p-2 rounded-xl bg-black/40 border border-white/5", trava.badge)}>
+                                <div className={cn("text-foreground/80 p-2 rounded-xl bg-muted/50 dark:bg-black/40 border border-border", trava.badge)}>
                                     {trava.icon}
                                 </div>
                                 <span className={cn("text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest", trava.badge)}>
@@ -126,8 +126,8 @@ export function DiagnosticModel() {
                                 </span>
                             </div>
                             <div>
-                                <p className="text-sm font-black text-white uppercase tracking-tight">{trava.title}</p>
-                                <p className="text-[9px] text-zinc-500 font-medium leading-relaxed mt-1">{trava.desc}</p>
+                                <p className="text-sm font-black text-foreground uppercase tracking-tight">{trava.title}</p>
+                                <p className="text-[9px] text-muted-foreground font-medium leading-relaxed mt-1">{trava.desc}</p>
                             </div>
                         </div>
                     ))}
@@ -137,13 +137,13 @@ export function DiagnosticModel() {
                 <div className="border-l-2 border-red-600/40 pl-6 space-y-4">
                     <div className="flex items-center gap-3">
                         <Activity className="w-4 h-4 text-red-600" />
-                        <p className="text-xs font-black text-white uppercase tracking-widest">Como o app calcula a trava · Motor de Inferência Causal</p>
+                        <p className="text-xs font-black text-foreground uppercase tracking-widest">Como o app calcula a trava · Motor de Inferência Causal</p>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {CALC_STEPS.map((step, idx) => (
                             <div key={idx} className="flex items-start gap-3">
                                 <span className="text-[10px] font-black text-red-600 bg-red-600/10 border border-red-600/20 w-6 h-6 rounded flex items-center justify-center flex-shrink-0 mt-0.5">{idx + 1}</span>
-                                <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">{step}</p>
+                                <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">{step}</p>
                             </div>
                         ))}
                     </div>
@@ -156,26 +156,26 @@ export function DiagnosticModel() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {TOC_STEPS.map((step) => (
-                        <div key={step.num} className="relative p-5 bg-zinc-950 border border-white/5 rounded-xl space-y-3 group hover:border-white/10 transition-all">
+                        <div key={step.num} className="relative p-5 bg-card border border-border rounded-xl space-y-3 group hover:border-border/80 transition-all">
                             <span className={cn("w-7 h-7 rounded text-white text-[11px] font-black flex items-center justify-center", step.color)}>{step.num}</span>
-                            <p className="text-[10px] font-black text-white uppercase tracking-widest">{step.label}</p>
-                            <p className="text-[9px] text-zinc-600 font-medium leading-relaxed">{step.desc}</p>
+                            <p className="text-[10px] font-black text-foreground uppercase tracking-widest">{step.label}</p>
+                            <p className="text-[9px] text-muted-foreground font-medium leading-relaxed">{step.desc}</p>
                         </div>
                     ))}
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-6 items-start p-6 bg-zinc-950 border border-white/5 rounded-xl">
+                <div className="flex flex-col lg:flex-row gap-6 items-start p-6 bg-card border border-border rounded-xl">
                     <div className="relative w-20 h-20 flex-shrink-0">
                         <div className="absolute inset-0 rounded-full border-2 border-dashed border-red-600/20 animate-[spin_20s_linear_infinite]" />
-                        <div className="absolute inset-3 rounded-full border border-white/5" />
+                        <div className="absolute inset-3 rounded-full border border-border" />
                         <div className="absolute inset-0 flex items-center justify-center">
                             <Activity className="w-8 h-8 text-red-600 animate-pulse" />
                         </div>
                     </div>
                     <div className="space-y-2">
                         <Badge className="bg-red-600/10 text-red-600 border-none px-3 py-0.5 text-[8px] font-black">THROUGHPUT NO FUNIL</Badge>
-                        <p className="text-sm text-zinc-400 leading-relaxed w-full">
-                            O <strong className="text-white">"throughput"</strong> é a taxa com que o sistema converte impressões em receita. A restrição é o ponto mais estreito — onde o fluxo é interrompido ou acumulado. <span className="text-zinc-300">Melhorar qualquer outra etapa não aumenta o output do sistema.</span>
+                        <p className="text-sm text-muted-foreground leading-relaxed w-full">
+                            O <strong className="text-foreground">"throughput"</strong> é a taxa com que o sistema converte impressões em receita. A restrição é o ponto mais estreito — onde o fluxo é interrompido ou acumulado. <span className="text-foreground/70">Melhorar qualquer outra etapa não aumenta o output do sistema.</span>
                         </p>
                     </div>
                 </div>
@@ -187,16 +187,16 @@ export function DiagnosticModel() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {LTP_TOOLS.map((tool, idx) => (
-                        <div key={tool.abbr} className="p-5 bg-zinc-950 border border-white/5 rounded-xl space-y-3 group hover:border-red-600/20 transition-all">
+                        <div key={tool.abbr} className="p-5 bg-card border border-border rounded-xl space-y-3 group hover:border-red-600/20 transition-all">
                             <div className="flex items-start justify-between">
                                 <div className="w-10 h-10 rounded bg-red-600/10 border border-red-600/20 flex items-center justify-center">
                                     <span className="text-[11px] font-black text-red-600">{tool.abbr}</span>
                                 </div>
-                                <span className="text-[9px] text-zinc-700 font-black font-mono">{String(idx + 1).padStart(2, '0')}</span>
+                                <span className="text-[9px] text-muted-foreground font-black font-mono">{String(idx + 1).padStart(2, '0')}</span>
                             </div>
                             <div>
-                                <p className="text-[11px] font-black text-white uppercase tracking-widest">{tool.name}</p>
-                                <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-2">{tool.desc}</p>
+                                <p className="text-[11px] font-black text-foreground uppercase tracking-widest">{tool.name}</p>
+                                <p className="text-[10px] text-muted-foreground font-medium leading-relaxed mt-2">{tool.desc}</p>
                             </div>
                         </div>
                     ))}
@@ -215,22 +215,22 @@ export function DiagnosticModel() {
                             { abbr: 'SAM', name: 'Serviceable Addressable Market', formula: 'TAM × % elegível' },
                             { abbr: 'SOM', name: 'Serviceable Obtainable Market', formula: 'SAM × % obtível realista' },
                         ].map((m) => (
-                            <div key={m.abbr} className="p-6 bg-zinc-950/80 border border-white/5 rounded-2xl flex flex-col items-center justify-center text-center space-y-4 hover:border-amber-500/20 transition-all shadow-lg shadow-black/50">
+                            <div key={m.abbr} className="p-6 bg-card border border-border rounded-2xl flex flex-col items-center justify-center text-center space-y-4 hover:border-amber-500/20 transition-all shadow-lg">
                                 <div>
-                                    <p className="text-2xl font-black text-white">{m.abbr}</p>
+                                    <p className="text-2xl font-black text-foreground">{m.abbr}</p>
                                     <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-widest mt-1">{m.name}</p>
                                 </div>
-                                <p className="text-[11px] text-zinc-500 font-medium">{m.formula}</p>
+                                <p className="text-[11px] text-muted-foreground font-medium">{m.formula}</p>
                             </div>
                         ))}
                     </div>
 
                     {/* Linha 2: Share Atual vs Necessário */}
-                    <div className="p-6 md:p-8 bg-zinc-950/80 border border-white/5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl shadow-black/50">
+                    <div className="p-6 md:p-8 bg-card border border-border rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl">
                         <div className="space-y-4 flex-1">
                             <div className="flex items-center gap-3">
                                 <Shapes className="w-5 h-5 text-amber-500" />
-                                <h4 className="text-sm font-black text-white uppercase tracking-widest">Share Atual vs Necessário</h4>
+                                <h4 className="text-sm font-black text-foreground uppercase tracking-widest">Share Atual vs Necessário</h4>
                             </div>
                             <div className="space-y-3">
                                 {[
@@ -238,10 +238,10 @@ export function DiagnosticModel() {
                                     { label: 'Share necessário', formula: 'Meta anual / SAM' },
                                 ].map((item) => (
                                     <div key={item.label} className="flex items-center gap-3 text-sm">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
-                                        <span className="font-bold text-zinc-300 uppercase text-[10px] tracking-widest">{item.label}</span>
-                                        <span className="text-zinc-600">=</span>
-                                        <span className="text-zinc-500 font-mono text-[10px]">{item.formula}</span>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                                        <span className="font-bold text-foreground/70 uppercase text-[10px] tracking-widest">{item.label}</span>
+                                        <span className="text-muted-foreground">=</span>
+                                        <span className="text-muted-foreground font-mono text-[10px]">{item.formula}</span>
                                     </div>
                                 ))}
                             </div>
@@ -263,12 +263,12 @@ export function DiagnosticModel() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {ROTINA_STEPS.map((step) => (
-                        <div key={step.num} className="p-5 bg-zinc-950 border border-white/5 rounded-xl space-y-3 hover:border-white/10 transition-all group">
-                            <span className="w-7 h-7 rounded bg-zinc-900 text-white text-[11px] font-black flex items-center justify-center group-hover:bg-red-600 transition-all">
+                        <div key={step.num} className="p-5 bg-card border border-border rounded-xl space-y-3 hover:border-border/80 transition-all group">
+                            <span className="w-7 h-7 rounded bg-muted text-foreground text-[11px] font-black flex items-center justify-center group-hover:bg-red-600 group-hover:text-white transition-all">
                                 {step.num}
                             </span>
-                            <p className="text-[10px] font-black text-white uppercase tracking-tight">{step.label}</p>
-                            <p className="text-[9px] text-zinc-600 font-medium leading-relaxed">{step.desc}</p>
+                            <p className="text-[10px] font-black text-foreground uppercase tracking-tight">{step.label}</p>
+                            <p className="text-[9px] text-muted-foreground font-medium leading-relaxed">{step.desc}</p>
                         </div>
                     ))}
                 </div>
@@ -276,9 +276,9 @@ export function DiagnosticModel() {
                 <div className="flex items-start gap-4 border-l-2 border-amber-500/40 pl-5">
                     <Info className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                     <div>
-                        <p className="text-[11px] font-black text-white uppercase tracking-widest mb-1">💡 Recomendação</p>
-                        <p className="text-[11px] text-zinc-400 leading-relaxed">
-                            Sempre <strong className="text-white">"uma trava por vez"</strong> em ciclos de 90 dias. Tentar resolver múltiplas travas simultaneamente é otimização local — aumenta custo sem mover o throughput global.
+                        <p className="text-[11px] font-black text-foreground uppercase tracking-widest mb-1">💡 Recomendação</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            Sempre <strong className="text-foreground">"uma trava por vez"</strong> em ciclos de 90 dias. Tentar resolver múltiplas travas simultaneamente é otimização local — aumenta custo sem mover o throughput global.
                         </p>
                     </div>
                 </div>
@@ -305,10 +305,10 @@ export function DiagnosticModel() {
                         ))}
                     </div>
 
-                    <div className="p-6 bg-zinc-950 border border-red-600/10 rounded-xl space-y-5">
+                    <div className="p-6 bg-card border border-red-600/10 rounded-xl space-y-5">
                         <div className="flex items-center gap-3">
                             <SearchCode className="w-5 h-5 text-red-600" />
-                            <p className="text-[11px] font-black text-white uppercase tracking-widest">Quando o sistema força "Trava 00 – Cegueira"</p>
+                            <p className="text-[11px] font-black text-foreground uppercase tracking-widest">Quando o sistema força "Trava 00 – Cegueira"</p>
                         </div>
                         <ul className="space-y-2.5">
                             {[
@@ -319,13 +319,13 @@ export function DiagnosticModel() {
                             ].map((item, idx) => (
                                 <li key={idx} className="flex items-start gap-3">
                                     <div className="w-1.5 h-1.5 rounded-full bg-red-600 mt-1.5 flex-shrink-0 shadow-[0_0_6px_rgba(220,38,38,0.6)]" />
-                                    <p className="text-[10px] text-zinc-500 font-medium">{item}</p>
+                                    <p className="text-[10px] text-muted-foreground font-medium">{item}</p>
                                 </li>
                             ))}
                         </ul>
-                        <div className="pt-4 border-t border-white/5">
-                            <p className="text-[10px] font-black text-white uppercase tracking-widest mb-2">Importância de evidências</p>
-                            <p className="text-[10px] text-zinc-500 leading-relaxed">Cada métrica coletada deve ter evidência (print, link, relatório) e nível de confiabilidade. Números sem evidência reduzem a confiança do diagnóstico.</p>
+                        <div className="pt-4 border-t border-border">
+                            <p className="text-[10px] font-black text-foreground uppercase tracking-widest mb-2">Importância de evidências</p>
+                            <p className="text-[10px] text-muted-foreground leading-relaxed">Cada métrica coletada deve ter evidência (print, link, relatório) e nível de confiabilidade. Números sem evidência reduzem a confiança do diagnóstico.</p>
                         </div>
                     </div>
                 </div>

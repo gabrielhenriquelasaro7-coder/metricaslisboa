@@ -442,7 +442,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
   return (
     <div className="w-full space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
       {/* Phase Stepper */}
-      <div className="bg-zinc-950 p-6 rounded-[2rem] border border-white/5 shadow-2xl relative overflow-hidden">
+      <div className="bg-card p-6 rounded-[2rem] border border-border shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 blur-[50px] pointer-events-none" />
 
         <div className="flex items-center justify-between mb-8 overflow-x-auto no-scrollbar pb-2">
@@ -455,13 +455,13 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <div className={cn(
                     "w-12 h-12 rounded-2xl flex items-center justify-center border transition-all duration-500",
                     isActive ? "bg-red-600 border-red-600 shadow-xl shadow-red-600/20 text-white" :
-                      isPast ? "bg-zinc-900 border-emerald-600/30 text-emerald-500" : "bg-black border-white/5 text-zinc-700"
+                      isPast ? "bg-muted border-emerald-600/30 text-emerald-500" : "bg-muted/50 border-border text-muted-foreground"
                   )}>
                     {isPast ? <CheckCircle2 className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
                   </div>
-                  <span className={cn("text-[9px] font-black uppercase tracking-widest", isActive ? "text-white" : "text-zinc-700")}>{step.label}</span>
+                  <span className={cn("text-[9px] font-black uppercase tracking-widest", isActive ? "text-foreground" : "text-muted-foreground")}>{step.label}</span>
                 </div>
-                {idx < STEPS.length - 1 && <div className="w-8 h-px bg-zinc-900 mx-2" />}
+                {idx < STEPS.length - 1 && <div className="w-8 h-px bg-border mx-2" />}
               </div>
             );
           })}
@@ -469,21 +469,21 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
         <div className="space-y-1">
           <div className="flex justify-between items-end mb-2 px-1">
-            <h2 className="text-xl font-black text-white uppercase tracking-tight italic">
+            <h2 className="text-xl font-black text-foreground uppercase tracking-tight italic">
               {currentStep.id === 'funnel' ? travaConfigs[currentTravaIdx]?.label || 'Funil' : currentStep.label}
             </h2>
             <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">{Math.round(progress)}%</span>
           </div>
-          <Progress value={progress} className="h-1 bg-zinc-900" />
+          <Progress value={progress} className="h-1 bg-muted" />
         </div>
       </div>
 
       {/* Content */}
-      <div className="bg-zinc-950 border border-white/5 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-8 pt-5 pb-0">
           <button
             onClick={handleBack}
-            className="flex items-center gap-1.5 text-[10px] font-black text-zinc-600 hover:text-white uppercase tracking-widest transition-colors group"
+            className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors group"
           >
             <ChevronLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" /> Voltar
           </button>
@@ -494,43 +494,43 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
           {currentStep.id === 'identification' && (
             <div className="space-y-6 w-full">
               <div>
-                <h3 className="text-lg font-black text-white">Identificação</h3>
+                <h3 className="text-lg font-black text-foreground">Identificação</h3>
                 <p className="text-[11px] text-red-600 font-bold mt-0.5">Quanto mais detalhado, mais preciso será o diagnóstico.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Nome da Empresa</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Nome da Empresa</Label>
                   <Input
                     placeholder="Ex: TechCorp Brasil"
-                    className="h-12 rounded-2xl bg-black border-white/10 text-white text-xs font-bold px-4"
+                    className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold px-4"
                     value={identification.companyName}
                     onChange={e => setIdentification(p => ({ ...p, companyName: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Produto / Serviço Principal</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Produto / Serviço Principal</Label>
                   <Input
                     placeholder="Ex: Software de gestão para PMEs"
-                    className="h-12 rounded-2xl bg-black border-white/10 text-white text-xs font-bold px-4"
+                    className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold px-4"
                     value={identification.product}
                     onChange={e => setIdentification(p => ({ ...p, product: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Segmento de Atuação</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Segmento de Atuação</Label>
                   <Input
                     placeholder="Ex: SaaS B2B, Moda Feminina, Restaurantes..."
-                    className="h-12 rounded-2xl bg-black border-white/10 text-white text-xs font-bold px-4"
+                    className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold px-4"
                     value={identification.segment}
                     onChange={e => setIdentification(p => ({ ...p, segment: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Localização (Estado, Cidade, País)</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Localização (Estado, Cidade, País)</Label>
                   <Input
                     placeholder="Ex: São Paulo, SP, Brasil"
-                    className="h-12 rounded-2xl bg-black border-white/10 text-white text-xs font-bold px-4"
+                    className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold px-4"
                     value={identification.location}
                     onChange={e => setIdentification(p => ({ ...p, location: e.target.value }))}
                   />
@@ -538,10 +538,10 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">ICP (Perfil de Cliente Ideal)</Label>
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">ICP (Perfil de Cliente Ideal)</Label>
                 <Textarea
                   placeholder="Descreva seu cliente ideal: quem é, qual a dor principal, porte, cargo decisor..."
-                  className="min-h-[100px] rounded-2xl bg-black border-white/10 text-white text-xs font-bold p-4 resize-none"
+                  className="min-h-[100px] rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold p-4 resize-none"
                   value={identification.icp}
                   onChange={e => setIdentification(p => ({ ...p, icp: e.target.value }))}
                 />
@@ -549,7 +549,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
               {/* Business Model Selection */}
               <div className="space-y-3">
-                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Modelo de Negócio</Label>
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Modelo de Negócio</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {BUSINESS_MODELS.map(bm => (
                     <button
@@ -559,20 +559,20 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                         "p-5 rounded-2xl border transition-all text-left space-y-3",
                         identification.businessModel === bm.value
                           ? "border-red-600 bg-red-600/5 shadow-lg shadow-red-600/10"
-                          : "border-white/5 bg-black hover:border-white/15"
+                          : "border-border bg-muted/30 dark:bg-black hover:border-border/80"
                       )}
                     >
                       <div className={cn(
                         "w-10 h-10 rounded-xl flex items-center justify-center border",
                         identification.businessModel === bm.value
                           ? "bg-red-600 border-red-600 text-white"
-                          : "bg-zinc-900 border-white/5 text-zinc-500"
+                          : "bg-muted border-border text-muted-foreground"
                       )}>
                         <bm.icon className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-sm font-black text-white uppercase tracking-tight">{bm.label}</p>
-                        <p className="text-[10px] text-zinc-500 font-medium mt-0.5">{bm.desc}</p>
+                        <p className="text-sm font-black text-foreground uppercase tracking-tight">{bm.label}</p>
+                        <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{bm.desc}</p>
                       </div>
                     </button>
                   ))}
@@ -585,34 +585,34 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
           {currentStep.id === 'business' && (
             <div className="space-y-6 w-full">
               <div>
-                <h3 className="text-lg font-black text-white">Business</h3>
+                <h3 className="text-lg font-black text-foreground">Business</h3>
                 <p className="text-[11px] text-red-600 font-bold mt-0.5">Dados financeiros essenciais para calibrar a análise.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Margem de Contribuição (%)</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Margem de Contribuição (%)</Label>
                   <div className="relative">
                     <Input
                       type="number"
                       placeholder="35"
-                      className="h-12 rounded-2xl bg-black border-white/10 text-white text-xl font-black text-center pr-8"
+                      className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xl font-black text-center pr-8"
                       value={business.contributionMargin || ''}
                       onChange={e => setBusiness(p => ({ ...p, contributionMargin: parseFloat(e.target.value) || 0 }))}
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold">%</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
                   </div>
-                  <p className="text-[10px] text-zinc-600">Receita - Custos Variáveis (% sobre receita)</p>
+                  <p className="text-[10px] text-muted-foreground">Receita - Custos Variáveis (% sobre receita)</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Ticket Médio (R$)</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Ticket Médio (R$)</Label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold">R$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">R$</span>
                     <Input
                       type="number"
                       placeholder="2500"
-                      className="h-12 rounded-2xl bg-black border-white/10 text-white text-xl font-black text-center pl-12"
+                      className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xl font-black text-center pl-12"
                       value={business.averageTicket || ''}
                       onChange={e => setBusiness(p => ({ ...p, averageTicket: parseFloat(e.target.value) || 0 }))}
                     />
@@ -621,14 +621,14 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Faturamento</Label>
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Faturamento</Label>
                 <div className="flex gap-3 items-center">
                   <div className="relative flex-1">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold">R$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">R$</span>
                     <Input
                       type="number"
                       placeholder="300000"
-                      className="h-12 rounded-2xl bg-black border-white/10 text-white text-xl font-black text-center pl-12"
+                      className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xl font-black text-center pl-12"
                       value={business.revenue || ''}
                       onChange={e => setBusiness(p => ({ ...p, revenue: parseFloat(e.target.value) || 0 }))}
                     />
@@ -642,7 +642,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                           'px-4 py-3 rounded-xl text-[10px] font-black uppercase border transition-all',
                           business.revenueType === type
                             ? 'border-red-600 text-red-600 bg-red-600/5'
-                            : 'border-white/10 text-zinc-500 bg-transparent hover:border-white/20'
+                            : 'border-border text-muted-foreground bg-transparent hover:border-border/80'
                         )}
                       >
                         {type}
@@ -658,23 +658,23 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
           {currentStep.id === 'market' && (
             <div className="space-y-6 w-full">
               <div>
-                <h3 className="text-lg font-black text-white">Mercado — TAM / SAM / SOM</h3>
+                <h3 className="text-lg font-black text-foreground">Mercado — TAM / SAM / SOM</h3>
                 <p className="text-[11px] text-red-600 font-bold mt-0.5">Meta sempre ANUAL. Se o mercado for a restrição, a IA identificará a Trava de Mercado.</p>
               </div>
 
               {/* TAM */}
-              <div className="p-5 bg-black/50 border border-white/5 rounded-2xl space-y-3">
+              <div className="p-5 bg-muted/30 dark:bg-black/50 border border-border rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-red-600/10 text-red-600 border-none text-[8px] font-black">TAM</Badge>
-                  <span className="text-[10px] text-zinc-400 font-bold uppercase">Total Addressable Market</span>
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase">Total Addressable Market</span>
                 </div>
-                <p className="text-[11px] text-zinc-500">Quantas empresas/pessoas poderiam comprar seu produto/serviço? Qual seria o ticket médio anual?</p>
+                <p className="text-[11px] text-muted-foreground">Quantas empresas/pessoas poderiam comprar seu produto/serviço? Qual seria o ticket médio anual?</p>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold text-sm">R$</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
                   <Input
                     type="number"
                     placeholder="50000000"
-                    className="h-12 rounded-xl bg-zinc-950 border-white/10 text-white font-black text-center pl-12"
+                    className="h-12 rounded-xl bg-muted/50 dark:bg-zinc-950 border-border text-foreground font-black text-center pl-12"
                     value={market.tam || ''}
                     onChange={e => setMarket(p => ({ ...p, tam: parseFloat(e.target.value) || 0 }))}
                   />
@@ -682,18 +682,18 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               </div>
 
               {/* SAM */}
-              <div className="p-5 bg-black/50 border border-white/5 rounded-2xl space-y-3">
+              <div className="p-5 bg-muted/30 dark:bg-black/50 border border-border rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-amber-600/10 text-amber-500 border-none text-[8px] font-black">SAM</Badge>
-                  <span className="text-[10px] text-zinc-400 font-bold uppercase">Serviceable Addressable Market</span>
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase">Serviceable Addressable Market</span>
                 </div>
-                <p className="text-[11px] text-zinc-500">Quanto consegue realmente atender? Filtre por: região, segmento, porte, canal de venda, capacidade operacional.</p>
+                <p className="text-[11px] text-muted-foreground">Quanto consegue realmente atender? Filtre por: região, segmento, porte, canal de venda, capacidade operacional.</p>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold text-sm">R$</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
                   <Input
                     type="number"
                     placeholder="15000000"
-                    className="h-12 rounded-xl bg-zinc-950 border-white/10 text-white font-black text-center pl-12"
+                    className="h-12 rounded-xl bg-muted/50 dark:bg-zinc-950 border-border text-foreground font-black text-center pl-12"
                     value={market.sam || ''}
                     onChange={e => setMarket(p => ({ ...p, sam: parseFloat(e.target.value) || 0 }))}
                   />
@@ -701,18 +701,18 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               </div>
 
               {/* SOM */}
-              <div className="p-5 bg-black/50 border border-white/5 rounded-2xl space-y-3">
+              <div className="p-5 bg-muted/30 dark:bg-black/50 border border-border rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-emerald-600/10 text-emerald-500 border-none text-[8px] font-black">SOM</Badge>
-                  <span className="text-[10px] text-zinc-400 font-bold uppercase">Serviceable Obtainable Market</span>
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase">Serviceable Obtainable Market</span>
                 </div>
-                <p className="text-[11px] text-zinc-500">Qual sua capacidade comercial real? Considere: budget de marketing, tamanho da equipe, concorrência.</p>
+                <p className="text-[11px] text-muted-foreground">Qual sua capacidade comercial real? Considere: budget de marketing, tamanho da equipe, concorrência.</p>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold text-sm">R$</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
                   <Input
                     type="number"
                     placeholder="3600000"
-                    className="h-12 rounded-xl bg-zinc-950 border-white/10 text-white font-black text-center pl-12"
+                    className="h-12 rounded-xl bg-muted/50 dark:bg-zinc-950 border-border text-foreground font-black text-center pl-12"
                     value={market.som || ''}
                     onChange={e => setMarket(p => ({ ...p, som: parseFloat(e.target.value) || 0 }))}
                   />
@@ -720,10 +720,10 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Fonte / Justificativa</Label>
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Fonte / Justificativa</Label>
                 <Input
                   placeholder="Ex: relatório Statista 2024, estimativa interna..."
-                  className="h-11 rounded-xl bg-black border-white/10 text-white"
+                  className="h-11 rounded-xl bg-muted/50 dark:bg-black border-border text-foreground"
                   value={market.justification}
                   onChange={e => setMarket(p => ({ ...p, justification: e.target.value }))}
                 />
@@ -736,7 +736,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
             <div className="space-y-6 w-full">
               {(() => {
                 const trava = travaConfigs[currentTravaIdx];
-                if (!trava) return <p className="text-zinc-500">Sem configuração de trava disponível.</p>;
+                if (!trava) return <p className="text-muted-foreground">Sem configuração de trava disponível.</p>;
 
                 const hasAutoData = Object.keys(autoFilledFields).length > 0;
 
@@ -744,9 +744,9 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <>
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-lg font-black text-white">{trava.label}</h3>
+                        <h3 className="text-lg font-black text-foreground">{trava.label}</h3>
                         <p className="text-[11px] text-red-600 font-bold mt-0.5">{trava.description}</p>
-                        <p className="text-[10px] text-zinc-600 mt-1">
+                        <p className="text-[10px] text-muted-foreground mt-1">
                           Passo {currentTravaIdx + 1} de {travaConfigs.length} · Preencha apenas o que souber. Campos vazios = sem dados.
                         </p>
                       </div>
@@ -756,7 +756,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                           size="sm"
                           onClick={fetchProjectMetrics}
                           disabled={isLoadingMetrics}
-                          className="gap-2 text-[9px] font-black uppercase tracking-widest rounded-xl border-white/10 text-zinc-400 hover:text-white hover:border-emerald-600/30"
+                          className="gap-2 text-[9px] font-black uppercase tracking-widest rounded-xl border-border text-muted-foreground hover:text-foreground hover:border-emerald-600/30"
                         >
                           {isLoadingMetrics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                           {isLoadingMetrics ? 'Importando...' : 'Importar do Sistema'}
@@ -765,7 +765,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     </div>
 
                     {/* N/A Toggle */}
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-zinc-900/50 border border-white/5">
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/30 dark:bg-zinc-900/50 border border-border">
                       <Checkbox
                         id={`nao-aplica-${trava.id}`}
                         checked={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?._nao_aplica === true}
@@ -778,9 +778,9 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                             },
                           }));
                         }}
-                        className="border-zinc-600 data-[state=checked]:bg-zinc-600 data-[state=checked]:border-zinc-600"
+                        className="border-muted-foreground data-[state=checked]:bg-muted-foreground data-[state=checked]:border-muted-foreground"
                       />
-                      <label htmlFor={`nao-aplica-${trava.id}`} className="text-[11px] text-zinc-400 font-bold cursor-pointer select-none">
+                      <label htmlFor={`nao-aplica-${trava.id}`} className="text-[11px] text-muted-foreground font-bold cursor-pointer select-none">
                         Esta trava não se aplica ao meu negócio
                       </label>
                     </div>
@@ -794,7 +794,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                         return (
                           <div key={field.key} className="space-y-2">
                             <div className="flex items-center gap-2">
-                              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
                                 {field.label}
                               </Label>
                               {isAuto && (
@@ -808,13 +808,13 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                               placeholder={field.placeholder}
                               step="0.01"
                               className={cn(
-                                "h-12 rounded-xl bg-black border-white/10 text-white text-lg font-black text-center",
+                                "h-12 rounded-xl bg-muted/50 dark:bg-black border-border text-foreground text-lg font-black text-center",
                                 isAuto && "border-emerald-600/20 bg-emerald-950/10"
                               )}
                               value={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?.[field.key] ?? ''}
                               onChange={e => updateFunnelField(trava.id, field.key, e.target.value)}
                             />
-                            <p className="text-[10px] text-zinc-600">{field.help}</p>
+                            <p className="text-[10px] text-muted-foreground">{field.help}</p>
                           </div>
                         );
                       })}
@@ -828,7 +828,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                           className={cn(
                             "w-2 h-2 rounded-full transition-all",
                             idx === currentTravaIdx ? "bg-red-600 scale-125" :
-                              idx < currentTravaIdx ? "bg-emerald-600" : "bg-zinc-800"
+                              idx < currentTravaIdx ? "bg-emerald-600" : "bg-muted"
                           )}
                         />
                       ))}
@@ -848,9 +848,9 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     <Loader2 className="w-10 h-10 text-red-600 animate-spin" />
                   </div>
                   <div className="space-y-2">
-                    <h4 className="text-xl font-black text-white uppercase tracking-tight italic">Analisando com IA...</h4>
-                    <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-widest">Processando dados de {identification.companyName || 'sua empresa'}</p>
-                    <p className="text-[10px] text-zinc-600">A IA está correlacionando suas métricas com o contexto do seu negócio para identificar a trava principal.</p>
+                    <h4 className="text-xl font-black text-foreground uppercase tracking-tight italic">Analisando com IA...</h4>
+                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest">Processando dados de {identification.companyName || 'sua empresa'}</p>
+                    <p className="text-[10px] text-muted-foreground/70">A IA está correlacionando suas métricas com o contexto do seu negócio para identificar a trava principal.</p>
                   </div>
                 </div>
               ) : (
@@ -859,8 +859,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     <Sparkles className="w-10 h-10 text-red-600" />
                   </div>
                   <div className="space-y-2">
-                    <h4 className="text-xl font-black text-white uppercase tracking-tight italic">Análise não iniciada</h4>
-                    <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-widest">Ocorreu um erro ou a análise precisa ser reiniciada</p>
+                    <h4 className="text-xl font-black text-foreground uppercase tracking-tight italic">Análise não iniciada</h4>
+                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest">Ocorreu um erro ou a análise precisa ser reiniciada</p>
                   </div>
                   <Button
                     onClick={runAIAnalysis}
@@ -876,8 +876,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
         {/* Navigation */}
         {currentStep.id !== 'review' && (
-          <div className="px-8 py-6 border-t border-white/5 flex justify-between">
-            <Button variant="ghost" onClick={handleBack} className="text-zinc-500 hover:text-white gap-1">
+          <div className="px-8 py-6 border-t border-border flex justify-between">
+            <Button variant="ghost" onClick={handleBack} className="text-muted-foreground hover:text-foreground gap-1">
               <ChevronLeft className="w-4 h-4" /> Voltar
             </Button>
             <Button onClick={handleNext} className="bg-red-600 hover:bg-red-700 text-white rounded-xl gap-1 px-6">

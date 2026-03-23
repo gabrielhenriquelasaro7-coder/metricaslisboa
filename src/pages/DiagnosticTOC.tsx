@@ -221,7 +221,7 @@ export default function DiagnosticTOC() {
     <DashboardLayout>
       <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 w-full">
         {/* ── HEADER ── */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#3b0909] via-[#1a0505] to-[#0a0202] border border-red-900/30 rounded-[2rem] p-6 sm:p-8 shadow-2xl">
+        <div className="relative overflow-hidden bg-gradient-to-br from-red-50 via-white to-white dark:from-[#3b0909] dark:via-[#1a0505] dark:to-[#0a0202] border border-red-200 dark:border-red-900/30 rounded-[2rem] p-6 sm:p-8 shadow-2xl">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(220,38,38,0.15),transparent_60%)] pointer-events-none" />
 
           <div className="relative z-10 space-y-6">
@@ -232,10 +232,10 @@ export default function DiagnosticTOC() {
                   <Target className="w-7 h-7 text-red-600" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-black text-white uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  <h1 className="text-xl font-black text-foreground uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                     Gestão de <span className="text-red-600">Restrições</span>
                   </h1>
-                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Intelligence Engine V4 · Bowtie TOC</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Intelligence Engine V4 · Bowtie TOC</p>
                 </div>
               </div>
 
@@ -247,9 +247,9 @@ export default function DiagnosticTOC() {
                     <Plus className="w-4 h-4" /> NOVO DIAGNÓSTICO
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md bg-zinc-950 border-white/5 text-white rounded-[2rem] shadow-2xl">
+                <DialogContent className="sm:max-w-md bg-card border-border text-foreground rounded-[2rem] shadow-2xl">
                   <DialogHeader>
-                    <DialogTitle className="text-xl font-black uppercase tracking-tight text-white mb-6 italic">Iniciar Diagnóstico</DialogTitle>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground mb-6 italic">Iniciar Diagnóstico</DialogTitle>
                   </DialogHeader>
 
                   <div className="relative mb-2">
@@ -258,7 +258,7 @@ export default function DiagnosticTOC() {
                       placeholder="Buscar projeto..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9 h-11 bg-black border-white/10 text-white placeholder:text-zinc-600 rounded-xl focus-visible:ring-red-600/50"
+                      className="pl-9 h-11 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground rounded-xl focus-visible:ring-red-600/50"
                     />
                   </div>
 
@@ -269,18 +269,18 @@ export default function DiagnosticTOC() {
                         <button
                           key={sp.id}
                           onClick={() => handleStartNew(sp.id)}
-                          className="w-full flex items-center justify-between p-4 rounded-2xl bg-black border border-white/5 hover:border-red-600/50 transition-all text-left group"
+                          className="w-full flex items-center justify-between p-4 rounded-2xl bg-muted/30 dark:bg-black border border-border hover:border-red-600/50 transition-all text-left group"
                         >
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center border border-white/5 group-hover:border-red-600/30">
-                              <Database className="w-5 h-5 text-zinc-600 group-hover:text-red-600" />
+                            <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center border border-border group-hover:border-red-600/30">
+                              <Database className="w-5 h-5 text-muted-foreground group-hover:text-red-600" />
                             </div>
                             <div>
-                              <p className="text-[12px] font-black text-white uppercase tracking-tight">{sp.name}</p>
-                              <p className="text-[9px] text-zinc-600 font-bold">{(sp as any).segment || 'Serviços'}</p>
+                              <p className="text-[12px] font-black text-foreground uppercase tracking-tight">{sp.name}</p>
+                              <p className="text-[9px] text-muted-foreground font-bold">{(sp as any).segment || 'Serviços'}</p>
                             </div>
                           </div>
-                          <ArrowRight className="w-4 h-4 text-zinc-800 group-hover:text-red-600 group-hover:translate-x-1 transition-all" />
+                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-red-600 group-hover:translate-x-1 transition-all" />
                         </button>
                       ))}
                   </div>
@@ -290,18 +290,18 @@ export default function DiagnosticTOC() {
 
             {/* Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
-                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Total Analisado</span>
-                <span className="text-2xl font-black text-white tracking-tighter">{projects.length} <span className="text-xs text-zinc-700 font-bold uppercase">Projetos</span></span>
+              <div className="p-4 bg-muted/40 dark:bg-black/60 border border-border rounded-xl flex flex-col gap-1">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Total Analisado</span>
+                <span className="text-2xl font-black text-foreground tracking-tighter">{projects.length} <span className="text-xs text-muted-foreground font-bold uppercase">Projetos</span></span>
               </div>
-              <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
-                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Restrição Principal</span>
+              <div className="p-4 bg-muted/40 dark:bg-black/60 border border-border rounded-xl flex flex-col gap-1">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Restrição Principal</span>
                 <span className="text-sm font-black text-red-500 uppercase italic">
                   {projects.length > 0 ? 'Exposição (07)' : '—'}
                 </span>
               </div>
-              <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
-                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Completos</span>
+              <div className="p-4 bg-muted/40 dark:bg-black/60 border border-border rounded-xl flex flex-col gap-1">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Completos</span>
                 <span className="text-2xl font-black text-emerald-500 tracking-tighter">
                   {projects.filter(p => p.status === 'completo').length}
                 </span>
@@ -311,19 +311,19 @@ export default function DiagnosticTOC() {
                   <AlertTriangle className="w-3 h-3" />
                   <span className="text-[9px] font-black uppercase tracking-widest">Alerta de Throughput</span>
                 </div>
-                <p className="text-[9px] text-zinc-500 font-medium leading-relaxed italic">
+                <p className="text-[9px] text-muted-foreground font-medium leading-relaxed italic">
                   "Aumentar a verba sem resolver a restrição apenas aumenta o custo de aquisição."
                 </p>
               </div>
             </div>
 
             {/* Nav Tabs */}
-            <div className="flex items-center gap-1 border-t border-white/5 pt-4">
+            <div className="flex items-center gap-1 border-t border-border pt-4">
               <button
                 onClick={() => { setActiveTab('diagnostico'); setMode('list'); }}
                 className={cn(
                   "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                  activeTab === 'diagnostico' ? "bg-white/10 text-white" : "text-zinc-600 hover:text-zinc-400"
+                  activeTab === 'diagnostico' ? "bg-red-600/10 text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Layers className="w-3.5 h-3.5" /> Gestão de Projetos
@@ -332,7 +332,7 @@ export default function DiagnosticTOC() {
                 onClick={() => setActiveTab('modelo')}
                 className={cn(
                   "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                  activeTab === 'modelo' ? "bg-white/10 text-white" : "text-zinc-600 hover:text-zinc-400"
+                  activeTab === 'modelo' ? "bg-red-600/10 text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Thermometer className="w-3.5 h-3.5" /> Metodologia TOC
@@ -340,14 +340,14 @@ export default function DiagnosticTOC() {
             </div>
 
             {/* Seletor de Período */}
-            <div className="flex items-center gap-3 pt-4 border-t border-white/5">
-              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Período de Análise:</span>
+            <div className="flex items-center gap-3 pt-4 border-t border-border">
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Período de Análise:</span>
               <div className="flex gap-2">
                 <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
-                  <SelectTrigger className="w-[120px] h-8 bg-black/40 border-white/5 text-[10px] font-bold uppercase rounded-lg">
+                  <SelectTrigger className="w-[120px] h-8 bg-muted/50 dark:bg-black/40 border-border text-[10px] font-bold uppercase rounded-lg">
                     <SelectValue placeholder="Mês" />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-950 border-white/10 text-white">
+                  <SelectContent className="bg-popover border-border text-popover-foreground">
                     {Array.from({ length: 12 }).map((_, i) => (
                       <SelectItem key={i + 1} value={(i + 1).toString()} className="text-[10px] font-bold uppercase">
                         {new Date(0, i).toLocaleString('pt-BR', { month: 'long' })}
@@ -357,10 +357,10 @@ export default function DiagnosticTOC() {
                 </Select>
 
                 <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-                  <SelectTrigger className="w-[100px] h-8 bg-black/40 border-white/5 text-[10px] font-bold uppercase rounded-lg">
+                  <SelectTrigger className="w-[100px] h-8 bg-muted/50 dark:bg-black/40 border-border text-[10px] font-bold uppercase rounded-lg">
                     <SelectValue placeholder="Ano" />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-950 border-white/10 text-white">
+                  <SelectContent className="bg-popover border-border text-popover-foreground">
                     {[2024, 2025, 2026].map(y => (
                       <SelectItem key={y} value={y.toString()} className="text-[10px] font-bold uppercase">
                         {y}
@@ -386,7 +386,7 @@ export default function DiagnosticTOC() {
               {mode === 'list' && (
                 <div className="grid grid-cols-1 gap-4">
                   <div className="flex items-center justify-between px-2">
-                    <h3 className="text-xs font-black text-white uppercase tracking-widest">Diagnósticos Ativos</h3>
+                    <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Diagnósticos Ativos</h3>
                     <Badge variant="outline" className="text-[8px] bg-red-600/5 border-red-600/20 text-red-600 font-black tracking-widest">{projects.length} TOTAL</Badge>
                   </div>
                   <ProjectList
@@ -437,13 +437,13 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
 }) {
   if (projects.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-zinc-950/50 rounded-[2.5rem] border border-white/5 border-dashed">
-        <div className="w-20 h-20 bg-black rounded-3xl flex items-center justify-center border border-white/5 shadow-2xl">
-          <FileText className="w-10 h-10 text-zinc-800" />
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-muted/30 dark:bg-zinc-950/50 rounded-[2.5rem] border border-border border-dashed">
+        <div className="w-20 h-20 bg-card rounded-3xl flex items-center justify-center border border-border shadow-2xl">
+          <FileText className="w-10 h-10 text-muted-foreground" />
         </div>
         <div className="space-y-2">
-          <h3 className="text-xl font-black text-white uppercase tracking-tight italic">Nenhum diagnóstico ainda</h3>
-          <p className="text-[10px] text-zinc-500 max-w-[240px] mx-auto uppercase font-bold tracking-widest leading-relaxed">Sua jornada guiada por dados começa aqui. Identifique restrições agora.</p>
+          <h3 className="text-xl font-black text-foreground uppercase tracking-tight italic">Nenhum diagnóstico ainda</h3>
+          <p className="text-[10px] text-muted-foreground max-w-[240px] mx-auto uppercase font-bold tracking-widest leading-relaxed">Sua jornada guiada por dados começa aqui. Identifique restrições agora.</p>
         </div>
       </div>
     );
@@ -452,20 +452,20 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {projects.map(p => (
-        <Card key={p.id} className="relative overflow-hidden group p-5 bg-gradient-to-br from-zinc-950 to-black border-white/5 hover:border-red-600/30 transition-all duration-500 rounded-[2rem] flex flex-col justify-between h-full shadow-xl">
+        <Card key={p.id} className="relative overflow-hidden group p-5 bg-gradient-to-br from-card to-muted/20 dark:from-zinc-950 dark:to-black border-border hover:border-red-600/30 transition-all duration-500 rounded-[2rem] flex flex-col justify-between h-full shadow-xl">
           <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 blur-[50px] pointer-events-none group-hover:bg-red-600/10 transition-all duration-700" />
 
           <div className="relative z-10 space-y-5">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-black rounded-[1.25rem] flex items-center justify-center border border-white/10 group-hover:border-red-600/30 transition-all shadow-inner">
-                  <Globe className="w-6 h-6 text-zinc-500 group-hover:text-red-600" />
+                <div className="w-12 h-12 bg-muted dark:bg-black rounded-[1.25rem] flex items-center justify-center border border-border group-hover:border-red-600/30 transition-all shadow-inner">
+                  <Globe className="w-6 h-6 text-muted-foreground group-hover:text-red-600" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-white uppercase tracking-tight italic leading-tight">{p.name || 'Projeto sem nome'}</h4>
+                  <h4 className="text-sm font-black text-foreground uppercase tracking-tight italic leading-tight">{p.name || 'Projeto sem nome'}</h4>
                   <div className="flex items-center gap-2 mt-1">
-                    <HistoryIcon className="w-3 h-3 text-zinc-700" />
-                    <span className="text-[9px] text-zinc-600 font-black uppercase tracking-widest">{p.segment}</span>
+                    <HistoryIcon className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{p.segment}</span>
                   </div>
                 </div>
               </div>
@@ -478,13 +478,13 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-1">
-                <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest">Meta de Receita</span>
-                <span className="text-xs font-black text-white">R$ {p.goal.value.toLocaleString()}</span>
+              <div className="p-3 bg-muted/30 dark:bg-white/5 rounded-2xl border border-border flex flex-col gap-1">
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Meta de Receita</span>
+                <span className="text-xs font-black text-foreground">R$ {p.goal.value.toLocaleString()}</span>
               </div>
-              <div className="p-3 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-1">
-                <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest">Última Escala</span>
-                <span className="text-xs font-black text-zinc-400">Ativo</span>
+              <div className="p-3 bg-muted/30 dark:bg-white/5 rounded-2xl border border-border flex flex-col gap-1">
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Última Escala</span>
+                <span className="text-xs font-black text-muted-foreground">Ativo</span>
               </div>
             </div>
           </div>
@@ -500,7 +500,7 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-11 w-11 rounded-xl bg-black border-white/5 text-zinc-500 hover:text-white hover:border-white/20 active:scale-95 transition-all"
+                className="h-11 w-11 rounded-xl bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/20 active:scale-95 transition-all"
                 onClick={() => onEdit(p)}
               >
                 <ChevronRight className="w-4 h-4" />
@@ -508,7 +508,7 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-11 w-11 rounded-xl bg-black border-white/5 text-zinc-700 hover:text-red-500 hover:border-red-500/20 active:scale-95 transition-all"
+                className="h-11 w-11 rounded-xl bg-card border-border text-muted-foreground hover:text-red-500 hover:border-red-500/20 active:scale-95 transition-all"
                 onClick={() => onDelete(p.id)}
               >
                 <Trash2 className="w-4 h-4" />
