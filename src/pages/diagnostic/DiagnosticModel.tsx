@@ -67,10 +67,10 @@ const ROTINA_STEPS = [
 // ─── Label de seção ──────────────────────────────────────────────────────────
 function SectionLabel({ tag, title, subtitle }: { tag: string; title: string; subtitle?: string }) {
     return (
-        <div className="space-y-2 pb-6 border-b border-white/5 flex flex-col items-center text-center">
+        <div className="space-y-2 pb-6 border-b border-border flex flex-col items-center text-center">
             <span className="text-[9px] font-black text-red-600 uppercase tracking-[0.3em]">{tag}</span>
-            <h3 className="text-2xl lg:text-3xl font-black text-white uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{title}</h3>
-            {subtitle && <p className="text-[11px] text-zinc-500 font-bold uppercase leading-relaxed tracking-widest w-full text-center">{subtitle}</p>}
+            <h3 className="text-2xl lg:text-3xl font-black text-foreground uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{title}</h3>
+            {subtitle && <p className="text-[11px] text-muted-foreground font-bold uppercase leading-relaxed tracking-widest w-full text-center">{subtitle}</p>}
         </div>
     );
 }
