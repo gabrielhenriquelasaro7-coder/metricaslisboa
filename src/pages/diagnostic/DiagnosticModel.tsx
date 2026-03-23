@@ -118,7 +118,7 @@ export function DiagnosticModel() {
                     {TRAVAS.map((trava) => (
                         <div key={trava.id} className={cn("p-5 rounded-xl border flex flex-col gap-3 group transition-all hover:scale-[1.02] duration-300", trava.color)}>
                             <div className="flex items-center justify-between">
-                                <div className={cn("text-white/80 p-2 rounded-xl bg-black/40 border border-white/5", trava.badge)}>
+                                <div className={cn("text-foreground/80 p-2 rounded-xl bg-muted/50 dark:bg-black/40 border border-border", trava.badge)}>
                                     {trava.icon}
                                 </div>
                                 <span className={cn("text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest", trava.badge)}>
