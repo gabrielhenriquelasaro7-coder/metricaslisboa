@@ -685,7 +685,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               <div className="p-5 bg-muted/30 dark:bg-black/50 border border-border rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-amber-600/10 text-amber-500 border-none text-[8px] font-black">SAM</Badge>
-                  <span className="text-[10px] text-zinc-400 font-bold uppercase">Serviceable Addressable Market</span>
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase">Serviceable Addressable Market</span>
                 </div>
                 <p className="text-[11px] text-zinc-500">Quanto consegue realmente atender? Filtre por: região, segmento, porte, canal de venda, capacidade operacional.</p>
                 <div className="relative">
