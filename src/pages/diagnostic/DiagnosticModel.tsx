@@ -126,8 +126,8 @@ export function DiagnosticModel() {
                                 </span>
                             </div>
                             <div>
-                                <p className="text-sm font-black text-white uppercase tracking-tight">{trava.title}</p>
-                                <p className="text-[9px] text-zinc-500 font-medium leading-relaxed mt-1">{trava.desc}</p>
+                                <p className="text-sm font-black text-foreground uppercase tracking-tight">{trava.title}</p>
+                                <p className="text-[9px] text-muted-foreground font-medium leading-relaxed mt-1">{trava.desc}</p>
                             </div>
                         </div>
                     ))}
