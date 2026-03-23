@@ -720,7 +720,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Fonte / Justificativa</Label>
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Fonte / Justificativa</Label>
                 <Input
                   placeholder="Ex: relatório Statista 2024, estimativa interna..."
                   className="h-11 rounded-xl bg-black border-white/10 text-white"
