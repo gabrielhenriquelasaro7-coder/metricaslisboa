@@ -340,8 +340,8 @@ export default function DiagnosticTOC() {
             </div>
 
             {/* Seletor de Período */}
-            <div className="flex items-center gap-3 pt-4 border-t border-white/5">
-              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Período de Análise:</span>
+            <div className="flex items-center gap-3 pt-4 border-t border-border">
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Período de Análise:</span>
               <div className="flex gap-2">
                 <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
                   <SelectTrigger className="w-[120px] h-8 bg-black/40 border-white/5 text-[10px] font-bold uppercase rounded-lg">
