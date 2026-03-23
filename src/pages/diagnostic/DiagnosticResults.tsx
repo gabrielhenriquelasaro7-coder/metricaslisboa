@@ -142,6 +142,8 @@ interface TravaSliderCardProps {
   pct: number;
   isRestriction: boolean;
   isSemiManual?: boolean;
+  isNaoAplica?: boolean;
+  showMissingAlert?: boolean;
 }
 
 function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction, isSemiManual }: TravaSliderCardProps) {
