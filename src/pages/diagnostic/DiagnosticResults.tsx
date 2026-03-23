@@ -706,10 +706,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 {idx < BOWTIE_STAGES.length - 1 && (
                   <div className="flex items-center justify-center relative mx-4">
                     <svg width="24" height="20" viewBox="0 0 24 20" className="relative z-10">
-                      <line x1="20" y1="10" x2="4" y2="10" stroke="#eab308" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
-                      <polygon points="4,10 10,7 10,13" fill="#eab308" opacity="0.6" />
+                      <line x1="4" y1="10" x2="20" y2="10" stroke="#eab308" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+                      <polygon points="20,10 14,7 14,13" fill="#eab308" opacity="0.6" />
                     </svg>
-                    <div className="absolute -left-1 w-1.5 h-1.5 rounded-full animate-pulse z-20 bg-yellow-400" style={{ boxShadow: 'rgb(234, 179, 8) 0px 0px 10px' }} />
+                    <div className="absolute -right-1 w-1.5 h-1.5 rounded-full animate-pulse z-20 bg-yellow-400" style={{ boxShadow: 'rgb(234, 179, 8) 0px 0px 10px' }} />
                   </div>
                 )}
               </div>
