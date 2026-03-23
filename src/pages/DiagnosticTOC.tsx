@@ -357,7 +357,7 @@ export default function DiagnosticTOC() {
                 </Select>
 
                 <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-                  <SelectTrigger className="w-[100px] h-8 bg-black/40 border-white/5 text-[10px] font-bold uppercase rounded-lg">
+                  <SelectTrigger className="w-[100px] h-8 bg-muted/50 dark:bg-black/40 border-border text-[10px] font-bold uppercase rounded-lg">
                     <SelectValue placeholder="Ano" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-950 border-white/10 text-white">
