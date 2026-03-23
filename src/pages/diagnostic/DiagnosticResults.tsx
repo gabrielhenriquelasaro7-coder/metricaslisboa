@@ -3,6 +3,7 @@ import { DiagnosticProject, AIAnalysisResult } from '@/types/diagnostic';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
 import {
@@ -37,6 +38,51 @@ const STATUS_STYLES: Record<string, string> = {
   bom: 'text-emerald-500 bg-emerald-500/10',
   sem_dados: 'text-zinc-500 bg-zinc-500/10',
 };
+
+const STATUS_LABELS: Record<string, string> = {
+  critico: 'CRÍTICO',
+  na_media: 'NA MÉDIA',
+  bom: 'BOM',
+  sem_dados: 'SEM DADOS',
+};
+
+// Bowtie stage labels (right to left: Exposição → Retenção)
+const BOWTIE_STAGES = [
+  { trava: '01', label: 'RETENÇÃO' },
+  { trava: '02', label: 'DECISÃO' },
+  { trava: '03', label: 'COMPROMISSO' },
+  { trava: '04', label: 'QUALIFICAÇÃO' },
+  { trava: '05', label: 'INTERESSE' },
+  { trava: '06', label: 'ATENÇÃO' },
+  { trava: '07', label: 'EXPOSIÇÃO' },
+];
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'critico': return 'border-red-500/50 bg-red-500/5';
+    case 'na_media': return 'border-amber-500/30 bg-amber-500/5';
+    case 'bom': return 'border-emerald-500/30 bg-emerald-500/5';
+    default: return 'border-zinc-700/30 bg-zinc-800/20';
+  }
+}
+
+function getStatusBadgeColor(status: string) {
+  switch (status) {
+    case 'critico': return 'text-red-500 bg-red-500/10 border-red-500/20';
+    case 'na_media': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+    case 'bom': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+    default: return 'text-zinc-500 bg-zinc-500/10 border-zinc-500/20';
+  }
+}
+
+function getBowtieValueColor(status: string) {
+  switch (status) {
+    case 'critico': return 'text-red-500';
+    case 'bom': return 'text-emerald-500';
+    case 'na_media': return 'text-amber-500';
+    default: return 'text-zinc-500';
+  }
+}
 
 export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
   const ai = project.aiAnalysis;
@@ -80,6 +126,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       toast.success('PDF exportado!');
     } catch { toast.error('Erro ao gerar PDF'); }
   };
+
+  // Build a map from trava id → stage score
+  const scoreMap = new Map(ai.stage_scores.map(s => [s.trava, s]));
 
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-700 w-full">
@@ -131,34 +180,143 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         </div>
       </Card>
 
-      {/* ═══ SECTION 2: PAINEL DE TRAVAS ═══ */}
+      {/* ═══ SECTION 2: TRAVA PROGRESS BARS ═══ */}
       <Card className="p-6 border border-white/5 bg-zinc-950 rounded-[2.5rem] space-y-6">
         <div className="space-y-1">
-          <h4 className="text-xl font-black uppercase tracking-tight text-white italic">Painel de Travas</h4>
-          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Análise 07→01 por IA</p>
+          <h4 className="text-xl font-black uppercase tracking-tight text-white italic">Topo de Funil</h4>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div className="space-y-4">
           {ai.stage_scores.map((score, idx) => {
             const isBottleneck = score.trava === ai.trava_identificada;
+            const numericVal = score.valor_informado ? parseFloat(score.valor_informado.replace(/[^0-9.,]/g, '').replace(',', '.')) : 0;
+            const isPercentage = score.valor_informado?.includes('%');
+
             return (
-              <div key={idx} className={cn(
-                "p-5 rounded-2xl border transition-all space-y-3",
-                isBottleneck ? "border-red-600/30 bg-red-600/5 shadow-[0_0_20px_rgba(220,38,38,0.1)]" : "border-white/5 bg-black/30"
-              )}>
+              <div
+                key={idx}
+                className={cn(
+                  "p-5 rounded-2xl border transition-all space-y-3",
+                  isBottleneck ? "border-red-600/40 bg-red-600/5 shadow-[0_0_30px_rgba(220,38,38,0.1)]" : "border-white/5 bg-black/30"
+                )}
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Trava {score.trava}</span>
                     <span className="text-sm font-black text-white">{score.nome}</span>
-                    {isBottleneck && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                    {isBottleneck && (
+                      <span className="flex items-center gap-1 text-red-500 text-[10px] font-black">
+                        <AlertTriangle className="w-3.5 h-3.5" /> Esta é sua restrição ativa
+                      </span>
+                    )}
                   </div>
-                  <span className={cn("px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest", STATUS_STYLES[score.status] || STATUS_STYLES.sem_dados)}>
-                    {score.status === 'critico' ? 'Crítico' : score.status === 'na_media' ? 'Na Média' : score.status === 'bom' ? 'Bom' : 'Sem Dados'}
+                  <span className={cn(
+                    "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border",
+                    getStatusBadgeColor(score.status)
+                  )}>
+                    {STATUS_LABELS[score.status] || 'SEM DADOS'}
                   </span>
                 </div>
-                {score.valor_informado && (
-                  <p className="text-xs text-zinc-400 font-mono">Valor: {score.valor_informado}</p>
-                )}
-                <p className="text-[11px] text-zinc-500 leading-relaxed">{score.observacao}</p>
+
+                {/* Gradient progress bar */}
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 relative h-3 rounded-full overflow-hidden bg-zinc-900">
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full"
+                      style={{
+                        width: `${Math.min(100, Math.max(5, score.status === 'bom' ? 85 : score.status === 'na_media' ? 55 : score.status === 'critico' ? 20 : 5))}%`,
+                        background: 'linear-gradient(90deg, #ef4444, #f59e0b, #22c55e)',
+                      }}
+                    />
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-lg"
+                      style={{
+                        left: `${Math.min(95, Math.max(3, score.status === 'bom' ? 85 : score.status === 'na_media' ? 55 : score.status === 'critico' ? 20 : 5))}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="text-right min-w-[80px]">
+                    <p className="text-sm font-black text-white">
+                      {score.valor_informado || '0.00'} <span className="text-zinc-600 text-[10px]">Real</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* ═══ SECTION 2B: FLUXO DE RECEITA (BOWTIE) ═══ */}
+      <Card className="p-6 border border-white/5 bg-zinc-950 rounded-[2.5rem] space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-lg font-black uppercase tracking-tight text-white italic">Fluxo de Receita</h4>
+            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Modelagem Dinâmica Bowtie</p>
+          </div>
+          <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-widest">
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Eficiente</span>
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> Na Média</span>
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" /> Gargalo</span>
+          </div>
+        </div>
+
+        <div className="flex items-end justify-between gap-2 overflow-x-auto pb-2">
+          {BOWTIE_STAGES.map((stage, idx) => {
+            const score = scoreMap.get(stage.trava);
+            const status = score?.status || 'sem_dados';
+            const isBottleneck = stage.trava === ai.trava_identificada;
+            const value = score?.valor_informado || '0.00';
+
+            // Perspective funnel effect — wider at edges, narrower toward center
+            const centerIdx = 3;
+            const distFromCenter = Math.abs(idx - centerIdx);
+            const height = 120 + distFromCenter * 15;
+
+            return (
+              <div key={stage.trava} className="flex flex-col items-center gap-2 flex-1 min-w-[100px]">
+                <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">{stage.label}</span>
+                <div
+                  className={cn(
+                    "w-full rounded-lg border-2 flex flex-col items-center justify-center gap-1 relative transition-all",
+                    isBottleneck
+                      ? "border-red-500 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                      : status === 'bom' ? "border-emerald-500/30 bg-emerald-500/5"
+                      : status === 'na_media' ? "border-amber-500/30 bg-amber-500/5"
+                      : status === 'critico' ? "border-red-500/30 bg-red-500/5"
+                      : "border-zinc-700/30 bg-zinc-800/10"
+                  )}
+                  style={{ height: `${height}px` }}
+                >
+                  {/* Side bars (yellow) */}
+                  <div className="absolute left-0 top-2 bottom-2 w-1 bg-amber-500 rounded-full" />
+                  <div className="absolute right-0 top-2 bottom-2 w-1 bg-amber-500 rounded-full" />
+
+                  <span className={cn(
+                    "text-2xl font-black",
+                    getBowtieValueColor(status)
+                  )}>
+                    {value}
+                  </span>
+                  <span className="text-[9px] text-zinc-600 font-bold">
+                    {score?.observacao?.slice(0, 20) || '0.00%'}
+                  </span>
+
+                  {/* Arrow connector */}
+                  {idx < BOWTIE_STAGES.length - 1 && (
+                    <div className="absolute -right-3 top-1/2 -translate-y-1/2 flex items-center z-10">
+                      <div className="w-2 h-2 border-t border-r border-zinc-700 rotate-45" />
+                      <div className="w-2 h-px bg-zinc-700" />
+                    </div>
+                  )}
+                </div>
+                <span className={cn(
+                  "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
+                  isBottleneck ? "text-red-500 bg-red-500/10" :
+                    STATUS_STYLES[status] || STATUS_STYLES.sem_dados
+                )}>
+                  {isBottleneck ? 'GARGALO' : STATUS_LABELS[status] || 'SEM DADOS'}
+                </span>
               </div>
             );
           })}
