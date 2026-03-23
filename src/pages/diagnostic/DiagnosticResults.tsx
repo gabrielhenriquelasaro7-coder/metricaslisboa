@@ -88,6 +88,22 @@ function getStatusPercent(status: string): number {
   }
 }
 
+function parseValorInformado(valor: string | null | undefined): number | null {
+  if (!valor) return null;
+  const cleaned = valor.replace(/[^0-9.,]/g, '').replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+
+function getDisplayPercent(score: { status: string; valor_informado?: string | null }): number {
+  const realVal = parseValorInformado(score.valor_informado);
+  if (realVal !== null) {
+    // Clamp between 1 and 99 for slider display
+    return Math.max(1, Math.min(99, realVal));
+  }
+  return getStatusPercent(score.status);
+}
+
 const BENCHMARK_DEFAULTS: Record<string, string> = {
   '01': 'CPM: R$18',
   '02': 'CTR: 5.65%',
@@ -474,10 +490,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
   const getTravaName = (trava: string): string => TRAVA_NAMES[normalizeTravaId(trava)] || trava;
 
-  const renderTravaSlider = (score: { trava: string; nome: string; status: string }) => {
+  const renderTravaSlider = (score: { trava: string; nome: string; status: string; valor_informado?: string | null }) => {
     const normalizedTrava = normalizeTravaId(score.trava);
     const isBottleneck = normalizedTrava === activeTrava;
-    const pct = getStatusPercent(score.status);
+    const pct = getDisplayPercent(score);
     const benchVal = BENCHMARK_DEFAULTS[normalizedTrava] || '—';
 
     return (
@@ -622,7 +638,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 nome="Cegueira"
                 status={score.status}
                 isBottleneck={false}
-                pct={getStatusPercent(score.status)}
+                pct={getDisplayPercent(score)}
                 benchVal="Cobertura: 80%+"
                 isRestriction={false}
                 isSemiManual
@@ -652,7 +668,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             const status = score?.status || 'sem_dados';
             const isBottleneck = stage.trava === activeTrava;
             const colors = getStageColor(status, isBottleneck);
-            const pct = score ? getStatusPercent(score.status) : getStatusPercent('sem_dados');
+            const pct = score ? getDisplayPercent(score) : getStatusPercent('sem_dados');
             const mainValue = pct.toFixed(2);
             const label = getTravaName(stage.trava);
 
