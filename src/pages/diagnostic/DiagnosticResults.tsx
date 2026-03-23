@@ -408,16 +408,16 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         y += 4.5;
       }
 
-      // ═══ PAGE 2: BENCHMARKS TABLE ═══
-      doc.addPage();
-      doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
-      doc.rect(0, 0, w, 12, 'F');
-      doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('BENCHMARKS VS REAL', margin, 8);
-      doc.setFillColor(RED.r, RED.g, RED.b);
-      doc.rect(margin, 11, 30, 1.5, 'F');
-      y = 22;
+      // ═══ BENCHMARKS TABLE ═══
+      y += 8;
+      checkPage(50);
+      // If we're near the top of a new page, add the specific header
+      if (y <= 22) {
+        // Already on fresh page from checkPage
+      } else {
+        doc.setDrawColor(230, 230, 230);
+        doc.line(margin, y - 4, w - margin, y - 4);
+      }
 
       // Table header
       const colWidths = [contentW * 0.30, contentW * 0.20, contentW * 0.25, contentW * 0.25];
