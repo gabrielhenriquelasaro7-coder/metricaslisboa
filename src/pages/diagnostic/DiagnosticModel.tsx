@@ -164,7 +164,7 @@ export function DiagnosticModel() {
                     ))}
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-6 items-start p-6 bg-zinc-950 border border-white/5 rounded-xl">
+                <div className="flex flex-col lg:flex-row gap-6 items-start p-6 bg-card border border-border rounded-xl">
                     <div className="relative w-20 h-20 flex-shrink-0">
                         <div className="absolute inset-0 rounded-full border-2 border-dashed border-red-600/20 animate-[spin_20s_linear_infinite]" />
                         <div className="absolute inset-3 rounded-full border border-white/5" />
