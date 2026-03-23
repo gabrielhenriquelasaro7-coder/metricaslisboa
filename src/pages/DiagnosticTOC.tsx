@@ -508,7 +508,7 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-11 w-11 rounded-xl bg-black border-white/5 text-zinc-700 hover:text-red-500 hover:border-red-500/20 active:scale-95 transition-all"
+                className="h-11 w-11 rounded-xl bg-card border-border text-muted-foreground hover:text-red-500 hover:border-red-500/20 active:scale-95 transition-all"
                 onClick={() => onDelete(p.id)}
               >
                 <Trash2 className="w-4 h-4" />
