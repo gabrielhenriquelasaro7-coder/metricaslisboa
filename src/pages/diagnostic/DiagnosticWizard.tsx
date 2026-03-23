@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   DiagnosticProject,
   BusinessModel,
@@ -32,6 +32,8 @@ import {
   ShoppingCart,
   Store,
   Headphones,
+  Database,
+  RefreshCw,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
