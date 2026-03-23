@@ -481,6 +481,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                         )}>
                           {displayVal === 'Sem dados' ? '—' : displayVal.split(',')[0]?.trim() || '—'}
                         </span>
+                        <span className="text-white/40 text-[9px] font-bold mt-1">
+                          {score ? `${getStatusPercent(score.status)}%` : '—'}
+                        </span>
                       </div>
                     </div>
                   </div>
