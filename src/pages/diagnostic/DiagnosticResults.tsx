@@ -334,7 +334,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           </div>
           {ai.stage_scores
             .filter(s => s.trava === '01')
-            .map(score => renderTravaSlider(score, true))}
+            .map(score => renderTravaSlider(score))}
           {ai.stage_scores
             .filter(s => s.trava === 'cegueira' || s.trava === '00')
             .map(score => (
