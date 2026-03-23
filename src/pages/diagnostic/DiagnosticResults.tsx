@@ -525,7 +525,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
     const normalizedTrava = normalizeTravaId(score.trava);
     const isBottleneck = normalizedTrava === activeTrava;
     const pct = getDisplayPercent(score, isBottleneck);
-    const benchVal = BENCHMARK_DEFAULTS[normalizedTrava] || '—';
+    const travaKey = `trava${normalizedTrava}` as keyof typeof project.funnelData;
+    const funnelEntry = project.funnelData?.[travaKey];
+    const isNaoAplica = funnelEntry && typeof funnelEntry === 'object' && (funnelEntry as any)._nao_aplica === true;
+    const showMissingAlert = score.status === 'sem_dados' && !isNaoAplica;
 
     return (
       <TravaSliderCard
@@ -533,9 +536,11 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         trava={normalizedTrava}
         nome={getTravaName(normalizedTrava)}
         status={score.status}
-        isBottleneck={isBottleneck}
+        isBottleneck={isBottleneck && !isNaoAplica}
         pct={pct}
-        isRestriction={isBottleneck}
+        isRestriction={isBottleneck && !isNaoAplica}
+        isNaoAplica={isNaoAplica || false}
+        showMissingAlert={showMissingAlert}
       />
     );
   };
