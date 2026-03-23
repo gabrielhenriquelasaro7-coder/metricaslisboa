@@ -518,7 +518,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Segmento de Atuação</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Segmento de Atuação</Label>
                   <Input
                     placeholder="Ex: SaaS B2B, Moda Feminina, Restaurantes..."
                     className="h-12 rounded-2xl bg-black border-white/10 text-white text-xs font-bold px-4"
