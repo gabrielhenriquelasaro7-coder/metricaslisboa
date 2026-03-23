@@ -756,7 +756,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                           size="sm"
                           onClick={fetchProjectMetrics}
                           disabled={isLoadingMetrics}
-                          className="gap-2 text-[9px] font-black uppercase tracking-widest rounded-xl border-white/10 text-zinc-400 hover:text-white hover:border-emerald-600/30"
+                          className="gap-2 text-[9px] font-black uppercase tracking-widest rounded-xl border-border text-muted-foreground hover:text-foreground hover:border-emerald-600/30"
                         >
                           {isLoadingMetrics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                           {isLoadingMetrics ? 'Importando...' : 'Importar do Sistema'}
