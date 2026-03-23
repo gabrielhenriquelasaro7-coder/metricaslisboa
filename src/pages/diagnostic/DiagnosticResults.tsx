@@ -506,44 +506,48 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </div>
 
       {/* ═══ SECTION 1: RESTRIÇÃO ATIVA ═══ */}
-      <Card className="relative overflow-hidden border-red-600/30 shadow-[0_0_50px_rgba(220,38,38,0.15)] dark:bg-zinc-950 bg-white p-10 flex flex-col justify-center rounded-[2.5rem] group w-full">
+      <Card className="relative overflow-hidden border-red-600/30 shadow-[0_0_50px_rgba(220,38,38,0.15)] dark:bg-zinc-950 bg-white rounded-[2.5rem] group w-full">
         <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/5 blur-[120px] pointer-events-none group-hover:bg-red-600/10 transition-all duration-700" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
-          <div className="flex-1 space-y-6">
-            <div className="flex flex-col gap-2">
-              <Badge className="w-fit bg-red-600 text-white border-red-600 text-[10px] font-black tracking-widest uppercase px-3 py-1 animate-pulse shadow-lg shadow-red-600/20">
-                Restrição Ativa Identificada
-              </Badge>
-              <h3 className="text-5xl md:text-6xl font-black text-foreground uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                {getTravaName(activeTrava)} <span className="text-muted-foreground/30 text-2xl">({activeTrava})</span>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-red-600/3 blur-[100px] pointer-events-none" />
+
+        <div className="relative z-10 p-8 md:p-10 space-y-8">
+          {/* Top: Badge + Title */}
+          <div className="space-y-4">
+            <Badge className="w-fit bg-red-600 text-white border-red-600 text-[10px] font-black tracking-widest uppercase px-3 py-1 animate-pulse shadow-lg shadow-red-600/20">
+              Restrição Ativa Identificada
+            </Badge>
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <h3 className="text-5xl md:text-7xl font-black text-foreground uppercase tracking-tighter" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                {getTravaName(activeTrava)}
               </h3>
-              <p className="text-red-500/80 font-black uppercase tracking-[0.3em] flex items-center gap-2 text-xs">
-                <AlertTriangle className="w-4 h-4" /> Confiança: {ai.confianca?.toUpperCase()}
-              </p>
+              <span className="text-muted-foreground/40 text-lg font-black">({activeTrava})</span>
             </div>
-            <p className="text-muted-foreground text-sm md:text-base leading-relaxed max-w-2xl font-medium">
-              {ai.razao_core_problem}
+            <p className="text-red-500/80 font-black uppercase tracking-[0.3em] flex items-center gap-2 text-xs">
+              <AlertTriangle className="w-4 h-4" /> Confiança: {ai.confianca?.toUpperCase()}
             </p>
           </div>
 
-          {/* Side: Market context only */}
-          <div className="flex flex-col gap-4 min-w-[280px]">
-            <div className="bg-card border border-border p-6 rounded-3xl space-y-2">
+          {/* Middle: Core problem text */}
+          <p className="text-muted-foreground text-sm md:text-base leading-relaxed max-w-3xl">
+            {ai.razao_core_problem}
+          </p>
+
+          {/* Bottom: Cards row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-card/80 backdrop-blur-sm border border-border p-5 rounded-2xl space-y-2">
               <div className="flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-muted-foreground" />
                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Benchmark de Mercado</p>
               </div>
-              <p className="text-sm text-foreground font-bold">
-                {getTravaName(activeTrava)}
-              </p>
+              <p className="text-sm text-foreground font-bold">{getTravaName(activeTrava)}</p>
               <p className="text-[10px] text-muted-foreground">
                 Segmento <span className="text-foreground font-bold">{project.segment}</span> · {MARKET_BENCHMARKS[activeTrava]?.value || 'N/A'}
               </p>
             </div>
 
-            <div className="bg-red-600/5 dark:bg-red-950/20 border border-red-600/20 p-5 rounded-3xl space-y-1">
+            <div className="bg-red-600/5 dark:bg-red-950/20 border border-red-600/20 p-5 rounded-2xl space-y-2">
               <p className="text-[9px] font-black text-red-500 uppercase tracking-widest">Injeção Recomendada</p>
-              <p className="text-[11px] text-foreground font-semibold leading-relaxed line-clamp-3">{ai.injecao_recomendada}</p>
+              <p className="text-[11px] text-foreground font-semibold leading-relaxed">{ai.injecao_recomendada}</p>
             </div>
           </div>
         </div>
