@@ -187,7 +187,7 @@ export function DiagnosticModel() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {LTP_TOOLS.map((tool, idx) => (
-                        <div key={tool.abbr} className="p-5 bg-zinc-950 border border-white/5 rounded-xl space-y-3 group hover:border-red-600/20 transition-all">
+                        <div key={tool.abbr} className="p-5 bg-card border border-border rounded-xl space-y-3 group hover:border-red-600/20 transition-all">
                             <div className="flex items-start justify-between">
                                 <div className="w-10 h-10 rounded bg-red-600/10 border border-red-600/20 flex items-center justify-center">
                                     <span className="text-[11px] font-black text-red-600">{tool.abbr}</span>
