@@ -378,18 +378,20 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
       // ═══ INJEÇÃO RECOMENDADA ═══
       checkPage(25);
-      doc.setFillColor(GREEN.r, GREEN.g, GREEN.b, 0.08);
+      const injLines = doc.splitTextToSize(sanitize(ai.injecao_recomendada), contentW - 8);
+      const injCardH = injLines.length * 4.5 + 14;
       doc.setFillColor(240, 253, 244);
-      doc.roundedRect(margin, y, contentW, 5 + 5 * Math.ceil(sanitize(ai.injecao_recomendada).length / 80), 2, 2, 'F');
+      doc.roundedRect(margin, y, contentW, injCardH, 2, 2, 'F');
+      doc.setDrawColor(GREEN.r, GREEN.g, GREEN.b); doc.setLineWidth(0.5);
+      doc.roundedRect(margin, y, contentW, injCardH, 2, 2, 'S');
+      doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2); // reset
       doc.setTextColor(GREEN.r, GREEN.g, GREEN.b);
       doc.setFontSize(7); doc.setFont('helvetica', 'bold');
       doc.text('INJECAO RECOMENDADA', margin + 4, y + 5);
       doc.setTextColor(30, 30, 30);
       doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      y += 9;
-      const injLines = doc.splitTextToSize(sanitize(ai.injecao_recomendada), contentW - 8);
-      doc.text(injLines, margin + 4, y);
-      y += injLines.length * 4.5 + 8;
+      doc.text(injLines, margin + 4, y + 11);
+      y += injCardH + 6;
 
       // ═══ SÍNTESE EXECUTIVA ═══
       checkPage(30);
