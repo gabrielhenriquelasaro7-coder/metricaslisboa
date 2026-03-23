@@ -217,7 +217,7 @@ export function DiagnosticModel() {
                         ].map((m) => (
                             <div key={m.abbr} className="p-6 bg-card border border-border rounded-2xl flex flex-col items-center justify-center text-center space-y-4 hover:border-amber-500/20 transition-all shadow-lg">
                                 <div>
-                                    <p className="text-2xl font-black text-white">{m.abbr}</p>
+                                    <p className="text-2xl font-black text-foreground">{m.abbr}</p>
                                     <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-widest mt-1">{m.name}</p>
                                 </div>
                                 <p className="text-[11px] text-zinc-500 font-medium">{m.formula}</p>
