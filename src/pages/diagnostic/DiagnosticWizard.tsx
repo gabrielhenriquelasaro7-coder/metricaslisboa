@@ -828,7 +828,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                           className={cn(
                             "w-2 h-2 rounded-full transition-all",
                             idx === currentTravaIdx ? "bg-red-600 scale-125" :
-                              idx < currentTravaIdx ? "bg-emerald-600" : "bg-zinc-800"
+                              idx < currentTravaIdx ? "bg-emerald-600" : "bg-muted"
                           )}
                         />
                       ))}
