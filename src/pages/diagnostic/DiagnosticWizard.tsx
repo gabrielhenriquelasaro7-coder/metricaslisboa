@@ -624,7 +624,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Faturamento</Label>
                 <div className="flex gap-3 items-center">
                   <div className="relative flex-1">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold">R$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">R$</span>
                     <Input
                       type="number"
                       placeholder="300000"
