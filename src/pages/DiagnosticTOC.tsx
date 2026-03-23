@@ -35,8 +35,6 @@ import {
 import {
   BENCHMARK_STAGES,
   BenchmarkStageId,
-  classifyMetricValue,
-  createDefaultBenchmarkConfigFromSeed
 } from '@/lib/diagnosticBenchmarks';
 import { RevenueFlow } from '@/components/dashboard/RevenueFlow';
 
