@@ -226,7 +226,7 @@ export function DiagnosticModel() {
                     </div>
 
                     {/* Linha 2: Share Atual vs Necessário */}
-                    <div className="p-6 md:p-8 bg-zinc-950/80 border border-white/5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl shadow-black/50">
+                    <div className="p-6 md:p-8 bg-card border border-border rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl">
                         <div className="space-y-4 flex-1">
                             <div className="flex items-center gap-3">
                                 <Shapes className="w-5 h-5 text-amber-500" />
