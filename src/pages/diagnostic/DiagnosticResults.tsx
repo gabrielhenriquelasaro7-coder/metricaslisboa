@@ -36,15 +36,15 @@ const STATUS_LABELS: Record<string, string> = {
   sem_dados: 'SEM DADOS',
 };
 
-// Bowtie stages from Retenção (left) → Exposição (right) with clip-path polygons
+// Bowtie stages: Retenção (07, left/wide) → Exposição (01, right/wide) — funnel perspective
 const BOWTIE_STAGES = [
-  { trava: '01', label: 'Retenção',     clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)',           leftBar: '0%',  rightBar: '10%' },
-  { trava: '02', label: 'Decisão',      clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '20%' },
-  { trava: '03', label: 'Compromisso',  clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '30%' },
+  { trava: '07', label: 'Retenção',     clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)',           leftBar: '0%',  rightBar: '10%' },
+  { trava: '06', label: 'Decisão',      clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '20%' },
+  { trava: '05', label: 'Compromisso',  clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '30%' },
   { trava: '04', label: 'Qualificação', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '30%' },
-  { trava: '05', label: 'Interesse',    clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '20%' },
-  { trava: '06', label: 'Atenção',      clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '10%' },
-  { trava: '07', label: 'Exposição',    clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '0%' },
+  { trava: '03', label: 'Interesse',    clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '20%' },
+  { trava: '02', label: 'Atenção',      clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '10%' },
+  { trava: '01', label: 'Exposição',    clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '0%' },
 ];
 
 function getStageColor(status: string, isBottleneck: boolean) {
@@ -480,6 +480,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                           isBottleneck && "scale-110 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"
                         )}>
                           {displayVal === 'Sem dados' ? '—' : displayVal.split(',')[0]?.trim() || '—'}
+                        </span>
+                        <span className="text-white/40 text-[9px] font-bold mt-1">
+                          {score ? `${getStatusPercent(score.status)}%` : '—'}
                         </span>
                       </div>
                     </div>
