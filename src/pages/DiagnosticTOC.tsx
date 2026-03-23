@@ -452,7 +452,7 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {projects.map(p => (
-        <Card key={p.id} className="relative overflow-hidden group p-5 bg-gradient-to-br from-zinc-950 to-black border-white/5 hover:border-red-600/30 transition-all duration-500 rounded-[2rem] flex flex-col justify-between h-full shadow-xl">
+        <Card key={p.id} className="relative overflow-hidden group p-5 bg-gradient-to-br from-card to-muted/20 dark:from-zinc-950 dark:to-black border-border hover:border-red-600/30 transition-all duration-500 rounded-[2rem] flex flex-col justify-between h-full shadow-xl">
           <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 blur-[50px] pointer-events-none group-hover:bg-red-600/10 transition-all duration-700" />
 
           <div className="relative z-10 space-y-5">
