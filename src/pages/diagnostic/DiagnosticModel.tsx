@@ -230,7 +230,7 @@ export function DiagnosticModel() {
                         <div className="space-y-4 flex-1">
                             <div className="flex items-center gap-3">
                                 <Shapes className="w-5 h-5 text-amber-500" />
-                                <h4 className="text-sm font-black text-white uppercase tracking-widest">Share Atual vs Necessário</h4>
+                                <h4 className="text-sm font-black text-foreground uppercase tracking-widest">Share Atual vs Necessário</h4>
                             </div>
                             <div className="space-y-3">
                                 {[
