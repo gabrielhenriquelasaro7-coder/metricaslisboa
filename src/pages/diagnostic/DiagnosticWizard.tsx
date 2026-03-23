@@ -778,7 +778,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                             },
                           }));
                         }}
-                        className="border-zinc-600 data-[state=checked]:bg-zinc-600 data-[state=checked]:border-zinc-600"
+                        className="border-muted-foreground data-[state=checked]:bg-muted-foreground data-[state=checked]:border-muted-foreground"
                       />
                       <label htmlFor={`nao-aplica-${trava.id}`} className="text-[11px] text-zinc-400 font-bold cursor-pointer select-none">
                         Esta trava não se aplica ao meu negócio
