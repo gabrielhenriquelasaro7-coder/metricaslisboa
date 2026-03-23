@@ -195,8 +195,8 @@ export function DiagnosticModel() {
                                 <span className="text-[9px] text-muted-foreground font-black font-mono">{String(idx + 1).padStart(2, '0')}</span>
                             </div>
                             <div>
-                                <p className="text-[11px] font-black text-white uppercase tracking-widest">{tool.name}</p>
-                                <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-2">{tool.desc}</p>
+                                <p className="text-[11px] font-black text-foreground uppercase tracking-widest">{tool.name}</p>
+                                <p className="text-[10px] text-muted-foreground font-medium leading-relaxed mt-2">{tool.desc}</p>
                             </div>
                         </div>
                     ))}
