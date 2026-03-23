@@ -139,13 +139,27 @@ interface TravaSliderCardProps {
   status: string;
   isBottleneck: boolean;
   pct: number;
-  benchVal: string;
   isRestriction: boolean;
   isSemiManual?: boolean;
-  marketBench?: { label: string; value: string };
+  realValue?: string | null;
 }
 
-function TravaSliderCard({ trava, nome, status, isBottleneck, pct, benchVal, isRestriction, isSemiManual, marketBench }: TravaSliderCardProps) {
+function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction, isSemiManual, realValue }: TravaSliderCardProps) {
+  const dotColor = isBottleneck || status === 'critico'
+    ? 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]'
+    : status === 'na_media'
+      ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)]'
+      : status === 'bom'
+        ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]'
+        : 'bg-muted-foreground/50';
+
+  const tagColor = isSemiManual ? "text-amber-500 border-amber-500/20" :
+    isBottleneck || status === 'critico' ? "text-red-500 border-red-500/20" :
+    status === 'bom' ? "text-emerald-500 border-emerald-500/20" :
+    status === 'na_media' ? "text-amber-500 border-amber-500/20" : "text-muted-foreground border-border";
+
+  const tagLabel = isSemiManual ? 'Semi-Manual' : isBottleneck ? 'CRÍTICO' : (STATUS_LABELS[status] || 'SEM DADOS');
+
   return (
     <div className={cn(
       "relative space-y-4 p-5 rounded-[1.5rem] transition-all duration-500 border shadow-xl",
@@ -168,45 +182,39 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, benchVal, isR
         </div>
         <div className={cn(
           "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-muted/50",
-          isSemiManual ? "text-amber-500 border-amber-500/20" :
-          status === 'critico' ? "text-red-500 border-red-500/20" :
-          status === 'bom' ? "text-emerald-500 border-emerald-500/20" :
-          status === 'na_media' ? "text-amber-500 border-amber-500/20" : "text-muted-foreground border-border"
+          tagColor
         )}>
-          {isSemiManual ? 'Semi-Manual' : STATUS_LABELS[status] || 'Sem Dados'}
+          {tagLabel}
         </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
-        <div className="relative h-3 flex-1 rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner cursor-pointer" style={{ touchAction: 'none' }}>
-          <div
-            className="absolute w-5 h-5 bg-blue-500 rounded-full border-2 border-white shadow-[0_0_12px_rgba(59,130,246,0.8)] z-10 -translate-x-1/2 cursor-grab pointer-events-none transition-transform"
-            style={{ left: `${pct}%` }}
-          />
+        <div className="relative h-3 flex-1 rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner" style={{ touchAction: 'none' }}>
+          {status !== 'sem_dados' && (
+            <div
+              className={cn("absolute w-5 h-5 rounded-full border-2 border-white z-10 -translate-x-1/2 pointer-events-none transition-all", dotColor)}
+              style={{ left: `${pct}%` }}
+            />
+          )}
         </div>
-        <div className="flex items-center gap-3 min-w-[180px]">
-          <div className="flex flex-col items-center px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-            <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Real</span>
-            <span className={cn(
-              "text-base font-black",
-              isBottleneck ? "text-red-500" :
-              status === 'critico' ? "text-red-500" :
-              status === 'na_media' ? "text-amber-500" : "text-emerald-500"
-            )}>{pct}%</span>
+        {realValue && (
+          <div className="flex items-center gap-3 min-w-fit">
+            <div className={cn(
+              "flex flex-col items-center px-3 py-1.5 rounded-lg border",
+              isBottleneck || status === 'critico' ? "bg-red-500/10 border-red-500/20" :
+              status === 'na_media' ? "bg-amber-500/10 border-amber-500/20" :
+              status === 'bom' ? "bg-emerald-500/10 border-emerald-500/20" : "bg-muted/50 border-border"
+            )}>
+              <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Real</span>
+              <span className={cn(
+                "text-base font-black",
+                isBottleneck || status === 'critico' ? "text-red-500" :
+                status === 'na_media' ? "text-amber-500" : "text-emerald-500"
+              )}>{realValue}</span>
+            </div>
           </div>
-          <div className="flex flex-col items-center px-3 py-1.5 rounded-lg bg-muted/50 border border-border">
-            <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Bench</span>
-            <span className="text-base font-black text-foreground">{benchVal.split(':').pop()?.trim() || benchVal}</span>
-          </div>
-        </div>
+        )}
       </div>
-
-      {marketBench && (
-        <div className="flex items-center gap-1.5 pt-1">
-          <Globe className="w-3 h-3 text-muted-foreground" />
-          <span className="text-[9px] text-muted-foreground font-bold">{marketBench.label}: <span className="text-foreground/60">{marketBench.value}</span></span>
-        </div>
-      )}
     </div>
   );
 }
