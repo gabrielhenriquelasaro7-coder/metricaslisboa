@@ -99,30 +99,16 @@ function parsePercentFromValorInformado(valor: string | null | undefined): numbe
 }
 
 function getDisplayPercent(score: { status: string; valor_informado?: string | null }, isBottleneck?: boolean): number {
-  const base = getStatusPercent(score.status);
-  const parsedPercent = parsePercentFromValorInformado(score.valor_informado);
-
-  // Bottleneck MUST always be the lowest — force to 5-15% range
-  if (isBottleneck) {
-    if (parsedPercent !== null) return Math.max(3, Math.min(12, parsedPercent));
-    return 8;
+  // Bottleneck (restrição ativa) → always low red zone
+  if (isBottleneck) return 17;
+  
+  // Position based purely on AI-assigned status
+  switch (score.status) {
+    case 'critico': return 18;
+    case 'na_media': return 48;
+    case 'bom': return 82;
+    default: return 50; // sem_dados — center/gray
   }
-
-  if (parsedPercent === null) return base;
-
-  if (score.status === 'critico') {
-    return Math.max(15, Math.min(30, parsedPercent));
-  }
-
-  if (score.status === 'na_media') {
-    return Math.max(40, Math.min(65, parsedPercent));
-  }
-
-  if (score.status === 'bom') {
-    return Math.max(70, Math.min(95, parsedPercent));
-  }
-
-  return base;
 }
 
 const BENCHMARK_DEFAULTS: Record<string, string> = {
