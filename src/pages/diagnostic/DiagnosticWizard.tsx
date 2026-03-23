@@ -876,8 +876,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
         {/* Navigation */}
         {currentStep.id !== 'review' && (
-          <div className="px-8 py-6 border-t border-white/5 flex justify-between">
-            <Button variant="ghost" onClick={handleBack} className="text-zinc-500 hover:text-white gap-1">
+          <div className="px-8 py-6 border-t border-border flex justify-between">
+            <Button variant="ghost" onClick={handleBack} className="text-muted-foreground hover:text-foreground gap-1">
               <ChevronLeft className="w-4 h-4" /> Voltar
             </Button>
             <Button onClick={handleNext} className="bg-red-600 hover:bg-red-700 text-white rounded-xl gap-1 px-6">
