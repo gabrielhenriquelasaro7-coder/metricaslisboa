@@ -258,7 +258,7 @@ export default function DiagnosticTOC() {
                       placeholder="Buscar projeto..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9 h-11 bg-black border-white/10 text-white placeholder:text-zinc-600 rounded-xl focus-visible:ring-red-600/50"
+                      className="pl-9 h-11 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground rounded-xl focus-visible:ring-red-600/50"
                     />
                   </div>
 
