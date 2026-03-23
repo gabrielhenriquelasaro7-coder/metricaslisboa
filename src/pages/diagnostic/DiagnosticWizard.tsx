@@ -848,9 +848,9 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     <Loader2 className="w-10 h-10 text-red-600 animate-spin" />
                   </div>
                   <div className="space-y-2">
-                    <h4 className="text-xl font-black text-white uppercase tracking-tight italic">Analisando com IA...</h4>
-                    <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-widest">Processando dados de {identification.companyName || 'sua empresa'}</p>
-                    <p className="text-[10px] text-zinc-600">A IA está correlacionando suas métricas com o contexto do seu negócio para identificar a trava principal.</p>
+                    <h4 className="text-xl font-black text-foreground uppercase tracking-tight italic">Analisando com IA...</h4>
+                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest">Processando dados de {identification.companyName || 'sua empresa'}</p>
+                    <p className="text-[10px] text-muted-foreground/70">A IA está correlacionando suas métricas com o contexto do seu negócio para identificar a trava principal.</p>
                   </div>
                 </div>
               ) : (
