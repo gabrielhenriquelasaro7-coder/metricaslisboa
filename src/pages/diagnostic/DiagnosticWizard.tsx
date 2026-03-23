@@ -764,7 +764,31 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {/* N/A Toggle */}
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-zinc-900/50 border border-white/5">
+                      <Checkbox
+                        id={`nao-aplica-${trava.id}`}
+                        checked={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?._nao_aplica === true}
+                        onCheckedChange={(checked) => {
+                          setFunnelData(prev => ({
+                            ...prev,
+                            [trava.id]: {
+                              ...prev[trava.id as keyof DiagnosticFunnelData],
+                              _nao_aplica: checked === true,
+                            },
+                          }));
+                        }}
+                        className="border-zinc-600 data-[state=checked]:bg-zinc-600 data-[state=checked]:border-zinc-600"
+                      />
+                      <label htmlFor={`nao-aplica-${trava.id}`} className="text-[11px] text-zinc-400 font-bold cursor-pointer select-none">
+                        Esta trava não se aplica ao meu negócio
+                      </label>
+                    </div>
+
+                    <div className={cn(
+                      "grid grid-cols-1 sm:grid-cols-2 gap-5 transition-all",
+                      (funnelData[trava.id as keyof DiagnosticFunnelData] as any)?._nao_aplica && "opacity-30 pointer-events-none"
+                    )}>
                       {trava.fields.map(field => {
                         const isAuto = isFieldAutoFilled(trava.id, field.key);
                         return (
