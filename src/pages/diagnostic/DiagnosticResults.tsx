@@ -606,11 +606,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
       // ═══ PLANO 90 DIAS ═══
       y += 6;
-
-      // Subtitle
-      doc.setTextColor(GRAY.r, GRAY.g, GRAY.b); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      doc.text(sanitize(`Foco em quebrar a restricao de ${TRAVA_NAMES[activeTrava] || ai.trava_nome}`), margin, y);
-      y += 10;
+      drawSectionHeader(`Plano Estrategico de 90 Dias — ${TRAVA_NAMES[activeTrava] || ai.trava_nome}`, BLACK);
 
       [
         { phase: 'MES 01', data: ai.plano_90_dias.mes_1, color: RED },
