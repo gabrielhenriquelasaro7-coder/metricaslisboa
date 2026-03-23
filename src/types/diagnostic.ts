@@ -1,5 +1,7 @@
 import { BenchmarkStageId, BenchmarkStatus } from '@/lib/diagnosticBenchmarks';
 
+export type BusinessModel = 'ecommerce' | 'inside_sales' | 'pdv';
+
 export interface MarketMetrics {
     tam: number;
     sam: number;
@@ -43,6 +45,79 @@ export interface LTPEntity {
     tt: LTPNode[];
 }
 
+// Identification step data
+export interface DiagnosticIdentification {
+    companyName: string;
+    product: string;
+    icp: string;
+    segment: string;
+    location: string;
+    businessModel: BusinessModel;
+}
+
+// Simplified business step
+export interface DiagnosticBusiness {
+    contributionMargin: number;
+    averageTicket: number;
+    revenue: number;
+    revenueType: 'mensal' | 'anual';
+}
+
+// Funnel data per trava
+export interface FunnelTravaData {
+    [key: string]: number | string | null;
+}
+
+export interface DiagnosticFunnelData {
+    trava07: FunnelTravaData;
+    trava06: FunnelTravaData;
+    trava05: FunnelTravaData;
+    trava04: FunnelTravaData;
+    trava03: FunnelTravaData;
+    trava02: FunnelTravaData;
+    trava01: FunnelTravaData;
+}
+
+// AI Analysis result
+export interface AIAnalysisResult {
+    trava_identificada: string;
+    trava_nome: string;
+    confianca: 'alta' | 'media' | 'baixa';
+    razao_core_problem: string;
+    injecao_recomendada: string;
+    udes: string[];
+    sintese: string;
+    ltp_analysis: {
+        crt_nodes: string[];
+        core_problem: string;
+        evaporating_cloud: {
+            objetivo: string;
+            necessidade_a: string;
+            necessidade_b: string;
+            acao_a: string;
+            acao_b: string;
+            pressuposto_invalido: string;
+            injecao: string;
+        };
+        frt_effects: string[];
+        negative_branches: string[];
+        prerequisite_tree: string[];
+    };
+    plano_90_dias: {
+        mes_1: { titulo: string; acoes: string[] };
+        mes_2: { titulo: string; acoes: string[] };
+        mes_3: { titulo: string; acoes: string[] };
+    };
+    metricas_foco: string[];
+    stage_scores: Array<{
+        trava: string;
+        nome: string;
+        status: 'critico' | 'na_media' | 'bom' | 'sem_dados';
+        valor_informado: string | null;
+        observacao: string;
+    }>;
+}
+
 export interface DiagnosticProject {
     id: string;
     name: string;
@@ -51,6 +126,11 @@ export interface DiagnosticProject {
     icp?: string;
     model?: string;
     team?: string;
+    businessModel?: BusinessModel;
+    identification?: DiagnosticIdentification;
+    businessData?: DiagnosticBusiness;
+    funnelData?: DiagnosticFunnelData;
+    aiAnalysis?: AIAnalysisResult;
     goal: {
         type: 'mensal' | 'trimestral' | 'anual';
         value: number;
