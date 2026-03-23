@@ -372,7 +372,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           {BOWTIE_STAGES.map((stage, idx) => {
             const score = scoreMap.get(stage.trava);
             const status = score?.status || 'sem_dados';
-            const isBottleneck = stage.trava === ai.trava_identificada;
+            const isBottleneck = stage.trava === activeTrava;
             const colors = getStageColor(status, isBottleneck);
             const pct = score ? getStatusPercent(score.status) : 0;
             const label = getTravaName(stage.trava);
