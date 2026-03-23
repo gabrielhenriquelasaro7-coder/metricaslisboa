@@ -65,7 +65,8 @@ export interface DiagnosticBusiness {
 
 // Funnel data per trava
 export interface FunnelTravaData {
-    [key: string]: number | string | null;
+    [key: string]: number | string | boolean | null;
+    _nao_aplica?: boolean;
 }
 
 export interface DiagnosticFunnelData {
