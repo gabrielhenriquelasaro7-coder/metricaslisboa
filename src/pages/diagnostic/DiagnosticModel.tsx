@@ -220,7 +220,7 @@ export function DiagnosticModel() {
                                     <p className="text-2xl font-black text-foreground">{m.abbr}</p>
                                     <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-widest mt-1">{m.name}</p>
                                 </div>
-                                <p className="text-[11px] text-zinc-500 font-medium">{m.formula}</p>
+                                <p className="text-[11px] text-muted-foreground font-medium">{m.formula}</p>
                             </div>
                         ))}
                     </div>
