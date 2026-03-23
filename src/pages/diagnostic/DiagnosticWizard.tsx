@@ -500,7 +500,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Nome da Empresa</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Nome da Empresa</Label>
                   <Input
                     placeholder="Ex: TechCorp Brasil"
                     className="h-12 rounded-2xl bg-black border-white/10 text-white text-xs font-bold px-4"
