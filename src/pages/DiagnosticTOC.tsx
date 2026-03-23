@@ -442,8 +442,8 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
           <FileText className="w-10 h-10 text-muted-foreground" />
         </div>
         <div className="space-y-2">
-          <h3 className="text-xl font-black text-white uppercase tracking-tight italic">Nenhum diagnóstico ainda</h3>
-          <p className="text-[10px] text-zinc-500 max-w-[240px] mx-auto uppercase font-bold tracking-widest leading-relaxed">Sua jornada guiada por dados começa aqui. Identifique restrições agora.</p>
+          <h3 className="text-xl font-black text-foreground uppercase tracking-tight italic">Nenhum diagnóstico ainda</h3>
+          <p className="text-[10px] text-muted-foreground max-w-[240px] mx-auto uppercase font-bold tracking-widest leading-relaxed">Sua jornada guiada por dados começa aqui. Identifique restrições agora.</p>
         </div>
       </div>
     );
