@@ -663,7 +663,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               </div>
 
               {/* TAM */}
-              <div className="p-5 bg-black/50 border border-white/5 rounded-2xl space-y-3">
+              <div className="p-5 bg-muted/30 dark:bg-black/50 border border-border rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-red-600/10 text-red-600 border-none text-[8px] font-black">TAM</Badge>
                   <span className="text-[10px] text-zinc-400 font-bold uppercase">Total Addressable Market</span>
