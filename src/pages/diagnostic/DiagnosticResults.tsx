@@ -487,7 +487,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {ai.stage_scores.map(score => {
-                    const isGargalo = score.trava === ai.trava_identificada;
+                    const isGargalo = normalizeTravaId(score.trava) === activeTrava;
                     return (
                       <tr key={score.trava} className={cn("hover:bg-muted/30 transition-colors", isGargalo && "bg-red-600/5")}>
                         <td className="px-5 py-4 font-black text-foreground uppercase">{getTravaName(score.trava)}</td>
