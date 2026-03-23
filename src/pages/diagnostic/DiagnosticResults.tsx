@@ -543,7 +543,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           </div>
           <div>
             <h4 className="text-lg font-black text-foreground uppercase tracking-tight italic">LTP — Logical Thinking Process</h4>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Baseado na restrição de {getTravaName(ai.trava_identificada)}</p>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Baseado na restrição de {getTravaName(activeTrava)}</p>
           </div>
         </div>
 
