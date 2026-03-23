@@ -141,10 +141,9 @@ interface TravaSliderCardProps {
   pct: number;
   isRestriction: boolean;
   isSemiManual?: boolean;
-  realValue?: string | null;
 }
 
-function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction, isSemiManual, realValue }: TravaSliderCardProps) {
+function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction, isSemiManual }: TravaSliderCardProps) {
   const dotColor = isBottleneck || status === 'critico'
     ? 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]'
     : status === 'na_media'
@@ -188,8 +187,8 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
-        <div className="relative h-3 flex-1 rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner" style={{ touchAction: 'none' }}>
+      <div className="pt-2">
+        <div className="relative h-3 w-full rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner" style={{ touchAction: 'none' }}>
           {status !== 'sem_dados' && (
             <div
               className={cn("absolute w-5 h-5 rounded-full border-2 border-white z-10 -translate-x-1/2 pointer-events-none transition-all", dotColor)}
@@ -197,23 +196,6 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
             />
           )}
         </div>
-        {realValue && (
-          <div className="flex items-center gap-3 min-w-fit">
-            <div className={cn(
-              "flex flex-col items-center px-3 py-1.5 rounded-lg border",
-              isBottleneck || status === 'critico' ? "bg-red-500/10 border-red-500/20" :
-              status === 'na_media' ? "bg-amber-500/10 border-amber-500/20" :
-              status === 'bom' ? "bg-emerald-500/10 border-emerald-500/20" : "bg-muted/50 border-border"
-            )}>
-              <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Real</span>
-              <span className={cn(
-                "text-base font-black",
-                isBottleneck || status === 'critico' ? "text-red-500" :
-                status === 'na_media' ? "text-amber-500" : "text-emerald-500"
-              )}>{realValue}</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -531,7 +513,6 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         isBottleneck={isBottleneck}
         pct={pct}
         isRestriction={isBottleneck}
-        realValue={score.valor_informado || undefined}
       />
     );
   };
@@ -666,7 +647,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 pct={getDisplayPercent(score, false)}
                 isRestriction={false}
                 isSemiManual
-                realValue={score.valor_informado || undefined}
+                
               />
             ))}
         </div>
@@ -723,15 +704,6 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                       }}
                     >
                       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle, ${isBottleneck ? 'rgba(239, 68, 68, 0.4)' : 'rgba(128, 128, 128, 0.05)'}, transparent)`, transform: 'scale(1.2)' }} />
-                      <div className="flex flex-col items-center z-10 gap-1">
-                        <span className={cn(
-                          "text-lg font-black drop-shadow-lg leading-none",
-                          colors.text,
-                          isBottleneck && "scale-110 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"
-                        )}>
-                          {isBottleneck ? 'GARGALO' : STATUS_LABELS[status] || '—'}
-                        </span>
-                      </div>
                     </div>
                   </div>
 
