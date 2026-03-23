@@ -458,8 +458,8 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
           <div className="relative z-10 space-y-5">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-black rounded-[1.25rem] flex items-center justify-center border border-white/10 group-hover:border-red-600/30 transition-all shadow-inner">
-                  <Globe className="w-6 h-6 text-zinc-500 group-hover:text-red-600" />
+                <div className="w-12 h-12 bg-muted dark:bg-black rounded-[1.25rem] flex items-center justify-center border border-border group-hover:border-red-600/30 transition-all shadow-inner">
+                  <Globe className="w-6 h-6 text-muted-foreground group-hover:text-red-600" />
                 </div>
                 <div>
                   <h4 className="text-sm font-black text-white uppercase tracking-tight italic leading-tight">{p.name || 'Projeto sem nome'}</h4>
