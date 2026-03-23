@@ -478,13 +478,13 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-1">
-                <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest">Meta de Receita</span>
-                <span className="text-xs font-black text-white">R$ {p.goal.value.toLocaleString()}</span>
+              <div className="p-3 bg-muted/30 dark:bg-white/5 rounded-2xl border border-border flex flex-col gap-1">
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Meta de Receita</span>
+                <span className="text-xs font-black text-foreground">R$ {p.goal.value.toLocaleString()}</span>
               </div>
-              <div className="p-3 bg-white/5 rounded-2xl border border-white/5 flex flex-col gap-1">
-                <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest">Última Escala</span>
-                <span className="text-xs font-black text-zinc-400">Ativo</span>
+              <div className="p-3 bg-muted/30 dark:bg-white/5 rounded-2xl border border-border flex flex-col gap-1">
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Última Escala</span>
+                <span className="text-xs font-black text-muted-foreground">Ativo</span>
               </div>
             </div>
           </div>
