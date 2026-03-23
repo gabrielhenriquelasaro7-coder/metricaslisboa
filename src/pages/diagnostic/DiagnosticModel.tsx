@@ -215,7 +215,7 @@ export function DiagnosticModel() {
                             { abbr: 'SAM', name: 'Serviceable Addressable Market', formula: 'TAM × % elegível' },
                             { abbr: 'SOM', name: 'Serviceable Obtainable Market', formula: 'SAM × % obtível realista' },
                         ].map((m) => (
-                            <div key={m.abbr} className="p-6 bg-zinc-950/80 border border-white/5 rounded-2xl flex flex-col items-center justify-center text-center space-y-4 hover:border-amber-500/20 transition-all shadow-lg shadow-black/50">
+                            <div key={m.abbr} className="p-6 bg-card border border-border rounded-2xl flex flex-col items-center justify-center text-center space-y-4 hover:border-amber-500/20 transition-all shadow-lg">
                                 <div>
                                     <p className="text-2xl font-black text-white">{m.abbr}</p>
                                     <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-widest mt-1">{m.name}</p>
