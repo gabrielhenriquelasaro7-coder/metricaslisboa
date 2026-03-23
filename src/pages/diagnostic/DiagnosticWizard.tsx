@@ -503,7 +503,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Nome da Empresa</Label>
                   <Input
                     placeholder="Ex: TechCorp Brasil"
-                    className="h-12 rounded-2xl bg-black border-white/10 text-white text-xs font-bold px-4"
+                    className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold px-4"
                     value={identification.companyName}
                     onChange={e => setIdentification(p => ({ ...p, companyName: e.target.value }))}
                   />
