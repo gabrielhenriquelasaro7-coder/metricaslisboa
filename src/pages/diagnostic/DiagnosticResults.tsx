@@ -88,20 +88,35 @@ function getStatusPercent(status: string): number {
   }
 }
 
-function parseValorInformado(valor: string | null | undefined): number | null {
+function parsePercentFromValorInformado(valor: string | null | undefined): number | null {
   if (!valor) return null;
-  const cleaned = valor.replace(/[^0-9.,]/g, '').replace(',', '.');
-  const num = parseFloat(cleaned);
+
+  const match = valor.match(/(\d+[\.,]?\d*)\s*%/);
+  if (!match) return null;
+
+  const num = parseFloat(match[1].replace(',', '.'));
   return isNaN(num) ? null : num;
 }
 
 function getDisplayPercent(score: { status: string; valor_informado?: string | null }): number {
-  const realVal = parseValorInformado(score.valor_informado);
-  if (realVal !== null) {
-    // Clamp between 1 and 99 for slider display
-    return Math.max(1, Math.min(99, realVal));
+  const base = getStatusPercent(score.status);
+  const parsedPercent = parsePercentFromValorInformado(score.valor_informado);
+
+  if (parsedPercent === null) return base;
+
+  if (score.status === 'critico') {
+    return Math.max(1, Math.min(20, parsedPercent));
   }
-  return getStatusPercent(score.status);
+
+  if (score.status === 'na_media') {
+    return Math.max(35, Math.min(70, parsedPercent));
+  }
+
+  if (score.status === 'bom') {
+    return Math.max(70, Math.min(99, parsedPercent));
+  }
+
+  return base;
 }
 
 const BENCHMARK_DEFAULTS: Record<string, string> = {
