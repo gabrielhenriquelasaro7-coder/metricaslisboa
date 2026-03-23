@@ -541,7 +541,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">ICP (Perfil de Cliente Ideal)</Label>
                 <Textarea
                   placeholder="Descreva seu cliente ideal: quem é, qual a dor principal, porte, cargo decisor..."
-                  className="min-h-[100px] rounded-2xl bg-black border-white/10 text-white text-xs font-bold p-4 resize-none"
+                  className="min-h-[100px] rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold p-4 resize-none"
                   value={identification.icp}
                   onChange={e => setIdentification(p => ({ ...p, icp: e.target.value }))}
                 />
