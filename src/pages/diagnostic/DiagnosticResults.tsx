@@ -34,27 +34,29 @@ const STATUS_LABELS: Record<string, string> = {
   sem_dados: 'SEM DADOS',
 };
 
-// ALWAYS use these names — never AI-returned names
+// Mapeamento oficial das travas
 const TRAVA_NAMES: Record<string, string> = {
-  '01': 'Exposição',
-  '02': 'Atenção',
-  '03': 'Interesse',
-  '04': 'Qualificação',
-  '05': 'Compromisso',
-  '06': 'Decisão',
-  '07': 'Retenção',
+  '01': 'Volume de Impressão',
+  '02': 'CRT',
+  '03': 'Lead, CPL',
+  '04': 'Taxa de Qualificação',
+  '05': 'Reunião',
+  '06': 'Fechamento de Proposta',
+  '07': 'Churn, Recompra',
   '00': 'Cegueira',
 };
 
-// Bowtie stages: 07 (left/wide) → 01 (right/wide)
+const normalizeTravaId = (trava: string) => (trava === 'cegueira' ? '00' : trava);
+
+// Bowtie stages: 07 (churn/recompra) → 01 (volume de impressão)
 const BOWTIE_STAGES = [
-  { trava: '07', clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)',   leftBar: '0%',  rightBar: '10%' },
-  { trava: '06', clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)',     leftBar: '10%', rightBar: '20%' },
-  { trava: '05', clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)',     leftBar: '20%', rightBar: '30%' },
-  { trava: '04', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)',     leftBar: '30%', rightBar: '30%' },
-  { trava: '03', clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)',     leftBar: '30%', rightBar: '20%' },
-  { trava: '02', clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)',     leftBar: '20%', rightBar: '10%' },
-  { trava: '01', clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)',     leftBar: '10%', rightBar: '0%' },
+  { trava: '07', clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)', leftBar: '0%', rightBar: '10%' },
+  { trava: '06', clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '20%' },
+  { trava: '05', clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '30%' },
+  { trava: '04', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '30%' },
+  { trava: '03', clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '20%' },
+  { trava: '02', clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '10%' },
+  { trava: '01', clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '0%' },
 ];
 
 function getStageColor(status: string, isBottleneck: boolean) {
@@ -76,19 +78,25 @@ function getStatusPercent(status: string): number {
 }
 
 const BENCHMARK_DEFAULTS: Record<string, string> = {
-  '07': '3.00%', '06': '25.00%', '05': '28.00%', '04': '25.00%',
-  '03': '6.60%', '02': '5.65%', '01': '18.00', '00': '1.00%',
+  '07': '18.00%',
+  '06': '5.65%',
+  '05': '6.60%',
+  '04': '25.00%',
+  '03': '28.00%',
+  '02': '25.00%',
+  '01': '3.00%',
+  '00': '1.00%',
 };
 
 const MARKET_BENCHMARKS: Record<string, { label: string; value: string }> = {
-  '07': { label: 'Mercado Global', value: 'Retenção: 93-97%' },
+  '07': { label: 'Mercado Global', value: 'Churn mensal: 3-7%' },
   '06': { label: 'Mercado Global', value: 'Close Rate: 20-35%' },
   '05': { label: 'Mercado Global', value: 'Show Rate: 60-80%' },
   '04': { label: 'Mercado Global', value: 'MQL Rate: 15-30%' },
-  '03': { label: 'Mercado Global', value: 'Conv. Rate: 2-5%' },
+  '03': { label: 'Mercado Global', value: 'Conv. Lead: 2-5%' },
   '02': { label: 'Mercado Global', value: 'CTR médio: 1.5-3.5%' },
   '01': { label: 'Mercado Global', value: 'CPM médio: $5-15' },
-  '00': { label: 'Mercado Global', value: 'Data Coverage: 80%+' },
+  '00': { label: 'Mercado Global', value: 'Cobertura de dados: 80%+' },
 };
 
 interface TravaSliderCardProps {
