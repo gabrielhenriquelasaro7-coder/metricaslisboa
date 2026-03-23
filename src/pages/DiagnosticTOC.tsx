@@ -438,8 +438,8 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
   if (projects.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-muted/30 dark:bg-zinc-950/50 rounded-[2.5rem] border border-border border-dashed">
-        <div className="w-20 h-20 bg-black rounded-3xl flex items-center justify-center border border-white/5 shadow-2xl">
-          <FileText className="w-10 h-10 text-zinc-800" />
+        <div className="w-20 h-20 bg-card rounded-3xl flex items-center justify-center border border-border shadow-2xl">
+          <FileText className="w-10 h-10 text-muted-foreground" />
         </div>
         <div className="space-y-2">
           <h3 className="text-xl font-black text-white uppercase tracking-tight italic">Nenhum diagnóstico ainda</h3>
