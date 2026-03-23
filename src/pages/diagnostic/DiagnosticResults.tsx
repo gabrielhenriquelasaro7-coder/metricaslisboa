@@ -141,10 +141,9 @@ interface TravaSliderCardProps {
   pct: number;
   isRestriction: boolean;
   isSemiManual?: boolean;
-  realValue?: string | null;
 }
 
-function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction, isSemiManual, realValue }: TravaSliderCardProps) {
+function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction, isSemiManual }: TravaSliderCardProps) {
   const dotColor = isBottleneck || status === 'critico'
     ? 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]'
     : status === 'na_media'
