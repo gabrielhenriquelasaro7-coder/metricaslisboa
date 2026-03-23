@@ -745,6 +745,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                   <tr>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest">Trava</th>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest">Nº</th>
+                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest">Categoria</th>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-center">Status</th>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-center">Mercado</th>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-right">Benchmark</th>
