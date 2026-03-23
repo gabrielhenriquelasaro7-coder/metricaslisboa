@@ -157,14 +157,15 @@ ${hasMarketConstraint && market.som > 0 && business?.revenue && (business.revenu
 
 Analise de Trava 07 → Trava 01 e identifique o gargalo principal. Correlacione com o contexto da empresa.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": "https://metricaslisboa.lovable.app",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.0-flash-001",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
