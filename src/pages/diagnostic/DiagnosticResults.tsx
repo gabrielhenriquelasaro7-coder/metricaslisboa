@@ -420,19 +420,11 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       }
 
       // Table header
+      drawSectionHeader('Benchmarks vs Real', RED);
+      const tableStartY = y - 4; // track for border
       const colWidths = [contentW * 0.30, contentW * 0.20, contentW * 0.25, contentW * 0.25];
       const colStarts = [margin];
       for (let i = 1; i < colWidths.length; i++) colStarts.push(colStarts[i - 1] + colWidths[i - 1]);
-
-      doc.setFillColor(RED.r, RED.g, RED.b);
-      doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, 'F');
-      doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('TRAVA', colStarts[0] + 4, y + 5.5);
-      doc.text('CATEGORIA', colStarts[1] + 4, y + 5.5);
-      doc.text('STATUS', colStarts[2] + 4, y + 5.5);
-      doc.text('BENCHMARK', colStarts[3] + 4, y + 5.5);
-      y += 9;
 
       // Table rows
       ai.stage_scores.forEach((score, idx) => {
