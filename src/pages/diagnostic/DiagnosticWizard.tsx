@@ -704,7 +704,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               <div className="p-5 bg-muted/30 dark:bg-black/50 border border-border rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-emerald-600/10 text-emerald-500 border-none text-[8px] font-black">SOM</Badge>
-                  <span className="text-[10px] text-zinc-400 font-bold uppercase">Serviceable Obtainable Market</span>
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase">Serviceable Obtainable Market</span>
                 </div>
                 <p className="text-[11px] text-zinc-500">Qual sua capacidade comercial real? Considere: budget de marketing, tamanho da equipe, concorrência.</p>
                 <div className="relative">
