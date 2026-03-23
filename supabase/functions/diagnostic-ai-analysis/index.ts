@@ -141,6 +141,13 @@ ${JSON.stringify(funnel || {}, null, 2)}
 ${!hasFunnelData ? 'ATENÇÃO: O usuário NÃO preencheu NENHUM dado do funil. Aplique a regra de CEGUEIRA.' : ''}
 ${hasMarketConstraint && market.som > 0 && business?.revenue && (business.revenueType === 'anual' ? business.revenue : business.revenue * 12) > market.som ? 'ATENÇÃO: A meta de faturamento anual EXCEDE o SOM. Considere TRAVA DE MERCADO.' : ''}
 
+REGRA IMPORTANTE SOBRE TRAVAS "NÃO SE APLICA":
+Se uma trava possui o campo "_nao_aplica": true nos dados do funil, isso significa que o usuário declarou que essa trava NÃO SE APLICA ao modelo de negócio dele (ex: retenção/recompra em produtos high-ticket únicos). 
+- NÃO marque essas travas como "sem_dados" ou "cegueira"
+- Atribua status "sem_dados" para elas mas NÃO as considere como candidatas a restrição ativa
+- Na observação, escreva "Trava marcada como não aplicável pelo usuário — excluída da análise de restrição"
+- NUNCA identifique uma trava marcada como _nao_aplica como a restrição ativa do sistema
+
 IMPORTANTE: Use os dados REAIS fornecidos acima para preencher valor_informado em cada stage_score. Formate os valores de forma legível. Compare com benchmarks do segmento "${identification?.segment || 'geral'}". Seja ESPECÍFICO e PROFUNDO na análise.
 
 Analise de Trava 07 → Trava 01 (fundo para topo, seguindo a lógica TOC) e identifique o gargalo principal. Correlacione com o contexto da empresa. Lembre-se: Trava 01 = topo (Impressões), Trava 07 = fundo (Retenção/Recompra).`;

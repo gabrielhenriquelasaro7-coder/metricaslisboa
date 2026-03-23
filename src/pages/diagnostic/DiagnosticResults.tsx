@@ -32,6 +32,7 @@ const STATUS_LABELS: Record<string, string> = {
   na_media: 'ATENÇÃO',
   bom: 'SAUDÁVEL',
   sem_dados: 'SEM DADOS',
+  nao_aplica: 'N/A',
 };
 
 // Mapeamento oficial das travas (01=topo, 07=fundo)
@@ -141,30 +142,37 @@ interface TravaSliderCardProps {
   pct: number;
   isRestriction: boolean;
   isSemiManual?: boolean;
+  isNaoAplica?: boolean;
+  showMissingAlert?: boolean;
 }
 
-function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction, isSemiManual }: TravaSliderCardProps) {
-  const dotColor = isBottleneck || status === 'critico'
+function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction, isSemiManual, isNaoAplica, showMissingAlert }: TravaSliderCardProps) {
+  const effectiveStatus = isNaoAplica ? 'nao_aplica' : status;
+
+  const dotColor = isBottleneck || effectiveStatus === 'critico'
     ? 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]'
-    : status === 'na_media'
+    : effectiveStatus === 'na_media'
       ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)]'
-      : status === 'bom'
+      : effectiveStatus === 'bom'
         ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]'
         : 'bg-muted-foreground/50';
 
-  const tagColor = isSemiManual ? "text-amber-500 border-amber-500/20" :
-    isBottleneck || status === 'critico' ? "text-red-500 border-red-500/20" :
-    status === 'bom' ? "text-emerald-500 border-emerald-500/20" :
-    status === 'na_media' ? "text-amber-500 border-amber-500/20" : "text-muted-foreground border-border";
+  const tagColor = isNaoAplica ? "text-blue-400 border-blue-400/20" :
+    isSemiManual ? "text-amber-500 border-amber-500/20" :
+    isBottleneck || effectiveStatus === 'critico' ? "text-red-500 border-red-500/20" :
+    effectiveStatus === 'bom' ? "text-emerald-500 border-emerald-500/20" :
+    effectiveStatus === 'na_media' ? "text-amber-500 border-amber-500/20" : "text-muted-foreground border-border";
 
-  const tagLabel = isSemiManual ? 'Semi-Manual' : isBottleneck ? 'CRÍTICO' : (STATUS_LABELS[status] || 'SEM DADOS');
+  const tagLabel = isNaoAplica ? 'N/A' : isSemiManual ? 'Semi-Manual' : isBottleneck ? 'CRÍTICO' : (STATUS_LABELS[effectiveStatus] || 'SEM DADOS');
 
   return (
     <div className={cn(
       "relative space-y-4 p-5 rounded-[1.5rem] transition-all duration-500 border shadow-xl",
       isRestriction
         ? "bg-red-50/50 dark:bg-zinc-900/40 border-red-500/30 shadow-[0_0_20px_rgba(220,38,38,0.1)]"
-        : "bg-white dark:bg-black/30 border-border dark:border-white/5"
+        : isNaoAplica
+          ? "bg-muted/30 dark:bg-zinc-900/20 border-border/50 opacity-60"
+          : "bg-white dark:bg-black/30 border-border dark:border-white/5"
     )}>
       <div className="flex justify-between items-start">
         <div className="space-y-1">
@@ -188,15 +196,30 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
       </div>
 
       <div className="pt-2">
-        <div className="relative h-3 w-full rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner" style={{ touchAction: 'none' }}>
-          {status !== 'sem_dados' && (
-            <div
-              className={cn("absolute w-5 h-5 rounded-full border-2 border-white z-10 -translate-x-1/2 pointer-events-none transition-all", dotColor)}
-              style={{ left: `${pct}%` }}
-            />
-          )}
-        </div>
+        {isNaoAplica ? (
+          <div className="h-3 w-full rounded-full bg-muted/50 shadow-inner" />
+        ) : (
+          <div className="relative h-3 w-full rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner" style={{ touchAction: 'none' }}>
+            {effectiveStatus !== 'sem_dados' && (
+              <div
+                className={cn("absolute w-5 h-5 rounded-full border-2 border-white z-10 -translate-x-1/2 pointer-events-none transition-all", dotColor)}
+                style={{ left: `${pct}%` }}
+              />
+            )}
+          </div>
+        )}
       </div>
+
+      {isNaoAplica && (
+        <p className="text-[10px] text-blue-400/70 font-bold">Não aplicável a este modelo de negócio</p>
+      )}
+
+      {showMissingAlert && !isNaoAplica && (
+        <div className="flex items-center gap-1.5 text-amber-500">
+          <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+          <span className="text-[11px] font-bold">Dados não preenchidos — preencha para análise mais precisa</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -502,7 +525,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
     const normalizedTrava = normalizeTravaId(score.trava);
     const isBottleneck = normalizedTrava === activeTrava;
     const pct = getDisplayPercent(score, isBottleneck);
-    const benchVal = BENCHMARK_DEFAULTS[normalizedTrava] || '—';
+    const travaKey = `trava${normalizedTrava}` as keyof typeof project.funnelData;
+    const funnelEntry = project.funnelData?.[travaKey];
+    const isNaoAplica = funnelEntry && typeof funnelEntry === 'object' && (funnelEntry as any)._nao_aplica === true;
+    const showMissingAlert = score.status === 'sem_dados' && !isNaoAplica;
 
     return (
       <TravaSliderCard
@@ -510,9 +536,11 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         trava={normalizedTrava}
         nome={getTravaName(normalizedTrava)}
         status={score.status}
-        isBottleneck={isBottleneck}
+        isBottleneck={isBottleneck && !isNaoAplica}
         pct={pct}
-        isRestriction={isBottleneck}
+        isRestriction={isBottleneck && !isNaoAplica}
+        isNaoAplica={isNaoAplica || false}
+        showMissingAlert={showMissingAlert}
       />
     );
   };
