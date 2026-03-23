@@ -647,7 +647,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 pct={getDisplayPercent(score, false)}
                 isRestriction={false}
                 isSemiManual
-                realValue={score.valor_informado || undefined}
+                
               />
             ))}
         </div>
