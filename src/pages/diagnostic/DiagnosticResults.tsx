@@ -36,15 +36,27 @@ const STATUS_LABELS: Record<string, string> = {
   sem_dados: 'SEM DADOS',
 };
 
+// Proper TOC naming for travas
+const TRAVA_NAMES: Record<string, string> = {
+  '01': 'Exposição',
+  '02': 'Atenção',
+  '03': 'Interesse',
+  '04': 'Qualificação',
+  '05': 'Compromisso',
+  '06': 'Decisão',
+  '07': 'Retenção',
+  '00': 'Cegueira',
+};
+
 // Bowtie stages: Retenção (07, left/wide) → Exposição (01, right/wide) — funnel perspective
 const BOWTIE_STAGES = [
-  { trava: '07', label: 'Retenção',     clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)',           leftBar: '0%',  rightBar: '10%' },
-  { trava: '06', label: 'Decisão',      clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '20%' },
-  { trava: '05', label: 'Compromisso',  clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '30%' },
-  { trava: '04', label: 'Qualificação', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '30%' },
-  { trava: '03', label: 'Interesse',    clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '20%' },
-  { trava: '02', label: 'Atenção',      clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '10%' },
-  { trava: '01', label: 'Exposição',    clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '0%' },
+  { trava: '07', clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)',           leftBar: '0%',  rightBar: '10%' },
+  { trava: '06', clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '20%' },
+  { trava: '05', clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '30%' },
+  { trava: '04', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '30%' },
+  { trava: '03', clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '20%' },
+  { trava: '02', clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '10%' },
+  { trava: '01', clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '0%' },
 ];
 
 function getStageColor(status: string, isBottleneck: boolean) {
