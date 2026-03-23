@@ -431,6 +431,7 @@ export default function DiagnosticTOC() {
                     project={currentProject}
                     onSave={(p) => {
                       saveProject(p);
+                      setCurrentProject(p);
                       setMode('results');
                     }}
                     onCancel={() => setMode('list')}
