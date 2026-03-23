@@ -32,6 +32,7 @@ const STATUS_LABELS: Record<string, string> = {
   na_media: 'ATENÇÃO',
   bom: 'SAUDÁVEL',
   sem_dados: 'SEM DADOS',
+  nao_aplica: 'N/A',
 };
 
 // Mapeamento oficial das travas (01=topo, 07=fundo)
