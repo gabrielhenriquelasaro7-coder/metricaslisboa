@@ -794,7 +794,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                         return (
                           <div key={field.key} className="space-y-2">
                             <div className="flex items-center gap-2">
-                              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
                                 {field.label}
                               </Label>
                               {isAuto && (
