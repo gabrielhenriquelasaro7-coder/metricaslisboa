@@ -370,13 +370,13 @@ const METRIC_META: Record<
 };
 
 export const BENCHMARK_STAGES: { id: BenchmarkStageId; label: string }[] = [
-  { id: 'exposicao', label: '07 · Exposição' },
-  { id: 'atencao', label: '06 · Atenção' },
-  { id: 'interesse', label: '05 · Interesse' },
+  { id: 'exposicao', label: '01 · Exposição' },
+  { id: 'atencao', label: '02 · Atenção' },
+  { id: 'interesse', label: '03 · Interesse' },
   { id: 'qualificacao', label: '04 · Qualificação' },
-  { id: 'compromisso', label: '03 · Compromisso' },
-  { id: 'decisao', label: '02 · Decisão' },
-  { id: 'retencao', label: '01 · Retenção' },
+  { id: 'compromisso', label: '05 · Compromisso' },
+  { id: 'decisao', label: '06 · Decisão' },
+  { id: 'retencao', label: '07 · Retenção' },
 ];
 
 export function createDefaultBenchmarkConfigFromSeed(): BenchmarkConfig {

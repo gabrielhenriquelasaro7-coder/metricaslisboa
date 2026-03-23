@@ -21,13 +21,13 @@ import { cn } from '@/lib/utils';
 
 // ─── Dados das 8 Travas ─────────────────────────────────────────────────────
 const TRAVAS = [
-    { id: '07', icon: <Radio className="w-6 h-6" />, title: 'Exposição', desc: 'Ninguém vê — alcance insuficiente no ICP', color: 'border-red-900/20 bg-red-900/5', badge: 'text-red-600 bg-red-900/10' },
-    { id: '06', icon: <EyeOff className="w-6 h-6" />, title: 'Atenção', desc: 'Vê mas não liga — atenção não capturada', color: 'border-orange-600/20 bg-orange-600/5', badge: 'text-orange-500 bg-orange-600/10' },
-    { id: '05', icon: <MousePointerClick className="w-6 h-6" />, title: 'Interesse', desc: 'Clica mas não vira lead — interesse sem conversão', color: 'border-amber-600/20 bg-amber-600/5', badge: 'text-amber-500 bg-amber-600/10' },
+    { id: '01', icon: <Radio className="w-6 h-6" />, title: 'Exposição', desc: 'Ninguém vê — alcance insuficiente no ICP', color: 'border-red-900/20 bg-red-900/5', badge: 'text-red-600 bg-red-900/10' },
+    { id: '02', icon: <EyeOff className="w-6 h-6" />, title: 'Atenção', desc: 'Vê mas não liga — atenção não capturada', color: 'border-orange-600/20 bg-orange-600/5', badge: 'text-orange-500 bg-orange-600/10' },
+    { id: '03', icon: <MousePointerClick className="w-6 h-6" />, title: 'Interesse', desc: 'Clica mas não vira lead — interesse sem conversão', color: 'border-amber-600/20 bg-amber-600/5', badge: 'text-amber-500 bg-amber-600/10' },
     { id: '04', icon: <Target className="w-6 h-6" />, title: 'Qualificação', desc: 'Vira lead mas não serve — qualificação fraca', color: 'border-yellow-600/20 bg-yellow-600/5', badge: 'text-yellow-500 bg-yellow-600/10' },
-    { id: '03', icon: <Handshake className="w-6 h-6" />, title: 'Compromisso', desc: 'Abandona / no-show — compromisso perdido', color: 'border-amber-700/20 bg-amber-700/5', badge: 'text-amber-500 bg-amber-700/10' },
-    { id: '02', icon: <FileX className="w-6 h-6" />, title: 'Decisão', desc: 'Chega no fim e não compra — decisão travada', color: 'border-orange-800/20 bg-orange-800/5', badge: 'text-orange-600 bg-orange-800/10' },
-    { id: '01', icon: <UserMinus className="w-6 h-6" />, title: 'Retenção', desc: 'Compra e não fica — retenção deficiente', color: 'border-red-600/20 bg-red-600/5', badge: 'text-red-500 bg-red-600/10' },
+    { id: '05', icon: <Handshake className="w-6 h-6" />, title: 'Compromisso', desc: 'Abandona / no-show — compromisso perdido', color: 'border-amber-700/20 bg-amber-700/5', badge: 'text-amber-500 bg-amber-700/10' },
+    { id: '06', icon: <FileX className="w-6 h-6" />, title: 'Decisão', desc: 'Chega no fim e não compra — decisão travada', color: 'border-orange-800/20 bg-orange-800/5', badge: 'text-orange-600 bg-orange-800/10' },
+    { id: '07', icon: <UserMinus className="w-6 h-6" />, title: 'Retenção', desc: 'Compra e não fica — retenção deficiente', color: 'border-red-600/20 bg-red-600/5', badge: 'text-red-500 bg-red-600/10' },
     { id: '00', icon: <SearchX className="w-6 h-6" />, title: 'Cegueira', desc: 'Não há dados confiáveis — cegueira operacional', color: 'border-zinc-700/20 bg-zinc-700/5', badge: 'text-zinc-400 bg-zinc-700/10' },
 ];
 

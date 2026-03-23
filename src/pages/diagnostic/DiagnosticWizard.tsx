@@ -61,11 +61,11 @@ interface TravaConfig {
 }
 
 function getTravaConfigs(model: BusinessModel): TravaConfig[] {
-  const common07: FunnelField[] = [
+  const common01: FunnelField[] = [
     { key: 'impressions', label: 'Volume de Impressões', unit: 'número', placeholder: '150000', help: 'Total de impressões no período' },
     { key: 'cpm', label: 'CPM (R$)', unit: 'R$', placeholder: '18.00', help: 'Custo por mil impressões' },
   ];
-  const common06: FunnelField[] = [
+  const common02: FunnelField[] = [
     { key: 'ctr', label: 'CTR (%)', unit: '%', placeholder: '6.23', help: 'Click-through rate' },
     { key: 'clicks', label: 'Cliques', unit: 'número', placeholder: '9300', help: 'Total de cliques' },
     { key: 'cpc', label: 'CPC (R$)', unit: 'R$', placeholder: '5.70', help: 'Custo por clique' },
@@ -74,9 +74,9 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
   switch (model) {
     case 'ecommerce':
       return [
-        { id: 'trava07', label: 'Trava 07 — Exposição', description: 'Volume de impressões e custo de alcance', fields: common07 },
-        { id: 'trava06', label: 'Trava 06 — Atenção', description: 'CTR, Cliques e CPC', fields: common06 },
-        { id: 'trava05', label: 'Trava 05 — Interesse', description: 'Leads, CPL e conversão', fields: [
+        { id: 'trava01', label: 'Trava 01 — Exposição', description: 'Volume de impressões e custo de alcance', fields: common01 },
+        { id: 'trava02', label: 'Trava 02 — Atenção', description: 'CTR, Cliques e CPC', fields: common02 },
+        { id: 'trava03', label: 'Trava 03 — Interesse', description: 'Leads, CPL e conversão', fields: [
           { key: 'leads', label: 'Leads / Visitantes', unit: 'número', placeholder: '5000', help: 'Visitantes únicos ou leads gerados' },
           { key: 'cpl', label: 'CPL (R$)', unit: 'R$', placeholder: '12.00', help: 'Custo por lead / visitante' },
           { key: 'conversion_rate', label: 'Taxa de Conversão (%)', unit: '%', placeholder: '3.5', help: 'Visitantes → ação' },
@@ -85,15 +85,15 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
           { key: 'mql', label: 'MQL / Add to Cart', unit: 'número', placeholder: '800', help: 'Produtos adicionados ao carrinho' },
           { key: 'qualification_rate', label: 'Taxa de Qualificação (%)', unit: '%', placeholder: '16', help: '% dos visitantes que adicionam ao carrinho' },
         ]},
-        { id: 'trava03', label: 'Trava 03 — Checkout', description: 'Iniciaram checkout', fields: [
+        { id: 'trava05', label: 'Trava 05 — Checkout', description: 'Iniciaram checkout', fields: [
           { key: 'checkouts', label: 'Checkouts Iniciados', unit: 'número', placeholder: '320', help: 'Quantos iniciaram o checkout' },
           { key: 'checkout_rate', label: 'Taxa de Checkout (%)', unit: '%', placeholder: '40', help: '% do carrinho que inicia checkout' },
         ]},
-        { id: 'trava02', label: 'Trava 02 — Pedido', description: 'Pedidos realizados', fields: [
+        { id: 'trava06', label: 'Trava 06 — Pedido', description: 'Pedidos realizados', fields: [
           { key: 'orders', label: 'Pedidos Realizados', unit: 'número', placeholder: '180', help: 'Vendas efetivadas' },
           { key: 'order_rate', label: 'Taxa de Conversão Checkout→Pedido (%)', unit: '%', placeholder: '56', help: '% dos checkouts finalizados' },
         ]},
-        { id: 'trava01', label: 'Trava 01 — Recompra', description: 'Retenção e recompra', fields: [
+        { id: 'trava07', label: 'Trava 07 — Recompra', description: 'Retenção e recompra', fields: [
           { key: 'repurchase_rate', label: 'Taxa de Recompra (%)', unit: '%', placeholder: '25', help: '% de clientes que compram novamente' },
           { key: 'ltv', label: 'LTV Médio (R$)', unit: 'R$', placeholder: '450', help: 'Valor vitalício do cliente' },
         ]},
@@ -101,9 +101,9 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
 
     case 'inside_sales':
       return [
-        { id: 'trava07', label: 'Trava 07 — Exposição', description: 'Volume de impressões e CPM', fields: common07 },
-        { id: 'trava06', label: 'Trava 06 — Atenção', description: 'CTR, Cliques e CPC', fields: common06 },
-        { id: 'trava05', label: 'Trava 05 — Interesse', description: 'Leads, CPL e conversão', fields: [
+        { id: 'trava01', label: 'Trava 01 — Exposição', description: 'Volume de impressões e CPM', fields: common01 },
+        { id: 'trava02', label: 'Trava 02 — Atenção', description: 'CTR, Cliques e CPC', fields: common02 },
+        { id: 'trava03', label: 'Trava 03 — Interesse', description: 'Leads, CPL e conversão', fields: [
           { key: 'leads', label: 'Total de Leads', unit: 'número', placeholder: '350', help: 'Leads gerados no período' },
           { key: 'cpl', label: 'CPL (R$)', unit: 'R$', placeholder: '85.00', help: 'Custo por lead' },
           { key: 'conversion_rate', label: 'Taxa de Conversão (%)', unit: '%', placeholder: '6.6', help: 'Visitantes → lead' },
@@ -112,17 +112,17 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
           { key: 'mql', label: 'MQL (Marketing Qualified Leads)', unit: 'número', placeholder: '88', help: 'Leads qualificados' },
           { key: 'qualification_rate', label: 'Taxa Lead→MQL (%)', unit: '%', placeholder: '25', help: '% dos leads que se qualificam' },
         ]},
-        { id: 'trava03', label: 'Trava 03 — Compromisso', description: 'Reuniões e visitas', fields: [
+        { id: 'trava05', label: 'Trava 05 — Compromisso', description: 'Reuniões e visitas', fields: [
           { key: 'meetings_scheduled', label: 'Reuniões Agendadas', unit: 'número', placeholder: '60', help: 'Total de reuniões marcadas' },
           { key: 'meetings_done', label: 'Reuniões Realizadas', unit: 'número', placeholder: '42', help: 'Total de reuniões feitas' },
           { key: 'no_show_rate', label: 'Taxa de No-Show (%)', unit: '%', placeholder: '30', help: '% de faltas' },
         ]},
-        { id: 'trava02', label: 'Trava 02 — Decisão', description: 'Fechamento de propostas', fields: [
+        { id: 'trava06', label: 'Trava 06 — Decisão', description: 'Fechamento de propostas', fields: [
           { key: 'proposals', label: 'Propostas Enviadas', unit: 'número', placeholder: '35', help: 'Total de propostas' },
           { key: 'wins', label: 'Vendas Fechadas', unit: 'número', placeholder: '9', help: 'Propostas aceitas' },
           { key: 'win_rate', label: 'Win Rate (%)', unit: '%', placeholder: '25', help: '% de fechamento' },
         ]},
-        { id: 'trava01', label: 'Trava 01 — Retenção', description: 'Churn e recompra', fields: [
+        { id: 'trava07', label: 'Trava 07 — Retenção', description: 'Churn e recompra', fields: [
           { key: 'churn_rate', label: 'Churn Mensal (%)', unit: '%', placeholder: '3', help: '% de cancelamento mensal' },
           { key: 'repurchase_rate', label: 'Taxa de Recompra (%)', unit: '%', placeholder: '20', help: '% de recompra' },
         ]},
@@ -130,15 +130,15 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
 
     case 'pdv':
       return [
-        { id: 'trava07', label: 'Trava 07 — Exposição', description: 'Impressões ou fluxo de pessoas', fields: [
+        { id: 'trava01', label: 'Trava 01 — Exposição', description: 'Impressões ou fluxo de pessoas', fields: [
           { key: 'impressions', label: 'Impressões Online OU Pessoas que passam', unit: 'número', placeholder: '50000', help: 'Estimativa de fluxo ou impressões' },
           { key: 'cpm', label: 'CPM (R$) — se aplicável', unit: 'R$', placeholder: '15.00', help: 'Custo por mil, se usar mídia online' },
         ]},
-        { id: 'trava06', label: 'Trava 06 — Entrada', description: 'Pessoas que entram na loja', fields: [
+        { id: 'trava02', label: 'Trava 02 — Entrada', description: 'Pessoas que entram na loja', fields: [
           { key: 'store_visitors', label: 'Pessoas que entram na loja', unit: 'número', placeholder: '3000', help: 'Visitantes físicos na loja' },
           { key: 'entry_rate', label: 'Taxa de Entrada (%)', unit: '%', placeholder: '6', help: '% do fluxo que entra' },
         ]},
-        { id: 'trava05', label: 'Trava 05 — Interesse', description: 'Leads e conversão', fields: [
+        { id: 'trava03', label: 'Trava 03 — Interesse', description: 'Leads e conversão', fields: [
           { key: 'leads', label: 'Leads / Interessados', unit: 'número', placeholder: '500', help: 'Pessoas que demonstraram interesse' },
           { key: 'cpl', label: 'CPL (R$)', unit: 'R$', placeholder: '25.00', help: 'Custo por lead' },
           { key: 'add_to_cart', label: 'Add to Cart / Experimentação', unit: 'número', placeholder: '300', help: 'Pessoas que experimentaram/escolheram' },
@@ -147,12 +147,12 @@ function getTravaConfigs(model: BusinessModel): TravaConfig[] {
           { key: 'mql', label: 'MQL (Qualificados)', unit: 'número', placeholder: '200', help: 'Interessados qualificados' },
           { key: 'qualification_rate', label: 'Taxa de Qualificação (%)', unit: '%', placeholder: '40', help: '% dos interessados que qualificam' },
         ]},
-        // Trava 03 = NULL for PDV
-        { id: 'trava02', label: 'Trava 02 — Venda', description: 'Vendas realizadas', fields: [
+        // Trava 05 = NULL for PDV
+        { id: 'trava06', label: 'Trava 06 — Venda', description: 'Vendas realizadas', fields: [
           { key: 'sales', label: 'Vendas Realizadas', unit: 'número', placeholder: '120', help: 'Total de vendas' },
           { key: 'conversion_rate', label: 'Taxa de Conversão (%)', unit: '%', placeholder: '60', help: '% dos qualificados que compram' },
         ]},
-        { id: 'trava01', label: 'Trava 01 — Recompra', description: 'Retenção e recompra', fields: [
+        { id: 'trava07', label: 'Trava 07 — Recompra', description: 'Retenção e recompra', fields: [
           { key: 'repurchase_rate', label: 'Taxa de Recompra (%)', unit: '%', placeholder: '35', help: '% de recompra' },
           { key: 'frequency', label: 'Frequência Mensal', unit: 'vezes', placeholder: '2.5', help: 'Vezes que o cliente volta por mês' },
         ]},
@@ -273,36 +273,36 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
       setFunnelData(prev => {
         const updated = { ...prev };
 
-        // Trava 07 - Exposição
-        if (totalImpressions > 0) {
-          updated.trava07 = {
-            ...updated.trava07,
-            impressions: Math.round(totalImpressions),
-            cpm: parseFloat(cpm.toFixed(2)),
-          };
-          newAutoFields['trava07'] = new Set(['impressions', 'cpm']);
-        }
+      // Trava 01 - Exposição
+      if (totalImpressions > 0) {
+        updated.trava01 = {
+          ...updated.trava01,
+          impressions: Math.round(totalImpressions),
+          cpm: parseFloat(cpm.toFixed(2)),
+        };
+        newAutoFields['trava01'] = new Set(['impressions', 'cpm']);
+      }
 
-        // Trava 06 - Atenção
-        if (totalClicks > 0) {
-          updated.trava06 = {
-            ...updated.trava06,
-            ctr: parseFloat(ctr.toFixed(2)),
-            clicks: Math.round(totalClicks),
-            cpc: parseFloat(cpc.toFixed(2)),
-          };
-          newAutoFields['trava06'] = new Set(['ctr', 'clicks', 'cpc']);
-        }
+      // Trava 02 - Atenção
+      if (totalClicks > 0) {
+        updated.trava02 = {
+          ...updated.trava02,
+          ctr: parseFloat(ctr.toFixed(2)),
+          clicks: Math.round(totalClicks),
+          cpc: parseFloat(cpc.toFixed(2)),
+        };
+        newAutoFields['trava02'] = new Set(['ctr', 'clicks', 'cpc']);
+      }
 
-        // Trava 05 - Interesse (leads + CPL)
-        if (totalLeads > 0) {
-          updated.trava05 = {
-            ...updated.trava05,
-            leads: Math.round(totalLeads),
-            cpl: parseFloat(cpl.toFixed(2)),
-          };
-          newAutoFields['trava05'] = new Set(['leads', 'cpl']);
-        }
+      // Trava 03 - Interesse (leads + CPL)
+      if (totalLeads > 0) {
+        updated.trava03 = {
+          ...updated.trava03,
+          leads: Math.round(totalLeads),
+          cpl: parseFloat(cpl.toFixed(2)),
+        };
+        newAutoFields['trava03'] = new Set(['leads', 'cpl']);
+      }
 
         return updated;
       });
@@ -320,7 +320,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
   // Auto-fetch on mount if project has systemProjectId
   useEffect(() => {
     const systemProjectId = (initialProject as any).systemProjectId || (initialProject as any).projectId;
-    if (systemProjectId && !initialProject.funnelData?.trava07?.impressions) {
+    if (systemProjectId && !initialProject.funnelData?.trava01?.impressions) {
       fetchProjectMetrics();
     }
   }, []);

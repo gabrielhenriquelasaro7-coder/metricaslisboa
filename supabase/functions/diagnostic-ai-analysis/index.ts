@@ -18,29 +18,29 @@ serve(async (req) => {
 
     const travaStructures: Record<string, string> = {
       ecommerce: `
-Trava 07: Volume de impressões, CPM
-Trava 06: CTR, Cliques, CPC
-Trava 05: Lead, CPL, Taxa de Conversão, Visitantes
-Trava 04: Taxa de Qualificação, MQL, Add to Cart
-Trava 03: Checkout
-Trava 02: Pedido Realizado
-Trava 01: Recompra`,
+Trava 01: Volume de impressões, CPM (TOPO DO FUNIL — Alcance)
+Trava 02: CTR, Cliques, CPC (Atenção)
+Trava 03: Lead, CPL, Taxa de Conversão, Visitantes (Interesse)
+Trava 04: Taxa de Qualificação, MQL, Add to Cart (Qualificação)
+Trava 05: Checkout (Compromisso)
+Trava 06: Pedido Realizado (Decisão/Fechamento)
+Trava 07: Recompra (FUNDO DO FUNIL — Retenção)`,
       inside_sales: `
-Trava 07: Volume de impressões, CPM
-Trava 06: CTR, Cliques, CPC
-Trava 05: Lead, CPL, Taxa de Conversão
-Trava 04: Taxa de Qualificação, MQL
-Trava 03: Reunião / Visita / Coleta de Informação
-Trava 02: Fechamento da Proposta
-Trava 01: Churn, Recompra`,
+Trava 01: Volume de impressões, CPM (TOPO DO FUNIL — Alcance)
+Trava 02: CTR, Cliques, CPC (Atenção)
+Trava 03: Lead, CPL, Taxa de Conversão (Interesse)
+Trava 04: Taxa de Qualificação, MQL (Qualificação)
+Trava 05: Reunião / Visita / Coleta de Informação (Compromisso)
+Trava 06: Fechamento da Proposta (Decisão)
+Trava 07: Churn, Recompra (FUNDO DO FUNIL — Retenção)`,
       pdv: `
-Trava 07: Volume de impressões OU volume de pessoas que passam na rua (estimativa)
-Trava 06: Número de pessoas que entram na loja
-Trava 05: Lead, CPL, Taxa de Conversão, Add to Cart
-Trava 04: Taxa de Qualificação, MQL
-Trava 03: NULL (não se aplica)
-Trava 02: Venda
-Trava 01: Recompra`,
+Trava 01: Volume de impressões OU volume de pessoas que passam na rua (TOPO DO FUNIL — Alcance)
+Trava 02: Número de pessoas que entram na loja (Atenção)
+Trava 03: Lead, CPL, Taxa de Conversão, Add to Cart (Interesse)
+Trava 04: Taxa de Qualificação, MQL (Qualificação)
+Trava 05: NULL (não se aplica no PDV)
+Trava 06: Venda (Decisão/Fechamento)
+Trava 07: Recompra (FUNDO DO FUNIL — Retenção)`,
     };
 
     const travaStructure = travaStructures[businessModel] || travaStructures.inside_sales;
@@ -58,8 +58,17 @@ Trava 01: Recompra`,
 
 Sua tarefa é analisar os dados fornecidos e identificar a TRAVA (gargalo/bottleneck) do funil usando análise rigorosa de causa e efeito.
 
-REGRAS CRÍTICAS:
-1. A análise é SEMPRE da maior para a menor (Trava 07 → Trava 01).
+REGRAS CRÍTICAS DE NUMERAÇÃO:
+- Trava 01 = TOPO DO FUNIL (Alcance / Impressões / CPM) — Categoria: ATENÇÃO
+- Trava 02 = Atenção (CTR / Cliques / CPC) — Categoria: INTERESSE
+- Trava 03 = Interesse (Lead / CPL / Taxa de Conversão) — Categoria: INTERESSE
+- Trava 04 = Qualificação (MQL / Taxa de Qualificação) — Categoria: INTERESSE
+- Trava 05 = Compromisso (Reunião / Checkout) — Categoria: COMPROMISSO
+- Trava 06 = Decisão / Fechamento (Proposta / Pedido / Venda) — Categoria: COMPROMISSO
+- Trava 07 = Retenção (Churn / Recompra) — Categoria: RETENÇÃO — FUNDO DO FUNIL
+
+REGRAS CRÍTICAS DE ANÁLISE:
+1. A análise SEMPRE percorre de Trava 07 → Trava 01 (do fundo para o topo). O PRIMEIRO gargalo encontrado nessa direção é a restrição do sistema.
 2. Você DEVE correlacionar o produto, empresa, mercado e segmento com as métricas para NÃO identificar trava errada.
 3. Se o usuário NÃO preencheu NENHUMA informação de uma determinada trava, retorne "Trava de Cegueira".
 4. Se TAM/SAM/SOM indicam que o mercado é a restrição (meta acima do SOM), retorne "Trava de Mercado".
@@ -134,7 +143,7 @@ ${hasMarketConstraint && market.som > 0 && business?.revenue && (business.revenu
 
 IMPORTANTE: Use os dados REAIS fornecidos acima para preencher valor_informado em cada stage_score. Formate os valores de forma legível. Compare com benchmarks do segmento "${identification?.segment || 'geral'}". Seja ESPECÍFICO e PROFUNDO na análise.
 
-Analise de Trava 07 → Trava 01 e identifique o gargalo principal. Correlacione com o contexto da empresa.`;
+Analise de Trava 07 → Trava 01 (fundo para topo, seguindo a lógica TOC) e identifique o gargalo principal. Correlacione com o contexto da empresa. Lembre-se: Trava 01 = topo (Impressões), Trava 07 = fundo (Retenção/Recompra).`;
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",

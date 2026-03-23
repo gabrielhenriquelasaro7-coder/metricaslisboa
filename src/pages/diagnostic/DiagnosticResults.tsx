@@ -34,7 +34,7 @@ const STATUS_LABELS: Record<string, string> = {
   sem_dados: 'SEM DADOS',
 };
 
-// Mapeamento oficial das travas
+// Mapeamento oficial das travas (01=topo, 07=fundo)
 const TRAVA_NAMES: Record<string, string> = {
   '01': 'Exposição',
   '02': 'Atenção',
@@ -46,17 +46,28 @@ const TRAVA_NAMES: Record<string, string> = {
   '00': 'Cegueira',
 };
 
+const TRAVA_CATEGORIES: Record<string, string> = {
+  '01': 'ATENÇÃO',
+  '02': 'INTERESSE',
+  '03': 'INTERESSE',
+  '04': 'INTERESSE',
+  '05': 'COMPROMISSO',
+  '06': 'COMPROMISSO',
+  '07': 'RETENÇÃO',
+  '00': 'CEGUEIRA',
+};
+
 const normalizeTravaId = (trava: string) => (trava === 'cegueira' ? '00' : trava);
 
-// Bowtie stages: 07 (churn/recompra) → 01 (volume de impressão)
+// Bowtie stages: 01 (topo/exposição) → 07 (fundo/retenção)
 const BOWTIE_STAGES = [
-  { trava: '07', clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)', leftBar: '0%', rightBar: '10%' },
-  { trava: '06', clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '20%' },
-  { trava: '05', clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '30%' },
-  { trava: '04', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '30%' },
-  { trava: '03', clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '20%' },
-  { trava: '02', clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '10%' },
   { trava: '01', clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '0%' },
+  { trava: '02', clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '10%' },
+  { trava: '03', clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '20%' },
+  { trava: '04', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '30%' },
+  { trava: '05', clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '30%' },
+  { trava: '06', clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '20%' },
+  { trava: '07', clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)', leftBar: '0%', rightBar: '10%' },
 ];
 
 function getStageColor(status: string, isBottleneck: boolean) {
@@ -78,24 +89,24 @@ function getStatusPercent(status: string): number {
 }
 
 const BENCHMARK_DEFAULTS: Record<string, string> = {
-  '07': '18.00%',
-  '06': '5.65%',
-  '05': '6.60%',
-  '04': '25.00%',
-  '03': '28.00%',
-  '02': '25.00%',
-  '01': '3.00%',
-  '00': '1.00%',
+  '01': 'CPM: R$18',
+  '02': 'CTR: 5.65%',
+  '03': 'CVR: 6.60%',
+  '04': 'MQL: 25%',
+  '05': 'Show: 72%',
+  '06': 'Win: 25%',
+  '07': 'Churn: 3%',
+  '00': 'Cobertura: 80%+',
 };
 
 const MARKET_BENCHMARKS: Record<string, { label: string; value: string }> = {
-  '07': { label: 'Mercado Global', value: 'Churn mensal: 3-7%' },
-  '06': { label: 'Mercado Global', value: 'Close Rate: 20-35%' },
-  '05': { label: 'Mercado Global', value: 'Show Rate: 60-80%' },
-  '04': { label: 'Mercado Global', value: 'MQL Rate: 15-30%' },
-  '03': { label: 'Mercado Global', value: 'Conv. Lead: 2-5%' },
-  '02': { label: 'Mercado Global', value: 'CTR médio: 1.5-3.5%' },
   '01': { label: 'Mercado Global', value: 'CPM médio: $5-15' },
+  '02': { label: 'Mercado Global', value: 'CTR médio: 1.5-3.5%' },
+  '03': { label: 'Mercado Global', value: 'Conv. Lead: 2-5%' },
+  '04': { label: 'Mercado Global', value: 'MQL Rate: 15-30%' },
+  '05': { label: 'Mercado Global', value: 'Show Rate: 60-80%' },
+  '06': { label: 'Mercado Global', value: 'Close Rate: 20-35%' },
+  '07': { label: 'Mercado Global', value: 'Churn mensal: 3-7%' },
   '00': { label: 'Mercado Global', value: 'Cobertura de dados: 80%+' },
 };
 
@@ -565,41 +576,35 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 flex-1 relative z-10">
-          {/* Vendas / CS Column */}
+          {/* Retenção + Compromisso Column */}
           <div className="space-y-5">
             <div className="flex items-center gap-2 text-red-600 mb-4 px-1">
               <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Vendas / CS</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Retenção / Compromisso</span>
             </div>
             {ai.stage_scores
-              .filter(s => ['07', '06', '05'].includes(s.trava))
-              .sort((a, b) => parseInt(b.trava) - parseInt(a.trava))
+              .filter(s => ['07', '06', '05'].includes(normalizeTravaId(s.trava)))
+              .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
               .map(score => renderTravaSlider(score))}
           </div>
 
-          {/* Marketing Column */}
+          {/* Interesse / Atenção Column */}
           <div className="space-y-5">
             <div className="flex items-center gap-2 text-amber-500 mb-4 px-1">
               <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Marketing</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Interesse / Atenção</span>
             </div>
             {ai.stage_scores
-              .filter(s => ['04', '03', '02'].includes(s.trava))
-              .sort((a, b) => parseInt(b.trava) - parseInt(a.trava))
+              .filter(s => ['04', '03', '02', '01'].includes(normalizeTravaId(s.trava)))
+              .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
               .map(score => renderTravaSlider(score))}
           </div>
         </div>
 
-        {/* Bottom: Topo de Funil (01, 00) */}
+        {/* Bottom: Cegueira (00) */}
         <div className="mt-8 pt-6 border-t border-border relative z-10 space-y-5">
-          <div className="flex items-center gap-2 mb-2 px-1">
-            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-foreground">Topo de Funil</span>
-          </div>
           {ai.stage_scores
-            .filter(s => s.trava === '01')
-            .map(score => renderTravaSlider(score))}
-          {ai.stage_scores
-            .filter(s => s.trava === 'cegueira' || s.trava === '00')
+            .filter(s => s.trava === 'cegueira' || normalizeTravaId(s.trava) === '00')
             .map(score => (
               <TravaSliderCard
                 key={score.trava}
@@ -608,7 +613,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 status={score.status}
                 isBottleneck={false}
                 pct={getStatusPercent(score.status)}
-                benchVal="1.00%"
+                benchVal="Cobertura: 80%+"
                 isRestriction={false}
                 isSemiManual
                 marketBench={MARKET_BENCHMARKS['00']}
@@ -740,6 +745,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                   <tr>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest">Trava</th>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest">Nº</th>
+                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest">Categoria</th>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-center">Status</th>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-center">Mercado</th>
                     <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-right">Benchmark</th>
@@ -753,6 +759,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                       <tr key={score.trava} className={cn("hover:bg-muted/20 transition-colors", isGargalo && "bg-red-600/5")}>
                         <td className="px-5 py-3.5 font-black text-foreground">{getTravaName(score.trava)}</td>
                         <td className="px-5 py-3.5 text-muted-foreground font-mono text-[10px]">{nId}</td>
+                        <td className="px-5 py-3.5 text-muted-foreground text-[9px] font-bold uppercase tracking-widest">{TRAVA_CATEGORIES[nId] || '—'}</td>
                         <td className="px-5 py-3.5 text-center">
                           <span className={cn(
                             "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
