@@ -737,10 +737,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                           colors.text,
                           isBottleneck && "scale-110 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"
                         )}>
-                          {mainValue}
+                          {pct}%
                         </span>
                         <span className="text-[10px] font-bold text-muted-foreground/70 leading-none">
-                          {mainValue}%
+                          {BENCHMARK_DEFAULTS[stage.trava]?.split(':').pop()?.trim() || '—'}
                         </span>
                       </div>
                     </div>
