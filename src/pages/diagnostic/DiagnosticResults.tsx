@@ -198,9 +198,20 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, benchVal, isR
             style={{ left: `${pct}%` }}
           />
         </div>
-        <div className="flex flex-col items-end min-w-[100px]">
-          <span className="text-foreground font-black whitespace-nowrap text-sm text-right">{pct}% Real</span>
-          <span className="text-muted-foreground font-bold whitespace-nowrap text-xs text-right mt-0.5">{benchVal} Bench</span>
+        <div className="flex items-center gap-3 min-w-[180px]">
+          <div className="flex flex-col items-center px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+            <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Real</span>
+            <span className={cn(
+              "text-base font-black",
+              isBottleneck ? "text-red-500" :
+              status === 'critico' ? "text-red-500" :
+              status === 'na_media' ? "text-amber-500" : "text-emerald-500"
+            )}>{pct}%</span>
+          </div>
+          <div className="flex flex-col items-center px-3 py-1.5 rounded-lg bg-muted/50 border border-border">
+            <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Bench</span>
+            <span className="text-base font-black text-foreground">{benchVal.split(':').pop()?.trim() || benchVal}</span>
+          </div>
         </div>
       </div>
 
