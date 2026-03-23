@@ -459,7 +459,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   )}>
                     {isPast ? <CheckCircle2 className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
                   </div>
-                  <span className={cn("text-[9px] font-black uppercase tracking-widest", isActive ? "text-white" : "text-zinc-700")}>{step.label}</span>
+                  <span className={cn("text-[9px] font-black uppercase tracking-widest", isActive ? "text-foreground" : "text-muted-foreground")}>{step.label}</span>
                 </div>
                 {idx < STEPS.length - 1 && <div className="w-8 h-px bg-zinc-900 mx-2" />}
               </div>
