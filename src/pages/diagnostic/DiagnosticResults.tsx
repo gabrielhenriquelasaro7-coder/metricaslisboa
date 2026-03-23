@@ -575,10 +575,39 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           <Badge variant="outline" className="text-[9px] text-muted-foreground font-black px-4 py-1.5 rounded-full uppercase">{`Bench: ${project.segment}`}</Badge>
         </div>
 
-        <div className="space-y-5 flex-1 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 flex-1 relative z-10">
+          {/* Vendas / CS Column (07, 06, 05) */}
+          <div className="space-y-5">
+            <div className="flex items-center gap-2 text-red-600 mb-4 px-1">
+              <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Vendas / CS</span>
+            </div>
+            {ai.stage_scores
+              .filter(s => ['07', '06', '05'].includes(normalizeTravaId(s.trava)))
+              .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
+              .map(score => renderTravaSlider(score))}
+          </div>
+
+          {/* Marketing Column (04, 03, 02) */}
+          <div className="space-y-5">
+            <div className="flex items-center gap-2 text-amber-500 mb-4 px-1">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Marketing</span>
+            </div>
+            {ai.stage_scores
+              .filter(s => ['04', '03', '02'].includes(normalizeTravaId(s.trava)))
+              .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
+              .map(score => renderTravaSlider(score))}
+          </div>
+        </div>
+
+        {/* Bottom: Topo de Funil (01) */}
+        <div className="mt-8 pt-6 border-t border-border relative z-10 space-y-3">
+          <div className="flex items-center gap-2 text-foreground/60 mb-2 px-1">
+            <span className="text-[11px] font-black uppercase tracking-[0.25em]">Topo de Funil</span>
+          </div>
           {ai.stage_scores
-            .filter(s => normalizeTravaId(s.trava) !== '00')
-            .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
+            .filter(s => normalizeTravaId(s.trava) === '01')
             .map(score => renderTravaSlider(score))}
         </div>
 
