@@ -180,7 +180,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
     );
   }
 
-  const scoreMap = new Map(ai.stage_scores.map(s => [s.trava, s]));
+  const scoreMap = new Map(ai.stage_scores.map(s => [normalizeTravaId(s.trava), s]));
+  const activeTrava = normalizeTravaId(ai.trava_identificada);
 
   const handleExportPDF = () => {
     try {
@@ -192,7 +193,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       y += 10; doc.setFontSize(10); doc.setFont('helvetica', 'normal');
       doc.text(`Empresa: ${project.name} · Segmento: ${project.segment}`, w / 2, y, { align: 'center' });
       y += 12; doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(220, 38, 38);
-      doc.text(`TRAVA IDENTIFICADA: ${TRAVA_NAMES[ai.trava_identificada]?.toUpperCase() || ai.trava_nome.toUpperCase()}`, 20, y);
+      doc.text(`TRAVA IDENTIFICADA: ${(TRAVA_NAMES[activeTrava] || ai.trava_nome).toUpperCase()}`, 20, y);
       doc.setTextColor(0, 0, 0); y += 8; doc.setFontSize(10); doc.setFont('helvetica', 'normal');
       const synLines = doc.splitTextToSize(ai.sintese, w - 40);
       doc.text(synLines, 20, y); y += synLines.length * 5 + 8;
@@ -201,23 +202,25 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
     } catch { toast.error('Erro ao gerar PDF'); }
   };
 
-  const getTravaName = (trava: string): string => TRAVA_NAMES[trava] || trava;
+  const getTravaName = (trava: string): string => TRAVA_NAMES[normalizeTravaId(trava)] || trava;
 
-  const renderTravaSlider = (score: { trava: string; nome: string; status: string }, forceRestriction = false) => {
-    const isBottleneck = score.trava === ai.trava_identificada;
+  const renderTravaSlider = (score: { trava: string; nome: string; status: string }) => {
+    const normalizedTrava = normalizeTravaId(score.trava);
+    const isBottleneck = normalizedTrava === activeTrava;
     const pct = getStatusPercent(score.status);
-    const benchVal = BENCHMARK_DEFAULTS[score.trava] || '—';
+    const benchVal = BENCHMARK_DEFAULTS[normalizedTrava] || '—';
+
     return (
       <TravaSliderCard
         key={score.trava}
-        trava={score.trava}
-        nome={getTravaName(score.trava)}
+        trava={normalizedTrava}
+        nome={getTravaName(normalizedTrava)}
         status={score.status}
         isBottleneck={isBottleneck}
         pct={pct}
         benchVal={benchVal}
-        isRestriction={forceRestriction || isBottleneck}
-        marketBench={MARKET_BENCHMARKS[score.trava]}
+        isRestriction={isBottleneck}
+        marketBench={MARKET_BENCHMARKS[normalizedTrava]}
       />
     );
   };
