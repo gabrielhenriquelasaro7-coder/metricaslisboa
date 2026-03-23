@@ -500,7 +500,7 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-11 w-11 rounded-xl bg-black border-white/5 text-zinc-500 hover:text-white hover:border-white/20 active:scale-95 transition-all"
+                className="h-11 w-11 rounded-xl bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/20 active:scale-95 transition-all"
                 onClick={() => onEdit(p)}
               >
                 <ChevronRight className="w-4 h-4" />
