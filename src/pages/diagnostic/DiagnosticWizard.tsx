@@ -808,7 +808,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                               placeholder={field.placeholder}
                               step="0.01"
                               className={cn(
-                                "h-12 rounded-xl bg-black border-white/10 text-white text-lg font-black text-center",
+                                "h-12 rounded-xl bg-muted/50 dark:bg-black border-border text-foreground text-lg font-black text-center",
                                 isAuto && "border-emerald-600/20 bg-emerald-950/10"
                               )}
                               value={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?.[field.key] ?? ''}
