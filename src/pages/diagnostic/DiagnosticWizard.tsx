@@ -585,7 +585,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
           {currentStep.id === 'business' && (
             <div className="space-y-6 w-full">
               <div>
-                <h3 className="text-lg font-black text-white">Business</h3>
+                <h3 className="text-lg font-black text-foreground">Business</h3>
                 <p className="text-[11px] text-red-600 font-bold mt-0.5">Dados financeiros essenciais para calibrar a análise.</p>
               </div>
 
