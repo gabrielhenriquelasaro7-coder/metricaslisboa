@@ -514,7 +514,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
   const renderTravaSlider = (score: { trava: string; nome: string; status: string; valor_informado?: string | null }) => {
     const normalizedTrava = normalizeTravaId(score.trava);
     const isBottleneck = normalizedTrava === activeTrava;
-    const pct = getDisplayPercent(score);
+    const pct = getDisplayPercent(score, isBottleneck);
     const benchVal = BENCHMARK_DEFAULTS[normalizedTrava] || '—';
 
     return (
