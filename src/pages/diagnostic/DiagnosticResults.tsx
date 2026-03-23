@@ -398,17 +398,15 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             .map((score) => {
               const isBottleneck = score.trava === ai.trava_identificada;
               const pct = getStatusPercent(score.status);
-              const displayVal = formatDisplayValue(score.valor_informado);
               const benchVal = getBenchmarkValue(score.trava);
               return (
                 <TravaSliderCard
                   key={score.trava}
                   trava={score.trava}
-                  nome={score.nome}
+                  nome={TRAVA_NAMES[score.trava] || score.nome}
                   status={score.status}
                   isBottleneck={isBottleneck}
                   pct={pct}
-                  displayVal={displayVal}
                   benchVal={benchVal}
                   isRestriction={isBottleneck}
                 />
@@ -419,7 +417,6 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             .filter(s => s.trava === 'cegueira' || s.trava === '00')
             .map((score) => {
               const pct = getStatusPercent(score.status);
-              const displayVal = formatDisplayValue(score.valor_informado);
               return (
                 <TravaSliderCard
                   key={score.trava}
@@ -428,7 +425,6 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                   status={score.status}
                   isBottleneck={false}
                   pct={pct}
-                  displayVal={displayVal}
                   benchVal="1.00%"
                   isRestriction={false}
                   isSemiManual
