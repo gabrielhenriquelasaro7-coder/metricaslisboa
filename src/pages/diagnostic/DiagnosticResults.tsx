@@ -59,15 +59,15 @@ const TRAVA_CATEGORIES: Record<string, string> = {
 
 const normalizeTravaId = (trava: string) => (trava === 'cegueira' ? '00' : trava);
 
-// Bowtie stages: 07 (fundo/retenção) → 01 (topo/exposição) — análise TOC de trás para frente
+// Bowtie stages: renderização da esquerda para direita em análise TOC (07 → 01)
 const BOWTIE_STAGES = [
-  { trava: '07', clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '0%' },
-  { trava: '06', clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '10%' },
-  { trava: '05', clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '20%' },
+  { trava: '07', clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)', leftBar: '0%', rightBar: '10%' },
+  { trava: '06', clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '20%' },
+  { trava: '05', clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '30%' },
   { trava: '04', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '30%' },
-  { trava: '03', clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '30%' },
-  { trava: '02', clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '20%' },
-  { trava: '01', clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)', leftBar: '0%', rightBar: '10%' },
+  { trava: '03', clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '20%' },
+  { trava: '02', clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '10%' },
+  { trava: '01', clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '0%' },
 ];
 
 function getStageColor(status: string, isBottleneck: boolean) {
@@ -652,7 +652,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             const status = score?.status || 'sem_dados';
             const isBottleneck = stage.trava === activeTrava;
             const colors = getStageColor(status, isBottleneck);
-            const pct = score ? getStatusPercent(score.status) : 0;
+            const pct = score ? getStatusPercent(score.status) : getStatusPercent('sem_dados');
+            const mainValue = pct.toFixed(2);
             const label = getTravaName(stage.trava);
 
             return (
@@ -683,13 +684,16 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                       }}
                     >
                       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle, ${isBottleneck ? 'rgba(239, 68, 68, 0.4)' : 'rgba(128, 128, 128, 0.05)'}, transparent)`, transform: 'scale(1.2)' }} />
-                      <div className="flex flex-col items-center z-10">
+                      <div className="flex flex-col items-center z-10 gap-1">
                         <span className={cn(
                           "text-lg font-black drop-shadow-lg leading-none",
                           colors.text,
                           isBottleneck && "scale-110 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"
                         )}>
-                          {pct}%
+                          {mainValue}
+                        </span>
+                        <span className="text-[10px] font-bold text-muted-foreground/70 leading-none">
+                          {mainValue}%
                         </span>
                       </div>
                     </div>
