@@ -668,7 +668,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <Badge className="bg-red-600/10 text-red-600 border-none text-[8px] font-black">TAM</Badge>
                   <span className="text-[10px] text-muted-foreground font-bold uppercase">Total Addressable Market</span>
                 </div>
-                <p className="text-[11px] text-zinc-500">Quantas empresas/pessoas poderiam comprar seu produto/serviço? Qual seria o ticket médio anual?</p>
+                <p className="text-[11px] text-muted-foreground">Quantas empresas/pessoas poderiam comprar seu produto/serviço? Qual seria o ticket médio anual?</p>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold text-sm">R$</span>
                   <Input
