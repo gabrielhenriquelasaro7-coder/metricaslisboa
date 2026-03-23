@@ -276,8 +276,8 @@ export default function DiagnosticTOC() {
                               <Database className="w-5 h-5 text-muted-foreground group-hover:text-red-600" />
                             </div>
                             <div>
-                              <p className="text-[12px] font-black text-white uppercase tracking-tight">{sp.name}</p>
-                              <p className="text-[9px] text-zinc-600 font-bold">{(sp as any).segment || 'Serviços'}</p>
+                              <p className="text-[12px] font-black text-foreground uppercase tracking-tight">{sp.name}</p>
+                              <p className="text-[9px] text-muted-foreground font-bold">{(sp as any).segment || 'Serviços'}</p>
                             </div>
                           </div>
                           <ArrowRight className="w-4 h-4 text-zinc-800 group-hover:text-red-600 group-hover:translate-x-1 transition-all" />
