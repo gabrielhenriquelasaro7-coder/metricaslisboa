@@ -723,7 +723,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Fonte / Justificativa</Label>
                 <Input
                   placeholder="Ex: relatório Statista 2024, estimativa interna..."
-                  className="h-11 rounded-xl bg-black border-white/10 text-white"
+                  className="h-11 rounded-xl bg-muted/50 dark:bg-black border-border text-foreground"
                   value={market.justification}
                   onChange={e => setMarket(p => ({ ...p, justification: e.target.value }))}
                 />
