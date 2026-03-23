@@ -82,12 +82,12 @@ INSTRUÇÕES DETALHADAS PARA CADA CAMPO DA RESPOSTA:
    - Parágrafo 5: Conexão causal entre a trava e os UDEs observados
    - Parágrafo 6-7: Recomendação estratégica e prognóstico
 
-4. **Evaporating Cloud**: Construa um EC COMPLETO e PROFUNDO seguindo a metodologia de Goldratt:
-   - objetivo: O objetivo comum que ambos os lados querem atingir (específico ao contexto da empresa)
-   - necessidade_a e necessidade_b: Duas necessidades REAIS e DISTINTAS que entram em conflito
-   - acao_a e acao_b: As ações concretas que cada necessidade demanda e que são MUTUAMENTE EXCLUSIVAS
-   - pressuposto_invalido: O pressuposto específico que MANTÉM o conflito vivo — deve ser claro por que ele é falso
-   - injecao: A solução que INVALIDA o pressuposto e dissolve o conflito (não um compromisso, mas uma ruptura lógica)
+4. **Evaporating Cloud**: Construa um EC COMPLETO, PROFUNDO e ESPECÍFICO ao contexto da empresa seguindo a metodologia rigorosa de Goldratt:
+   - objetivo: O objetivo comum que ambos os lados querem atingir — DEVE ser específico ao contexto da empresa (ex: "Aumentar MRR para R$200k mantendo margem saudável"), NÃO genérico como "crescer"
+   - necessidade_a e necessidade_b: Duas necessidades REAIS, DISTINTAS e BEM ARTICULADAS que entram em conflito. Cada necessidade deve ter 2-3 frases explicando POR QUE ela é necessária para o objetivo. Evite necessidades genéricas — conecte ao funil e às métricas da empresa.
+   - acao_a e acao_b: As ações concretas e DETALHADAS que cada necessidade demanda. Devem ser MUTUAMENTE EXCLUSIVAS — explique claramente por que fazer uma impede a outra. Use exemplos práticos do contexto da empresa (ex: "Investir 80% do budget em campanhas de awareness para aumentar volume de impressões" vs "Concentrar budget em remarketing para maximizar conversão do tráfego existente").
+   - pressuposto_invalido: O pressuposto específico que MANTÉM o conflito vivo. Deve ser uma CRENÇA articulada em 2-3 frases, explicando: (1) qual é a crença, (2) por que as pessoas acreditam nela, e (3) por que ela é falsa no contexto específico desta empresa. NÃO use frases genéricas como "não é possível fazer as duas coisas". Cite dados ou benchmarks que invalidem o pressuposto.
+   - injecao: A solução CONCRETA e IMPLEMENTÁVEL que INVALIDA o pressuposto e dissolve o conflito. Deve incluir: (1) O QUE fazer especificamente, (2) COMO isso resolve o conflito, (3) métricas esperadas de resultado. NÃO é um compromisso entre A e B — é uma ruptura lógica que permite satisfazer AMBAS as necessidades.
 
 5. **CRT (crt_nodes)**: Liste 5-8 nós da Árvore de Realidade Atual em ordem causal (de causa para efeito). Cada nó deve ser uma afirmação verificável no presente. O último nó deve ser o core problem.
 
