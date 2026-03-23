@@ -156,10 +156,10 @@ export function DiagnosticModel() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {TOC_STEPS.map((step) => (
-                        <div key={step.num} className="relative p-5 bg-zinc-950 border border-white/5 rounded-xl space-y-3 group hover:border-white/10 transition-all">
+                        <div key={step.num} className="relative p-5 bg-card border border-border rounded-xl space-y-3 group hover:border-border/80 transition-all">
                             <span className={cn("w-7 h-7 rounded text-white text-[11px] font-black flex items-center justify-center", step.color)}>{step.num}</span>
-                            <p className="text-[10px] font-black text-white uppercase tracking-widest">{step.label}</p>
-                            <p className="text-[9px] text-zinc-600 font-medium leading-relaxed">{step.desc}</p>
+                            <p className="text-[10px] font-black text-foreground uppercase tracking-widest">{step.label}</p>
+                            <p className="text-[9px] text-muted-foreground font-medium leading-relaxed">{step.desc}</p>
                         </div>
                     ))}
                 </div>
