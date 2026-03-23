@@ -736,7 +736,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
             <div className="space-y-6 w-full">
               {(() => {
                 const trava = travaConfigs[currentTravaIdx];
-                if (!trava) return <p className="text-zinc-500">Sem configuração de trava disponível.</p>;
+                if (!trava) return <p className="text-muted-foreground">Sem configuração de trava disponível.</p>;
 
                 const hasAutoData = Object.keys(autoFilledFields).length > 0;
 
