@@ -102,8 +102,8 @@ export function DiagnosticModel() {
                     </div>
 
                     <div className="p-5 bg-red-600/5 border border-red-600/20 rounded-xl w-full text-center">
-                        <p className="text-[11px] font-black text-white uppercase tracking-widest mb-1">A Restrição Dominante</p>
-                        <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        <p className="text-[11px] font-black text-foreground uppercase tracking-widest mb-1">A Restrição Dominante</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
                             Sempre existe uma única restrição que limita o sistema inteiro. Identificá-la é o primeiro passo. O Destrava Receita faz exatamente isso: encontra a trava e cria um plano causal para resolvê-la.
                         </p>
                     </div>
