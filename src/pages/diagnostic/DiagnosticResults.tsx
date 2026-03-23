@@ -58,15 +58,39 @@ const TRAVA_CATEGORIES: Record<string, string> = {
   '00': 'CEGUEIRA',
 };
 
-const normalizeTravaId = (trava: string): string => {
-  if (!trava) return '00';
-  const lower = trava.toLowerCase().trim();
-  if (lower === 'cegueira' || lower === 'trava_00' || lower === 't00') return '00';
-  // Extract digits from strings like 'trava_07', 'T07', 'Trava 7', '7', '07', 'trava07'
-  const match = lower.replace(/\s+/g, '').match(/(\d{1,2})/);
-  if (match) {
-    return match[1].padStart(2, '0');
+const normalizeText = (value: string): string =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const normalizeTravaId = (trava?: string, nome?: string): string => {
+  const rawTrava = (trava || '').toString();
+  const merged = normalizeText(`${rawTrava} ${nome || ''}`);
+
+  if (!merged) return '00';
+  if (merged.includes('cegueira') || merged.includes('sem dados')) return '00';
+
+  // Prioriza IDs canônicos quando vierem do backend (ex: 07, T07, trava_07)
+  const digitMatch = rawTrava.match(/(\d{1,2})/);
+  if (digitMatch) {
+    const num = parseInt(digitMatch[1], 10);
+    if (!Number.isNaN(num) && num >= 0 && num <= 7) {
+      return String(num).padStart(2, '0');
+    }
   }
+
+  // Fallback semântico para respostas descritivas da IA
+  if (/(volume.*impress|impress.*cpm|\bexposicao\b|\btopo\b)/.test(merged)) return '01';
+  if (/(ctr|cliques|cpc|\batencao\b)/.test(merged)) return '02';
+  if (/(\blead\b|cpl|interesse|taxa de conversao)/.test(merged)) return '03';
+  if (/(qualificacao|mql)/.test(merged)) return '04';
+  if (/(reuniao|visita|coleta de informacao|compromisso|show)/.test(merged)) return '05';
+  if (/(fechamento|proposta|decisao|sql)/.test(merged)) return '06';
+  if (/(churn|recompra|retencao)/.test(merged)) return '07';
+
   return '00';
 };
 
@@ -248,11 +272,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
     );
   }
 
-  console.log('[DiagnosticResults] raw stage_scores:', JSON.stringify(ai.stage_scores?.map(s => ({ trava: s.trava, status: s.status }))));
-  console.log('[DiagnosticResults] normalized:', ai.stage_scores?.map(s => normalizeTravaId(s.trava)));
-  
-  const scoreMap = new Map(ai.stage_scores.map(s => [normalizeTravaId(s.trava), s]));
-  const activeTrava = normalizeTravaId(ai.trava_identificada);
+  const scoreMap = new Map(ai.stage_scores.map(s => [normalizeTravaId(s.trava, s.nome), s]));
+  const activeTrava = normalizeTravaId(ai.trava_identificada, ai.trava_nome);
 
   const handleExportPDF = () => {
     try {
@@ -433,7 +454,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
       ai.stage_scores.forEach((score, idx) => {
         checkPage(8);
-        const nId = normalizeTravaId(score.trava);
+        const nId = normalizeTravaId(score.trava, score.nome);
         const isGargalo = nId === activeTrava;
 
         if (isGargalo) {
@@ -658,7 +679,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
   const getTravaName = (trava: string): string => TRAVA_NAMES[normalizeTravaId(trava)] || trava;
 
   const renderTravaSlider = (score: { trava: string; nome: string; status: string; valor_informado?: string | null }) => {
-    const normalizedTrava = normalizeTravaId(score.trava);
+    const normalizedTrava = normalizeTravaId(score.trava, score.nome);
     const isBottleneck = normalizedTrava === activeTrava;
     const pct = getDisplayPercent(score, isBottleneck);
     const travaKey = `trava${normalizedTrava}` as keyof typeof project.funnelData;
@@ -769,7 +790,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
               <span className="text-[11px] font-black uppercase tracking-[0.25em]">Vendas / CS</span>
             </div>
             {ai.stage_scores
-              .filter(s => ['07', '06', '05'].includes(normalizeTravaId(s.trava)))
+              .filter(s => ['07', '06', '05'].includes(normalizeTravaId(s.trava, s.nome)))
               .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
               .map(score => renderTravaSlider(score))}
           </div>
@@ -781,7 +802,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
               <span className="text-[11px] font-black uppercase tracking-[0.25em]">Marketing</span>
             </div>
             {ai.stage_scores
-              .filter(s => ['04', '03', '02'].includes(normalizeTravaId(s.trava)))
+              .filter(s => ['04', '03', '02'].includes(normalizeTravaId(s.trava, s.nome)))
               .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
               .map(score => renderTravaSlider(score))}
           </div>
@@ -793,14 +814,14 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             <span className="text-[11px] font-black uppercase tracking-[0.25em]">Topo de Funil</span>
           </div>
           {ai.stage_scores
-            .filter(s => normalizeTravaId(s.trava) === '01')
+            .filter(s => normalizeTravaId(s.trava, s.nome) === '01')
             .map(score => renderTravaSlider(score))}
         </div>
 
         {/* Bottom: Cegueira (00) */}
         <div className="mt-8 pt-6 border-t border-border relative z-10 space-y-5">
           {ai.stage_scores
-            .filter(s => s.trava === 'cegueira' || normalizeTravaId(s.trava) === '00')
+            .filter(s => s.trava === 'cegueira' || normalizeTravaId(s.trava, s.nome) === '00')
             .map(score => (
               <TravaSliderCard
                 key={score.trava}
@@ -945,7 +966,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {ai.stage_scores.map(score => {
-                    const nId = normalizeTravaId(score.trava);
+                    const nId = normalizeTravaId(score.trava, score.nome);
                     const isGargalo = nId === activeTrava;
                     return (
                       <tr key={score.trava} className={cn("hover:bg-muted/20 transition-colors", isGargalo && "bg-red-600/5")}>
