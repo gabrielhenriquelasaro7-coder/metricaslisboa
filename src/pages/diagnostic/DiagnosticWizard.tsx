@@ -814,7 +814,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                               value={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?.[field.key] ?? ''}
                               onChange={e => updateFunnelField(trava.id, field.key, e.target.value)}
                             />
-                            <p className="text-[10px] text-zinc-600">{field.help}</p>
+                            <p className="text-[10px] text-muted-foreground">{field.help}</p>
                           </div>
                         );
                       })}
