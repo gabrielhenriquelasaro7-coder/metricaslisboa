@@ -36,13 +36,13 @@ const STATUS_LABELS: Record<string, string> = {
 
 // Mapeamento oficial das travas
 const TRAVA_NAMES: Record<string, string> = {
-  '01': 'Volume de Impressão',
-  '02': 'CRT',
-  '03': 'Lead, CPL',
-  '04': 'Taxa de Qualificação',
-  '05': 'Reunião',
-  '06': 'Fechamento de Proposta',
-  '07': 'Churn, Recompra',
+  '01': 'Exposição',
+  '02': 'Atenção',
+  '03': 'Interesse',
+  '04': 'Qualificação',
+  '05': 'Compromisso',
+  '06': 'Decisão',
+  '07': 'Retenção',
   '00': 'Cegueira',
 };
 
