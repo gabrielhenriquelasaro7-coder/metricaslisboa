@@ -277,23 +277,26 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           .trim();
       };
 
+      const addPageHeader = (title: string) => {
+        doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
+        doc.rect(0, 0, w, 12, 'F');
+        doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
+        doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+        doc.text(sanitize(title).toUpperCase(), margin, 8);
+        doc.setFillColor(RED.r, RED.g, RED.b);
+        doc.rect(margin, 11, 30, 1.5, 'F');
+        y = 20;
+      };
+
       const checkPage = (need: number = 30) => {
         if (y > h - 20 - need) {
           doc.addPage();
-          // Mini header on continuation pages
-          doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
-          doc.rect(0, 0, w, 12, 'F');
-          doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
-          doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-          doc.text(`DIAGNOSTICO TOC  |  ${sanitize(project.name).toUpperCase()}`, margin, 8);
-          doc.setFillColor(RED.r, RED.g, RED.b);
-          doc.rect(margin, 11, 30, 1.5, 'F');
-          y = 20;
+          addPageHeader(`DIAGNOSTICO TOC  |  ${project.name}`);
         }
       };
 
       const drawSectionHeader = (title: string, color: { r: number; g: number; b: number } = RED) => {
-        checkPage(20);
+        checkPage(25);
         doc.setFillColor(color.r, color.g, color.b);
         doc.roundedRect(margin, y, contentW, 10, 2, 2, 'F');
         doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
