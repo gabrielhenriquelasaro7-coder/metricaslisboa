@@ -744,7 +744,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <>
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-lg font-black text-white">{trava.label}</h3>
+                        <h3 className="text-lg font-black text-foreground">{trava.label}</h3>
                         <p className="text-[11px] text-red-600 font-bold mt-0.5">{trava.description}</p>
                         <p className="text-[10px] text-zinc-600 mt-1">
                           Passo {currentTravaIdx + 1} de {travaConfigs.length} · Preencha apenas o que souber. Campos vazios = sem dados.
