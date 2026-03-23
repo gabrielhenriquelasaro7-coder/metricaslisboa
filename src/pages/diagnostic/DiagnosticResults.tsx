@@ -731,64 +731,46 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             ))}
           </div>
 
-          {/* Economics + Benchmarks side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Economics */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-black text-foreground uppercase tracking-widest italic ml-2">Economics</h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-muted/30 border border-border p-5 rounded-2xl space-y-1 hover:bg-muted/50 transition-colors group">
-                  <div className="flex items-center gap-1.5 text-muted-foreground mb-1 group-hover:text-red-500 transition-colors">
-                    <Target className="w-3.5 h-3.5" />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Ticket Médio</span>
-                  </div>
-                  <p className="text-xl font-black text-foreground">R$ {project.economics?.averageTicket?.toLocaleString('pt-BR') || '—'}</p>
-                </div>
-                <div className="bg-muted/30 border border-border p-5 rounded-2xl space-y-1 hover:bg-muted/50 transition-colors group">
-                  <div className="flex items-center gap-1.5 text-muted-foreground mb-1 group-hover:text-red-500 transition-colors">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Margem</span>
-                  </div>
-                  <p className="text-xl font-black text-foreground">{project.economics?.contributionMargin || '—'}%</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Benchmarks vs Real Table */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-black text-foreground uppercase tracking-widest italic ml-2">Benchmarks vs Real</h4>
-              <div className="bg-muted/30 border border-border rounded-2xl overflow-hidden">
-                <table className="w-full text-left text-[10px]">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="px-4 py-2.5 font-black text-muted-foreground uppercase tracking-widest">Trava</th>
-                      <th className="px-4 py-2.5 font-black text-muted-foreground uppercase tracking-widest text-center">Status</th>
-                      <th className="px-4 py-2.5 font-black text-muted-foreground uppercase tracking-widest text-right">Bench</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {ai.stage_scores.map(score => {
-                      const isGargalo = normalizeTravaId(score.trava) === activeTrava;
-                      return (
-                        <tr key={score.trava} className={cn("hover:bg-muted/30 transition-colors", isGargalo && "bg-red-600/5")}>
-                          <td className="px-4 py-3 font-black text-foreground uppercase">{getTravaName(score.trava)}</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={cn(
-                              "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
-                              score.status === 'critico' ? "text-red-500 bg-red-500/10" :
-                              score.status === 'bom' ? "text-emerald-500 bg-emerald-500/10" :
-                              score.status === 'na_media' ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground bg-muted"
-                            )}>
-                              {isGargalo ? 'Gargalo' : STATUS_LABELS[score.status] || 'Sem Dados'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 font-mono text-muted-foreground text-right">{BENCHMARK_DEFAULTS[normalizeTravaId(score.trava)] || '—'}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+          {/* Benchmarks vs Real Table — full width */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-black text-foreground uppercase tracking-widest italic ml-2">Benchmarks vs Real</h4>
+            <div className="bg-muted/20 border border-border rounded-2xl overflow-hidden">
+              <table className="w-full text-left text-[11px]">
+                <thead className="bg-muted/40">
+                  <tr>
+                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest">Trava</th>
+                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest">Nº</th>
+                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-center">Status</th>
+                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-center">Mercado</th>
+                    <th className="px-5 py-3 font-black text-muted-foreground uppercase tracking-widest text-right">Benchmark</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {ai.stage_scores.map(score => {
+                    const nId = normalizeTravaId(score.trava);
+                    const isGargalo = nId === activeTrava;
+                    return (
+                      <tr key={score.trava} className={cn("hover:bg-muted/20 transition-colors", isGargalo && "bg-red-600/5")}>
+                        <td className="px-5 py-3.5 font-black text-foreground">{getTravaName(score.trava)}</td>
+                        <td className="px-5 py-3.5 text-muted-foreground font-mono text-[10px]">{nId}</td>
+                        <td className="px-5 py-3.5 text-center">
+                          <span className={cn(
+                            "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                            isGargalo ? "text-red-500 bg-red-500/10" :
+                            score.status === 'critico' ? "text-red-500 bg-red-500/10" :
+                            score.status === 'bom' ? "text-emerald-500 bg-emerald-500/10" :
+                            score.status === 'na_media' ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground bg-muted"
+                          )}>
+                            {isGargalo ? 'Gargalo' : STATUS_LABELS[score.status] || 'Sem Dados'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-center text-[10px] text-muted-foreground">{MARKET_BENCHMARKS[nId]?.value || '—'}</td>
+                        <td className="px-5 py-3.5 font-mono text-muted-foreground text-right">{BENCHMARK_DEFAULTS[nId] || '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
