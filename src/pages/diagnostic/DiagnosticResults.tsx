@@ -680,9 +680,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Modelagem Dinâmica Bowtie</p>
           </div>
           <div className="hidden sm:flex gap-4">
-            <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-[8px] font-black text-muted-foreground uppercase">Eficiente</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-amber-500" /><span className="text-[8px] font-black text-muted-foreground uppercase">Na Média</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-red-600" /><span className="text-[8px] font-black text-muted-foreground uppercase">Gargalo</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-[8px] font-black text-muted-foreground uppercase">Saudável</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-amber-500" /><span className="text-[8px] font-black text-muted-foreground uppercase">Atenção</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-red-600" /><span className="text-[8px] font-black text-muted-foreground uppercase">Crítico</span></div>
           </div>
         </div>
 
