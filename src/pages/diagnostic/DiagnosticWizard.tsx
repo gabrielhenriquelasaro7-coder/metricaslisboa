@@ -602,7 +602,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
                   </div>
-                  <p className="text-[10px] text-zinc-600">Receita - Custos Variáveis (% sobre receita)</p>
+                  <p className="text-[10px] text-muted-foreground">Receita - Custos Variáveis (% sobre receita)</p>
                 </div>
 
                 <div className="space-y-2">
