@@ -576,41 +576,35 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 flex-1 relative z-10">
-          {/* Vendas / CS Column */}
+          {/* Retenção + Compromisso Column */}
           <div className="space-y-5">
             <div className="flex items-center gap-2 text-red-600 mb-4 px-1">
               <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Vendas / CS</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Retenção / Compromisso</span>
             </div>
             {ai.stage_scores
-              .filter(s => ['07', '06', '05'].includes(s.trava))
-              .sort((a, b) => parseInt(b.trava) - parseInt(a.trava))
+              .filter(s => ['07', '06', '05'].includes(normalizeTravaId(s.trava)))
+              .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
               .map(score => renderTravaSlider(score))}
           </div>
 
-          {/* Marketing Column */}
+          {/* Interesse / Atenção Column */}
           <div className="space-y-5">
             <div className="flex items-center gap-2 text-amber-500 mb-4 px-1">
               <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Marketing</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Interesse / Atenção</span>
             </div>
             {ai.stage_scores
-              .filter(s => ['04', '03', '02'].includes(s.trava))
-              .sort((a, b) => parseInt(b.trava) - parseInt(a.trava))
+              .filter(s => ['04', '03', '02', '01'].includes(normalizeTravaId(s.trava)))
+              .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
               .map(score => renderTravaSlider(score))}
           </div>
         </div>
 
-        {/* Bottom: Topo de Funil (01, 00) */}
+        {/* Bottom: Cegueira (00) */}
         <div className="mt-8 pt-6 border-t border-border relative z-10 space-y-5">
-          <div className="flex items-center gap-2 mb-2 px-1">
-            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-foreground">Topo de Funil</span>
-          </div>
           {ai.stage_scores
-            .filter(s => s.trava === '01')
-            .map(score => renderTravaSlider(score))}
-          {ai.stage_scores
-            .filter(s => s.trava === 'cegueira' || s.trava === '00')
+            .filter(s => s.trava === 'cegueira' || normalizeTravaId(s.trava) === '00')
             .map(score => (
               <TravaSliderCard
                 key={score.trava}
@@ -619,7 +613,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 status={score.status}
                 isBottleneck={false}
                 pct={getStatusPercent(score.status)}
-                benchVal="1.00%"
+                benchVal="Cobertura: 80%+"
                 isRestriction={false}
                 isSemiManual
                 marketBench={MARKET_BENCHMARKS['00']}
