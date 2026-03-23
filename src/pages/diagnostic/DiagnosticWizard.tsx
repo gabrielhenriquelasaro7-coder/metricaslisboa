@@ -549,7 +549,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
               {/* Business Model Selection */}
               <div className="space-y-3">
-                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Modelo de Negócio</Label>
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Modelo de Negócio</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {BUSINESS_MODELS.map(bm => (
                     <button
