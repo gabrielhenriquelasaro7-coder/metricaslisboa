@@ -706,15 +706,6 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                       }}
                     >
                       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle, ${isBottleneck ? 'rgba(239, 68, 68, 0.4)' : 'rgba(128, 128, 128, 0.05)'}, transparent)`, transform: 'scale(1.2)' }} />
-                      <div className="flex flex-col items-center z-10 gap-1">
-                        <span className={cn(
-                          "text-lg font-black drop-shadow-lg leading-none",
-                          colors.text,
-                          isBottleneck && "scale-110 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"
-                        )}>
-                          {isBottleneck ? 'GARGALO' : STATUS_LABELS[status] || '—'}
-                        </span>
-                      </div>
                     </div>
                   </div>
 
