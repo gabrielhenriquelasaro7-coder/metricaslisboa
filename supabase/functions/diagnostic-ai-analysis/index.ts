@@ -18,29 +18,29 @@ serve(async (req) => {
 
     const travaStructures: Record<string, string> = {
       ecommerce: `
-Trava 07: Volume de impressões, CPM
-Trava 06: CTR, Cliques, CPC
-Trava 05: Lead, CPL, Taxa de Conversão, Visitantes
-Trava 04: Taxa de Qualificação, MQL, Add to Cart
-Trava 03: Checkout
-Trava 02: Pedido Realizado
-Trava 01: Recompra`,
+Trava 01: Volume de impressões, CPM (TOPO DO FUNIL — Alcance)
+Trava 02: CTR, Cliques, CPC (Atenção)
+Trava 03: Lead, CPL, Taxa de Conversão, Visitantes (Interesse)
+Trava 04: Taxa de Qualificação, MQL, Add to Cart (Qualificação)
+Trava 05: Checkout (Compromisso)
+Trava 06: Pedido Realizado (Decisão/Fechamento)
+Trava 07: Recompra (FUNDO DO FUNIL — Retenção)`,
       inside_sales: `
-Trava 07: Volume de impressões, CPM
-Trava 06: CTR, Cliques, CPC
-Trava 05: Lead, CPL, Taxa de Conversão
-Trava 04: Taxa de Qualificação, MQL
-Trava 03: Reunião / Visita / Coleta de Informação
-Trava 02: Fechamento da Proposta
-Trava 01: Churn, Recompra`,
+Trava 01: Volume de impressões, CPM (TOPO DO FUNIL — Alcance)
+Trava 02: CTR, Cliques, CPC (Atenção)
+Trava 03: Lead, CPL, Taxa de Conversão (Interesse)
+Trava 04: Taxa de Qualificação, MQL (Qualificação)
+Trava 05: Reunião / Visita / Coleta de Informação (Compromisso)
+Trava 06: Fechamento da Proposta (Decisão)
+Trava 07: Churn, Recompra (FUNDO DO FUNIL — Retenção)`,
       pdv: `
-Trava 07: Volume de impressões OU volume de pessoas que passam na rua (estimativa)
-Trava 06: Número de pessoas que entram na loja
-Trava 05: Lead, CPL, Taxa de Conversão, Add to Cart
-Trava 04: Taxa de Qualificação, MQL
-Trava 03: NULL (não se aplica)
-Trava 02: Venda
-Trava 01: Recompra`,
+Trava 01: Volume de impressões OU volume de pessoas que passam na rua (TOPO DO FUNIL — Alcance)
+Trava 02: Número de pessoas que entram na loja (Atenção)
+Trava 03: Lead, CPL, Taxa de Conversão, Add to Cart (Interesse)
+Trava 04: Taxa de Qualificação, MQL (Qualificação)
+Trava 05: NULL (não se aplica no PDV)
+Trava 06: Venda (Decisão/Fechamento)
+Trava 07: Recompra (FUNDO DO FUNIL — Retenção)`,
     };
 
     const travaStructure = travaStructures[businessModel] || travaStructures.inside_sales;
