@@ -693,7 +693,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <Input
                     type="number"
                     placeholder="15000000"
-                    className="h-12 rounded-xl bg-zinc-950 border-white/10 text-white font-black text-center pl-12"
+                    className="h-12 rounded-xl bg-muted/50 dark:bg-zinc-950 border-border text-foreground font-black text-center pl-12"
                     value={market.sam || ''}
                     onChange={e => setMarket(p => ({ ...p, sam: parseFloat(e.target.value) || 0 }))}
                   />
