@@ -360,7 +360,7 @@ export default function DiagnosticTOC() {
                   <SelectTrigger className="w-[100px] h-8 bg-muted/50 dark:bg-black/40 border-border text-[10px] font-bold uppercase rounded-lg">
                     <SelectValue placeholder="Ano" />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-950 border-white/10 text-white">
+                  <SelectContent className="bg-popover border-border text-popover-foreground">
                     {[2024, 2025, 2026].map(y => (
                       <SelectItem key={y} value={y.toString()} className="text-[10px] font-bold uppercase">
                         {y}
