@@ -682,7 +682,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
               </div>
 
               {/* SAM */}
-              <div className="p-5 bg-black/50 border border-white/5 rounded-2xl space-y-3">
+              <div className="p-5 bg-muted/30 dark:bg-black/50 border border-border rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-amber-600/10 text-amber-500 border-none text-[8px] font-black">SAM</Badge>
                   <span className="text-[10px] text-zinc-400 font-bold uppercase">Serviceable Addressable Market</span>
