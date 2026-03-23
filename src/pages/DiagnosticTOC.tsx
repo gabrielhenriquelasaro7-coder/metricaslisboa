@@ -300,7 +300,7 @@ export default function DiagnosticTOC() {
                   {projects.length > 0 ? 'Exposição (07)' : '—'}
                 </span>
               </div>
-              <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
+              <div className="p-4 bg-muted/40 dark:bg-black/60 border border-border rounded-xl flex flex-col gap-1">
                 <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Completos</span>
                 <span className="text-2xl font-black text-emerald-500 tracking-tighter">
                   {projects.filter(p => p.status === 'completo').length}
