@@ -249,7 +249,7 @@ export default function DiagnosticTOC() {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md bg-card border-border text-foreground rounded-[2rem] shadow-2xl">
                   <DialogHeader>
-                    <DialogTitle className="text-xl font-black uppercase tracking-tight text-white mb-6 italic">Iniciar Diagnóstico</DialogTitle>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground mb-6 italic">Iniciar Diagnóstico</DialogTitle>
                   </DialogHeader>
 
                   <div className="relative mb-2">
