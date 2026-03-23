@@ -566,7 +566,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                         "w-10 h-10 rounded-xl flex items-center justify-center border",
                         identification.businessModel === bm.value
                           ? "bg-red-600 border-red-600 text-white"
-                          : "bg-zinc-900 border-white/5 text-zinc-500"
+                          : "bg-muted border-border text-muted-foreground"
                       )}>
                         <bm.icon className="w-5 h-5" />
                       </div>
