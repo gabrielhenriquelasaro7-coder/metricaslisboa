@@ -290,9 +290,9 @@ export default function DiagnosticTOC() {
 
             {/* Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
-                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Total Analisado</span>
-                <span className="text-2xl font-black text-white tracking-tighter">{projects.length} <span className="text-xs text-zinc-700 font-bold uppercase">Projetos</span></span>
+              <div className="p-4 bg-muted/40 dark:bg-black/60 border border-border rounded-xl flex flex-col gap-1">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Total Analisado</span>
+                <span className="text-2xl font-black text-foreground tracking-tighter">{projects.length} <span className="text-xs text-muted-foreground font-bold uppercase">Projetos</span></span>
               </div>
               <div className="p-4 bg-black/60 border border-white/5 rounded-xl flex flex-col gap-1">
                 <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Restrição Principal</span>
