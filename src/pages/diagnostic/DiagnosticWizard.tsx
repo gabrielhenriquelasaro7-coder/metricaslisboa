@@ -494,7 +494,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
           {currentStep.id === 'identification' && (
             <div className="space-y-6 w-full">
               <div>
-                <h3 className="text-lg font-black text-white">Identificação</h3>
+                <h3 className="text-lg font-black text-foreground">Identificação</h3>
                 <p className="text-[11px] text-red-600 font-bold mt-0.5">Quanto mais detalhado, mais preciso será o diagnóstico.</p>
               </div>
 
