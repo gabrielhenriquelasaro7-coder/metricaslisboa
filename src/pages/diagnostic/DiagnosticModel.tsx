@@ -319,13 +319,13 @@ export function DiagnosticModel() {
                             ].map((item, idx) => (
                                 <li key={idx} className="flex items-start gap-3">
                                     <div className="w-1.5 h-1.5 rounded-full bg-red-600 mt-1.5 flex-shrink-0 shadow-[0_0_6px_rgba(220,38,38,0.6)]" />
-                                    <p className="text-[10px] text-zinc-500 font-medium">{item}</p>
+                                    <p className="text-[10px] text-muted-foreground font-medium">{item}</p>
                                 </li>
                             ))}
                         </ul>
-                        <div className="pt-4 border-t border-white/5">
-                            <p className="text-[10px] font-black text-white uppercase tracking-widest mb-2">Importância de evidências</p>
-                            <p className="text-[10px] text-zinc-500 leading-relaxed">Cada métrica coletada deve ter evidência (print, link, relatório) e nível de confiabilidade. Números sem evidência reduzem a confiança do diagnóstico.</p>
+                        <div className="pt-4 border-t border-border">
+                            <p className="text-[10px] font-black text-foreground uppercase tracking-widest mb-2">Importância de evidências</p>
+                            <p className="text-[10px] text-muted-foreground leading-relaxed">Cada métrica coletada deve ter evidência (print, link, relatório) e nível de confiabilidade. Números sem evidência reduzem a confiança do diagnóstico.</p>
                         </div>
                     </div>
                 </div>
