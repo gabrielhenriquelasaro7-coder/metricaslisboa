@@ -29,8 +29,8 @@ interface ResultsProps {
 
 const STATUS_LABELS: Record<string, string> = {
   critico: 'CRÍTICO',
-  na_media: 'NA MÉDIA',
-  bom: 'BOM',
+  na_media: 'ATENÇÃO',
+  bom: 'SAUDÁVEL',
   sem_dados: 'SEM DADOS',
 };
 
