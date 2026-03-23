@@ -32,10 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  BENCHMARK_STAGES,
-  BenchmarkStageId,
-} from '@/lib/diagnosticBenchmarks';
 
 
 import {
