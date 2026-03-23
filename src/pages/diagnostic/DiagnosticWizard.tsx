@@ -521,7 +521,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Segmento de Atuação</Label>
                   <Input
                     placeholder="Ex: SaaS B2B, Moda Feminina, Restaurantes..."
-                    className="h-12 rounded-2xl bg-black border-white/10 text-white text-xs font-bold px-4"
+                    className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xs font-bold px-4"
                     value={identification.segment}
                     onChange={e => setIdentification(p => ({ ...p, segment: e.target.value }))}
                   />
