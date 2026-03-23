@@ -638,7 +638,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 nome="Cegueira"
                 status={score.status}
                 isBottleneck={false}
-                pct={getStatusPercent(score.status)}
+                pct={getDisplayPercent(score)}
                 benchVal="Cobertura: 80%+"
                 isRestriction={false}
                 isSemiManual
