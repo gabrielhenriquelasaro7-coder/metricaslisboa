@@ -479,7 +479,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
       </div>
 
       {/* Content */}
-      <div className="bg-zinc-950 border border-white/5 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-8 pt-5 pb-0">
           <button
             onClick={handleBack}
