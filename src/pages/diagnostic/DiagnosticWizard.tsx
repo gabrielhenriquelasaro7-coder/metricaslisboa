@@ -658,7 +658,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
           {currentStep.id === 'market' && (
             <div className="space-y-6 w-full">
               <div>
-                <h3 className="text-lg font-black text-white">Mercado — TAM / SAM / SOM</h3>
+                <h3 className="text-lg font-black text-foreground">Mercado — TAM / SAM / SOM</h3>
                 <p className="text-[11px] text-red-600 font-bold mt-0.5">Meta sempre ANUAL. Se o mercado for a restrição, a IA identificará a Trava de Mercado.</p>
               </div>
 
