@@ -180,6 +180,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
   const [project, setProject] = useState<DiagnosticProject>(initialProject);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentTravaIdx, setCurrentTravaIdx] = useState(0);
+  const [autoFilledFields, setAutoFilledFields] = useState<Record<string, Set<string>>>({});
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
 
   // New data structures
   const [identification, setIdentification] = useState<DiagnosticIdentification>(
@@ -216,9 +218,120 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
     }
   );
 
+  // Auto-fetch project metrics from ads_daily_metrics
+  const fetchProjectMetrics = useCallback(async () => {
+    const systemProjectId = (initialProject as any).systemProjectId || (initialProject as any).projectId;
+    if (!systemProjectId) return;
+
+    setIsLoadingMetrics(true);
+    try {
+      // Fetch Meta Ads daily metrics
+      const { data: metaMetrics, error: metaError } = await supabase
+        .from('ads_daily_metrics')
+        .select('spend, impressions, clicks, leads_count, reach, cpm, cpc, ctr, cpa')
+        .eq('project_id', systemProjectId);
+
+      // Fetch Google Ads daily metrics
+      const { data: googleMetrics, error: googleError } = await supabase
+        .from('google_ads_daily_metrics')
+        .select('spend, impressions, clicks, conversions, cpm, cpc, ctr')
+        .eq('project_id', systemProjectId);
+
+      let totalImpressions = 0, totalClicks = 0, totalSpend = 0, totalLeads = 0;
+
+      if (metaMetrics && metaMetrics.length > 0) {
+        for (const m of metaMetrics) {
+          totalImpressions += m.impressions || 0;
+          totalClicks += m.clicks || 0;
+          totalSpend += m.spend || 0;
+          totalLeads += m.leads_count || 0;
+        }
+      }
+
+      if (googleMetrics && googleMetrics.length > 0) {
+        for (const m of googleMetrics) {
+          totalImpressions += m.impressions || 0;
+          totalClicks += m.clicks || 0;
+          totalSpend += m.spend || 0;
+          totalLeads += (m.conversions || 0);
+        }
+      }
+
+      if (totalImpressions === 0 && totalClicks === 0) {
+        toast.info('Nenhum dado de mídia encontrado para este projeto.');
+        setIsLoadingMetrics(false);
+        return;
+      }
+
+      const cpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
+      const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+      const cpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
+      const cpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
+
+      const newAutoFields: Record<string, Set<string>> = {};
+
+      setFunnelData(prev => {
+        const updated = { ...prev };
+
+        // Trava 07 - Exposição
+        if (totalImpressions > 0) {
+          updated.trava07 = {
+            ...updated.trava07,
+            impressions: Math.round(totalImpressions),
+            cpm: parseFloat(cpm.toFixed(2)),
+          };
+          newAutoFields['trava07'] = new Set(['impressions', 'cpm']);
+        }
+
+        // Trava 06 - Atenção
+        if (totalClicks > 0) {
+          updated.trava06 = {
+            ...updated.trava06,
+            ctr: parseFloat(ctr.toFixed(2)),
+            clicks: Math.round(totalClicks),
+            cpc: parseFloat(cpc.toFixed(2)),
+          };
+          newAutoFields['trava06'] = new Set(['ctr', 'clicks', 'cpc']);
+        }
+
+        // Trava 05 - Interesse (leads + CPL)
+        if (totalLeads > 0) {
+          updated.trava05 = {
+            ...updated.trava05,
+            leads: Math.round(totalLeads),
+            cpl: parseFloat(cpl.toFixed(2)),
+          };
+          newAutoFields['trava05'] = new Set(['leads', 'cpl']);
+        }
+
+        return updated;
+      });
+
+      setAutoFilledFields(newAutoFields);
+      toast.success(`Dados importados: ${totalImpressions.toLocaleString()} impressões, ${totalClicks.toLocaleString()} cliques, ${totalLeads.toLocaleString()} leads`);
+    } catch (err) {
+      console.error('Error fetching project metrics:', err);
+      toast.error('Erro ao buscar métricas do projeto');
+    } finally {
+      setIsLoadingMetrics(false);
+    }
+  }, [initialProject]);
+
+  // Auto-fetch on mount if project has systemProjectId
+  useEffect(() => {
+    const systemProjectId = (initialProject as any).systemProjectId || (initialProject as any).projectId;
+    if (systemProjectId && !initialProject.funnelData?.trava07?.impressions) {
+      fetchProjectMetrics();
+    }
+  }, []);
+
   const travaConfigs = getTravaConfigs(identification.businessModel);
   const currentStep = STEPS[currentStepIdx];
   const progress = ((currentStepIdx + 1) / STEPS.length) * 100;
+
+  const isFieldAutoFilled = (travaId: string, fieldKey: string) => {
+    return autoFilledFields[travaId]?.has(fieldKey) || false;
+  };
 
   const updateFunnelField = (travaId: string, key: string, value: string) => {
     setFunnelData(prev => ({
@@ -228,6 +341,16 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
         [key]: value === '' ? null : parseFloat(value) || value,
       },
     }));
+    // Remove auto-filled flag if user manually edits
+    setAutoFilledFields(prev => {
+      const updated = { ...prev };
+      if (updated[travaId]) {
+        const newSet = new Set(updated[travaId]);
+        newSet.delete(key);
+        updated[travaId] = newSet;
+      }
+      return updated;
+    });
   };
 
   const handleBack = () => {
