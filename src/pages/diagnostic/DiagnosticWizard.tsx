@@ -571,8 +571,8 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                         <bm.icon className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-sm font-black text-white uppercase tracking-tight">{bm.label}</p>
-                        <p className="text-[10px] text-zinc-500 font-medium mt-0.5">{bm.desc}</p>
+                        <p className="text-sm font-black text-foreground uppercase tracking-tight">{bm.label}</p>
+                        <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{bm.desc}</p>
                       </div>
                     </button>
                   ))}
