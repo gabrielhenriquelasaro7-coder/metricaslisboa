@@ -600,7 +600,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                       value={business.contributionMargin || ''}
                       onChange={e => setBusiness(p => ({ ...p, contributionMargin: parseFloat(e.target.value) || 0 }))}
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold">%</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
                   </div>
                   <p className="text-[10px] text-zinc-600">Receita - Custos Variáveis (% sobre receita)</p>
                 </div>
