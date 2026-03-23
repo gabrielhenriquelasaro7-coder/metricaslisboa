@@ -137,13 +137,13 @@ interface TravaSliderCardProps {
   status: string;
   isBottleneck: boolean;
   pct: number;
-  displayVal: string;
   benchVal: string;
   isRestriction: boolean;
   isSemiManual?: boolean;
 }
 
-function TravaSliderCard({ trava, nome, status, isBottleneck, pct, displayVal, benchVal, isRestriction, isSemiManual }: TravaSliderCardProps) {
+function TravaSliderCard({ trava, nome, status, isBottleneck, pct, benchVal, isRestriction, isSemiManual }: TravaSliderCardProps) {
+  const statusPct = `${pct}%`;
   return (
     <div className={cn(
       "relative space-y-4 p-5 rounded-[1.5rem] transition-all duration-500 border shadow-xl",
@@ -181,7 +181,7 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, displayVal, b
           />
         </div>
         <div className="flex flex-col items-end min-w-[100px]">
-          <span className="text-white font-black whitespace-nowrap text-sm text-right">{displayVal} Real</span>
+          <span className="text-white font-black whitespace-nowrap text-sm text-right">{statusPct} Real</span>
           <span className="text-zinc-500 font-bold whitespace-nowrap text-xs text-right mt-0.5">{benchVal} Bench</span>
         </div>
       </div>
