@@ -137,7 +137,7 @@ export function DiagnosticModel() {
                 <div className="border-l-2 border-red-600/40 pl-6 space-y-4">
                     <div className="flex items-center gap-3">
                         <Activity className="w-4 h-4 text-red-600" />
-                        <p className="text-xs font-black text-white uppercase tracking-widest">Como o app calcula a trava · Motor de Inferência Causal</p>
+                        <p className="text-xs font-black text-foreground uppercase tracking-widest">Como o app calcula a trava · Motor de Inferência Causal</p>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {CALC_STEPS.map((step, idx) => (
