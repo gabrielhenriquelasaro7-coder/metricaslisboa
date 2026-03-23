@@ -780,7 +780,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                         }}
                         className="border-muted-foreground data-[state=checked]:bg-muted-foreground data-[state=checked]:border-muted-foreground"
                       />
-                      <label htmlFor={`nao-aplica-${trava.id}`} className="text-[11px] text-zinc-400 font-bold cursor-pointer select-none">
+                      <label htmlFor={`nao-aplica-${trava.id}`} className="text-[11px] text-muted-foreground font-bold cursor-pointer select-none">
                         Esta trava não se aplica ao meu negócio
                       </label>
                     </div>
