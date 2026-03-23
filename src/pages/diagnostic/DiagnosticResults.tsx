@@ -188,8 +188,8 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
-        <div className="relative h-3 flex-1 rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner" style={{ touchAction: 'none' }}>
+      <div className="pt-2">
+        <div className="relative h-3 w-full rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner" style={{ touchAction: 'none' }}>
           {status !== 'sem_dados' && (
             <div
               className={cn("absolute w-5 h-5 rounded-full border-2 border-white z-10 -translate-x-1/2 pointer-events-none transition-all", dotColor)}
@@ -197,23 +197,6 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, isRestriction
             />
           )}
         </div>
-        {realValue && (
-          <div className="flex items-center gap-3 min-w-fit">
-            <div className={cn(
-              "flex flex-col items-center px-3 py-1.5 rounded-lg border",
-              isBottleneck || status === 'critico' ? "bg-red-500/10 border-red-500/20" :
-              status === 'na_media' ? "bg-amber-500/10 border-amber-500/20" :
-              status === 'bom' ? "bg-emerald-500/10 border-emerald-500/20" : "bg-muted/50 border-border"
-            )}>
-              <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Real</span>
-              <span className={cn(
-                "text-base font-black",
-                isBottleneck || status === 'critico' ? "text-red-500" :
-                status === 'na_media' ? "text-amber-500" : "text-emerald-500"
-              )}>{realValue}</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
