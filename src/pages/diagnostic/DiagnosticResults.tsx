@@ -98,22 +98,28 @@ function parsePercentFromValorInformado(valor: string | null | undefined): numbe
   return isNaN(num) ? null : num;
 }
 
-function getDisplayPercent(score: { status: string; valor_informado?: string | null }): number {
+function getDisplayPercent(score: { status: string; valor_informado?: string | null }, isBottleneck?: boolean): number {
   const base = getStatusPercent(score.status);
   const parsedPercent = parsePercentFromValorInformado(score.valor_informado);
+
+  // Bottleneck MUST always be the lowest — force to 5-15% range
+  if (isBottleneck) {
+    if (parsedPercent !== null) return Math.max(3, Math.min(12, parsedPercent));
+    return 8;
+  }
 
   if (parsedPercent === null) return base;
 
   if (score.status === 'critico') {
-    return Math.max(1, Math.min(20, parsedPercent));
+    return Math.max(15, Math.min(30, parsedPercent));
   }
 
   if (score.status === 'na_media') {
-    return Math.max(35, Math.min(70, parsedPercent));
+    return Math.max(40, Math.min(65, parsedPercent));
   }
 
   if (score.status === 'bom') {
-    return Math.max(70, Math.min(99, parsedPercent));
+    return Math.max(70, Math.min(95, parsedPercent));
   }
 
   return base;
@@ -192,9 +198,20 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, benchVal, isR
             style={{ left: `${pct}%` }}
           />
         </div>
-        <div className="flex flex-col items-end min-w-[100px]">
-          <span className="text-foreground font-black whitespace-nowrap text-sm text-right">{pct}% Real</span>
-          <span className="text-muted-foreground font-bold whitespace-nowrap text-xs text-right mt-0.5">{benchVal} Bench</span>
+        <div className="flex items-center gap-3 min-w-[180px]">
+          <div className="flex flex-col items-center px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+            <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Real</span>
+            <span className={cn(
+              "text-base font-black",
+              isBottleneck ? "text-red-500" :
+              status === 'critico' ? "text-red-500" :
+              status === 'na_media' ? "text-amber-500" : "text-emerald-500"
+            )}>{pct}%</span>
+          </div>
+          <div className="flex flex-col items-center px-3 py-1.5 rounded-lg bg-muted/50 border border-border">
+            <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Bench</span>
+            <span className="text-base font-black text-foreground">{benchVal.split(':').pop()?.trim() || benchVal}</span>
+          </div>
         </div>
       </div>
 
@@ -508,7 +525,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
   const renderTravaSlider = (score: { trava: string; nome: string; status: string; valor_informado?: string | null }) => {
     const normalizedTrava = normalizeTravaId(score.trava);
     const isBottleneck = normalizedTrava === activeTrava;
-    const pct = getDisplayPercent(score);
+    const pct = getDisplayPercent(score, isBottleneck);
     const benchVal = BENCHMARK_DEFAULTS[normalizedTrava] || '—';
 
     return (
@@ -653,7 +670,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                 nome="Cegueira"
                 status={score.status}
                 isBottleneck={false}
-                pct={getDisplayPercent(score)}
+                pct={getDisplayPercent(score, false)}
                 benchVal="Cobertura: 80%+"
                 isRestriction={false}
                 isSemiManual
@@ -683,8 +700,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             const status = score?.status || 'sem_dados';
             const isBottleneck = stage.trava === activeTrava;
             const colors = getStageColor(status, isBottleneck);
-            const pct = score ? getDisplayPercent(score) : getStatusPercent('sem_dados');
-            const mainValue = pct.toFixed(2);
+            const pct = score ? getDisplayPercent(score, isBottleneck) : getStatusPercent('sem_dados');
             const label = getTravaName(stage.trava);
 
             return (
@@ -721,10 +737,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                           colors.text,
                           isBottleneck && "scale-110 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"
                         )}>
-                          {mainValue}
+                          {pct}%
                         </span>
                         <span className="text-[10px] font-bold text-muted-foreground/70 leading-none">
-                          {mainValue}%
+                          {BENCHMARK_DEFAULTS[stage.trava]?.split(':').pop()?.trim() || '—'}
                         </span>
                       </div>
                     </div>
