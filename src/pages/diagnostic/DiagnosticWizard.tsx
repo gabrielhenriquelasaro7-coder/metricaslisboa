@@ -469,7 +469,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
         <div className="space-y-1">
           <div className="flex justify-between items-end mb-2 px-1">
-            <h2 className="text-xl font-black text-white uppercase tracking-tight italic">
+            <h2 className="text-xl font-black text-foreground uppercase tracking-tight italic">
               {currentStep.id === 'funnel' ? travaConfigs[currentTravaIdx]?.label || 'Funil' : currentStep.label}
             </h2>
             <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">{Math.round(progress)}%</span>
