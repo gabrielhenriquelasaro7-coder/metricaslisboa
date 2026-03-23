@@ -14,15 +14,8 @@ serve(async (req) => {
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
 
-    const {
-      identification,
-      business,
-      market,
-      funnel,
-      businessModel,
-    } = diagnosticData;
+    const { identification, business, market, funnel, businessModel } = diagnosticData;
 
-    // Build the trava structure based on business model
     const travaStructures: Record<string, string> = {
       ecommerce: `
 Trava 07: Volume de impressões, CPM
@@ -52,7 +45,6 @@ Trava 01: Recompra`,
 
     const travaStructure = travaStructures[businessModel] || travaStructures.inside_sales;
 
-    // Check for Cegueira (blindness) - if no funnel data at all
     const hasFunnelData = funnel && Object.values(funnel).some((v: any) => {
       if (typeof v === 'object' && v !== null) {
         return Object.values(v).some((innerV: any) => innerV !== null && innerV !== undefined && innerV !== '' && innerV !== 0);
@@ -60,73 +52,56 @@ Trava 01: Recompra`,
       return v !== null && v !== undefined && v !== '' && v !== 0;
     });
 
-    // Check for Market constraint
     const hasMarketConstraint = market && market.tam > 0 && market.sam > 0 && market.som > 0;
 
-    const systemPrompt = `Você é um consultor especialista em diagnóstico de funil de vendas usando a Teoria das Restrições (TOC) de Goldratt.
+    const systemPrompt = `Você é um consultor sênior especialista em diagnóstico de funil de vendas usando a Teoria das Restrições (TOC) de Eliyahu Goldratt, com profundo domínio do Logical Thinking Process (LTP).
 
-Sua tarefa é analisar os dados fornecidos pelo usuário e identificar a TRAVA (gargalo/bottleneck) do funil.
+Sua tarefa é analisar os dados fornecidos e identificar a TRAVA (gargalo/bottleneck) do funil usando análise rigorosa de causa e efeito.
 
 REGRAS CRÍTICAS:
 1. A análise é SEMPRE da maior para a menor (Trava 07 → Trava 01).
 2. Você DEVE correlacionar o produto, empresa, mercado e segmento com as métricas para NÃO identificar trava errada.
-3. Se o usuário NÃO preencheu nenhuma informação de uma determinada trava, retorne "Trava de Cegueira".
+3. Se o usuário NÃO preencheu NENHUMA informação de uma determinada trava, retorne "Trava de Cegueira".
 4. Se TAM/SAM/SOM indicam que o mercado é a restrição (meta acima do SOM), retorne "Trava de Mercado".
 5. NÃO invente dados. NÃO assuma valores. Use APENAS o que foi preenchido.
 
 ESTRUTURA DE TRAVAS PARA MODELO "${businessModel?.toUpperCase() || 'INSIDE SALES'}":
 ${travaStructure}
 
-Responda SEMPRE em JSON com a seguinte estrutura:
-{
-  "trava_identificada": "07" | "06" | "05" | "04" | "03" | "02" | "01" | "cegueira" | "mercado",
-  "trava_nome": "string com nome da trava",
-  "confianca": "alta" | "media" | "baixa",
-  "razao_core_problem": "string com explicação detalhada do core problem (CRT da TOC)",
-  "injecao_recomendada": "string com a injeção do Evaporating Cloud",
-  "udes": ["lista de 3-5 Undesirable Effects observados nos dados"],
-  "sintese": "string com síntese executiva de 3-5 parágrafos",
-  "ltp_analysis": {
-    "crt_nodes": ["lista de nós da Current Reality Tree"],
-    "core_problem": "string com o core problem identificado",
-    "evaporating_cloud": {
-      "objetivo": "string",
-      "necessidade_a": "string",
-      "necessidade_b": "string",
-      "acao_a": "string",
-      "acao_b": "string",
-      "pressuposto_invalido": "string",
-      "injecao": "string"
-    },
-    "frt_effects": ["lista de efeitos desejáveis esperados após a injeção"],
-    "negative_branches": ["lista de riscos potenciais da injeção"],
-    "prerequisite_tree": ["lista de obstáculos e objetivos intermediários"]
-  },
-  "plano_90_dias": {
-    "mes_1": {
-      "titulo": "string",
-      "acoes": ["lista de 3-5 ações"]
-    },
-    "mes_2": {
-      "titulo": "string",
-      "acoes": ["lista de 3-5 ações"]
-    },
-    "mes_3": {
-      "titulo": "string",
-      "acoes": ["lista de 3-5 ações"]
-    }
-  },
-  "metricas_foco": ["lista de métricas prioritárias para monitorar"],
-  "stage_scores": [
-    {
-      "trava": "07",
-      "nome": "string",
-      "status": "critico" | "na_media" | "bom" | "sem_dados",
-      "valor_informado": "string ou null",
-      "observacao": "string"
-    }
-  ]
-}`;
+INSTRUÇÕES DETALHADAS PARA CADA CAMPO DA RESPOSTA:
+
+1. **valor_informado** em stage_scores: Quando houver dados, formate como string legível contendo as métricas reais (ex: "Impressões: 210.000 | CPM: R$14,50"). Quando NÃO houver dados, use null — NUNCA use "null" como string.
+
+2. **observacao** em stage_scores: SEMPRE preencha com observação contextualizada. Se não há dados, escreva "Dados não fornecidos — impossível avaliar esta trava sem métricas reais". Se há dados, compare com benchmarks do segmento e dê parecer técnico (ex: "CPM de R$14,50 está acima da média do segmento automotivo (R$8-12). Indica possível problema de segmentação ou saturação de audiência.").
+
+3. **sintese**: Escreva uma síntese executiva PROFUNDA com 5 a 7 parágrafos. Inclua:
+   - Parágrafo 1: Contexto da empresa e seu posicionamento no mercado
+   - Parágrafo 2: Diagnóstico geral do funil com números específicos
+   - Parágrafo 3: Análise detalhada da trava identificada com comparação a benchmarks
+   - Parágrafo 4: Impacto financeiro estimado da restrição (usando ticket médio e margem)
+   - Parágrafo 5: Conexão causal entre a trava e os UDEs observados
+   - Parágrafo 6-7: Recomendação estratégica e prognóstico
+
+4. **Evaporating Cloud**: Construa um EC COMPLETO e PROFUNDO seguindo a metodologia de Goldratt:
+   - objetivo: O objetivo comum que ambos os lados querem atingir (específico ao contexto da empresa)
+   - necessidade_a e necessidade_b: Duas necessidades REAIS e DISTINTAS que entram em conflito
+   - acao_a e acao_b: As ações concretas que cada necessidade demanda e que são MUTUAMENTE EXCLUSIVAS
+   - pressuposto_invalido: O pressuposto específico que MANTÉM o conflito vivo — deve ser claro por que ele é falso
+   - injecao: A solução que INVALIDA o pressuposto e dissolve o conflito (não um compromisso, mas uma ruptura lógica)
+
+5. **CRT (crt_nodes)**: Liste 5-8 nós da Árvore de Realidade Atual em ordem causal (de causa para efeito). Cada nó deve ser uma afirmação verificável no presente. O último nó deve ser o core problem.
+
+6. **FRT (frt_effects)**: Liste 4-6 efeitos desejáveis que ocorrerão APÓS a injeção ser implementada. Devem ser o OPOSTO dos UDEs.
+
+7. **negative_branches**: Liste 3-5 riscos REAIS e ESPECÍFICOS que a injeção pode causar. Não genéricos — específicos ao contexto da empresa.
+
+8. **prerequisite_tree**: Liste 4-6 obstáculos reais à implementação da injeção, com seus objetivos intermediários. Formato: "Obstáculo: [X] → OI: [Y]"
+
+9. **plano_90_dias**: Cada mês deve ter 4-5 ações ESPECÍFICAS e MENSURÁVEIS (não genéricas). Use números, prazos e métricas-alvo.
+
+10. **udes**: Liste 4-6 UDEs (Efeitos Indesejáveis) que são OBSERVÁVEIS e VERIFICÁVEIS na realidade atual da empresa. Não são causas, são EFEITOS.
+
+Responda SEMPRE em JSON com a estrutura especificada.`;
 
     const userPrompt = `Analise os seguintes dados de diagnóstico:
 
@@ -154,6 +129,8 @@ ${JSON.stringify(funnel || {}, null, 2)}
 
 ${!hasFunnelData ? 'ATENÇÃO: O usuário NÃO preencheu NENHUM dado do funil. Aplique a regra de CEGUEIRA.' : ''}
 ${hasMarketConstraint && market.som > 0 && business?.revenue && (business.revenueType === 'anual' ? business.revenue : business.revenue * 12) > market.som ? 'ATENÇÃO: A meta de faturamento anual EXCEDE o SOM. Considere TRAVA DE MERCADO.' : ''}
+
+IMPORTANTE: Use os dados REAIS fornecidos acima para preencher valor_informado em cada stage_score. Formate os valores de forma legível. Compare com benchmarks do segmento "${identification?.segment || 'geral'}". Seja ESPECÍFICO e PROFUNDO na análise.
 
 Analise de Trava 07 → Trava 01 e identifique o gargalo principal. Correlacione com o contexto da empresa.`;
 
@@ -240,7 +217,7 @@ Analise de Trava 07 → Trava 01 e identifique o gargalo principal. Correlacione
                         trava: { type: "string" },
                         nome: { type: "string" },
                         status: { type: "string", enum: ["critico", "na_media", "bom", "sem_dados"] },
-                        valor_informado: { type: "string" },
+                        valor_informado: { type: "string", nullable: true },
                         observacao: { type: "string" },
                       },
                       required: ["trava", "nome", "status", "observacao"],
@@ -273,12 +250,8 @@ Analise de Trava 07 → Trava 01 e identifique o gargalo principal. Correlacione
     }
 
     const aiResult = await response.json();
-    
-    // Extract structured output from tool call
     const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      throw new Error("No structured output received from AI");
-    }
+    if (!toolCall) throw new Error("No structured output received from AI");
 
     const analysisResult = JSON.parse(toolCall.function.arguments);
 
