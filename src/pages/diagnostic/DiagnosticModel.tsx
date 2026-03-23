@@ -192,7 +192,7 @@ export function DiagnosticModel() {
                                 <div className="w-10 h-10 rounded bg-red-600/10 border border-red-600/20 flex items-center justify-center">
                                     <span className="text-[11px] font-black text-red-600">{tool.abbr}</span>
                                 </div>
-                                <span className="text-[9px] text-zinc-700 font-black font-mono">{String(idx + 1).padStart(2, '0')}</span>
+                                <span className="text-[9px] text-muted-foreground font-black font-mono">{String(idx + 1).padStart(2, '0')}</span>
                             </div>
                             <div>
                                 <p className="text-[11px] font-black text-white uppercase tracking-widest">{tool.name}</p>
