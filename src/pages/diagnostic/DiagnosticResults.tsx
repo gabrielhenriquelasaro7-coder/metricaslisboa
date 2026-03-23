@@ -490,10 +490,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
   const getTravaName = (trava: string): string => TRAVA_NAMES[normalizeTravaId(trava)] || trava;
 
-  const renderTravaSlider = (score: { trava: string; nome: string; status: string }) => {
+  const renderTravaSlider = (score: { trava: string; nome: string; status: string; valor_informado?: string | null }) => {
     const normalizedTrava = normalizeTravaId(score.trava);
     const isBottleneck = normalizedTrava === activeTrava;
-    const pct = getStatusPercent(score.status);
+    const pct = getDisplayPercent(score);
     const benchVal = BENCHMARK_DEFAULTS[normalizedTrava] || '—';
 
     return (
