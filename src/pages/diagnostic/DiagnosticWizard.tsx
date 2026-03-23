@@ -670,7 +670,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                 </div>
                 <p className="text-[11px] text-muted-foreground">Quantas empresas/pessoas poderiam comprar seu produto/serviço? Qual seria o ticket médio anual?</p>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold text-sm">R$</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
                   <Input
                     type="number"
                     placeholder="50000000"
