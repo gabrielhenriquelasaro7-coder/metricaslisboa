@@ -143,7 +143,7 @@ export function DiagnosticModel() {
                         {CALC_STEPS.map((step, idx) => (
                             <div key={idx} className="flex items-start gap-3">
                                 <span className="text-[10px] font-black text-red-600 bg-red-600/10 border border-red-600/20 w-6 h-6 rounded flex items-center justify-center flex-shrink-0 mt-0.5">{idx + 1}</span>
-                                <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">{step}</p>
+                                <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">{step}</p>
                             </div>
                         ))}
                     </div>
