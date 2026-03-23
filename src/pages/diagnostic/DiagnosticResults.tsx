@@ -343,17 +343,15 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
               .map((score) => {
                 const isBottleneck = score.trava === ai.trava_identificada;
                 const pct = getStatusPercent(score.status);
-                const displayVal = formatDisplayValue(score.valor_informado);
                 const benchVal = getBenchmarkValue(score.trava);
                 return (
                   <TravaSliderCard
                     key={score.trava}
                     trava={score.trava}
-                    nome={score.nome}
+                    nome={TRAVA_NAMES[score.trava] || score.nome}
                     status={score.status}
                     isBottleneck={isBottleneck}
                     pct={pct}
-                    displayVal={displayVal}
                     benchVal={benchVal}
                     isRestriction={false}
                   />
