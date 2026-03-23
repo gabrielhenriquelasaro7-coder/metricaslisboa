@@ -612,7 +612,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     <Input
                       type="number"
                       placeholder="2500"
-                      className="h-12 rounded-2xl bg-black border-white/10 text-white text-xl font-black text-center pl-12"
+                      className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xl font-black text-center pl-12"
                       value={business.averageTicket || ''}
                       onChange={e => setBusiness(p => ({ ...p, averageTicket: parseFloat(e.target.value) || 0 }))}
                     />
