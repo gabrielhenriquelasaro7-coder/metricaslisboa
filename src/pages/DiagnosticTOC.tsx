@@ -232,7 +232,7 @@ export default function DiagnosticTOC() {
                   <Target className="w-7 h-7 text-red-600" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-black text-white uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  <h1 className="text-xl font-black text-foreground uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                     Gestão de <span className="text-red-600">Restrições</span>
                   </h1>
                   <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Intelligence Engine V4 · Bowtie TOC</p>
