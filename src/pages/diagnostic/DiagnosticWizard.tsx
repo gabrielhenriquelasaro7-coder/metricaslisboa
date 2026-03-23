@@ -527,7 +527,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Localização (Estado, Cidade, País)</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Localização (Estado, Cidade, País)</Label>
                   <Input
                     placeholder="Ex: São Paulo, SP, Brasil"
                     className="h-12 rounded-2xl bg-black border-white/10 text-white text-xs font-bold px-4"
