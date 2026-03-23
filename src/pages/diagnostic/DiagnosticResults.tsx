@@ -453,13 +453,14 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             const score = scoreMap.get(stage.trava);
             const status = score?.status || 'sem_dados';
             const isBottleneck = stage.trava === ai.trava_identificada;
-            const displayVal = formatDisplayValue(score?.valor_informado);
             const colors = getStageColor(status, isBottleneck);
+            const pct = score ? getStatusPercent(score.status) : 0;
+            const label = TRAVA_NAMES[stage.trava] || stage.trava;
 
             return (
               <div key={stage.trava} className="flex items-center">
                 <div className="flex flex-col items-center relative gap-2">
-                  <span className="text-white/70 text-[10px] text-center font-bold uppercase tracking-tighter">{stage.label}</span>
+                  <span className="text-white/70 text-[10px] text-center font-bold uppercase tracking-tighter">{label}</span>
 
                   <div className="relative group/stage">
                     <div
@@ -487,10 +488,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                           colors.text,
                           isBottleneck && "scale-110 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"
                         )}>
-                          {displayVal === 'Sem dados' ? '—' : displayVal.split(',')[0]?.trim() || '—'}
-                        </span>
-                        <span className="text-white/40 text-[9px] font-bold mt-1">
-                          {score ? `${getStatusPercent(score.status)}%` : '—'}
+                          {pct}%
                         </span>
                       </div>
                     </div>
