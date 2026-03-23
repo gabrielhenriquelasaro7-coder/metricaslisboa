@@ -98,22 +98,28 @@ function parsePercentFromValorInformado(valor: string | null | undefined): numbe
   return isNaN(num) ? null : num;
 }
 
-function getDisplayPercent(score: { status: string; valor_informado?: string | null }): number {
+function getDisplayPercent(score: { status: string; valor_informado?: string | null }, isBottleneck?: boolean): number {
   const base = getStatusPercent(score.status);
   const parsedPercent = parsePercentFromValorInformado(score.valor_informado);
+
+  // Bottleneck MUST always be the lowest — force to 5-15% range
+  if (isBottleneck) {
+    if (parsedPercent !== null) return Math.max(3, Math.min(12, parsedPercent));
+    return 8;
+  }
 
   if (parsedPercent === null) return base;
 
   if (score.status === 'critico') {
-    return Math.max(1, Math.min(20, parsedPercent));
+    return Math.max(15, Math.min(30, parsedPercent));
   }
 
   if (score.status === 'na_media') {
-    return Math.max(35, Math.min(70, parsedPercent));
+    return Math.max(40, Math.min(65, parsedPercent));
   }
 
   if (score.status === 'bom') {
-    return Math.max(70, Math.min(99, parsedPercent));
+    return Math.max(70, Math.min(95, parsedPercent));
   }
 
   return base;
