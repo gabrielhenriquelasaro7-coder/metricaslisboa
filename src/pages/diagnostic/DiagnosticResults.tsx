@@ -97,6 +97,79 @@ function getBowtieTextColor(status: string) {
   }
 }
 
+const BENCHMARK_DEFAULTS: Record<string, string> = {
+  '07': '3.00%',
+  '06': '25.00%',
+  '05': '28.00%',
+  '04': '25.00%',
+  '03': '6.60%',
+  '02': '5.65%',
+  '01': '18.00',
+  '00': '1.00%',
+};
+
+function getBenchmarkValue(trava: string): string {
+  return BENCHMARK_DEFAULTS[trava] || '—';
+}
+
+interface TravaSliderCardProps {
+  trava: string;
+  nome: string;
+  status: string;
+  isBottleneck: boolean;
+  pct: number;
+  displayVal: string;
+  benchVal: string;
+  isRestriction: boolean;
+  isSemiManual?: boolean;
+}
+
+function TravaSliderCard({ trava, nome, status, isBottleneck, pct, displayVal, benchVal, isRestriction, isSemiManual }: TravaSliderCardProps) {
+  return (
+    <div className={cn(
+      "relative space-y-4 p-5 rounded-[1.5rem] transition-all duration-500 border shadow-xl",
+      isRestriction ? "bg-zinc-900/40 border-red-500/30 shadow-[0_0_20px_rgba(220,38,38,0.1)]" : "border-white/5 bg-black/30"
+    )}>
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">TRAVA {trava}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-black text-white tracking-tight">{nome}</span>
+            {isRestriction && <AlertTriangle className="w-4 h-4 text-red-500 ml-1" />}
+          </div>
+          {isRestriction && (
+            <p className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-1">
+              <AlertTriangle className="w-3 h-3" /> Esta é sua restrição ativa
+            </p>
+          )}
+        </div>
+        <div className={cn(
+          "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 bg-black/50",
+          isSemiManual ? "text-amber-500" :
+          status === 'critico' ? "text-red-500" :
+          status === 'bom' ? "text-emerald-500" :
+          status === 'na_media' ? "text-amber-500" : "text-zinc-500"
+        )}>
+          {isSemiManual ? 'Semi-Manual' : STATUS_LABELS[status] || 'Sem Dados'}
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
+        <div className="relative h-3 flex-1 rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner cursor-pointer" style={{ touchAction: 'none' }}>
+          <div
+            className="absolute w-5 h-5 bg-blue-500 rounded-full border-2 border-white shadow-[0_0_12px_rgba(59,130,246,0.8)] z-10 -translate-x-1/2 cursor-grab pointer-events-none transition-transform"
+            style={{ left: `${pct}%` }}
+          />
+        </div>
+        <div className="flex flex-col items-end min-w-[100px]">
+          <span className="text-white font-black whitespace-nowrap text-sm text-right">{displayVal} Real</span>
+          <span className="text-zinc-500 font-bold whitespace-nowrap text-xs text-right mt-0.5">{benchVal} Bench</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
   const ai = project.aiAnalysis;
 
@@ -228,94 +301,128 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       </div>
 
       {/* ═══ SECTION 2: PAINEL DE TRAVAS (Sliders) ═══ */}
-      <Card className="p-6 border border-white/5 bg-zinc-950 rounded-[2.5rem] space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="text-lg font-black uppercase tracking-tight text-white italic">Painel de Travas</h4>
-            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Saúde de cada estágio do funil · Real vs Benchmark</p>
+      <Card className="p-4 sm:p-5 lg:p-6 border border-white/5 bg-zinc-950 rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-2xl w-full">
+        <div className="absolute top-0 left-0 w-80 h-80 bg-red-600/5 blur-[120px] pointer-events-none" />
+        <div className="flex justify-between items-start mb-8 relative z-10 mt-2">
+          <div className="space-y-1">
+            <h4 className="text-xl font-black uppercase tracking-tight text-white italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Painel de Travas</h4>
+            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Arraste os sliders para simular cenários · Tudo está linkado</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="rounded-xl border-white/10 bg-black/50 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-white/5">Ajustar Benchmarks</Button>
+            <Badge variant="outline" className="text-[9px] border-white/10 text-zinc-400 font-black px-4 py-1.5 rounded-full uppercase">{`Bench: ${project.segment}`}</Badge>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Marketing column */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 flex-1 relative z-10">
+          {/* Vendas / CS Column */}
           <div className="space-y-5">
-            <h5 className="text-[10px] font-black text-amber-500 uppercase tracking-widest border-b border-amber-500/20 pb-2">Marketing</h5>
-            {marketingTravas.map((score) => {
+            <div className="flex items-center gap-2 text-red-600 mb-4 px-1">
+              <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Vendas / CS</span>
+            </div>
+            {ai.stage_scores
+              .filter(s => ['07', '06', '05'].includes(s.trava))
+              .sort((a, b) => parseInt(b.trava) - parseInt(a.trava))
+              .map((score) => {
+                const isBottleneck = score.trava === ai.trava_identificada;
+                const pct = getStatusPercent(score.status);
+                const displayVal = formatDisplayValue(score.valor_informado);
+                const benchVal = getBenchmarkValue(score.trava);
+                return (
+                  <TravaSliderCard
+                    key={score.trava}
+                    trava={score.trava}
+                    nome={score.nome}
+                    status={score.status}
+                    isBottleneck={isBottleneck}
+                    pct={pct}
+                    displayVal={displayVal}
+                    benchVal={benchVal}
+                    isRestriction={false}
+                  />
+                );
+              })}
+          </div>
+
+          {/* Marketing Column */}
+          <div className="space-y-5">
+            <div className="flex items-center gap-2 text-amber-500 mb-4 px-1">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Marketing</span>
+            </div>
+            {ai.stage_scores
+              .filter(s => ['04', '03', '02'].includes(s.trava))
+              .sort((a, b) => parseInt(b.trava) - parseInt(a.trava))
+              .map((score) => {
+                const isBottleneck = score.trava === ai.trava_identificada;
+                const pct = getStatusPercent(score.status);
+                const displayVal = formatDisplayValue(score.valor_informado);
+                const benchVal = getBenchmarkValue(score.trava);
+                return (
+                  <TravaSliderCard
+                    key={score.trava}
+                    trava={score.trava}
+                    nome={score.nome}
+                    status={score.status}
+                    isBottleneck={isBottleneck}
+                    pct={pct}
+                    displayVal={displayVal}
+                    benchVal={benchVal}
+                    isRestriction={false}
+                  />
+                );
+              })}
+          </div>
+        </div>
+
+        {/* Bottom: Topo de Funil (01, 00) */}
+        <div className="mt-8 pt-6 border-t border-white/10 relative z-10 space-y-5">
+          <div className="flex items-center gap-2 text-white mb-2 px-1">
+            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-white">Topo de Funil</span>
+          </div>
+          {ai.stage_scores
+            .filter(s => ['01'].includes(s.trava))
+            .map((score) => {
               const isBottleneck = score.trava === ai.trava_identificada;
               const pct = getStatusPercent(score.status);
               const displayVal = formatDisplayValue(score.valor_informado);
-
+              const benchVal = getBenchmarkValue(score.trava);
               return (
-                <div key={score.trava} className={cn(
-                  "p-4 rounded-2xl border space-y-3 transition-all",
-                  isBottleneck ? "border-red-600/40 bg-red-600/5" : "border-white/5 bg-black/30"
-                )}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-zinc-600 font-black">T{score.trava}</span>
-                      <span className="text-sm font-black text-white">{score.nome}</span>
-                      {isBottleneck && <Badge className="bg-red-600 text-white text-[7px] font-black px-1.5 py-0 border-0">GARGALO</Badge>}
-                    </div>
-                    <span className={cn("px-2 py-0.5 rounded-full text-[8px] font-black uppercase border", getStatusBadgeColor(score.status))}>
-                      {STATUS_LABELS[score.status] || 'SEM DADOS'}
-                    </span>
-                  </div>
-
-                  <div className="relative h-3 rounded-full bg-zinc-900 overflow-hidden">
-                    <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700" style={{
-                      width: `${pct}%`,
-                      background: 'linear-gradient(90deg, #ef4444, #f59e0b, #22c55e)',
-                    }} />
-                  </div>
-
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-zinc-500">Real: <span className="text-white font-bold">{displayVal}</span></span>
-                    <span className="text-zinc-600">{score.observacao?.slice(0, 50) || 'Sem observação'}</span>
-                  </div>
-                </div>
+                <TravaSliderCard
+                  key={score.trava}
+                  trava={score.trava}
+                  nome={score.nome}
+                  status={score.status}
+                  isBottleneck={isBottleneck}
+                  pct={pct}
+                  displayVal={displayVal}
+                  benchVal={benchVal}
+                  isRestriction={isBottleneck}
+                />
               );
             })}
-          </div>
-
-          {/* Vendas/CS column */}
-          <div className="space-y-5">
-            <h5 className="text-[10px] font-black text-blue-500 uppercase tracking-widest border-b border-blue-500/20 pb-2">Vendas / CS</h5>
-            {vendasTravas.map((score) => {
-              const isBottleneck = score.trava === ai.trava_identificada;
+          {/* Cegueira (00) */}
+          {ai.stage_scores
+            .filter(s => s.trava === 'cegueira' || s.trava === '00')
+            .map((score) => {
               const pct = getStatusPercent(score.status);
               const displayVal = formatDisplayValue(score.valor_informado);
-
               return (
-                <div key={score.trava} className={cn(
-                  "p-4 rounded-2xl border space-y-3 transition-all",
-                  isBottleneck ? "border-red-600/40 bg-red-600/5" : "border-white/5 bg-black/30"
-                )}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-zinc-600 font-black">T{score.trava}</span>
-                      <span className="text-sm font-black text-white">{score.nome}</span>
-                      {isBottleneck && <Badge className="bg-red-600 text-white text-[7px] font-black px-1.5 py-0 border-0">GARGALO</Badge>}
-                    </div>
-                    <span className={cn("px-2 py-0.5 rounded-full text-[8px] font-black uppercase border", getStatusBadgeColor(score.status))}>
-                      {STATUS_LABELS[score.status] || 'SEM DADOS'}
-                    </span>
-                  </div>
-
-                  <div className="relative h-3 rounded-full bg-zinc-900 overflow-hidden">
-                    <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700" style={{
-                      width: `${pct}%`,
-                      background: 'linear-gradient(90deg, #ef4444, #f59e0b, #22c55e)',
-                    }} />
-                  </div>
-
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-zinc-500">Real: <span className="text-white font-bold">{displayVal}</span></span>
-                    <span className="text-zinc-600">{score.observacao?.slice(0, 50) || 'Sem observação'}</span>
-                  </div>
-                </div>
+                <TravaSliderCard
+                  key={score.trava}
+                  trava="00"
+                  nome="Cegueira"
+                  status={score.status}
+                  isBottleneck={false}
+                  pct={pct}
+                  displayVal={displayVal}
+                  benchVal="1.00%"
+                  isRestriction={false}
+                  isSemiManual
+                />
               );
             })}
-          </div>
         </div>
       </Card>
 
@@ -340,7 +447,6 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             const isBottleneck = stage.trava === ai.trava_identificada;
             const displayVal = formatDisplayValue(score?.valor_informado);
             const colors = getStageColor(status, isBottleneck);
-            const obsText = score?.observacao ? score.observacao.slice(0, 25) : 'Sem dados para análise';
 
             return (
               <div key={stage.trava} className="flex items-center">
@@ -348,12 +454,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                   <span className="text-white/70 text-[10px] text-center font-bold uppercase tracking-tighter">{stage.label}</span>
 
                   <div className="relative group/stage">
-                    {/* Left yellow/colored bar */}
                     <div
                       className={cn("absolute left-0 z-30 w-[4px] transition-all duration-500", colors.barColor, isBottleneck && "shadow-[0_0_12px_#ef4444]")}
                       style={{ top: stage.leftBar, bottom: stage.leftBar }}
                     />
-                    {/* Right yellow/colored bar */}
                     <div
                       className={cn("absolute right-0 z-30 w-[4px] transition-all duration-500", colors.barColor, isBottleneck && "shadow-[0_0_12px_#ef4444]")}
                       style={{ top: stage.rightBar, bottom: stage.rightBar }}
@@ -361,7 +465,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
                     <div
                       className={cn(
-                        "flex items-center justify-center transition-all h-[120px] w-[100px] relative z-10 border-y",
+                        "flex items-center justify-center transition-all h-[120px] w-[90px] relative z-10 border-y",
                         isBottleneck
                           ? `bg-gradient-to-br ${colors.bg} to-transparent shadow-[0_0_25px_${colors.glow}] scale-105 z-20 animate-pulse ${colors.border}`
                           : `border-white/5 bg-gradient-to-br ${colors.bg} to-transparent shadow-[0_0_15px_${colors.glow}]`
@@ -369,15 +473,14 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                       style={{ clipPath: stage.clipPath }}
                     >
                       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle, ${isBottleneck ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 255, 255, 0.05)'}, transparent)`, transform: 'scale(1.2)' }} />
-                      <div className="flex flex-col items-center z-10 px-2">
+                      <div className="flex flex-col items-center z-10">
                         <span className={cn(
-                          "text-sm font-black drop-shadow-lg leading-none text-center break-words",
+                          "text-lg font-black drop-shadow-lg leading-none",
                           colors.text,
                           isBottleneck && "scale-110 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"
                         )}>
-                          {displayVal}
+                          {displayVal === 'Sem dados' ? '—' : displayVal.split(',')[0]?.trim() || '—'}
                         </span>
-                        <span className="text-white/40 text-[8px] font-bold mt-1 text-center line-clamp-2 max-w-[80px]">{obsText}</span>
                       </div>
                     </div>
                   </div>
@@ -390,14 +493,13 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                   </div>
                 </div>
 
-                {/* Arrow connector between stages */}
                 {idx < BOWTIE_STAGES.length - 1 && (
-                  <div className="flex items-center justify-center relative mx-2">
+                  <div className="flex items-center justify-center relative mx-4">
                     <svg width="24" height="20" viewBox="0 0 24 20" className="relative z-10">
-                      <line x1="4" y1="10" x2="20" y2="10" stroke="#eab308" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
-                      <polygon points="20,10 14,7 14,13" fill="#eab308" opacity="0.6" />
+                      <line x1="20" y1="10" x2="4" y2="10" stroke="#eab308" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+                      <polygon points="4,10 10,7 10,13" fill="#eab308" opacity="0.6" />
                     </svg>
-                    <div className="absolute right-0 w-1.5 h-1.5 rounded-full animate-pulse z-20 bg-yellow-400" style={{ boxShadow: '0 0 10px rgb(234, 179, 8)' }} />
+                    <div className="absolute -left-1 w-1.5 h-1.5 rounded-full animate-pulse z-20 bg-yellow-400" style={{ boxShadow: 'rgb(234, 179, 8) 0px 0px 10px' }} />
                   </div>
                 )}
               </div>
