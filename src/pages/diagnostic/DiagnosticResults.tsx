@@ -759,6 +759,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                       <tr key={score.trava} className={cn("hover:bg-muted/20 transition-colors", isGargalo && "bg-red-600/5")}>
                         <td className="px-5 py-3.5 font-black text-foreground">{getTravaName(score.trava)}</td>
                         <td className="px-5 py-3.5 text-muted-foreground font-mono text-[10px]">{nId}</td>
+                        <td className="px-5 py-3.5 text-muted-foreground text-[9px] font-bold uppercase tracking-widest">{TRAVA_CATEGORIES[nId] || '—'}</td>
                         <td className="px-5 py-3.5 text-center">
                           <span className={cn(
                             "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
