@@ -238,10 +238,10 @@ export function DiagnosticModel() {
                                     { label: 'Share necessário', formula: 'Meta anual / SAM' },
                                 ].map((item) => (
                                     <div key={item.label} className="flex items-center gap-3 text-sm">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
-                                        <span className="font-bold text-zinc-300 uppercase text-[10px] tracking-widest">{item.label}</span>
-                                        <span className="text-zinc-600">=</span>
-                                        <span className="text-zinc-500 font-mono text-[10px]">{item.formula}</span>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                                        <span className="font-bold text-foreground/70 uppercase text-[10px] tracking-widest">{item.label}</span>
+                                        <span className="text-muted-foreground">=</span>
+                                        <span className="text-muted-foreground font-mono text-[10px]">{item.formula}</span>
                                     </div>
                                 ))}
                             </div>
