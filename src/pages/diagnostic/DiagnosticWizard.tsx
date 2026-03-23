@@ -765,7 +765,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     </div>
 
                     {/* N/A Toggle */}
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-zinc-900/50 border border-white/5">
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/30 dark:bg-zinc-900/50 border border-border">
                       <Checkbox
                         id={`nao-aplica-${trava.id}`}
                         checked={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?._nao_aplica === true}
