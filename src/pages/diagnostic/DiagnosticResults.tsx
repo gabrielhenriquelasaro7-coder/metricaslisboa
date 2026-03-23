@@ -290,8 +290,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         y = 16;
       };
 
+      const safeBottom = 22; // margem de segurança inferior (footer + respiro)
       const checkPage = (need: number = 25) => {
-        if (y > h - 14 - need) {
+        if (y > h - safeBottom - need) {
           doc.addPage();
           addMiniHeader();
         }
