@@ -530,9 +530,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         status={score.status}
         isBottleneck={isBottleneck}
         pct={pct}
-        benchVal={benchVal}
         isRestriction={isBottleneck}
-        marketBench={MARKET_BENCHMARKS[normalizedTrava]}
+        realValue={score.valor_informado || undefined}
       />
     );
   };
