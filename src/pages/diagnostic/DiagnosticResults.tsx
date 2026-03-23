@@ -396,10 +396,13 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                       className={cn(
                         "flex items-center justify-center transition-all h-[120px] w-[90px] relative z-10 border-y",
                         isBottleneck
-                          ? `bg-gradient-to-br ${colors.bg} to-transparent shadow-[0_0_25px_${colors.glow}] scale-105 z-20 animate-pulse ${colors.border}`
-                          : `border-border bg-gradient-to-br ${colors.bg} to-transparent shadow-[0_0_15px_${colors.glow}]`
+                          ? `bg-gradient-to-br ${colors.bg} to-transparent scale-105 z-20 animate-pulse ${colors.border}`
+                          : `border-border bg-gradient-to-br ${colors.bg} to-transparent`
                       )}
-                      style={{ clipPath: stage.clipPath }}
+                      style={{
+                        clipPath: stage.clipPath,
+                        boxShadow: isBottleneck ? `0 0 25px ${colors.glow}` : `0 0 15px ${colors.glow}`,
+                      }}
                     >
                       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle, ${isBottleneck ? 'rgba(239, 68, 68, 0.4)' : 'rgba(128, 128, 128, 0.05)'}, transparent)`, transform: 'scale(1.2)' }} />
                       <div className="flex flex-col items-center z-10">
