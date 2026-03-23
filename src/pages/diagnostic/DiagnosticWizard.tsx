@@ -455,7 +455,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   <div className={cn(
                     "w-12 h-12 rounded-2xl flex items-center justify-center border transition-all duration-500",
                     isActive ? "bg-red-600 border-red-600 shadow-xl shadow-red-600/20 text-white" :
-                      isPast ? "bg-zinc-900 border-emerald-600/30 text-emerald-500" : "bg-black border-white/5 text-zinc-700"
+                      isPast ? "bg-muted border-emerald-600/30 text-emerald-500" : "bg-muted/50 border-border text-muted-foreground"
                   )}>
                     {isPast ? <CheckCircle2 className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
                   </div>
