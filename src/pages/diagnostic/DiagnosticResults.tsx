@@ -513,7 +513,6 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         isBottleneck={isBottleneck}
         pct={pct}
         isRestriction={isBottleneck}
-        realValue={score.valor_informado || undefined}
       />
     );
   };
