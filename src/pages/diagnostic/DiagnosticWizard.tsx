@@ -642,7 +642,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                           'px-4 py-3 rounded-xl text-[10px] font-black uppercase border transition-all',
                           business.revenueType === type
                             ? 'border-red-600 text-red-600 bg-red-600/5'
-                            : 'border-white/10 text-zinc-500 bg-transparent hover:border-white/20'
+                            : 'border-border text-muted-foreground bg-transparent hover:border-border/80'
                         )}
                       >
                         {type}
