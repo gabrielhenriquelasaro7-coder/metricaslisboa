@@ -216,11 +216,6 @@ export default function DiagnosticTOC() {
     setIsModalOpen(false);
   };
 
-  const handleWizardSave = (p: DiagnosticProject, aiResult?: any) => {
-    saveProject(p);
-    setCurrentProject(p);
-    setMode('results');
-  };
 
   return (
     <DashboardLayout>
