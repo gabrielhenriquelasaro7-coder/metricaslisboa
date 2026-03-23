@@ -174,8 +174,8 @@ export function DiagnosticModel() {
                     </div>
                     <div className="space-y-2">
                         <Badge className="bg-red-600/10 text-red-600 border-none px-3 py-0.5 text-[8px] font-black">THROUGHPUT NO FUNIL</Badge>
-                        <p className="text-sm text-zinc-400 leading-relaxed w-full">
-                            O <strong className="text-white">"throughput"</strong> é a taxa com que o sistema converte impressões em receita. A restrição é o ponto mais estreito — onde o fluxo é interrompido ou acumulado. <span className="text-zinc-300">Melhorar qualquer outra etapa não aumenta o output do sistema.</span>
+                        <p className="text-sm text-muted-foreground leading-relaxed w-full">
+                            O <strong className="text-foreground">"throughput"</strong> é a taxa com que o sistema converte impressões em receita. A restrição é o ponto mais estreito — onde o fluxo é interrompido ou acumulado. <span className="text-foreground/70">Melhorar qualquer outra etapa não aumenta o output do sistema.</span>
                         </p>
                     </div>
                 </div>
