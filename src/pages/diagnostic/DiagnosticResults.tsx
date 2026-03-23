@@ -88,6 +88,22 @@ function getStatusPercent(status: string): number {
   }
 }
 
+function parseValorInformado(valor: string | null | undefined): number | null {
+  if (!valor) return null;
+  const cleaned = valor.replace(/[^0-9.,]/g, '').replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+
+function getDisplayPercent(score: { status: string; valor_informado?: string | null }): number {
+  const realVal = parseValorInformado(score.valor_informado);
+  if (realVal !== null) {
+    // Clamp between 1 and 99 for slider display
+    return Math.max(1, Math.min(99, realVal));
+  }
+  return getStatusPercent(score.status);
+}
+
 const BENCHMARK_DEFAULTS: Record<string, string> = {
   '01': 'CPM: R$18',
   '02': 'CTR: 5.65%',
