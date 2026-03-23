@@ -332,7 +332,7 @@ export default function DiagnosticTOC() {
                 onClick={() => setActiveTab('modelo')}
                 className={cn(
                   "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                  activeTab === 'modelo' ? "bg-white/10 text-white" : "text-zinc-600 hover:text-zinc-400"
+                  activeTab === 'modelo' ? "bg-red-600/10 text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Thermometer className="w-3.5 h-3.5" /> Metodologia TOC
