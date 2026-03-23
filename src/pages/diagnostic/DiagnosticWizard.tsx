@@ -461,7 +461,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                   </div>
                   <span className={cn("text-[9px] font-black uppercase tracking-widest", isActive ? "text-foreground" : "text-muted-foreground")}>{step.label}</span>
                 </div>
-                {idx < STEPS.length - 1 && <div className="w-8 h-px bg-zinc-900 mx-2" />}
+                {idx < STEPS.length - 1 && <div className="w-8 h-px bg-border mx-2" />}
               </div>
             );
           })}
