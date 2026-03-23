@@ -59,15 +59,15 @@ const TRAVA_CATEGORIES: Record<string, string> = {
 
 const normalizeTravaId = (trava: string) => (trava === 'cegueira' ? '00' : trava);
 
-// Bowtie stages: 01 (topo/exposição) → 07 (fundo/retenção)
+// Bowtie stages: 07 (fundo/retenção) → 01 (topo/exposição) — análise TOC de trás para frente
 const BOWTIE_STAGES = [
-  { trava: '01', clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '0%' },
-  { trava: '02', clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '10%' },
-  { trava: '03', clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '20%' },
+  { trava: '07', clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '0%' },
+  { trava: '06', clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '10%' },
+  { trava: '05', clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '20%' },
   { trava: '04', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)', leftBar: '30%', rightBar: '30%' },
-  { trava: '05', clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '30%' },
-  { trava: '06', clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '20%' },
-  { trava: '07', clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)', leftBar: '0%', rightBar: '10%' },
+  { trava: '03', clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)', leftBar: '20%', rightBar: '30%' },
+  { trava: '02', clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)', leftBar: '10%', rightBar: '20%' },
+  { trava: '01', clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)', leftBar: '0%', rightBar: '10%' },
 ];
 
 function getStageColor(status: string, isBottleneck: boolean) {
@@ -575,30 +575,11 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           <Badge variant="outline" className="text-[9px] text-muted-foreground font-black px-4 py-1.5 rounded-full uppercase">{`Bench: ${project.segment}`}</Badge>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 flex-1 relative z-10">
-          {/* Retenção + Compromisso Column */}
-          <div className="space-y-5">
-            <div className="flex items-center gap-2 text-red-600 mb-4 px-1">
-              <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Retenção / Compromisso</span>
-            </div>
-            {ai.stage_scores
-              .filter(s => ['07', '06', '05'].includes(normalizeTravaId(s.trava)))
-              .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
-              .map(score => renderTravaSlider(score))}
-          </div>
-
-          {/* Interesse / Atenção Column */}
-          <div className="space-y-5">
-            <div className="flex items-center gap-2 text-amber-500 mb-4 px-1">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-[11px] font-black uppercase tracking-[0.25em]">Interesse / Atenção</span>
-            </div>
-            {ai.stage_scores
-              .filter(s => ['04', '03', '02', '01'].includes(normalizeTravaId(s.trava)))
-              .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
-              .map(score => renderTravaSlider(score))}
-          </div>
+        <div className="space-y-5 flex-1 relative z-10">
+          {ai.stage_scores
+            .filter(s => normalizeTravaId(s.trava) !== '00')
+            .sort((a, b) => parseInt(normalizeTravaId(b.trava)) - parseInt(normalizeTravaId(a.trava)))
+            .map(score => renderTravaSlider(score))}
         </div>
 
         {/* Bottom: Cegueira (00) */}
