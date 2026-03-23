@@ -248,6 +248,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
     );
   }
 
+  console.log('[DiagnosticResults] raw stage_scores:', JSON.stringify(ai.stage_scores?.map(s => ({ trava: s.trava, status: s.status }))));
+  console.log('[DiagnosticResults] normalized:', ai.stage_scores?.map(s => normalizeTravaId(s.trava)));
+  
   const scoreMap = new Map(ai.stage_scores.map(s => [normalizeTravaId(s.trava), s]));
   const activeTrava = normalizeTravaId(ai.trava_identificada);
 
