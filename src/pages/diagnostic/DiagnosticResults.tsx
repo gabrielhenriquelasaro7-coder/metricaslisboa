@@ -34,7 +34,7 @@ const STATUS_LABELS: Record<string, string> = {
   sem_dados: 'SEM DADOS',
 };
 
-// Mapeamento oficial das travas
+// Mapeamento oficial das travas (01=topo, 07=fundo)
 const TRAVA_NAMES: Record<string, string> = {
   '01': 'Exposição',
   '02': 'Atenção',
@@ -44,6 +44,17 @@ const TRAVA_NAMES: Record<string, string> = {
   '06': 'Decisão',
   '07': 'Retenção',
   '00': 'Cegueira',
+};
+
+const TRAVA_CATEGORIES: Record<string, string> = {
+  '01': 'ATENÇÃO',
+  '02': 'INTERESSE',
+  '03': 'INTERESSE',
+  '04': 'INTERESSE',
+  '05': 'COMPROMISSO',
+  '06': 'COMPROMISSO',
+  '07': 'RETENÇÃO',
+  '00': 'CEGUEIRA',
 };
 
 const normalizeTravaId = (trava: string) => (trava === 'cegueira' ? '00' : trava);
