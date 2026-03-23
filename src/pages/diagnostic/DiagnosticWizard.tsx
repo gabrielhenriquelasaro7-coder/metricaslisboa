@@ -474,7 +474,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
             </h2>
             <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">{Math.round(progress)}%</span>
           </div>
-          <Progress value={progress} className="h-1 bg-zinc-900" />
+          <Progress value={progress} className="h-1 bg-muted" />
         </div>
       </div>
 
