@@ -462,7 +462,7 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
                   <Globe className="w-6 h-6 text-muted-foreground group-hover:text-red-600" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-white uppercase tracking-tight italic leading-tight">{p.name || 'Projeto sem nome'}</h4>
+                  <h4 className="text-sm font-black text-foreground uppercase tracking-tight italic leading-tight">{p.name || 'Projeto sem nome'}</h4>
                   <div className="flex items-center gap-2 mt-1">
                     <HistoryIcon className="w-3 h-3 text-zinc-700" />
                     <span className="text-[9px] text-zinc-600 font-black uppercase tracking-widest">{p.segment}</span>
