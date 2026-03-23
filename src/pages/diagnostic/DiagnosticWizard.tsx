@@ -591,7 +591,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Margem de Contribuição (%)</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Margem de Contribuição (%)</Label>
                   <div className="relative">
                     <Input
                       type="number"
