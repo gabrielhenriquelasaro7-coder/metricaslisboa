@@ -465,9 +465,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         y += 9;
       });
 
-      // Table border
-      doc.setDrawColor(230, 230, 230); doc.setLineWidth(0.3);
-      doc.rect(margin, 22 + 9, contentW, (ai.stage_scores.length) * 9, 'S');
+      // No hardcoded table border — rows have alternating bg which is sufficient
 
       // ═══ UDEs ═══
       y += 10;
