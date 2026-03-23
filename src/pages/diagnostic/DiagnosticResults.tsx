@@ -652,7 +652,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             const status = score?.status || 'sem_dados';
             const isBottleneck = stage.trava === activeTrava;
             const colors = getStageColor(status, isBottleneck);
-            const pct = score ? getStatusPercent(score.status) : 0;
+            const pct = score ? getStatusPercent(score.status) : getStatusPercent('sem_dados');
+            const mainValue = pct.toFixed(2);
             const label = getTravaName(stage.trava);
 
             return (
@@ -683,13 +684,16 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                       }}
                     >
                       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle, ${isBottleneck ? 'rgba(239, 68, 68, 0.4)' : 'rgba(128, 128, 128, 0.05)'}, transparent)`, transform: 'scale(1.2)' }} />
-                      <div className="flex flex-col items-center z-10">
+                      <div className="flex flex-col items-center z-10 gap-1">
                         <span className={cn(
                           "text-lg font-black drop-shadow-lg leading-none",
                           colors.text,
                           isBottleneck && "scale-110 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"
                         )}>
-                          {pct}%
+                          {mainValue}
+                        </span>
+                        <span className="text-[10px] font-bold text-muted-foreground/70 leading-none">
+                          {mainValue}%
                         </span>
                       </div>
                     </div>
