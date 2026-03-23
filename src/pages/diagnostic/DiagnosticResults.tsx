@@ -69,8 +69,15 @@ function getStageColor(status: string, isBottleneck: boolean) {
 }
 
 function formatDisplayValue(val: string | null | undefined): string {
-  if (!val || val === 'null' || val === 'undefined' || val === '0.00') return 'Sem dados';
+  if (!val || val === 'null' || val === 'undefined' || val === '0.00' || val === '0') return 'Sem dados';
+  // Extract only percentage if the value contains raw data like "impressions: 210000, ctr: 2.23"
+  // We want to show only the status percentage, not raw metric strings
   return val;
+}
+
+function formatAsPercent(status: string): string {
+  const pct = getStatusPercent(status);
+  return `${pct}%`;
 }
 
 function getStatusBadgeColor(status: string) {
