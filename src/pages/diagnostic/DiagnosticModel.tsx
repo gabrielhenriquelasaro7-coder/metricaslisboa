@@ -88,7 +88,7 @@ export function DiagnosticModel() {
                         DESTRAVA RECEITA · ENGINE V4
                     </Badge>
 
-                    <h2 className="text-4xl lg:text-7xl font-black text-white leading-[0.85] uppercase tracking-tighter" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    <h2 className="text-4xl lg:text-7xl font-black text-foreground leading-[0.85] uppercase tracking-tighter" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                         Toda empresa é uma <br /><span className="text-red-500 italic">Fábrica de Receita</span>
                     </h2>
 
