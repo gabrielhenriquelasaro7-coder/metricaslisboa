@@ -272,8 +272,8 @@ export default function DiagnosticTOC() {
                           className="w-full flex items-center justify-between p-4 rounded-2xl bg-muted/30 dark:bg-black border border-border hover:border-red-600/50 transition-all text-left group"
                         >
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center border border-white/5 group-hover:border-red-600/30">
-                              <Database className="w-5 h-5 text-zinc-600 group-hover:text-red-600" />
+                            <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center border border-border group-hover:border-red-600/30">
+                              <Database className="w-5 h-5 text-muted-foreground group-hover:text-red-600" />
                             </div>
                             <div>
                               <p className="text-[12px] font-black text-white uppercase tracking-tight">{sp.name}</p>
