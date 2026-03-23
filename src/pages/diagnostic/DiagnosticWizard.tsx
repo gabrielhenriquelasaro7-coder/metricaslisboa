@@ -596,7 +596,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                     <Input
                       type="number"
                       placeholder="35"
-                      className="h-12 rounded-2xl bg-black border-white/10 text-white text-xl font-black text-center pr-8"
+                      className="h-12 rounded-2xl bg-muted/50 dark:bg-black border-border text-foreground text-xl font-black text-center pr-8"
                       value={business.contributionMargin || ''}
                       onChange={e => setBusiness(p => ({ ...p, contributionMargin: parseFloat(e.target.value) || 0 }))}
                     />
