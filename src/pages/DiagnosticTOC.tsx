@@ -6,30 +6,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  BarChart3,
   Target,
   Thermometer,
   Layers,
   ChevronRight,
-  ChevronLeft,
-  Info,
   AlertTriangle,
-  CheckCircle2,
-  TrendingUp,
-  Users,
   Globe,
   FileText,
-  Download,
-  Zap,
   ArrowRight,
-  HelpCircle,
   Database,
   History as HistoryIcon,
   Trash2,
   Plus,
   Eye,
   Search,
-  ExternalLink
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,13 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  BENCHMARK_STAGES,
-  BenchmarkStageId,
-  classifyMetricValue,
-  createDefaultBenchmarkConfigFromSeed
-} from '@/lib/diagnosticBenchmarks';
-import { RevenueFlow } from '@/components/dashboard/RevenueFlow';
+
 
 import {
   Dialog,
@@ -232,11 +216,6 @@ export default function DiagnosticTOC() {
     setIsModalOpen(false);
   };
 
-  const handleWizardSave = (p: DiagnosticProject, aiResult?: any) => {
-    saveProject(p);
-    setCurrentProject(p);
-    setMode('results');
-  };
 
   return (
     <DashboardLayout>
@@ -431,6 +410,7 @@ export default function DiagnosticTOC() {
                     project={currentProject}
                     onSave={(p) => {
                       saveProject(p);
+                      setCurrentProject(p);
                       setMode('results');
                     }}
                     onCancel={() => setMode('list')}
