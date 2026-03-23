@@ -64,6 +64,8 @@ REGRAS CRÍTICAS:
 3. Se o usuário NÃO preencheu NENHUMA informação de uma determinada trava, retorne "Trava de Cegueira".
 4. Se TAM/SAM/SOM indicam que o mercado é a restrição (meta acima do SOM), retorne "Trava de Mercado".
 5. NÃO invente dados. NÃO assuma valores. Use APENAS o que foi preenchido.
+6. O campo "trava_nome" deve usar o NOME COMPLETO da trava conforme listado abaixo (ex: "Volume de impressões, CPM" para Trava 07, "Taxa de Qualificação, MQL" para Trava 04).
+7. O campo "nome" em cada stage_score deve usar o NOME COMPLETO da trava (ex: "Volume de impressões, CPM"), NÃO nomes genéricos como "Exposição" ou "Qualificação".
 
 ESTRUTURA DE TRAVAS PARA MODELO "${businessModel?.toUpperCase() || 'INSIDE SALES'}":
 ${travaStructure}
