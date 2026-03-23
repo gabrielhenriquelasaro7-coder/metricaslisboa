@@ -277,23 +277,26 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           .trim();
       };
 
+      const addPageHeader = (title: string) => {
+        doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
+        doc.rect(0, 0, w, 12, 'F');
+        doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
+        doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+        doc.text(sanitize(title).toUpperCase(), margin, 8);
+        doc.setFillColor(RED.r, RED.g, RED.b);
+        doc.rect(margin, 11, 30, 1.5, 'F');
+        y = 20;
+      };
+
       const checkPage = (need: number = 30) => {
         if (y > h - 20 - need) {
           doc.addPage();
-          // Mini header on continuation pages
-          doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
-          doc.rect(0, 0, w, 12, 'F');
-          doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
-          doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-          doc.text(`DIAGNOSTICO TOC  |  ${sanitize(project.name).toUpperCase()}`, margin, 8);
-          doc.setFillColor(RED.r, RED.g, RED.b);
-          doc.rect(margin, 11, 30, 1.5, 'F');
-          y = 20;
+          addPageHeader(`DIAGNOSTICO TOC  |  ${project.name}`);
         }
       };
 
       const drawSectionHeader = (title: string, color: { r: number; g: number; b: number } = RED) => {
-        checkPage(20);
+        checkPage(25);
         doc.setFillColor(color.r, color.g, color.b);
         doc.roundedRect(margin, y, contentW, 10, 2, 2, 'F');
         doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
@@ -375,18 +378,20 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
       // ═══ INJEÇÃO RECOMENDADA ═══
       checkPage(25);
-      doc.setFillColor(GREEN.r, GREEN.g, GREEN.b, 0.08);
+      const injLines = doc.splitTextToSize(sanitize(ai.injecao_recomendada), contentW - 8);
+      const injCardH = injLines.length * 4.5 + 14;
       doc.setFillColor(240, 253, 244);
-      doc.roundedRect(margin, y, contentW, 5 + 5 * Math.ceil(sanitize(ai.injecao_recomendada).length / 80), 2, 2, 'F');
+      doc.roundedRect(margin, y, contentW, injCardH, 2, 2, 'F');
+      doc.setDrawColor(GREEN.r, GREEN.g, GREEN.b); doc.setLineWidth(0.5);
+      doc.roundedRect(margin, y, contentW, injCardH, 2, 2, 'S');
+      doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2); // reset
       doc.setTextColor(GREEN.r, GREEN.g, GREEN.b);
       doc.setFontSize(7); doc.setFont('helvetica', 'bold');
       doc.text('INJECAO RECOMENDADA', margin + 4, y + 5);
       doc.setTextColor(30, 30, 30);
       doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      y += 9;
-      const injLines = doc.splitTextToSize(sanitize(ai.injecao_recomendada), contentW - 8);
-      doc.text(injLines, margin + 4, y);
-      y += injLines.length * 4.5 + 8;
+      doc.text(injLines, margin + 4, y + 11);
+      y += injCardH + 6;
 
       // ═══ SÍNTESE EXECUTIVA ═══
       checkPage(30);
@@ -405,31 +410,23 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         y += 4.5;
       }
 
-      // ═══ PAGE 2: BENCHMARKS TABLE ═══
-      doc.addPage();
-      doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
-      doc.rect(0, 0, w, 12, 'F');
-      doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('BENCHMARKS VS REAL', margin, 8);
-      doc.setFillColor(RED.r, RED.g, RED.b);
-      doc.rect(margin, 11, 30, 1.5, 'F');
-      y = 22;
+      // ═══ BENCHMARKS TABLE ═══
+      y += 8;
+      checkPage(50);
+      // If we're near the top of a new page, add the specific header
+      if (y <= 22) {
+        // Already on fresh page from checkPage
+      } else {
+        doc.setDrawColor(230, 230, 230);
+        doc.line(margin, y - 4, w - margin, y - 4);
+      }
 
       // Table header
+      drawSectionHeader('Benchmarks vs Real', RED);
+      const tableStartY = y - 4; // track for border
       const colWidths = [contentW * 0.30, contentW * 0.20, contentW * 0.25, contentW * 0.25];
       const colStarts = [margin];
       for (let i = 1; i < colWidths.length; i++) colStarts.push(colStarts[i - 1] + colWidths[i - 1]);
-
-      doc.setFillColor(RED.r, RED.g, RED.b);
-      doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, 'F');
-      doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('TRAVA', colStarts[0] + 4, y + 5.5);
-      doc.text('CATEGORIA', colStarts[1] + 4, y + 5.5);
-      doc.text('STATUS', colStarts[2] + 4, y + 5.5);
-      doc.text('BENCHMARK', colStarts[3] + 4, y + 5.5);
-      y += 9;
 
       // Table rows
       ai.stage_scores.forEach((score, idx) => {
@@ -470,9 +467,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         y += 9;
       });
 
-      // Table border
-      doc.setDrawColor(230, 230, 230); doc.setLineWidth(0.3);
-      doc.rect(margin, 22 + 9, contentW, (ai.stage_scores.length) * 9, 'S');
+      // No hardcoded table border — rows have alternating bg which is sufficient
 
       // ═══ UDEs ═══
       y += 10;
@@ -510,16 +505,8 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         y += 18;
       }
 
-      // ═══ PAGE 3: LTP ANALYSIS ═══
-      doc.addPage();
-      doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
-      doc.rect(0, 0, w, 12, 'F');
-      doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('LTP — LOGICAL THINKING PROCESS', margin, 8);
-      doc.setFillColor(RED.r, RED.g, RED.b);
-      doc.rect(margin, 11, 30, 1.5, 'F');
-      y = 22;
+      // ═══ LTP ANALYSIS ═══
+      y += 6;
 
       // CRT
       drawSectionHeader('Cadeia de Realidade Atual (CRT)', RED);
@@ -619,21 +606,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         });
       }
 
-      // ═══ PAGE 4: PLANO 90 DIAS ═══
-      doc.addPage();
-      doc.setFillColor(BLACK.r, BLACK.g, BLACK.b);
-      doc.rect(0, 0, w, 12, 'F');
-      doc.setTextColor(WHITE.r, WHITE.g, WHITE.b);
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-      doc.text('PLANO ESTRATEGICO DE 90 DIAS', margin, 8);
-      doc.setFillColor(RED.r, RED.g, RED.b);
-      doc.rect(margin, 11, 30, 1.5, 'F');
-      y = 22;
-
-      // Subtitle
-      doc.setTextColor(GRAY.r, GRAY.g, GRAY.b); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      doc.text(sanitize(`Foco em quebrar a restricao de ${TRAVA_NAMES[activeTrava] || ai.trava_nome}`), margin, y);
-      y += 10;
+      // ═══ PLANO 90 DIAS ═══
+      y += 6;
+      drawSectionHeader(`Plano Estrategico de 90 Dias — ${TRAVA_NAMES[activeTrava] || ai.trava_nome}`, BLACK);
 
       [
         { phase: 'MES 01', data: ai.plano_90_dias.mes_1, color: RED },
