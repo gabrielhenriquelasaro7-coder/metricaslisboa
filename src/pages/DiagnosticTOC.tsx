@@ -6,30 +6,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  BarChart3,
   Target,
   Thermometer,
   Layers,
   ChevronRight,
-  ChevronLeft,
-  Info,
   AlertTriangle,
-  CheckCircle2,
-  TrendingUp,
-  Users,
   Globe,
   FileText,
-  Download,
-  Zap,
   ArrowRight,
-  HelpCircle,
   Database,
   History as HistoryIcon,
   Trash2,
   Plus,
   Eye,
   Search,
-  ExternalLink
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
