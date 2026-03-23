@@ -58,7 +58,17 @@ const TRAVA_CATEGORIES: Record<string, string> = {
   '00': 'CEGUEIRA',
 };
 
-const normalizeTravaId = (trava: string) => (trava === 'cegueira' ? '00' : trava);
+const normalizeTravaId = (trava: string): string => {
+  if (!trava) return '00';
+  const lower = trava.toLowerCase().trim();
+  if (lower === 'cegueira' || lower === 'trava_00' || lower === 't00') return '00';
+  // Extract digits from strings like 'trava_07', 'T07', 'Trava 7', '7', '07', 'trava07'
+  const match = lower.replace(/\s+/g, '').match(/(\d{1,2})/);
+  if (match) {
+    return match[1].padStart(2, '0');
+  }
+  return '00';
+};
 
 // Bowtie stages: renderização da esquerda para direita em análise TOC (07 → 01)
 const BOWTIE_STAGES = [
