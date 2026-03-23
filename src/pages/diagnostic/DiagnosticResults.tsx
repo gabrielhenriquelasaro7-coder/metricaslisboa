@@ -554,170 +554,220 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         </div>
       </Card>
 
-      {/* ═══ SECTION 5: LTP — EVAPORATING CLOUD ═══ */}
-      <Card className="p-6 dark:bg-zinc-950 bg-white rounded-[2.5rem] space-y-8">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center border border-red-600/20">
-            <GitBranch className="w-5 h-5 text-red-600" />
-          </div>
-          <div>
-            <h4 className="text-lg font-black text-foreground uppercase tracking-tight italic">LTP — Logical Thinking Process</h4>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Baseado na restrição de {getTravaName(activeTrava)}</p>
-          </div>
-        </div>
-
-        {/* CRT */}
-        <div className="space-y-4">
-          <Badge className="bg-red-600/10 text-red-600 border-red-600/20 text-[8px] font-black uppercase">CRT — Cadeia de Realidade Atual</Badge>
-          <div className="relative pl-6 space-y-0">
-            {ai.ltp_analysis.crt_nodes.map((node, idx) => (
-              <div key={idx} className="relative">
-                {idx < ai.ltp_analysis.crt_nodes.length - 1 && (
-                  <div className="absolute left-[-12px] top-8 bottom-0 w-px bg-red-600/30" />
-                )}
-                <div className="absolute left-[-16px] top-3 w-2 h-2 rounded-full bg-red-600 ring-2 ring-red-600/20" />
-                <div className={cn(
-                  "p-3 mb-2 rounded-xl border text-[11px]",
-                  idx === ai.ltp_analysis.crt_nodes.length - 1 ? "border-red-600/30 bg-red-600/5 font-bold text-foreground" : "border-border bg-muted/30 text-foreground/80"
-                )}>
-                  {node}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* CORE PROBLEM */}
-        <Card className="bg-red-600 border-red-600 p-6 rounded-[2rem] space-y-3 shadow-xl shadow-red-600/20">
-          <Badge className="bg-white text-red-600 text-[8px] font-black uppercase">CORE PROBLEM</Badge>
-          <p className="text-[13px] font-black text-white uppercase tracking-tighter italic leading-tight">{ai.ltp_analysis.core_problem}</p>
-        </Card>
-
-        {/* EVAPORATING CLOUD */}
-        <div className="space-y-4">
-          <Badge className="bg-amber-600/10 text-amber-600 border-amber-600/20 text-[8px] font-black uppercase">Evaporating Cloud — Diagrama de Conflito</Badge>
-
-          <div className="relative bg-muted/30 border border-border p-6 md:p-8 rounded-2xl space-y-6">
-            {/* Objective */}
-            <div className="flex justify-center">
-              <div className="bg-blue-600/10 border-2 border-blue-600/30 px-8 py-4 rounded-2xl text-center max-w-lg shadow-lg shadow-blue-600/5">
-                <p className="text-[8px] font-black text-blue-500 uppercase tracking-[0.3em] mb-2">🎯 Objetivo Comum</p>
-                <p className="text-sm text-foreground font-bold leading-relaxed">{ai.ltp_analysis.evaporating_cloud.objetivo}</p>
-              </div>
+      {/* ═══ SECTION 5: LTP — LOGICAL THINKING PROCESS ═══ */}
+      {/* CRT + Core Problem */}
+      <Card className="p-0 dark:bg-zinc-950 bg-white rounded-[2.5rem] overflow-hidden">
+        <div className="bg-gradient-to-r from-red-600/10 via-transparent to-transparent p-6 pb-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center border border-red-600/20">
+              <GitBranch className="w-5 h-5 text-red-600" />
             </div>
-
-            <div className="flex justify-center">
-              <div className="flex items-center gap-8">
-                <div className="h-8 w-px bg-emerald-600/40" />
-                <div className="text-[8px] text-muted-foreground font-black uppercase tracking-widest">Para atingir o objetivo precisamos de...</div>
-                <div className="h-8 w-px bg-purple-600/40" />
-              </div>
-            </div>
-
-            {/* Two Needs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <div className="bg-emerald-600/10 border-2 border-emerald-600/20 p-5 rounded-2xl">
-                  <p className="text-[8px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-2">Necessidade A</p>
-                  <p className="text-[12px] text-foreground font-semibold leading-relaxed">{ai.ltp_analysis.evaporating_cloud.necessidade_a}</p>
-                </div>
-                <div className="flex justify-center"><ArrowDown className="w-4 h-4 text-emerald-600/40" /></div>
-                <div className="bg-emerald-600/5 border border-emerald-600/10 p-5 rounded-2xl">
-                  <p className="text-[8px] font-black text-emerald-500/50 uppercase tracking-[0.3em] mb-2">Ação A — O que exige</p>
-                  <p className="text-[11px] text-foreground/70 leading-relaxed">{ai.ltp_analysis.evaporating_cloud.acao_a}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="bg-purple-600/10 border-2 border-purple-600/20 p-5 rounded-2xl">
-                  <p className="text-[8px] font-black text-purple-500 uppercase tracking-[0.3em] mb-2">Necessidade B</p>
-                  <p className="text-[12px] text-foreground font-semibold leading-relaxed">{ai.ltp_analysis.evaporating_cloud.necessidade_b}</p>
-                </div>
-                <div className="flex justify-center"><ArrowDown className="w-4 h-4 text-purple-600/40" /></div>
-                <div className="bg-purple-600/5 border border-purple-600/10 p-5 rounded-2xl">
-                  <p className="text-[8px] font-black text-purple-500/50 uppercase tracking-[0.3em] mb-2">Ação B — O que exige</p>
-                  <p className="text-[11px] text-foreground/70 leading-relaxed">{ai.ltp_analysis.evaporating_cloud.acao_b}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Conflict */}
-            <div className="relative py-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t-2 border-dashed border-red-500/30" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="text-red-500 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-red-500/10 border-2 border-red-500/30 rounded-full shadow-lg shadow-red-500/10">
-                  ⚡ CONFLITO — Ação A e B são mutuamente exclusivas
-                </span>
-              </div>
-            </div>
-
-            {/* Invalid assumption */}
-            <div className="bg-amber-600/5 dark:bg-amber-950/30 border-2 border-amber-600/30 p-6 rounded-2xl shadow-lg shadow-amber-600/5">
-              <p className="text-[8px] font-black text-amber-500 uppercase tracking-[0.3em] mb-3">🔍 Pressuposto Inválido — A crença que sustenta o conflito</p>
-              <p className="text-[13px] text-amber-700 dark:text-amber-200 italic font-semibold leading-relaxed">"{ai.ltp_analysis.evaporating_cloud.pressuposto_invalido}"</p>
-              <p className="text-[9px] text-amber-600/60 mt-3 font-bold uppercase tracking-widest">Este pressuposto é falso. Ao invalidá-lo, o conflito evapora.</p>
-            </div>
-
-            {/* Injection */}
-            <div className="bg-emerald-600/10 border-2 border-emerald-600/30 p-6 rounded-2xl shadow-xl shadow-emerald-600/10">
-              <div className="flex items-center gap-2 mb-3">
-                <Lightbulb className="w-5 h-5 text-emerald-500" />
-                <p className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.3em]">💡 Injeção — A solução que evapora o conflito</p>
-              </div>
-              <p className="text-sm text-foreground font-bold leading-relaxed">{ai.ltp_analysis.evaporating_cloud.injecao}</p>
+            <div>
+              <h4 className="text-lg font-black text-foreground uppercase tracking-tight italic">LTP — Logical Thinking Process</h4>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Baseado na restrição de {getTravaName(activeTrava)}</p>
             </div>
           </div>
         </div>
 
-        {/* FRT Effects */}
-        <div className="space-y-3">
-          <h5 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-500" /> Efeitos Desejáveis — Future Reality Tree
-          </h5>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {ai.ltp_analysis.frt_effects.map((effect, idx) => (
-              <div key={idx} className="flex items-start gap-2 p-3 bg-emerald-600/5 border border-emerald-600/10 rounded-xl">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                <p className="text-[11px] text-foreground/70">{effect}</p>
+        <div className="p-6 space-y-8">
+          {/* CRT — Timeline */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-red-600/10 rounded-lg flex items-center justify-center">
+                <span className="text-[9px] font-black text-red-600">CRT</span>
               </div>
-            ))}
+              <span className="text-xs font-black text-foreground uppercase tracking-widest">Cadeia de Realidade Atual</span>
+            </div>
+            <div className="relative pl-8 space-y-0">
+              {ai.ltp_analysis.crt_nodes.map((node, idx) => {
+                const isLast = idx === ai.ltp_analysis.crt_nodes.length - 1;
+                return (
+                  <div key={idx} className="relative">
+                    {!isLast && (
+                      <div className="absolute left-[-16px] top-10 bottom-0 w-px bg-gradient-to-b from-red-600/40 to-red-600/10" />
+                    )}
+                    <div className={cn(
+                      "absolute left-[-20px] top-4 w-3 h-3 rounded-full border-2",
+                      isLast ? "bg-red-600 border-red-600 ring-4 ring-red-600/20" : "bg-card border-red-600/40"
+                    )} />
+                    <div className={cn(
+                      "p-4 mb-3 rounded-xl border text-[12px] leading-relaxed",
+                      isLast
+                        ? "border-red-600/30 bg-red-600/5 font-bold text-foreground shadow-sm"
+                        : "border-border bg-muted/20 text-foreground/80"
+                    )}>
+                      {isLast && <span className="text-[8px] font-black text-red-500 uppercase tracking-widest block mb-1">Causa Raiz ↓</span>}
+                      {node}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Negative Branches */}
-        <div className="space-y-3">
-          <h5 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-amber-500" /> Riscos Potenciais — Negative Branches
-          </h5>
-          <div className="space-y-2">
-            {ai.ltp_analysis.negative_branches.map((nb, idx) => (
-              <div key={idx} className="flex items-start gap-2 p-3 bg-amber-600/5 border border-amber-600/10 rounded-xl">
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
-                <p className="text-[11px] text-foreground/70">{nb}</p>
+          {/* CORE PROBLEM */}
+          <div className="bg-red-600 p-6 rounded-2xl space-y-3 shadow-xl shadow-red-600/20">
+            <Badge className="bg-white text-red-600 text-[8px] font-black uppercase">CORE PROBLEM</Badge>
+            <p className="text-[14px] font-black text-white uppercase tracking-tight italic leading-snug">{ai.ltp_analysis.core_problem}</p>
+          </div>
+
+          {/* EVAPORATING CLOUD — Visual Diagram */}
+          <div className="space-y-5">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-amber-600/10 rounded-lg flex items-center justify-center">
+                <span className="text-[9px] font-black text-amber-600">EC</span>
               </div>
-            ))}
-          </div>
-        </div>
+              <span className="text-xs font-black text-foreground uppercase tracking-widest">Evaporating Cloud — Diagrama de Conflito</span>
+            </div>
 
-        {/* Prerequisite Tree */}
-        <div className="space-y-3">
-          <h5 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-            <ListChecks className="w-4 h-4 text-blue-500" /> Pré-Requisitos — Prerequisite Tree
-          </h5>
-          <div className="relative pl-6 space-y-0">
-            {ai.ltp_analysis.prerequisite_tree.map((prt, idx) => (
-              <div key={idx} className="relative">
-                {idx < ai.ltp_analysis.prerequisite_tree.length - 1 && (
-                  <div className="absolute left-[-12px] top-8 bottom-0 w-px bg-blue-600/30" />
-                )}
-                <div className="absolute left-[-16px] top-3 w-2 h-2 rounded-full bg-blue-500 ring-2 ring-blue-500/20" />
-                <div className="p-3 mb-2 rounded-xl border border-blue-600/10 bg-blue-600/5 text-[11px] text-foreground/70">
-                  {prt}
+            <div className="relative bg-gradient-to-b from-muted/40 to-muted/10 border border-border p-6 md:p-8 rounded-2xl space-y-8">
+              {/* Objective — centered top */}
+              <div className="flex justify-center">
+                <div className="bg-blue-600/10 border-2 border-blue-600/30 px-8 py-5 rounded-2xl text-center max-w-lg shadow-lg shadow-blue-600/5 relative">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[7px] font-black uppercase tracking-widest px-3 py-0.5 rounded-full">Objetivo</div>
+                  <p className="text-sm text-foreground font-bold leading-relaxed mt-1">{ai.ltp_analysis.evaporating_cloud.objetivo}</p>
                 </div>
               </div>
-            ))}
+
+              {/* Connection lines text */}
+              <div className="flex justify-center">
+                <div className="flex items-center gap-6">
+                  <div className="h-6 w-px bg-gradient-to-b from-emerald-600/50 to-emerald-600/10" />
+                  <span className="text-[8px] text-muted-foreground font-black uppercase tracking-widest">Para isso, precisamos de...</span>
+                  <div className="h-6 w-px bg-gradient-to-b from-purple-600/50 to-purple-600/10" />
+                </div>
+              </div>
+
+              {/* Two Needs + Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Side A */}
+                <div className="space-y-4">
+                  <div className="bg-emerald-600/10 border-2 border-emerald-600/25 p-5 rounded-2xl relative">
+                    <div className="absolute -top-2.5 left-4 bg-emerald-600 text-white text-[7px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full">Necessidade A</div>
+                    <p className="text-[12px] text-foreground font-semibold leading-relaxed mt-1">{ai.ltp_analysis.evaporating_cloud.necessidade_a}</p>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div className="w-px h-3 bg-emerald-600/30" />
+                      <span className="text-[7px] text-emerald-600/50 font-black uppercase">exige</span>
+                      <div className="w-px h-3 bg-emerald-600/30" />
+                    </div>
+                  </div>
+                  <div className="bg-emerald-600/5 border border-emerald-600/15 p-5 rounded-2xl">
+                    <p className="text-[8px] font-black text-emerald-500/60 uppercase tracking-[0.2em] mb-2">Ação A</p>
+                    <p className="text-[11px] text-foreground/70 leading-relaxed">{ai.ltp_analysis.evaporating_cloud.acao_a}</p>
+                  </div>
+                </div>
+
+                {/* Side B */}
+                <div className="space-y-4">
+                  <div className="bg-purple-600/10 border-2 border-purple-600/25 p-5 rounded-2xl relative">
+                    <div className="absolute -top-2.5 left-4 bg-purple-600 text-white text-[7px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full">Necessidade B</div>
+                    <p className="text-[12px] text-foreground font-semibold leading-relaxed mt-1">{ai.ltp_analysis.evaporating_cloud.necessidade_b}</p>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div className="w-px h-3 bg-purple-600/30" />
+                      <span className="text-[7px] text-purple-600/50 font-black uppercase">exige</span>
+                      <div className="w-px h-3 bg-purple-600/30" />
+                    </div>
+                  </div>
+                  <div className="bg-purple-600/5 border border-purple-600/15 p-5 rounded-2xl">
+                    <p className="text-[8px] font-black text-purple-500/60 uppercase tracking-[0.2em] mb-2">Ação B</p>
+                    <p className="text-[11px] text-foreground/70 leading-relaxed">{ai.ltp_analysis.evaporating_cloud.acao_b}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Conflict Banner */}
+              <div className="relative py-3">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t-2 border-dashed border-red-500/25" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="text-red-500 text-[10px] font-black uppercase tracking-widest px-5 py-2 bg-card border-2 border-red-500/30 rounded-full shadow-lg shadow-red-500/10">
+                    ⚡ CONFLITO — As ações são mutuamente exclusivas
+                  </span>
+                </div>
+              </div>
+
+              {/* Invalid Assumption */}
+              <div className="bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-500/30 p-6 rounded-2xl relative">
+                <div className="absolute -top-2.5 left-4 bg-amber-500 text-white text-[7px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full">Pressuposto Inválido</div>
+                <p className="text-[13px] text-amber-800 dark:text-amber-200 italic font-semibold leading-relaxed mt-1">"{ai.ltp_analysis.evaporating_cloud.pressuposto_invalido}"</p>
+                <p className="text-[9px] text-amber-600/60 dark:text-amber-400/40 mt-3 font-bold uppercase tracking-widest">Este pressuposto é falso. Ao invalidá-lo, o conflito evapora.</p>
+              </div>
+
+              {/* Injection */}
+              <div className="bg-emerald-50 dark:bg-emerald-950/20 border-2 border-emerald-500/30 p-6 rounded-2xl shadow-lg shadow-emerald-600/10 relative">
+                <div className="absolute -top-2.5 left-4 bg-emerald-600 text-white text-[7px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Lightbulb className="w-3 h-3" /> Injeção
+                </div>
+                <p className="text-sm text-foreground font-bold leading-relaxed mt-1">{ai.ltp_analysis.evaporating_cloud.injecao}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* FRT + NB + PRT in tabs-like sections */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* FRT Effects */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-emerald-600/10 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                </div>
+                <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Future Reality Tree</span>
+              </div>
+              <div className="space-y-2">
+                {ai.ltp_analysis.frt_effects.map((effect, idx) => (
+                  <div key={idx} className="flex items-start gap-2 p-3 bg-emerald-600/5 border border-emerald-600/10 rounded-xl">
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                    <p className="text-[11px] text-foreground/70">{effect}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Negative Branches */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-amber-600/10 rounded-lg flex items-center justify-center">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
+                </div>
+                <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Negative Branches</span>
+              </div>
+              <div className="space-y-2">
+                {ai.ltp_analysis.negative_branches.map((nb, idx) => (
+                  <div key={idx} className="flex items-start gap-2 p-3 bg-amber-600/5 border border-amber-600/10 rounded-xl">
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-[11px] text-foreground/70">{nb}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Prerequisite Tree */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-blue-600/10 rounded-lg flex items-center justify-center">
+                  <ListChecks className="w-3.5 h-3.5 text-blue-500" />
+                </div>
+                <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Prerequisite Tree</span>
+              </div>
+              <div className="relative pl-6 space-y-0">
+                {ai.ltp_analysis.prerequisite_tree.map((prt, idx) => (
+                  <div key={idx} className="relative">
+                    {idx < ai.ltp_analysis.prerequisite_tree.length - 1 && (
+                      <div className="absolute left-[-12px] top-8 bottom-0 w-px bg-blue-600/20" />
+                    )}
+                    <div className="absolute left-[-16px] top-3 w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-blue-500/20" />
+                    <div className="p-3 mb-2 rounded-xl border border-blue-600/10 bg-blue-600/5 text-[11px] text-foreground/70">
+                      {prt}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </Card>
