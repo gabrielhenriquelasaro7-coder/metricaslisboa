@@ -93,11 +93,11 @@ export function DiagnosticModel() {
                     </h2>
 
                     <div className="space-y-4 w-full">
-                        <p className="text-sm text-zinc-400 leading-relaxed font-medium">
-                            Seu produto final não é o que você vende — é a receita que você gera. Empresas com produtos piores vencem por dominarem melhor seu <strong className="text-white">sistema de geração de receita</strong>. Produtos e serviços são apenas os meios para esse fim.
+                        <p className="text-sm text-muted-foreground leading-relaxed font-medium">
+                            Seu produto final não é o que você vende — é a receita que você gera. Empresas com produtos piores vencem por dominarem melhor seu <strong className="text-foreground">sistema de geração de receita</strong>. Produtos e serviços são apenas os meios para esse fim.
                         </p>
-                        <p className="text-sm text-zinc-500 leading-relaxed font-medium">
-                            A maioria das empresas faz "várias coisas certas" sem um fluxo orientado ao output global. Agências melhoram anúncios, posts, CRM... mas o faturamento não sobe proporcionalmente. <span className="text-zinc-300 italic">Execução, sem a direção correta, é apenas velocidade no caminho errado.</span>
+                        <p className="text-sm text-muted-foreground/70 leading-relaxed font-medium">
+                            A maioria das empresas faz "várias coisas certas" sem um fluxo orientado ao output global. Agências melhoram anúncios, posts, CRM... mas o faturamento não sobe proporcionalmente. <span className="text-foreground/70 italic">Execução, sem a direção correta, é apenas velocidade no caminho errado.</span>
                         </p>
                     </div>
 
