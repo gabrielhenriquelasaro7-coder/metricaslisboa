@@ -1,81 +1,50 @@
 
 
-# Instagram Dashboard: Data Fix and Visual Improvement
+## Diagnóstico — Correções de Layout, Dados e Prompt da IA
 
-## Problem Summary
+### Problemas Identificados
 
-The sync successfully saves account info (12k followers) and 50 media items, but:
-- All per-media metrics (reach, views, shares, saved) are **0** -- the insights API calls fail silently
-- Daily insights table has **0 rows** -- the daily metrics API also fails silently
-- Images show ugly gray bars due to `object-contain` in the grid
-- The overall visualization looks sparse and incomplete
+1. **Bowtie mostra "null"**: Os valores exibidos no Fluxo de Receita e nas barras de progresso mostram "null" quando não há dados, em vez de mostrar "Sem dados" ou ocultar.
+2. **Layout de resultados degradado**: O layout antigo (screenshots 3-5) tinha o "Relatório de Restrição" com Eficiência Real e Gap vs Benchmark, o "Painel de Travas" com sliders interativos divididos em Vendas/CS e Marketing, e o Bowtie com visual de funil perspectiva com barras laterais amarelas. Tudo isso se perdeu.
+3. **EC e LTP simplistas**: A Evaporating Cloud está em grid genérico sem representação visual do conflito. O LTP não tem profundidade visual.
+4. **Prompt da IA**: O prompt atual é adequado na estrutura, mas precisa de melhorias para gerar respostas mais ricas e contextualizadas (usar valor_informado formatado em vez de null, forçar observações descritivas).
 
-## Root Causes
+### Plano de Implementação
 
-1. **Meta Graph API v21 metric changes**: Some metric names (`accounts_engaged`, `total_interactions`, `follows_and_unfollows`) may not be available or require different parameters in the current API version. Errors are swallowed by try/catch blocks with no user feedback.
-2. **Per-media insights failing**: The metrics `likes`, `comments`, `shares`, `saved`, `total_interactions` for individual media may require different names or the API call format may be wrong. Again, errors are silently caught.
-3. **Image display**: Grid uses `object-contain` (shows full image with gray padding) instead of `object-cover` (fills square, crops edges).
+#### 1. Corrigir exibição de "null" no Results
+- Substituir todas as ocorrências de `score.valor_informado || '0.00'` e `value` no Bowtie por lógica que exibe "Sem dados" para `null`/`undefined`
+- Na Bowtie e nas barras de progresso, quando `status === 'sem_dados'`, mostrar "Sem dados para análise" em vez de "null"
 
-## Plan
+#### 2. Restaurar layout do "Relatório de Restrição" (screenshot 3)
+- Adicionar cards laterais de "Eficiência Atual Real" e "Gap vs Benchmark" ao card de Restrição Ativa
+- Usar os dados de `stage_scores` para calcular eficiência e gap
 
-### 1. Fix Edge Function (`instagram-sync`)
+#### 3. Restaurar "Painel de Travas" com sliders interativos (screenshot 4)
+- Dividir travas em duas colunas: Vendas/CS (07, 06, 05) e Marketing (04, 03, 02)
+- Usar `Slider` com gradiente red→green
+- Mostrar valor Real vs Benchmark lado a lado
+- Botão "Ajustar Benchmarks" (visual only)
 
-**Daily Insights (Step 3):**
-- Split the metrics request into smaller batches -- Meta API sometimes rejects when too many metrics are requested at once
-- Use separate calls for basic metrics (`reach`, `impressions`, `profile_views`, `website_clicks`) and interaction metrics (`likes`, `comments`, `shares`, `saves`, `follows_and_unfollows`)
-- Add detailed error logging with metric names so we can see exactly which metrics fail
-- Add fallback: if combined request fails, try metrics individually
+#### 4. Restaurar Bowtie visual com perspectiva (screenshot 5)
+- Funil com 7 estágios em formato de trapézio/perspectiva
+- Barras laterais amarelas, valores grandes no centro
+- Setas conectoras entre estágios
+- Badge "GARGALO" vermelho no estágio bottleneck
+- Remover "null" — mostrar "Sem dados" quando não há valor
 
-**Per-Media Insights (Step 6):**
-- Add proper error logging with the specific media ID and error message
-- Use fallback values from the basic media fields (`like_count`, `comments_count`) when insights API fails
-- Handle the case where some metrics simply aren't available for older posts (API returns error for posts older than 2 years)
+#### 5. Melhorar LTP visualmente
+- Evaporating Cloud: representar como diagrama de conflito visual (objetivo no topo, duas necessidades, duas ações em conflito, seta da injeção quebrando o conflito)
+- CRT: representar como árvore vertical com nós conectados
+- FRT, NBR, PRT: manter cards mas com design mais elaborado
 
-**General improvements:**
-- Log all API responses (not just errors) so we can debug via function logs
-- Return detailed sync report with counts of successful/failed insight fetches
+#### 6. Melhorar prompt da IA
+- Adicionar instrução para que `valor_informado` seja sempre uma string formatada legível (ex: "impressions: 210000, cpm: 14") em vez de null
+- Quando não há dados, `valor_informado` deve ser `null` mas `observacao` deve explicar que não há dados
+- Adicionar instrução para EC mais detalhada com pressuposto claramente articulado
+- Adicionar instrução para sintese com 5+ parágrafos com profundidade analítica
+- Instruir a IA a incluir números específicos e benchmarks de referência nas observações
 
-### 2. Fix Image Grid (No More Gray Bars)
-
-**`InstagramPostsGrid.tsx`:**
-- Change from `object-contain bg-black/5` to `object-cover` in the grid thumbnails
-- This fills the square completely, cropping edges naturally (standard Instagram behavior)
-- Keep `object-contain` only in the detail modal where full image visibility matters
-
-### 3. Improve Visualization
-
-**`InstagramPage.tsx`:**
-- Add a summary banner showing sync status (last sync date, media count, insights days)
-- Show a warning when insights data is empty (guiding user to re-sync)
-
-**`InstagramMetricsGrid.tsx`:**
-- Add subtle animations on metric cards
-- Show "last 30 days" label to clarify the time period
-- Add visual indicator when a metric is 0 (dimmed styling)
-
-**`InstagramPerformanceChart.tsx`:**
-- Add area fill under lines for better visual appeal
-- Add date range label in header
-- Handle empty data state with a helpful message
-
-**`InstagramPostsGrid.tsx`:**
-- Add engagement rate per post (interactions / reach)
-- Show post date overlay on thumbnails
-- Better empty state design
-
-**`InstagramDemographics.tsx`:**
-- Add a note when demographics aren't available (requires 100+ followers -- this account has 12k so it should work after fixing the sync)
-
-### 4. Files to Change
-
-| File | Changes |
-|------|---------|
-| `supabase/functions/instagram-sync/index.ts` | Fix metric fetching with fallbacks, better logging |
-| `src/components/instagram/InstagramPostsGrid.tsx` | `object-cover` for grid, date overlay, engagement rate |
-| `src/components/instagram/InstagramMetricsGrid.tsx` | Period label, zero-state styling, animations |
-| `src/components/instagram/InstagramPerformanceChart.tsx` | Area fill, empty state, date range |
-| `src/components/instagram/InstagramDemographics.tsx` | Better empty state message |
-| `src/pages/Instagram.tsx` | Sync status banner, warning for empty insights |
-| `src/components/instagram/InstagramPostDetailModal.tsx` | Minor visual polish |
-| `src/components/instagram/InstagramProfileHeader.tsx` | Add engagement rate badge |
+### Arquivos Alterados
+- `src/pages/diagnostic/DiagnosticResults.tsx` — Layout completo restaurado
+- `supabase/functions/diagnostic-ai-analysis/index.ts` — Prompt melhorado
 
