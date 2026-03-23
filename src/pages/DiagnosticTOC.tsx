@@ -269,7 +269,7 @@ export default function DiagnosticTOC() {
                         <button
                           key={sp.id}
                           onClick={() => handleStartNew(sp.id)}
-                          className="w-full flex items-center justify-between p-4 rounded-2xl bg-black border border-white/5 hover:border-red-600/50 transition-all text-left group"
+                          className="w-full flex items-center justify-between p-4 rounded-2xl bg-muted/30 dark:bg-black border border-border hover:border-red-600/50 transition-all text-left group"
                         >
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center border border-white/5 group-hover:border-red-600/30">
