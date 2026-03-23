@@ -437,7 +437,7 @@ function ProjectList({ projects, onOpen, onEdit, onDelete }: {
 }) {
   if (projects.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-zinc-950/50 rounded-[2.5rem] border border-white/5 border-dashed">
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-muted/30 dark:bg-zinc-950/50 rounded-[2.5rem] border border-border border-dashed">
         <div className="w-20 h-20 bg-black rounded-3xl flex items-center justify-center border border-white/5 shadow-2xl">
           <FileText className="w-10 h-10 text-zinc-800" />
         </div>
