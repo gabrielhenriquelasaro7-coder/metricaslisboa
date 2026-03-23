@@ -97,6 +97,79 @@ function getBowtieTextColor(status: string) {
   }
 }
 
+const BENCHMARK_DEFAULTS: Record<string, string> = {
+  '07': '3.00%',
+  '06': '25.00%',
+  '05': '28.00%',
+  '04': '25.00%',
+  '03': '6.60%',
+  '02': '5.65%',
+  '01': '18.00',
+  '00': '1.00%',
+};
+
+function getBenchmarkValue(trava: string): string {
+  return BENCHMARK_DEFAULTS[trava] || '—';
+}
+
+interface TravaSliderCardProps {
+  trava: string;
+  nome: string;
+  status: string;
+  isBottleneck: boolean;
+  pct: number;
+  displayVal: string;
+  benchVal: string;
+  isRestriction: boolean;
+  isSemiManual?: boolean;
+}
+
+function TravaSliderCard({ trava, nome, status, isBottleneck, pct, displayVal, benchVal, isRestriction, isSemiManual }: TravaSliderCardProps) {
+  return (
+    <div className={cn(
+      "relative space-y-4 p-5 rounded-[1.5rem] transition-all duration-500 border shadow-xl",
+      isRestriction ? "bg-zinc-900/40 border-red-500/30 shadow-[0_0_20px_rgba(220,38,38,0.1)]" : "border-white/5 bg-black/30"
+    )}>
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">TRAVA {trava}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-black text-white tracking-tight">{nome}</span>
+            {isRestriction && <AlertTriangle className="w-4 h-4 text-red-500 ml-1" />}
+          </div>
+          {isRestriction && (
+            <p className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-1">
+              <AlertTriangle className="w-3 h-3" /> Esta é sua restrição ativa
+            </p>
+          )}
+        </div>
+        <div className={cn(
+          "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 bg-black/50",
+          isSemiManual ? "text-amber-500" :
+          status === 'critico' ? "text-red-500" :
+          status === 'bom' ? "text-emerald-500" :
+          status === 'na_media' ? "text-amber-500" : "text-zinc-500"
+        )}>
+          {isSemiManual ? 'Semi-Manual' : STATUS_LABELS[status] || 'Sem Dados'}
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
+        <div className="relative h-3 flex-1 rounded-full flex items-center bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 shadow-inner cursor-pointer" style={{ touchAction: 'none' }}>
+          <div
+            className="absolute w-5 h-5 bg-blue-500 rounded-full border-2 border-white shadow-[0_0_12px_rgba(59,130,246,0.8)] z-10 -translate-x-1/2 cursor-grab pointer-events-none transition-transform"
+            style={{ left: `${pct}%` }}
+          />
+        </div>
+        <div className="flex flex-col items-end min-w-[100px]">
+          <span className="text-white font-black whitespace-nowrap text-sm text-right">{displayVal} Real</span>
+          <span className="text-zinc-500 font-bold whitespace-nowrap text-xs text-right mt-0.5">{benchVal} Bench</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
   const ai = project.aiAnalysis;
 
