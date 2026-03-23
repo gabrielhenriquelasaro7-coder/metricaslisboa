@@ -16,10 +16,10 @@ import {
   ListChecks,
   ShieldCheck,
   Lightbulb,
-  ArrowRight,
   ArrowDown,
   Gauge,
   BarChart3,
+  Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,7 +36,7 @@ const STATUS_LABELS: Record<string, string> = {
   sem_dados: 'SEM DADOS',
 };
 
-// Proper TOC naming for travas
+// Fallback names only — prefer AI-returned score.nome
 const TRAVA_NAMES: Record<string, string> = {
   '01': 'Exposição',
   '02': 'Atenção',
@@ -48,15 +48,15 @@ const TRAVA_NAMES: Record<string, string> = {
   '00': 'Cegueira',
 };
 
-// Bowtie stages: Retenção (07, left/wide) → Exposição (01, right/wide) — funnel perspective
+// Bowtie stages: 07 (left/wide) → 01 (right/wide)
 const BOWTIE_STAGES = [
-  { trava: '07', clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)',           leftBar: '0%',  rightBar: '10%' },
-  { trava: '06', clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '20%' },
-  { trava: '05', clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '30%' },
-  { trava: '04', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '30%' },
-  { trava: '03', clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '20%' },
-  { trava: '02', clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '10%' },
-  { trava: '01', clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '0%' },
+  { trava: '07', clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)',   leftBar: '0%',  rightBar: '10%' },
+  { trava: '06', clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)',     leftBar: '10%', rightBar: '20%' },
+  { trava: '05', clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)',     leftBar: '20%', rightBar: '30%' },
+  { trava: '04', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)',     leftBar: '30%', rightBar: '30%' },
+  { trava: '03', clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)',     leftBar: '30%', rightBar: '20%' },
+  { trava: '02', clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)',     leftBar: '20%', rightBar: '10%' },
+  { trava: '01', clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)',     leftBar: '10%', rightBar: '0%' },
 ];
 
 function getStageColor(status: string, isBottleneck: boolean) {
@@ -65,27 +65,6 @@ function getStageColor(status: string, isBottleneck: boolean) {
     case 'bom': return { text: 'text-emerald-500', glow: 'rgba(16, 185, 129, 0.2)', bg: 'from-emerald-500/10', border: 'border-emerald-500/20', barColor: 'bg-emerald-500', dotColor: 'bg-emerald-400' };
     case 'na_media': return { text: 'text-amber-500', glow: 'rgba(245, 158, 11, 0.2)', bg: 'from-amber-500/10', border: 'border-amber-500/20', barColor: 'bg-amber-500', dotColor: 'bg-amber-400' };
     default: return { text: 'text-yellow-500', glow: 'rgba(234, 179, 8, 0.2)', bg: 'from-yellow-500/10', border: 'border-white/5', barColor: 'bg-yellow-500', dotColor: 'bg-yellow-400' };
-  }
-}
-
-function formatDisplayValue(val: string | null | undefined): string {
-  if (!val || val === 'null' || val === 'undefined' || val === '0.00' || val === '0') return 'Sem dados';
-  // Extract only percentage if the value contains raw data like "impressions: 210000, ctr: 2.23"
-  // We want to show only the status percentage, not raw metric strings
-  return val;
-}
-
-function formatAsPercent(status: string): string {
-  const pct = getStatusPercent(status);
-  return `${pct}%`;
-}
-
-function getStatusBadgeColor(status: string) {
-  switch (status) {
-    case 'critico': return 'text-red-500 bg-red-500/10 border-red-500/20';
-    case 'na_media': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-    case 'bom': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
-    default: return 'text-zinc-500 bg-zinc-500/10 border-zinc-500/20';
   }
 }
 
@@ -98,38 +77,22 @@ function getStatusPercent(status: string): number {
   }
 }
 
-function getBowtieBarColor(status: string) {
-  switch (status) {
-    case 'critico': return 'bg-red-500';
-    case 'na_media': return 'bg-amber-500';
-    case 'bom': return 'bg-emerald-500';
-    default: return 'bg-zinc-700';
-  }
-}
-
-function getBowtieTextColor(status: string) {
-  switch (status) {
-    case 'critico': return 'text-red-400';
-    case 'bom': return 'text-emerald-400';
-    case 'na_media': return 'text-amber-400';
-    default: return 'text-zinc-600';
-  }
-}
-
 const BENCHMARK_DEFAULTS: Record<string, string> = {
-  '07': '3.00%',
-  '06': '25.00%',
-  '05': '28.00%',
-  '04': '25.00%',
-  '03': '6.60%',
-  '02': '5.65%',
-  '01': '18.00',
-  '00': '1.00%',
+  '07': '3.00%', '06': '25.00%', '05': '28.00%', '04': '25.00%',
+  '03': '6.60%', '02': '5.65%', '01': '18.00', '00': '1.00%',
 };
 
-function getBenchmarkValue(trava: string): string {
-  return BENCHMARK_DEFAULTS[trava] || '—';
-}
+// Market benchmark references per trava
+const MARKET_BENCHMARKS: Record<string, { label: string; value: string }> = {
+  '07': { label: 'Mercado Global', value: 'CPM médio: $5-15' },
+  '06': { label: 'Mercado Global', value: 'CTR médio: 1.5-3.5%' },
+  '05': { label: 'Mercado Global', value: 'Conv. Rate: 2-5%' },
+  '04': { label: 'Mercado Global', value: 'MQL Rate: 15-30%' },
+  '03': { label: 'Mercado Global', value: 'Show Rate: 60-80%' },
+  '02': { label: 'Mercado Global', value: 'Close Rate: 20-35%' },
+  '01': { label: 'Mercado Global', value: 'Churn: 3-7%' },
+  '00': { label: 'Mercado Global', value: 'Data Coverage: 80%+' },
+};
 
 interface TravaSliderCardProps {
   trava: string;
@@ -140,10 +103,10 @@ interface TravaSliderCardProps {
   benchVal: string;
   isRestriction: boolean;
   isSemiManual?: boolean;
+  marketBench?: { label: string; value: string };
 }
 
-function TravaSliderCard({ trava, nome, status, isBottleneck, pct, benchVal, isRestriction, isSemiManual }: TravaSliderCardProps) {
-  const statusPct = `${pct}%`;
+function TravaSliderCard({ trava, nome, status, isBottleneck, pct, benchVal, isRestriction, isSemiManual, marketBench }: TravaSliderCardProps) {
   return (
     <div className={cn(
       "relative space-y-4 p-5 rounded-[1.5rem] transition-all duration-500 border shadow-xl",
@@ -181,12 +144,24 @@ function TravaSliderCard({ trava, nome, status, isBottleneck, pct, benchVal, isR
           />
         </div>
         <div className="flex flex-col items-end min-w-[100px]">
-          <span className="text-white font-black whitespace-nowrap text-sm text-right">{statusPct} Real</span>
+          <span className="text-white font-black whitespace-nowrap text-sm text-right">{pct}% Real</span>
           <span className="text-zinc-500 font-bold whitespace-nowrap text-xs text-right mt-0.5">{benchVal} Bench</span>
         </div>
       </div>
+
+      {/* Mini Market Benchmark */}
+      {marketBench && (
+        <div className="flex items-center gap-1.5 pt-1">
+          <Globe className="w-3 h-3 text-zinc-600" />
+          <span className="text-[9px] text-zinc-600 font-bold">{marketBench.label}: <span className="text-zinc-500">{marketBench.value}</span></span>
+        </div>
+      )}
     </div>
   );
+}
+
+function getScoreName(score: { trava: string; nome: string }): string {
+  return score.nome || TRAVA_NAMES[score.trava] || score.trava;
 }
 
 export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
@@ -204,14 +179,9 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
   }
 
   const scoreMap = new Map(ai.stage_scores.map(s => [s.trava, s]));
-
-  // Find bottleneck score for efficiency/gap cards
   const bottleneckScore = ai.stage_scores.find(s => s.trava === ai.trava_identificada);
   const bottleneckPercent = getStatusPercent(bottleneckScore?.status || 'sem_dados');
-
-  // Split travas for the panel
-  const marketingTravas = ai.stage_scores.filter(s => ['07', '06', '05'].includes(s.trava));
-  const vendasTravas = ai.stage_scores.filter(s => ['04', '03', '02', '01'].includes(s.trava));
+  const gapPercent = 100 - bottleneckPercent;
 
   const handleExportPDF = () => {
     try {
@@ -227,19 +197,28 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
       doc.setTextColor(0, 0, 0); y += 8; doc.setFontSize(10); doc.setFont('helvetica', 'normal');
       const synLines = doc.splitTextToSize(ai.sintese, w - 40);
       doc.text(synLines, 20, y); y += synLines.length * 5 + 8;
-      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text('Core Problem:', 20, y); y += 6;
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      const rpLines = doc.splitTextToSize(ai.razao_core_problem, w - 40);
-      doc.text(rpLines, 20, y); y += rpLines.length * 5 + 6;
-      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text('Injeção:', 20, y); y += 6;
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      const ijLines = doc.splitTextToSize(ai.injecao_recomendada, w - 40);
-      doc.text(ijLines, 20, y);
-      doc.setFontSize(7); doc.setTextColor(150);
-      doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, w / 2, 290, { align: 'center' });
       doc.save(`diagnostico-${project.name.replace(/\s+/g, '-').toLowerCase()}.pdf`);
       toast.success('PDF exportado!');
     } catch { toast.error('Erro ao gerar PDF'); }
+  };
+
+  const renderTravaSlider = (score: { trava: string; nome: string; status: string }, forceRestriction = false) => {
+    const isBottleneck = score.trava === ai.trava_identificada;
+    const pct = getStatusPercent(score.status);
+    const benchVal = BENCHMARK_DEFAULTS[score.trava] || '—';
+    return (
+      <TravaSliderCard
+        key={score.trava}
+        trava={score.trava}
+        nome={getScoreName(score)}
+        status={score.status}
+        isBottleneck={isBottleneck}
+        pct={pct}
+        benchVal={benchVal}
+        isRestriction={forceRestriction || isBottleneck}
+        marketBench={MARKET_BENCHMARKS[score.trava]}
+      />
+    );
   };
 
   return (
@@ -251,75 +230,70 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             <ChevronLeft className="w-3.5 h-3.5" /> Projetos
           </Button>
           <h2 className="text-xl font-black text-white uppercase tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-            Relatório de <span className="text-red-600">Diagnóstico</span>
+            Relatório de <span className="text-red-600">Restrição</span>
           </h2>
-          <p className="text-[9px] text-zinc-600 uppercase font-black tracking-widest">{project.name} · {project.segment}</p>
+          <p className="text-[9px] text-zinc-600 uppercase font-black tracking-widest">Benchmark: {project.segment} · {project.name}</p>
         </div>
         <div className="flex gap-1.5">
           <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10" onClick={onEdit}>Editar</Button>
           <Button variant="outline" size="sm" className="rounded-xl h-8 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-950 border-white/5 text-white hover:bg-white/10" onClick={handleExportPDF}>
-            <Download className="w-3.5 h-3.5" /> Exportar PDF
+            <Download className="w-3.5 h-3.5" /> Exportar
           </Button>
         </div>
       </div>
 
-      {/* ═══ SECTION 1: RESTRIÇÃO ATIVA + EFICIÊNCIA + GAP ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Main restriction card */}
-        <Card className="lg:col-span-2 relative overflow-hidden border border-red-600/30 shadow-[0_0_50px_rgba(220,38,38,0.15)] bg-zinc-950 p-8 rounded-[2.5rem]">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/5 blur-[120px] pointer-events-none" />
-          <div className="relative z-10 space-y-5">
-            <Badge className="bg-red-600 text-white border-red-600 text-[10px] font-black tracking-widest uppercase px-3 py-1 animate-pulse shadow-lg shadow-red-600/20">
-              Restrição Ativa Identificada
-            </Badge>
-            <h3 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              {ai.trava_nome} <span className="text-zinc-800 text-xl">({ai.trava_identificada})</span>
-            </h3>
-            <p className="text-red-500/80 font-black uppercase tracking-[0.3em] flex items-center gap-2 text-xs">
-              <AlertTriangle className="w-4 h-4" /> Confiança: {ai.confianca}
+      {/* ═══ SECTION 1: RESTRIÇÃO ATIVA ═══ */}
+      <Card className="relative overflow-hidden border border-red-600/30 shadow-[0_0_50px_rgba(220,38,38,0.15)] bg-zinc-950 p-10 flex flex-col justify-center rounded-[2.5rem] group w-full">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/5 blur-[120px] pointer-events-none group-hover:bg-red-600/10 transition-all duration-700" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
+          <div className="flex-1 space-y-6">
+            <div className="flex flex-col gap-2">
+              <Badge className="w-fit bg-red-600 text-white border-red-600 text-[10px] font-black tracking-widest uppercase px-3 py-1 animate-pulse shadow-lg shadow-red-600/20">
+                Restrição Ativa Identificada
+              </Badge>
+              <h3 className="text-5xl md:text-6xl font-black text-white uppercase tracking-tighter italic" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                {ai.trava_nome} <span className="text-zinc-800 text-2xl">({ai.trava_identificada})</span>
+              </h3>
+              <p className="text-red-500/80 font-black uppercase tracking-[0.3em] flex items-center gap-2 text-xs">
+                <AlertTriangle className="w-4 h-4" /> Confiança: {ai.confianca?.toUpperCase()}
+              </p>
+            </div>
+            <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-2xl font-medium">
+              {ai.razao_core_problem}
             </p>
-            <p className="text-zinc-400 text-sm leading-relaxed max-w-2xl font-medium">{ai.razao_core_problem}</p>
-            <div className="bg-black/50 backdrop-blur-md border border-white/5 p-5 rounded-2xl space-y-2">
-              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Injeção Recomendada</p>
-              <p className="text-sm font-bold text-white leading-relaxed">{ai.injecao_recomendada}</p>
+          </div>
+
+          {/* Side: Gap vs Benchmark */}
+          <div className="flex flex-col gap-4 min-w-[280px]">
+            <div className="bg-red-950/20 border border-red-900/30 p-6 rounded-3xl space-y-2">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-red-500" />
+                <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">Gap vs Benchmark</p>
+              </div>
+              <span className="text-5xl font-black text-red-500 tracking-tighter">{gapPercent}%</span>
+              <p className="text-[10px] text-zinc-500">
+                Gap de performance que precisa ser fechado para destravar o funil
+              </p>
+              <div className="flex items-center gap-2 text-[9px] text-red-500/80 font-bold">
+                <AlertTriangle className="w-3 h-3" /> Prioridade máxima de atuação
+              </div>
+            </div>
+
+            {/* Mini market context */}
+            <div className="bg-black/50 backdrop-blur-md border border-white/5 p-4 rounded-2xl space-y-1">
+              <div className="flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-zinc-600" />
+                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Benchmark de Mercado</p>
+              </div>
+              <p className="text-[10px] text-zinc-400">
+                Segmento <span className="text-white font-bold">{project.segment}</span> · {MARKET_BENCHMARKS[ai.trava_identificada]?.value || 'N/A'}
+              </p>
             </div>
           </div>
-        </Card>
-
-        {/* Side cards: Efficiency + Gap */}
-        <div className="flex flex-col gap-4">
-          <Card className="flex-1 border border-white/5 bg-zinc-950 p-6 rounded-[2rem] space-y-3">
-            <div className="flex items-center gap-2">
-              <Gauge className="w-4 h-4 text-amber-500" />
-              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Eficiência Atual Real</span>
-            </div>
-            <div className="text-4xl font-black text-white">{bottleneckPercent}%</div>
-            <div className="h-3 rounded-full bg-zinc-900 overflow-hidden">
-              <div className="h-full rounded-full" style={{
-                width: `${bottleneckPercent}%`,
-                background: 'linear-gradient(90deg, #ef4444, #f59e0b, #22c55e)',
-              }} />
-            </div>
-            <p className="text-[10px] text-zinc-600">Eficiência da trava <span className="text-white font-bold">{ai.trava_nome}</span> em relação ao benchmark do segmento</p>
-          </Card>
-
-          <Card className="flex-1 border border-red-600/20 bg-zinc-950 p-6 rounded-[2rem] space-y-3">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-red-500" />
-              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Gap vs Benchmark</span>
-            </div>
-            <div className="text-4xl font-black text-red-500">{100 - bottleneckPercent}%</div>
-            <p className="text-[10px] text-zinc-600">
-              Gap de performance que precisa ser fechado para destravar o funil
-            </p>
-            <div className="flex items-center gap-2 text-[9px] text-red-500/80 font-bold">
-              <AlertTriangle className="w-3 h-3" /> Prioridade máxima de atuação
-            </div>
-          </Card>
         </div>
-      </div>
+      </Card>
 
-      {/* ═══ SECTION 2: PAINEL DE TRAVAS (Sliders) ═══ */}
+      {/* ═══ SECTION 2: PAINEL DE TRAVAS ═══ */}
       <Card className="p-4 sm:p-5 lg:p-6 border border-white/5 bg-zinc-950 rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-2xl w-full">
         <div className="absolute top-0 left-0 w-80 h-80 bg-red-600/5 blur-[120px] pointer-events-none" />
         <div className="flex justify-between items-start mb-8 relative z-10 mt-2">
@@ -340,23 +314,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             {ai.stage_scores
               .filter(s => ['07', '06', '05'].includes(s.trava))
               .sort((a, b) => parseInt(b.trava) - parseInt(a.trava))
-              .map((score) => {
-                const isBottleneck = score.trava === ai.trava_identificada;
-                const pct = getStatusPercent(score.status);
-                const benchVal = getBenchmarkValue(score.trava);
-                return (
-                  <TravaSliderCard
-                    key={score.trava}
-                    trava={score.trava}
-                    nome={TRAVA_NAMES[score.trava] || score.nome}
-                    status={score.status}
-                    isBottleneck={isBottleneck}
-                    pct={pct}
-                    benchVal={benchVal}
-                    isRestriction={false}
-                  />
-                );
-              })}
+              .map(score => renderTravaSlider(score))}
           </div>
 
           {/* Marketing Column */}
@@ -368,23 +326,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             {ai.stage_scores
               .filter(s => ['04', '03', '02'].includes(s.trava))
               .sort((a, b) => parseInt(b.trava) - parseInt(a.trava))
-              .map((score) => {
-                const isBottleneck = score.trava === ai.trava_identificada;
-                const pct = getStatusPercent(score.status);
-                const benchVal = getBenchmarkValue(score.trava);
-                return (
-                  <TravaSliderCard
-                    key={score.trava}
-                    trava={score.trava}
-                    nome={TRAVA_NAMES[score.trava] || score.nome}
-                    status={score.status}
-                    isBottleneck={isBottleneck}
-                    pct={pct}
-                    benchVal={benchVal}
-                    isRestriction={false}
-                  />
-                );
-              })}
+              .map(score => renderTravaSlider(score))}
           </div>
         </div>
 
@@ -394,47 +336,28 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             <span className="text-[11px] font-black uppercase tracking-[0.25em] text-white">Topo de Funil</span>
           </div>
           {ai.stage_scores
-            .filter(s => ['01'].includes(s.trava))
-            .map((score) => {
-              const isBottleneck = score.trava === ai.trava_identificada;
-              const pct = getStatusPercent(score.status);
-              const benchVal = getBenchmarkValue(score.trava);
-              return (
-                <TravaSliderCard
-                  key={score.trava}
-                  trava={score.trava}
-                  nome={TRAVA_NAMES[score.trava] || score.nome}
-                  status={score.status}
-                  isBottleneck={isBottleneck}
-                  pct={pct}
-                  benchVal={benchVal}
-                  isRestriction={isBottleneck}
-                />
-              );
-            })}
-          {/* Cegueira (00) */}
+            .filter(s => s.trava === '01')
+            .map(score => renderTravaSlider(score, true))}
           {ai.stage_scores
             .filter(s => s.trava === 'cegueira' || s.trava === '00')
-            .map((score) => {
-              const pct = getStatusPercent(score.status);
-              return (
-                <TravaSliderCard
-                  key={score.trava}
-                  trava="00"
-                  nome="Cegueira"
-                  status={score.status}
-                  isBottleneck={false}
-                  pct={pct}
-                  benchVal="1.00%"
-                  isRestriction={false}
-                  isSemiManual
-                />
-              );
-            })}
+            .map(score => (
+              <TravaSliderCard
+                key={score.trava}
+                trava="00"
+                nome={getScoreName(score)}
+                status={score.status}
+                isBottleneck={false}
+                pct={getStatusPercent(score.status)}
+                benchVal="1.00%"
+                isRestriction={false}
+                isSemiManual
+                marketBench={MARKET_BENCHMARKS['00']}
+              />
+            ))}
         </div>
       </Card>
 
-      {/* ═══ SECTION 3: BOWTIE FUNNEL (clip-path trapezoids) ═══ */}
+      {/* ═══ SECTION 3: BOWTIE FUNNEL ═══ */}
       <div className="bg-zinc-950/50 backdrop-blur-sm border border-white/5 rounded-xl p-4 md:p-6 shadow-2xl md:px-8 md:py-8 w-full">
         <div className="flex items-center justify-between mb-8 px-2">
           <div className="flex flex-col">
@@ -455,7 +378,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             const isBottleneck = stage.trava === ai.trava_identificada;
             const colors = getStageColor(status, isBottleneck);
             const pct = score ? getStatusPercent(score.status) : 0;
-            const label = TRAVA_NAMES[stage.trava] || stage.trava;
+            const label = score?.nome || TRAVA_NAMES[stage.trava] || stage.trava;
 
             return (
               <div key={stage.trava} className="flex items-center">
@@ -517,7 +440,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         </div>
       </div>
 
-      {/* ═══ SECTION 4: SÍNTESE EXECUTIVA ═══ */}
+      {/* ═══ SECTION 4: SÍNTESE + ECONOMICS ═══ */}
       <Card className="p-6 border border-white/5 bg-zinc-950 rounded-[2.5rem] space-y-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center border border-red-600/20">
@@ -528,7 +451,82 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Visão geral do diagnóstico</p>
           </div>
         </div>
+
         <div className="text-sm text-zinc-400 leading-relaxed whitespace-pre-line">{ai.sintese}</div>
+
+        {/* Economics Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4 border-t border-white/5">
+          <div className="space-y-4">
+            <h4 className="text-sm font-black text-white uppercase tracking-widest italic ml-2">Economics & Gaps</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-black/30 border border-white/5 p-6 rounded-[2rem] space-y-1 hover:bg-black/50 transition-colors group">
+                <div className="flex items-center gap-1.5 text-zinc-600 mb-1 group-hover:text-red-500">
+                  <Target className="w-3.5 h-3.5" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">Ticket Médio</span>
+                </div>
+                <p className="text-xl font-black text-white">R$ {project.economics?.averageTicket?.toLocaleString('pt-BR') || '—'}</p>
+              </div>
+              <div className="bg-black/30 border border-white/5 p-6 rounded-[2rem] space-y-1 hover:bg-black/50 transition-colors group">
+                <div className="flex items-center gap-1.5 text-zinc-600 mb-1 group-hover:text-red-500">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">Margem</span>
+                </div>
+                <p className="text-xl font-black text-white">{project.economics?.contributionMargin || '—'}%</p>
+              </div>
+              <div className="bg-black/30 border border-white/5 p-6 rounded-[2rem] space-y-1 hover:bg-black/50 transition-colors group">
+                <div className="flex items-center gap-1.5 text-zinc-600 mb-1 group-hover:text-red-500">
+                  <Gauge className="w-3.5 h-3.5" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">Ciclo Venda</span>
+                </div>
+                <p className="text-xl font-black text-white">{project.economics?.cycleTime || 0} Dias</p>
+              </div>
+              <div className="bg-black/30 border border-white/5 p-6 rounded-[2rem] space-y-1 hover:bg-black/50 transition-colors group">
+                <div className="flex items-center gap-1.5 text-zinc-600 mb-1 group-hover:text-red-500">
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">Gap Gargalo</span>
+                </div>
+                <p className="text-xl font-black text-red-500">{gapPercent}%</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Benchmarks vs Real Table */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-black text-white uppercase tracking-widest italic ml-2">Benchmarks vs Real</h4>
+            <div className="bg-black/30 border border-white/5 rounded-[2rem] overflow-hidden">
+              <table className="w-full text-left text-[10px]">
+                <thead className="bg-white/5">
+                  <tr>
+                    <th className="px-5 py-3 font-black text-zinc-500 uppercase tracking-widest">Trava</th>
+                    <th className="px-5 py-3 font-black text-zinc-500 uppercase tracking-widest text-center">Status</th>
+                    <th className="px-5 py-3 font-black text-zinc-500 uppercase tracking-widest text-right">Bench</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {ai.stage_scores.map(score => {
+                    const isGargalo = score.trava === ai.trava_identificada;
+                    return (
+                      <tr key={score.trava} className={cn("hover:bg-white/5 transition-colors", isGargalo && "bg-red-600/5")}>
+                        <td className="px-5 py-4 font-black text-white uppercase">{getScoreName(score)}</td>
+                        <td className="px-5 py-4 text-center">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
+                            score.status === 'critico' ? "text-red-500 bg-red-500/10" :
+                            score.status === 'bom' ? "text-emerald-500 bg-emerald-500/10" :
+                            score.status === 'na_media' ? "text-amber-500 bg-amber-500/10" : "text-zinc-500 bg-zinc-500/10"
+                          )}>
+                            {isGargalo ? 'Gargalo' : STATUS_LABELS[score.status] || 'Sem Dados'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 font-mono text-zinc-400 text-right">{BENCHMARK_DEFAULTS[score.trava] || '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
         {/* UDEs */}
         <div className="space-y-3 pt-4 border-t border-white/5">
@@ -545,7 +543,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
         {/* Métricas Foco */}
         <div className="space-y-3 pt-4 border-t border-white/5">
-          <h5 className="text-xs font-black text-zinc-500 uppercase tracking-widest">Métricas Prioritárias para Monitorar</h5>
+          <h5 className="text-xs font-black text-zinc-500 uppercase tracking-widest">Métricas Prioritárias</h5>
           <div className="flex flex-wrap gap-2">
             {ai.metricas_foco.map((m, idx) => (
               <Badge key={idx} variant="outline" className="text-[9px] border-white/10 text-zinc-300 font-bold px-3 py-1 rounded-full">{m}</Badge>
@@ -554,7 +552,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
         </div>
       </Card>
 
-      {/* ═══ SECTION 5: LTP — EVAPORATING CLOUD (Visual Diagram) ═══ */}
+      {/* ═══ SECTION 5: LTP — EVAPORATING CLOUD ═══ */}
       <Card className="p-6 border border-white/5 bg-zinc-950 rounded-[2.5rem] space-y-8">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center border border-red-600/20">
@@ -566,17 +564,15 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           </div>
         </div>
 
-        {/* CRT — Current Reality Tree (vertical nodes) */}
+        {/* CRT */}
         <div className="space-y-4">
           <Badge className="bg-red-600/10 text-red-600 border-red-600/20 text-[8px] font-black uppercase">CRT — Cadeia de Realidade Atual</Badge>
           <div className="relative pl-6 space-y-0">
             {ai.ltp_analysis.crt_nodes.map((node, idx) => (
               <div key={idx} className="relative">
-                {/* Vertical connector line */}
                 {idx < ai.ltp_analysis.crt_nodes.length - 1 && (
                   <div className="absolute left-[-12px] top-8 bottom-0 w-px bg-red-600/30" />
                 )}
-                {/* Node dot */}
                 <div className="absolute left-[-16px] top-3 w-2 h-2 rounded-full bg-red-600 ring-2 ring-red-600/20" />
                 <div className={cn(
                   "p-3 mb-2 rounded-xl border text-[11px] text-zinc-300",
@@ -595,75 +591,81 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
           <p className="text-[13px] font-black text-white uppercase tracking-tighter italic leading-tight">{ai.ltp_analysis.core_problem}</p>
         </Card>
 
-        {/* EVAPORATING CLOUD — Visual Conflict Diagram */}
+        {/* EVAPORATING CLOUD — Enhanced Visual */}
         <div className="space-y-4">
           <Badge className="bg-amber-600/10 text-amber-600 border-amber-600/20 text-[8px] font-black uppercase">Evaporating Cloud — Diagrama de Conflito</Badge>
 
-          <div className="relative bg-black/40 border border-white/5 p-8 rounded-2xl">
-            {/* Top: Objective */}
-            <div className="flex justify-center mb-8">
-              <div className="bg-blue-600/10 border border-blue-600/20 px-6 py-3 rounded-2xl text-center max-w-md">
-                <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Objetivo Comum</p>
-                <p className="text-sm text-white font-bold">{ai.ltp_analysis.evaporating_cloud.objetivo}</p>
+          <div className="relative bg-black/40 border border-white/5 p-6 md:p-8 rounded-2xl space-y-6">
+            {/* Objective at top */}
+            <div className="flex justify-center">
+              <div className="bg-blue-600/10 border-2 border-blue-600/30 px-8 py-4 rounded-2xl text-center max-w-lg shadow-lg shadow-blue-600/5">
+                <p className="text-[8px] font-black text-blue-400 uppercase tracking-[0.3em] mb-2">🎯 Objetivo Comum</p>
+                <p className="text-sm text-white font-bold leading-relaxed">{ai.ltp_analysis.evaporating_cloud.objetivo}</p>
               </div>
             </div>
 
-            {/* Middle: Two Needs */}
-            <div className="grid grid-cols-2 gap-8 mb-4">
-              <div className="flex flex-col items-center gap-2">
-                <ArrowDown className="w-4 h-4 text-zinc-600" />
-                <div className="bg-emerald-600/10 border border-emerald-600/20 p-4 rounded-2xl text-center w-full">
-                  <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Necessidade A</p>
-                  <p className="text-[11px] text-zinc-300">{ai.ltp_analysis.evaporating_cloud.necessidade_a}</p>
+            {/* Connecting lines visual */}
+            <div className="flex justify-center">
+              <div className="flex items-center gap-8">
+                <div className="h-8 w-px bg-emerald-600/40" />
+                <div className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Para atingir o objetivo precisamos de...</div>
+                <div className="h-8 w-px bg-purple-600/40" />
+              </div>
+            </div>
+
+            {/* Two Needs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div className="bg-emerald-600/10 border-2 border-emerald-600/20 p-5 rounded-2xl">
+                  <p className="text-[8px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-2">Necessidade A</p>
+                  <p className="text-[12px] text-white font-semibold leading-relaxed">{ai.ltp_analysis.evaporating_cloud.necessidade_a}</p>
+                </div>
+                <div className="flex justify-center"><ArrowDown className="w-4 h-4 text-emerald-600/40" /></div>
+                <div className="bg-emerald-600/5 border border-emerald-600/10 p-5 rounded-2xl">
+                  <p className="text-[8px] font-black text-emerald-500/50 uppercase tracking-[0.3em] mb-2">Ação A — O que exige</p>
+                  <p className="text-[11px] text-zinc-300 leading-relaxed">{ai.ltp_analysis.evaporating_cloud.acao_a}</p>
                 </div>
               </div>
-              <div className="flex flex-col items-center gap-2">
-                <ArrowDown className="w-4 h-4 text-zinc-600" />
-                <div className="bg-purple-600/10 border border-purple-600/20 p-4 rounded-2xl text-center w-full">
-                  <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-1">Necessidade B</p>
-                  <p className="text-[11px] text-zinc-300">{ai.ltp_analysis.evaporating_cloud.necessidade_b}</p>
+
+              <div className="space-y-3">
+                <div className="bg-purple-600/10 border-2 border-purple-600/20 p-5 rounded-2xl">
+                  <p className="text-[8px] font-black text-purple-400 uppercase tracking-[0.3em] mb-2">Necessidade B</p>
+                  <p className="text-[12px] text-white font-semibold leading-relaxed">{ai.ltp_analysis.evaporating_cloud.necessidade_b}</p>
+                </div>
+                <div className="flex justify-center"><ArrowDown className="w-4 h-4 text-purple-600/40" /></div>
+                <div className="bg-purple-600/5 border border-purple-600/10 p-5 rounded-2xl">
+                  <p className="text-[8px] font-black text-purple-500/50 uppercase tracking-[0.3em] mb-2">Ação B — O que exige</p>
+                  <p className="text-[11px] text-zinc-300 leading-relaxed">{ai.ltp_analysis.evaporating_cloud.acao_b}</p>
                 </div>
               </div>
             </div>
 
-            {/* Bottom: Two Actions in conflict */}
-            <div className="grid grid-cols-2 gap-8 mb-6">
-              <div className="flex flex-col items-center gap-2">
-                <ArrowDown className="w-4 h-4 text-zinc-600" />
-                <div className="bg-emerald-600/5 border border-emerald-600/10 p-4 rounded-2xl text-center w-full">
-                  <p className="text-[9px] font-black text-emerald-500/60 uppercase tracking-widest mb-1">Ação A</p>
-                  <p className="text-[11px] text-zinc-400">{ai.ltp_analysis.evaporating_cloud.acao_a}</p>
-                </div>
+            {/* Conflict */}
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t-2 border-dashed border-red-500/30" />
               </div>
-              <div className="flex flex-col items-center gap-2">
-                <ArrowDown className="w-4 h-4 text-zinc-600" />
-                <div className="bg-purple-600/5 border border-purple-600/10 p-4 rounded-2xl text-center w-full">
-                  <p className="text-[9px] font-black text-purple-500/60 uppercase tracking-widest mb-1">Ação B</p>
-                  <p className="text-[11px] text-zinc-400">{ai.ltp_analysis.evaporating_cloud.acao_b}</p>
-                </div>
+              <div className="relative flex justify-center">
+                <span className="text-red-500 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-red-500/10 border-2 border-red-500/30 rounded-full shadow-lg shadow-red-500/10">
+                  ⚡ CONFLITO — Ação A e B são mutuamente exclusivas
+                </span>
               </div>
             </div>
 
-            {/* Conflict line */}
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="h-px flex-1 bg-red-500/30" />
-              <span className="text-red-500 text-[9px] font-black uppercase tracking-widest px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full">⚡ CONFLITO</span>
-              <div className="h-px flex-1 bg-red-500/30" />
+            {/* Invalid assumption — the key insight */}
+            <div className="bg-amber-950/30 border-2 border-amber-600/30 p-6 rounded-2xl shadow-lg shadow-amber-600/5">
+              <p className="text-[8px] font-black text-amber-400 uppercase tracking-[0.3em] mb-3">🔍 Pressuposto Inválido — A crença que sustenta o conflito</p>
+              <p className="text-[13px] text-amber-200 italic font-semibold leading-relaxed">"{ai.ltp_analysis.evaporating_cloud.pressuposto_invalido}"</p>
+              <p className="text-[9px] text-amber-500/60 mt-3 font-bold uppercase tracking-widest">Este pressuposto é falso. Ao invalidá-lo, o conflito evapora.</p>
             </div>
 
-            {/* Invalid assumption */}
-            <div className="bg-amber-600/5 border border-amber-600/20 p-4 rounded-2xl mb-4">
-              <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">Pressuposto Inválido</p>
-              <p className="text-[11px] text-zinc-300 italic">"{ai.ltp_analysis.evaporating_cloud.pressuposto_invalido}"</p>
-            </div>
-
-            {/* Injection */}
-            <div className="bg-emerald-600/10 border border-emerald-600/30 p-5 rounded-2xl shadow-lg shadow-emerald-600/5">
-              <div className="flex items-center gap-2 mb-2">
-                <Lightbulb className="w-4 h-4 text-emerald-500" />
-                <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Injeção que Evapora o Conflito</p>
+            {/* Injection — the solution */}
+            <div className="bg-emerald-600/10 border-2 border-emerald-600/30 p-6 rounded-2xl shadow-xl shadow-emerald-600/10">
+              <div className="flex items-center gap-2 mb-3">
+                <Lightbulb className="w-5 h-5 text-emerald-400" />
+                <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">💡 Injeção — A solução que evapora o conflito</p>
               </div>
-              <p className="text-sm text-white font-bold">{ai.ltp_analysis.evaporating_cloud.injecao}</p>
+              <p className="text-sm text-white font-bold leading-relaxed">{ai.ltp_analysis.evaporating_cloud.injecao}</p>
             </div>
           </div>
         </div>
