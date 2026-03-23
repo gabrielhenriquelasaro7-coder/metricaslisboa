@@ -708,7 +708,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                         "relative z-10 text-sm font-black drop-shadow-lg",
                         colors.text
                       )}>
-                        {String(idx + 1).padStart(2, '0')}
+                        {stage.trava}
                       </span>
                     </div>
                   </div>
