@@ -559,7 +559,7 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                         "p-5 rounded-2xl border transition-all text-left space-y-3",
                         identification.businessModel === bm.value
                           ? "border-red-600 bg-red-600/5 shadow-lg shadow-red-600/10"
-                          : "border-white/5 bg-black hover:border-white/15"
+                          : "border-border bg-muted/30 dark:bg-black hover:border-border/80"
                       )}
                     >
                       <div className={cn(
