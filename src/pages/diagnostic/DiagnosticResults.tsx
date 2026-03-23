@@ -374,7 +374,6 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
             const isBottleneck = stage.trava === ai.trava_identificada;
             const displayVal = formatDisplayValue(score?.valor_informado);
             const colors = getStageColor(status, isBottleneck);
-            const obsText = score?.observacao ? score.observacao.slice(0, 25) : 'Sem dados para análise';
 
             return (
               <div key={stage.trava} className="flex items-center">
@@ -382,12 +381,10 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                   <span className="text-white/70 text-[10px] text-center font-bold uppercase tracking-tighter">{stage.label}</span>
 
                   <div className="relative group/stage">
-                    {/* Left yellow/colored bar */}
                     <div
                       className={cn("absolute left-0 z-30 w-[4px] transition-all duration-500", colors.barColor, isBottleneck && "shadow-[0_0_12px_#ef4444]")}
                       style={{ top: stage.leftBar, bottom: stage.leftBar }}
                     />
-                    {/* Right yellow/colored bar */}
                     <div
                       className={cn("absolute right-0 z-30 w-[4px] transition-all duration-500", colors.barColor, isBottleneck && "shadow-[0_0_12px_#ef4444]")}
                       style={{ top: stage.rightBar, bottom: stage.rightBar }}
@@ -395,7 +392,7 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
 
                     <div
                       className={cn(
-                        "flex items-center justify-center transition-all h-[120px] w-[100px] relative z-10 border-y",
+                        "flex items-center justify-center transition-all h-[120px] w-[90px] relative z-10 border-y",
                         isBottleneck
                           ? `bg-gradient-to-br ${colors.bg} to-transparent shadow-[0_0_25px_${colors.glow}] scale-105 z-20 animate-pulse ${colors.border}`
                           : `border-white/5 bg-gradient-to-br ${colors.bg} to-transparent shadow-[0_0_15px_${colors.glow}]`
@@ -403,15 +400,14 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                       style={{ clipPath: stage.clipPath }}
                     >
                       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle, ${isBottleneck ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 255, 255, 0.05)'}, transparent)`, transform: 'scale(1.2)' }} />
-                      <div className="flex flex-col items-center z-10 px-2">
+                      <div className="flex flex-col items-center z-10">
                         <span className={cn(
-                          "text-sm font-black drop-shadow-lg leading-none text-center break-words",
+                          "text-lg font-black drop-shadow-lg leading-none",
                           colors.text,
                           isBottleneck && "scale-110 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"
                         )}>
-                          {displayVal}
+                          {displayVal === 'Sem dados' ? '—' : displayVal.split(',')[0]?.trim() || '—'}
                         </span>
-                        <span className="text-white/40 text-[8px] font-bold mt-1 text-center line-clamp-2 max-w-[80px]">{obsText}</span>
                       </div>
                     </div>
                   </div>
@@ -424,14 +420,13 @@ export function DiagnosticResults({ project, onBack, onEdit }: ResultsProps) {
                   </div>
                 </div>
 
-                {/* Arrow connector between stages */}
                 {idx < BOWTIE_STAGES.length - 1 && (
-                  <div className="flex items-center justify-center relative mx-2">
+                  <div className="flex items-center justify-center relative mx-4">
                     <svg width="24" height="20" viewBox="0 0 24 20" className="relative z-10">
-                      <line x1="4" y1="10" x2="20" y2="10" stroke="#eab308" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
-                      <polygon points="20,10 14,7 14,13" fill="#eab308" opacity="0.6" />
+                      <line x1="20" y1="10" x2="4" y2="10" stroke="#eab308" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+                      <polygon points="4,10 10,7 10,13" fill="#eab308" opacity="0.6" />
                     </svg>
-                    <div className="absolute right-0 w-1.5 h-1.5 rounded-full animate-pulse z-20 bg-yellow-400" style={{ boxShadow: '0 0 10px rgb(234, 179, 8)' }} />
+                    <div className="absolute -left-1 w-1.5 h-1.5 rounded-full animate-pulse z-20 bg-yellow-400" style={{ boxShadow: 'rgb(234, 179, 8) 0px 0px 10px' }} />
                   </div>
                 )}
               </div>
