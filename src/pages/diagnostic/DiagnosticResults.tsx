@@ -89,24 +89,24 @@ function getStatusPercent(status: string): number {
 }
 
 const BENCHMARK_DEFAULTS: Record<string, string> = {
-  '07': '18.00%',
-  '06': '5.65%',
-  '05': '6.60%',
-  '04': '25.00%',
-  '03': '28.00%',
-  '02': '25.00%',
-  '01': '3.00%',
-  '00': '1.00%',
+  '01': 'CPM: R$18',
+  '02': 'CTR: 5.65%',
+  '03': 'CVR: 6.60%',
+  '04': 'MQL: 25%',
+  '05': 'Show: 72%',
+  '06': 'Win: 25%',
+  '07': 'Churn: 3%',
+  '00': 'Cobertura: 80%+',
 };
 
 const MARKET_BENCHMARKS: Record<string, { label: string; value: string }> = {
-  '07': { label: 'Mercado Global', value: 'Churn mensal: 3-7%' },
-  '06': { label: 'Mercado Global', value: 'Close Rate: 20-35%' },
-  '05': { label: 'Mercado Global', value: 'Show Rate: 60-80%' },
-  '04': { label: 'Mercado Global', value: 'MQL Rate: 15-30%' },
-  '03': { label: 'Mercado Global', value: 'Conv. Lead: 2-5%' },
-  '02': { label: 'Mercado Global', value: 'CTR médio: 1.5-3.5%' },
   '01': { label: 'Mercado Global', value: 'CPM médio: $5-15' },
+  '02': { label: 'Mercado Global', value: 'CTR médio: 1.5-3.5%' },
+  '03': { label: 'Mercado Global', value: 'Conv. Lead: 2-5%' },
+  '04': { label: 'Mercado Global', value: 'MQL Rate: 15-30%' },
+  '05': { label: 'Mercado Global', value: 'Show Rate: 60-80%' },
+  '06': { label: 'Mercado Global', value: 'Close Rate: 20-35%' },
+  '07': { label: 'Mercado Global', value: 'Churn mensal: 3-7%' },
   '00': { label: 'Mercado Global', value: 'Cobertura de dados: 80%+' },
 };
 

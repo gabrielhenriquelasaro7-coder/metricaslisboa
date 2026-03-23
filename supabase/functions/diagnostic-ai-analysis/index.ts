@@ -143,7 +143,7 @@ ${hasMarketConstraint && market.som > 0 && business?.revenue && (business.revenu
 
 IMPORTANTE: Use os dados REAIS fornecidos acima para preencher valor_informado em cada stage_score. Formate os valores de forma legível. Compare com benchmarks do segmento "${identification?.segment || 'geral'}". Seja ESPECÍFICO e PROFUNDO na análise.
 
-Analise de Trava 07 → Trava 01 e identifique o gargalo principal. Correlacione com o contexto da empresa.`;
+Analise de Trava 07 → Trava 01 (fundo para topo, seguindo a lógica TOC) e identifique o gargalo principal. Correlacione com o contexto da empresa. Lembre-se: Trava 01 = topo (Impressões), Trava 07 = fundo (Retenção/Recompra).`;
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
