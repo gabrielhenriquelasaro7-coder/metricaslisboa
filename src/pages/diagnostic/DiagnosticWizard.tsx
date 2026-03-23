@@ -737,33 +737,62 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
                 const trava = travaConfigs[currentTravaIdx];
                 if (!trava) return <p className="text-zinc-500">Sem configuração de trava disponível.</p>;
 
+                const hasAutoData = Object.keys(autoFilledFields).length > 0;
+
                 return (
                   <>
-                    <div>
-                      <h3 className="text-lg font-black text-white">{trava.label}</h3>
-                      <p className="text-[11px] text-red-600 font-bold mt-0.5">{trava.description}</p>
-                      <p className="text-[10px] text-zinc-600 mt-1">
-                        Passo {currentTravaIdx + 1} de {travaConfigs.length} · Preencha apenas o que souber. Campos vazios = sem dados.
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-black text-white">{trava.label}</h3>
+                        <p className="text-[11px] text-red-600 font-bold mt-0.5">{trava.description}</p>
+                        <p className="text-[10px] text-zinc-600 mt-1">
+                          Passo {currentTravaIdx + 1} de {travaConfigs.length} · Preencha apenas o que souber. Campos vazios = sem dados.
+                        </p>
+                      </div>
+                      {(trava.id === 'trava07' || trava.id === 'trava06' || trava.id === 'trava05') && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={fetchProjectMetrics}
+                          disabled={isLoadingMetrics}
+                          className="gap-2 text-[9px] font-black uppercase tracking-widest rounded-xl border-white/10 text-zinc-400 hover:text-white hover:border-emerald-600/30"
+                        >
+                          {isLoadingMetrics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                          {isLoadingMetrics ? 'Importando...' : 'Importar do Sistema'}
+                        </Button>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      {trava.fields.map(field => (
-                        <div key={field.key} className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                            {field.label}
-                          </Label>
-                          <Input
-                            type="number"
-                            placeholder={field.placeholder}
-                            step="0.01"
-                            className="h-12 rounded-xl bg-black border-white/10 text-white text-lg font-black text-center"
-                            value={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?.[field.key] ?? ''}
-                            onChange={e => updateFunnelField(trava.id, field.key, e.target.value)}
-                          />
-                          <p className="text-[10px] text-zinc-600">{field.help}</p>
-                        </div>
-                      ))}
+                      {trava.fields.map(field => {
+                        const isAuto = isFieldAutoFilled(trava.id, field.key);
+                        return (
+                          <div key={field.key} className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                                {field.label}
+                              </Label>
+                              {isAuto && (
+                                <Badge className="bg-emerald-600/10 text-emerald-500 border-emerald-600/20 text-[7px] font-black uppercase px-1.5 py-0">
+                                  <Database className="w-2.5 h-2.5 mr-1" /> Auto
+                                </Badge>
+                              )}
+                            </div>
+                            <Input
+                              type="number"
+                              placeholder={field.placeholder}
+                              step="0.01"
+                              className={cn(
+                                "h-12 rounded-xl bg-black border-white/10 text-white text-lg font-black text-center",
+                                isAuto && "border-emerald-600/20 bg-emerald-950/10"
+                              )}
+                              value={(funnelData[trava.id as keyof DiagnosticFunnelData] as any)?.[field.key] ?? ''}
+                              onChange={e => updateFunnelField(trava.id, field.key, e.target.value)}
+                            />
+                            <p className="text-[10px] text-zinc-600">{field.help}</p>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {/* Progress dots */}
