@@ -273,36 +273,36 @@ export function DiagnosticWizard({ project: initialProject, onSave, onCancel }: 
       setFunnelData(prev => {
         const updated = { ...prev };
 
-        // Trava 07 - Exposição
-        if (totalImpressions > 0) {
-          updated.trava07 = {
-            ...updated.trava07,
-            impressions: Math.round(totalImpressions),
-            cpm: parseFloat(cpm.toFixed(2)),
-          };
-          newAutoFields['trava07'] = new Set(['impressions', 'cpm']);
-        }
+      // Trava 01 - Exposição
+      if (totalImpressions > 0) {
+        updated.trava01 = {
+          ...updated.trava01,
+          impressions: Math.round(totalImpressions),
+          cpm: parseFloat(cpm.toFixed(2)),
+        };
+        newAutoFields['trava01'] = new Set(['impressions', 'cpm']);
+      }
 
-        // Trava 06 - Atenção
-        if (totalClicks > 0) {
-          updated.trava06 = {
-            ...updated.trava06,
-            ctr: parseFloat(ctr.toFixed(2)),
-            clicks: Math.round(totalClicks),
-            cpc: parseFloat(cpc.toFixed(2)),
-          };
-          newAutoFields['trava06'] = new Set(['ctr', 'clicks', 'cpc']);
-        }
+      // Trava 02 - Atenção
+      if (totalClicks > 0) {
+        updated.trava02 = {
+          ...updated.trava02,
+          ctr: parseFloat(ctr.toFixed(2)),
+          clicks: Math.round(totalClicks),
+          cpc: parseFloat(cpc.toFixed(2)),
+        };
+        newAutoFields['trava02'] = new Set(['ctr', 'clicks', 'cpc']);
+      }
 
-        // Trava 05 - Interesse (leads + CPL)
-        if (totalLeads > 0) {
-          updated.trava05 = {
-            ...updated.trava05,
-            leads: Math.round(totalLeads),
-            cpl: parseFloat(cpl.toFixed(2)),
-          };
-          newAutoFields['trava05'] = new Set(['leads', 'cpl']);
-        }
+      // Trava 03 - Interesse (leads + CPL)
+      if (totalLeads > 0) {
+        updated.trava03 = {
+          ...updated.trava03,
+          leads: Math.round(totalLeads),
+          cpl: parseFloat(cpl.toFixed(2)),
+        };
+        newAutoFields['trava03'] = new Set(['leads', 'cpl']);
+      }
 
         return updated;
       });
