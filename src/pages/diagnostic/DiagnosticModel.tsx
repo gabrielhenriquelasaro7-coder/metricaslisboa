@@ -167,7 +167,7 @@ export function DiagnosticModel() {
                 <div className="flex flex-col lg:flex-row gap-6 items-start p-6 bg-card border border-border rounded-xl">
                     <div className="relative w-20 h-20 flex-shrink-0">
                         <div className="absolute inset-0 rounded-full border-2 border-dashed border-red-600/20 animate-[spin_20s_linear_infinite]" />
-                        <div className="absolute inset-3 rounded-full border border-white/5" />
+                        <div className="absolute inset-3 rounded-full border border-border" />
                         <div className="absolute inset-0 flex items-center justify-center">
                             <Activity className="w-8 h-8 text-red-600 animate-pulse" />
                         </div>
