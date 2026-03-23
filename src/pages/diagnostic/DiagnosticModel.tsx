@@ -305,10 +305,10 @@ export function DiagnosticModel() {
                         ))}
                     </div>
 
-                    <div className="p-6 bg-zinc-950 border border-red-600/10 rounded-xl space-y-5">
+                    <div className="p-6 bg-card border border-red-600/10 rounded-xl space-y-5">
                         <div className="flex items-center gap-3">
                             <SearchCode className="w-5 h-5 text-red-600" />
-                            <p className="text-[11px] font-black text-white uppercase tracking-widest">Quando o sistema força "Trava 00 – Cegueira"</p>
+                            <p className="text-[11px] font-black text-foreground uppercase tracking-widest">Quando o sistema força "Trava 00 – Cegueira"</p>
                         </div>
                         <ul className="space-y-2.5">
                             {[
