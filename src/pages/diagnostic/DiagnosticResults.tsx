@@ -36,15 +36,25 @@ const STATUS_LABELS: Record<string, string> = {
   sem_dados: 'SEM DADOS',
 };
 
+// Bowtie stages from Retenção (left) → Exposição (right) with clip-path polygons
 const BOWTIE_STAGES = [
-  { trava: '07', label: 'EXPOSIÇÃO' },
-  { trava: '06', label: 'ATENÇÃO' },
-  { trava: '05', label: 'INTERESSE' },
-  { trava: '04', label: 'QUALIFICAÇÃO' },
-  { trava: '03', label: 'COMPROMISSO' },
-  { trava: '02', label: 'DECISÃO' },
-  { trava: '01', label: 'RETENÇÃO' },
+  { trava: '01', label: 'Retenção',     clipPath: 'polygon(100% 10%, 100% 90%, 0px 100%, 0px 0px)',           leftBar: '0%',  rightBar: '10%' },
+  { trava: '02', label: 'Decisão',      clipPath: 'polygon(100% 20%, 100% 80%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '20%' },
+  { trava: '03', label: 'Compromisso',  clipPath: 'polygon(100% 30%, 100% 70%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '30%' },
+  { trava: '04', label: 'Qualificação', clipPath: 'polygon(100% 30%, 100% 70%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '30%' },
+  { trava: '05', label: 'Interesse',    clipPath: 'polygon(100% 20%, 100% 80%, 0% 70%, 0% 30%)',             leftBar: '30%', rightBar: '20%' },
+  { trava: '06', label: 'Atenção',      clipPath: 'polygon(100% 10%, 100% 90%, 0% 80%, 0% 20%)',             leftBar: '20%', rightBar: '10%' },
+  { trava: '07', label: 'Exposição',    clipPath: 'polygon(100% 0%, 100% 100%, 0% 90%, 0% 10%)',             leftBar: '10%', rightBar: '0%' },
 ];
+
+function getStageColor(status: string, isBottleneck: boolean) {
+  if (isBottleneck) return { text: 'text-red-500', glow: 'rgba(239, 68, 68, 0.4)', bg: 'from-red-600/20', border: 'border-red-500/50', barColor: 'bg-red-600', dotColor: 'bg-red-500' };
+  switch (status) {
+    case 'bom': return { text: 'text-emerald-500', glow: 'rgba(16, 185, 129, 0.2)', bg: 'from-emerald-500/10', border: 'border-emerald-500/20', barColor: 'bg-emerald-500', dotColor: 'bg-emerald-400' };
+    case 'na_media': return { text: 'text-amber-500', glow: 'rgba(245, 158, 11, 0.2)', bg: 'from-amber-500/10', border: 'border-amber-500/20', barColor: 'bg-amber-500', dotColor: 'bg-amber-400' };
+    default: return { text: 'text-yellow-500', glow: 'rgba(234, 179, 8, 0.2)', bg: 'from-yellow-500/10', border: 'border-white/5', barColor: 'bg-yellow-500', dotColor: 'bg-yellow-400' };
+  }
+}
 
 function formatDisplayValue(val: string | null | undefined): string {
   if (!val || val === 'null' || val === 'undefined' || val === '0.00') return 'Sem dados';
